@@ -62,6 +62,13 @@ import {
   type EngineRuntimeSnapshot,
 } from "./engine-runtime";
 import {
+  createNoopPlanningSessionRunner,
+  runOpenCodePlanningSession,
+  type PlanningSessionArtifactPaths,
+  type PlanningSessionResult,
+  type PlanningSessionRunner,
+} from "./planning-session";
+import {
   AutobotCliError,
   createNotImplementedError,
   createUsageError,
@@ -102,6 +109,7 @@ export interface AutobotServiceDependencies {
   randomId?: () => string;
   sleep?: (milliseconds: number) => FutureInstance<unknown, void>;
   artifactWriter?: ArtifactWriter;
+  planningSessionRunner?: PlanningSessionRunner;
   discoverIssues?: (
     input: DiscoverIssueInput,
   ) => FutureInstance<unknown, DiscoverCandidate[]>;
@@ -2124,6 +2132,107 @@ function createPlanningArtifactCreatedEvent(input: {
   });
 }
 
+function buildPlanningSessionArtifactPaths(
+  drafts: PlanningArtifactDraft[],
+  repoPath: string,
+): PlanningSessionArtifactPaths {
+  const context = drafts.find((draft) => draft.kind === "context")?.path;
+  const testPlan = drafts.find((draft) => draft.kind === "test-plan")?.path;
+  const prompt = drafts.find((draft) => draft.kind === "prompt")?.path;
+
+  if (context === undefined || testPlan === undefined || prompt === undefined) {
+    throw new Error("planning artifacts are incomplete");
+  }
+
+  return {
+    context: path.join(repoPath, context),
+    testPlan: path.join(repoPath, testPlan),
+    prompt: path.join(repoPath, prompt),
+  };
+}
+
+function createPlanningSessionStartedEvent(input: {
+  issueId: string;
+  runId: string;
+  executionId: string;
+  command: string;
+  args: string[];
+  artifactPaths: PlanningSessionArtifactPaths;
+  occurredAt: string;
+}): DomainEvent {
+  return createDomainEvent({
+    type: "workflow.planner.started",
+    severity: "info",
+    state: "planning",
+    message: "Planning session started",
+    issue_id: input.issueId,
+    run_id: input.runId,
+    occurred_at: input.occurredAt,
+    data: {
+      issue_id: input.issueId,
+      run_id: input.runId,
+      execution_id: input.executionId,
+      command: input.command,
+      args: input.args,
+      artifact_paths: input.artifactPaths,
+    },
+  });
+}
+
+function createPlanningSessionOutputEvent(input: {
+  issueId: string;
+  runId: string;
+  executionId: string;
+  stream: "stdout" | "stderr";
+  output: string;
+  occurredAt: string;
+}): DomainEvent {
+  return createDomainEvent({
+    type: `workflow.planner.${input.stream}`,
+    severity: input.stream === "stderr" ? "warning" : "info",
+    state: "planning",
+    message: `Planning session ${input.stream}`,
+    issue_id: input.issueId,
+    run_id: input.runId,
+    occurred_at: input.occurredAt,
+    data: {
+      issue_id: input.issueId,
+      run_id: input.runId,
+      execution_id: input.executionId,
+      stream: input.stream,
+      output: input.output,
+    },
+  });
+}
+
+function createPlanningSessionFinishedEvent(input: {
+  issueId: string;
+  runId: string;
+  executionId: string;
+  result: PlanningSessionResult;
+}): DomainEvent {
+  const success = input.result.exit_code === 0 && input.result.signal === null;
+
+  return createDomainEvent({
+    type: "workflow.planner.finished",
+    severity: success ? "info" : "error",
+    state: "planning",
+    message: success ? "Planning session finished" : "Planning session failed",
+    issue_id: input.issueId,
+    run_id: input.runId,
+    occurred_at: input.result.finished_at,
+    data: {
+      issue_id: input.issueId,
+      run_id: input.runId,
+      execution_id: input.executionId,
+      command: input.result.command,
+      args: input.result.args,
+      exit_code: input.result.exit_code,
+      signal: input.result.signal,
+    },
+  });
+}
+
 function hydratePlanningItemDetail(
   item: ItemDetail,
   linear: LinearIssueRef | null,
@@ -2231,6 +2340,7 @@ function runBoundedWorkflowTickForItem(
   tickAt: string,
   randomId: () => string,
   artifactWriter: ArtifactWriter = defaultArtifactWriter,
+  planningSessionRunner: PlanningSessionRunner = createNoopPlanningSessionRunner(),
   loadLinearIssueDependency?: AutobotServiceDependencies["loadLinearIssue"],
 ): FutureInstance<unknown, void> {
   const startedAt = tickAt;
@@ -2271,133 +2381,265 @@ function runBoundedWorkflowTickForItem(
               executionId,
               startedAt,
             });
+            const planningArtifactPaths = buildPlanningSessionArtifactPaths(
+              planningArtifactDrafts,
+              store.repo.path,
+            );
+            const planningSessionInput = {
+              repo: store.repo,
+              issueId: target.issue_id,
+              runId,
+              executionId,
+              artifactPaths: planningArtifactPaths,
+            };
+            const artifactEvents = planningArtifactDrafts.map((draft) =>
+              createPlanningArtifactCreatedEvent({
+                issueId: target.issue_id,
+                runId,
+                executionId,
+                artifact: draft,
+                occurredAt: startedAt,
+              }),
+            );
 
             return persistPlanningArtifacts(
               planningArtifactDrafts,
               artifactWriter,
               store.repo.path,
             )
+              .pipe(chain(() => planningSessionRunner(planningSessionInput)))
               .pipe(
                 chain(
-                  () =>
-                    executeAutobotDeliverIssueWorkflow({
+                  (planningSessionResult): FutureInstance<unknown, void> => {
+                    const startedEvent = createPlanningSessionStartedEvent({
+                      issueId: target.issue_id,
+                      runId,
+                      executionId,
+                      command: planningSessionResult.command,
+                      args: planningSessionResult.args,
+                      artifactPaths: planningArtifactPaths,
+                      occurredAt: planningSessionResult.started_at,
+                    });
+                    const outputEvents = [
+                      planningSessionResult.stdout.length > 0
+                        ? createPlanningSessionOutputEvent({
+                            issueId: target.issue_id,
+                            runId,
+                            executionId,
+                            stream: "stdout",
+                            output: planningSessionResult.stdout,
+                            occurredAt: planningSessionResult.finished_at,
+                          })
+                        : null,
+                      planningSessionResult.stderr.length > 0
+                        ? createPlanningSessionOutputEvent({
+                            issueId: target.issue_id,
+                            runId,
+                            executionId,
+                            stream: "stderr",
+                            output: planningSessionResult.stderr,
+                            occurredAt: planningSessionResult.finished_at,
+                          })
+                        : null,
+                    ].filter((event): event is DomainEvent => event !== null);
+                    const finishedEvent = createPlanningSessionFinishedEvent({
+                      issueId: target.issue_id,
+                      runId,
+                      executionId,
+                      result: planningSessionResult,
+                    });
+                    const planningEvents = [
+                      startedEvent,
+                      ...outputEvents,
+                      finishedEvent,
+                    ];
+                    const planningSucceeded =
+                      planningSessionResult.exit_code === 0 &&
+                      planningSessionResult.signal === null;
+
+                    if (!planningSucceeded) {
+                      return store.transaction((transaction) => {
+                        const recordArtifact = (draft: PlanningArtifactDraft) =>
+                          transaction.artifacts
+                            .record({
+                              issue_id: target.issue_id,
+                              run_id: runId,
+                              attempt: target.attempt,
+                              kind: draft.kind,
+                              path: draft.path,
+                              description: draft.description,
+                              content_hash: draft.content_hash,
+                              supersedes_artifact_id: null,
+                              inherited_from_artifact_id: null,
+                              created_at: startedAt,
+                            })
+                            .pipe(map(() => undefined));
+                        const appendEvent = (event: DomainEvent) =>
+                          transaction.events
+                            .append(event)
+                            .pipe(map(() => undefined));
+
+                        return transaction.runs
+                          .upsert({
+                            run_id: runId,
+                            issue_id: target.issue_id,
+                            attempt: target.attempt,
+                            state: "failed",
+                            flowcraft_execution_id: null,
+                            blueprint_id: "autobot-planning-session",
+                            blueprint_version: "1.0.0",
+                            started_at: startedAt,
+                            finished_at: planningSessionResult.finished_at,
+                            worker_id: null,
+                            last_heartbeat_at: null,
+                            transport: null,
+                          })
+                          .pipe(
+                            chain(() =>
+                              sequenceFutures([
+                                ...planningArtifactDrafts.map(recordArtifact),
+                                ...artifactEvents.map(appendEvent),
+                                ...planningEvents.map(appendEvent),
+                                transaction.items
+                                  .upsert(
+                                    toItemRecordFromDetail({
+                                      ...planningItem,
+                                      state: "failed",
+                                      updated_at:
+                                        planningSessionResult.finished_at,
+                                      last_event: finishedEvent.type,
+                                      last_error: {
+                                        code: "AUTOBOT-PLANNER-SESSION-FAILED",
+                                        message: `planning session exited with code ${String(
+                                          planningSessionResult.exit_code,
+                                        )}`,
+                                        occurred_at:
+                                          planningSessionResult.finished_at,
+                                      },
+                                      recovery_commands: [
+                                        `autobot-next logs ${target.issue_id} --json`,
+                                      ],
+                                      cancellation_requested: false,
+                                      cancellation_requested_at: null,
+                                      current_run: null,
+                                      artifacts: [],
+                                      events: [],
+                                    }),
+                                  )
+                                  .pipe(map(() => undefined)),
+                              ]).pipe(map(() => undefined)),
+                            ),
+                          );
+                      });
+                    }
+
+                    return executeAutobotDeliverIssueWorkflow({
                       issue_id: target.issue_id,
                       run_id: runId,
                       execution_id: executionId,
                       started_at: startedAt,
                       finished_at: finishedAt,
                       transport: null,
-                    }) as unknown as FutureInstance<
-                      unknown,
-                      FlowcraftExecutionPlan
-                    >,
-                ),
-              )
-              .pipe(
-                chain(
-                  (
-                    plan: FlowcraftExecutionPlan,
-                  ): FutureInstance<unknown, void> =>
-                    store.transaction((transaction) => {
-                      const artifactEvents = planningArtifactDrafts.map(
-                        (draft) =>
-                          createPlanningArtifactCreatedEvent({
-                            issueId: target.issue_id,
-                            runId,
-                            executionId,
-                            artifact: draft,
-                            occurredAt: startedAt,
-                          }),
-                      );
+                    }).pipe(
+                      chain(
+                        (
+                          plan: FlowcraftExecutionPlan,
+                        ): FutureInstance<unknown, void> =>
+                          store.transaction((transaction) => {
+                            const recordArtifact = (
+                              draft: PlanningArtifactDraft,
+                            ) =>
+                              transaction.artifacts
+                                .record({
+                                  issue_id: target.issue_id,
+                                  run_id: runId,
+                                  attempt: target.attempt,
+                                  kind: draft.kind,
+                                  path: draft.path,
+                                  description: draft.description,
+                                  content_hash: draft.content_hash,
+                                  supersedes_artifact_id: null,
+                                  inherited_from_artifact_id: null,
+                                  created_at: startedAt,
+                                })
+                                .pipe(map(() => undefined));
+                            const appendEvent = (event: DomainEvent) =>
+                              transaction.events
+                                .append(event)
+                                .pipe(map(() => undefined));
 
-                      return transaction.runs
-                        .upsert({
-                          run_id: runId,
-                          issue_id: target.issue_id,
-                          attempt: target.attempt,
-                          state: "completed",
-                          flowcraft_execution_id: executionId,
-                          blueprint_id: plan.workflow.id,
-                          blueprint_version: plan.workflow.version,
-                          started_at: startedAt,
-                          finished_at: finishedAt,
-                          worker_id: null,
-                          last_heartbeat_at: null,
-                          transport: null,
-                        })
-                        .pipe(
-                          chain(
-                            (run): FutureInstance<unknown, void> =>
-                              sequenceFutures([
-                                transaction.flowcraft
-                                  .recordExecution({
-                                    execution_id: executionId,
-                                    issue_id: target.issue_id,
-                                    run_id: run.run_id,
-                                    state: "completed",
-                                    started_at: startedAt,
-                                    finished_at: finishedAt,
-                                    metadata: plan.metadata,
-                                  })
-                                  .pipe(map(() => undefined)),
-                                ...plan.flowcraft_events.map(
-                                  (event: FlowcraftEventRecord) =>
-                                    transaction.flowcraft
-                                      .recordEvent(event)
-                                      .pipe(map(() => undefined)),
+                            return transaction.runs
+                              .upsert({
+                                run_id: runId,
+                                issue_id: target.issue_id,
+                                attempt: target.attempt,
+                                state: "completed",
+                                flowcraft_execution_id: executionId,
+                                blueprint_id: plan.workflow.id,
+                                blueprint_version: plan.workflow.version,
+                                started_at: startedAt,
+                                finished_at: finishedAt,
+                                worker_id: null,
+                                last_heartbeat_at: null,
+                                transport: null,
+                              })
+                              .pipe(
+                                chain(
+                                  (run): FutureInstance<unknown, void> =>
+                                    sequenceFutures([
+                                      ...planningArtifactDrafts.map(
+                                        recordArtifact,
+                                      ),
+                                      ...artifactEvents.map(appendEvent),
+                                      ...planningEvents.map(appendEvent),
+                                      transaction.flowcraft
+                                        .recordExecution({
+                                          execution_id: executionId,
+                                          issue_id: target.issue_id,
+                                          run_id: run.run_id,
+                                          state: "completed",
+                                          started_at: startedAt,
+                                          finished_at: finishedAt,
+                                          metadata: plan.metadata,
+                                        })
+                                        .pipe(map(() => undefined)),
+                                      ...plan.flowcraft_events.map(
+                                        (event: FlowcraftEventRecord) =>
+                                          transaction.flowcraft
+                                            .recordEvent(event)
+                                            .pipe(map(() => undefined)),
+                                      ),
+                                      ...plan.domain_events.map(
+                                        (event: DomainEvent) =>
+                                          transaction.events
+                                            .append(event)
+                                            .pipe(map(() => undefined)),
+                                      ),
+                                      transaction.items
+                                        .upsert(
+                                          toItemRecordFromDetail({
+                                            ...planningItem,
+                                            state: "completed",
+                                            updated_at: finishedAt,
+                                            last_event:
+                                              plan.domain_events.at(-1)?.type ??
+                                              finishedEvent.type,
+                                            recovery_commands: [],
+                                            cancellation_requested: false,
+                                            cancellation_requested_at: null,
+                                            current_run: null,
+                                            artifacts: [],
+                                            events: [],
+                                          }),
+                                        )
+                                        .pipe(map(() => undefined)),
+                                    ]).pipe(map(() => undefined)),
                                 ),
-                                ...planningArtifactDrafts.map((draft) =>
-                                  transaction.artifacts
-                                    .record({
-                                      issue_id: target.issue_id,
-                                      run_id: run.run_id,
-                                      attempt: target.attempt,
-                                      kind: draft.kind,
-                                      path: draft.path,
-                                      description: draft.description,
-                                      content_hash: draft.content_hash,
-                                      supersedes_artifact_id: null,
-                                      inherited_from_artifact_id: null,
-                                      created_at: startedAt,
-                                    })
-                                    .pipe(map(() => undefined)),
-                                ),
-                                ...artifactEvents.map((event) =>
-                                  transaction.events
-                                    .append(event)
-                                    .pipe(map(() => undefined)),
-                                ),
-                                ...plan.domain_events.map(
-                                  (event: DomainEvent) =>
-                                    transaction.events
-                                      .append(event)
-                                      .pipe(map(() => undefined)),
-                                ),
-                              ]).pipe(
-                                chain(() =>
-                                  transaction.items
-                                    .upsert(
-                                      toItemRecordFromDetail({
-                                        ...planningItem,
-                                        state: "completed",
-                                        updated_at: finishedAt,
-                                        last_event:
-                                          plan.domain_events.at(-1)?.type ??
-                                          target.last_event,
-                                        recovery_commands: [],
-                                        cancellation_requested: false,
-                                        cancellation_requested_at: null,
-                                        current_run: null,
-                                        artifacts: [],
-                                        events: [],
-                                      }),
-                                    )
-                                    .pipe(map(() => undefined)),
-                                ),
-                              ),
-                          ),
-                        );
-                    }),
+                              );
+                          }),
+                      ),
+                    );
+                  },
                 ),
               );
           }),
@@ -2416,6 +2658,7 @@ function handleEngineRunOnce(
   randomId: () => string,
   discoverIssues?: AutobotServiceDependencies["discoverIssues"],
   artifactWriter: ArtifactWriter = defaultArtifactWriter,
+  planningSessionRunner: PlanningSessionRunner = createNoopPlanningSessionRunner(),
   loadLinearIssue?: AutobotServiceDependencies["loadLinearIssue"],
   runtime?: EngineRuntimeSnapshot | null,
 ): FutureInstance<unknown, AutobotCommandResult> {
@@ -2688,6 +2931,7 @@ function handleEngineRunOnce(
                             tickAt,
                             randomId,
                             artifactWriter,
+                            planningSessionRunner,
                             loadLinearIssue,
                           ),
                         ),
@@ -3281,6 +3525,7 @@ function handleEngineStart(
   randomId: () => string,
   discoverIssues?: AutobotServiceDependencies["discoverIssues"],
   artifactWriter: ArtifactWriter = defaultArtifactWriter,
+  planningSessionRunner: PlanningSessionRunner = createNoopPlanningSessionRunner(),
   loadLinearIssue?: AutobotServiceDependencies["loadLinearIssue"],
   sleep: (
     milliseconds: number,
@@ -3385,6 +3630,7 @@ function handleEngineStart(
                     randomId,
                     discoverIssues,
                     artifactWriter,
+                    planningSessionRunner,
                     loadLinearIssue,
                     {
                       lock: currentRecord,
@@ -3811,6 +4057,7 @@ function handleCommand(
   now: () => string,
   discoverIssues?: AutobotServiceDependencies["discoverIssues"],
   artifactWriter: ArtifactWriter = defaultArtifactWriter,
+  planningSessionRunner: PlanningSessionRunner = createNoopPlanningSessionRunner(),
   loadLinearIssue?: AutobotServiceDependencies["loadLinearIssue"],
   randomId: () => string = randomUUID,
   sleep: (
@@ -3848,6 +4095,7 @@ function handleCommand(
             randomId,
             discoverIssues,
             artifactWriter,
+            planningSessionRunner,
             loadLinearIssue,
           );
         case "status":
@@ -3860,6 +4108,7 @@ function handleCommand(
             randomId,
             discoverIssues,
             artifactWriter,
+            planningSessionRunner,
             loadLinearIssue,
             sleep,
           );
@@ -3892,6 +4141,11 @@ export function createAutobotServices(
     dependencies.openStore ??
     ((repo: RepoRef | string) => createAutobotStore({ repo }));
   const now = dependencies.now ?? (() => new Date().toISOString());
+  const planningSessionRunner =
+    dependencies.planningSessionRunner ??
+    (dependencies.artifactWriter === undefined
+      ? runOpenCodePlanningSession
+      : createNoopPlanningSessionRunner());
   // Planning only: hydrate Linear metadata for artifact generation.
   const loadPlanningLinearIssue =
     dependencies.loadLinearIssue ??
@@ -3918,6 +4172,7 @@ export function createAutobotServices(
           now,
           dependencies.discoverIssues,
           dependencies.artifactWriter ?? defaultArtifactWriter,
+          planningSessionRunner,
           loadPlanningLinearIssue,
           dependencies.randomId ?? randomUUID,
           dependencies.sleep ?? createDelayFuture,
