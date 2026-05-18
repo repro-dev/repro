@@ -1,7 +1,7 @@
 import { resolve, type FutureInstance } from "fluture";
 
 import type { TransportCorrelation } from "@repro/autobot-core";
-import type { AutobotStore } from "@repro/autobot-store";
+import type { ArtifactRecord, AutobotStore } from "@repro/autobot-store";
 
 type Mutable<T> = {
   -readonly [K in keyof T]: T[K];
@@ -68,6 +68,7 @@ type WorkflowStoreOptions = {
   configOverrides?: Partial<Record<string, string | number | boolean>>;
   currentRuns?: Partial<Record<string, WorkflowRunRecord | null>>;
   workers?: WorkflowWorkerRecord[];
+  artifacts?: Partial<Record<string, ArtifactRecord[]>>;
 };
 
 function createItemRecord(input: WorkflowItemRecord): WorkflowItemRecord {
@@ -153,6 +154,8 @@ export function makeWorkflowStore(options: WorkflowStoreOptions = {}) {
   const executionRecords: Array<Record<string, unknown>> = [];
   const flowcraftEvents: Array<Record<string, unknown>> = [];
   const domainEvents: Array<Record<string, unknown>> = [];
+  const artifactRecords: Array<Record<string, unknown>> = [];
+  const artifactLookups: string[] = [];
   const itemUpserts: Array<Record<string, unknown>> = [];
   const runGetLookups: string[] = [];
   const flowcraftGetLookups: string[] = [];
@@ -184,6 +187,11 @@ export function makeWorkflowStore(options: WorkflowStoreOptions = {}) {
   const currentRuns = new Map(
     Object.entries(options.currentRuns ?? {}).map(
       ([issueId, run]) => [issueId, run] as const,
+    ),
+  );
+  const artifactsByIssue = new Map(
+    Object.entries(options.artifacts ?? {}).map(
+      ([issueId, artifacts]) => [issueId, [...(artifacts ?? [])]] as const,
     ),
   );
 
@@ -259,7 +267,14 @@ export function makeWorkflowStore(options: WorkflowStoreOptions = {}) {
       },
       getItemDetail(issueId: string) {
         const item = findItem(issueId);
-        return resolve(item === null ? null : { ...item });
+        return resolve(
+          item === null
+            ? null
+            : {
+                ...item,
+                artifacts: [...(artifactsByIssue.get(issueId) ?? [])],
+              },
+        );
       },
     },
     config: {
@@ -440,11 +455,13 @@ export function makeWorkflowStore(options: WorkflowStoreOptions = {}) {
       },
     },
     artifacts: {
-      record() {
-        return resolve(undefined);
+      record(input: Record<string, unknown>) {
+        artifactRecords.push(input);
+        return resolve(input);
       },
-      list() {
-        return resolve([]);
+      list(issueId: string) {
+        artifactLookups.push(issueId);
+        return resolve([...(artifactsByIssue.get(issueId) ?? [])]);
       },
     },
     flowcraft: {
@@ -528,6 +545,8 @@ export function makeWorkflowStore(options: WorkflowStoreOptions = {}) {
     executionRecords,
     flowcraftEvents,
     domainEvents,
+    artifactRecords,
+    artifactLookups,
     itemUpserts,
     runGetLookups,
     flowcraftGetLookups,

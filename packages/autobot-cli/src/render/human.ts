@@ -1,5 +1,6 @@
 import {
   isTerminalState,
+  type ArtifactRef,
   type ConfigEntry,
   type DomainEvent,
   type EngineStatus,
@@ -59,6 +60,21 @@ function renderConfigEntry(entry: ConfigEntry): string[] {
     `  source: ${entry.source}`,
     `  default: ${renderConfigValue(entry.default_value)}`,
     `  description: ${entry.description}`,
+  ];
+}
+
+function renderArtifacts(artifacts: ArtifactRef[]): string[] {
+  if (artifacts.length === 0) {
+    return [];
+  }
+
+  return [
+    "Artifacts:",
+    ...artifacts.map((artifact) => {
+      const description =
+        artifact.description === null ? "" : ` — ${artifact.description}`;
+      return `  ${artifact.kind}: ${artifact.path}${description}`;
+    }),
   ];
 }
 
@@ -255,6 +271,8 @@ export function renderAutobotItemDetail(
       ...renderTransportCorrelation(item.current_run.transport),
     );
   }
+
+  lines.push(...renderArtifacts(item.artifacts));
 
   lines.push(...renderNext(item));
   return lines.join("\n");
@@ -500,6 +518,7 @@ export function renderAutobotFlowcraftInspect(input: {
     issue_id: string | null;
     run: RunSummary | null;
     execution: FlowcraftExecutionRecord | null;
+    artifacts: ArtifactRef[];
     domain_events: DomainEvent[];
     flowcraft_events: FlowcraftEventRecord[];
   };
@@ -510,6 +529,7 @@ export function renderAutobotFlowcraftInspect(input: {
     `Issue: ${input.lookup.issue_id ?? "n/a"}`,
     ...renderExecutionSummary(input.lookup.execution),
     ...renderTransportCorrelation(input.lookup.run?.transport ?? null),
+    ...renderArtifacts(input.lookup.artifacts),
   ];
 
   if (input.lookup.domain_events.length > 0) {

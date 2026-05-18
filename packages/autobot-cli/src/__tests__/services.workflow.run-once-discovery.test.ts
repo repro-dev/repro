@@ -73,6 +73,9 @@ test("engine run-once preserves discovered metadata when it selects a new candid
     randomId() {
       return "run-401";
     },
+    artifactWriter() {
+      return resolve(undefined);
+    },
     discoverIssues() {
       return resolve([
         {
@@ -116,6 +119,7 @@ test("engine run-once preserves discovered metadata when it selects a new candid
         item.issue_id === "REP-401" && item.reason === "queue-depth-exhausted",
     ),
   );
+  assert.equal(fixture.artifactRecords.length, 3);
 
   const rep400Upserts = fixture.itemUpserts.filter(
     (item) => item.issue_id === "REP-400",
@@ -153,6 +157,9 @@ test("engine run-once warns and skips discovery when discovery.projects is missi
     },
     now() {
       return "2026-05-15T12:00:00Z";
+    },
+    artifactWriter() {
+      return resolve(undefined);
     },
     discoverIssues() {
       throw new Error(

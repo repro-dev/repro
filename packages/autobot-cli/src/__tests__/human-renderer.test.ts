@@ -23,14 +23,15 @@ test("workflow renderers keep the stable FlowCraft skeleton visible", () => {
       {
         id: "autobot-deliver-issue",
         version: "1.0.0",
-        description: "Claim an issue, reconcile the state, then complete it.",
-        node_ids: ["claim", "reconcile", "complete"],
-        edge_count: 2,
+        description:
+          "Claim an issue, generate planning artifacts, reconcile the state, then complete it.",
+        node_ids: ["claim", "planning", "reconcile", "complete"],
+        edge_count: 3,
       },
     ]),
     `
     Workflow list
-    autobot-deliver-issue v1.0.0 · claim → reconcile → complete
+    autobot-deliver-issue v1.0.0 · claim → planning → reconcile → complete
     `,
   );
 
@@ -43,8 +44,8 @@ test("workflow renderers keep the stable FlowCraft skeleton visible", () => {
           cycles: [],
           startNodeIds: ["claim"],
           terminalNodeIds: ["complete"],
-          nodeCount: 3,
-          edgeCount: 2,
+          nodeCount: 4,
+          edgeCount: 3,
           isDag: true,
         },
         lint: {
@@ -156,6 +157,14 @@ test("flowcraft inspect renderer includes persisted transports but keeps raw pay
             status: "completed",
           },
         },
+        artifacts: [
+          {
+            kind: "context",
+            path: ".autobot/runs/REP-1154/attempt-1/context.md",
+            description: "Planning context",
+            created_at: "2026-05-15T11:00:00Z",
+          },
+        ],
         domain_events: [
           {
             event_id: "event-1",
@@ -199,6 +208,8 @@ test("flowcraft inspect renderer includes persisted transports but keeps raw pay
       thread_id: relay-thread
       agent_id: relay-agent
       message_id: relay-message
+    Artifacts:
+      context: .autobot/runs/REP-1154/attempt-1/context.md — Planning context
     Domain events:
       2026-05-15T11:00:00Z workflow.phase.claimed Issue claimed
     FlowCraft events:
@@ -376,7 +387,14 @@ test("failed item detail renderer keeps semantic next-step guidance", () => {
     cancellation_requested: false,
     cancellation_requested_at: null,
     recovery_commands: ["autobot-next status REP-1151 --json"],
-    artifacts: [],
+    artifacts: [
+      {
+        kind: "context",
+        path: ".autobot/runs/REP-1151/attempt-2/context.md",
+        description: "Planning context",
+        created_at: "2026-05-14T11:10:00Z",
+      },
+    ],
     events: [],
   };
 
@@ -391,6 +409,8 @@ test("failed item detail renderer keeps semantic next-step guidance", () => {
     Branch: autobot/REP-1151
     Last event: retry.failed
     Last error: AUTOBOT-RETRY-NOT-ALLOWED — retry is only available after failed runs
+    Artifacts:
+      context: .autobot/runs/REP-1151/attempt-2/context.md — Planning context
     Next:
     autobot-next status REP-1151 --json
     `,
@@ -438,7 +458,14 @@ test("item detail renderer surfaces relay transport for active runs", () => {
     cancellation_requested: false,
     cancellation_requested_at: null,
     recovery_commands: ["autobot-next status REP-1154 --json"],
-    artifacts: [],
+    artifacts: [
+      {
+        kind: "prompt",
+        path: ".autobot/runs/REP-1154/attempt-1/prompt.md",
+        description: "Planning prompt",
+        created_at: "2026-05-15T11:05:00Z",
+      },
+    ],
     events: [],
   };
 
@@ -464,6 +491,8 @@ test("item detail renderer surfaces relay transport for active runs", () => {
       thread_id: relay-thread
       agent_id: relay-agent
       message_id: relay-message
+    Artifacts:
+      prompt: .autobot/runs/REP-1154/attempt-1/prompt.md — Planning prompt
     Next:
     autobot-next status REP-1154 --json
     `,

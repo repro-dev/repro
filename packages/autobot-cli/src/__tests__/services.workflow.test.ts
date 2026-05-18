@@ -73,6 +73,7 @@ test("workflow commands surface the FlowCraft skeleton", async () => {
   assert.equal(listResult.command, "engine debug workflow list");
   assert.deepEqual(listResult.data.workflows[0]?.node_ids, [
     "claim",
+    "planning",
     "reconcile",
     "complete",
   ]);
@@ -98,7 +99,25 @@ test("workflow commands surface the FlowCraft skeleton", async () => {
 });
 
 test("inspect resolves runs and flowcraft executions with persisted events", async () => {
-  const fixture = makeWorkflowStore();
+  const fixture = makeWorkflowStore({
+    artifacts: {
+      "REP-1154": [
+        {
+          artifact_id: 1,
+          issue_id: "REP-1154",
+          run_id: "run-1154",
+          attempt: 1,
+          kind: "context",
+          path: ".autobot/runs/REP-1154/attempt-1/context.md",
+          description: "Planning context",
+          content_hash: "hash-1",
+          supersedes_artifact_id: null,
+          inherited_from_artifact_id: null,
+          created_at: "2026-05-15T11:00:00Z",
+        },
+      ],
+    },
+  });
   const services = createAutobotServices({
     openStore() {
       return resolve(fixture.store as unknown as AutobotStore);
@@ -123,10 +142,29 @@ test("inspect resolves runs and flowcraft executions with persisted events", asy
   assert.equal(byRun.data.lookup.kind, "run");
   assert.equal(byRun.data.lookup.domain_events.length, 1);
   assert.equal(byRun.data.lookup.flowcraft_events.length, 1);
+  assert.equal(byRun.data.lookup.artifacts.length, 1);
 });
 
 test("inspect loads domain events for runs without flowcraft execution ids", async () => {
-  const fixture = makeWorkflowStore();
+  const fixture = makeWorkflowStore({
+    artifacts: {
+      "REP-1155": [
+        {
+          artifact_id: 2,
+          issue_id: "REP-1155",
+          run_id: "run-1155",
+          attempt: 1,
+          kind: "prompt",
+          path: ".autobot/runs/REP-1155/attempt-1/prompt.md",
+          description: "Planning prompt",
+          content_hash: "hash-2",
+          supersedes_artifact_id: null,
+          inherited_from_artifact_id: null,
+          created_at: "2026-05-15T11:10:00Z",
+        },
+      ],
+    },
+  });
   const services = createAutobotServices({
     openStore() {
       return resolve(fixture.store as unknown as AutobotStore);
@@ -145,6 +183,7 @@ test("inspect loads domain events for runs without flowcraft execution ids", asy
   assert.equal(byRun.data.lookup.kind, "run");
   assert.equal(byRun.data.lookup.domain_events.length, 1);
   assert.equal(byRun.data.lookup.flowcraft_events.length, 0);
+  assert.equal(byRun.data.lookup.artifacts.length, 1);
   assert.deepEqual(fixture.domainEventLookups[0], {
     issueId: "REP-1155",
     options: { runId: "run-1155" },
@@ -152,7 +191,25 @@ test("inspect loads domain events for runs without flowcraft execution ids", asy
 });
 
 test("inspect routes flowcraft execution ids directly to execution lookup", async () => {
-  const fixture = makeWorkflowStore();
+  const fixture = makeWorkflowStore({
+    artifacts: {
+      "REP-1156": [
+        {
+          artifact_id: 3,
+          issue_id: "REP-1156",
+          run_id: null,
+          attempt: 2,
+          kind: "test-plan",
+          path: ".autobot/runs/REP-1156/attempt-2/test-plan.md",
+          description: "Planning test plan",
+          content_hash: "hash-3",
+          supersedes_artifact_id: null,
+          inherited_from_artifact_id: null,
+          created_at: "2026-05-15T11:20:00Z",
+        },
+      ],
+    },
+  });
   const services = createAutobotServices({
     openStore() {
       return resolve(fixture.store as unknown as AutobotStore);
@@ -171,4 +228,5 @@ test("inspect routes flowcraft execution ids directly to execution lookup", asyn
   assert.equal(result.data.lookup.kind, "flowcraft-execution");
   assert.deepEqual(fixture.runGetLookups, []);
   assert.deepEqual(fixture.flowcraftGetLookups, ["flowcraft-exec-1156"]);
+  assert.equal(result.data.lookup.artifacts.length, 1);
 });

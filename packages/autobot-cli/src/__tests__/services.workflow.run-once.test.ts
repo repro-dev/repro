@@ -172,6 +172,9 @@ test("engine run-once reconciles stale in-progress items before selecting the ol
 
       return runId;
     },
+    artifactWriter() {
+      return resolve(undefined);
+    },
   });
 
   const result = (await runFuture(
@@ -200,6 +203,18 @@ test("engine run-once reconciles stale in-progress items before selecting the ol
   assert.equal(fixture.runUpserts.length, 2);
   assert.equal(fixture.executionRecords.length, 2);
   assert.equal(fixture.itemUpserts.length, 3);
+  assert.equal(fixture.artifactRecords.length, 6);
+  assert.deepEqual(
+    fixture.artifactRecords.map((artifact) => artifact.path),
+    [
+      ".autobot/runs/REP-200/attempt-1/context.md",
+      ".autobot/runs/REP-200/attempt-1/test-plan.md",
+      ".autobot/runs/REP-200/attempt-1/prompt.md",
+      ".autobot/runs/REP-201/attempt-1/context.md",
+      ".autobot/runs/REP-201/attempt-1/test-plan.md",
+      ".autobot/runs/REP-201/attempt-1/prompt.md",
+    ],
+  );
   assert.deepEqual(
     fixture.itemUpserts.map((item) => [item.issue_id, item.state]),
     [
@@ -296,6 +311,9 @@ test("engine run-once --dry-run reports planned discovery and selection without 
     },
     randomId() {
       throw new Error("dry-run should not allocate run ids");
+    },
+    artifactWriter() {
+      return resolve(undefined);
     },
     discoverIssues(input) {
       received.push(input as unknown as (typeof received)[number]);
@@ -420,6 +438,9 @@ test("engine run-once persists discovered work and caps it by queue-depth", asyn
 
       return runId;
     },
+    artifactWriter() {
+      return resolve(undefined);
+    },
     discoverIssues(input) {
       received.push(input as unknown as (typeof received)[number]);
       return resolve([
@@ -491,5 +512,6 @@ test("engine run-once persists discovered work and caps it by queue-depth", asyn
       .map((event) => event.issue_id),
     ["REP-400"],
   );
+  assert.equal(fixture.artifactRecords.length, 3);
   assert.equal(fixture.transactionCalls > 0, true);
 });
