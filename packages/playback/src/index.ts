@@ -1,4 +1,5 @@
 export * from './context'
+export * from './createBinaryWireFormatSource'
 export * from './createFixtureSource'
 export * from './createLivePlayback'
 export * from './createNullSource'
