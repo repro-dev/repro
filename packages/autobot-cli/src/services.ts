@@ -2233,6 +2233,10 @@ function createPlanningSessionFinishedEvent(input: {
   });
 }
 
+function createMonotonicLaterTimestamp(timestamp: string): string {
+  return new Date(Date.parse(timestamp) + 1).toISOString();
+}
+
 function hydratePlanningItemDetail(
   item: ItemDetail,
   linear: LinearIssueRef | null,
@@ -2344,7 +2348,6 @@ function runBoundedWorkflowTickForItem(
   loadLinearIssueDependency?: AutobotServiceDependencies["loadLinearIssue"],
 ): FutureInstance<unknown, void> {
   const startedAt = tickAt;
-  const finishedAt = tickAt;
   const runId = randomId();
   const executionId = `flowcraft-${runId}`;
   const fallbackItemDetail: ItemDetail = {
@@ -2533,12 +2536,16 @@ function runBoundedWorkflowTickForItem(
                       });
                     }
 
+                    const flowcraftFinishedAt = createMonotonicLaterTimestamp(
+                      planningSessionResult.finished_at,
+                    );
+
                     return executeAutobotDeliverIssueWorkflow({
                       issue_id: target.issue_id,
                       run_id: runId,
                       execution_id: executionId,
                       started_at: startedAt,
-                      finished_at: finishedAt,
+                      finished_at: flowcraftFinishedAt,
                       transport: null,
                     }).pipe(
                       chain(
@@ -2578,7 +2585,7 @@ function runBoundedWorkflowTickForItem(
                                 blueprint_id: plan.workflow.id,
                                 blueprint_version: plan.workflow.version,
                                 started_at: startedAt,
-                                finished_at: finishedAt,
+                                finished_at: flowcraftFinishedAt,
                                 worker_id: null,
                                 last_heartbeat_at: null,
                                 transport: null,
@@ -2599,7 +2606,7 @@ function runBoundedWorkflowTickForItem(
                                           run_id: run.run_id,
                                           state: "completed",
                                           started_at: startedAt,
-                                          finished_at: finishedAt,
+                                          finished_at: flowcraftFinishedAt,
                                           metadata: plan.metadata,
                                         })
                                         .pipe(map(() => undefined)),
@@ -2620,7 +2627,7 @@ function runBoundedWorkflowTickForItem(
                                           toItemRecordFromDetail({
                                             ...planningItem,
                                             state: "completed",
-                                            updated_at: finishedAt,
+                                            updated_at: flowcraftFinishedAt,
                                             last_event:
                                               plan.domain_events.at(-1)?.type ??
                                               finishedEvent.type,
@@ -4142,10 +4149,7 @@ export function createAutobotServices(
     ((repo: RepoRef | string) => createAutobotStore({ repo }));
   const now = dependencies.now ?? (() => new Date().toISOString());
   const planningSessionRunner =
-    dependencies.planningSessionRunner ??
-    (dependencies.artifactWriter === undefined
-      ? runOpenCodePlanningSession
-      : createNoopPlanningSessionRunner());
+    dependencies.planningSessionRunner ?? runOpenCodePlanningSession;
   // Planning only: hydrate Linear metadata for artifact generation.
   const loadPlanningLinearIssue =
     dependencies.loadLinearIssue ??

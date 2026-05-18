@@ -22,6 +22,17 @@ function runFuture<T>(future: FutureInstance<unknown, T>): Promise<T> {
 
 const noOpArtifactWriter = () => resolve(undefined);
 const noOpLinearIssue = () => resolve(null);
+const noOpPlanningSessionRunner = () =>
+  resolve({
+    command: "opencode",
+    args: ["run"],
+    started_at: "2026-05-15T12:00:01Z",
+    finished_at: "2026-05-15T12:00:02Z",
+    exit_code: 0,
+    signal: null,
+    stdout: "",
+    stderr: "",
+  });
 
 function makeOptions(
   overrides: Partial<AutobotGlobalOptions> = {},
@@ -68,6 +79,7 @@ test("engine run-once preserves discovered metadata when it selects a new candid
   });
   const services = createAutobotServices({
     artifactWriter: noOpArtifactWriter,
+    planningSessionRunner: noOpPlanningSessionRunner,
     loadLinearIssue: noOpLinearIssue,
     openStore() {
       return resolve(fixture.store as unknown as AutobotStore);
@@ -155,6 +167,7 @@ test("engine run-once warns and skips discovery when discovery.projects is missi
   });
   const services = createAutobotServices({
     artifactWriter: noOpArtifactWriter,
+    planningSessionRunner: noOpPlanningSessionRunner,
     loadLinearIssue: noOpLinearIssue,
     openStore() {
       return resolve(fixture.store as unknown as AutobotStore);

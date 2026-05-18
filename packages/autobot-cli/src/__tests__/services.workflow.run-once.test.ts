@@ -22,6 +22,17 @@ function runFuture<T>(future: FutureInstance<unknown, T>): Promise<T> {
 
 const noOpArtifactWriter = () => resolve(undefined);
 const noOpLinearIssue = () => resolve(null);
+const noOpPlanningSessionRunner = () =>
+  resolve({
+    command: "opencode",
+    args: ["run"],
+    started_at: "2026-05-15T12:00:01Z",
+    finished_at: "2026-05-15T12:00:02Z",
+    exit_code: 0,
+    signal: null,
+    stdout: "",
+    stderr: "",
+  });
 
 function makeOptions(
   overrides: Partial<AutobotGlobalOptions> = {},
@@ -160,6 +171,7 @@ test("engine run-once reconciles stale in-progress items before selecting the ol
   let runIndex = 0;
   const services = createAutobotServices({
     artifactWriter: noOpArtifactWriter,
+    planningSessionRunner: noOpPlanningSessionRunner,
     loadLinearIssue: noOpLinearIssue,
     openStore() {
       return resolve(fixture.store as unknown as AutobotStore);
@@ -263,6 +275,7 @@ test("engine run-once hydrates Linear metadata before writing planning artifacts
   });
   const services = createAutobotServices({
     artifactWriter: noOpArtifactWriter,
+    planningSessionRunner: noOpPlanningSessionRunner,
     loadLinearIssue() {
       return resolve({
         issue_id: "REP-400",
@@ -303,7 +316,7 @@ test("engine run-once hydrates Linear metadata before writing planning artifacts
     branch: "autobot/REP-400",
     queued_at: "2026-05-15T09:00:00Z",
     started_at: null,
-    updated_at: "2026-05-15T12:00:00Z",
+    updated_at: "2026-05-15T12:00:02.001Z",
     last_event: "workflow.phase.completed",
     last_error: null,
     recovery_commands: [],
@@ -387,6 +400,7 @@ test("engine run-once --dry-run reports planned discovery and selection without 
   }> = [];
   const services = createAutobotServices({
     artifactWriter: noOpArtifactWriter,
+    planningSessionRunner: noOpPlanningSessionRunner,
     loadLinearIssue: noOpLinearIssue,
     openStore() {
       return resolve(fixture.store as unknown as AutobotStore);
@@ -505,6 +519,7 @@ test("engine run-once persists discovered work and caps it by queue-depth", asyn
   }> = [];
   const services = createAutobotServices({
     artifactWriter: noOpArtifactWriter,
+    planningSessionRunner: noOpPlanningSessionRunner,
     loadLinearIssue: noOpLinearIssue,
     openStore() {
       return resolve(fixture.store as unknown as AutobotStore);
