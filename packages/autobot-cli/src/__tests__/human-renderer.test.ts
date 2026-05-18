@@ -23,14 +23,15 @@ test("workflow renderers keep the stable FlowCraft skeleton visible", () => {
       {
         id: "autobot-deliver-issue",
         version: "1.0.0",
-        description: "Claim an issue, reconcile the state, then complete it.",
-        node_ids: ["claim", "reconcile", "complete"],
-        edge_count: 2,
+        description:
+          "Claim an issue, prepare Linear data, generate planning artifacts, reconcile the state, then complete it.",
+        node_ids: ["claim", "preparing", "planning", "reconcile", "complete"],
+        edge_count: 4,
       },
     ]),
     `
     Workflow list
-    autobot-deliver-issue v1.0.0 · claim → reconcile → complete
+    autobot-deliver-issue v1.0.0 · claim → preparing → planning → reconcile → complete
     `,
   );
 
@@ -156,6 +157,14 @@ test("flowcraft inspect renderer includes persisted transports but keeps raw pay
             status: "completed",
           },
         },
+        artifacts: [
+          {
+            kind: "context",
+            path: ".autobot/runs/REP-1154/attempt-1/context.md",
+            description: "Planning context",
+            created_at: "2026-05-15T11:00:00Z",
+          },
+        ],
         domain_events: [
           {
             event_id: "event-1",
@@ -199,6 +208,8 @@ test("flowcraft inspect renderer includes persisted transports but keeps raw pay
       thread_id: relay-thread
       agent_id: relay-agent
       message_id: relay-message
+    Artifacts:
+      context: .autobot/runs/REP-1154/attempt-1/context.md — Planning context
     Domain events:
       2026-05-15T11:00:00Z workflow.phase.claimed Issue claimed
     FlowCraft events:

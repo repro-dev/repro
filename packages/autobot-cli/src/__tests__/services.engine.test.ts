@@ -30,6 +30,9 @@ function runFuture<T>(future: FutureInstance<unknown, T>): Promise<T> {
   });
 }
 
+const noOpArtifactWriter = () => resolve(undefined);
+const noOpLinearIssue = () => resolve(null);
+
 function makeOptions(
   overrides: Partial<AutobotGlobalOptions> = {},
 ): AutobotGlobalOptions {
@@ -149,6 +152,8 @@ async function writeRuntimeFiles(
 test("engine status reports stopped, running, and unhealthy runtime states", async () => {
   const { root, fixture } = await createEngineWorktreeFixture();
   const services = createAutobotServices({
+    artifactWriter: noOpArtifactWriter,
+    loadLinearIssue: noOpLinearIssue,
     openStore() {
       return resolve(fixture.store as unknown as AutobotStore);
     },
@@ -222,6 +227,8 @@ test("engine status reports stopped, running, and unhealthy runtime states", asy
 test("engine status uses store-owned worker transport without requerying runs", async () => {
   const { root, fixture } = await createEngineWorktreeFixture();
   const services = createAutobotServices({
+    artifactWriter: noOpArtifactWriter,
+    loadLinearIssue: noOpLinearIssue,
     openStore() {
       return resolve(fixture.store as unknown as AutobotStore);
     },
@@ -278,6 +285,8 @@ test("engine start acquires the lock and exits cleanly after stop is requested",
   const { root, fixture } = await createEngineWorktreeFixture();
   let sleepCalls = 0;
   const services = createAutobotServices({
+    artifactWriter: noOpArtifactWriter,
+    loadLinearIssue: noOpLinearIssue,
     openStore() {
       return resolve(fixture.store as unknown as AutobotStore);
     },
@@ -326,6 +335,8 @@ test("engine start polls for stop requests while waiting between ticks", async (
   const { root, fixture } = await createEngineWorktreeFixture();
   const sleepDurations: number[] = [];
   const services = createAutobotServices({
+    artifactWriter: noOpArtifactWriter,
+    loadLinearIssue: noOpLinearIssue,
     openStore() {
       return resolve(fixture.store as unknown as AutobotStore);
     },
@@ -375,6 +386,8 @@ test("engine start polls for stop requests while waiting between ticks", async (
 test("engine stop requests graceful shutdown and updates the runtime files", async () => {
   const { root, fixture } = await createEngineWorktreeFixture();
   const services = createAutobotServices({
+    artifactWriter: noOpArtifactWriter,
+    loadLinearIssue: noOpLinearIssue,
     openStore() {
       return resolve(fixture.store as unknown as AutobotStore);
     },
@@ -425,6 +438,8 @@ test("engine stop requests graceful shutdown and updates the runtime files", asy
 test("engine start refuses to replace an active process lock", async () => {
   const { root, fixture } = await createEngineWorktreeFixture();
   const services = createAutobotServices({
+    artifactWriter: noOpArtifactWriter,
+    loadLinearIssue: noOpLinearIssue,
     openStore() {
       return resolve(fixture.store as unknown as AutobotStore);
     },
@@ -459,6 +474,8 @@ test("engine start refuses to replace an active process lock", async () => {
 test("logs returns issue detail through the command dispatcher", async () => {
   const { root, fixture } = await createEngineWorktreeFixture();
   const services = createAutobotServices({
+    artifactWriter: noOpArtifactWriter,
+    loadLinearIssue: noOpLinearIssue,
     openStore() {
       return resolve(fixture.store as unknown as AutobotStore);
     },
@@ -485,6 +502,8 @@ test("logs returns issue detail through the command dispatcher", async () => {
 test("engine stop on an already stopped runtime stays stopped", async () => {
   const { root, fixture } = await createEngineWorktreeFixture();
   const services = createAutobotServices({
+    artifactWriter: noOpArtifactWriter,
+    loadLinearIssue: noOpLinearIssue,
     openStore() {
       return resolve(fixture.store as unknown as AutobotStore);
     },
@@ -556,6 +575,8 @@ test("engine status excludes exited workers", async () => {
     ],
   });
   const services = createAutobotServices({
+    artifactWriter: noOpArtifactWriter,
+    loadLinearIssue: noOpLinearIssue,
     openStore() {
       return resolve(fixture.store as unknown as AutobotStore);
     },
@@ -899,6 +920,8 @@ test("engine start releases runtime files when a tick step rejects", async () =>
     })) as typeof originalListItems;
 
   const services = createAutobotServices({
+    artifactWriter: noOpArtifactWriter,
+    loadLinearIssue: noOpLinearIssue,
     openStore() {
       return resolve(fixture.store as unknown as AutobotStore);
     },
@@ -1207,6 +1230,8 @@ test("engine runtime release ignores tick interval changes for the same owner", 
 test("engine start cancellation releases runtime ownership", async () => {
   const { root, fixture } = await createEngineWorktreeFixture();
   const services = createAutobotServices({
+    artifactWriter: noOpArtifactWriter,
+    loadLinearIssue: noOpLinearIssue,
     openStore() {
       return resolve(fixture.store as unknown as AutobotStore);
     },
@@ -1262,6 +1287,8 @@ test("engine start cancellation prevents an in-flight tick from rewriting status
     })) as typeof originalListItems;
 
   const services = createAutobotServices({
+    artifactWriter: noOpArtifactWriter,
+    loadLinearIssue: noOpLinearIssue,
     openStore() {
       return resolve(fixture.store as unknown as AutobotStore);
     },
@@ -1396,6 +1423,8 @@ test("engine status and logs surface engine events", async () => {
     };
   }> = [];
   const services = createAutobotServices({
+    artifactWriter: noOpArtifactWriter,
+    loadLinearIssue: noOpLinearIssue,
     openStore() {
       return resolve(fixture.store as unknown as AutobotStore);
     },

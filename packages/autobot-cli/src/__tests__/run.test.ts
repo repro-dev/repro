@@ -588,7 +588,13 @@ test("workflow list renders the FlowCraft skeleton summary", async () => {
                   version: "1.0.0",
                   description:
                     "Claim an issue, reconcile state, then complete.",
-                  node_ids: ["claim", "reconcile", "complete"],
+                  node_ids: [
+                    "claim",
+                    "preparing",
+                    "planning",
+                    "reconcile",
+                    "complete",
+                  ],
                   edge_count: 2,
                 },
               ],
@@ -602,7 +608,10 @@ test("workflow list renders the FlowCraft skeleton summary", async () => {
 
   assert.equal(exitCode, 0);
   assert.match(io.read().stdout, /Workflow list/);
-  assert.match(io.read().stdout, /claim → reconcile → complete/);
+  assert.match(
+    io.read().stdout,
+    /claim → preparing → planning → reconcile → complete/,
+  );
 });
 
 test("discover quiet output prints issue ids only", async () => {

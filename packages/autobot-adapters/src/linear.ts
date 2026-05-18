@@ -4,6 +4,17 @@ import { promisify } from "node:util";
 
 import { Future, fork, type FutureInstance } from "fluture";
 
+export interface LinearIssueRef {
+  issue_id: string;
+  title: string;
+  url: string;
+  state_name: string | null;
+  state_type: string | null;
+  project: string | null;
+  labels: string[];
+  assignee: string | null;
+}
+
 export interface LinearDiscoverIssue {
   issue_id: string;
   title: string | null;
@@ -30,6 +41,15 @@ interface RunCommandInput {
 }
 
 interface DiscoverDependencies {
+  runCommand?: (input: RunCommandInput) => FutureInstance<unknown, string>;
+}
+
+interface LoadIssueInput {
+  repoRoot: string;
+  issueId: string;
+}
+
+interface LoadDependencies {
   runCommand?: (input: RunCommandInput) => FutureInstance<unknown, string>;
 }
 
@@ -203,6 +223,32 @@ function normalizeIssue(value: unknown): LinearDiscoverIssue | null {
   };
 }
 
+function normalizeIssueRef(value: unknown): LinearIssueRef | null {
+  if (value === null || typeof value !== "object") {
+    return null;
+  }
+
+  const issue = value as Record<string, unknown>;
+  const issue_id = normalizeString(issue.identifier ?? issue.issue_id);
+  const title = normalizeString(issue.title);
+  const url = normalizeString(issue.url);
+
+  if (issue_id === null || title === null || url === null) {
+    return null;
+  }
+
+  return {
+    issue_id,
+    title,
+    url,
+    state_name: normalizeStatusName(issue.status),
+    state_type: normalizeStateType(issue.status),
+    project: normalizeProject(issue.project),
+    labels: normalizeLabels(issue.labels),
+    assignee: normalizeAssignee(issue.assignee),
+  };
+}
+
 function parseLinearDiscoverPayload(payload: string): LinearDiscoverIssue[] {
   const parsed = JSON.parse(payload) as unknown;
   const items = Array.isArray(parsed)
@@ -286,6 +332,119 @@ export function discoverLinearIssues(
               repoRoot: input.repoRoot,
               projects: input.projects,
               limit: input.limit,
+              command: resolveLinearBinary(input.repoRoot),
+              args,
+              cause: error,
+              failureKind: "parse",
+            }),
+          );
+        }
+      }),
+    );
+
+    return () => undefined;
+  });
+}
+
+function createLoadIssueError(input: {
+  repoRoot: string;
+  issueId: string;
+  command: string;
+  args: string[];
+  cause: unknown;
+  failureKind: "command" | "parse";
+}): {
+  code: string;
+  message: string;
+  what_failed: string;
+  likely_cause: string;
+  recovery_commands: string[];
+  details: Record<string, unknown> | null;
+} {
+  const cause = input.cause as { code?: unknown; message?: unknown } | null;
+  const causeMessage =
+    typeof cause?.message === "string" ? cause.message : String(input.cause);
+  const missingBinary =
+    cause?.code === "ENOENT" ||
+    /ENOENT|not found|no such file/i.test(causeMessage);
+  const malformedJson = input.failureKind === "parse";
+
+  return {
+    code: "AUTOBOT-LINEAR-ISSUE-LOAD-FAILED",
+    message: malformedJson
+      ? "Linear issue show returned malformed JSON"
+      : "Linear issue show command failed",
+    what_failed: "Linear issue hydration",
+    likely_cause: missingBinary
+      ? `the repo-owned Linear CLI at ${resolveLinearBinary(
+          input.repoRoot,
+        )} is missing or not executable`
+      : malformedJson
+      ? "Linear CLI output was not valid JSON"
+      : causeMessage,
+    recovery_commands: [
+      `${resolveLinearBinary(input.repoRoot)} issue show ${
+        input.issueId
+      } --help`,
+      "autobot-next status <issue-id> --json",
+    ],
+    details: {
+      repo_root: input.repoRoot,
+      issue_id: input.issueId,
+      command: input.command,
+      args: [...input.args],
+      error: causeMessage,
+    },
+  };
+}
+
+function parseLinearIssuePayload(payload: string): LinearIssueRef {
+  const parsed = JSON.parse(payload) as unknown;
+  const item =
+    parsed !== null && typeof parsed === "object" && "item" in parsed
+      ? (parsed as { item?: unknown }).item
+      : parsed;
+
+  const normalized = normalizeIssueRef(item);
+  if (normalized === null) {
+    throw new Error("Unexpected Linear issue payload shape");
+  }
+
+  return normalized;
+}
+
+export function loadLinearIssue(
+  input: LoadIssueInput,
+  dependencies: LoadDependencies = {},
+): FutureInstance<unknown, LinearIssueRef | null> {
+  const runCommand = dependencies.runCommand ?? defaultRunCommand;
+  const args = ["issue", "show", input.issueId, "--json"];
+
+  return Future((reject, resolve) => {
+    runCommand({
+      cwd: input.repoRoot,
+      command: resolveLinearBinary(input.repoRoot),
+      args,
+    }).pipe(
+      fork((error) => {
+        reject(
+          createLoadIssueError({
+            repoRoot: input.repoRoot,
+            issueId: input.issueId,
+            command: resolveLinearBinary(input.repoRoot),
+            args,
+            cause: error,
+            failureKind: "command",
+          }),
+        );
+      })((payload) => {
+        try {
+          resolve(parseLinearIssuePayload(payload));
+        } catch (error) {
+          reject(
+            createLoadIssueError({
+              repoRoot: input.repoRoot,
+              issueId: input.issueId,
               command: resolveLinearBinary(input.repoRoot),
               args,
               cause: error,

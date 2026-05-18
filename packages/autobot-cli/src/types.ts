@@ -1,4 +1,5 @@
 import type {
+  ArtifactRef,
   ConfigEntry,
   DomainEvent,
   EngineStatus,
@@ -206,6 +207,7 @@ export type AutobotCommandResult =
           issue_id: string | null;
           run: RunSummary | null;
           execution: FlowcraftExecutionRecord | null;
+          artifacts: ArtifactRef[];
           domain_events: DomainEvent[];
           flowcraft_events: FlowcraftEventRecord[];
         };

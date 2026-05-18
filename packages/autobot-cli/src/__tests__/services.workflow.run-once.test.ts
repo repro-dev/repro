@@ -20,6 +20,9 @@ function runFuture<T>(future: FutureInstance<unknown, T>): Promise<T> {
   });
 }
 
+const noOpArtifactWriter = () => resolve(undefined);
+const noOpLinearIssue = () => resolve(null);
+
 function makeOptions(
   overrides: Partial<AutobotGlobalOptions> = {},
 ): AutobotGlobalOptions {
@@ -156,6 +159,8 @@ test("engine run-once reconciles stale in-progress items before selecting the ol
   const runIds = ["run-200", "run-201"];
   let runIndex = 0;
   const services = createAutobotServices({
+    artifactWriter: noOpArtifactWriter,
+    loadLinearIssue: noOpLinearIssue,
     openStore() {
       return resolve(fixture.store as unknown as AutobotStore);
     },
@@ -225,6 +230,116 @@ test("engine run-once reconciles stale in-progress items before selecting the ol
   );
 });
 
+test("engine run-once hydrates Linear metadata before writing planning artifacts", async () => {
+  const fixture = makeWorkflowStore({
+    configOverrides: {
+      "engine.max-concurrency": 1,
+    },
+    items: [
+      {
+        issue_id: "REP-400",
+        title: "Queued item",
+        url: "https://linear.app/repro/issue/REP-400/queued-item",
+        state: "queued",
+        attempt: 1,
+        priority: 2,
+        owner: "Gary",
+        workspace: "autobot",
+        branch: "autobot/REP-400",
+        queued_at: "2026-05-15T09:00:00Z",
+        started_at: null,
+        updated_at: "2026-05-15T09:00:00Z",
+        last_event: null,
+        last_error: null,
+        recovery_commands: [],
+        linear: null,
+        current_run: null,
+        cancellation_requested: false,
+        cancellation_requested_at: null,
+        artifacts: [],
+        events: [],
+      },
+    ],
+  });
+  const writes: Array<{ path: string; content: string }> = [];
+  const services = createAutobotServices({
+    artifactWriter(input) {
+      writes.push(input);
+      return resolve(undefined);
+    },
+    loadLinearIssue() {
+      return resolve({
+        issue_id: "REP-400",
+        title: "Hydrated queued item",
+        url: "https://linear.app/repro/issue/REP-400/hydrated-queued-item",
+        state_name: "Todo",
+        state_type: "unstarted",
+        project: "Engineering",
+        labels: ["backend"],
+        assignee: "Gary",
+      });
+    },
+    openStore() {
+      return resolve(fixture.store as unknown as AutobotStore);
+    },
+    now() {
+      return "2026-05-15T12:00:00Z";
+    },
+    randomId() {
+      return "run-400";
+    },
+  });
+
+  const result = (await runFuture(
+    services.handleInvocation(makeInvocation(["engine", "run-once"])),
+  )) as AutobotCommandResult;
+
+  assert.equal(result.kind, "queue-status");
+  assert.equal(writes.length, 3);
+  assert.deepEqual(
+    writes.map((write) => write.path),
+    [
+      "/worktrees/autobot/.autobot/runs/REP-400/attempt-1/context.md",
+      "/worktrees/autobot/.autobot/runs/REP-400/attempt-1/test-plan.md",
+      "/worktrees/autobot/.autobot/runs/REP-400/attempt-1/prompt.md",
+    ],
+  );
+  assert.match(writes[0]?.content ?? "", /Hydrated queued item/);
+  assert.match(writes[0]?.content ?? "", /- Project: Engineering/);
+  assert.match(writes[0]?.content ?? "", /- Labels: backend/);
+  assert.match(writes[0]?.content ?? "", /- Assignee: Gary/);
+  assert.deepEqual(fixture.itemUpserts.at(-1), {
+    issue_id: "REP-400",
+    title: "Hydrated queued item",
+    url: "https://linear.app/repro/issue/REP-400/hydrated-queued-item",
+    state: "completed",
+    attempt: 1,
+    priority: 2,
+    owner: "Gary",
+    workspace: "autobot",
+    branch: "autobot/REP-400",
+    queued_at: "2026-05-15T09:00:00Z",
+    started_at: null,
+    updated_at: "2026-05-15T12:00:00Z",
+    last_event: "workflow.phase.completed",
+    last_error: null,
+    recovery_commands: [],
+    cancellation_requested: false,
+    cancellation_requested_at: null,
+    state_name: "Todo",
+    state_type: "unstarted",
+    project: "Engineering",
+    labels: ["backend"],
+    assignee: "Gary",
+    current_run_id: null,
+  });
+  assert.ok(
+    fixture.domainEvents.some(
+      (event) => event.type === "workflow.artifact.created",
+    ),
+  );
+});
+
 test("engine run-once --dry-run reports planned discovery and selection without mutations", async () => {
   const fixture = makeWorkflowStore({
     configOverrides: {
@@ -288,6 +403,8 @@ test("engine run-once --dry-run reports planned discovery and selection without 
     scanLimit: number;
   }> = [];
   const services = createAutobotServices({
+    artifactWriter: noOpArtifactWriter,
+    loadLinearIssue: noOpLinearIssue,
     openStore() {
       return resolve(fixture.store as unknown as AutobotStore);
     },
@@ -404,6 +521,8 @@ test("engine run-once persists discovered work and caps it by queue-depth", asyn
     scanLimit: number;
   }> = [];
   const services = createAutobotServices({
+    artifactWriter: noOpArtifactWriter,
+    loadLinearIssue: noOpLinearIssue,
     openStore() {
       return resolve(fixture.store as unknown as AutobotStore);
     },

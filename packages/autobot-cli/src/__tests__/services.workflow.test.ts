@@ -73,6 +73,8 @@ test("workflow commands surface the FlowCraft skeleton", async () => {
   assert.equal(listResult.command, "engine debug workflow list");
   assert.deepEqual(listResult.data.workflows[0]?.node_ids, [
     "claim",
+    "preparing",
+    "planning",
     "reconcile",
     "complete",
   ]);
