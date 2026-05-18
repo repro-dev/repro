@@ -39,7 +39,10 @@ import {
   validateFlowcraftWorkflows,
 } from "@repro/autobot-flowcraft";
 import type { FlowcraftExecutionPlan } from "@repro/autobot-flowcraft";
-import { discoverLinearIssues } from "@repro/autobot-adapters";
+import {
+  discoverLinearIssues,
+  loadLinearIssue as loadLinearIssueFromAdapters,
+} from "@repro/autobot-adapters";
 import {
   Future,
   chain,
@@ -3889,6 +3892,13 @@ export function createAutobotServices(
     dependencies.openStore ??
     ((repo: RepoRef | string) => createAutobotStore({ repo }));
   const now = dependencies.now ?? (() => new Date().toISOString());
+  const loadLinearIssue =
+    dependencies.loadLinearIssue ??
+    ((input: LoadLinearIssueInput) =>
+      loadLinearIssueFromAdapters({
+        repoRoot: input.repo.path,
+        issueId: input.issueId,
+      }));
 
   return {
     handleInvocation(invocation: AutobotInvocation) {
@@ -3907,7 +3917,7 @@ export function createAutobotServices(
           now,
           dependencies.discoverIssues,
           dependencies.artifactWriter ?? defaultArtifactWriter,
-          dependencies.loadLinearIssue,
+          loadLinearIssue,
           dependencies.randomId ?? randomUUID,
           dependencies.sleep ?? createDelayFuture,
         ),
