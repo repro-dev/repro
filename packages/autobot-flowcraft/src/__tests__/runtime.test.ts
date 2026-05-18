@@ -27,7 +27,7 @@ test("autobot deliver issue workflow is FlowCraft-backed with stable phase ids",
   assert.equal(workflow.id, "autobot-deliver-issue");
   assert.deepEqual(
     blueprint.nodes.map((node) => node.id),
-    ["claim", "planning", "reconcile", "complete"],
+    ["claim", "preparing", "planning", "reconcile", "complete"],
   );
   assert.deepEqual(workflow.blueprint, blueprint);
   assert.deepEqual(workflow.analysis.startNodeIds, ["claim"]);
@@ -51,6 +51,7 @@ test("workflow validation and diagram output come from FlowCraft analysis", () =
   );
   assert.deepEqual(listFlowcraftWorkflows()[0]?.node_ids, [
     "claim",
+    "preparing",
     "planning",
     "reconcile",
     "complete",
@@ -77,14 +78,17 @@ test("execution plans project the skeleton phases into events", async () => {
   );
 
   assert.equal(plan.workflow.id, "autobot-deliver-issue");
-  assert.ok(plan.flowcraft_events.length >= 8);
+  assert.ok(plan.flowcraft_events.length >= 10);
   assert.equal(plan.flowcraft_events[0]?.type, "workflow:start");
   assert.equal(plan.flowcraft_events.at(-1)?.type, "workflow:finish");
   assert.equal(plan.metadata.transport, undefined);
-  assert.equal(plan.domain_events.length, 4);
-  assert.equal(plan.domain_events[1]?.state, "planning");
-  assert.equal(plan.domain_events[3]?.state, "completed");
-  assert.equal(plan.domain_events[3]?.transport?.channel_id, "relay-channel");
+  assert.equal(plan.domain_events.length, 5);
+  assert.deepEqual(
+    plan.domain_events.map((event) => event.state),
+    ["claimed", "preparing", "planning", "reconciling", "completed"],
+  );
+  assert.equal(plan.domain_events[4]?.state, "completed");
+  assert.equal(plan.domain_events[4]?.transport?.channel_id, "relay-channel");
   assert.equal(
     JSON.stringify(plan.flowcraft_events).includes('"transport"'),
     false,

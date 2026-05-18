@@ -40,6 +40,11 @@ const phaseDefinitions: Record<
     state: "claimed",
     message: "Issue claimed",
   },
+  preparing: {
+    type: "workflow.phase.prepared",
+    state: "preparing",
+    message: "Issue hydrated",
+  },
   planning: {
     type: "workflow.phase.planned",
     state: "planning",
@@ -72,10 +77,12 @@ function createAutobotDeliverIssueWorkflow(): FlowcraftWorkflowDefinition {
     FlowcraftWorkflowDependencies
   >(autobotDeliverIssueWorkflowId)
     .node("claim", createPhaseNode("claim"))
+    .node("preparing", createPhaseNode("preparing"))
     .node("planning", createPhaseNode("planning"))
     .node("reconcile", createPhaseNode("reconcile"))
     .node("complete", createPhaseNode("complete"))
-    .edge("claim", "planning")
+    .edge("claim", "preparing")
+    .edge("preparing", "planning")
     .edge("planning", "reconcile")
     .edge("reconcile", "complete");
 
@@ -96,7 +103,7 @@ function createAutobotDeliverIssueWorkflow(): FlowcraftWorkflowDefinition {
     id: autobotDeliverIssueWorkflowId,
     version: autobotDeliverIssueWorkflowVersion,
     description:
-      "Claim an issue, generate planning artifacts, reconcile the local and remote state, then complete the delivery skeleton.",
+      "Claim an issue, prepare Linear data, generate planning artifacts, reconcile the state, then complete it.",
     flow,
     runtime,
     blueprint,

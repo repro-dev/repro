@@ -20,6 +20,9 @@ function runFuture<T>(future: FutureInstance<unknown, T>): Promise<T> {
   });
 }
 
+const noOpArtifactWriter = () => resolve(undefined);
+const noOpLinearIssue = () => resolve(null);
+
 function makeOptions(
   overrides: Partial<AutobotGlobalOptions> = {},
 ): AutobotGlobalOptions {
@@ -64,6 +67,8 @@ test("engine run-once preserves discovered metadata when it selects a new candid
     items: [],
   });
   const services = createAutobotServices({
+    artifactWriter: noOpArtifactWriter,
+    loadLinearIssue: noOpLinearIssue,
     openStore() {
       return resolve(fixture.store as unknown as AutobotStore);
     },
@@ -72,9 +77,6 @@ test("engine run-once preserves discovered metadata when it selects a new candid
     },
     randomId() {
       return "run-401";
-    },
-    artifactWriter() {
-      return resolve(undefined);
     },
     discoverIssues() {
       return resolve([
@@ -152,14 +154,13 @@ test("engine run-once warns and skips discovery when discovery.projects is missi
     items: [],
   });
   const services = createAutobotServices({
+    artifactWriter: noOpArtifactWriter,
+    loadLinearIssue: noOpLinearIssue,
     openStore() {
       return resolve(fixture.store as unknown as AutobotStore);
     },
     now() {
       return "2026-05-15T12:00:00Z";
-    },
-    artifactWriter() {
-      return resolve(undefined);
     },
     discoverIssues() {
       throw new Error(
