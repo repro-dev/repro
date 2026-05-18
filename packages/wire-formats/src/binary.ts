@@ -3,7 +3,9 @@ import { BufferListView } from '../generated/buffer-list'
 
 export function toBinaryWireFormat(items: Array<DataView>) {
   return BufferListView.encode(
-    items.map(item => item.buffer.slice(item.byteOffset, item.byteLength))
+    items.map(item =>
+      item.buffer.slice(item.byteOffset, item.byteOffset + item.byteLength)
+    )
   )
 }
 
@@ -112,6 +114,11 @@ export function fromBinaryWireFormatStream(
         }
 
         if (done) {
+          if (writeOffset !== readOffset) {
+            controller.error(new Error('Truncated binary wire format stream'))
+            return
+          }
+
           controller.close()
           return
         }
