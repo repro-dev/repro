@@ -168,14 +168,9 @@ test("load linear issue hydrates the Linear metadata payload", async () => {
   });
   assert.deepStrictEqual(calls, [
     {
+      cwd: "/repo",
       command: "/repo/bin/linear",
-      args: [
-        "issue",
-        "show",
-        "REP-1158",
-        "--json",
-        "identifier,title,url,status,project,assignee,labels",
-      ],
+      args: ["issue", "show", "REP-1158", "--json"],
     },
   ]);
 });

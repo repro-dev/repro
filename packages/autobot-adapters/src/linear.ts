@@ -418,13 +418,7 @@ export function loadLinearIssue(
   dependencies: LoadDependencies = {},
 ): FutureInstance<unknown, LinearIssueRef | null> {
   const runCommand = dependencies.runCommand ?? defaultRunCommand;
-  const args = [
-    "issue",
-    "show",
-    input.issueId,
-    "--json",
-    "identifier,title,url,status,project,assignee,labels",
-  ];
+  const args = ["issue", "show", input.issueId, "--json"];
 
   return Future((reject, resolve) => {
     runCommand({
