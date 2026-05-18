@@ -13,7 +13,7 @@ function runFuture<T>(future: FutureInstance<unknown, T>): Promise<T> {
   });
 }
 
-test("engine run-once uses the default Linear issue loader", async (t) => {
+test("engine run-once hydrates planning artifacts from the default Linear issue loader", async (t) => {
   const loadLinearIssueCalls: Array<{ repoRoot: string; issueId: string }> = [];
 
   t.mock.module("@repro/autobot-adapters", {

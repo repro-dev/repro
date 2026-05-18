@@ -3892,7 +3892,8 @@ export function createAutobotServices(
     dependencies.openStore ??
     ((repo: RepoRef | string) => createAutobotStore({ repo }));
   const now = dependencies.now ?? (() => new Date().toISOString());
-  const loadLinearIssue =
+  // Planning only: hydrate Linear metadata for artifact generation.
+  const loadPlanningLinearIssue =
     dependencies.loadLinearIssue ??
     ((input: LoadLinearIssueInput) =>
       loadLinearIssueFromAdapters({
@@ -3917,7 +3918,7 @@ export function createAutobotServices(
           now,
           dependencies.discoverIssues,
           dependencies.artifactWriter ?? defaultArtifactWriter,
-          loadLinearIssue,
+          loadPlanningLinearIssue,
           dependencies.randomId ?? randomUUID,
           dependencies.sleep ?? createDelayFuture,
         ),
