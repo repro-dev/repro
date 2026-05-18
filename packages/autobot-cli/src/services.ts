@@ -515,6 +515,33 @@ function markPlanningFailure(
   );
 }
 
+function createPlanningArtifactCreatedEvent(input: {
+  issueId: string;
+  runId: string;
+  executionId: string;
+  artifact: PlanningArtifactDraft;
+  occurredAt: string;
+}): DomainEvent {
+  return createDomainEvent({
+    type: "workflow.artifact.created",
+    severity: "info",
+    state: "planning",
+    message: `Planning artifact created: ${path.basename(input.artifact.path)}`,
+    issue_id: input.issueId,
+    run_id: input.runId,
+    occurred_at: input.occurredAt,
+    data: {
+      issue_id: input.issueId,
+      run_id: input.runId,
+      execution_id: input.executionId,
+      artifact_kind: input.artifact.kind,
+      artifact_path: input.artifact.path,
+      artifact_description: input.artifact.description,
+      content_hash: input.artifact.content_hash,
+    },
+  });
+}
+
 function warningToHealthCheck(warning: Warning): {
   code: string;
   status: "warning";
@@ -2329,6 +2356,18 @@ function runBoundedWorkflowTickForItem(
         store.repo.path,
       )
         .pipe(
+          chainRej((error) =>
+            markPlanningFailure(store, target, tickAt, error).pipe(
+              chain(() =>
+                Future((reject) => {
+                  reject(error as never);
+                  return () => undefined;
+                }),
+              ),
+            ),
+          ),
+        )
+        .pipe(
           chain(() =>
             (
               executeAutobotDeliverIssueWorkflow({
@@ -2375,18 +2414,34 @@ function runBoundedWorkflowTickForItem(
                                 chain(() =>
                                   sequenceFutures(
                                     planningArtifactDrafts.map((draft) =>
-                                      transaction.artifacts.record({
-                                        issue_id: target.issue_id,
-                                        run_id: run.run_id,
-                                        attempt: target.attempt,
-                                        kind: draft.kind,
-                                        path: draft.path,
-                                        description: draft.description,
-                                        content_hash: draft.content_hash,
-                                        supersedes_artifact_id: null,
-                                        inherited_from_artifact_id: null,
-                                        created_at: startedAt,
-                                      }),
+                                      transaction.artifacts
+                                        .record({
+                                          issue_id: target.issue_id,
+                                          run_id: run.run_id,
+                                          attempt: target.attempt,
+                                          kind: draft.kind,
+                                          path: draft.path,
+                                          description: draft.description,
+                                          content_hash: draft.content_hash,
+                                          supersedes_artifact_id: null,
+                                          inherited_from_artifact_id: null,
+                                          created_at: startedAt,
+                                        })
+                                        .pipe(
+                                          chain(() =>
+                                            transaction.events.append(
+                                              createPlanningArtifactCreatedEvent(
+                                                {
+                                                  issueId: target.issue_id,
+                                                  runId: run.run_id,
+                                                  executionId,
+                                                  artifact: draft,
+                                                  occurredAt: startedAt,
+                                                },
+                                              ),
+                                            ),
+                                          ),
+                                        ),
                                     ),
                                   ).pipe(
                                     chain(() =>
@@ -2444,11 +2499,6 @@ function runBoundedWorkflowTickForItem(
                   ),
               ),
             ),
-          ),
-        )
-        .pipe(
-          chainRej((error) =>
-            markPlanningFailure(store, target, tickAt, error),
           ),
         );
     }),

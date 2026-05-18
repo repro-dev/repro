@@ -395,7 +395,29 @@ test("failed item detail renderer keeps semantic next-step guidance", () => {
         created_at: "2026-05-14T11:10:00Z",
       },
     ],
-    events: [],
+    events: [
+      {
+        event_id: "event-1151-artifact",
+        issue_id: "REP-1151",
+        run_id: "run-1151",
+        type: "workflow.artifact.created",
+        state: "planning",
+        message: "Planning artifact created: context.md",
+        severity: "info",
+        occurred_at: "2026-05-14T11:10:00Z",
+        actor: "autobot-cli",
+        transport: null,
+        data: {
+          issue_id: "REP-1151",
+          run_id: "run-1151",
+          execution_id: "exec-1151",
+          artifact_kind: "context",
+          artifact_path: ".autobot/runs/REP-1151/attempt-2/context.md",
+          artifact_description: "Planning context",
+          content_hash: "hash-context",
+        },
+      },
+    ],
   };
 
   assertNormalizedEqual(
@@ -411,6 +433,8 @@ test("failed item detail renderer keeps semantic next-step guidance", () => {
     Last error: AUTOBOT-RETRY-NOT-ALLOWED — retry is only available after failed runs
     Artifacts:
       context: .autobot/runs/REP-1151/attempt-2/context.md — Planning context
+    Events:
+      2026-05-14T11:10:00Z workflow.artifact.created Planning artifact created: context.md
     Next:
     autobot-next status REP-1151 --json
     `,
@@ -466,7 +490,29 @@ test("item detail renderer surfaces relay transport for active runs", () => {
         created_at: "2026-05-15T11:05:00Z",
       },
     ],
-    events: [],
+    events: [
+      {
+        event_id: "event-1154-artifact",
+        issue_id: "REP-1154",
+        run_id: "run-1154",
+        type: "workflow.artifact.created",
+        state: "planning",
+        message: "Planning artifact created: prompt.md",
+        severity: "info",
+        occurred_at: "2026-05-15T11:05:00Z",
+        actor: "autobot-cli",
+        transport: null,
+        data: {
+          issue_id: "REP-1154",
+          run_id: "run-1154",
+          execution_id: "exec-1154",
+          artifact_kind: "prompt",
+          artifact_path: ".autobot/runs/REP-1154/attempt-1/prompt.md",
+          artifact_description: "Planning prompt",
+          content_hash: "hash-prompt",
+        },
+      },
+    ],
   };
 
   assertNormalizedEqual(
@@ -493,6 +539,8 @@ test("item detail renderer surfaces relay transport for active runs", () => {
       message_id: relay-message
     Artifacts:
       prompt: .autobot/runs/REP-1154/attempt-1/prompt.md — Planning prompt
+    Events:
+      2026-05-15T11:05:00Z workflow.artifact.created Planning artifact created: prompt.md
     Next:
     autobot-next status REP-1154 --json
     `,

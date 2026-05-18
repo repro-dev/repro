@@ -78,6 +78,14 @@ function renderArtifacts(artifacts: ArtifactRef[]): string[] {
   ];
 }
 
+function renderEvents(events: DomainEvent[]): string[] {
+  if (events.length === 0) {
+    return [];
+  }
+
+  return ["Events:", ...events.map((event) => `  ${renderDomainEvent(event)}`)];
+}
+
 function renderHealthEntry(health: EngineStatus["health"][number]): string {
   return `${health.status.toUpperCase()} ${health.code}: ${health.message}`;
 }
@@ -273,6 +281,8 @@ export function renderAutobotItemDetail(
   }
 
   lines.push(...renderArtifacts(item.artifacts));
+
+  lines.push(...renderEvents(item.events));
 
   lines.push(...renderNext(item));
   return lines.join("\n");

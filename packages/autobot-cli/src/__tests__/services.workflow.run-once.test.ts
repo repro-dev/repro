@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { resolve, type FutureInstance, fork } from "fluture";
+import { Future, resolve, type FutureInstance, fork } from "fluture";
 
 import type { AutobotStore } from "@repro/autobot-store";
 
@@ -17,6 +17,13 @@ import { makeWorkflowStore } from "./workflow-fixture";
 function runFuture<T>(future: FutureInstance<unknown, T>): Promise<T> {
   return new Promise((resolvePromise, rejectPromise) => {
     future.pipe(fork(rejectPromise)(resolvePromise));
+  });
+}
+
+function rejectFuture<T>(error: Error): FutureInstance<never, T> {
+  return Future((reject) => {
+    reject(error as never);
+    return () => undefined;
   });
 }
 
@@ -179,9 +186,8 @@ test("engine run-once reconciles stale in-progress items before selecting the ol
 
   const result = (await runFuture(
     services.handleInvocation(makeInvocation(["engine", "run-once"])),
-  )) as AutobotCommandResult;
+  )) as Extract<AutobotCommandResult, { kind: "queue-status" }>;
 
-  assert.equal(result.kind, "queue-status");
   assert.equal(result.command, "engine run-once");
   assert.equal(result.data.engine.last_tick_at, "2026-05-15T12:00:00Z");
   assert.deepEqual(result.data.tick?.reconciled_issue_ids, ["REP-203"]);
@@ -204,8 +210,27 @@ test("engine run-once reconciles stale in-progress items before selecting the ol
   assert.equal(fixture.executionRecords.length, 2);
   assert.equal(fixture.itemUpserts.length, 3);
   assert.equal(fixture.artifactRecords.length, 6);
+  assert.equal(
+    fixture.domainEvents.filter(
+      (event) => event.type === "workflow.artifact.created",
+    ).length,
+    6,
+  );
   assert.deepEqual(
     fixture.artifactRecords.map((artifact) => artifact.path),
+    [
+      ".autobot/runs/REP-200/attempt-1/context.md",
+      ".autobot/runs/REP-200/attempt-1/test-plan.md",
+      ".autobot/runs/REP-200/attempt-1/prompt.md",
+      ".autobot/runs/REP-201/attempt-1/context.md",
+      ".autobot/runs/REP-201/attempt-1/test-plan.md",
+      ".autobot/runs/REP-201/attempt-1/prompt.md",
+    ],
+  );
+  assert.deepEqual(
+    fixture.domainEvents
+      .filter((event) => event.type === "workflow.artifact.created")
+      .map((event) => (event.data as { artifact_path: string }).artifact_path),
     [
       ".autobot/runs/REP-200/attempt-1/context.md",
       ".autobot/runs/REP-200/attempt-1/test-plan.md",
@@ -474,7 +499,7 @@ test("engine run-once persists discovered work and caps it by queue-depth", asyn
 
   const result = (await runFuture(
     services.handleInvocation(makeInvocation(["engine", "run-once"])),
-  )) as AutobotCommandResult;
+  )) as Extract<AutobotCommandResult, { kind: "queue-status" }>;
 
   assert.equal(result.kind, "queue-status");
   assert.equal(result.data.tick?.dry_run, false);
@@ -514,4 +539,151 @@ test("engine run-once persists discovered work and caps it by queue-depth", asyn
   );
   assert.equal(fixture.artifactRecords.length, 3);
   assert.equal(fixture.transactionCalls > 0, true);
+});
+
+test("engine run-once marks artifact writer failures as planning failures", async () => {
+  const fixture = makeWorkflowStore({
+    items: [
+      {
+        issue_id: "REP-500",
+        title: "Planning failure item",
+        url: "https://linear.app/repro/issue/REP-500/planning-failure-item",
+        state: "queued",
+        attempt: 1,
+        priority: 2,
+        owner: "Gary",
+        workspace: "autobot",
+        branch: "autobot/REP-500",
+        queued_at: "2026-05-15T09:00:00Z",
+        started_at: null,
+        updated_at: "2026-05-15T09:00:00Z",
+        last_event: null,
+        last_error: null,
+        recovery_commands: [],
+        linear: null,
+        current_run: null,
+        cancellation_requested: false,
+        cancellation_requested_at: null,
+        artifacts: [],
+        events: [],
+      },
+    ],
+  });
+  const services = createAutobotServices({
+    openStore() {
+      return resolve(fixture.store as unknown as AutobotStore);
+    },
+    now() {
+      return "2026-05-15T12:00:00Z";
+    },
+    randomId() {
+      return "run-500";
+    },
+    artifactWriter() {
+      return rejectFuture(new Error("artifact write failed"));
+    },
+  });
+
+  const error: Error = await runFuture(
+    services.handleInvocation(makeInvocation(["engine", "run-once"])),
+  ).then(
+    () => {
+      throw new Error("expected planning failure to reject");
+    },
+    (caught: unknown) => caught as Error,
+  );
+
+  const planningFailureUpsert = fixture.itemUpserts[0] as
+    | { state?: string; last_error?: { code?: string } }
+    | undefined;
+
+  assert.equal(error.message, "artifact write failed");
+  assert.equal(planningFailureUpsert?.state, "failed");
+  assert.equal(
+    planningFailureUpsert?.last_error?.code,
+    "AUTOBOT-PLANNING-ARTIFACTS-FAILED",
+  );
+  assert.equal(fixture.executionRecords.length, 0);
+  assert.equal(
+    fixture.itemUpserts.some((item) => item.state === "completed"),
+    false,
+  );
+  assert.ok(
+    fixture.domainEvents.some(
+      (event) =>
+        event.type === "workflow.phase.failed" && event.state === "planning",
+    ),
+  );
+});
+
+test("engine run-once lets later workflow failures reject without planning remap", async () => {
+  const fixture = makeWorkflowStore({
+    items: [
+      {
+        issue_id: "REP-501",
+        title: "Later failure item",
+        url: "https://linear.app/repro/issue/REP-501/later-failure-item",
+        state: "queued",
+        attempt: 1,
+        priority: 2,
+        owner: "Gary",
+        workspace: "autobot",
+        branch: "autobot/REP-501",
+        queued_at: "2026-05-15T09:00:00Z",
+        started_at: null,
+        updated_at: "2026-05-15T09:00:00Z",
+        last_event: null,
+        last_error: null,
+        recovery_commands: [],
+        linear: null,
+        current_run: null,
+        cancellation_requested: false,
+        cancellation_requested_at: null,
+        artifacts: [],
+        events: [],
+      },
+    ],
+  });
+  fixture.store.flowcraft.recordExecution = (() =>
+    rejectFuture(
+      new Error("flowcraft exploded"),
+    )) as unknown as typeof fixture.store.flowcraft.recordExecution;
+
+  const services = createAutobotServices({
+    openStore() {
+      return resolve(fixture.store as unknown as AutobotStore);
+    },
+    now() {
+      return "2026-05-15T12:00:00Z";
+    },
+    randomId() {
+      return "run-501";
+    },
+    artifactWriter() {
+      return resolve(undefined);
+    },
+  });
+
+  const error: Error = await runFuture(
+    services.handleInvocation(makeInvocation(["engine", "run-once"])),
+  ).then(
+    () => {
+      throw new Error("expected run-once to reject");
+    },
+    (caught: unknown) => caught as Error,
+  );
+
+  assert.match(error.message, /flowcraft exploded/);
+  assert.equal(
+    (fixture.itemUpserts as Array<{ last_error?: { code?: string } }>).some(
+      (item) => item.last_error?.code === "AUTOBOT-PLANNING-ARTIFACTS-FAILED",
+    ),
+    false,
+  );
+  assert.equal(
+    fixture.domainEvents.some(
+      (event) => event.type === "workflow.phase.failed",
+    ),
+    false,
+  );
 });
