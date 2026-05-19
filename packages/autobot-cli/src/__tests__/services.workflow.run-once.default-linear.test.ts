@@ -149,7 +149,7 @@ test("engine run-once hydrates planning artifacts from the default Linear issue 
       issueId: "REP-400",
     },
   ]);
-  assert.equal(writes.length, 3);
+  assert.equal(writes.length, 4);
   assert.equal(
     writes.some((write) => write.path.endsWith("/run-plan.md")),
     false,

@@ -80,3 +80,15 @@ export function loadSingleTrackPhaseContract(
     "utf8",
   );
 }
+
+export function renderSingleTrackPhaseContract(
+  name: SingleTrackPhaseContractName,
+  input: {
+    issueId: string;
+    attempt: number;
+  },
+): string {
+  return loadSingleTrackPhaseContract(name)
+    .replaceAll("<issue-id>", input.issueId)
+    .replaceAll("<attempt>", String(input.attempt));
+}

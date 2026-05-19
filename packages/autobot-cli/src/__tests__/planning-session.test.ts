@@ -7,10 +7,7 @@ import {
   buildOpenCodePlanningCommand,
   createNoopPlanningSessionRunner,
 } from "../planning-session";
-import {
-  getSingleTrackPhaseContractPath,
-  loadSingleTrackPhaseContract,
-} from "../phase-contracts";
+import { renderSingleTrackPhaseContract } from "../phase-contracts";
 
 function runFuture<T>(future: FutureInstance<unknown, T>): Promise<T> {
   return new Promise((resolvePromise, rejectPromise) => {
@@ -25,13 +22,15 @@ test("buildOpenCodePlanningCommand wires durable planning artifacts", () => {
       state_dir: ".autobot",
     },
     issueId: "REP-1208",
+    attempt: 2,
     runId: "run-1208",
     executionId: "flowcraft-run-1208",
     artifactPaths: {
       context: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/context.md",
       testPlan:
         "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/test-plan.md",
-      contract: getSingleTrackPhaseContractPath("/worktrees/autobot", "plan"),
+      contract:
+        "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/contract.md",
       runPlan:
         "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/run-plan.md",
       prompt: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/prompt.md",
@@ -54,11 +53,15 @@ test("buildOpenCodePlanningCommand wires durable planning artifacts", () => {
     "--file",
     "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/test-plan.md",
     "--file",
-    getSingleTrackPhaseContractPath("/worktrees/autobot", "plan"),
+    "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/contract.md",
     "--file",
     "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/prompt.md",
-    loadSingleTrackPhaseContract("plan"),
+    renderSingleTrackPhaseContract("plan", {
+      issueId: "REP-1208",
+      attempt: 2,
+    }),
   ]);
+  assert.doesNotMatch(command.args.at(-1) ?? "", /<issue-id>|<attempt>/);
 });
 
 test("createNoopPlanningSessionRunner returns a completed result", async () => {
@@ -69,6 +72,7 @@ test("createNoopPlanningSessionRunner returns a completed result", async () => {
         state_dir: ".autobot",
       },
       issueId: "REP-1208",
+      attempt: 2,
       runId: "run-1208",
       executionId: "flowcraft-run-1208",
       artifactPaths: {
@@ -76,7 +80,8 @@ test("createNoopPlanningSessionRunner returns a completed result", async () => {
           "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/context.md",
         testPlan:
           "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/test-plan.md",
-        contract: getSingleTrackPhaseContractPath("/worktrees/autobot", "plan"),
+        contract:
+          "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/contract.md",
         runPlan:
           "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/run-plan.md",
         prompt: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/prompt.md",

@@ -7,6 +7,7 @@ import {
   getSingleTrackPhaseContractPath,
   listSingleTrackPhaseContractNames,
   loadSingleTrackPhaseContract,
+  renderSingleTrackPhaseContract,
 } from "../phase-contracts";
 
 function assertContains(content: string, snippet: string): void {
@@ -269,4 +270,16 @@ test("Autobot phase contracts declare exact inputs and outputs", () => {
     assert.doesNotMatch(content, /sibling-issue/i);
     assert.doesNotMatch(content, /single-track/i);
   }
+});
+
+test("Autobot phase contracts render placeholders before use", () => {
+  const content = renderSingleTrackPhaseContract("plan", {
+    issueId: "REP-1208",
+    attempt: 2,
+  });
+
+  assert.ok(content.includes("REP-1208"));
+  assert.ok(content.includes("attempt-2"));
+  assert.doesNotMatch(content, /<issue-id>/);
+  assert.doesNotMatch(content, /<attempt>/);
 });

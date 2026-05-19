@@ -6,7 +6,7 @@ import { fork, resolve, type FutureInstance } from "fluture";
 import type { AutobotStore } from "@repro/autobot-store";
 
 import { createAutobotServices } from "../services";
-import { getSingleTrackPhaseContractPath } from "../phase-contracts";
+import { renderSingleTrackPhaseContract } from "../phase-contracts";
 import type {
   AutobotCommandResult,
   AutobotGlobalOptions,
@@ -189,7 +189,7 @@ test("engine run-once passes durable planning artifact paths into opencode", asy
   )) as AutobotCommandResult;
 
   assert.equal(result.kind, "queue-status");
-  assert.equal(writes.length, 3);
+  assert.equal(writes.length, 4);
   assert.deepEqual(reads, [
     {
       path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/run-plan.md",
@@ -199,10 +199,32 @@ test("engine run-once passes durable planning artifact paths into opencode", asy
     context: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/context.md",
     testPlan:
       "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/test-plan.md",
-    contract: getSingleTrackPhaseContractPath("/worktrees/autobot", "plan"),
+    contract: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/contract.md",
     runPlan: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/run-plan.md",
     prompt: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/prompt.md",
   });
+  assert.equal(
+    writes.find((write) => write.path.endsWith("/prompt.md"))?.content,
+    renderSingleTrackPhaseContract("plan", {
+      issueId: "REP-1208",
+      attempt: 1,
+    }),
+  );
+  assert.doesNotMatch(
+    writes.find((write) => write.path.endsWith("/prompt.md"))?.content ?? "",
+    /<issue-id>|<attempt>/,
+  );
+  assert.equal(
+    writes.find((write) => write.path.endsWith("/contract.md"))?.content,
+    renderSingleTrackPhaseContract("plan", {
+      issueId: "REP-1208",
+      attempt: 1,
+    }),
+  );
+  assert.doesNotMatch(
+    writes.find((write) => write.path.endsWith("/contract.md"))?.content ?? "",
+    /<issue-id>|<attempt>/,
+  );
   assert.equal(
     writes.some((write) => write.path.endsWith("/run-plan.md")),
     false,
@@ -301,7 +323,7 @@ test("engine run-once rejects empty required run-plan sections before flowcraft 
   )) as AutobotCommandResult;
 
   assert.equal(result.kind, "queue-status");
-  assert.equal(writes.length, 3);
+  assert.equal(writes.length, 4);
   assert.deepEqual(reads, [
     {
       path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/run-plan.md",
@@ -375,7 +397,7 @@ test("engine run-once preserves non-ready run plans without flowcraft completion
   )) as AutobotCommandResult;
 
   assert.equal(result.kind, "queue-status");
-  assert.equal(writes.length, 3);
+  assert.equal(writes.length, 4);
   assert.deepEqual(reads, [
     {
       path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/run-plan.md",

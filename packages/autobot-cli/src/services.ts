@@ -68,11 +68,7 @@ import {
   type PlanningSessionResult,
   type PlanningSessionRunner,
 } from "./planning-session";
-import {
-  getSingleTrackPhaseContractPath,
-  getSingleTrackPhaseContractRelativePath,
-  loadSingleTrackPhaseContract,
-} from "./phase-contracts";
+import { renderSingleTrackPhaseContract } from "./phase-contracts";
 import {
   AutobotCliError,
   createNotImplementedError,
@@ -2041,8 +2037,11 @@ function renderPlanningTestPlanArtifact(input: {
   ].join("\n");
 }
 
-function renderPlanningPromptArtifact(): string {
-  return loadSingleTrackPhaseContract("plan");
+function renderPlanningPromptArtifact(input: {
+  issueId: string;
+  attempt: number;
+}): string {
+  return renderSingleTrackPhaseContract("plan", input);
 }
 
 function buildPlanningRunPlanArtifact(input: {
@@ -2201,13 +2200,16 @@ function buildPlanningArtifactDrafts(input: {
     input.item.attempt,
     "prompt.md",
   );
+  const contractArtifactPath = buildPlanningArtifactRelativePath(
+    input.item.issue_id,
+    input.item.attempt,
+    "contract.md",
+  );
   const runPlanPath = buildPlanningArtifactRelativePath(
     input.item.issue_id,
     input.item.attempt,
     "run-plan.md",
   );
-  const contractPath = getSingleTrackPhaseContractPath(input.repoPath, "plan");
-  const contractArtifactPath = getSingleTrackPhaseContractRelativePath("plan");
 
   const contextContent = renderPlanningContextArtifact({
     item: input.item,
@@ -2219,12 +2221,15 @@ function buildPlanningArtifactDrafts(input: {
     issueId: input.item.issue_id,
     title: input.item.title,
     contextPath,
-    contractPath,
+    contractPath: contractArtifactPath,
     runPlanPath,
     promptPath,
   });
-  const promptContent = renderPlanningPromptArtifact();
-  const contractContent = loadSingleTrackPhaseContract("plan");
+  const promptContent = renderPlanningPromptArtifact({
+    issueId: input.item.issue_id,
+    attempt: input.item.attempt,
+  });
+  const contractContent = promptContent;
 
   return [
     {
@@ -2254,7 +2259,6 @@ function buildPlanningArtifactDrafts(input: {
       description: "Planning contract",
       content: contractContent,
       content_hash: createContentHash(contractContent),
-      persist: false,
     },
   ];
 }
@@ -2577,6 +2581,7 @@ function runBoundedWorkflowTickForItem(
             const planningSessionInput = {
               repo: store.repo,
               issueId: target.issue_id,
+              attempt: planningItem.attempt,
               runId,
               executionId,
               artifactPaths: planningArtifactPaths,
