@@ -13,6 +13,18 @@ function runFuture<T>(future: FutureInstance<unknown, T>): Promise<T> {
   });
 }
 
+const noOpPlanningSessionRunner = () =>
+  resolve({
+    command: "opencode",
+    args: ["run"],
+    started_at: "2026-05-15T12:00:01Z",
+    finished_at: "2026-05-15T12:00:02Z",
+    exit_code: 0,
+    signal: null,
+    stdout: "",
+    stderr: "",
+  });
+
 test("engine run-once hydrates planning artifacts from the default Linear issue loader", async (t) => {
   const loadLinearIssueCalls: Array<{ repoRoot: string; issueId: string }> = [];
 
@@ -78,6 +90,7 @@ test("engine run-once hydrates planning artifacts from the default Linear issue 
       writes.push(input);
       return resolve(undefined);
     },
+    planningSessionRunner: noOpPlanningSessionRunner,
     openStore() {
       return resolve(fixture.store as unknown as AutobotStore);
     },
