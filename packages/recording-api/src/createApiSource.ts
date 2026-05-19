@@ -5,7 +5,7 @@ import { logger } from '@repro/logger'
 import { ReadyState, Source } from '@repro/playback'
 import { WritableStream } from '@repro/stream-utils'
 import { List } from '@repro/tdl'
-import { both, fork } from 'fluture'
+import { fork } from 'fluture'
 import {
   getRecordingEventsStream,
   getRecordingInfo,
@@ -24,20 +24,34 @@ export function createApiSource(
   const [$error, setError] = createAtom<Error | null>(null)
   const [$resourceMap, setResourceMap] = createAtom<Record<string, string>>({})
 
-  both(getRecordingInfo(apiClient, projectId, recordingId))(
-    both(
-      getRecordingEventsStream(
-        apiClient,
-        projectId,
-        recordingId,
-        extra.encryptionKey
-      )
-    )(getResourceMap(apiClient, projectId, recordingId))
+  getRecordingInfo(apiClient, projectId, recordingId).pipe(
+    fork(error => {
+      logger.error(error)
+      setReadyState('failed')
+    })(info => {
+      setDuration(info.duration)
+    })
+  )
+
+  getResourceMap(apiClient, projectId, recordingId).pipe(
+    fork(error => {
+      logger.error(error)
+      setReadyState('failed')
+    })(resourceMap => {
+      setResourceMap(resourceMap)
+    })
+  )
+
+  getRecordingEventsStream(
+    apiClient,
+    projectId,
+    recordingId,
+    extra.encryptionKey
   ).pipe(
     fork(error => {
       logger.error(error)
       setReadyState('failed')
-    })(([info, [events, resourceMap]]) => {
+    })(events => {
       const sourceList = new List(SourceEventView, [])
       setEvents(sourceList)
 
@@ -48,15 +62,19 @@ export function createApiSource(
               sourceList.append(SourceEventView.over(new DataView(buffer)))
               setReadyState('ready')
             },
+
+            close() {
+              setReadyState('ready')
+            },
           })
         )
+        .then(() => {
+          setReadyState('ready')
+        })
         .catch(error => {
           setError(error)
           setReadyState('failed')
         })
-
-      setDuration(info.duration)
-      setResourceMap(resourceMap)
     })
   )
 

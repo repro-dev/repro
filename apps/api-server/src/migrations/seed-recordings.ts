@@ -11,6 +11,7 @@ import { createPostgresDatabaseClient } from '~/modules/database/database-postgr
 import { Database } from '~/modules/database/types'
 import { Storage } from '~/modules/storage'
 import { createS3StorageClient } from '~/modules/storage-s3'
+import { createRecordingService } from '~/services/recording'
 
 function encodeRecordingData(recording: FixtureRecording): Buffer {
   const views = recording.events.map(event => SourceEventView.encode(event))
@@ -24,10 +25,6 @@ function encodeRecordingData(recording: FixtureRecording): Buffer {
       )
     )
   )
-}
-
-function bufferToReadable(buf: Buffer): Readable {
-  return Readable.from([buf])
 }
 
 async function insertRecording(
@@ -67,9 +64,11 @@ async function insertRecording(
 
   const recordingId = encodeId(row.id)
   const data = encodeRecordingData(recording)
-  const path = `${recordingId}/data`
+  const recordingService = createRecordingService(db, storage)
 
-  await promise(storage.write(path, bufferToReadable(data)))
+  await promise(
+    recordingService.writeDataFromStream(recordingId, Readable.from([data]))
+  )
 
   await db
     .insertInto('project_recordings')

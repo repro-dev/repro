@@ -9,7 +9,10 @@ import { Box } from '@repro/tdl'
 import { go } from 'fluture'
 import { Readable } from 'node:stream'
 import { encodeId } from '~/modules/database'
-import { createRecordingDataWireFormat } from '../recording'
+import {
+  createRecordingDataUncompressed,
+  createRecordingDataWireFormat,
+} from '../recording'
 import { Fixture } from '../types'
 import { readableToString, stringToReadable } from '../utils'
 
@@ -65,11 +68,7 @@ export const RecordingA_Data: Fixture<string> = {
 
       yield recordingService.writeDataFromStream(recording.id, input)
 
-      const output: Readable = yield recordingService.readDataAsStream(
-        recording.id
-      )
-
-      return yield readableToString(output)
+      return createRecordingDataUncompressed(events).toString()
     })
   },
 }
