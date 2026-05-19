@@ -7,6 +7,7 @@ import {
   buildOpenCodePlanningCommand,
   createNoopPlanningSessionRunner,
 } from "../planning-session";
+import { renderSingleTrackPhaseContract } from "../phase-contracts";
 
 function runFuture<T>(future: FutureInstance<unknown, T>): Promise<T> {
   return new Promise((resolvePromise, rejectPromise) => {
@@ -21,12 +22,17 @@ test("buildOpenCodePlanningCommand wires durable planning artifacts", () => {
       state_dir: ".autobot",
     },
     issueId: "REP-1208",
+    attempt: 2,
     runId: "run-1208",
     executionId: "flowcraft-run-1208",
     artifactPaths: {
       context: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/context.md",
       testPlan:
         "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/test-plan.md",
+      contract:
+        "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/contract.md",
+      runPlan:
+        "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/run-plan.md",
       prompt: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/prompt.md",
     },
   });
@@ -42,14 +48,20 @@ test("buildOpenCodePlanningCommand wires durable planning artifacts", () => {
     "Autobot planning REP-1208",
     "--file",
   ]);
-  assert.deepEqual(command.args.slice(8, 14), [
+  assert.deepEqual(command.args.slice(8, 16), [
     "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/context.md",
     "--file",
     "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/test-plan.md",
     "--file",
+    "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/contract.md",
+    "--file",
     "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/prompt.md",
-    "Use the planning artifacts at /worktrees/autobot/.autobot/runs/REP-1208/attempt-2/context.md, /worktrees/autobot/.autobot/runs/REP-1208/attempt-2/test-plan.md, and /worktrees/autobot/.autobot/runs/REP-1208/attempt-2/prompt.md. They are the source of truth.",
+    renderSingleTrackPhaseContract("plan", {
+      issueId: "REP-1208",
+      attempt: 2,
+    }),
   ]);
+  assert.doesNotMatch(command.args.at(-1) ?? "", /<issue-id>|<attempt>/);
 });
 
 test("createNoopPlanningSessionRunner returns a completed result", async () => {
@@ -60,6 +72,7 @@ test("createNoopPlanningSessionRunner returns a completed result", async () => {
         state_dir: ".autobot",
       },
       issueId: "REP-1208",
+      attempt: 2,
       runId: "run-1208",
       executionId: "flowcraft-run-1208",
       artifactPaths: {
@@ -67,6 +80,10 @@ test("createNoopPlanningSessionRunner returns a completed result", async () => {
           "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/context.md",
         testPlan:
           "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/test-plan.md",
+        contract:
+          "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/contract.md",
+        runPlan:
+          "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/run-plan.md",
         prompt: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/prompt.md",
       },
     }),

@@ -13,6 +13,20 @@ function runFuture<T>(future: FutureInstance<unknown, T>): Promise<T> {
   });
 }
 
+const validRunPlan = [
+  "## Readiness",
+  "ready_to_proceed",
+  "",
+  "## Sequence Notes",
+  "- Implement in one bounded pass.",
+  "",
+  "## Risk Notes",
+  "- No high-risk signals.",
+  "",
+  "## Plan",
+  "- Modify the selected issue files.",
+].join("\n");
+
 const noOpPlanningSessionRunner = () =>
   resolve({
     command: "opencode",
@@ -21,9 +35,11 @@ const noOpPlanningSessionRunner = () =>
     finished_at: "2026-05-15T12:00:02Z",
     exit_code: 0,
     signal: null,
-    stdout: "",
+    stdout: validRunPlan,
     stderr: "",
   });
+
+const noOpArtifactReader = () => resolve(validRunPlan);
 
 test("engine run-once hydrates planning artifacts from the default Linear issue loader", async (t) => {
   const loadLinearIssueCalls: Array<{ repoRoot: string; issueId: string }> = [];
@@ -90,6 +106,7 @@ test("engine run-once hydrates planning artifacts from the default Linear issue 
       writes.push(input);
       return resolve(undefined);
     },
+    artifactReader: noOpArtifactReader,
     planningSessionRunner: noOpPlanningSessionRunner,
     openStore() {
       return resolve(fixture.store as unknown as AutobotStore);
@@ -132,7 +149,11 @@ test("engine run-once hydrates planning artifacts from the default Linear issue 
       issueId: "REP-400",
     },
   ]);
-  assert.equal(writes.length, 3);
+  assert.equal(writes.length, 4);
+  assert.equal(
+    writes.some((write) => write.path.endsWith("/run-plan.md")),
+    false,
+  );
   assert.match(writes[0]?.content ?? "", /Hydrated queued item/);
   assert.match(writes[0]?.content ?? "", /- Project: Engineering/);
   assert.match(writes[0]?.content ?? "", /- Labels: backend/);

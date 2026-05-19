@@ -21,7 +21,21 @@ function runFuture<T>(future: FutureInstance<unknown, T>): Promise<T> {
 }
 
 const noOpArtifactWriter = () => resolve(undefined);
+const noOpArtifactReader = () => resolve(validRunPlan);
 const noOpLinearIssue = () => resolve(null);
+const validRunPlan = [
+  "## Readiness",
+  "ready_to_proceed",
+  "",
+  "## Sequence Notes",
+  "- Implement in one bounded pass.",
+  "",
+  "## Risk Notes",
+  "- No high-risk signals.",
+  "",
+  "## Plan",
+  "- Modify the selected issue files.",
+].join("\n");
 const noOpPlanningSessionRunner = () =>
   resolve({
     command: "opencode",
@@ -30,7 +44,7 @@ const noOpPlanningSessionRunner = () =>
     finished_at: "2026-05-15T12:00:02Z",
     exit_code: 0,
     signal: null,
-    stdout: "",
+    stdout: validRunPlan,
     stderr: "",
   });
 
@@ -79,6 +93,7 @@ test("engine run-once preserves discovered metadata when it selects a new candid
   });
   const services = createAutobotServices({
     artifactWriter: noOpArtifactWriter,
+    artifactReader: noOpArtifactReader,
     planningSessionRunner: noOpPlanningSessionRunner,
     loadLinearIssue: noOpLinearIssue,
     openStore() {
@@ -133,7 +148,8 @@ test("engine run-once preserves discovered metadata when it selects a new candid
         item.issue_id === "REP-401" && item.reason === "queue-depth-exhausted",
     ),
   );
-  assert.equal(fixture.artifactRecords.length, 3);
+  assert.equal(fixture.artifactRecords.length, 5);
+  assert.equal(fixture.artifactRecords.at(-1)?.kind, "run-plan");
 
   const rep400Upserts = fixture.itemUpserts.filter(
     (item) => item.issue_id === "REP-400",
@@ -167,6 +183,7 @@ test("engine run-once warns and skips discovery when discovery.projects is missi
   });
   const services = createAutobotServices({
     artifactWriter: noOpArtifactWriter,
+    artifactReader: noOpArtifactReader,
     planningSessionRunner: noOpPlanningSessionRunner,
     loadLinearIssue: noOpLinearIssue,
     openStore() {

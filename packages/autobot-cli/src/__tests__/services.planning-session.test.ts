@@ -6,6 +6,7 @@ import { fork, resolve, type FutureInstance } from "fluture";
 import type { AutobotStore } from "@repro/autobot-store";
 
 import { createAutobotServices } from "../services";
+import { renderSingleTrackPhaseContract } from "../phase-contracts";
 import type {
   AutobotCommandResult,
   AutobotGlobalOptions,
@@ -53,46 +54,99 @@ function makeInvocation(
   };
 }
 
+function makeQueuedPlanningItem() {
+  return {
+    issue_id: "REP-1208",
+    title: "Bridge OpenCode planning sessions",
+    url: "https://linear.app/repro/issue/REP-1208/bridge-opencode-planning-sessions",
+    state: "queued" as const,
+    attempt: 1,
+    priority: 2,
+    owner: "Gary",
+    workspace: "autobot",
+    branch: "autobot/REP-1208",
+    queued_at: "2026-05-15T09:00:00Z",
+    started_at: null,
+    updated_at: "2026-05-15T09:00:00Z",
+    last_event: null,
+    last_error: null,
+    recovery_commands: [],
+    linear: null,
+    current_run: null,
+    cancellation_requested: false,
+    cancellation_requested_at: null,
+    artifacts: [] as [],
+    events: [] as [],
+  };
+}
+
+const validRunPlan = [
+  "## Readiness",
+  "ready_to_proceed",
+  "",
+  "## Sequence Notes",
+  "- Implement in one bounded pass.",
+  "",
+  "## Risk Notes",
+  "- No high-risk signals.",
+  "",
+  "## Plan",
+  "- Modify packages/autobot-cli/src/services.ts.",
+].join("\n");
+
+const notReadyRunPlan = [
+  "## Readiness",
+  "not_ready",
+  "",
+  "## Sequence Notes",
+  "- Return to research-refine.",
+  "",
+  "## Risk Notes",
+  "- Scope is not ready.",
+  "",
+  "## Plan",
+  "- Do not implement yet.",
+  "",
+  "## Open Questions",
+  "- Which files are in scope?",
+].join("\n");
+
+const emptySequenceNotesRunPlan = [
+  "## Readiness",
+  "ready_to_proceed",
+  "",
+  "## Sequence Notes",
+  "",
+  "## Risk Notes",
+  "- Scope is not ready.",
+  "",
+  "## Plan",
+  "- Do not implement yet.",
+].join("\n");
+
 test("engine run-once passes durable planning artifact paths into opencode", async () => {
   const fixture = makeWorkflowStore({
-    items: [
-      {
-        issue_id: "REP-1208",
-        title: "Bridge OpenCode planning sessions",
-        url: "https://linear.app/repro/issue/REP-1208/bridge-opencode-planning-sessions",
-        state: "queued",
-        attempt: 1,
-        priority: 2,
-        owner: "Gary",
-        workspace: "autobot",
-        branch: "autobot/REP-1208",
-        queued_at: "2026-05-15T09:00:00Z",
-        started_at: null,
-        updated_at: "2026-05-15T09:00:00Z",
-        last_event: null,
-        last_error: null,
-        recovery_commands: [],
-        linear: null,
-        current_run: null,
-        cancellation_requested: false,
-        cancellation_requested_at: null,
-        artifacts: [],
-        events: [],
-      },
-    ],
+    items: [makeQueuedPlanningItem()],
   });
   const received: Array<{
     artifactPaths: {
       context: string;
       testPlan: string;
+      contract: string;
+      runPlan: string;
       prompt: string;
     };
   }> = [];
+  const reads: Array<{ path: string }> = [];
   const writes: Array<{ path: string; content: string }> = [];
   const services = createAutobotServices({
     artifactWriter(input) {
       writes.push(input);
       return resolve(undefined);
+    },
+    artifactReader(input) {
+      reads.push(input);
+      return resolve(validRunPlan);
     },
     planningSessionRunner(input) {
       received.push({ artifactPaths: input.artifactPaths });
@@ -135,13 +189,46 @@ test("engine run-once passes durable planning artifact paths into opencode", asy
   )) as AutobotCommandResult;
 
   assert.equal(result.kind, "queue-status");
-  assert.equal(writes.length, 3);
+  assert.equal(writes.length, 4);
+  assert.deepEqual(reads, [
+    {
+      path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/run-plan.md",
+    },
+  ]);
   assert.deepEqual(received[0]?.artifactPaths, {
     context: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/context.md",
     testPlan:
       "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/test-plan.md",
+    contract: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/contract.md",
+    runPlan: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/run-plan.md",
     prompt: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/prompt.md",
   });
+  assert.equal(
+    writes.find((write) => write.path.endsWith("/prompt.md"))?.content,
+    renderSingleTrackPhaseContract("plan", {
+      issueId: "REP-1208",
+      attempt: 1,
+    }),
+  );
+  assert.doesNotMatch(
+    writes.find((write) => write.path.endsWith("/prompt.md"))?.content ?? "",
+    /<issue-id>|<attempt>/,
+  );
+  assert.equal(
+    writes.find((write) => write.path.endsWith("/contract.md"))?.content,
+    renderSingleTrackPhaseContract("plan", {
+      issueId: "REP-1208",
+      attempt: 1,
+    }),
+  );
+  assert.doesNotMatch(
+    writes.find((write) => write.path.endsWith("/contract.md"))?.content ?? "",
+    /<issue-id>|<attempt>/,
+  );
+  assert.equal(
+    writes.some((write) => write.path.endsWith("/run-plan.md")),
+    false,
+  );
   assert.ok(
     fixture.domainEvents.some(
       (event) => event.type === "workflow.planner.started",
@@ -181,33 +268,158 @@ test("engine run-once passes durable planning artifact paths into opencode", asy
   );
 });
 
-test("engine run-once records planner failure without flowcraft completion", async () => {
+test("engine run-once rejects empty required run-plan sections before flowcraft completion", async () => {
   const fixture = makeWorkflowStore({
-    items: [
-      {
+    items: [makeQueuedPlanningItem()],
+  });
+  const reads: Array<{ path: string }> = [];
+  const writes: Array<{ path: string; content: string }> = [];
+  const services = createAutobotServices({
+    artifactWriter(input) {
+      writes.push(input);
+      return resolve(undefined);
+    },
+    artifactReader(input) {
+      reads.push(input);
+      return resolve(emptySequenceNotesRunPlan);
+    },
+    planningSessionRunner() {
+      return resolve({
+        command: "opencode",
+        args: ["run"],
+        started_at: "2026-05-15T12:00:01Z",
+        finished_at: "2026-05-15T12:00:02Z",
+        exit_code: 0,
+        signal: null,
+        stdout: "planner stdout",
+        stderr: "planner stderr",
+      });
+    },
+    loadLinearIssue() {
+      return resolve({
         issue_id: "REP-1208",
         title: "Bridge OpenCode planning sessions",
         url: "https://linear.app/repro/issue/REP-1208/bridge-opencode-planning-sessions",
-        state: "queued",
-        attempt: 1,
-        priority: 2,
-        owner: "Gary",
-        workspace: "autobot",
-        branch: "autobot/REP-1208",
-        queued_at: "2026-05-15T09:00:00Z",
-        started_at: null,
-        updated_at: "2026-05-15T09:00:00Z",
-        last_event: null,
-        last_error: null,
-        recovery_commands: [],
-        linear: null,
-        current_run: null,
-        cancellation_requested: false,
-        cancellation_requested_at: null,
-        artifacts: [],
-        events: [],
-      },
-    ],
+        state_name: "Todo",
+        state_type: "unstarted",
+        project: "Engineering",
+        labels: ["backend"],
+        assignee: "Gary",
+      });
+    },
+    openStore() {
+      return resolve(fixture.store as unknown as AutobotStore);
+    },
+    now() {
+      return "2026-05-15T12:00:00Z";
+    },
+    randomId() {
+      return "run-1208";
+    },
+  });
+
+  const result = (await runFuture(
+    services.handleInvocation(makeInvocation(["engine", "run-once"])),
+  )) as AutobotCommandResult;
+
+  assert.equal(result.kind, "queue-status");
+  assert.equal(writes.length, 4);
+  assert.deepEqual(reads, [
+    {
+      path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/run-plan.md",
+    },
+  ]);
+  assert.equal(
+    writes.some((write) => write.path.endsWith("/run-plan.md")),
+    false,
+  );
+  assert.equal(fixture.executionRecords.length, 0);
+  assert.equal(fixture.flowcraftEvents.length, 0);
+  assert.equal(fixture.itemUpserts.at(-1)?.state, "failed");
+  assert.equal(
+    (fixture.itemUpserts.at(-1)?.last_error as { code?: string } | null)?.code,
+    "AUTOBOT-PLANNER-RUN-PLAN-INVALID",
+  );
+});
+
+test("engine run-once preserves non-ready run plans without flowcraft completion", async () => {
+  const fixture = makeWorkflowStore({
+    items: [makeQueuedPlanningItem()],
+  });
+  const reads: Array<{ path: string }> = [];
+  const writes: Array<{ path: string; content: string }> = [];
+  const services = createAutobotServices({
+    artifactWriter(input) {
+      writes.push(input);
+      return resolve(undefined);
+    },
+    artifactReader(input) {
+      reads.push(input);
+      return resolve(notReadyRunPlan);
+    },
+    planningSessionRunner() {
+      return resolve({
+        command: "opencode",
+        args: ["run"],
+        started_at: "2026-05-15T12:00:01Z",
+        finished_at: "2026-05-15T12:00:02Z",
+        exit_code: 0,
+        signal: null,
+        stdout: "planner stdout",
+        stderr: "planner stderr",
+      });
+    },
+    loadLinearIssue() {
+      return resolve({
+        issue_id: "REP-1208",
+        title: "Bridge OpenCode planning sessions",
+        url: "https://linear.app/repro/issue/REP-1208/bridge-opencode-planning-sessions",
+        state_name: "Todo",
+        state_type: "unstarted",
+        project: "Engineering",
+        labels: ["backend"],
+        assignee: "Gary",
+      });
+    },
+    openStore() {
+      return resolve(fixture.store as unknown as AutobotStore);
+    },
+    now() {
+      return "2026-05-15T12:00:00Z";
+    },
+    randomId() {
+      return "run-1208";
+    },
+  });
+
+  const result = (await runFuture(
+    services.handleInvocation(makeInvocation(["engine", "run-once"])),
+  )) as AutobotCommandResult;
+
+  assert.equal(result.kind, "queue-status");
+  assert.equal(writes.length, 4);
+  assert.deepEqual(reads, [
+    {
+      path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/run-plan.md",
+    },
+  ]);
+  assert.equal(
+    writes.some((write) => write.path.endsWith("/run-plan.md")),
+    false,
+  );
+  assert.equal(fixture.executionRecords.length, 0);
+  assert.equal(fixture.flowcraftEvents.length, 0);
+  assert.equal(fixture.runUpserts.at(-1)?.state, "awaiting");
+  assert.equal(fixture.itemUpserts.at(-1)?.state, "awaiting");
+  assert.equal(
+    (fixture.itemUpserts.at(-1)?.last_error as { code?: string } | null)?.code,
+    "AUTOBOT-PLANNER-RUN-PLAN-NOT-READY",
+  );
+});
+
+test("engine run-once records planner failure without flowcraft completion", async () => {
+  const fixture = makeWorkflowStore({
+    items: [makeQueuedPlanningItem()],
   });
   const services = createAutobotServices({
     artifactWriter() {

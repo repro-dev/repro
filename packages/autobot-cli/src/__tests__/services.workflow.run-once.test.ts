@@ -21,7 +21,21 @@ function runFuture<T>(future: FutureInstance<unknown, T>): Promise<T> {
 }
 
 const noOpArtifactWriter = () => resolve(undefined);
+const noOpArtifactReader = () => resolve(validRunPlan);
 const noOpLinearIssue = () => resolve(null);
+const validRunPlan = [
+  "## Readiness",
+  "ready_to_proceed",
+  "",
+  "## Sequence Notes",
+  "- Implement in one bounded pass.",
+  "",
+  "## Risk Notes",
+  "- No high-risk signals.",
+  "",
+  "## Plan",
+  "- Modify the selected issue files.",
+].join("\n");
 const noOpPlanningSessionRunner = () =>
   resolve({
     command: "opencode",
@@ -30,7 +44,7 @@ const noOpPlanningSessionRunner = () =>
     finished_at: "2026-05-15T12:00:02Z",
     exit_code: 0,
     signal: null,
-    stdout: "",
+    stdout: validRunPlan,
     stderr: "",
   });
 
@@ -171,6 +185,7 @@ test("engine run-once reconciles stale in-progress items before selecting the ol
   let runIndex = 0;
   const services = createAutobotServices({
     artifactWriter: noOpArtifactWriter,
+    artifactReader: noOpArtifactReader,
     planningSessionRunner: noOpPlanningSessionRunner,
     loadLinearIssue: noOpLinearIssue,
     openStore() {
@@ -275,6 +290,7 @@ test("engine run-once hydrates Linear metadata before writing planning artifacts
   });
   const services = createAutobotServices({
     artifactWriter: noOpArtifactWriter,
+    artifactReader: noOpArtifactReader,
     planningSessionRunner: noOpPlanningSessionRunner,
     loadLinearIssue() {
       return resolve({
@@ -400,6 +416,7 @@ test("engine run-once --dry-run reports planned discovery and selection without 
   }> = [];
   const services = createAutobotServices({
     artifactWriter: noOpArtifactWriter,
+    artifactReader: noOpArtifactReader,
     planningSessionRunner: noOpPlanningSessionRunner,
     loadLinearIssue: noOpLinearIssue,
     openStore() {
@@ -519,6 +536,7 @@ test("engine run-once persists discovered work and caps it by queue-depth", asyn
   }> = [];
   const services = createAutobotServices({
     artifactWriter: noOpArtifactWriter,
+    artifactReader: noOpArtifactReader,
     planningSessionRunner: noOpPlanningSessionRunner,
     loadLinearIssue: noOpLinearIssue,
     openStore() {
