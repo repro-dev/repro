@@ -41,11 +41,18 @@ export function hasSupportedHypothesis(hypotheses: Array<Hypothesis>): boolean {
 }
 
 export function getInvestigationReadiness(
+  stage: InvestigationStage,
   hypotheses: Array<Hypothesis>,
-): InvestigationReadiness {
-  return hasSupportedHypothesis(hypotheses)
-    ? "ready to conclude"
-    : "needs more evidence";
+): InvestigationReadiness | null {
+  if (stage === "idle") {
+    return null;
+  }
+
+  if (stage === "conclusion" && hasSupportedHypothesis(hypotheses)) {
+    return "ready to conclude";
+  }
+
+  return "needs more evidence";
 }
 
 export function normalizeHypotheses(
@@ -177,7 +184,9 @@ export function validateInvestigationStageTransition(
     result: {
       stage: nextStage,
       hypotheses,
-      readiness: getInvestigationReadiness(hypotheses),
+      readiness:
+        getInvestigationReadiness(nextStage, hypotheses) ??
+        "needs more evidence",
     },
   };
 }

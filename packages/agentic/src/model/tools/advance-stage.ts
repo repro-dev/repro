@@ -1,4 +1,5 @@
-import { resolve } from "fluture";
+import { map as mapFuture, resolve } from "fluture";
+import { estimateTokens } from "../../model/token-optimization";
 import {
   isAdvanceableInvestigationStage,
   normalizeHypotheses,
@@ -61,6 +62,10 @@ function parseArgs(args: Record<string, unknown>) {
     };
   }
 
+  if (!Object.prototype.hasOwnProperty.call(parsed, "hypotheses")) {
+    return { stage: parsed.stage, hypotheses: undefined };
+  }
+
   const hypotheses = normalizeHypotheses(parsed.hypotheses);
   if ("error" in hypotheses) {
     return { error: hypotheses.error };
@@ -86,8 +91,15 @@ export const handler: ToolHandler = (_recording, args, context) => {
     );
   }
 
-  return context.advanceStage({
-    stage: parsed.stage,
-    hypotheses: parsed.hypotheses,
-  });
+  return context
+    .advanceStage({
+      stage: parsed.stage,
+      hypotheses: parsed.hypotheses,
+    })
+    .pipe(
+      mapFuture((value) => ({
+        ...value,
+        _tokenEstimate: estimateTokens(value),
+      })),
+    );
 };

@@ -22,29 +22,15 @@ State data is absent when the recording was made without the \`state\` observer.
 A recording is a time-ordered sequence of events spanning a fixed duration. Think of it as a timeline you can sample at any resolution. Start with summary views to understand the shape of the session, identify the time windows that matter, then zoom in using filters and time ranges. Never try to read the entire recording at once.
 
 ## Investigation stages
-The investigation is governed by an explicit stage machine. Start in \`orient\`, move to \`hypotheses\`, then \`evidence\`, and only call \`advanceStage({ stage: 'conclusion', hypotheses })\` once at least one hypothesis has a non-empty \`evidence\` array.
+The investigation is governed by an explicit stage machine with these states: \`idle → orient → hypotheses → evidence → conclusion\`.
 
 - Use recording-first tools (\`findErrors\`, \`getEvents\`, \`getUserActions\`, \`getNetworkRequests\`, \`getDOMState\`, \`getDOMDiff\`) to gather evidence.
-- Use \`advanceStage\` to make stage transitions explicit; do not infer stage changes from narration.
-- If you cannot satisfy the conclusion gate, say the investigation needs more evidence instead of implying the issue is resolved.
+- Call \`advanceStage\` whenever the investigation enters a new stage; do not infer transitions from narration.
+- Do not call \`advanceStage({ stage: 'conclusion', hypotheses })\` until at least one hypothesis has non-empty evidence.
+- If the conclusion gate is blocked, say the investigation needs more evidence instead of implying the issue is resolved.
 - Temporary probes or follow-up instrumentation are a fallback, not the default path.
 
-### Orient
-Begin by collecting a concise recording survey before narrowing to a hypothesis.
-
-### Hypotheses
-Name candidate causes and keep the hypothesis list bounded.
-
-### Evidence
-Collect and attach concrete recording-derived evidence to at least one hypothesis before concluding.
-
-### Conclusion
-Only present a resolved conclusion after the evidence gate is satisfied.
-
----
-
-### Step 3 — Conclude
-Once you have a probable root cause, stop calling tools and write your findings. Do not make extra calls to 'confirm' a sequence of events — trust the timestamps from your tool outputs to build the timeline.
+When you have a probable root cause, stop calling tools and write your findings. Do not make extra calls to confirm a sequence of events; trust the timestamps from your tool outputs to build the timeline.
 
 ---
 
@@ -55,9 +41,9 @@ Once you have a probable root cause, stop calling tools and write your findings.
 - **\`getUserActions\` is the primary tool for user-action questions.** Use it whenever the question is about what the user did, what they clicked, or how their actions relate to side-effects. Do not reconstruct user actions by manually calling \`getEvents\` + \`getElementDetails\` in a loop when \`getUserActions\` would answer the question directly.
 - Always start with \`detail='summary'\`. Only escalate to \`'normal'\` or \`'full'\` when the summary confirms deeper data is necessary.
 - Use time range parameters to focus on the interval around an anomaly rather than querying the whole session.
-- **\`getEvents\` vs \`getEventsAroundTime\`**: \`getEvents\` is a broad timeline pass — use it once in Step 1 for an overview. \`getEventsAroundTime\` is a targeted follow-up — use it only after identifying a specific timestamp of interest that your Step 1 summary did not cover in sufficient detail.
+- **\`getEvents\` vs \`getEventsAroundTime\`**: \`getEvents\` is a broad timeline pass — use it once for an overview. \`getEventsAroundTime\` is a targeted follow-up — use it only after identifying a specific timestamp of interest that the initial summary did not cover in sufficient detail.
 - **\`getDOMState\` vs \`getDOMDiff\`**: Use \`getDOMDiff\` to find what changed over a time range. Use \`getDOMState\` once to obtain a \`nodeId\` for a subsequent \`getDOMDiff\` call. Do not use \`getDOMState\` repeatedly to manually compare snapshots.
-- DOM tools (\`getDOMState\`, \`getDOMDiff\`, \`getElementDetails\`) only work when DOM snapshots are present. If \`getEvents(detail='summary')\` does not list \`domSnapshot\` events, do not use DOM tools. Exception: when on the Error path, you may use \`getDOMDiff\` if your Step 1 \`getEvents\` summary revealed \`domActivity\` events around the time of the error — see **Step 2 — Error path** for the full rule.
+- DOM tools (\`getDOMState\`, \`getDOMDiff\`, \`getElementDetails\`) only work when DOM snapshots are present. If \`getEvents(detail='summary')\` does not list \`domSnapshot\` events, do not use DOM tools. Exception: when investigating an error, you may use \`getDOMDiff\` if the initial summary revealed \`domActivity\` events around the time of the error.
 
 ## Response format
 Structure your findings as:
@@ -79,7 +65,7 @@ This is a collaborative debugging exercise. At the end of an investigation, offe
 - Preparing a context bundle for hand-off to a coding agent
 
 ## When to ask
-Do not ask clarifying questions before investigating. Begin with Step 1. Ask only if the recording contains no relevant signals, or to offer a resolution path once the investigation is complete.
+Do not ask clarifying questions before investigating. Begin with \`orient\`. Ask only if the recording contains no relevant signals, or to offer a resolution path once the investigation is complete.
 `;
 
 // System card for the capture extension context.

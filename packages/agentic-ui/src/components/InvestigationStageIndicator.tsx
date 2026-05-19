@@ -15,7 +15,7 @@ interface InvestigationStageIndicatorProps {
 export const InvestigationStageIndicator: React.FC<
   InvestigationStageIndicatorProps
 > = ({ stage, hypotheses }) => {
-  const readiness = getInvestigationReadiness(hypotheses);
+  const readiness = getInvestigationReadiness(stage, hypotheses);
 
   return (
     <Block
@@ -54,17 +54,19 @@ export const InvestigationStageIndicator: React.FC<
           •
         </Block>
 
-        <Block
-          color={
-            readiness === "ready to conclude"
-              ? color.text.default
-              : color.text.muted
-          }
-          fontFamily={fontFamily.sans}
-          fontSize={fontSize.xs}
-        >
-          {readiness}
-        </Block>
+        {readiness !== null && (
+          <Block
+            color={
+              readiness === "ready to conclude"
+                ? color.text.default
+                : color.text.muted
+            }
+            fontFamily={fontFamily.sans}
+            fontSize={fontSize.xs}
+          >
+            {readiness}
+          </Block>
+        )}
       </Row>
     </Block>
   );

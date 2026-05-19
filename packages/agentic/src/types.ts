@@ -170,6 +170,7 @@ export interface AdvanceStageResult {
   stage: InvestigationStage;
   hypotheses: Array<Hypothesis>;
   readiness: InvestigationReadiness;
+  _tokenEstimate?: number;
 }
 
 export interface AdvanceStageError {

@@ -21,6 +21,14 @@ describe("InvestigationStageIndicator", () => {
     );
   });
 
+  it("does not show readiness text while idle", () => {
+    render(<InvestigationStageIndicator stage="idle" hypotheses={[]} />);
+
+    assert.equal(screen.getByText("idle").textContent, "idle");
+    assert.equal(screen.queryByText("needs more evidence"), null);
+    assert.equal(screen.queryByText("ready to conclude"), null);
+  });
+
   it("shows ready-to-conclude when evidence is present and MessageList passes it through", () => {
     const scrollContainerRef = React.createRef<HTMLDivElement>();
     const contentContainerRef = React.createRef<HTMLDivElement>();

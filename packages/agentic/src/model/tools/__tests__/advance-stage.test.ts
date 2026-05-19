@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 
 import { handler } from "../advance-stage";
 import type {
+  AdvanceStageResult,
   RecordingDataAccessor,
   ToolExecutionContext,
 } from "../../../types";
@@ -38,7 +39,7 @@ describe("advanceStage tool", () => {
       },
     };
 
-    const result = await runFuture(
+    const result = (await runFuture(
       handler(
         makeAccessor(),
         {
@@ -49,7 +50,7 @@ describe("advanceStage tool", () => {
         },
         context,
       ),
-    );
+    )) as AdvanceStageResult;
 
     assert.deepEqual(received, {
       stage: "conclusion",
@@ -59,7 +60,40 @@ describe("advanceStage tool", () => {
       stage: "conclusion",
       hypotheses: [{ id: "h1", description: "A", evidence: ["console error"] }],
       readiness: "ready to conclude",
+      _tokenEstimate: result._tokenEstimate,
     });
+    assert.equal(typeof result._tokenEstimate, "number");
+    assert.ok((result._tokenEstimate ?? 0) > 0);
+  });
+
+  it("preserves omitted hypotheses instead of clearing them", async () => {
+    let received: unknown;
+    const context: ToolExecutionContext = {
+      advanceStage: (input) => {
+        received = input;
+        return resolve({
+          stage: input.stage,
+          hypotheses: [
+            {
+              id: "keep",
+              description: "Keep existing",
+              evidence: ["evidence"],
+            },
+          ],
+          readiness: "needs more evidence",
+        });
+      },
+    };
+
+    const result = (await runFuture(
+      handler(makeAccessor(), { stage: "evidence" }, context),
+    )) as AdvanceStageResult;
+
+    assert.equal(
+      (received as { hypotheses?: Array<unknown> }).hypotheses,
+      undefined,
+    );
+    assert.equal(result.stage, "evidence");
   });
 
   it("returns a structured error when the runtime callback is missing", async () => {
