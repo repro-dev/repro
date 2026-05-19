@@ -2,11 +2,11 @@
 
 ## Inputs
 
-- Read the diff, the `run-plan.md`, and the surfaced UI behavior.
+- Read the diff, the `run-plan.md`, the `smoke-test-result.md`, and the surfaced UI behavior.
 
 ## Outputs
 
-- Write `review-output.md` with clarity, polish, and authored-vs-generic quality findings.
+- Write `review-output.md` with clarity, polish, and authored-vs-generic quality findings for the changed diff and smoke test.
 
 ## Pass / Fail
 

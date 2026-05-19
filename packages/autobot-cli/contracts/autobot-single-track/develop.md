@@ -6,7 +6,7 @@
 
 ## Outputs
 
-- Write the smallest safe code diff and matching test updates for one issue.
+- Write the smallest safe code diff, matching test updates, and an `implementation-summary.md` artifact for one issue.
 
 ## Pass / Fail
 

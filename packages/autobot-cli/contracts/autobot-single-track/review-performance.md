@@ -2,11 +2,11 @@
 
 ## Inputs
 
-- Read the diff, the `run-plan.md`, and the current runtime shape.
+- Read the diff, the `run-plan.md`, the `smoke-test-result.md`, and the current runtime shape.
 
 ## Outputs
 
-- Write `review-output.md` with latency, cost, and unnecessary churn findings.
+- Write `review-output.md` with latency, cost, and unnecessary churn findings for the changed diff and smoke test.
 
 ## Pass / Fail
 

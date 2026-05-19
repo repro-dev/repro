@@ -2,11 +2,11 @@
 
 ## Inputs
 
-- Read the diff, the `run-plan.md`, and the current issue context.
+- Read the diff, the `run-plan.md`, the `smoke-test-result.md`, and the current issue context.
 
 ## Outputs
 
-- Write `review-output.md` with correctness, clarity, and merge-readiness findings.
+- Write `review-output.md` with correctness, clarity, and merge-readiness findings for the changed diff and smoke test.
 
 ## Pass / Fail
 

@@ -67,7 +67,7 @@ test("single-track phase contracts declare exact inputs and outputs", () => {
       name: "develop",
       snippets: [
         "Read the approved `run-plan.md`",
-        "Write the smallest safe code diff and matching test updates",
+        "Write the smallest safe code diff, matching test updates, and an `implementation-summary.md` artifact",
       ],
     },
     {
@@ -80,42 +80,42 @@ test("single-track phase contracts declare exact inputs and outputs", () => {
     {
       name: "review-standard",
       snippets: [
-        "Read the diff, the `run-plan.md`",
-        "Write `review-output.md` with correctness, clarity, and merge-readiness findings",
+        "Read the diff, the `run-plan.md`, the `smoke-test-result.md`",
+        "Write `review-output.md` with correctness, clarity, and merge-readiness findings for the changed diff and smoke test",
       ],
     },
     {
       name: "review-correctness-security",
       snippets: [
-        "Read the diff, the `run-plan.md`",
-        "Write `review-output.md` with correctness, safety, and security findings",
+        "Read the diff, the `run-plan.md`, the `smoke-test-result.md`",
+        "Write `review-output.md` with correctness, safety, and security findings for the changed diff and smoke test",
       ],
     },
     {
       name: "review-architecture-conventions",
       snippets: [
-        "Read the diff, the `run-plan.md`",
-        "Write `review-output.md` with architectural-fit and convention-drift findings",
+        "Read the diff, the `run-plan.md`, the `smoke-test-result.md`",
+        "Write `review-output.md` with architectural-fit and convention-drift findings for the changed diff and smoke test",
       ],
     },
     {
       name: "review-performance",
       snippets: [
-        "Read the diff, the `run-plan.md`",
-        "Write `review-output.md` with latency, cost, and unnecessary churn findings",
+        "Read the diff, the `run-plan.md`, the `smoke-test-result.md`",
+        "Write `review-output.md` with latency, cost, and unnecessary churn findings for the changed diff and smoke test",
       ],
     },
     {
       name: "review-ui-quality",
       snippets: [
-        "Read the diff, the `run-plan.md`",
-        "Write `review-output.md` with clarity, polish, and authored-vs-generic quality findings",
+        "Read the diff, the `run-plan.md`, the `smoke-test-result.md`",
+        "Write `review-output.md` with clarity, polish, and authored-vs-generic quality findings for the changed diff and smoke test",
       ],
     },
     {
       name: "review-fix",
       snippets: [
-        "Read `review-output.md`, the `run-plan.md`",
+        "Read `review-output.md`, the `run-plan.md`, the `smoke-test-result.md`",
         "Write the smallest follow-up diff",
       ],
     },

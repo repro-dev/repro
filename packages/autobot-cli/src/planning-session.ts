@@ -64,8 +64,6 @@ export function buildOpenCodePlanningCommand(
       "--file",
       input.artifactPaths.contract,
       "--file",
-      input.artifactPaths.runPlan,
-      "--file",
       input.artifactPaths.prompt,
       buildPlanningSessionPrompt(),
     ],

@@ -2,7 +2,7 @@
 
 ## Inputs
 
-- Read `review-output.md`, the `run-plan.md`, and the failing diff.
+- Read `review-output.md`, the `run-plan.md`, the `smoke-test-result.md`, and the failing diff.
 
 ## Outputs
 

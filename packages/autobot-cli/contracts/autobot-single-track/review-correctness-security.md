@@ -2,11 +2,11 @@
 
 ## Inputs
 
-- Read the diff, the `run-plan.md`, and the issue context.
+- Read the diff, the `run-plan.md`, the `smoke-test-result.md`, and the issue context.
 
 ## Outputs
 
-- Write `review-output.md` with correctness, safety, and security findings.
+- Write `review-output.md` with correctness, safety, and security findings for the changed diff and smoke test.
 
 ## Pass / Fail
 

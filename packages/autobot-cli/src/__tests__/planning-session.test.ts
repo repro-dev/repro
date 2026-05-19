@@ -49,14 +49,12 @@ test("buildOpenCodePlanningCommand wires durable planning artifacts", () => {
     "Autobot planning REP-1208",
     "--file",
   ]);
-  assert.deepEqual(command.args.slice(8, 18), [
+  assert.deepEqual(command.args.slice(8, 16), [
     "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/context.md",
     "--file",
     "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/test-plan.md",
     "--file",
     getSingleTrackPhaseContractPath("/worktrees/autobot", "plan"),
-    "--file",
-    "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/run-plan.md",
     "--file",
     "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/prompt.md",
     loadSingleTrackPhaseContract("plan"),
