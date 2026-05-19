@@ -54,6 +54,32 @@ function makeInvocation(
   };
 }
 
+function makeQueuedPlanningItem() {
+  return {
+    issue_id: "REP-1208",
+    title: "Bridge OpenCode planning sessions",
+    url: "https://linear.app/repro/issue/REP-1208/bridge-opencode-planning-sessions",
+    state: "queued" as const,
+    attempt: 1,
+    priority: 2,
+    owner: "Gary",
+    workspace: "autobot",
+    branch: "autobot/REP-1208",
+    queued_at: "2026-05-15T09:00:00Z",
+    started_at: null,
+    updated_at: "2026-05-15T09:00:00Z",
+    last_event: null,
+    last_error: null,
+    recovery_commands: [],
+    linear: null,
+    current_run: null,
+    cancellation_requested: false,
+    cancellation_requested_at: null,
+    artifacts: [] as [],
+    events: [] as [],
+  };
+}
+
 const validRunPlan = [
   "## Readiness",
   "ready_to_proceed",
@@ -100,31 +126,7 @@ const emptySequenceNotesRunPlan = [
 
 test("engine run-once passes durable planning artifact paths into opencode", async () => {
   const fixture = makeWorkflowStore({
-    items: [
-      {
-        issue_id: "REP-1208",
-        title: "Bridge OpenCode planning sessions",
-        url: "https://linear.app/repro/issue/REP-1208/bridge-opencode-planning-sessions",
-        state: "queued",
-        attempt: 1,
-        priority: 2,
-        owner: "Gary",
-        workspace: "autobot",
-        branch: "autobot/REP-1208",
-        queued_at: "2026-05-15T09:00:00Z",
-        started_at: null,
-        updated_at: "2026-05-15T09:00:00Z",
-        last_event: null,
-        last_error: null,
-        recovery_commands: [],
-        linear: null,
-        current_run: null,
-        cancellation_requested: false,
-        cancellation_requested_at: null,
-        artifacts: [],
-        events: [],
-      },
-    ],
+    items: [makeQueuedPlanningItem()],
   });
   const received: Array<{
     artifactPaths: {
@@ -246,31 +248,7 @@ test("engine run-once passes durable planning artifact paths into opencode", asy
 
 test("engine run-once rejects empty required run-plan sections before flowcraft completion", async () => {
   const fixture = makeWorkflowStore({
-    items: [
-      {
-        issue_id: "REP-1208",
-        title: "Bridge OpenCode planning sessions",
-        url: "https://linear.app/repro/issue/REP-1208/bridge-opencode-planning-sessions",
-        state: "queued",
-        attempt: 1,
-        priority: 2,
-        owner: "Gary",
-        workspace: "autobot",
-        branch: "autobot/REP-1208",
-        queued_at: "2026-05-15T09:00:00Z",
-        started_at: null,
-        updated_at: "2026-05-15T09:00:00Z",
-        last_event: null,
-        last_error: null,
-        recovery_commands: [],
-        linear: null,
-        current_run: null,
-        cancellation_requested: false,
-        cancellation_requested_at: null,
-        artifacts: [],
-        events: [],
-      },
-    ],
+    items: [makeQueuedPlanningItem()],
   });
   const reads: Array<{ path: string }> = [];
   const writes: Array<{ path: string; content: string }> = [];
@@ -344,31 +322,7 @@ test("engine run-once rejects empty required run-plan sections before flowcraft 
 
 test("engine run-once preserves non-ready run plans without flowcraft completion", async () => {
   const fixture = makeWorkflowStore({
-    items: [
-      {
-        issue_id: "REP-1208",
-        title: "Bridge OpenCode planning sessions",
-        url: "https://linear.app/repro/issue/REP-1208/bridge-opencode-planning-sessions",
-        state: "queued",
-        attempt: 1,
-        priority: 2,
-        owner: "Gary",
-        workspace: "autobot",
-        branch: "autobot/REP-1208",
-        queued_at: "2026-05-15T09:00:00Z",
-        started_at: null,
-        updated_at: "2026-05-15T09:00:00Z",
-        last_event: null,
-        last_error: null,
-        recovery_commands: [],
-        linear: null,
-        current_run: null,
-        cancellation_requested: false,
-        cancellation_requested_at: null,
-        artifacts: [],
-        events: [],
-      },
-    ],
+    items: [makeQueuedPlanningItem()],
   });
   const reads: Array<{ path: string }> = [];
   const writes: Array<{ path: string; content: string }> = [];
@@ -443,31 +397,7 @@ test("engine run-once preserves non-ready run plans without flowcraft completion
 
 test("engine run-once records planner failure without flowcraft completion", async () => {
   const fixture = makeWorkflowStore({
-    items: [
-      {
-        issue_id: "REP-1208",
-        title: "Bridge OpenCode planning sessions",
-        url: "https://linear.app/repro/issue/REP-1208/bridge-opencode-planning-sessions",
-        state: "queued",
-        attempt: 1,
-        priority: 2,
-        owner: "Gary",
-        workspace: "autobot",
-        branch: "autobot/REP-1208",
-        queued_at: "2026-05-15T09:00:00Z",
-        started_at: null,
-        updated_at: "2026-05-15T09:00:00Z",
-        last_event: null,
-        last_error: null,
-        recovery_commands: [],
-        linear: null,
-        current_run: null,
-        cancellation_requested: false,
-        cancellation_requested_at: null,
-        artifacts: [],
-        events: [],
-      },
-    ],
+    items: [makeQueuedPlanningItem()],
   });
   const services = createAutobotServices({
     artifactWriter() {
