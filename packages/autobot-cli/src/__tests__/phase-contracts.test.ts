@@ -42,8 +42,10 @@ test("Autobot phase contracts declare exact inputs and outputs", () => {
     {
       name: "classify",
       snippets: [
-        "Classify the issue shape and routing decision",
-        "feature | bug | tech debt | docs | infra | ui-bearing | mixed",
+        "Classify the issue shape and make an explicit routing decision",
+        "Write `issue_shapes` as an array of every matching shape",
+        "If multiple shapes apply, include them all",
+        "Treat `issue_shapes` as the authoritative classification input for later routing",
         "Route",
         "research-refine",
         "ready to proceed",
