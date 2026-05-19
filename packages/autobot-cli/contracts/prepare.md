@@ -21,7 +21,7 @@
 - Stop before planning when any blocker is not `Done` or `Canceled`.
 - Stop before planning when the issue is already `Done`, `Canceled`, `In Progress`, or `In Review`.
 - Stop before planning when the issue already has an active worktree or appears in an open PR branch.
-- If UI context is the only missing prerequisite, run the matching design workflow, refresh `context.md`, and re-evaluate readiness before escalating.
+- If UI context is the only missing prerequisite, run the matching design workflow, refresh `.autobot/runs/<issue-id>/attempt-<attempt>/context.md`, and re-evaluate readiness before escalating.
 - If the issue still lacks enough concrete scope for bounded planning, add `needs-spec`, set the issue back to `Todo`, and record the missing information.
 
 ## Responsibilities
@@ -33,8 +33,8 @@
 - Write temporary and issue-scoped artifacts only under the selected worktree's `tmp/` directory.
 
 ## Output
-- `context.md`
-- `test-plan.md` when needed
+- `.autobot/runs/<issue-id>/attempt-<attempt>/context.md`
+- `.autobot/runs/<issue-id>/attempt-<attempt>/test-plan.md` when needed
 - a short prepare summary with known risks and next routing step
 - readiness decision: `proceed`, `research-refine`, or `escalate`
 

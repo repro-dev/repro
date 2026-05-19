@@ -29,4 +29,5 @@
 ## Output
 - follow-up diff
 - updated review summary when required
+- `.autobot/runs/<issue-id>/attempt-<attempt>/review-fix.md`
 - fix-attempt summary tied to the addressed finding IDs

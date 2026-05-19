@@ -30,4 +30,4 @@
 ## Output
 - code changes
 - matching tests
-- `implementation-summary.md`
+- `.autobot/runs/<issue-id>/attempt-<attempt>/implementation-summary.md`

@@ -23,4 +23,5 @@
 
 ## Output
 - reconciliation summary
+- `.autobot/runs/<issue-id>/attempt-<attempt>/reconcile.md`
 - completion or escalation decision

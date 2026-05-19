@@ -28,6 +28,6 @@
 - Keep verification failure evidence separate from publishability; review decides whether a failure is caused by this change.
 
 ## Output
-- `smoke-test-result.md`
+- `.autobot/runs/<issue-id>/attempt-<attempt>/smoke-test-result.md`
 - typecheck evidence
 - concise pass/fail summary
