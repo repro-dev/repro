@@ -89,6 +89,8 @@ export type ArtifactKind =
   | "prompt"
   | "contract"
   | "run-plan"
+  | "classify"
+  | "risk-assessment"
   | "log"
   | "diff"
   | "review"

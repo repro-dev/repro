@@ -20,8 +20,49 @@ function runFuture<T>(future: FutureInstance<unknown, T>): Promise<T> {
   });
 }
 
+const validClassify = [
+  "## Issue Shapes",
+  "- feature",
+  "",
+  "## Route",
+  "proceed",
+  "",
+  "## Readiness",
+  "ready_to_proceed",
+  "",
+  "## Why",
+  "- Ready for planning.",
+  "",
+  "## Next",
+  "- Continue to planning.",
+].join("\n");
+
+const validRiskAssessment = [
+  "## Risk Level",
+  "standard",
+  "",
+  "## Risk Signals",
+  "- none",
+  "",
+  "## Review Lanes",
+  "- review-standard",
+  "",
+  "## Why",
+  "- No elevated signals.",
+].join("\n");
+
 const noOpArtifactWriter = () => resolve(undefined);
-const noOpArtifactReader = () => resolve(validRunPlan);
+const noOpArtifactReader = (input: { path: string }) => {
+  if (input.path.endsWith("classify.md")) {
+    return resolve(validClassify);
+  }
+
+  if (input.path.endsWith("risk-assessment.md")) {
+    return resolve(validRiskAssessment);
+  }
+
+  return resolve(validRunPlan);
+};
 const noOpLinearIssue = () => resolve(null);
 const validRunPlan = [
   "## Readiness",
@@ -36,8 +77,9 @@ const validRunPlan = [
   "## Plan",
   "- Modify the selected issue files.",
 ].join("\n");
-const noOpPlanningSessionRunner = () =>
-  resolve({
+const noOpPlanningSessionRunner = (input: { phase?: string }) => {
+  void input;
+  return resolve({
     command: "opencode",
     args: ["run"],
     started_at: "2026-05-15T12:00:01Z",
@@ -47,6 +89,7 @@ const noOpPlanningSessionRunner = () =>
     stdout: validRunPlan,
     stderr: "",
   });
+};
 
 function makeOptions(
   overrides: Partial<AutobotGlobalOptions> = {},

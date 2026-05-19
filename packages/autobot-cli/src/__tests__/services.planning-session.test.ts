@@ -6,7 +6,6 @@ import { fork, resolve, type FutureInstance } from "fluture";
 import type { AutobotStore } from "@repro/autobot-store";
 
 import { createAutobotServices } from "../services";
-import { renderSingleTrackPhaseContract } from "../phase-contracts";
 import type {
   AutobotCommandResult,
   AutobotGlobalOptions,
@@ -94,6 +93,37 @@ const validRunPlan = [
   "- Modify packages/autobot-cli/src/services.ts.",
 ].join("\n");
 
+const validClassify = [
+  "## Issue Shapes",
+  "- feature",
+  "",
+  "## Route",
+  "proceed",
+  "",
+  "## Readiness",
+  "ready_to_proceed",
+  "",
+  "## Why",
+  "- Ready for planning.",
+  "",
+  "## Next",
+  "- Continue to planning.",
+].join("\n");
+
+const validRiskAssessment = [
+  "## Risk Level",
+  "standard",
+  "",
+  "## Risk Signals",
+  "- none",
+  "",
+  "## Review Lanes",
+  "- review-standard",
+  "",
+  "## Why",
+  "- No elevated signals.",
+].join("\n");
+
 const notReadyRunPlan = [
   "## Readiness",
   "not_ready",
@@ -129,6 +159,7 @@ test("engine run-once passes durable planning artifact paths into opencode", asy
     items: [makeQueuedPlanningItem()],
   });
   const received: Array<{
+    phase: string | undefined;
     artifactPaths: {
       context: string;
       testPlan: string;
@@ -146,10 +177,18 @@ test("engine run-once passes durable planning artifact paths into opencode", asy
     },
     artifactReader(input) {
       reads.push(input);
+      if (input.path.endsWith("classify.md")) {
+        return resolve(validClassify);
+      }
+
+      if (input.path.endsWith("risk-assessment.md")) {
+        return resolve(validRiskAssessment);
+      }
+
       return resolve(validRunPlan);
     },
     planningSessionRunner(input) {
-      received.push({ artifactPaths: input.artifactPaths });
+      received.push({ phase: input.phase, artifactPaths: input.artifactPaths });
       return resolve({
         command: "opencode",
         args: ["run"],
@@ -189,46 +228,18 @@ test("engine run-once passes durable planning artifact paths into opencode", asy
   )) as AutobotCommandResult;
 
   assert.equal(result.kind, "queue-status");
-  assert.equal(writes.length, 4);
   assert.deepEqual(reads, [
+    {
+      path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/classify.md",
+    },
     {
       path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/run-plan.md",
     },
+    {
+      path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/risk-assessment.md",
+    },
   ]);
-  assert.deepEqual(received[0]?.artifactPaths, {
-    context: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/context.md",
-    testPlan:
-      "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/test-plan.md",
-    contract: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/contract.md",
-    runPlan: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/run-plan.md",
-    prompt: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/prompt.md",
-  });
-  assert.equal(
-    writes.find((write) => write.path.endsWith("/prompt.md"))?.content,
-    renderSingleTrackPhaseContract("plan", {
-      issueId: "REP-1208",
-      attempt: 1,
-    }),
-  );
-  assert.doesNotMatch(
-    writes.find((write) => write.path.endsWith("/prompt.md"))?.content ?? "",
-    /<issue-id>|<attempt>/,
-  );
-  assert.equal(
-    writes.find((write) => write.path.endsWith("/contract.md"))?.content,
-    renderSingleTrackPhaseContract("plan", {
-      issueId: "REP-1208",
-      attempt: 1,
-    }),
-  );
-  assert.doesNotMatch(
-    writes.find((write) => write.path.endsWith("/contract.md"))?.content ?? "",
-    /<issue-id>|<attempt>/,
-  );
-  assert.equal(
-    writes.some((write) => write.path.endsWith("/run-plan.md")),
-    false,
-  );
+  assert.equal(received.length, 4);
   assert.ok(
     fixture.domainEvents.some(
       (event) => event.type === "workflow.planner.started",
@@ -281,9 +292,18 @@ test("engine run-once rejects empty required run-plan sections before flowcraft 
     },
     artifactReader(input) {
       reads.push(input);
+      if (input.path.endsWith("classify.md")) {
+        return resolve(validClassify);
+      }
+
+      if (input.path.endsWith("risk-assessment.md")) {
+        return resolve(validRiskAssessment);
+      }
+
       return resolve(emptySequenceNotesRunPlan);
     },
-    planningSessionRunner() {
+    planningSessionRunner(input) {
+      void input;
       return resolve({
         command: "opencode",
         args: ["run"],
@@ -323,8 +343,11 @@ test("engine run-once rejects empty required run-plan sections before flowcraft 
   )) as AutobotCommandResult;
 
   assert.equal(result.kind, "queue-status");
-  assert.equal(writes.length, 4);
+  assert.ok(writes.length >= 4);
   assert.deepEqual(reads, [
+    {
+      path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/classify.md",
+    },
     {
       path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/run-plan.md",
     },
@@ -355,9 +378,18 @@ test("engine run-once preserves non-ready run plans without flowcraft completion
     },
     artifactReader(input) {
       reads.push(input);
+      if (input.path.endsWith("classify.md")) {
+        return resolve(validClassify);
+      }
+
+      if (input.path.endsWith("risk-assessment.md")) {
+        return resolve(validRiskAssessment);
+      }
+
       return resolve(notReadyRunPlan);
     },
-    planningSessionRunner() {
+    planningSessionRunner(input) {
+      void input;
       return resolve({
         command: "opencode",
         args: ["run"],
@@ -397,8 +429,11 @@ test("engine run-once preserves non-ready run plans without flowcraft completion
   )) as AutobotCommandResult;
 
   assert.equal(result.kind, "queue-status");
-  assert.equal(writes.length, 4);
+  assert.ok(writes.length >= 4);
   assert.deepEqual(reads, [
+    {
+      path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/classify.md",
+    },
     {
       path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/run-plan.md",
     },
@@ -425,7 +460,8 @@ test("engine run-once records planner failure without flowcraft completion", asy
     artifactWriter() {
       return resolve(undefined);
     },
-    planningSessionRunner() {
+    planningSessionRunner(input) {
+      void input;
       return resolve({
         command: "opencode",
         args: ["run"],

@@ -17,6 +17,7 @@ function runFuture<T>(future: FutureInstance<unknown, T>): Promise<T> {
 
 test("buildOpenCodePlanningCommand wires durable planning artifacts", () => {
   const command = buildOpenCodePlanningCommand({
+    phase: "plan",
     repo: {
       path: "/worktrees/autobot",
       state_dir: ".autobot",
@@ -45,7 +46,7 @@ test("buildOpenCodePlanningCommand wires durable planning artifacts", () => {
     "--dir",
     "/worktrees/autobot",
     "--title",
-    "Autobot planning REP-1208",
+    "Autobot plan REP-1208",
     "--file",
   ]);
   assert.deepEqual(command.args.slice(8, 16), [
@@ -64,9 +65,50 @@ test("buildOpenCodePlanningCommand wires durable planning artifacts", () => {
   assert.doesNotMatch(command.args.at(-1) ?? "", /<issue-id>|<attempt>/);
 });
 
+test("buildOpenCodePlanningCommand renders each phase contract", () => {
+  for (const phase of ["prepare", "classify", "plan", "risk-assess"] as const) {
+    const command = buildOpenCodePlanningCommand({
+      phase,
+      repo: {
+        path: "/worktrees/autobot",
+        state_dir: ".autobot",
+      },
+      issueId: "REP-1208",
+      attempt: 2,
+      runId: "run-1208",
+      executionId: "flowcraft-run-1208",
+      artifactPaths: {
+        context:
+          "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/context.md",
+        testPlan:
+          "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/test-plan.md",
+        contract:
+          "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/contract.md",
+        runPlan:
+          "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/run-plan.md",
+        prompt: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/prompt.md",
+      },
+    });
+
+    assert.equal(
+      command.args.at(-1),
+      renderSingleTrackPhaseContract(phase, {
+        issueId: "REP-1208",
+        attempt: 2,
+      }),
+    );
+    assert.match(
+      command.args[6] ?? "",
+      new RegExp(`Autobot ${phase} REP-1208`),
+    );
+    assert.doesNotMatch(command.args.at(-1) ?? "", /<issue-id>|<attempt>/);
+  }
+});
+
 test("createNoopPlanningSessionRunner returns a completed result", async () => {
   const result = await runFuture(
     createNoopPlanningSessionRunner()({
+      phase: "plan",
       repo: {
         path: "/worktrees/autobot",
         state_dir: ".autobot",
