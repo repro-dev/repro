@@ -23,9 +23,9 @@
 - Return the structured output required by `.opencode/agents/review.md`.
 - Assign each finding `role: performance`.
 - Report findings only; do not repair code here.
-- Write `review-output.md` with latency, cost, and unnecessary churn findings.
+- Write the durable `review-performance.md` artifact at the supplied path; stdout is process output only.
 
 ## Output
-- `review-output.md`
+- `review-performance.md`
 - performance findings with concrete file + line references
 - structured findings with `severity`, `category`, `fixable_by_agent`, and `role`

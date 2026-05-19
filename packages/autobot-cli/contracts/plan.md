@@ -28,17 +28,19 @@
 - Include prior investigation findings and resolved blocker PR references when provided.
 - Explore code only as needed to identify affected files and patterns.
 - Do not write source files.
-- Do not write files except the authorized plan artifact and friction log.
+- Do not write files except the authorized `run-plan.md` artifact and friction log.
 - Log planning friction to `tmp/friction.md` with `Phase: planning` and a root cause of `missing-docs`, `unclear-pattern`, `tooling-gap`, or `stale-code`.
 - If readiness is missing, route back to `research-refine` instead of forcing a plan.
-- Write the authoritative `run-plan.md`.
+- Write only the durable `run-plan.md` artifact at the supplied path; stdout is process output only.
 - Preserve these headings exactly:
   - `## Readiness`
   - `## Sequence Notes`
   - `## Risk Notes`
   - `## Plan`
   - `## Open Questions` only when not ready
-- Add `## Open Questions` only when unresolved blockers remain.
+- Require non-empty bodies for `## Readiness`, `## Sequence Notes`, `## Risk Notes`, and `## Plan`.
+- Add `## Open Questions` only when the readiness sentinel is not `ready_to_proceed`, and keep it non-empty when present.
+- `## Readiness` must start with one of `ready_to_proceed`, `needs_research`, `not_ready`, or `escalate`.
 - List every file this plan will write or modify.
 - For shared or high-risk files within this issue, specify the exact edit location or section.
 - Include the exact artifact paths the downstream phases will consume.

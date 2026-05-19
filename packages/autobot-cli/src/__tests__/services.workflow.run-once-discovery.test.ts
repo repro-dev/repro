@@ -21,10 +21,11 @@ function runFuture<T>(future: FutureInstance<unknown, T>): Promise<T> {
 }
 
 const noOpArtifactWriter = () => resolve(undefined);
+const noOpArtifactReader = () => resolve(validRunPlan);
 const noOpLinearIssue = () => resolve(null);
 const validRunPlan = [
   "## Readiness",
-  "ready to proceed",
+  "ready_to_proceed",
   "",
   "## Sequence Notes",
   "- Implement in one bounded pass.",
@@ -92,6 +93,7 @@ test("engine run-once preserves discovered metadata when it selects a new candid
   });
   const services = createAutobotServices({
     artifactWriter: noOpArtifactWriter,
+    artifactReader: noOpArtifactReader,
     planningSessionRunner: noOpPlanningSessionRunner,
     loadLinearIssue: noOpLinearIssue,
     openStore() {
@@ -181,6 +183,7 @@ test("engine run-once warns and skips discovery when discovery.projects is missi
   });
   const services = createAutobotServices({
     artifactWriter: noOpArtifactWriter,
+    artifactReader: noOpArtifactReader,
     planningSessionRunner: noOpPlanningSessionRunner,
     loadLinearIssue: noOpLinearIssue,
     openStore() {

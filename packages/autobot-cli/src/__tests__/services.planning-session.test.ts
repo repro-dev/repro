@@ -56,7 +56,7 @@ function makeInvocation(
 
 const validRunPlan = [
   "## Readiness",
-  "ready to proceed",
+  "ready_to_proceed",
   "",
   "## Sequence Notes",
   "- Implement in one bounded pass.",
@@ -70,7 +70,7 @@ const validRunPlan = [
 
 const notReadyRunPlan = [
   "## Readiness",
-  "needs_research before implementation",
+  "not_ready",
   "",
   "## Sequence Notes",
   "- Return to research-refine.",
@@ -83,6 +83,19 @@ const notReadyRunPlan = [
   "",
   "## Open Questions",
   "- Which files are in scope?",
+].join("\n");
+
+const emptySequenceNotesRunPlan = [
+  "## Readiness",
+  "ready_to_proceed",
+  "",
+  "## Sequence Notes",
+  "",
+  "## Risk Notes",
+  "- Scope is not ready.",
+  "",
+  "## Plan",
+  "- Do not implement yet.",
 ].join("\n");
 
 test("engine run-once passes durable planning artifact paths into opencode", async () => {
@@ -122,11 +135,16 @@ test("engine run-once passes durable planning artifact paths into opencode", asy
       prompt: string;
     };
   }> = [];
+  const reads: Array<{ path: string }> = [];
   const writes: Array<{ path: string; content: string }> = [];
   const services = createAutobotServices({
     artifactWriter(input) {
       writes.push(input);
       return resolve(undefined);
+    },
+    artifactReader(input) {
+      reads.push(input);
+      return resolve(validRunPlan);
     },
     planningSessionRunner(input) {
       received.push({ artifactPaths: input.artifactPaths });
@@ -137,7 +155,7 @@ test("engine run-once passes durable planning artifact paths into opencode", asy
         finished_at: "2026-05-15T12:00:02Z",
         exit_code: 0,
         signal: null,
-        stdout: validRunPlan,
+        stdout: "planner stdout",
         stderr: "planner stderr",
       });
     },
@@ -169,7 +187,12 @@ test("engine run-once passes durable planning artifact paths into opencode", asy
   )) as AutobotCommandResult;
 
   assert.equal(result.kind, "queue-status");
-  assert.equal(writes.length, 4);
+  assert.equal(writes.length, 3);
+  assert.deepEqual(reads, [
+    {
+      path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/run-plan.md",
+    },
+  ]);
   assert.deepEqual(received[0]?.artifactPaths, {
     context: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/context.md",
     testPlan:
@@ -178,10 +201,10 @@ test("engine run-once passes durable planning artifact paths into opencode", asy
     runPlan: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/run-plan.md",
     prompt: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/prompt.md",
   });
-  assert.deepEqual(writes.at(-1), {
-    path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/run-plan.md",
-    content: validRunPlan,
-  });
+  assert.equal(
+    writes.some((write) => write.path.endsWith("/run-plan.md")),
+    false,
+  );
   assert.ok(
     fixture.domainEvents.some(
       (event) => event.type === "workflow.planner.started",
@@ -221,7 +244,7 @@ test("engine run-once passes durable planning artifact paths into opencode", asy
   );
 });
 
-test("engine run-once rejects malformed planner stdout before flowcraft completion", async () => {
+test("engine run-once rejects empty required run-plan sections before flowcraft completion", async () => {
   const fixture = makeWorkflowStore({
     items: [
       {
@@ -249,11 +272,16 @@ test("engine run-once rejects malformed planner stdout before flowcraft completi
       },
     ],
   });
+  const reads: Array<{ path: string }> = [];
   const writes: Array<{ path: string; content: string }> = [];
   const services = createAutobotServices({
     artifactWriter(input) {
       writes.push(input);
       return resolve(undefined);
+    },
+    artifactReader(input) {
+      reads.push(input);
+      return resolve(emptySequenceNotesRunPlan);
     },
     planningSessionRunner() {
       return resolve({
@@ -296,6 +324,11 @@ test("engine run-once rejects malformed planner stdout before flowcraft completi
 
   assert.equal(result.kind, "queue-status");
   assert.equal(writes.length, 3);
+  assert.deepEqual(reads, [
+    {
+      path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/run-plan.md",
+    },
+  ]);
   assert.equal(
     writes.some((write) => write.path.endsWith("/run-plan.md")),
     false,
@@ -337,11 +370,16 @@ test("engine run-once preserves non-ready run plans without flowcraft completion
       },
     ],
   });
+  const reads: Array<{ path: string }> = [];
   const writes: Array<{ path: string; content: string }> = [];
   const services = createAutobotServices({
     artifactWriter(input) {
       writes.push(input);
       return resolve(undefined);
+    },
+    artifactReader(input) {
+      reads.push(input);
+      return resolve(notReadyRunPlan);
     },
     planningSessionRunner() {
       return resolve({
@@ -351,7 +389,7 @@ test("engine run-once preserves non-ready run plans without flowcraft completion
         finished_at: "2026-05-15T12:00:02Z",
         exit_code: 0,
         signal: null,
-        stdout: notReadyRunPlan,
+        stdout: "planner stdout",
         stderr: "planner stderr",
       });
     },
@@ -383,10 +421,16 @@ test("engine run-once preserves non-ready run plans without flowcraft completion
   )) as AutobotCommandResult;
 
   assert.equal(result.kind, "queue-status");
-  assert.deepEqual(writes.at(-1), {
-    path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/run-plan.md",
-    content: notReadyRunPlan,
-  });
+  assert.equal(writes.length, 3);
+  assert.deepEqual(reads, [
+    {
+      path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/run-plan.md",
+    },
+  ]);
+  assert.equal(
+    writes.some((write) => write.path.endsWith("/run-plan.md")),
+    false,
+  );
   assert.equal(fixture.executionRecords.length, 0);
   assert.equal(fixture.flowcraftEvents.length, 0);
   assert.equal(fixture.runUpserts.at(-1)?.state, "awaiting");

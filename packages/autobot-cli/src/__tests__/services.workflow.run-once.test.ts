@@ -21,10 +21,11 @@ function runFuture<T>(future: FutureInstance<unknown, T>): Promise<T> {
 }
 
 const noOpArtifactWriter = () => resolve(undefined);
+const noOpArtifactReader = () => resolve(validRunPlan);
 const noOpLinearIssue = () => resolve(null);
 const validRunPlan = [
   "## Readiness",
-  "ready to proceed",
+  "ready_to_proceed",
   "",
   "## Sequence Notes",
   "- Implement in one bounded pass.",
@@ -184,6 +185,7 @@ test("engine run-once reconciles stale in-progress items before selecting the ol
   let runIndex = 0;
   const services = createAutobotServices({
     artifactWriter: noOpArtifactWriter,
+    artifactReader: noOpArtifactReader,
     planningSessionRunner: noOpPlanningSessionRunner,
     loadLinearIssue: noOpLinearIssue,
     openStore() {
@@ -288,6 +290,7 @@ test("engine run-once hydrates Linear metadata before writing planning artifacts
   });
   const services = createAutobotServices({
     artifactWriter: noOpArtifactWriter,
+    artifactReader: noOpArtifactReader,
     planningSessionRunner: noOpPlanningSessionRunner,
     loadLinearIssue() {
       return resolve({
@@ -413,6 +416,7 @@ test("engine run-once --dry-run reports planned discovery and selection without 
   }> = [];
   const services = createAutobotServices({
     artifactWriter: noOpArtifactWriter,
+    artifactReader: noOpArtifactReader,
     planningSessionRunner: noOpPlanningSessionRunner,
     loadLinearIssue: noOpLinearIssue,
     openStore() {
@@ -532,6 +536,7 @@ test("engine run-once persists discovered work and caps it by queue-depth", asyn
   }> = [];
   const services = createAutobotServices({
     artifactWriter: noOpArtifactWriter,
+    artifactReader: noOpArtifactReader,
     planningSessionRunner: noOpPlanningSessionRunner,
     loadLinearIssue: noOpLinearIssue,
     openStore() {

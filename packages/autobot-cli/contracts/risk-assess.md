@@ -24,6 +24,7 @@ Assess post-plan implementation risk and select the review lane set.
 - Select review lanes from `risk_level` and `issue_shapes`.
 - Record which concrete plan lines or issue-shape signals triggered each selected lane.
 - Do not change the implementation plan.
+- Write the durable `risk-assessment.md` artifact at the supplied path; stdout is process output only.
 
 ## Risk rubric
 - Security-sensitive: touches auth, permissions, tokens, encryption, or user data models.

@@ -36,12 +36,14 @@ Classify the issue shape and make an explicit routing decision.
 - Use `issue_shapes` as the canonical shape result.
 - Confirm the prepare readiness gates have passed before setting `route: proceed`.
 - Set `route: proceed` when the run is ready.
-- Mark the run `ready to proceed` when `route: proceed`.
+- Mark the run `ready_to_proceed` when `route: proceed`.
 - Set `route: research-refine` when the run still needs evidence, scope narrowing, or artifact repair.
 - Set `route: escalate` when the issue is blocked, already active elsewhere, a tracker with child issues, or still missing required specification after recoverable context handling.
 - Explain the decision with concrete missing inputs or readiness signals.
+- Write the durable `classify.md` artifact at the supplied path; stdout is process output only.
 
 ## Output
+- `classify.md`
 - `## Issue Shapes`
 - `## Route`
 - `## Readiness`

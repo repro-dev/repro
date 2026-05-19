@@ -15,7 +15,7 @@ function runFuture<T>(future: FutureInstance<unknown, T>): Promise<T> {
 
 const validRunPlan = [
   "## Readiness",
-  "ready to proceed",
+  "ready_to_proceed",
   "",
   "## Sequence Notes",
   "- Implement in one bounded pass.",
@@ -38,6 +38,8 @@ const noOpPlanningSessionRunner = () =>
     stdout: validRunPlan,
     stderr: "",
   });
+
+const noOpArtifactReader = () => resolve(validRunPlan);
 
 test("engine run-once hydrates planning artifacts from the default Linear issue loader", async (t) => {
   const loadLinearIssueCalls: Array<{ repoRoot: string; issueId: string }> = [];
@@ -104,6 +106,7 @@ test("engine run-once hydrates planning artifacts from the default Linear issue 
       writes.push(input);
       return resolve(undefined);
     },
+    artifactReader: noOpArtifactReader,
     planningSessionRunner: noOpPlanningSessionRunner,
     openStore() {
       return resolve(fixture.store as unknown as AutobotStore);
@@ -146,10 +149,10 @@ test("engine run-once hydrates planning artifacts from the default Linear issue 
       issueId: "REP-400",
     },
   ]);
-  assert.equal(writes.length, 4);
+  assert.equal(writes.length, 3);
   assert.equal(
-    writes.at(-1)?.path,
-    "/worktrees/autobot/.autobot/runs/REP-400/attempt-1/run-plan.md",
+    writes.some((write) => write.path.endsWith("/run-plan.md")),
+    false,
   );
   assert.match(writes[0]?.content ?? "", /Hydrated queued item/);
   assert.match(writes[0]?.content ?? "", /- Project: Engineering/);

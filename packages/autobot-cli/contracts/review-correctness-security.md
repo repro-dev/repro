@@ -23,9 +23,9 @@
 - Return the structured output required by `.opencode/agents/review.md`.
 - Assign each finding `role: correctness-security`.
 - Report findings only; do not repair code here.
-- Write `review-output.md` with correctness, safety, and security findings.
+- Write the durable `review-correctness-security.md` artifact at the supplied path; stdout is process output only.
 
 ## Output
-- `review-output.md`
+- `review-correctness-security.md`
 - correctness and security findings with concrete file + line references
 - structured findings with `severity`, `category`, `fixable_by_agent`, and `role`

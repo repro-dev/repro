@@ -6,12 +6,16 @@
 - `review-standards`
 
 ## Inputs
-- `review-output.md`
+- `review-standard.md`
+- `review-correctness-security.md`
+- `review-architecture-conventions.md`
+- `review-performance.md`
+- `review-ui-quality.md`
 - `run-plan.md`
 - `smoke-test-result.md`
 
 ## Responsibilities
-- Read `review-output.md`, the `run-plan.md`, the `smoke-test-result.md`.
+- Read the lane-specific review artifacts, the `run-plan.md`, and the `smoke-test-result.md`.
 - Run only when every blocking finding to address is `fixable_by_agent: true`.
 - Stop and escalate when any blocker is not agent-fixable.
 - Apply the smallest follow-up diff that addresses fixable review findings.

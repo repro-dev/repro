@@ -23,9 +23,9 @@
 - Return the structured output required by `.opencode/agents/review.md`.
 - Assign each finding `role: architecture-conventions`.
 - Report findings only; do not repair code here.
-- Write `review-output.md` with architectural-fit and convention-drift findings.
+- Write the durable `review-architecture-conventions.md` artifact at the supplied path; stdout is process output only.
 
 ## Output
-- `review-output.md`
+- `review-architecture-conventions.md`
 - architecture and conventions findings with concrete file + line references
 - structured findings with `severity`, `category`, `fixable_by_agent`, and `role`

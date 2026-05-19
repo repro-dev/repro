@@ -27,9 +27,9 @@
 - Return the structured output required by `.opencode/agents/review.md`.
 - Assign each finding `role: ui-quality`.
 - Report findings only; do not repair code here.
-- Write `review-output.md` with clarity, polish, and authored-vs-generic quality findings.
+- Write the durable `review-ui-quality.md` artifact at the supplied path; stdout is process output only.
 
 ## Output
-- `review-output.md`
+- `review-ui-quality.md`
 - UI-quality findings with concrete file + line references
 - structured findings with `severity`, `category`, `fixable_by_agent`, and `role`
