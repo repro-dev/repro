@@ -1,13 +1,6 @@
 import { Block, Col } from "@jsxstyle/react";
 import { Md } from "@m2d/react-markdown";
-import {
-  AgenticError,
-  Entry,
-  Hypothesis,
-  InvestigationStage,
-  Loading,
-  groupToolCalls,
-} from "@repro/agentic";
+import { AgenticError, Entry, Loading, groupToolCalls } from "@repro/agentic";
 import { colors, spacing } from "@repro/design";
 import React, { useMemo } from "react";
 import {
@@ -16,7 +9,6 @@ import {
 } from "../constants";
 import { EmptyState } from "../EmptyState";
 import { ErrorMessage } from "./ErrorMessage";
-import { InvestigationStageIndicator } from "./InvestigationStageIndicator";
 import { ResponseFeedback } from "./ResponseFeedback";
 import { ToolCallGroup } from "./ToolCallGroup";
 import { TruncationSeparator } from "./TruncationSeparator";
@@ -30,8 +22,6 @@ interface MessageListProps {
   contentContainerRef: React.RefObject<HTMLDivElement>;
   onSelectPrompt: (prompt: string) => void;
   wasCancelled: boolean;
-  stage: InvestigationStage;
-  hypotheses: Array<Hypothesis>;
   onFeedback?: (sentiment: "positive" | "negative") => void;
   onGoToTime?: (timeMs: number) => void;
 }
@@ -45,8 +35,6 @@ export const MessageList: React.FC<MessageListProps> = ({
   contentContainerRef,
   onSelectPrompt,
   wasCancelled,
-  stage,
-  hypotheses,
   onFeedback,
   onGoToTime,
 }) => {
@@ -73,8 +61,6 @@ export const MessageList: React.FC<MessageListProps> = ({
       props={{ ref: scrollContainerRef }}
     >
       <Col gap={10} minBlockSize="100%" props={{ ref: contentContainerRef }}>
-        <InvestigationStageIndicator hypotheses={hypotheses} stage={stage} />
-
         {entries.length === 0 && <EmptyState onSelectPrompt={onSelectPrompt} />}
 
         {renderItems.map((item, index) => {
