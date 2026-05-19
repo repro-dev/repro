@@ -144,6 +144,43 @@ export type Loading =
   | "cancelled"
   | "none";
 
+export type InvestigationStage =
+  | "idle"
+  | "orient"
+  | "hypotheses"
+  | "evidence"
+  | "conclusion";
+
+export type InvestigationReadiness =
+  | "needs more evidence"
+  | "ready to conclude";
+
+export interface Hypothesis {
+  id: string;
+  description: string;
+  evidence: Array<string>;
+}
+
+export interface AdvanceStageInput {
+  stage: Exclude<InvestigationStage, "idle">;
+  hypotheses?: Array<Hypothesis>;
+}
+
+export interface AdvanceStageResult {
+  stage: InvestigationStage;
+  hypotheses: Array<Hypothesis>;
+  readiness: InvestigationReadiness;
+  _tokenEstimate?: number;
+}
+
+export interface AdvanceStageError {
+  error: string;
+  reason: string;
+  suggestion: string;
+}
+
+export type AdvanceStageOutcome = AdvanceStageResult | AdvanceStageError;
+
 export interface AgenticError {
   message: string;
   retryable: boolean;
@@ -155,6 +192,8 @@ export interface AgenticState {
   $loading: Atom<Loading>;
   $error: Atom<AgenticError | null>;
   $wasCancelled: Atom<boolean>;
+  $stage: Atom<InvestigationStage>;
+  $hypotheses: Atom<Array<Hypothesis>>;
   $pendingInteraction: Atom<PendingAskUserInteraction | null>;
   // ID of the first surviving entry after context-window truncation, or null if
   // no messages were dropped on the last inference call.
@@ -172,6 +211,9 @@ export interface ToolExecutionContext {
     request: AskUserRequest,
     toolCallId: string,
   ) => FutureInstance<unknown, AskUserResult>;
+  advanceStage?: (
+    input: AdvanceStageInput,
+  ) => FutureInstance<unknown, AdvanceStageOutcome>;
 }
 
 export interface ToolDefinition {

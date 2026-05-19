@@ -37,6 +37,8 @@ import { executeTool, tools } from "./model/tools/index";
 import { createError } from "./model/tools/common";
 import {
   AgenticError,
+  AdvanceStageInput,
+  AdvanceStageOutcome,
   AskUserRequest,
   AskUserResult,
   AgenticState,
@@ -44,7 +46,9 @@ import {
   ContentBlock,
   Context,
   Entry,
+  Hypothesis,
   Loading,
+  InvestigationStage,
   PendingAskUserInteraction,
   RecordingDataAccessor,
   StreamProvider,
@@ -53,6 +57,10 @@ import {
   ToolMessage,
   ToolExecutionContext,
 } from "./types";
+import {
+  normalizeHypotheses,
+  validateInvestigationStageTransition,
+} from "./investigationStage";
 
 interface OrderedEntryMap {
   orderedIds: Array<string>;
@@ -432,6 +440,8 @@ export function createAgenticState(
   const [$loading, setLoading] = createAtom<Loading>("none");
   const [$error, setError] = createAtom<AgenticError | null>(null);
   const [$wasCancelled, setWasCancelled] = createAtom<boolean>(false);
+  const [$stage, setStage] = createAtom<InvestigationStage>("idle");
+  const [$hypotheses, setHypotheses] = createAtom<Array<Hypothesis>>([]);
   const [$pendingInteraction, setPendingInteraction] =
     createAtom<PendingAskUserInteraction | null>(null);
   const [$truncatedBefore, setTruncatedBefore] = createAtom<string | null>(
@@ -573,6 +583,8 @@ export function createAgenticState(
     setWasCancelled(false);
     setLoading("none");
     setError(null);
+    setStage("idle");
+    setHypotheses([]);
     setTruncatedBefore(null);
   }
 
@@ -584,6 +596,8 @@ export function createAgenticState(
     retryAttempt = 0;
     erroredToolCalls.clear();
     setLoading("reasoning");
+    setStage("orient");
+    setHypotheses([]);
 
     const id = createEntryId();
 
@@ -782,6 +796,43 @@ export function createAgenticState(
         createError(error, reason, suggestion),
       ),
     });
+  }
+
+  function advanceStage(
+    input: AdvanceStageInput,
+  ): FutureInstance<unknown, AdvanceStageOutcome> {
+    const currentStage = $stage.getValue();
+    const currentHypotheses = $hypotheses.getValue();
+    const nextHypotheses = input.hypotheses ?? currentHypotheses;
+    const normalized = normalizeHypotheses(nextHypotheses);
+
+    if ("error" in normalized) {
+      return resolve(normalized.error) as FutureInstance<
+        unknown,
+        AdvanceStageOutcome
+      >;
+    }
+
+    const transition = validateInvestigationStageTransition(
+      currentStage,
+      input.stage,
+      normalized.hypotheses,
+    );
+
+    if (!transition.ok) {
+      return resolve(transition.error) as FutureInstance<
+        unknown,
+        AdvanceStageOutcome
+      >;
+    }
+
+    setStage(transition.result.stage);
+    setHypotheses(transition.result.hypotheses);
+
+    return resolve(transition.result) as FutureInstance<
+      unknown,
+      AdvanceStageOutcome
+    >;
   }
 
   const entries$ = $entryMap
@@ -1061,6 +1112,7 @@ export function createAgenticState(
                 executeTool,
                 {
                   askUser: makeAskUserFuture,
+                  advanceStage,
                 },
               ),
             ).subscribe((toolMessages) => {
@@ -1091,6 +1143,8 @@ export function createAgenticState(
     $loading,
     $error,
     $wasCancelled,
+    $stage,
+    $hypotheses,
     $pendingInteraction,
     $truncatedBefore,
     cancel,
