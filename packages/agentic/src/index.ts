@@ -22,6 +22,10 @@ export {
   isValidMessageDelta,
 } from "./createState";
 export type {
+  AdvanceStageError,
+  AdvanceStageInput,
+  AdvanceStageOutcome,
+  AdvanceStageResult,
   AskUserChoice,
   AskUserRequest,
   AskUserResult,
@@ -32,8 +36,11 @@ export type {
   ContentBlock,
   Context,
   Entry,
+  Hypothesis,
   ImageUrlContentBlock,
   Loading,
+  InvestigationReadiness,
+  InvestigationStage,
   PendingAskUserInteraction,
   RecordingDataAccessor,
   StreamProvider,
@@ -48,3 +55,11 @@ export type {
   UserMessage,
   UserMessageContext,
 } from "./types";
+export {
+  getInvestigationReadiness,
+  hasSupportedHypothesis,
+  isAdvanceableInvestigationStage,
+  isInvestigationStage,
+  normalizeHypotheses,
+  validateInvestigationStageTransition,
+} from "./investigationStage";

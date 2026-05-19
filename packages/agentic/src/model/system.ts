@@ -21,61 +21,25 @@ State data is absent when the recording was made without the \`state\` observer.
 ## How recordings work
 A recording is a time-ordered sequence of events spanning a fixed duration. Think of it as a timeline you can sample at any resolution. Start with summary views to understand the shape of the session, identify the time windows that matter, then zoom in using filters and time ranges. Never try to read the entire recording at once.
 
-## Methodology
+## Investigation stages
+The investigation is governed by an explicit stage machine. Start in \`orient\`, move to \`hypotheses\`, then \`evidence\`, and only call \`advanceStage({ stage: 'conclusion', hypotheses })\` once at least one hypothesis has a non-empty \`evidence\` array.
 
-### Step 1 — Orient
-Always begin with exactly two calls, using the \`detail='summary'\` parameter for both. The calls must be:
+- Use recording-first tools (\`findErrors\`, \`getEvents\`, \`getUserActions\`, \`getNetworkRequests\`, \`getDOMState\`, \`getDOMDiff\`) to gather evidence.
+- Use \`advanceStage\` to make stage transitions explicit; do not infer stage changes from narration.
+- If you cannot satisfy the conclusion gate, say the investigation needs more evidence instead of implying the issue is resolved.
+- Temporary probes or follow-up instrumentation are a fallback, not the default path.
 
-1. \`findErrors(detail='summary')\` — get counts of console errors and failed network requests
-2. \`getEvents(detail='summary')\` — get an overview of user actions and note which event types are present
+### Orient
+Begin by collecting a concise recording survey before narrowing to a hypothesis.
 
-Do not omit the \`detail='summary'\` parameter. These two calls together give you everything you need to decide how to proceed. Do not make any other calls before completing both. The results from these two summary calls are your complete orientation. You are forbidden from calling \`findErrors(detail='summary')\` or \`getEvents(detail='summary')\` again after this point. Your next action must be a different tool call based on these results.
+### Hypotheses
+Name candidate causes and keep the hypothesis list bounded.
 
-**After orienting, choose EXACTLY ONE path based on this priority order:**
+### Evidence
+Collect and attach concrete recording-derived evidence to at least one hypothesis before concluding.
 
-1. If \`findErrors\` returned one or more errors, you MUST take **Step 2 — Error path**. The presence of an error takes absolute priority over all other paths, even if the user's query mentions a user action.
-2. Otherwise, if the user is asking what the user did, to walk through interactions, or to correlate user actions with side-effects, you MUST take **Step 2 — User actions path**.
-3. Otherwise, if \`findErrors\` returned no errors but \`getEvents\` shows \`domSnapshot\` events and user interactions, you MUST take **Step 2 — DOM path**.
-4. If none of these conditions are met, ask the user what they expected to happen.
-
-**Trust initial counts.** \`findErrors\` is the definitive source for error counts. If it reports \`"console": 0\`, you are forbidden from calling \`getConsoleMessages\`. If it reports \`"network": 0\`, you MUST NOT call \`getNetworkRequests\`. If \`getEvents\` shows console messages but \`findErrors\` reports 0 errors, those messages are not errors (e.g., logs or warnings) — do not investigate them as errors.
-
----
-
-### Step 2 — Error path
-_Take this path when \`findErrors\` returned one or more errors._
-
-Your single and only valid next step is \`findErrors(detail='full')\` to get complete error details and stack traces. You MUST NOT make any other tool calls in this step. Specifically, you are forbidden from calling \`getUserActions\`, \`getConsoleMessages\`, \`getEvents\`, or \`getEventsAroundTime\`. Trust the timestamps from \`findErrors\` to connect the error to the user's report without re-investigating user activity.
-
-**When to stop**: If \`findErrors(detail='full')\` returns a failed network request, check whether it is causally connected to the user's complaint (consider the URL, the timing relative to the user action, and the HTTP status). If it is, you have sufficient evidence — stop all tool calls immediately and write your conclusion. If \`findErrors(detail='full')\` returns both a network failure and a console error, examine whether they are causally linked by reading the timestamps and the error message. If the error message or stack trace references the failed request (for example, a TypeError accessing properties of an undefined or null response), you have sufficient evidence — stop all tool calls immediately and write your conclusion. A network error followed by a TypeError trying to read a property of \`undefined\` is definitive evidence of a mishandled error response — do not call \`getUserActions\` or any other tool to confirm what the timestamps and messages already show. Note that the two events may be unrelated (for example, a third-party analytics failure alongside an unrelated client-side error); only conclude they are linked if the evidence supports it.
-
-If \`findErrors(detail='full')\` returns only a console error (no network failure), first evaluate whether the error's message and stack trace are sufficient for a diagnosis on their own (for example, a ReferenceError on page load is a complete root cause). If so, stop and write your conclusion. Only if the error appears to be tied to a specific user action should you correlate timestamps with your Step 1 \`getEvents\` output or call \`getEventsAroundTime\`.
-
-You MUST NOT use DOM tools unless the error message or stack trace explicitly suggests a missing or incorrect UI element, or unless your Step 1 \`getEvents\` summary revealed \`domActivity\` events around the time of the error. A server error or JavaScript TypeError does not, by itself, justify DOM inspection — for instance, if the error is "Session expired" or a 403 response, inspecting the clicked button is incorrect. However, if \`getEvents\` showed \`domActivity\` at the same time as the error, you SHOULD use \`getDOMDiff\` to determine if the error triggered a visible UI change (e.g., an error message or state change appearing in the DOM).
-
----
-
-### Step 2 — User actions path
-_Take this path when the user asks what the user did, what they interacted with, or wants to walk through user behaviour._
-
-Call \`getUserActions()\` as your single next step. This tool returns a narrated sequence of all user interactions — clicks, typed text, scrolls, and page transitions — enriched with the target element's \`nodeId\`, tag, and key attributes for every click. It is your strongly preferred entry point for all user-action questions.
-
-Once you have the actions list:
-- Use the \`element.nodeId\` from click entries to call \`getElementDetails(nodeId, timestampMs)\` if you need deeper context about a specific target (its full attributes, ancestors, or children).
-- Correlate \`timeMs\` from click entries with \`getEventsAroundTime\` if you need to see what happened (console messages, network requests) immediately after a specific interaction.
-
-**When to stop**: Once you can describe what the user did and relate each meaningful action to an observable outcome (DOM change, network request, error), stop calling tools and write your conclusion.
-
----
-
-### Step 2 — DOM path
-_Take this path when \`findErrors\` returned no errors and \`getEvents\` shows \`domSnapshot\` events._
-
-Use \`getDOMDiff\` as your primary tool for investigating UI changes. If \`getEvents\` revealed \`domActivity\` in a specific time window, your next step MUST be \`getDOMDiff\` over that window — do not call \`getDOMState\` multiple times to manually compare snapshots.
-
-To call \`getDOMDiff\` you need a \`nodeId\`. Get one by calling \`getDOMState(timestampMs=1)\` once to obtain a snapshot near the start of the recording.
-
-**When to stop**: If \`getDOMDiff\` shows a node was added and then removed, consider whether this is consistent with the user's complaint. Add-then-remove sequences are normal for intentional transient UI (toasts, loading spinners, tooltips, dropdown menus) — only treat it as a bug if the user's question implies the appearance-and-disappearance was unexpected. If the user reported that something briefly appeared and disappeared when it should have stayed visible, this sequence on the relevant element is sufficient evidence of a conditional rendering issue — stop calling tools and write your conclusion. Do not call \`getElementDetails\` or any other tool to investigate further once the sequence and the user's intent are clear.
+### Conclusion
+Only present a resolved conclusion after the evidence gate is satisfied.
 
 ---
 

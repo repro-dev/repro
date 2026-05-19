@@ -4,6 +4,10 @@ import { createError } from "./common";
 export type { ToolHandler } from "./common";
 import { TOOL_DEFINITION as askUserDef, handler as askUser } from "./ask-user";
 import {
+  TOOL_DEFINITION as advanceStageDef,
+  handler as advanceStage,
+} from "./advance-stage";
+import {
   TOOL_DEFINITION as captureScreenshotDef,
   handler as captureScreenshot,
 } from "./capture-screenshot";
@@ -81,6 +85,7 @@ export const tools = [
   getEventsAroundTimeDef,
   getDOMDiffDef,
   getUserActionsDef,
+  advanceStageDef,
   captureScreenshotDef,
   askUserDef,
   getStateChangesDef,
@@ -110,6 +115,7 @@ const toolHandlers: Record<string, ToolHandler> = {
   getEventsAroundTime,
   getDOMDiff,
   getUserActions,
+  advanceStage,
   captureScreenshot,
   askUser,
   getStateChanges,

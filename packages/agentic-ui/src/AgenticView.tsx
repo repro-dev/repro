@@ -29,6 +29,8 @@ export const AgenticView: React.FC<{
   const loading = useAtomValue(agentic.$loading);
   const error = useAtomValue(agentic.$error);
   const wasCancelled = useAtomValue(agentic.$wasCancelled);
+  const stage = useAtomValue(agentic.$stage);
+  const hypotheses = useAtomValue(agentic.$hypotheses);
 
   const lastPromptRef = useRef("");
 
@@ -73,6 +75,8 @@ export const AgenticView: React.FC<{
           scrollContainerRef={scrollContainerRef}
           contentContainerRef={contentContainerRef}
           wasCancelled={wasCancelled}
+          stage={stage}
+          hypotheses={hypotheses}
           onFeedback={onFeedback}
           onGoToTime={onGoToTime}
           onSelectPrompt={(prompt) => {
