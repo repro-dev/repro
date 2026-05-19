@@ -1,4 +1,5 @@
 import type {
+  ArtifactRef,
   ConfigEntry,
   DomainEvent,
   EngineStatus,
@@ -8,6 +9,7 @@ import type {
   ErrorPayload,
   RepoRef,
   RunSummary,
+  WorkerSummary,
   Warning,
 } from "@repro/autobot-core";
 import type {
@@ -47,6 +49,35 @@ export interface AutobotProgramOptions {
   onInvocation?: (invocation: AutobotInvocation) => void;
 }
 
+export interface EngineTickSkip {
+  issue_id: string;
+  reason: string;
+  details: Record<string, unknown> | null;
+}
+
+export interface EngineTickReport {
+  dry_run: boolean;
+  tick_at: string;
+  reconciled_issue_ids: string[];
+  discovered_issue_ids: string[];
+  queued_issue_ids: string[];
+  selected_issue_ids: string[];
+  started_issue_ids: string[];
+  skipped: EngineTickSkip[];
+}
+
+export interface EngineStatusData {
+  engine: EngineStatus;
+  counts: Record<ItemState, number>;
+  active_workers: WorkerSummary[];
+  events?: readonly DomainEvent[];
+  items: ItemSummary[];
+  config: ConfigEntry[];
+  tick?: EngineTickReport;
+  action?: "start" | "stop";
+  message?: string;
+}
+
 export type AutobotCommandResult =
   | {
       kind: "queue-list";
@@ -61,12 +92,21 @@ export type AutobotCommandResult =
       kind: "queue-status";
       command: string;
       repo: RepoRef;
-      data: {
-        engine: EngineStatus;
-        counts: Record<ItemState, number>;
-        items: ItemSummary[];
-        config: ConfigEntry[];
-      };
+      data: EngineStatusData;
+      warnings?: readonly Warning[];
+    }
+  | {
+      kind: "engine-status";
+      command: string;
+      repo: RepoRef;
+      data: EngineStatusData;
+      warnings?: readonly Warning[];
+    }
+  | {
+      kind: "engine-logs";
+      command: string;
+      repo: RepoRef;
+      data: EngineStatusData;
       warnings?: readonly Warning[];
     }
   | {
@@ -167,6 +207,7 @@ export type AutobotCommandResult =
           issue_id: string | null;
           run: RunSummary | null;
           execution: FlowcraftExecutionRecord | null;
+          artifacts: ArtifactRef[];
           domain_events: DomainEvent[];
           flowcraft_events: FlowcraftEventRecord[];
         };

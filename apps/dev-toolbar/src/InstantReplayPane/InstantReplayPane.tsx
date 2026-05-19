@@ -9,9 +9,9 @@ import {
 import { randomString } from '@repro/random-string'
 import { useRecordingStream } from '@repro/recording'
 import { calculateDuration } from '@repro/source-utils'
-import { packList } from '@repro/std/src/list-utils'
 import { DownloadIcon, HistoryIcon } from 'lucide-react'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { exportReplayEvents } from './exportReplayEvents'
 
 export const InstantReplayPane: React.FC = () => {
   const stream = useRecordingStream()
@@ -43,9 +43,7 @@ export const InstantReplayPane: React.FC = () => {
 
     // TODO: reconstruct leading snapshot event
 
-    const eventData = new Blob([
-      packList(events.slice(minIndex ?? undefined, maxIndex ?? undefined)),
-    ])
+    const eventData = new Blob([exportReplayEvents(events, minIndex, maxIndex)])
 
     const recordingId = randomString(8)
 

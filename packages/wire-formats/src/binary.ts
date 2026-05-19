@@ -3,7 +3,9 @@ import { BufferListView } from '../generated/buffer-list'
 
 export function toBinaryWireFormat(items: Array<DataView>) {
   return BufferListView.encode(
-    items.map(item => item.buffer.slice(item.byteOffset, item.byteLength))
+    items.map(item =>
+      item.buffer.slice(item.byteOffset, item.byteOffset + item.byteLength)
+    )
   )
 }
 
@@ -48,21 +50,36 @@ export function fromBinaryWireFormatStream(
       let hasFullHeader = false
       let readOffset = 0
       let writeOffset = 0
+      let emittedCount = 0
+      let reachedDeclaredItemCount = false
 
       const reader = stream.getReader()
+
+      function fail(error: Error) {
+        controller.error(error)
+      }
 
       async function next() {
         const { done, value } = await reader.read()
 
         if (value) {
+          if (reachedDeclaredItemCount && value.byteLength > 0) {
+            fail(new Error('Binary wire format stream item count mismatch'))
+            return
+          }
+
           rollingBuffer = writeToBuffer(rollingBuffer, value, writeOffset)
           writeOffset += value.byteLength
 
           // Take a view over the written bytes of the rolling buffer
           const view = new DataView(rollingBuffer, 0, writeOffset)
 
-          if (size == null && view.byteLength > LIST_SIZE_BYTE_LENGTH) {
+          if (size == null && view.byteLength >= LIST_SIZE_BYTE_LENGTH) {
             size = view.getUint32(0, LITTLE_ENDIAN)
+
+            if (size === 0) {
+              reachedDeclaredItemCount = true
+            }
           }
 
           if (size != null && !hasFullHeader) {
@@ -84,6 +101,10 @@ export function fromBinaryWireFormatStream(
                 writeOffset - readOffset
               )
 
+              if (contentView.byteLength < BUFFER_SIZE_BYTE_LENGTH) {
+                break
+              }
+
               const itemByteLength = contentView.getUint32(0, LITTLE_ENDIAN)
 
               if (
@@ -98,6 +119,26 @@ export function fromBinaryWireFormatStream(
                 )
 
                 readOffset += BUFFER_SIZE_BYTE_LENGTH + itemByteLength
+                emittedCount += 1
+
+                if (size != null && emittedCount > size) {
+                  fail(
+                    new Error('Binary wire format stream item count mismatch')
+                  )
+                  return
+                }
+
+                if (size != null && emittedCount === size) {
+                  if (readOffset < writeOffset) {
+                    fail(
+                      new Error('Binary wire format stream item count mismatch')
+                    )
+                    return
+                  }
+
+                  reachedDeclaredItemCount = true
+                  break
+                }
 
                 // Read next if more bytes on rolling buffer
                 if (readOffset < writeOffset) {
@@ -112,6 +153,31 @@ export function fromBinaryWireFormatStream(
         }
 
         if (done) {
+          if (size === 0) {
+            if (writeOffset !== LIST_SIZE_BYTE_LENGTH) {
+              fail(new Error('Binary wire format stream item count mismatch'))
+              return
+            }
+
+            controller.close()
+            return
+          }
+
+          if (size == null) {
+            if (writeOffset !== 0) {
+              fail(new Error('Truncated binary wire format stream'))
+              return
+            }
+
+            controller.close()
+            return
+          }
+
+          if (emittedCount !== size || readOffset !== writeOffset) {
+            fail(new Error('Binary wire format stream item count mismatch'))
+            return
+          }
+
           controller.close()
           return
         }

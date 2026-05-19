@@ -9,8 +9,9 @@ import {
   FormFieldError,
   Input,
   Label,
+  Link,
   spacing,
-  textStyles,
+  Text,
 } from '@repro/design'
 import { isValidationError } from '@repro/validation'
 import { fork } from 'fluture'
@@ -37,11 +38,16 @@ type FormState = LoginFormState | ResetFormState
 
 interface Props {
   redirectTo?: string
+  registerHref?: string
   onSuccess(): void
   onFailure(error: Error): void
 }
 
-export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
+export const LoginForm: React.FC<Props> = ({
+  onSuccess,
+  onFailure,
+  registerHref,
+}) => {
   const [errorMessage, setErrorMessage] = useState('')
   const [showResetFlow, setShowResetFlow] = useState(false)
   const [showPostResetMessage, setShowPostResetMessage] = useState(false)
@@ -109,24 +115,16 @@ export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
     <FormProvider {...methods}>
       <form onSubmit={handleSubmit(onSubmit)}>
         <Col gap={spacing.xl}>
-          <Col gap={spacing.lg}>
-            <Block
-              component="h1"
-              {...textStyles.heading2}
-              color={color.primary}
-            >
+          <Col gap={spacing.sm}>
+            <Text variant="heading2" color={color.primary} as="h1">
               {showResetFlow ? 'Reset password' : 'Log in'}
-            </Block>
+            </Text>
 
-            <Block
-              component="p"
-              {...textStyles.bodySmall}
-              color={color.text.muted}
-            >
+            <Text variant="bodySmall" color={color.text.muted}>
               {showResetFlow
                 ? 'Enter your email address to receive password reset instructions.'
                 : 'Use your email and password to continue.'}
-            </Block>
+            </Text>
           </Col>
 
           {showPostResetMessage && (
@@ -190,7 +188,7 @@ export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
             </Block>
           )}
 
-          <Button disabled={formState.isSubmitting} type="submit">
+          <Button size="large" disabled={formState.isSubmitting} type="submit">
             {showResetFlow ? 'Send reset email' : 'Log in'}
           </Button>
 
@@ -215,21 +213,25 @@ export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
             <>
               <Row alignItems="center" gap={spacing.md}>
                 <Divider spacing="none" />
-                <Block
-                  {...textStyles.caption}
-                  flexShrink={0}
-                  color={color.text.muted}
-                >
+                <Text variant="caption" color={color.text.muted}>
                   or
-                </Block>
+                </Text>
                 <Divider spacing="none" />
               </Row>
 
               <GoogleSignInButton
+                size="large"
                 onClick={() => {
                   window.location.href = '/account/oauth/google'
                 }}
               />
+
+              {registerHref && (
+                <Text variant="bodySmall" color={color.text.muted}>
+                  Don&apos;t have an account?{' '}
+                  <Link href={registerHref}>Sign up now</Link>
+                </Text>
+              )}
             </>
           )}
         </Col>

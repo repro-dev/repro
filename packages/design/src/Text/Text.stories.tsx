@@ -60,7 +60,7 @@ export const AllVariants: Story = {
 export const ColorOverrides: Story = {
   render: () => (
     <Col gap={spacing.md}>
-      <Text variant="body">Default (text.default)</Text>
+      <Text variant="body">Default (inherits currentColor)</Text>
       <Text variant="body" color={color.text.secondary}>
         Secondary text
       </Text>

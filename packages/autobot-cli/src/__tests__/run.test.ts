@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { fork, reject, resolve, type FutureInstance } from "fluture";
+import { fork, Future, reject, resolve, type FutureInstance } from "fluture";
 
 import type { ItemDetail } from "@repro/autobot-core";
 
@@ -135,6 +135,373 @@ test("successful human invocations render the human output", async () => {
   assert.equal(io.read().stderr, "");
 });
 
+test("successful human queue status output renders warnings and tick details", async () => {
+  const io = createIo();
+
+  const exitCode = await runFuture(
+    runAutobotCli(["node", "autobot-next", "engine", "run-once"], io.io, {
+      handleInvocation() {
+        return resolve({
+          kind: "queue-status",
+          command: "autobot-next engine run-once",
+          repo: {
+            path: "/worktrees/autobot",
+            state_dir: ".autobot",
+          },
+          data: {
+            engine: {
+              state: "unknown",
+              pid: null,
+              started_at: null,
+              last_tick_at: "2026-05-15T12:00:00Z",
+              tick_interval_seconds: 15,
+              queue_depth: 1,
+              max_concurrency: 1,
+              active_runs: 0,
+              active_workers: [],
+              health: [],
+            },
+            counts: {
+              queued: 1,
+              claimed: 0,
+              preparing: 0,
+              planning: 0,
+              developing: 0,
+              testing: 0,
+              reviewing: 0,
+              reconciling: 0,
+              awaiting: 0,
+              failed: 0,
+              completed: 0,
+              canceled: 0,
+            },
+            active_workers: [],
+            items: [makeDetail("queued")],
+            config: [],
+            tick: {
+              dry_run: true,
+              tick_at: "2026-05-15T12:00:00Z",
+              reconciled_issue_ids: ["REP-1151"],
+              discovered_issue_ids: ["REP-300"],
+              queued_issue_ids: ["REP-300"],
+              selected_issue_ids: ["REP-1151"],
+              started_issue_ids: [],
+              skipped: [],
+            },
+          },
+          warnings: [
+            {
+              code: "ENGINE_DISCOVERY_PROJECTS_MISSING",
+              message:
+                "Auto-discovery is enabled but discovery.projects is unset; skipping discovery.",
+              severity: "warning",
+            },
+          ],
+        } as AutobotCommandResult);
+      },
+    }),
+  );
+
+  assert.equal(exitCode, 0);
+  assert.match(io.read().stdout, /ENGINE_DISCOVERY_PROJECTS_MISSING/);
+  assert.match(io.read().stdout, /Dry run: yes/);
+  assert.match(io.read().stdout, /Selected: REP-1151/);
+});
+
+test("engine status output renders relay-aware workers", async () => {
+  const io = createIo();
+
+  const exitCode = await runFuture(
+    runAutobotCli(["node", "autobot-next", "engine", "status"], io.io, {
+      handleInvocation() {
+        return resolve({
+          kind: "engine-status",
+          command: "autobot-next engine status",
+          repo: {
+            path: "/worktrees/autobot",
+            state_dir: ".autobot",
+          },
+          data: {
+            engine: {
+              state: "running",
+              pid: 4242,
+              started_at: "2026-05-15T10:00:00Z",
+              last_tick_at: "2026-05-15T10:05:00Z",
+              tick_interval_seconds: 15,
+              queue_depth: 1,
+              max_concurrency: 1,
+              active_runs: 1,
+              active_workers: [
+                {
+                  worker_id: "worker-1",
+                  issue_id: "REP-1154",
+                  run_id: "run-1154",
+                  state: "running",
+                  pid: 4242,
+                  started_at: "2026-05-15T10:00:00Z",
+                  last_heartbeat_at: "2026-05-15T10:05:00Z",
+                  transport: {
+                    source: "relay",
+                    workspace_id: "relay-workspace",
+                    channel_id: "relay-channel",
+                    thread_id: "relay-thread",
+                    agent_id: "relay-agent",
+                    message_id: "relay-message",
+                  },
+                },
+              ],
+              events: [
+                {
+                  event_id: "event-engine-1",
+                  issue_id: null,
+                  run_id: null,
+                  type: "engine.tick.started",
+                  state: null,
+                  message: "engine.tick.started",
+                  severity: "info",
+                  occurred_at: "2026-05-15T12:00:00Z",
+                  actor: "engine",
+                  transport: null,
+                  data: {
+                    selected_issue_ids: [],
+                    reconciled_issue_ids: [],
+                    queued_issue_ids: [],
+                    started_issue_ids: [],
+                  },
+                },
+              ],
+              health: [
+                {
+                  code: "ENGINE_STOP_REQUESTED",
+                  status: "warning",
+                  message: "graceful shutdown requested",
+                },
+              ],
+            },
+            counts: {
+              queued: 1,
+              claimed: 0,
+              preparing: 0,
+              planning: 0,
+              developing: 0,
+              testing: 0,
+              reviewing: 0,
+              reconciling: 0,
+              awaiting: 0,
+              failed: 0,
+              completed: 0,
+              canceled: 0,
+            },
+            active_workers: [
+              {
+                worker_id: "worker-1",
+                issue_id: "REP-1154",
+                run_id: "run-1154",
+                state: "running",
+                pid: 4242,
+                started_at: "2026-05-15T10:00:00Z",
+                last_heartbeat_at: "2026-05-15T10:05:00Z",
+                transport: {
+                  source: "relay",
+                  workspace_id: "relay-workspace",
+                  channel_id: "relay-channel",
+                  thread_id: "relay-thread",
+                  agent_id: "relay-agent",
+                  message_id: "relay-message",
+                },
+              },
+            ],
+            items: [makeDetail("queued")],
+            config: [],
+            action: "stop",
+            message: "Graceful shutdown requested",
+          },
+          warnings: [],
+        } as AutobotCommandResult);
+      },
+    }),
+  );
+
+  assert.equal(exitCode, 0);
+  assert.match(io.read().stdout, /Engine status/);
+  assert.match(io.read().stdout, /Relay:/);
+  assert.match(io.read().stdout, /Events:/);
+  assert.match(io.read().stdout, /engine\.tick\.started/);
+  assert.match(io.read().stdout, /Graceful shutdown requested/);
+});
+
+test("engine logs output renders engine events", async () => {
+  const io = createIo();
+
+  const exitCode = await runFuture(
+    runAutobotCli(["node", "autobot-next", "engine", "logs"], io.io, {
+      handleInvocation() {
+        return resolve({
+          kind: "engine-logs",
+          command: "autobot-next engine logs",
+          repo: {
+            path: "/worktrees/autobot",
+            state_dir: ".autobot",
+          },
+          data: {
+            engine: {
+              state: "running",
+              pid: 4242,
+              started_at: "2026-05-15T10:00:00Z",
+              last_tick_at: "2026-05-15T10:05:00Z",
+              tick_interval_seconds: 15,
+              queue_depth: 1,
+              max_concurrency: 1,
+              active_runs: 1,
+              active_workers: [],
+              events: [
+                {
+                  event_id: "event-engine-1",
+                  issue_id: null,
+                  run_id: null,
+                  type: "engine.tick.finished",
+                  state: null,
+                  message: "engine.tick.finished",
+                  severity: "info",
+                  occurred_at: "2026-05-15T12:00:00Z",
+                  actor: "engine",
+                  transport: null,
+                  data: {
+                    selected_issue_ids: [],
+                    reconciled_issue_ids: [],
+                    queued_issue_ids: [],
+                    started_issue_ids: [],
+                  },
+                },
+              ],
+              health: [],
+            },
+            counts: {
+              queued: 1,
+              claimed: 0,
+              preparing: 0,
+              planning: 0,
+              developing: 0,
+              testing: 0,
+              reviewing: 0,
+              reconciling: 0,
+              awaiting: 0,
+              failed: 0,
+              completed: 0,
+              canceled: 0,
+            },
+            active_workers: [],
+            items: [makeDetail("queued")],
+            config: [],
+            message: "Recent engine events",
+          },
+          warnings: [],
+        } as AutobotCommandResult);
+      },
+    }),
+  );
+
+  assert.equal(exitCode, 0);
+  assert.match(io.read().stdout, /Engine logs/);
+  assert.match(io.read().stdout, /engine\.tick\.finished/);
+});
+
+test("engine start responds to SIGINT and SIGTERM by resolving after cleanup", async () => {
+  const signalNames: Array<NodeJS.Signals> = ["SIGINT", "SIGTERM"];
+
+  for (const signalName of signalNames) {
+    const io = createIo();
+    const signalHandlers = new Map<NodeJS.Signals, NodeJS.SignalsListener>();
+    const originalOn = process.on;
+    let cleanupCalls = 0;
+
+    process.on = ((event, listener) => {
+      if (event === "SIGINT" || event === "SIGTERM") {
+        signalHandlers.set(event, listener as NodeJS.SignalsListener);
+      }
+
+      return originalOn.call(process, event, listener);
+    }) as typeof process.on;
+
+    try {
+      const future = runAutobotCli(
+        ["node", "autobot-next", "engine", "start"],
+        io.io,
+        {
+          handleInvocation() {
+            return Future(() => {
+              return () => {
+                cleanupCalls += 1;
+              };
+            });
+          },
+        },
+      );
+
+      const exitCodePromise = runFuture(future);
+
+      await new Promise((resolvePromise) => setImmediate(resolvePromise));
+      const signalHandler = signalHandlers.get(signalName);
+      assert.ok(signalHandler);
+
+      signalHandler(signalName);
+
+      const exitCode = await Promise.race([
+        exitCodePromise,
+        new Promise<number>((_, rejectPromise) => {
+          setTimeout(
+            () => rejectPromise(new Error("engine start did not settle")),
+            100,
+          );
+        }),
+      ]);
+
+      assert.equal(exitCode, 0);
+      assert.equal(cleanupCalls, 1);
+    } finally {
+      process.on = originalOn;
+    }
+  }
+});
+
+test("non-daemon commands do not register shutdown handlers", async () => {
+  const io = createIo();
+  const signalHandlers = new Map<NodeJS.Signals, NodeJS.SignalsListener>();
+  const originalOn = process.on;
+
+  process.on = ((event, listener) => {
+    if (event === "SIGINT" || event === "SIGTERM") {
+      signalHandlers.set(event, listener as NodeJS.SignalsListener);
+    }
+
+    return originalOn.call(process, event, listener);
+  }) as typeof process.on;
+
+  try {
+    const exitCode = await runFuture(
+      runAutobotCli(["node", "autobot-next", "list"], io.io, {
+        handleInvocation() {
+          return resolve({
+            kind: "item-detail",
+            command: "autobot-next list",
+            repo: {
+              path: "/worktrees/autobot",
+              state_dir: ".autobot",
+            },
+            data: makeDetail("queued"),
+            warnings: [],
+          });
+        },
+      }),
+    );
+
+    assert.equal(exitCode, 0);
+    assert.equal(signalHandlers.size, 0);
+  } finally {
+    process.on = originalOn;
+  }
+});
+
 test("terminal status output omits next steps", async () => {
   const io = createIo();
 
@@ -221,7 +588,13 @@ test("workflow list renders the FlowCraft skeleton summary", async () => {
                   version: "1.0.0",
                   description:
                     "Claim an issue, reconcile state, then complete.",
-                  node_ids: ["claim", "reconcile", "complete"],
+                  node_ids: [
+                    "claim",
+                    "preparing",
+                    "planning",
+                    "reconcile",
+                    "complete",
+                  ],
                   edge_count: 2,
                 },
               ],
@@ -235,7 +608,10 @@ test("workflow list renders the FlowCraft skeleton summary", async () => {
 
   assert.equal(exitCode, 0);
   assert.match(io.read().stdout, /Workflow list/);
-  assert.match(io.read().stdout, /claim → reconcile → complete/);
+  assert.match(
+    io.read().stdout,
+    /claim → preparing → planning → reconcile → complete/,
+  );
 });
 
 test("discover quiet output prints issue ids only", async () => {

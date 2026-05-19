@@ -1,6 +1,7 @@
 import { resolve, type FutureInstance } from "fluture";
 
-import type { AutobotStore } from "@repro/autobot-store";
+import type { TransportCorrelation } from "@repro/autobot-core";
+import type { ArtifactRecord, AutobotStore } from "@repro/autobot-store";
 
 type Mutable<T> = {
   -readonly [K in keyof T]: T[K];
@@ -37,8 +38,37 @@ type WorkflowItemRecord = {
   events: [];
 };
 
+type WorkflowRunRecord = {
+  run_id: string;
+  issue_id: string;
+  attempt: number;
+  state: WorkflowItemState;
+  flowcraft_execution_id: string | null;
+  blueprint_id: string;
+  blueprint_version: string;
+  started_at: string;
+  finished_at: string | null;
+  worker_id: string | null;
+  last_heartbeat_at: string | null;
+  transport: TransportCorrelation | null;
+};
+
+type WorkflowWorkerRecord = {
+  worker_id: string;
+  issue_id: string | null;
+  run_id: string | null;
+  state: "starting" | "running" | "cancellation-requested" | "stale" | "exited";
+  pid: number | null;
+  started_at: string;
+  last_heartbeat_at: string | null;
+};
+
 type WorkflowStoreOptions = {
   items?: WorkflowItemRecord[];
+  configOverrides?: Partial<Record<string, string | number | boolean>>;
+  currentRuns?: Partial<Record<string, WorkflowRunRecord | null>>;
+  workers?: WorkflowWorkerRecord[];
+  artifacts?: Partial<Record<string, ArtifactRecord[]>>;
 };
 
 function createItemRecord(input: WorkflowItemRecord): WorkflowItemRecord {
@@ -124,6 +154,8 @@ export function makeWorkflowStore(options: WorkflowStoreOptions = {}) {
   const executionRecords: Array<Record<string, unknown>> = [];
   const flowcraftEvents: Array<Record<string, unknown>> = [];
   const domainEvents: Array<Record<string, unknown>> = [];
+  const artifactRecords: Array<Record<string, unknown>> = [];
+  const artifactLookups: string[] = [];
   const itemUpserts: Array<Record<string, unknown>> = [];
   const runGetLookups: string[] = [];
   const flowcraftGetLookups: string[] = [];
@@ -131,13 +163,42 @@ export function makeWorkflowStore(options: WorkflowStoreOptions = {}) {
     issueId: string | undefined;
     options: Record<string, unknown> | undefined;
   }> = [];
+  const overrideRecords = Object.entries(options.configOverrides ?? {}).map(
+    ([key, value]) => ({
+      key,
+      value,
+      value_type:
+        typeof value === "number"
+          ? "integer"
+          : typeof value === "boolean"
+          ? "boolean"
+          : "string",
+      source: "repo" as const,
+      updated_at: "2026-05-15T00:00:00Z",
+    }),
+  );
   let transactionCalls = 0;
   const itemRecords = (options.items ?? createDefaultWorkflowItems()).map(
     createItemRecord,
   );
+  const workerRecords = [...(options.workers ?? [])].map((worker) => ({
+    ...worker,
+  }));
+  const currentRuns = new Map(
+    Object.entries(options.currentRuns ?? {}).map(
+      ([issueId, run]) => [issueId, run] as const,
+    ),
+  );
+  const artifactsByIssue = new Map(
+    Object.entries(options.artifacts ?? {}).map(
+      ([issueId, artifacts]) => [issueId, [...(artifacts ?? [])]] as const,
+    ),
+  );
 
   const findItem = (issueId: string) =>
     itemRecords.find((item) => item.issue_id === issueId) ?? null;
+
+  const findCurrentRun = (issueId: string) => currentRuns.get(issueId) ?? null;
 
   const upsertItem = (input: Record<string, unknown>) => {
     const issueId = input.issue_id as string | undefined;
@@ -206,18 +267,27 @@ export function makeWorkflowStore(options: WorkflowStoreOptions = {}) {
       },
       getItemDetail(issueId: string) {
         const item = findItem(issueId);
-        return resolve(item === null ? null : { ...item });
+        return resolve(
+          item === null
+            ? null
+            : {
+                ...item,
+                artifacts: [...(artifactsByIssue.get(issueId) ?? [])],
+              },
+        );
       },
     },
     config: {
       setOverride() {
         return resolve(undefined);
       },
-      getOverride() {
-        return resolve(null);
+      getOverride(key: string) {
+        return resolve(
+          overrideRecords.find((override) => override.key === key) ?? null,
+        );
       },
       listOverrides() {
-        return resolve([]);
+        return resolve(overrideRecords);
       },
       deleteOverride() {
         return resolve(undefined);
@@ -278,6 +348,25 @@ export function makeWorkflowStore(options: WorkflowStoreOptions = {}) {
     runs: {
       upsert(input: Record<string, unknown>) {
         runUpserts.push(input);
+        const issueId = input.issue_id as string | undefined;
+        if (issueId !== undefined) {
+          currentRuns.set(issueId, {
+            run_id: input.run_id as string,
+            issue_id: issueId,
+            attempt: input.attempt as number,
+            state: input.state as WorkflowItemState,
+            flowcraft_execution_id:
+              (input.flowcraft_execution_id as string | null) ?? null,
+            blueprint_id: input.blueprint_id as string,
+            blueprint_version: input.blueprint_version as string,
+            started_at: input.started_at as string,
+            finished_at: (input.finished_at as string | null) ?? null,
+            worker_id: (input.worker_id as string | null) ?? null,
+            last_heartbeat_at:
+              (input.last_heartbeat_at as string | null) ?? null,
+            transport: null,
+          });
+        }
         return resolve({
           run_id: input.run_id,
           issue_id: input.issue_id,
@@ -295,6 +384,15 @@ export function makeWorkflowStore(options: WorkflowStoreOptions = {}) {
       },
       get(runId: string) {
         runGetLookups.push(runId);
+        const currentRun = [...currentRuns.values()].find(
+          (run): run is WorkflowRunRecord =>
+            run !== null && run !== undefined && run.run_id === runId,
+        );
+
+        if (currentRun !== undefined) {
+          return resolve({ ...currentRun });
+        }
+
         return resolve(
           runId === "run-1154"
             ? {
@@ -344,8 +442,8 @@ export function makeWorkflowStore(options: WorkflowStoreOptions = {}) {
             : null,
         );
       },
-      getCurrent() {
-        return resolve(null);
+      getCurrent(issueId: string) {
+        return resolve(findCurrentRun(issueId));
       },
     },
     workers: {
@@ -353,15 +451,17 @@ export function makeWorkflowStore(options: WorkflowStoreOptions = {}) {
         return resolve(undefined);
       },
       list() {
-        return resolve([]);
+        return resolve([...workerRecords]);
       },
     },
     artifacts: {
-      record() {
-        return resolve(undefined);
+      record(input: Record<string, unknown>) {
+        artifactRecords.push(input);
+        return resolve(input);
       },
-      list() {
-        return resolve([]);
+      list(issueId: string) {
+        artifactLookups.push(issueId);
+        return resolve([...(artifactsByIssue.get(issueId) ?? [])]);
       },
     },
     flowcraft: {
@@ -445,6 +545,8 @@ export function makeWorkflowStore(options: WorkflowStoreOptions = {}) {
     executionRecords,
     flowcraftEvents,
     domainEvents,
+    artifactRecords,
+    artifactLookups,
     itemUpserts,
     runGetLookups,
     flowcraftGetLookups,

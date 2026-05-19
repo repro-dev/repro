@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { fork, resolve, type FutureInstance } from "fluture";
 
-import { discoverLinearIssues } from "../linear";
+import { discoverLinearIssues, loadLinearIssue } from "../linear";
 
 function runFuture<T>(future: FutureInstance<unknown, T>): Promise<T> {
   return new Promise((resolvePromise, rejectPromise) => {
@@ -124,4 +124,53 @@ test("discover linear issues reports malformed json loudly", async () => {
       return true;
     },
   );
+});
+
+test("load linear issue hydrates the Linear metadata payload", async () => {
+  const calls: Array<{ command: string; args: string[] }> = [];
+
+  const result = await runFuture(
+    loadLinearIssue(
+      {
+        repoRoot: "/repo",
+        issueId: "REP-1158",
+      },
+      {
+        runCommand(input) {
+          calls.push(input);
+          return resolve(
+            JSON.stringify({
+              item: {
+                identifier: "REP-1158",
+                title: "Add planning artifact generation phase",
+                url: "https://linear.app/repro/issue/REP-1158/add-planning-artifact-generation-phase",
+                status: { name: "Todo", type: "unstarted" },
+                project: { name: "Platform" },
+                assignee: { name: "Gary" },
+                labels: [{ name: "Feature" }],
+              },
+            }),
+          );
+        },
+      },
+    ),
+  );
+
+  assert.deepStrictEqual(result, {
+    issue_id: "REP-1158",
+    title: "Add planning artifact generation phase",
+    url: "https://linear.app/repro/issue/REP-1158/add-planning-artifact-generation-phase",
+    state_name: "Todo",
+    state_type: "unstarted",
+    project: "Platform",
+    labels: ["Feature"],
+    assignee: "Gary",
+  });
+  assert.deepStrictEqual(calls, [
+    {
+      cwd: "/repo",
+      command: "/repo/bin/linear",
+      args: ["issue", "show", "REP-1158", "--json"],
+    },
+  ]);
 });

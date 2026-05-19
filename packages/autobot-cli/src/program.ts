@@ -274,10 +274,16 @@ export function createAutobotProgram(
   );
   registerLeafCommand(
     engineCommand,
+    { command: "logs", description: "show engine logs" },
+    options.onInvocation,
+  );
+  registerLeafCommand(
+    engineCommand,
     {
       command: "run-once",
       description:
-        "run one bounded tick across all runnable queue items and exit",
+        "run one scheduler tick across the queue, reconcile state, and exit",
+      options: ["--dry-run"],
     },
     options.onInvocation,
   );

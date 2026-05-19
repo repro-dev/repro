@@ -41,12 +41,15 @@ function makeOptions(
   };
 }
 
-function makeInvocation(command_path: string[]): AutobotInvocation {
+function makeInvocation(
+  command_path: string[],
+  overrides: Partial<AutobotGlobalOptions> = {},
+): AutobotInvocation {
   return {
     command_path,
     command: command_path.join(" "),
     args: [],
-    options: makeOptions(),
+    options: makeOptions(overrides),
   };
 }
 
@@ -70,6 +73,8 @@ test("workflow commands surface the FlowCraft skeleton", async () => {
   assert.equal(listResult.command, "engine debug workflow list");
   assert.deepEqual(listResult.data.workflows[0]?.node_ids, [
     "claim",
+    "preparing",
+    "planning",
     "reconcile",
     "complete",
   ]);
@@ -168,120 +173,4 @@ test("inspect routes flowcraft execution ids directly to execution lookup", asyn
   assert.equal(result.data.lookup.kind, "flowcraft-execution");
   assert.deepEqual(fixture.runGetLookups, []);
   assert.deepEqual(fixture.flowcraftGetLookups, ["flowcraft-exec-1156"]);
-});
-
-test("engine run-once advances every runnable item and reports queue status", async () => {
-  const fixture = makeWorkflowStore();
-  const runIds = ["run-1154", "run-1155", "run-1156"];
-  let runIndex = 0;
-  const services = createAutobotServices({
-    openStore() {
-      return resolve(fixture.store as unknown as AutobotStore);
-    },
-    now() {
-      return "2026-05-15T11:00:00Z";
-    },
-    randomId() {
-      const runId = runIds[runIndex];
-      runIndex += 1;
-
-      if (runId === undefined) {
-        throw new Error("unexpected extra run id request");
-      }
-
-      return runId;
-    },
-  });
-
-  const result = (await runFuture(
-    services.handleInvocation(makeInvocation(["engine", "run-once"])),
-  )) as AutobotCommandResult;
-
-  assert.equal(result.kind, "queue-status");
-  assert.equal(result.command, "engine run-once");
-  assert.equal(result.data.engine.last_tick_at, "2026-05-15T11:00:00Z");
-  assert.equal(result.data.counts.completed, 3);
-  assert.equal(result.data.items.length, 0);
-  assert.equal(fixture.runUpserts.length, 3);
-  assert.equal(fixture.executionRecords.length, 3);
-  assert.ok(fixture.flowcraftEvents.length >= 24);
-  assert.equal(fixture.flowcraftEvents[0]?.type, "workflow:start");
-  assert.equal(fixture.flowcraftEvents.at(-1)?.type, "workflow:finish");
-  assert.equal(fixture.domainEvents.length, 9);
-  assert.equal(fixture.itemUpserts.length, 3);
-  assert.deepEqual(
-    fixture.itemUpserts.map((item) => item.state),
-    ["completed", "completed", "completed"],
-  );
-  assert.deepEqual(
-    fixture.runUpserts.map((run) => run.run_id),
-    ["run-1154", "run-1155", "run-1156"],
-  );
-  assert.equal(fixture.transactionCalls, 3);
-  assert.equal("transport_json" in fixture.runUpserts[0]!, false);
-  assert.equal(fixture.runUpserts[0]?.transport, null);
-
-  const statusResult = (await runFuture(
-    services.handleInvocation({
-      ...makeInvocation(["status"]),
-      args: ["REP-1154"],
-      command: "status REP-1154",
-    }),
-  )) as AutobotCommandResult;
-
-  assert.equal(statusResult.kind, "item-detail");
-  assert.equal(statusResult.data.state, "completed");
-
-  const siblingStatusResult = (await runFuture(
-    services.handleInvocation({
-      ...makeInvocation(["status"]),
-      args: ["REP-1155"],
-      command: "status REP-1155",
-    }),
-  )) as AutobotCommandResult;
-
-  assert.equal(siblingStatusResult.kind, "item-detail");
-  assert.equal(siblingStatusResult.data.state, "completed");
-
-  const failedStatusResult = (await runFuture(
-    services.handleInvocation({
-      ...makeInvocation(["status"]),
-      args: ["REP-1156"],
-      command: "status REP-1156",
-    }),
-  )) as AutobotCommandResult;
-
-  assert.equal(failedStatusResult.kind, "item-detail");
-  assert.equal(failedStatusResult.data.state, "completed");
-});
-
-test("engine run-once reports tick scope for an empty queue", async () => {
-  const fixture = makeWorkflowStore({ items: [] });
-  const services = createAutobotServices({
-    openStore() {
-      return resolve(fixture.store as unknown as AutobotStore);
-    },
-    now() {
-      return "2026-05-15T12:00:00Z";
-    },
-    randomId() {
-      throw new Error(
-        "run-once should not allocate a run id for an empty queue",
-      );
-    },
-  });
-
-  const result = (await runFuture(
-    services.handleInvocation(makeInvocation(["engine", "run-once"])),
-  )) as AutobotCommandResult;
-
-  assert.equal(result.kind, "queue-status");
-  assert.equal(result.command, "engine run-once");
-  assert.equal(result.data.engine.last_tick_at, "2026-05-15T12:00:00Z");
-  assert.equal(result.data.items.length, 0);
-  assert.equal(fixture.runUpserts.length, 0);
-  assert.equal(fixture.executionRecords.length, 0);
-  assert.equal(fixture.domainEvents.length, 0);
-  assert.equal(fixture.itemUpserts.length, 0);
-  assert.equal(fixture.transactionCalls, 0);
 });

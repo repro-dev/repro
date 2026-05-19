@@ -1,5 +1,4 @@
 import { RegisterForm } from '@repro/auth'
-import { Card } from '@repro/design'
 import { logger } from '@repro/logger'
 import React, { useCallback } from 'react'
 import { useLocation, useNavigate } from 'react-router'
@@ -21,11 +20,7 @@ const RegisterRoute: React.FC = () => {
     logger.debug('registration failed', error)
   }, [])
 
-  return (
-    <Card>
-      <RegisterForm onSuccess={onSuccess} onFailure={onFailure} />
-    </Card>
-  )
+  return <RegisterForm onSuccess={onSuccess} onFailure={onFailure} />
 }
 
 export default RegisterRoute

@@ -205,6 +205,7 @@ export interface WorkerSummary {
   pid: number | null;
   started_at: IsoTimestamp;
   last_heartbeat_at: IsoTimestamp | null;
+  transport: TransportCorrelation | null;
 }
 
 export interface HealthCheck {
@@ -223,6 +224,7 @@ export interface EngineStatus {
   max_concurrency: number;
   active_runs: number;
   active_workers: WorkerSummary[];
+  events?: readonly DomainEvent[];
   health: HealthCheck[];
 }
 

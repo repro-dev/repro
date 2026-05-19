@@ -3,7 +3,7 @@ import { createAtom } from '@repro/atom'
 import { SideNavItem } from '@repro/design'
 import { Project, ProjectRole, User } from '@repro/domain'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
-import { reject, resolve } from 'fluture'
+import { resolve } from 'fluture'
 import assert from 'node:assert/strict'
 import { afterEach, beforeEach, describe, it } from 'node:test'
 import React from 'react'
@@ -66,7 +66,7 @@ const baseApiClient = createApiClient({
   authStorage: 'memory',
 })
 
-const apiClient = {
+const apiClient: ReturnType<typeof createApiClient> = {
   ...baseApiClient,
   fetch: ((url: string) => {
     if (url === '/projects') {
@@ -79,8 +79,8 @@ const apiClient = {
       })
     }
 
-    return reject(new Error(`unexpected fetch: ${url}`))
-  }) as typeof baseApiClient.fetch,
+    throw new Error(`unexpected fetch: ${url}`)
+  }) as ReturnType<typeof createApiClient>['fetch'],
 }
 
 // ---------------------------------------------------------------------------

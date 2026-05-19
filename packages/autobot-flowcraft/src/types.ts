@@ -12,7 +12,12 @@ import type { TransportCorrelation } from "@repro/autobot-core";
 
 export type FlowcraftWorkflowId = "autobot-deliver-issue";
 
-export type FlowcraftNodeId = "claim" | "reconcile" | "complete";
+export type FlowcraftNodeId =
+  | "claim"
+  | "preparing"
+  | "planning"
+  | "reconcile"
+  | "complete";
 
 export interface FlowcraftWorkflowContext {
   issue_id: string;
@@ -63,7 +68,7 @@ export interface FlowcraftValidationResult {
 export interface FlowcraftPhaseEvent {
   phase: FlowcraftNodeId;
   type: string;
-  state: "claimed" | "reconciling" | "completed";
+  state: "claimed" | "preparing" | "planning" | "reconciling" | "completed";
   message: string;
   occurred_at: string;
   data: Record<string, unknown>;
@@ -91,7 +96,7 @@ export interface FlowcraftExecutionPlan {
     issue_id: string | null;
     run_id: string | null;
     type: string;
-    state: "claimed" | "reconciling" | "completed";
+    state: "claimed" | "preparing" | "planning" | "reconciling" | "completed";
     message: string;
     severity: "info";
     occurred_at: string;
