@@ -1,5 +1,5 @@
 import { useAtomValue } from '@repro/atom'
-import { Card, FX } from '@repro/design'
+import { Alert, FX, Text } from '@repro/design'
 import { AlertTriangleIcon, LoaderIcon } from 'lucide-react'
 import React, { PropsWithChildren, useEffect, useState } from 'react'
 import { EMPTY_PLAYBACK, createSourcePlayback } from './createSourcePlayback'
@@ -50,6 +50,7 @@ export const PlaybackFromSourceProvider: React.FC<
 > = ({ children, source }) => {
   const events = useAtomValue(source.$events)
   const duration = useAtomValue(source.$duration)
+  const error = useAtomValue(source.$error)
   const resourceMap = useAtomValue(source.$resourceMap)
   const readyState = useAtomValue(source.$readyState)
   const [playback, setPlayback] = useState(EMPTY_PLAYBACK)
@@ -70,10 +71,10 @@ export const PlaybackFromSourceProvider: React.FC<
 
   if (readyState === 'failed') {
     return (
-      <Card>
-        <AlertTriangleIcon size={24} />
-        Unable to load recording. Please try again.
-      </Card>
+      <Alert type="danger" icon={<AlertTriangleIcon size={24} />}>
+        <Text>Unable to load recording. Please try again.</Text>
+        <Text variant="bodySmall">{error?.message}</Text>
+      </Alert>
     )
   }
 

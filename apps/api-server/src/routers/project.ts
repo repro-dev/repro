@@ -582,6 +582,7 @@ export function createProjectRouter(
 
       {
         schema: projectRecordingDataSchema,
+        compress: false,
       },
 
       (req, res) => {

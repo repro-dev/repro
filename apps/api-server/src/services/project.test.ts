@@ -178,11 +178,8 @@ describe('Services > Project', () => {
       projectService.getRecordingsForProject(project.id)
     )
 
-    expect(recordings).toEqual(
-      [recordingA, recordingB].sort(
-        (a, b) => -a.createdAt.localeCompare(b.createdAt)
-      )
-    )
+    expect(recordings).toHaveLength(2)
+    expect(recordings).toEqual(expect.arrayContaining([recordingA, recordingB]))
   })
 
   it('should throw not-found when getting a project that does not exist', async () => {

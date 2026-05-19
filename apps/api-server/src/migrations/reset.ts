@@ -1,9 +1,87 @@
+import {
+  DeleteObjectsCommand,
+  ListObjectsV2Command,
+  S3Client,
+} from '@aws-sdk/client-s3'
 import { sql } from 'kysely'
+import { fileURLToPath } from 'node:url'
 import { defaultEnv as env } from '~/config/env'
 import { createPostgresDatabaseClient } from '~/modules/database/database-postgres'
 import { createS3StorageClient } from '~/modules/storage-s3'
 import { migrate } from './migrate'
 import { seed } from './seed'
+
+export async function dropSchemaObjects(
+  db: ReturnType<typeof createPostgresDatabaseClient>
+) {
+  await db.executeQuery(
+    sql
+      .raw(
+        `DO $$ DECLARE
+  r RECORD;
+BEGIN
+  FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = current_schema()) LOOP
+    EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE';
+  END LOOP;
+  FOR r IN (
+    SELECT p.proname, pg_get_function_identity_arguments(p.oid) AS args
+    FROM pg_proc p
+    JOIN pg_namespace n ON p.pronamespace = n.oid
+    WHERE n.nspname = current_schema()
+  ) LOOP
+    EXECUTE format('DROP FUNCTION IF EXISTS %I.%I(%s) CASCADE', current_schema(), r.proname, r.args);
+  END LOOP;
+  FOR r IN (SELECT typname FROM pg_type JOIN pg_namespace ON pg_type.typnamespace = pg_namespace.oid WHERE pg_namespace.nspname = current_schema() AND pg_type.typtype = 'e') LOOP
+    EXECUTE 'DROP TYPE IF EXISTS ' || quote_ident(r.typname) || ' CASCADE';
+  END LOOP;
+END $$`
+      )
+      .compile(db)
+  )
+}
+
+async function clearStorageBucket() {
+  const s3 = new S3Client({
+    endpoint: env.STORAGE_ENDPOINT,
+    forcePathStyle: true,
+    region: env.STORAGE_REGION,
+    credentials: {
+      accessKeyId: env.STORAGE_ACCESS_KEY_ID,
+      secretAccessKey: env.STORAGE_SECRET_ACCESS_KEY,
+    },
+  })
+
+  let continuationToken: string | undefined
+
+  do {
+    const response = await s3.send(
+      new ListObjectsV2Command({
+        Bucket: env.STORAGE_BUCKET,
+        ContinuationToken: continuationToken,
+      })
+    )
+
+    const keys = (response.Contents ?? [])
+      .map(item => item.Key)
+      .filter((key): key is string => key != null)
+
+    if (keys.length) {
+      await s3.send(
+        new DeleteObjectsCommand({
+          Bucket: env.STORAGE_BUCKET,
+          Delete: {
+            Objects: keys.map(Key => ({ Key })),
+            Quiet: true,
+          },
+        })
+      )
+    }
+
+    continuationToken = response.IsTruncated
+      ? response.NextContinuationToken
+      : undefined
+  } while (continuationToken)
+}
 
 async function main() {
   const db = createPostgresDatabaseClient({
@@ -26,22 +104,10 @@ async function main() {
   try {
     console.log('Dropping all tables and types...')
 
-    await db.executeQuery(
-      sql
-        .raw(
-          `DO $$ DECLARE
-  r RECORD;
-BEGIN
-  FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = current_schema()) LOOP
-    EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE';
-  END LOOP;
-  FOR r IN (SELECT typname FROM pg_type JOIN pg_namespace ON pg_type.typnamespace = pg_namespace.oid WHERE pg_namespace.nspname = current_schema() AND pg_type.typtype = 'e') LOOP
-    EXECUTE 'DROP TYPE IF EXISTS ' || quote_ident(r.typname) || ' CASCADE';
-  END LOOP;
-END $$`
-        )
-        .compile(db)
-    )
+    await dropSchemaObjects(db)
+
+    console.log('Clearing storage bucket...')
+    await clearStorageBucket()
 
     console.log('All tables and types dropped. Running migrations...')
 
@@ -66,4 +132,6 @@ END $$`
   }
 }
 
-main()
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main()
+}
