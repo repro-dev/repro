@@ -87,6 +87,7 @@ test("engine run-once passes durable planning artifact paths into opencode", asy
       context: string;
       testPlan: string;
       contract: string;
+      runPlan: string;
       prompt: string;
     };
   }> = [];
@@ -137,13 +138,18 @@ test("engine run-once passes durable planning artifact paths into opencode", asy
   )) as AutobotCommandResult;
 
   assert.equal(result.kind, "queue-status");
-  assert.equal(writes.length, 3);
+  assert.equal(writes.length, 4);
   assert.deepEqual(received[0]?.artifactPaths, {
     context: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/context.md",
     testPlan:
       "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/test-plan.md",
     contract: getSingleTrackPhaseContractPath("/worktrees/autobot", "plan"),
+    runPlan: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/run-plan.md",
     prompt: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/prompt.md",
+  });
+  assert.deepEqual(writes.at(-1), {
+    path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/run-plan.md",
+    content: "planner stdout",
   });
   assert.ok(
     fixture.domainEvents.some(

@@ -9,6 +9,13 @@ import {
   loadSingleTrackPhaseContract,
 } from "../phase-contracts";
 
+function assertContains(content: string, snippet: string): void {
+  assert.ok(
+    content.includes(snippet),
+    `expected contract to include: ${snippet}`,
+  );
+}
+
 test("single-track phase contracts are tracked markdown files", () => {
   const repoPath = path.resolve(process.cwd(), "..", "..");
 
@@ -23,25 +30,122 @@ test("single-track phase contracts are tracked markdown files", () => {
   }
 });
 
-test("planning contract preserves the required headings and avoids deliver-wave language", () => {
-  const content = loadSingleTrackPhaseContract("plan");
+test("single-track phase contracts declare exact inputs and outputs", () => {
+  const expectations = [
+    {
+      name: "prepare",
+      snippets: [
+        "Read the queued issue",
+        "`context.md`",
+        "`test-plan.md`",
+        "Write the preparation context",
+      ],
+    },
+    {
+      name: "classify",
+      snippets: [
+        "Read the prepared run context",
+        "Write the single-track phase lane decision",
+      ],
+    },
+    {
+      name: "research-refine",
+      snippets: [
+        "Read the latest `run-plan.md`",
+        "Write the refined research notes or plan deltas",
+      ],
+    },
+    {
+      name: "plan",
+      snippets: [
+        "Read `context.md`",
+        "Write the authoritative `run-plan.md`",
+        "Add `## Open Questions` only when unresolved blockers remain",
+      ],
+    },
+    {
+      name: "develop",
+      snippets: [
+        "Read the approved `run-plan.md`",
+        "Write the smallest safe code diff and matching test updates",
+      ],
+    },
+    {
+      name: "test-verify",
+      snippets: [
+        "Read the implementation diff, the `run-plan.md`",
+        "Write the smoke-test and typecheck evidence",
+      ],
+    },
+    {
+      name: "review-standard",
+      snippets: [
+        "Read the diff, the `run-plan.md`",
+        "Write `review-output.md` with correctness, clarity, and merge-readiness findings",
+      ],
+    },
+    {
+      name: "review-correctness-security",
+      snippets: [
+        "Read the diff, the `run-plan.md`",
+        "Write `review-output.md` with correctness, safety, and security findings",
+      ],
+    },
+    {
+      name: "review-architecture-conventions",
+      snippets: [
+        "Read the diff, the `run-plan.md`",
+        "Write `review-output.md` with architectural-fit and convention-drift findings",
+      ],
+    },
+    {
+      name: "review-performance",
+      snippets: [
+        "Read the diff, the `run-plan.md`",
+        "Write `review-output.md` with latency, cost, and unnecessary churn findings",
+      ],
+    },
+    {
+      name: "review-ui-quality",
+      snippets: [
+        "Read the diff, the `run-plan.md`",
+        "Write `review-output.md` with clarity, polish, and authored-vs-generic quality findings",
+      ],
+    },
+    {
+      name: "review-fix",
+      snippets: [
+        "Read `review-output.md`, the `run-plan.md`",
+        "Write the smallest follow-up diff",
+      ],
+    },
+    {
+      name: "reconcile",
+      snippets: [
+        "Read the implementation outcome, verification evidence",
+        "Reconcile the run state and decide whether the single-track issue is complete",
+      ],
+    },
+    {
+      name: "release-publish",
+      snippets: [
+        "Read the completed run state, the final verification evidence",
+        "release-recovery.md",
+      ],
+    },
+  ] as const;
 
-  for (const heading of [
-    "## Readiness",
-    "## Sequence Notes",
-    "## Risk Notes",
-    "## Plan",
-  ]) {
-    assert.match(
-      content,
-      new RegExp(`^${heading.replace(/[#]/g, "\\$&")}$`, "m"),
-    );
+  for (const expectation of expectations) {
+    const content = loadSingleTrackPhaseContract(expectation.name);
+
+    for (const snippet of expectation.snippets) {
+      assertContains(content, snippet);
+    }
+
+    assert.doesNotMatch(content, /\/deliver/i);
+    assert.doesNotMatch(content, /\bresequenc/i);
+    assert.doesNotMatch(content, /\bbatch\b/i);
+    assert.doesNotMatch(content, /\bwave\b/i);
+    assert.doesNotMatch(content, /sibling-issue/i);
   }
-
-  assert.match(content, /## Open Questions/m);
-  assert.doesNotMatch(content, /\bwave\b/i);
-  assert.doesNotMatch(content, /\bbatch\b/i);
-  assert.doesNotMatch(content, /sibling-issue/i);
-  assert.doesNotMatch(content, /resequenc/i);
-  assert.doesNotMatch(content, /\/deliver/i);
 });

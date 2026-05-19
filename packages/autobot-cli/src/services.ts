@@ -140,7 +140,7 @@ type ArtifactWriter = (input: {
 }) => FutureInstance<unknown, void>;
 
 type PlanningArtifactDraft = {
-  kind: "context" | "test-plan" | "prompt" | "contract";
+  kind: "context" | "test-plan" | "prompt" | "contract" | "run-plan";
   path: string;
   description: string;
   content: string;
@@ -2001,6 +2001,7 @@ function renderPlanningTestPlanArtifact(input: {
   title: string | null;
   contextPath: string;
   contractPath: string;
+  runPlanPath: string;
   promptPath: string;
 }): string {
   return [
@@ -2010,6 +2011,7 @@ function renderPlanningTestPlanArtifact(input: {
     `- Title: ${input.title ?? "(untitled)"}`,
     `- Context: ${input.contextPath}`,
     `- Contract: ${input.contractPath}`,
+    `- Run plan: ${input.runPlanPath}`,
     `- Prompt: ${input.promptPath}`,
     "",
     "## Behaviors To Cover",
@@ -2021,6 +2023,19 @@ function renderPlanningTestPlanArtifact(input: {
 
 function renderPlanningPromptArtifact(): string {
   return loadSingleTrackPhaseContract("plan");
+}
+
+function buildPlanningRunPlanArtifact(input: {
+  path: string;
+  content: string;
+}): PlanningArtifactDraft {
+  return {
+    kind: "run-plan",
+    path: input.path,
+    description: "Planning run plan",
+    content: input.content,
+    content_hash: createContentHash(input.content),
+  };
 }
 
 function buildPlanningArtifactDrafts(input: {
@@ -2045,6 +2060,11 @@ function buildPlanningArtifactDrafts(input: {
     input.item.attempt,
     "prompt.md",
   );
+  const runPlanPath = buildPlanningArtifactRelativePath(
+    input.item.issue_id,
+    input.item.attempt,
+    "run-plan.md",
+  );
   const contractPath = getSingleTrackPhaseContractPath(input.repoPath, "plan");
   const contractArtifactPath = getSingleTrackPhaseContractRelativePath("plan");
 
@@ -2059,6 +2079,7 @@ function buildPlanningArtifactDrafts(input: {
     title: input.item.title,
     contextPath,
     contractPath,
+    runPlanPath,
     promptPath,
   });
   const promptContent = renderPlanningPromptArtifact();
@@ -2149,12 +2170,17 @@ function buildPlanningSessionArtifactPaths(
   const testPlan = drafts.find((draft) => draft.kind === "test-plan")?.path;
   const prompt = drafts.find((draft) => draft.kind === "prompt")?.path;
   const contract = drafts.find((draft) => draft.kind === "contract")?.path;
+  const runPlan =
+    context === undefined
+      ? undefined
+      : path.join(path.dirname(context), "run-plan.md");
 
   if (
     context === undefined ||
     testPlan === undefined ||
     prompt === undefined ||
-    contract === undefined
+    contract === undefined ||
+    runPlan === undefined
   ) {
     throw new Error("planning artifacts are incomplete");
   }
@@ -2163,6 +2189,7 @@ function buildPlanningSessionArtifactPaths(
     context: path.join(repoPath, context),
     testPlan: path.join(repoPath, testPlan),
     contract: path.join(repoPath, contract),
+    runPlan: path.join(repoPath, runPlan),
     prompt: path.join(repoPath, prompt),
   };
 }
@@ -2476,6 +2503,30 @@ function runBoundedWorkflowTickForItem(
                     const planningSucceeded =
                       planningSessionResult.exit_code === 0 &&
                       planningSessionResult.signal === null;
+                    const runPlanArtifact = planningSucceeded
+                      ? buildPlanningRunPlanArtifact({
+                          path: path.relative(
+                            store.repo.path,
+                            planningArtifactPaths.runPlan,
+                          ),
+                          content: planningSessionResult.stdout,
+                        })
+                      : null;
+                    const completedPlanningArtifacts = runPlanArtifact
+                      ? [...planningArtifactDrafts, runPlanArtifact]
+                      : planningArtifactDrafts;
+                    const completedPlanningEvents = runPlanArtifact
+                      ? [
+                          ...artifactEvents,
+                          createPlanningArtifactCreatedEvent({
+                            issueId: target.issue_id,
+                            runId,
+                            executionId,
+                            artifact: runPlanArtifact,
+                            occurredAt: planningSessionResult.finished_at,
+                          }),
+                        ]
+                      : artifactEvents;
 
                     if (!planningSucceeded) {
                       return store.transaction((transaction) => {
@@ -2517,8 +2568,18 @@ function runBoundedWorkflowTickForItem(
                           .pipe(
                             chain(() =>
                               sequenceFutures([
-                                ...planningArtifactDrafts.map(recordArtifact),
-                                ...artifactEvents.map(appendEvent),
+                                ...(runPlanArtifact === null
+                                  ? []
+                                  : [
+                                      artifactWriter({
+                                        path: planningArtifactPaths.runPlan,
+                                        content: runPlanArtifact.content,
+                                      }),
+                                    ]),
+                                ...completedPlanningArtifacts.map(
+                                  recordArtifact,
+                                ),
+                                ...completedPlanningEvents.map(appendEvent),
                                 ...planningEvents.map(appendEvent),
                                 transaction.items
                                   .upsert(
@@ -2611,10 +2672,20 @@ function runBoundedWorkflowTickForItem(
                                 chain(
                                   (run): FutureInstance<unknown, void> =>
                                     sequenceFutures([
-                                      ...planningArtifactDrafts.map(
+                                      ...completedPlanningArtifacts.map(
                                         recordArtifact,
                                       ),
-                                      ...artifactEvents.map(appendEvent),
+                                      ...(runPlanArtifact === null
+                                        ? []
+                                        : [
+                                            artifactWriter({
+                                              path: planningArtifactPaths.runPlan,
+                                              content: runPlanArtifact.content,
+                                            }),
+                                          ]),
+                                      ...completedPlanningEvents.map(
+                                        appendEvent,
+                                      ),
                                       ...planningEvents.map(appendEvent),
                                       transaction.flowcraft
                                         .recordExecution({

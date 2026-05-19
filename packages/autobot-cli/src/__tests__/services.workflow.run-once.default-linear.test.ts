@@ -132,7 +132,11 @@ test("engine run-once hydrates planning artifacts from the default Linear issue 
       issueId: "REP-400",
     },
   ]);
-  assert.equal(writes.length, 3);
+  assert.equal(writes.length, 4);
+  assert.equal(
+    writes.at(-1)?.path,
+    "/worktrees/autobot/.autobot/runs/REP-400/attempt-1/run-plan.md",
+  );
   assert.match(writes[0]?.content ?? "", /Hydrated queued item/);
   assert.match(writes[0]?.content ?? "", /- Project: Engineering/);
   assert.match(writes[0]?.content ?? "", /- Labels: backend/);

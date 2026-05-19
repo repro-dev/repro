@@ -10,6 +10,7 @@ export type PlanningSessionArtifactPaths = {
   context: string;
   testPlan: string;
   contract: string;
+  runPlan: string;
   prompt: string;
 };
 
@@ -62,6 +63,8 @@ export function buildOpenCodePlanningCommand(
       input.artifactPaths.testPlan,
       "--file",
       input.artifactPaths.contract,
+      "--file",
+      input.artifactPaths.runPlan,
       "--file",
       input.artifactPaths.prompt,
       buildPlanningSessionPrompt(),

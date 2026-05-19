@@ -32,6 +32,8 @@ test("buildOpenCodePlanningCommand wires durable planning artifacts", () => {
       testPlan:
         "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/test-plan.md",
       contract: getSingleTrackPhaseContractPath("/worktrees/autobot", "plan"),
+      runPlan:
+        "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/run-plan.md",
       prompt: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/prompt.md",
     },
   });
@@ -47,12 +49,14 @@ test("buildOpenCodePlanningCommand wires durable planning artifacts", () => {
     "Autobot planning REP-1208",
     "--file",
   ]);
-  assert.deepEqual(command.args.slice(8, 16), [
+  assert.deepEqual(command.args.slice(8, 18), [
     "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/context.md",
     "--file",
     "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/test-plan.md",
     "--file",
     getSingleTrackPhaseContractPath("/worktrees/autobot", "plan"),
+    "--file",
+    "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/run-plan.md",
     "--file",
     "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/prompt.md",
     loadSingleTrackPhaseContract("plan"),
@@ -75,6 +79,8 @@ test("createNoopPlanningSessionRunner returns a completed result", async () => {
         testPlan:
           "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/test-plan.md",
         contract: getSingleTrackPhaseContractPath("/worktrees/autobot", "plan"),
+        runPlan:
+          "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/run-plan.md",
         prompt: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/prompt.md",
       },
     }),
