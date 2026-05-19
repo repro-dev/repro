@@ -30,7 +30,7 @@
 - Surface missing context, missing test-plan coverage, and scope drift early.
 - Keep this phase read-only with respect to source code.
 - Do not create or modify source files.
-- Write temporary and issue-scoped artifacts only under the selected worktree's `tmp/` directory.
+- Write ephemeral scratch and friction output only under the selected worktree's `tmp/` directory; durable run artifacts must use `.autobot/runs/<issue-id>/attempt-<attempt>/...` paths.
 
 ## Output
 - `.autobot/runs/<issue-id>/attempt-<attempt>/context.md`

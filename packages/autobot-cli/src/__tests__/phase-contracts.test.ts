@@ -43,6 +43,7 @@ test("Autobot phase contracts declare exact inputs and outputs", () => {
         "appears in an open PR branch",
         "If UI context is the only missing prerequisite",
         "add `needs-spec`",
+        "durable run artifacts must use `.autobot/runs/<issue-id>/attempt-<attempt>/...` paths",
         ".autobot/runs/<issue-id>/attempt-<attempt>/context.md",
         ".autobot/runs/<issue-id>/attempt-<attempt>/test-plan.md",
         "Write or refresh the run context artifacts",
