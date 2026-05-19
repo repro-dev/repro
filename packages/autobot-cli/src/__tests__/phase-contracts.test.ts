@@ -54,7 +54,7 @@ test("Autobot phase contracts declare exact inputs and outputs", () => {
       snippets: [
         "Classify the issue shape and make an explicit routing decision",
         "Write `issue_shapes` as an array of every matching shape",
-        "Write the durable `classify.md` artifact at the supplied path; stdout is process output only",
+        "Write the durable `.autobot/runs/<issue-id>/attempt-<attempt>/classify.md` artifact; stdout is process output only",
         "If multiple shapes apply, include them all",
         "Treat `issue_shapes` as the authoritative classification input for later routing",
         "## Shape rubric",
@@ -73,7 +73,7 @@ test("Autobot phase contracts declare exact inputs and outputs", () => {
       snippets: [
         "Load `delivery-workflow` and the relevant domain skill(s)",
         "Read the latest `run-plan.md`",
-        "Write the durable `research-refine.md` artifact at the supplied path; stdout is process output only",
+        "Write the durable `.autobot/runs/<issue-id>/attempt-<attempt>/research-refine.md` artifact; stdout is process output only",
         "needs_research",
         "not_ready",
         "mechanical QC failure",
@@ -94,7 +94,7 @@ test("Autobot phase contracts declare exact inputs and outputs", () => {
         "Do not write source files",
         "Do not write files except the authorized `run-plan.md` artifact and friction log",
         "Log planning friction to `tmp/friction.md`",
-        "Write only the durable `run-plan.md` artifact at the supplied path; stdout is process output only",
+        "Write only the durable `.autobot/runs/<issue-id>/attempt-<attempt>/run-plan.md` artifact; stdout is process output only",
         "## Readiness",
         "## Sequence Notes",
         "## Risk Notes",
@@ -114,7 +114,7 @@ test("Autobot phase contracts declare exact inputs and outputs", () => {
       snippets: [
         "Assess post-plan implementation risk and select the review lane set",
         "Read the approved `run-plan.md` after planning is complete",
-        "Write the durable `risk-assessment.md` artifact at the supplied path; stdout is process output only",
+        "Write the durable `.autobot/runs/<issue-id>/attempt-<attempt>/risk-assessment.md` artifact; stdout is process output only",
         "Derive risk only from post-plan evidence",
         "Read `issue_shapes` from classify output as a shape signal",
         "Set `risk_level: high` when two or more risk signals are present",
@@ -167,7 +167,7 @@ test("Autobot phase contracts declare exact inputs and outputs", () => {
         "classify each failure as `caused-by-this-change` or `pre-existing`",
         "Return the structured output required by `.opencode/agents/review.md`",
         "Assign each finding `role: standard`",
-        "Write the durable `review-standard.md` artifact at the supplied path; stdout is process output only",
+        "Write the durable `.autobot/runs/<issue-id>/attempt-<attempt>/review-standard.md` artifact; stdout is process output only",
         "correctness, clarity, and merge-readiness",
       ],
     },
@@ -178,7 +178,7 @@ test("Autobot phase contracts declare exact inputs and outputs", () => {
         "Read the diff, the `run-plan.md`, the `risk-assessment.md`, the `smoke-test-result.md`",
         "Evaluate async correctness, auth, permissions, injection, data exposure, and unsafe deserialization when relevant",
         "Assign each finding `role: correctness-security`",
-        "Write the durable `review-correctness-security.md` artifact at the supplied path; stdout is process output only",
+        "Write the durable `.autobot/runs/<issue-id>/attempt-<attempt>/review-correctness-security.md` artifact; stdout is process output only",
       ],
     },
     {
@@ -188,7 +188,7 @@ test("Autobot phase contracts declare exact inputs and outputs", () => {
         "Read the diff, the `run-plan.md`, the `risk-assessment.md`, the `smoke-test-result.md`",
         "Check affected package `AGENTS.md` conventions when present",
         "Assign each finding `role: architecture-conventions`",
-        "Write the durable `review-architecture-conventions.md` artifact at the supplied path; stdout is process output only",
+        "Write the durable `.autobot/runs/<issue-id>/attempt-<attempt>/review-architecture-conventions.md` artifact; stdout is process output only",
       ],
     },
     {
@@ -198,7 +198,7 @@ test("Autobot phase contracts declare exact inputs and outputs", () => {
         "Read the diff, the `run-plan.md`, the `risk-assessment.md`, the `smoke-test-result.md`",
         "Evaluate algorithmic regressions, unnecessary iteration, missing pagination, excessive memory use, and missing database indexes when relevant",
         "Assign each finding `role: performance`",
-        "Write the durable `review-performance.md` artifact at the supplied path; stdout is process output only",
+        "Write the durable `.autobot/runs/<issue-id>/attempt-<attempt>/review-performance.md` artifact; stdout is process output only",
       ],
     },
     {
@@ -209,7 +209,7 @@ test("Autobot phase contracts declare exact inputs and outputs", () => {
         "Read `## Targeted Design Edit`, `## Design Direction`, and `## Design Handoff Context` when present",
         "Evaluate authored polish separately from design-system compliance",
         "Assign each finding `role: ui-quality`",
-        "Write the durable `review-ui-quality.md` artifact at the supplied path; stdout is process output only",
+        "Write the durable `.autobot/runs/<issue-id>/attempt-<attempt>/review-ui-quality.md` artifact; stdout is process output only",
       ],
     },
     {

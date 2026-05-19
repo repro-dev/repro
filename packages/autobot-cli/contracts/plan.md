@@ -31,7 +31,7 @@
 - Do not write files except the authorized `run-plan.md` artifact and friction log.
 - Log planning friction to `tmp/friction.md` with `Phase: planning` and a root cause of `missing-docs`, `unclear-pattern`, `tooling-gap`, or `stale-code`.
 - If readiness is missing, route back to `research-refine` instead of forcing a plan.
-- Write only the durable `run-plan.md` artifact at the supplied path; stdout is process output only.
+- Write only the durable `.autobot/runs/<issue-id>/attempt-<attempt>/run-plan.md` artifact; stdout is process output only.
 - Preserve these headings exactly:
   - `## Readiness`
   - `## Sequence Notes`
@@ -52,5 +52,5 @@
 - If the plan is not ready after recoverable context handling, record the blocker and route to `research-refine` or escalation instead of producing an implementation plan.
 
 ## Output
-- `run-plan.md`
+- `.autobot/runs/<issue-id>/attempt-<attempt>/run-plan.md`
 - concise note about why the issue is ready or what blocks readiness

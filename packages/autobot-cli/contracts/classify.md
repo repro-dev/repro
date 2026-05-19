@@ -40,10 +40,10 @@ Classify the issue shape and make an explicit routing decision.
 - Set `route: research-refine` when the run still needs evidence, scope narrowing, or artifact repair.
 - Set `route: escalate` when the issue is blocked, already active elsewhere, a tracker with child issues, or still missing required specification after recoverable context handling.
 - Explain the decision with concrete missing inputs or readiness signals.
-- Write the durable `classify.md` artifact at the supplied path; stdout is process output only.
+- Write the durable `.autobot/runs/<issue-id>/attempt-<attempt>/classify.md` artifact; stdout is process output only.
 
 ## Output
-- `classify.md`
+- `.autobot/runs/<issue-id>/attempt-<attempt>/classify.md`
 - `## Issue Shapes`
 - `## Route`
 - `## Readiness`

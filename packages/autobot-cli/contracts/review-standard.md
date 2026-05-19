@@ -23,10 +23,10 @@
 - Return the structured output required by `.opencode/agents/review.md`.
 - Assign each finding `role: standard`.
 - Report findings only; do not repair code here.
-- Write the durable `review-standard.md` artifact at the supplied path; stdout is process output only.
+- Write the durable `.autobot/runs/<issue-id>/attempt-<attempt>/review-standard.md` artifact; stdout is process output only.
 - correctness, clarity, and merge-readiness findings.
 
 ## Output
-- `review-standard.md`
+- `.autobot/runs/<issue-id>/attempt-<attempt>/review-standard.md`
 - blocker and non-blocker findings with concrete file + line references
 - structured findings with `severity`, `category`, `fixable_by_agent`, and `role`

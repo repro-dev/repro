@@ -1909,18 +1909,20 @@ function handleInspect(
           chain(
             (domain_events): FutureInstance<unknown, AutobotCommandResult> => {
               if (run.flowcraft_execution_id === null) {
-                return resolve(
-                  createFlowcraftInspectResult({
-                    invocation,
-                    kind: "run",
-                    identifier,
-                    issue_id: run.issue_id,
-                    run,
-                    execution: null,
-                    artifacts: [],
-                    domain_events,
-                    flowcraft_events: [],
-                  }),
+                return store.artifacts.list(run.issue_id).pipe(
+                  map((artifacts) =>
+                    createFlowcraftInspectResult({
+                      invocation,
+                      kind: "run",
+                      identifier,
+                      issue_id: run.issue_id,
+                      run,
+                      execution: null,
+                      artifacts,
+                      domain_events,
+                      flowcraft_events: [],
+                    }),
+                  ),
                 );
               }
 

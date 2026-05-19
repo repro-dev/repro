@@ -23,11 +23,11 @@ Turn uncertainty into the smallest useful research or plan delta.
 - Preserve the original issue boundary; do not invent new product scope.
 - If the missing input is UI direction, capture the required design context block before returning to planning.
 - If the issue still cannot be made bounded, return an escalation reason instead of forcing a plan.
-- Write the durable `research-refine.md` artifact at the supplied path; stdout is process output only.
+- Write the durable `.autobot/runs/<issue-id>/attempt-<attempt>/research-refine.md` artifact; stdout is process output only.
 - Write the refined research notes or plan deltas.
 
 ## Output
-- `research-refine.md`
+- `.autobot/runs/<issue-id>/attempt-<attempt>/research-refine.md`
 - refined research notes or plan deltas
 - explicit blocker list
 - whether the next step is `plan` or another `research-refine` pass
