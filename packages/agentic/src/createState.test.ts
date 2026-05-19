@@ -338,11 +338,16 @@ describe("executeToolCalls", () => {
     );
     const parsed = JSON.parse(result[0]!.content as string) as {
       error: string;
+      reason: string;
+      suggestion: string;
     };
-    assert.ok(typeof parsed.error === "string");
+    assert.ok(parsed.error.includes("getRecordingDuration"));
+    assert.ok(parsed.error.includes("not-json"));
+    assert.ok(parsed.reason.toLowerCase().includes("json"));
+    assert.ok(parsed.suggestion.includes("getRecordingDuration({})"));
   });
 
-  it("unknown tool name produces error message", async () => {
+  it("unknown tool name produces a concrete recovery suggestion", async () => {
     const accessor = makeEmptyAccessor();
     const toolCalls: Array<ToolCall> = [
       {
@@ -356,8 +361,10 @@ describe("executeToolCalls", () => {
     );
     const parsed = JSON.parse(result[0]!.content as string) as {
       error: string;
+      suggestion: string;
     };
     assert.ok(parsed.error.includes("nonExistentTool"));
+    assert.ok(parsed.suggestion.includes("getRecordingDuration({})"));
   });
 
   it("empty arguments string treated as empty object", async () => {
