@@ -6,6 +6,7 @@ export type SingleTrackPhaseContractName =
   | "classify"
   | "research-refine"
   | "plan"
+  | "risk-assess"
   | "develop"
   | "test-verify"
   | "review-standard"
@@ -25,6 +26,7 @@ const singleTrackPhaseContractFileNames: Record<
   classify: "classify.md",
   "research-refine": "research-refine.md",
   plan: "plan.md",
+  "risk-assess": "risk-assess.md",
   develop: "develop.md",
   "test-verify": "test-verify.md",
   "review-standard": "review-standard.md",

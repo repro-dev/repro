@@ -14,7 +14,7 @@
 - `context.md`
 - `test-plan.md`
 - `research-refine.md` when present
-- `classify` output, including `issue_shapes` and `risk_level`
+- `classify` output, including `issue_shapes`
 - prior investigation notes and resolved blocker PR references when present
 
 ## Responsibilities
@@ -23,7 +23,7 @@
 - Fetch the Linear issue with `linear issue show <issue-id> --json`.
 - Read `context.md`.
 - Read `test-plan.md`.
-- Read `issue_shapes` and `risk_level` from classify output and use them to select relevant domain skills.
+- Read `issue_shapes` from classify output and use them to select relevant domain skills.
 - When UI context is required, require `## Design Direction`, `## Targeted Design Edit`, or `## Design Handoff Context` in `context.md` before planning.
 - Include prior investigation findings and resolved blocker PR references when provided.
 - Explore code only as needed to identify affected files and patterns.

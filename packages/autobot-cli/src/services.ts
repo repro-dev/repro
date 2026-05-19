@@ -2038,6 +2038,54 @@ function buildPlanningRunPlanArtifact(input: {
   };
 }
 
+function validatePlanningRunPlanContent(content: string): string[] {
+  const lines = content.split(/\r?\n/);
+  const getHeadingLine = (heading: string): number =>
+    lines.findIndex((line) => line.trim() === `## ${heading}`);
+  const getSectionBody = (heading: string): string | null => {
+    const headingLine = getHeadingLine(heading);
+
+    if (headingLine === -1) {
+      return null;
+    }
+
+    const nextHeadingLine = lines.findIndex(
+      (line, index) => index > headingLine && line.startsWith("## "),
+    );
+    const endLine = nextHeadingLine === -1 ? lines.length : nextHeadingLine;
+
+    return lines
+      .slice(headingLine + 1, endLine)
+      .join("\n")
+      .trim();
+  };
+  const requiredHeadings = [
+    "Readiness",
+    "Sequence Notes",
+    "Risk Notes",
+    "Plan",
+  ];
+  const missingHeadings = requiredHeadings
+    .filter((heading) => getHeadingLine(heading) === -1)
+    .map((heading) => `missing ## ${heading}`);
+  const readinessBody = getSectionBody("Readiness");
+  const emptyReadiness =
+    readinessBody === null || readinessBody.length === 0
+      ? ["empty ## Readiness"]
+      : [];
+  const hasOpenQuestions = getHeadingLine("Open Questions") !== -1;
+  const readinessIsNotReady =
+    /\b(not ready|blocked|blocker|research-refine|escalate)\b/i.test(
+      readinessBody ?? "",
+    );
+  const invalidOpenQuestions =
+    hasOpenQuestions && !readinessIsNotReady
+      ? ["## Open Questions is only allowed when ## Readiness is not ready"]
+      : [];
+
+  return [...missingHeadings, ...emptyReadiness, ...invalidOpenQuestions];
+}
+
 function buildPlanningArtifactDrafts(input: {
   repoPath: string;
   item: ItemDetail;
@@ -2503,7 +2551,14 @@ function runBoundedWorkflowTickForItem(
                     const planningSucceeded =
                       planningSessionResult.exit_code === 0 &&
                       planningSessionResult.signal === null;
-                    const runPlanArtifact = planningSucceeded
+                    const runPlanValidationErrors = planningSucceeded
+                      ? validatePlanningRunPlanContent(
+                          planningSessionResult.stdout,
+                        )
+                      : [];
+                    const planningRunPlanValid =
+                      planningSucceeded && runPlanValidationErrors.length === 0;
+                    const runPlanArtifact = planningRunPlanValid
                       ? buildPlanningRunPlanArtifact({
                           path: path.relative(
                             store.repo.path,
@@ -2528,7 +2583,23 @@ function runBoundedWorkflowTickForItem(
                         ]
                       : artifactEvents;
 
-                    if (!planningSucceeded) {
+                    if (!planningRunPlanValid) {
+                      const lastError = planningSucceeded
+                        ? {
+                            code: "AUTOBOT-PLANNER-RUN-PLAN-INVALID",
+                            message: `planning session produced invalid run-plan.md: ${runPlanValidationErrors.join(
+                              ", ",
+                            )}`,
+                            occurred_at: planningSessionResult.finished_at,
+                          }
+                        : {
+                            code: "AUTOBOT-PLANNER-SESSION-FAILED",
+                            message: `planning session exited with code ${String(
+                              planningSessionResult.exit_code,
+                            )}`,
+                            occurred_at: planningSessionResult.finished_at,
+                          };
+
                       return store.transaction((transaction) => {
                         const recordArtifact = (draft: PlanningArtifactDraft) =>
                           transaction.artifacts
@@ -2589,14 +2660,7 @@ function runBoundedWorkflowTickForItem(
                                       updated_at:
                                         planningSessionResult.finished_at,
                                       last_event: finishedEvent.type,
-                                      last_error: {
-                                        code: "AUTOBOT-PLANNER-SESSION-FAILED",
-                                        message: `planning session exited with code ${String(
-                                          planningSessionResult.exit_code,
-                                        )}`,
-                                        occurred_at:
-                                          planningSessionResult.finished_at,
-                                      },
+                                      last_error: lastError,
                                       recovery_commands: [
                                         `autobot-next logs ${target.issue_id} --json`,
                                       ],

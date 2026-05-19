@@ -7,12 +7,13 @@
 ## Inputs
 - committed branch diff
 - `run-plan.md`
+- `risk-assessment.md`
 - `smoke-test-result.md`
 - Linear issue via `linear issue show <issue-id> --json`
 
 ## Responsibilities
 - Read the diff and evidence before judging.
-- Read the diff, the `run-plan.md`, the `smoke-test-result.md`.
+- Read the diff, the `run-plan.md`, the `risk-assessment.md`, the `smoke-test-result.md`.
 - Fetch the Linear issue before reviewing.
 - Review the committed branch diff with `git diff main...HEAD`.
 - Focus on correctness, edge cases, error paths, and security.

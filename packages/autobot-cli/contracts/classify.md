@@ -35,24 +35,14 @@ Classify the issue shape and make an explicit routing decision.
 - Classify the issue shape(s) and routing decision.
 - Use `issue_shapes` as the canonical shape result.
 - Confirm the prepare readiness gates have passed before setting `route: proceed`.
-- Set `risk_level: high` when two or more risk signals are present.
-- Set `risk_level: standard` when fewer than two risk signals are present.
 - Set `route: proceed` when the run is ready.
 - Mark the run `ready to proceed` when `route: proceed`.
 - Set `route: research-refine` when the run still needs evidence, scope narrowing, or artifact repair.
 - Set `route: escalate` when the issue is blocked, already active elsewhere, a tracker with child issues, or still missing required specification after recoverable context handling.
 - Explain the decision with concrete missing inputs or readiness signals.
 
-## Risk rubric
-- Security-sensitive: touches auth, permissions, tokens, encryption, or user data models.
-- Data model: includes schema, migration, or database-operation changes.
-- Multi-service: lists files across three or more packages or services.
-- High file count: lists ten or more files to write or modify.
-- `risk_level` drives standard versus focused review routing.
-
 ## Output
 - `## Issue Shapes`
-- `## Risk Level`
 - `## Route`
 - `## Readiness`
 - `## Why`

@@ -8,13 +8,14 @@
 ## Inputs
 - committed branch diff
 - `run-plan.md`
+- `risk-assessment.md`
 - `smoke-test-result.md`
 - Linear issue via `linear issue show <issue-id> --json`
 - `context.md` with UI direction or handoff blocks when present
 
 ## Responsibilities
 - Read the diff and evidence before judging.
-- Read the diff, the `run-plan.md`, the `smoke-test-result.md`.
+- Read the diff, the `run-plan.md`, the `risk-assessment.md`, the `smoke-test-result.md`.
 - Fetch the Linear issue before reviewing.
 - Review the committed branch diff with `git diff main...HEAD`.
 - Read `## Targeted Design Edit`, `## Design Direction`, and `## Design Handoff Context` when present.

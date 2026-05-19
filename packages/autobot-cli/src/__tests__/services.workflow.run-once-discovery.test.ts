@@ -22,6 +22,19 @@ function runFuture<T>(future: FutureInstance<unknown, T>): Promise<T> {
 
 const noOpArtifactWriter = () => resolve(undefined);
 const noOpLinearIssue = () => resolve(null);
+const validRunPlan = [
+  "## Readiness",
+  "ready to proceed",
+  "",
+  "## Sequence Notes",
+  "- Implement in one bounded pass.",
+  "",
+  "## Risk Notes",
+  "- No high-risk signals.",
+  "",
+  "## Plan",
+  "- Modify the selected issue files.",
+].join("\n");
 const noOpPlanningSessionRunner = () =>
   resolve({
     command: "opencode",
@@ -30,7 +43,7 @@ const noOpPlanningSessionRunner = () =>
     finished_at: "2026-05-15T12:00:02Z",
     exit_code: 0,
     signal: null,
-    stdout: "",
+    stdout: validRunPlan,
     stderr: "",
   });
 
