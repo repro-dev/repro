@@ -10,6 +10,15 @@ Classify the issue shape and make an explicit routing decision.
 - If `ui-bearing` applies, include it alongside the other matching shapes.
 - Treat `issue_shapes` as the authoritative classification input for later routing.
 
+## Shape rubric
+- `feature`: adds new user-visible or operator-visible behavior.
+- `bug`: fixes broken, regressed, flaky, or incorrect behavior.
+- `tech debt`: improves internal structure, maintainability, tooling, or cleanup without changing intended behavior.
+- `docs`: changes only documentation, instructions, plans, prompts, or non-runtime guidance.
+- `infra`: changes build, CI, deployment, local services, package wiring, or runtime operations.
+- `ui-bearing`: changes a user interface, visual design, interaction behavior, accessibility, or browser-visible state.
+- Include every matching shape; do not force a single best category when the issue spans multiple concerns.
+
 ## Load before work
 - Load `delivery-workflow` and `implementation-rigor` before classifying.
 - `delivery-workflow`
@@ -18,18 +27,32 @@ Classify the issue shape and make an explicit routing decision.
 ## Inputs
 - prepared run context
 - Linear issue details
+- prepare readiness decision
+- worktree and open PR snapshots
 
 ## Responsibilities
 - Read the prepared context and the issue description.
 - Classify the issue shape(s) and routing decision.
 - Use `issue_shapes` as the canonical shape result.
+- Confirm the prepare readiness gates have passed before setting `route: proceed`.
+- Set `risk_level: high` when two or more risk signals are present.
+- Set `risk_level: standard` when fewer than two risk signals are present.
 - Set `route: proceed` when the run is ready.
 - Mark the run `ready to proceed` when `route: proceed`.
 - Set `route: research-refine` when the run still needs evidence, scope narrowing, or artifact repair.
+- Set `route: escalate` when the issue is blocked, already active elsewhere, a tracker with child issues, or still missing required specification after recoverable context handling.
 - Explain the decision with concrete missing inputs or readiness signals.
 
+## Risk rubric
+- Security-sensitive: touches auth, permissions, tokens, encryption, or user data models.
+- Data model: includes schema, migration, or database-operation changes.
+- Multi-service: lists files across three or more packages or services.
+- High file count: lists ten or more files to write or modify.
+- `risk_level` drives standard versus focused review routing.
+
 ## Output
-- `## Issue Shape`
+- `## Issue Shapes`
+- `## Risk Level`
 - `## Route`
 - `## Readiness`
 - `## Why`

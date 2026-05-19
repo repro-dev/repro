@@ -12,11 +12,17 @@
 
 ## Responsibilities
 - Read the completed run state, the final verification evidence.
-- Use a deterministic pre-push guard: fetch `origin/main`, rebase when needed, and stop on conflict.
-- deterministic pre-push rebase guard.
+- Use a deterministic pre-push guard: fetch `origin/main`, verify whether `origin/main` is an ancestor of `HEAD`, rebase when needed, and stop on conflict.
+- Record the deterministic pre-push rebase guard result.
+- On rebase conflict, capture conflicting files, abort the rebase, post a concise Linear comment, set the issue back to `In Progress`, and escalate.
 - Allow only bounded recovery for agent-fixable pre-push or check failures.
 - bounded agent-fixable pre-push or check-failure recovery plan via `release-recovery.md`.
+- Retry transient push failures up to three times; escalate permanent failures immediately.
+- Create a PR body with `Closes <issue-id>`, summary, verification, and notable risks or follow-ups.
+- Do not paste full AI review output into the PR or Linear comments.
 - Push, create the PR, and move Linear to `In Review` only after the PR exists.
+- Do not wait on CI, merge status, or post-publish monitoring.
+- Aggregate `tmp/friction.md` entries into the publish summary when present.
 - Do not add open-ended repair loops.
 
 ## Output

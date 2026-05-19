@@ -20,9 +20,13 @@ Turn uncertainty into the smallest useful research or plan delta.
 - Convert `needs_research`, `not_ready`, or mechanical QC failures into actionable deltas.
 - Keep scope narrow and prefer the smallest change that restores readiness.
 - Do not widen the issue beyond the current run.
+- Preserve the original issue boundary; do not invent new product scope.
+- If the missing input is UI direction, capture the required design context block before returning to planning.
+- If the issue still cannot be made bounded, return an escalation reason instead of forcing a plan.
 - Write the refined research notes or plan deltas.
 
 ## Output
 - refined research notes or plan deltas
 - explicit blocker list
 - whether the next step is `plan` or another `research-refine` pass
+- escalation reason when the issue still needs human specification
