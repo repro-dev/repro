@@ -41,15 +41,9 @@ const singleTrackPhaseContractRelativeDir = path.join(
   "packages",
   "autobot-cli",
   "contracts",
-  "autobot-single-track",
 );
 
-const singleTrackPhaseContractDir = path.resolve(
-  __dirname,
-  "..",
-  "contracts",
-  "autobot-single-track",
-);
+const singleTrackPhaseContractDir = path.resolve(__dirname, "..", "contracts");
 
 export function listSingleTrackPhaseContractNames(): SingleTrackPhaseContractName[] {
   return Object.keys(
