@@ -52,7 +52,8 @@ describe("schema-aware tool validation", () => {
 
     const result = (await runFuture(
       executeTool(accessor, "getRecordingDuration", {
-        notes: "agent metadata",
+        _meta: { trace: "agent metadata" },
+        requestId: "request-123",
       }),
     )) as {
       durationMs: number;
@@ -82,6 +83,25 @@ describe("schema-aware tool validation", () => {
     assert.ok(result.suggestion.includes('"detail":"normal"'));
   });
 
+  it("rejects hallucinated unknown fields with an exact path", async () => {
+    const accessor = makeSnapshotAccessor();
+
+    const result = (await runFuture(
+      executeTool(accessor, "getDOMState", {
+        timestampMs: 0,
+        time: 0,
+      }),
+    )) as {
+      error: string;
+      reason: string;
+      suggestion: string;
+    };
+
+    assert.ok(result.error.includes("args.time"));
+    assert.ok(result.reason.includes("time"));
+    assert.ok(result.suggestion.includes("getDOMState({"));
+  });
+
   it("reports a missing required field with its exact path", async () => {
     const accessor = makeEmptyAccessor();
 
@@ -91,6 +111,7 @@ describe("schema-aware tool validation", () => {
       }),
     )) as {
       error: string;
+      reason: string;
       suggestion: string;
     };
 
@@ -134,6 +155,7 @@ describe("schema-aware tool validation", () => {
       }),
     )) as {
       error: string;
+      reason: string;
       suggestion: string;
     };
 
@@ -151,6 +173,7 @@ describe("schema-aware tool validation", () => {
       }),
     )) as {
       error: string;
+      reason: string;
       suggestion: string;
     };
 
@@ -158,20 +181,21 @@ describe("schema-aware tool validation", () => {
     assert.ok(result.suggestion.includes("getDOMState"));
   });
 
-  it("reports invalid filter values with exact array item paths", async () => {
+  it("reports invalid enum array values with exact array item paths", async () => {
     const accessor = makeEmptyAccessor();
 
     const result = (await runFuture(
-      executeTool(accessor, "searchEvents", {
-        query: "error",
-        eventTypes: ["console", 42],
+      executeTool(accessor, "getEvents", {
+        eventTypes: ["clicks"],
       }),
     )) as {
       error: string;
+      reason: string;
       suggestion: string;
     };
 
-    assert.ok(result.error.includes("args.eventTypes[1]"));
-    assert.ok(result.suggestion.includes("searchEvents({"));
+    assert.ok(result.error.includes("args.eventTypes[0]"));
+    assert.ok(result.reason.includes("clicks"));
+    assert.ok(result.suggestion.includes("getEvents({"));
   });
 });

@@ -32,6 +32,8 @@ const RECOVERY_HINTS: Record<string, string> = {
     "Call getRecordingDuration() to get the valid recording range first",
 };
 
+const SAFE_UNKNOWN_KEYS = new Set(["_meta", "requestId"]);
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
@@ -51,6 +53,10 @@ function formatPath(base: string, key: string): string {
   return /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(key)
     ? `${base}.${key}`
     : `${base}[${JSON.stringify(key)}]`;
+}
+
+function isSafeUnknownKey(key: string): boolean {
+  return SAFE_UNKNOWN_KEYS.has(key);
 }
 
 function formatEnumValues(values: Array<string | number | boolean>): string {
@@ -138,6 +144,19 @@ function validateSchemaNode(
           received: "missing",
         };
       }
+    }
+
+    for (const key of Object.keys(value)) {
+      if (schema.properties?.[key] !== undefined) continue;
+      if (isSafeUnknownKey(key)) continue;
+
+      const unknownPath = formatPath(path, key);
+      return {
+        path: unknownPath,
+        error: `${unknownPath} is not a supported argument`,
+        reason: `Unknown argument ${unknownPath}; only declared parameters and safe metadata keys like _meta or requestId are allowed`,
+        received: describeValue(value[key]),
+      };
     }
 
     for (const [key, childSchema] of Object.entries(schema.properties ?? {})) {
