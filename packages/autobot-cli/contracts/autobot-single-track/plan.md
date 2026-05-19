@@ -13,6 +13,7 @@
 
 - Plan the next single-issue phase only.
 - Keep the run linear and bounded.
+- If planning returns `needs_research`, `not_ready`, or a mechanical QC failure, route to `research-refine.md` before another planning pass.
 
 ## Risk Notes
 

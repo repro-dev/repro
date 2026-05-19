@@ -52,6 +52,9 @@ test("single-track phase contracts declare exact inputs and outputs", () => {
       name: "research-refine",
       snippets: [
         "Read the latest `run-plan.md`",
+        "needs_research",
+        "not_ready",
+        "mechanical QC failure",
         "Write the refined research notes or plan deltas",
       ],
     },
@@ -130,6 +133,7 @@ test("single-track phase contracts declare exact inputs and outputs", () => {
       name: "release-publish",
       snippets: [
         "Read the completed run state, the final verification evidence",
+        "bounded agent-fixable pre-push or check-failure recovery plan",
         "release-recovery.md",
       ],
     },
