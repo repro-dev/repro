@@ -168,12 +168,12 @@ function getElementClasses(container: Element): Set<string> {
   return new Set((el?.className ?? '').split(' ').filter(Boolean))
 }
 
-function getProjectsNavLink(): HTMLAnchorElement {
+function getProjectSettingsNavLink(): HTMLAnchorElement {
   const link = screen
-    .queryAllByRole('link', { name: /^settings$/i })
-    .find(link => link.getAttribute('href') === '/projects')
+    .queryAllByRole('link', { name: /^project settings$/i })
+    .find(link => link.getAttribute('href')?.endsWith('/settings'))
 
-  assert.ok(link, 'Expected the /projects navigation link')
+  assert.ok(link, 'Expected the project settings navigation link')
 
   return link as HTMLAnchorElement
 }
@@ -202,71 +202,83 @@ describe('Layout nav active states', () => {
     localStorageMock.setItem(STORAGE_KEY, 'project-1')
   })
 
-  it('/projects/:projectId/settings — project settings nav is NOT active', async () => {
+  it('/projects/:projectId/settings — project settings nav is active', async () => {
     const { getByTestId } = renderLayoutWithRefs('/projects/project-1/settings')
 
     await waitFor(() => {
-      getProjectsNavLink()
+      getProjectSettingsNavLink()
     })
 
     const activeRefClasses = getElementClasses(getByTestId('ref-active'))
     const inactiveRefClasses = getElementClasses(getByTestId('ref-inactive'))
-    const projectsLink = getProjectsNavLink()
-    const projectsClasses = new Set(
-      projectsLink.className.split(' ').filter(Boolean)
+    const projectSettingsLink = getProjectSettingsNavLink()
+    const projectSettingsClasses = new Set(
+      projectSettingsLink.className.split(' ').filter(Boolean)
     )
 
     assert.equal(
-      hasActiveClasses(projectsClasses, activeRefClasses, inactiveRefClasses),
-      false,
-      'Project settings nav link should NOT be visually active at /projects/:projectId/settings'
+      hasActiveClasses(
+        projectSettingsClasses,
+        activeRefClasses,
+        inactiveRefClasses
+      ),
+      true,
+      'Project settings nav link SHOULD be visually active at /projects/:projectId/settings'
     )
     assert.equal(
-      projectsLink.getAttribute('aria-current'),
-      null,
-      'Project settings nav link should NOT expose semantic current-state at /projects/:projectId/settings'
+      projectSettingsLink.getAttribute('aria-current'),
+      'page',
+      'Project settings nav link should expose semantic current-state at /projects/:projectId/settings'
     )
   })
 
-  it('/projects — project settings nav IS active', async () => {
+  it('/projects — project settings nav is NOT active', async () => {
     const { getByTestId } = renderLayoutWithRefs('/projects')
 
     await waitFor(() => {
-      getProjectsNavLink()
+      getProjectSettingsNavLink()
     })
 
     const activeRefClasses = getElementClasses(getByTestId('ref-active'))
     const inactiveRefClasses = getElementClasses(getByTestId('ref-inactive'))
-    const projectsLink = getProjectsNavLink()
-    const projectsClasses = new Set(
-      projectsLink.className.split(' ').filter(Boolean)
+    const projectSettingsLink = getProjectSettingsNavLink()
+    const projectSettingsClasses = new Set(
+      projectSettingsLink.className.split(' ').filter(Boolean)
     )
 
     assert.equal(
-      hasActiveClasses(projectsClasses, activeRefClasses, inactiveRefClasses),
-      true,
-      'Project settings nav link SHOULD be visually active at /projects'
+      hasActiveClasses(
+        projectSettingsClasses,
+        activeRefClasses,
+        inactiveRefClasses
+      ),
+      false,
+      'Project settings nav link should NOT be visually active at /projects'
     )
   })
 
-  it('/projects/:projectId — project settings nav IS active', async () => {
+  it('/projects/:projectId — project settings nav is NOT active', async () => {
     const { getByTestId } = renderLayoutWithRefs('/projects/project-1')
 
     await waitFor(() => {
-      getProjectsNavLink()
+      getProjectSettingsNavLink()
     })
 
     const activeRefClasses = getElementClasses(getByTestId('ref-active'))
     const inactiveRefClasses = getElementClasses(getByTestId('ref-inactive'))
-    const projectsLink = getProjectsNavLink()
-    const projectsClasses = new Set(
-      projectsLink.className.split(' ').filter(Boolean)
+    const projectSettingsLink = getProjectSettingsNavLink()
+    const projectSettingsClasses = new Set(
+      projectSettingsLink.className.split(' ').filter(Boolean)
     )
 
     assert.equal(
-      hasActiveClasses(projectsClasses, activeRefClasses, inactiveRefClasses),
-      true,
-      'Project settings nav link SHOULD be visually active at /projects/:projectId'
+      hasActiveClasses(
+        projectSettingsClasses,
+        activeRefClasses,
+        inactiveRefClasses
+      ),
+      false,
+      'Project settings nav link should NOT be visually active at /projects/:projectId'
     )
   })
 
@@ -281,13 +293,13 @@ describe('Layout nav active states', () => {
     const inactiveRefClasses = getElementClasses(getByTestId('ref-inactive'))
 
     const sessionsLink = screen.getByRole('link', { name: /^sessions$/i })
-    const projectsLink = getProjectsNavLink()
+    const projectSettingsLink = getProjectSettingsNavLink()
 
     const sessionsClasses = new Set(
       sessionsLink.className.split(' ').filter(Boolean)
     )
-    const projectsClasses = new Set(
-      projectsLink.className.split(' ').filter(Boolean)
+    const projectSettingsClasses = new Set(
+      projectSettingsLink.className.split(' ').filter(Boolean)
     )
 
     assert.equal(
@@ -296,7 +308,11 @@ describe('Layout nav active states', () => {
       'Sessions link SHOULD be visually active at /'
     )
     assert.equal(
-      hasActiveClasses(projectsClasses, activeRefClasses, inactiveRefClasses),
+      hasActiveClasses(
+        projectSettingsClasses,
+        activeRefClasses,
+        inactiveRefClasses
+      ),
       false,
       'Project settings nav link should NOT be visually active at /'
     )

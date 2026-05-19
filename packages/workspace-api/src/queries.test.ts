@@ -19,8 +19,11 @@ import {
   getProjectMembers,
   getProjectRecordings,
   getProjects,
+  inviteProjectMember,
+  removeProjectMember,
   renameAccount,
   renameProject,
+  updateProjectMemberRole,
 } from './queries'
 
 type CallRecord = { url: string; options: FetchOptions }
@@ -208,6 +211,49 @@ describe('workspace-api: queries', () => {
       const stub = createStubApiClient(() => ({ items: [] }))
       await promise(getProjectMembers(stub, 'proj-1'))
       assert.equal(stub.calls[0]?.url, '/projects/proj-1/members')
+    })
+  })
+
+  describe('inviteProjectMember', () => {
+    it('POSTs to /account/invite with email only', async () => {
+      const stub = createStubApiClient(() => undefined)
+      await promise(
+        inviteProjectMember(stub, 'invitee@example.com', ProjectRole.Viewer)
+      )
+
+      const call = stub.calls[0]
+      assert.equal(call?.url, '/account/invite')
+      assert.equal(call?.options.method, 'post')
+      assert.deepEqual(JSON.parse(call?.options.body as string), {
+        email: 'invitee@example.com',
+      })
+    })
+  })
+
+  describe('updateProjectMemberRole', () => {
+    it('PUTs to /projects/:projectId/members/:userId/role with role body', async () => {
+      const stub = createStubApiClient(() => undefined)
+      await promise(
+        updateProjectMemberRole(stub, 'proj-1', 'user-2', ProjectRole.Admin)
+      )
+
+      const call = stub.calls[0]
+      assert.equal(call?.url, '/projects/proj-1/members/user-2/role')
+      assert.equal(call?.options.method, 'put')
+      assert.deepEqual(JSON.parse(call?.options.body as string), {
+        role: ProjectRole.Admin,
+      })
+    })
+  })
+
+  describe('removeProjectMember', () => {
+    it('DELETEs to /projects/:projectId/members/:userId', async () => {
+      const stub = createStubApiClient(() => undefined)
+      await promise(removeProjectMember(stub, 'proj-1', 'user-2'))
+
+      const call = stub.calls[0]
+      assert.equal(call?.url, '/projects/proj-1/members/user-2')
+      assert.equal(call?.options.method, 'delete')
     })
   })
 

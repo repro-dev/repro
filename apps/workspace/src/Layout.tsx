@@ -1,29 +1,15 @@
 import { IfSession, UnlessSession, UserMenu, useSession } from '@repro/auth'
 import { AppShell, Divider, Link, SideNav } from '@repro/design'
-import {
-  BoltIcon,
-  CreditCardIcon,
-  ListVideoIcon,
-  SettingsIcon,
-} from 'lucide-react'
+import { CreditCardIcon, ListVideoIcon, SettingsIcon } from 'lucide-react'
 import React from 'react'
-import {
-  Outlet,
-  Link as RouterLink,
-  NavLink as RouterNavLink,
-  useMatch,
-} from 'react-router-dom'
+import { Outlet, NavLink as RouterNavLink, useMatch } from 'react-router-dom'
+import { ProjectSettingsNavItem } from '~/components/ProjectSettingsNavItem'
 import { ProjectSwitcher } from '~/components/ProjectSwitcher'
 import { WorkspaceHeader } from '~/components/WorkspaceHeader'
 import { ProjectProvider } from './ProjectContext'
 
 export const Layout: React.FC = () => {
   const sessionsActive = useMatch({ path: '/', end: true })
-  const projectsActive = useMatch({ path: '/projects', end: false })
-  const projectSettingsSubtreeActive = useMatch({
-    path: '/projects/:projectId/settings',
-    end: false,
-  })
   const session = useSession()
   // Billing lives under /settings/billing; match it separately so the
   // Settings item can exclude billing routes from its active range.
@@ -56,13 +42,7 @@ export const Layout: React.FC = () => {
                 component={RouterNavLink}
                 props={{ to: '/' }}
               />
-              <SideNav.Item
-                icon={BoltIcon}
-                label="Settings"
-                active={!!projectsActive && !projectSettingsSubtreeActive}
-                component={RouterLink}
-                props={{ to: '/projects' }}
-              />
+              <ProjectSettingsNavItem />
 
               <Divider />
 

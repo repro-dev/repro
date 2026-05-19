@@ -11,6 +11,7 @@ Comprehensive reference for building UI in the Repro codebase. Load this skill b
 
 - Use `@repro/design` for appearance, semantics, and shared interaction patterns.
 - Use `@jsxstyle/react` in app code for structure and layout only.
+- Keep structural layout components structural: do not add data-fetching or test-only dependency-injection props to shells such as layouts/nav scaffolds. Put fetch hooks at the provider or feature component boundary, and have tests control those provider/API seams instead.
 - When a screen is near shipping, read `references/pre-delivery-ui-checklist.md` for the final shared pass.
 - When implementing an already chosen visual scaffold, read `references/visual-direction-presets.md` to keep the UI grounded in Repro patterns.
 

@@ -1,4 +1,5 @@
 import type { ApiClient } from '@repro/api-client'
+import { ProjectRole } from '@repro/domain'
 import { map } from 'fluture'
 import type { AccountSettingsSummary } from './types'
 
@@ -47,6 +48,42 @@ export function getProjectMembers(apiClient: ApiClient, projectId: string) {
   return apiClient
     .fetch(`/projects/${projectId}/members`)
     .pipe(map(res => res.items))
+}
+
+export function inviteProjectMember(
+  apiClient: ApiClient,
+  email: string,
+  _role?: ProjectRole
+) {
+  // The current backend invite contract only accepts email. Keep the helper
+  // signature ready for role support, but do not send unsupported fields.
+  return apiClient.fetch('/account/invite', {
+    method: 'post',
+    body: JSON.stringify({ email }),
+  })
+}
+
+export function updateProjectMemberRole(
+  apiClient: ApiClient,
+  projectId: string,
+  userId: string,
+  role: ProjectRole
+) {
+  return apiClient.fetch(`/projects/${projectId}/members/${userId}/role`, {
+    method: 'put',
+    body: JSON.stringify({ role }),
+    headers: { 'content-type': 'application/json' },
+  })
+}
+
+export function removeProjectMember(
+  apiClient: ApiClient,
+  projectId: string,
+  userId: string
+) {
+  return apiClient.fetch(`/projects/${projectId}/members/${userId}`, {
+    method: 'delete',
+  })
 }
 
 export function getAccountSettings(apiClient: ApiClient) {

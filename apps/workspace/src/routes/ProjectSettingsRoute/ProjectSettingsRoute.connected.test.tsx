@@ -85,7 +85,7 @@ describe('ProjectSettingsRoute connected behavior', () => {
     })
 
     await waitFor(() => {
-      assert.ok(screen.getByText('Team Members'))
+      assert.ok(screen.getByText('Team members'))
       assert.ok(screen.getByText('3 members'))
     })
   })
