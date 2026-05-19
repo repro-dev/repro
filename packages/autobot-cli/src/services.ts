@@ -2038,7 +2038,16 @@ function buildPlanningRunPlanArtifact(input: {
   };
 }
 
-function validatePlanningRunPlanContent(content: string): string[] {
+type PlanningRunPlanReadiness = "ready" | "not-ready" | null;
+
+type PlanningRunPlanAssessment = {
+  errors: string[];
+  readiness: PlanningRunPlanReadiness;
+};
+
+function assessPlanningRunPlanContent(
+  content: string,
+): PlanningRunPlanAssessment {
   const lines = content.split(/\r?\n/);
   const getHeadingLine = (heading: string): number =>
     lines.findIndex((line) => line.trim() === `## ${heading}`);
@@ -2075,15 +2084,33 @@ function validatePlanningRunPlanContent(content: string): string[] {
       : [];
   const hasOpenQuestions = getHeadingLine("Open Questions") !== -1;
   const readinessIsNotReady =
-    /\b(not ready|blocked|blocker|research-refine|escalate)\b/i.test(
+    /\b(needs_research|not_ready|not ready|blocked|blocker|research-refine|escalate)\b/i.test(
       readinessBody ?? "",
     );
   const invalidOpenQuestions =
     hasOpenQuestions && !readinessIsNotReady
       ? ["## Open Questions is only allowed when ## Readiness is not ready"]
       : [];
+  const readinessIsReady = /\bready to proceed\b/i.test(readinessBody ?? "");
+  const ambiguousReadiness =
+    readinessBody !== null && !readinessIsReady && !readinessIsNotReady
+      ? ["## Readiness must say ready to proceed or identify a non-ready route"]
+      : [];
+  const readiness = readinessIsNotReady
+    ? "not-ready"
+    : readinessIsReady
+    ? "ready"
+    : null;
 
-  return [...missingHeadings, ...emptyReadiness, ...invalidOpenQuestions];
+  return {
+    errors: [
+      ...missingHeadings,
+      ...emptyReadiness,
+      ...invalidOpenQuestions,
+      ...ambiguousReadiness,
+    ],
+    readiness,
+  };
 }
 
 function buildPlanningArtifactDrafts(input: {
@@ -2551,13 +2578,17 @@ function runBoundedWorkflowTickForItem(
                     const planningSucceeded =
                       planningSessionResult.exit_code === 0 &&
                       planningSessionResult.signal === null;
-                    const runPlanValidationErrors = planningSucceeded
-                      ? validatePlanningRunPlanContent(
+                    const runPlanAssessment = planningSucceeded
+                      ? assessPlanningRunPlanContent(
                           planningSessionResult.stdout,
                         )
-                      : [];
+                      : { errors: [], readiness: null };
                     const planningRunPlanValid =
-                      planningSucceeded && runPlanValidationErrors.length === 0;
+                      planningSucceeded &&
+                      runPlanAssessment.errors.length === 0;
+                    const planningRunPlanReady =
+                      planningRunPlanValid &&
+                      runPlanAssessment.readiness === "ready";
                     const runPlanArtifact = planningRunPlanValid
                       ? buildPlanningRunPlanArtifact({
                           path: path.relative(
@@ -2583,20 +2614,30 @@ function runBoundedWorkflowTickForItem(
                         ]
                       : artifactEvents;
 
-                    if (!planningRunPlanValid) {
-                      const lastError = planningSucceeded
+                    if (!planningRunPlanReady) {
+                      const stoppedPlanningState = planningRunPlanValid
+                        ? "awaiting"
+                        : "failed";
+                      const lastError = !planningSucceeded
+                        ? {
+                            code: "AUTOBOT-PLANNER-SESSION-FAILED",
+                            message: `planning session exited with code ${String(
+                              planningSessionResult.exit_code,
+                            )}`,
+                            occurred_at: planningSessionResult.finished_at,
+                          }
+                        : !planningRunPlanValid
                         ? {
                             code: "AUTOBOT-PLANNER-RUN-PLAN-INVALID",
-                            message: `planning session produced invalid run-plan.md: ${runPlanValidationErrors.join(
+                            message: `planning session produced invalid run-plan.md: ${runPlanAssessment.errors.join(
                               ", ",
                             )}`,
                             occurred_at: planningSessionResult.finished_at,
                           }
                         : {
-                            code: "AUTOBOT-PLANNER-SESSION-FAILED",
-                            message: `planning session exited with code ${String(
-                              planningSessionResult.exit_code,
-                            )}`,
+                            code: "AUTOBOT-PLANNER-RUN-PLAN-NOT-READY",
+                            message:
+                              "planning session produced a non-ready run-plan.md; route to research-refine before implementation",
                             occurred_at: planningSessionResult.finished_at,
                           };
 
@@ -2626,7 +2667,7 @@ function runBoundedWorkflowTickForItem(
                             run_id: runId,
                             issue_id: target.issue_id,
                             attempt: target.attempt,
-                            state: "failed",
+                            state: stoppedPlanningState,
                             flowcraft_execution_id: null,
                             blueprint_id: "autobot-planning-session",
                             blueprint_version: "1.0.0",
@@ -2656,7 +2697,7 @@ function runBoundedWorkflowTickForItem(
                                   .upsert(
                                     toItemRecordFromDetail({
                                       ...planningItem,
-                                      state: "failed",
+                                      state: stoppedPlanningState,
                                       updated_at:
                                         planningSessionResult.finished_at,
                                       last_event: finishedEvent.type,
