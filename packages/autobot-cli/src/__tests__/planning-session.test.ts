@@ -7,6 +7,10 @@ import {
   buildOpenCodePlanningCommand,
   createNoopPlanningSessionRunner,
 } from "../planning-session";
+import {
+  getSingleTrackPhaseContractPath,
+  loadSingleTrackPhaseContract,
+} from "../phase-contracts";
 
 function runFuture<T>(future: FutureInstance<unknown, T>): Promise<T> {
   return new Promise((resolvePromise, rejectPromise) => {
@@ -27,6 +31,7 @@ test("buildOpenCodePlanningCommand wires durable planning artifacts", () => {
       context: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/context.md",
       testPlan:
         "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/test-plan.md",
+      contract: getSingleTrackPhaseContractPath("/worktrees/autobot", "plan"),
       prompt: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/prompt.md",
     },
   });
@@ -42,13 +47,15 @@ test("buildOpenCodePlanningCommand wires durable planning artifacts", () => {
     "Autobot planning REP-1208",
     "--file",
   ]);
-  assert.deepEqual(command.args.slice(8, 14), [
+  assert.deepEqual(command.args.slice(8, 16), [
     "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/context.md",
     "--file",
     "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/test-plan.md",
     "--file",
+    getSingleTrackPhaseContractPath("/worktrees/autobot", "plan"),
+    "--file",
     "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/prompt.md",
-    "Use the planning artifacts at /worktrees/autobot/.autobot/runs/REP-1208/attempt-2/context.md, /worktrees/autobot/.autobot/runs/REP-1208/attempt-2/test-plan.md, and /worktrees/autobot/.autobot/runs/REP-1208/attempt-2/prompt.md. They are the source of truth.",
+    loadSingleTrackPhaseContract("plan"),
   ]);
 });
 
@@ -67,6 +74,7 @@ test("createNoopPlanningSessionRunner returns a completed result", async () => {
           "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/context.md",
         testPlan:
           "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/test-plan.md",
+        contract: getSingleTrackPhaseContractPath("/worktrees/autobot", "plan"),
         prompt: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/prompt.md",
       },
     }),

@@ -133,7 +133,7 @@ test("engine run-once preserves discovered metadata when it selects a new candid
         item.issue_id === "REP-401" && item.reason === "queue-depth-exhausted",
     ),
   );
-  assert.equal(fixture.artifactRecords.length, 3);
+  assert.equal(fixture.artifactRecords.length, 4);
 
   const rep400Upserts = fixture.itemUpserts.filter(
     (item) => item.issue_id === "REP-400",

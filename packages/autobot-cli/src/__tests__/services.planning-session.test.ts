@@ -6,6 +6,7 @@ import { fork, resolve, type FutureInstance } from "fluture";
 import type { AutobotStore } from "@repro/autobot-store";
 
 import { createAutobotServices } from "../services";
+import { getSingleTrackPhaseContractPath } from "../phase-contracts";
 import type {
   AutobotCommandResult,
   AutobotGlobalOptions,
@@ -85,6 +86,7 @@ test("engine run-once passes durable planning artifact paths into opencode", asy
     artifactPaths: {
       context: string;
       testPlan: string;
+      contract: string;
       prompt: string;
     };
   }> = [];
@@ -140,6 +142,7 @@ test("engine run-once passes durable planning artifact paths into opencode", asy
     context: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/context.md",
     testPlan:
       "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/test-plan.md",
+    contract: getSingleTrackPhaseContractPath("/worktrees/autobot", "plan"),
     prompt: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/prompt.md",
   });
   assert.ok(

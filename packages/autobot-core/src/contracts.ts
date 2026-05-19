@@ -87,6 +87,7 @@ export type ArtifactKind =
   | "context"
   | "test-plan"
   | "prompt"
+  | "contract"
   | "log"
   | "diff"
   | "review"

@@ -4,9 +4,12 @@ import { Future, resolve, type FutureInstance } from "fluture";
 
 import type { RepoRef } from "@repro/autobot-core";
 
+import { loadSingleTrackPhaseContract } from "./phase-contracts";
+
 export type PlanningSessionArtifactPaths = {
   context: string;
   testPlan: string;
+  contract: string;
   prompt: string;
 };
 
@@ -36,11 +39,8 @@ export type PlanningSessionRunner = (
   input: PlanningSessionInput,
 ) => FutureInstance<unknown, PlanningSessionResult>;
 
-function buildPlanningSessionPrompt(input: PlanningSessionInput): string {
-  return [
-    `Use the planning artifacts at ${input.artifactPaths.context}, ${input.artifactPaths.testPlan}, and ${input.artifactPaths.prompt}.`,
-    "They are the source of truth.",
-  ].join(" ");
+function buildPlanningSessionPrompt(): string {
+  return loadSingleTrackPhaseContract("plan");
 }
 
 export function buildOpenCodePlanningCommand(
@@ -61,8 +61,10 @@ export function buildOpenCodePlanningCommand(
       "--file",
       input.artifactPaths.testPlan,
       "--file",
+      input.artifactPaths.contract,
+      "--file",
       input.artifactPaths.prompt,
-      buildPlanningSessionPrompt(input),
+      buildPlanningSessionPrompt(),
     ],
   };
 }

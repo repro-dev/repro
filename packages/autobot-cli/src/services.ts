@@ -69,6 +69,11 @@ import {
   type PlanningSessionRunner,
 } from "./planning-session";
 import {
+  getSingleTrackPhaseContractPath,
+  getSingleTrackPhaseContractRelativePath,
+  loadSingleTrackPhaseContract,
+} from "./phase-contracts";
+import {
   AutobotCliError,
   createNotImplementedError,
   createUsageError,
@@ -135,11 +140,12 @@ type ArtifactWriter = (input: {
 }) => FutureInstance<unknown, void>;
 
 type PlanningArtifactDraft = {
-  kind: "context" | "test-plan" | "prompt";
+  kind: "context" | "test-plan" | "prompt" | "contract";
   path: string;
   description: string;
   content: string;
   content_hash: string;
+  persist?: boolean;
 };
 
 interface ConfigDefinition {
@@ -1994,6 +2000,7 @@ function renderPlanningTestPlanArtifact(input: {
   issueId: string;
   title: string | null;
   contextPath: string;
+  contractPath: string;
   promptPath: string;
 }): string {
   return [
@@ -2002,6 +2009,7 @@ function renderPlanningTestPlanArtifact(input: {
     `- Issue: ${input.issueId}`,
     `- Title: ${input.title ?? "(untitled)"}`,
     `- Context: ${input.contextPath}`,
+    `- Contract: ${input.contractPath}`,
     `- Prompt: ${input.promptPath}`,
     "",
     "## Behaviors To Cover",
@@ -2011,21 +2019,12 @@ function renderPlanningTestPlanArtifact(input: {
   ].join("\n");
 }
 
-function renderPlanningPromptArtifact(input: {
-  issueId: string;
-  contextPath: string;
-  testPlanPath: string;
-}): string {
-  return [
-    `# Autobot planning prompt — ${input.issueId}`,
-    "",
-    "Use the generated planning artifacts below before writing code:",
-    `- Context: ${input.contextPath}`,
-    `- Test plan: ${input.testPlanPath}`,
-  ].join("\n");
+function renderPlanningPromptArtifact(): string {
+  return loadSingleTrackPhaseContract("plan");
 }
 
 function buildPlanningArtifactDrafts(input: {
+  repoPath: string;
   item: ItemDetail;
   runId: string;
   executionId: string;
@@ -2046,6 +2045,8 @@ function buildPlanningArtifactDrafts(input: {
     input.item.attempt,
     "prompt.md",
   );
+  const contractPath = getSingleTrackPhaseContractPath(input.repoPath, "plan");
+  const contractArtifactPath = getSingleTrackPhaseContractRelativePath("plan");
 
   const contextContent = renderPlanningContextArtifact({
     item: input.item,
@@ -2057,13 +2058,11 @@ function buildPlanningArtifactDrafts(input: {
     issueId: input.item.issue_id,
     title: input.item.title,
     contextPath,
+    contractPath,
     promptPath,
   });
-  const promptContent = renderPlanningPromptArtifact({
-    issueId: input.item.issue_id,
-    contextPath,
-    testPlanPath,
-  });
+  const promptContent = renderPlanningPromptArtifact();
+  const contractContent = loadSingleTrackPhaseContract("plan");
 
   return [
     {
@@ -2087,6 +2086,14 @@ function buildPlanningArtifactDrafts(input: {
       content: promptContent,
       content_hash: createContentHash(promptContent),
     },
+    {
+      kind: "contract",
+      path: contractArtifactPath,
+      description: "Planning contract",
+      content: contractContent,
+      content_hash: createContentHash(contractContent),
+      persist: false,
+    },
   ];
 }
 
@@ -2096,12 +2103,14 @@ function persistPlanningArtifacts(
   repoPath: string,
 ): FutureInstance<unknown, void> {
   return sequenceFutures(
-    drafts.map((draft) =>
-      writer({
-        path: path.join(repoPath, draft.path),
-        content: draft.content,
-      }),
-    ),
+    drafts
+      .filter((draft) => draft.persist !== false)
+      .map((draft) =>
+        writer({
+          path: path.join(repoPath, draft.path),
+          content: draft.content,
+        }),
+      ),
   ).pipe(map(() => undefined));
 }
 
@@ -2139,14 +2148,21 @@ function buildPlanningSessionArtifactPaths(
   const context = drafts.find((draft) => draft.kind === "context")?.path;
   const testPlan = drafts.find((draft) => draft.kind === "test-plan")?.path;
   const prompt = drafts.find((draft) => draft.kind === "prompt")?.path;
+  const contract = drafts.find((draft) => draft.kind === "contract")?.path;
 
-  if (context === undefined || testPlan === undefined || prompt === undefined) {
+  if (
+    context === undefined ||
+    testPlan === undefined ||
+    prompt === undefined ||
+    contract === undefined
+  ) {
     throw new Error("planning artifacts are incomplete");
   }
 
   return {
     context: path.join(repoPath, context),
     testPlan: path.join(repoPath, testPlan),
+    contract: path.join(repoPath, contract),
     prompt: path.join(repoPath, prompt),
   };
 }
@@ -2379,6 +2395,7 @@ function runBoundedWorkflowTickForItem(
               linearIssue,
             );
             const planningArtifactDrafts = buildPlanningArtifactDrafts({
+              repoPath: store.repo.path,
               item: planningItem,
               runId,
               executionId,
