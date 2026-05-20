@@ -112,13 +112,13 @@ const validClassify = [
 
 const escalatedClassify = [
   "## Issue Shapes",
-  '{"issue_shapes": ["feature", "infra"]}',
+  "- issue_shapes: [`feature`, `infra`]",
   "",
   "## Route",
-  "`escalate`",
+  "- route: `escalate`",
   "",
   "## Readiness",
-  "`not_ready_to_proceed`",
+  "- ready_to_proceed: `false`",
   "",
   "## Why",
   "- This issue is already active.",

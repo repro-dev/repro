@@ -2123,6 +2123,27 @@ type PlanningRunPlanAssessment = {
   readiness: PlanningRunPlanReadiness;
 };
 
+function parsePlanningSectionSentinel(
+  firstContentLine: string | null,
+  key: string,
+): string | null {
+  if (firstContentLine === null) {
+    return null;
+  }
+
+  const trimmed = firstContentLine.trim();
+  const keyedSentinelMatch = trimmed.match(
+    new RegExp(`^(?:-\\s*)?${key}\\s*:\\s*(.+)$`, "i"),
+  );
+  const value = keyedSentinelMatch?.[1] ?? trimmed;
+  const unwrapped =
+    value.startsWith("`") && value.endsWith("`") && value.length >= 2
+      ? value.slice(1, -1).trim()
+      : value.trim();
+
+  return unwrapped.toLowerCase();
+}
+
 function assessPlanningRunPlanContent(
   content: string,
 ): PlanningRunPlanAssessment {
@@ -2266,19 +2287,6 @@ function assessPlanningClassifyContent(content: string): {
 
     return firstContentLine?.trim() ?? null;
   };
-  const normalizePlanningSentinel = (value: string | null): string | null => {
-    if (value === null) {
-      return null;
-    }
-
-    const trimmed = value.trim();
-    const unwrapped =
-      trimmed.startsWith("`") && trimmed.endsWith("`") && trimmed.length >= 2
-        ? trimmed.slice(1, -1).trim()
-        : trimmed;
-
-    return unwrapped.toLowerCase();
-  };
   const requiredHeadings = [
     "Issue Shapes",
     "Route",
@@ -2295,7 +2303,10 @@ function assessPlanningClassifyContent(content: string): {
       return body === null || body.length === 0;
     })
     .map((heading) => `empty ## ${heading}`);
-  const routeSentinel = normalizePlanningSentinel(getFirstContentLine("Route"));
+  const routeSentinel = parsePlanningSectionSentinel(
+    getFirstContentLine("Route"),
+    "route",
+  );
   const route =
     routeSentinel === "proceed"
       ? "proceed"
@@ -2304,15 +2315,19 @@ function assessPlanningClassifyContent(content: string): {
       : routeSentinel === "escalate"
       ? "escalate"
       : null;
-  const readinessSentinel = normalizePlanningSentinel(
+  const readinessSentinel = parsePlanningSectionSentinel(
     getFirstContentLine("Readiness"),
+    "ready_to_proceed",
   );
   const readiness =
     readinessSentinel === "ready_to_proceed"
       ? "ready_to_proceed"
+      : readinessSentinel === "true"
+      ? "ready_to_proceed"
       : readinessSentinel === "needs_research"
       ? "needs_research"
       : readinessSentinel === "not_ready" ||
+        readinessSentinel === "false" ||
         readinessSentinel === "not_ready_to_proceed"
       ? "not_ready"
       : readinessSentinel === "escalate"
