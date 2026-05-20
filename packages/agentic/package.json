@@ -20,7 +20,8 @@
     "@repro/vdom-renderer": "workspace:*",
     "@repro/vdom-utils": "workspace:*",
     "fluture": "^14.0.0",
-    "rxjs": "^7.8.0"
+    "rxjs": "^7.8.0",
+    "zod": "3.24.4"
   },
   "devDependencies": {
     "@types/node": "22.14.0",

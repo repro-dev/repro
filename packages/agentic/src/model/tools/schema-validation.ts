@@ -1,5 +1,6 @@
-import { createError } from "./common";
+import z from "zod";
 import type { ToolDefinition } from "../../types";
+import { createError } from "./common";
 
 type SchemaNode = {
   type?: string;
@@ -34,6 +35,8 @@ const RECOVERY_HINTS: Record<string, string> = {
 
 const SAFE_UNKNOWN_KEYS = new Set(["_meta", "requestId"]);
 
+const schemaCache = new WeakMap<SchemaNode, z.ZodTypeAny>();
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
@@ -53,6 +56,18 @@ function formatPath(base: string, key: string): string {
   return /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(key)
     ? `${base}.${key}`
     : `${base}[${JSON.stringify(key)}]`;
+}
+
+function formatIssuePath(path: Array<string | number>): string {
+  let result = "args";
+  for (const segment of path) {
+    if (typeof segment === "number") {
+      result += `[${segment}]`;
+    } else {
+      result = formatPath(result, segment);
+    }
+  }
+  return result;
 }
 
 function isSafeUnknownKey(key: string): boolean {
@@ -126,131 +141,132 @@ function buildExampleValue(schema: SchemaNode, key?: string): unknown {
   return examplePrimitiveValue(schema, key);
 }
 
-function extractFocusKey(path: string): string | undefined {
-  const raw = path.replace(/^args\.?/, "");
-  const key = raw.match(/^[^.[\]]+/)?.[0];
-  return key && key.length > 0 ? key : undefined;
+function buildEnumSchema(
+  values: Array<string | number | boolean>,
+): z.ZodTypeAny {
+  if (values.length === 1) return z.literal(values[0]!);
+  if (values.every((value) => typeof value === "string")) {
+    return z.enum(values as [string, ...string[]]);
+  }
+
+  return z.union(
+    values.map((value) => z.literal(value)) as [
+      z.ZodLiteral<string | number | boolean>,
+      z.ZodLiteral<string | number | boolean>,
+      ...Array<z.ZodLiteral<string | number | boolean>>,
+    ],
+  );
 }
 
-function validateSchemaNode(
-  schema: SchemaNode,
-  value: unknown,
-  path: string,
-): ValidationFailure | null {
+function buildRuntimeSchema(schema: SchemaNode): z.ZodTypeAny {
+  const cached = schemaCache.get(schema);
+  if (cached) return cached;
+
+  let runtimeSchema: z.ZodTypeAny;
   const type = schema.type ?? (schema.properties ? "object" : undefined);
 
-  if (type === "object") {
-    if (!isPlainObject(value)) {
-      return {
-        path,
-        error: `${path} must be an object`,
-        reason: `Received ${describeValue(value)} instead of an object`,
-        received: describeValue(value),
-      };
+  if (schema.enum?.length) {
+    runtimeSchema = buildEnumSchema(schema.enum);
+  } else if (type === "object") {
+    const shape: Record<string, z.ZodTypeAny> = {};
+    const required = new Set(schema.required ?? []);
+
+    for (const [key, childSchema] of Object.entries(schema.properties ?? {})) {
+      const child = buildRuntimeSchema(childSchema);
+      shape[key] = required.has(key) ? child : child.optional();
     }
 
-    const required = schema.required ?? [];
-    for (const key of required) {
-      if (!Object.prototype.hasOwnProperty.call(value, key)) {
+    runtimeSchema = z
+      .object(shape)
+      .passthrough()
+      .superRefine((value, ctx) => {
+        if (!isPlainObject(value)) return;
+
+        for (const key of Object.keys(value)) {
+          if (schema.properties?.[key] !== undefined) continue;
+          if (isSafeUnknownKey(key)) continue;
+
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: [key],
+            message: `${formatPath("args", key)} is not a supported argument`,
+          });
+        }
+      });
+  } else if (type === "array") {
+    runtimeSchema = z.array(
+      schema.items ? buildRuntimeSchema(schema.items) : z.unknown(),
+    );
+  } else if (type === "string") {
+    runtimeSchema = z.string();
+  } else if (type === "number") {
+    runtimeSchema = z.number();
+  } else if (type === "boolean") {
+    runtimeSchema = z.boolean();
+  } else {
+    runtimeSchema = z.unknown();
+  }
+
+  schemaCache.set(schema, runtimeSchema);
+  return runtimeSchema;
+}
+
+function issueToFailure(issue: z.ZodIssue): ValidationFailure {
+  const path = formatIssuePath(issue.path);
+
+  switch (issue.code) {
+    case z.ZodIssueCode.invalid_type:
+      if (issue.received === "undefined") {
         return {
-          path: formatPath(path, key),
-          error: `${formatPath(path, key)} is required`,
-          reason: `The schema marks ${formatPath(path, key)} as required`,
+          path,
+          error: `${path} is required`,
+          reason: `The schema marks ${path} as required`,
           received: "missing",
         };
       }
-    }
 
-    for (const key of Object.keys(value)) {
-      if (schema.properties?.[key] !== undefined) continue;
-      if (isSafeUnknownKey(key)) continue;
-
-      const unknownPath = formatPath(path, key);
-      return {
-        path: unknownPath,
-        error: `${unknownPath} is not a supported argument`,
-        reason: `Unknown argument ${unknownPath}; only declared parameters and safe metadata keys like _meta or requestId are allowed`,
-        received: describeValue(value[key]),
-      };
-    }
-
-    for (const [key, childSchema] of Object.entries(schema.properties ?? {})) {
-      if (!Object.prototype.hasOwnProperty.call(value, key)) continue;
-      const childFailure = validateSchemaNode(
-        childSchema,
-        value[key],
-        formatPath(path, key),
-      );
-      if (childFailure) return childFailure;
-    }
-
-    return null;
-  }
-
-  if (type === "array") {
-    if (!Array.isArray(value)) {
       return {
         path,
-        error: `${path} must be an array`,
-        reason: `Received ${describeValue(value)} instead of an array`,
-        received: describeValue(value),
+        error: `${path} must be a ${issue.expected}`,
+        reason: `Received ${describeValue(issue.received)} instead of a ${
+          issue.expected
+        }`,
+        received: describeValue(issue.received),
       };
-    }
 
-    if (!schema.items) return null;
+    case z.ZodIssueCode.invalid_enum_value:
+      return {
+        path,
+        error: `${path} must be one of ${formatEnumValues(
+          issue.options as Array<string | number | boolean>,
+        )}`,
+        reason: `Received ${describeValue(
+          issue.received,
+        )} instead of ${formatEnumValues(
+          issue.options as Array<string | number | boolean>,
+        )}`,
+        allowedValues: (issue.options as Array<string | number | boolean>).map(
+          (value) => JSON.stringify(value),
+        ),
+        received: describeValue(issue.received),
+      };
 
-    for (let index = 0; index < value.length; index += 1) {
-      const childFailure = validateSchemaNode(
-        schema.items,
-        value[index],
-        `${path}[${index}]`,
-      );
-      if (childFailure) return childFailure;
-    }
+    case z.ZodIssueCode.custom:
+      return {
+        path,
+        error: issue.message,
+        reason: issue.message,
+        received: "unsupported",
+      };
 
-    return null;
+    default:
+      return {
+        path,
+        error: `${path} is invalid`,
+        reason: issue.message,
+        received: issue.message,
+      };
   }
-
-  if (type === "string" && typeof value !== "string") {
-    return {
-      path,
-      error: `${path} must be a string`,
-      reason: `Received ${describeValue(value)} instead of a string`,
-      received: describeValue(value),
-    };
-  }
-
-  if (type === "number" && typeof value !== "number") {
-    return {
-      path,
-      error: `${path} must be a number`,
-      reason: `Received ${describeValue(value)} instead of a number`,
-      received: describeValue(value),
-    };
-  }
-
-  if (type === "boolean" && typeof value !== "boolean") {
-    return {
-      path,
-      error: `${path} must be a boolean`,
-      reason: `Received ${describeValue(value)} instead of a boolean`,
-      received: describeValue(value),
-    };
-  }
-
-  if (schema.enum && !schema.enum.includes(value as never)) {
-    return {
-      path,
-      error: `${path} must be one of ${formatEnumValues(schema.enum)}`,
-      reason: `Received ${describeValue(value)} instead of ${formatEnumValues(
-        schema.enum,
-      )}`,
-      allowedValues: schema.enum.map((item) => JSON.stringify(item)),
-      received: describeValue(value),
-    };
-  }
-
-  return null;
 }
 
 function buildRecoverySuggestion(
@@ -276,10 +292,14 @@ export function validateToolArgs(
   const parameters = definition?.function.parameters as SchemaNode | undefined;
   if (!parameters) return null;
 
-  const failure = validateSchemaNode(parameters, args, "args");
-  if (!failure) return null;
+  const result = buildRuntimeSchema(parameters).safeParse(args);
+  if (result.success) return null;
 
-  const focusKey = extractFocusKey(failure.path);
+  const failure = issueToFailure(result.error.issues[0]!);
+  const focusKey =
+    failure.path === "args"
+      ? undefined
+      : failure.path.replace(/^args\.?/, "").match(/^[^.[\]]+/)?.[0];
 
   return createError(
     `Invalid tool arguments for ${toolName}: ${failure.error}`,
