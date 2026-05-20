@@ -141,6 +141,16 @@ _resolve_worktree_flag() {
   echo "${basename#repro-wt-}"
 }
 
+_clear_next_service_output() {
+  local svc="$1"
+  local next_output_dir=""
+
+  if next_output_dir="$(SCRIPTS_DIR="$SCRIPTS_DIR" SERVICES_JSON="$SERVICES_JSON" REPO_ROOT="$REPO_ROOT" \
+    python3 "$SCRIPTS_DIR/lib/py/next_service_output_dir.py" "$SERVICES_JSON" "$REPO_ROOT" "$svc" 2>/dev/null)"; then
+    rm -rf "$next_output_dir"
+  fi
+}
+
 _parse_timeout() {
   local input="$1"
   local num="${input%s}"
@@ -859,6 +869,8 @@ USAGE
       echo "  Triggering migrations for $svc..." >&2
       tilt trigger "${resource}-migrations" --port "$TILT_PORT"
     fi
+
+    _clear_next_service_output "$svc"
 
     _step "$step" "$total" "Restarting $svc..."
     tilt trigger "$resource" --port "$TILT_PORT"
