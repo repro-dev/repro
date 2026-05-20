@@ -2797,7 +2797,7 @@ function createPlanningSessionFinishedEvent(input: {
 }
 
 type PlanningPhaseFailure = {
-  state: "awaiting" | "failed";
+  state: "awaiting" | "failed" | "escalated";
   code: string;
   message: string;
   occurred_at: string;
@@ -3031,6 +3031,8 @@ function runPlanningPhaseSequence(input: {
                           failure: {
                             state: classifyRoutedToResearchRefine
                               ? "awaiting"
+                              : classifyEscalated
+                              ? "escalated"
                               : "failed",
                             code: classifyRoutedToResearchRefine
                               ? "AUTOBOT-PLANNER-CLASSIFY-NOT-PROCEEDING"

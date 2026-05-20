@@ -94,6 +94,7 @@ test("queue status renderer includes tick metadata when available", () => {
           reconciling: 0,
           awaiting: 0,
           failed: 0,
+          escalated: 0,
           completed: 0,
           canceled: 0,
         },
@@ -108,7 +109,7 @@ test("queue status renderer includes tick metadata when available", () => {
     Engine: unknown
     PID: n/a
     Started: n/a
-    Counts: queued: 0, claimed: 0, preparing: 0, planning: 0, developing: 0, testing: 0, reviewing: 0, reconciling: 0, awaiting: 0, failed: 0, completed: 0, canceled: 0
+    Counts: queued: 0, claimed: 0, preparing: 0, planning: 0, developing: 0, testing: 0, reviewing: 0, reconciling: 0, awaiting: 0, failed: 0, escalated: 0, completed: 0, canceled: 0
     Last tick: 2026-05-15T11:00:00Z
     Tick scope: queue scheduler
     `,
@@ -269,6 +270,7 @@ test("engine status renderer shows relay-aware worker supervision", () => {
           reconciling: 0,
           awaiting: 0,
           failed: 0,
+          escalated: 0,
           completed: 0,
           canceled: 0,
         },
@@ -303,7 +305,7 @@ test("engine status renderer shows relay-aware worker supervision", () => {
     Engine: running
     PID: 4242
     Started: 2026-05-15T10:00:00Z
-    Counts: queued: 1, claimed: 0, preparing: 0, planning: 0, developing: 0, testing: 0, reviewing: 0, reconciling: 0, awaiting: 0, failed: 0, completed: 0, canceled: 0
+    Counts: queued: 1, claimed: 0, preparing: 0, planning: 0, developing: 0, testing: 0, reviewing: 0, reconciling: 0, awaiting: 0, failed: 0, escalated: 0, completed: 0, canceled: 0
     Last tick: 2026-05-15T10:05:00Z
     Tick scope: queue scheduler
     Action: stop

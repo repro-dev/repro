@@ -358,7 +358,8 @@ test("engine run-once stops on escalated classify output before planning", async
   ]);
   assert.equal(fixture.executionRecords.length, 0);
   assert.equal(fixture.flowcraftEvents.length, 0);
-  assert.equal(fixture.itemUpserts.at(-1)?.state, "failed");
+  assert.equal(fixture.runUpserts.at(-1)?.state, "escalated");
+  assert.equal(fixture.itemUpserts.at(-1)?.state, "escalated");
   assert.equal(
     (fixture.itemUpserts.at(-1)?.last_error as { code?: string } | null)?.code,
     "AUTOBOT-PLANNER-CLASSIFY-ESCALATED",
@@ -438,6 +439,7 @@ test("engine run-once rejects invalid classify json before planning", async () =
   ]);
   assert.equal(fixture.executionRecords.length, 0);
   assert.equal(fixture.flowcraftEvents.length, 0);
+  assert.equal(fixture.runUpserts.at(-1)?.state, "failed");
   assert.equal(fixture.itemUpserts.at(-1)?.state, "failed");
   assert.equal(
     (fixture.itemUpserts.at(-1)?.last_error as { code?: string } | null)?.code,

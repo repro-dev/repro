@@ -11,6 +11,7 @@ export type ItemState =
   | "reconciling"
   | "awaiting"
   | "failed"
+  | "escalated"
   | "completed"
   | "canceled";
 
@@ -25,6 +26,7 @@ export const itemStates: readonly ItemState[] = [
   "reconciling",
   "awaiting",
   "failed",
+  "escalated",
   "completed",
   "canceled",
 ] as const;
@@ -43,6 +45,7 @@ export const nonTerminalItemStates: readonly ItemState[] = [
 ] as const;
 
 export const terminalItemStates: readonly ItemState[] = [
+  "escalated",
   "completed",
   "canceled",
 ] as const;

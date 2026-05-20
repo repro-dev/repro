@@ -2,12 +2,12 @@ import type { ItemState } from "./contracts";
 
 export type ForwardSourceState = Exclude<
   ItemState,
-  "awaiting" | "failed" | "completed" | "canceled"
+  "awaiting" | "failed" | "escalated" | "completed" | "canceled"
 >;
 
 export type InProgressState = Exclude<
   ItemState,
-  "queued" | "awaiting" | "failed" | "completed" | "canceled"
+  "queued" | "awaiting" | "failed" | "escalated" | "completed" | "canceled"
 >;
 
 export type ImmediateCancellationState = "queued" | "failed" | "awaiting";
@@ -60,7 +60,7 @@ const immediateCancellationStates: readonly ImmediateCancellationState[] = [
 ] as const;
 
 export function isTerminalState(state: ItemState): boolean {
-  return state === "completed" || state === "canceled";
+  return state === "escalated" || state === "completed" || state === "canceled";
 }
 
 export function isInProgressState(state: ItemState): state is InProgressState {
