@@ -360,7 +360,7 @@ function synthesizeEngineEvents(
 
 const configDefinitions: readonly ConfigDefinition[] = [
   {
-    key: "engine.auto-discover",
+    key: "supervisor.auto-discover",
     default_value: false,
     type: "boolean",
     description:
@@ -370,7 +370,7 @@ const configDefinitions: readonly ConfigDefinition[] = [
     allowed_values: [true, false],
   },
   {
-    key: "engine.queue-depth",
+    key: "supervisor.queue-depth",
     default_value: 5,
     type: "integer",
     description:
@@ -380,7 +380,7 @@ const configDefinitions: readonly ConfigDefinition[] = [
     allowed_values: null,
   },
   {
-    key: "engine.max-concurrency",
+    key: "supervisor.max-concurrency",
     default_value: 1,
     type: "integer",
     description:
@@ -390,7 +390,7 @@ const configDefinitions: readonly ConfigDefinition[] = [
     allowed_values: null,
   },
   {
-    key: "engine.tick-interval-seconds",
+    key: "supervisor.tick-interval-seconds",
     default_value: 15,
     type: "integer",
     description: "Delay between daemon supervisor ticks.",
@@ -681,9 +681,10 @@ export function createEngineStatus(
   } = {},
 ): EngineStatus {
   const maxConcurrency =
-    config.find((entry) => entry.key === "engine.max-concurrency")?.value ?? 1;
+    config.find((entry) => entry.key === "supervisor.max-concurrency")?.value ??
+    1;
   const tickIntervalSeconds =
-    config.find((entry) => entry.key === "engine.tick-interval-seconds")
+    config.find((entry) => entry.key === "supervisor.tick-interval-seconds")
       ?.value ?? 15;
   const runtime = input.runtime ?? null;
   const runtimeStatus = runtime?.status ?? null;
@@ -761,13 +762,16 @@ function resolveEngineTickSettings(config: ConfigEntry[]): EngineTickSettings {
     config.map((entry) => [entry.key, entry] as const),
   );
   const autoDiscover =
-    (configByKey.get("engine.auto-discover")?.value as boolean | undefined) ??
-    false;
+    (configByKey.get("supervisor.auto-discover")?.value as
+      | boolean
+      | undefined) ?? false;
   const queueDepth =
-    (configByKey.get("engine.queue-depth")?.value as number | undefined) ?? 0;
+    (configByKey.get("supervisor.queue-depth")?.value as number | undefined) ??
+    0;
   const maxConcurrency =
-    (configByKey.get("engine.max-concurrency")?.value as number | undefined) ??
-    1;
+    (configByKey.get("supervisor.max-concurrency")?.value as
+      | number
+      | undefined) ?? 1;
 
   return {
     autoDiscover,
@@ -1266,12 +1270,7 @@ function createEngineStatusResult(input: {
   warnings?: readonly Warning[];
   action?: "start" | "stop";
   message?: string;
-  statusKey?: "engine" | "supervisor";
-  kind?:
-    | "engine-status"
-    | "supervisor-status"
-    | "engine-logs"
-    | "supervisor-logs";
+  kind: "supervisor-status" | "supervisor-logs";
 }): FutureInstance<unknown, AutobotCommandResult> {
   return createQueueStatus(input.store, {
     command: input.command,
@@ -1290,12 +1289,10 @@ function createEngineStatusResult(input: {
 
       return {
         ...queueStatus,
-        kind: input.kind ?? "engine-status",
+        kind: input.kind,
         data: {
           ...queueStatus.data,
-          ...(input.statusKey === "supervisor"
-            ? { supervisor: queueStatus.data.engine }
-            : {}),
+          supervisor: queueStatus.data.engine,
           action: input.action,
           message: input.message,
         },
@@ -1672,7 +1669,7 @@ function handleDiscover(
         return fallback.value as number;
       }
 
-      return configDefinitionsByKey.get("engine.queue-depth")!
+      return configDefinitionsByKey.get("supervisor.queue-depth")!
         .default_value as number;
     };
 
@@ -1804,7 +1801,7 @@ function handleDiscover(
     };
 
     if (projectFlags.length > 0) {
-      store.config.getOverride("engine.queue-depth").pipe(
+      store.config.getOverride("supervisor.queue-depth").pipe(
         fork(reject)((queueDepthOverride) => {
           resolveProjects(null, queueDepthOverride);
         }),
@@ -1812,7 +1809,7 @@ function handleDiscover(
     } else {
       store.config.getOverride("discovery.projects").pipe(
         fork(reject)((override) => {
-          store.config.getOverride("engine.queue-depth").pipe(
+          store.config.getOverride("supervisor.queue-depth").pipe(
             fork(reject)((queueDepthOverride) => {
               resolveProjects(override, queueDepthOverride);
             }),
@@ -4781,26 +4778,14 @@ function createItemDetailResult(
   });
 }
 
-function getSupervisorCommandRoot(
-  invocation: AutobotInvocation,
-): "engine" | "supervisor" {
-  return invocation.command_path[0] === "supervisor" ? "supervisor" : "engine";
+function getSupervisorCommandRoot(invocation: AutobotInvocation): "supervisor" {
+  void invocation;
+  return "supervisor";
 }
 
-function getSupervisorStatusKind(
-  root: "engine" | "supervisor",
-): "engine-status" | "supervisor-status" {
-  return root === "supervisor" ? "supervisor-status" : "engine-status";
-}
-
-function getSupervisorLogsKind(
-  root: "engine" | "supervisor",
-): "engine-logs" | "supervisor-logs" {
-  return root === "supervisor" ? "supervisor-logs" : "engine-logs";
-}
-
-function getSupervisorNoun(root: "engine" | "supervisor"): string {
-  return root === "supervisor" ? "Supervisor" : "Engine";
+function getSupervisorNoun(root: "supervisor"): string {
+  void root;
+  return "Supervisor";
 }
 
 function liftQueueStatusToSupervisorStatus(
@@ -4833,8 +4818,7 @@ function handleEngineStatus(
             command: invocation.command,
             runtime,
             events: synthesizeEngineEvents(runtime, events),
-            statusKey: root === "supervisor" ? "supervisor" : "engine",
-            kind: getSupervisorStatusKind(root),
+            kind: "supervisor-status",
             message:
               runtime.stop_requested_at !== null
                 ? `${getSupervisorNoun(root)} graceful shutdown is in progress`
@@ -4875,8 +4859,7 @@ function handleEngineLogs(
             command: invocation.command,
             runtime,
             events: synthesizeEngineEvents(runtime, events),
-            statusKey: root === "supervisor" ? "supervisor" : "engine",
-            kind: getSupervisorLogsKind(root),
+            kind: "supervisor-logs",
             message: `Recent ${root} events`,
           }),
         ),
@@ -4898,15 +4881,14 @@ function handleEngineStop(
         store,
         command: invocation.command,
         runtime,
-        statusKey: root === "supervisor" ? "supervisor" : "engine",
         action: "stop",
+        kind: "supervisor-status",
         message:
           runtime.status?.state === "stopped"
             ? `${getSupervisorNoun(root)} is already stopped`
             : runtime.lock === null && runtime.status === null
             ? `No ${root} lock was active`
             : `${getSupervisorNoun(root)} graceful shutdown requested`,
-        kind: getSupervisorStatusKind(root),
       }),
     ),
   );
@@ -4930,7 +4912,7 @@ function handleEngineStart(
   const result = createConfigList(store).pipe(
     chain((config) => {
       const tickIntervalSeconds = Number(
-        config.find((entry) => entry.key === "engine.tick-interval-seconds")
+        config.find((entry) => entry.key === "supervisor.tick-interval-seconds")
           ?.value ?? 15,
       );
       const startedAt = now();
@@ -4983,8 +4965,7 @@ function handleEngineStart(
                       stale_lock: false,
                     },
                     action: "start",
-                    statusKey: root === "supervisor" ? "supervisor" : "engine",
-                    kind: getSupervisorStatusKind(root),
+                    kind: "supervisor-status",
                     message,
                   }).pipe(fork(reject)(resolveFuture));
                 }),
@@ -5487,7 +5468,6 @@ function handleCommand(
       return handleInspect(invocation, store);
     case "logs":
       return handleLogs(invocation, store);
-    case "engine":
     case "supervisor":
       switch (invocation.command_path[1]) {
         case "logs":
@@ -5563,8 +5543,7 @@ export function createAutobotServices(
   return {
     handleInvocation(invocation: AutobotInvocation) {
       if (
-        (invocation.command_path[0] === "engine" ||
-          invocation.command_path[0] === "supervisor") &&
+        invocation.command_path[0] === "supervisor" &&
         invocation.command_path[1] === "debug" &&
         invocation.command_path[2] === "workflow"
       ) {

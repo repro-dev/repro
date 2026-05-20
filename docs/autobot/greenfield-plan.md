@@ -78,7 +78,7 @@ Public queue interface from `docs/autobot/cli-design.md`:
 - `autobot-next config list [--json]` is referenced in examples and prior context as the discoverability surface for config keys.
 - `autobot-next supervisor debug workflow list|validate|diagram [--json]` keeps FlowCraft inspection available without advertising a top-level workflow group.
 
-Public JSON responses are versioned with `schema_version: 1`. Public status-oriented responses include a `config` block sourced from `.autobot/config.json`. Current config keys are `engine.auto-discover`, `engine.queue-depth`, and `engine.max-concurrency`.
+Public JSON responses are versioned with `schema_version: 1`. Public status-oriented responses include a `config` block sourced from `.autobot/config.json`. Current config keys are `supervisor.auto-discover`, `supervisor.queue-depth`, and `supervisor.max-concurrency`.
 
 ### Internal lifecycle surface
 
@@ -183,10 +183,10 @@ Phase subflows:
 Autobot should own scheduling separately from FlowCraft execution.
 
 - The supervisor tick reads config and store state.
-- It discovers/queues candidates when `engine.auto-discover` is enabled.
+- It discovers/queues candidates when `supervisor.auto-discover` is enabled.
 - It selects runnable items using deterministic ordering: priority/policy rank, lifecycle rank, issue ID, queue position, and lease age.
-- It starts new FlowCraft executions until `engine.max-concurrency` is reached.
-- It uses `engine.queue-depth` to cap auto-discovered queued-but-not-running work.
+- It starts new FlowCraft executions until `supervisor.max-concurrency` is reached.
+- It uses `supervisor.queue-depth` to cap auto-discovered queued-but-not-running work.
 - It reconciles awaiting/stalled/failed executions on every tick.
 - It emits domain events for tick start, work selected, worker spawned, idle, and failures.
 
@@ -227,16 +227,16 @@ Core commands:
 - `autobot-next logs [issue|--engine] [-t] [--json]` — tail supervisor, worker, or issue logs.
 - `autobot-next discover [--limit N] [--project name] [-q] [--json]` — show candidate issue metadata; `-q` prints IDs only.
 - `autobot-next config list|get|set|unset ... [--json]` — manage repo-scoped config.
-- `autobot-next supervisor start|stop|status|run-once [--foreground] [--json]` — manage local daemon lifecycle. Legacy `engine` spelling remains a compatibility path; `restart` is post-MVP.
+- `autobot-next supervisor start|stop|status|run-once [--foreground] [--json]` — manage local daemon lifecycle; `restart` is post-MVP.
 - `autobot-next retry <issue> [--reason text] [--json]` — create a new attempt from the recorded failed phase.
 - `autobot-next cancel <issue> [--reason text] [--json]` — cancel in-progress or queued work.
 - `autobot-next reconcile [issue|--all] [--json]` — inspect and repair mismatches between store, workers, git, Linear, and GitHub.
 
 Developer/debug commands:
 
-- `autobot-next supervisor debug workflow list [--json]` — list available FlowCraft blueprints and versions. Legacy `engine` spelling remains a compatibility path.
-- `autobot-next supervisor debug workflow validate [workflow] [--json]` — run FlowCraft analysis/linting. Legacy `engine` spelling remains a compatibility path.
-- `autobot-next supervisor debug workflow diagram <workflow>` — print Mermaid graph. Legacy `engine` spelling remains a compatibility path.
+- `autobot-next supervisor debug workflow list [--json]` — list available FlowCraft blueprints and versions.
+- `autobot-next supervisor debug workflow validate [workflow] [--json]` — run FlowCraft analysis/linting.
+- `autobot-next supervisor debug workflow diagram <workflow>` — print Mermaid graph.
 - `autobot-next inspect <run-id> [--json]` — domain wrapper around FlowCraft history inspection.
 
 Deferred commands:
@@ -306,7 +306,7 @@ Tasks:
 - Implement SQLite schema and migrations under `.autobot/`.
 - Implement repository interfaces: `ItemStore`, `RunStore`, `ClaimStore`, `ConfigStore`, `EventStore`, `WorkerStore`.
 - Implement idempotent event append and projection rebuild.
-- Implement config defaults for `engine.auto-discover`, `engine.queue-depth`, and `engine.max-concurrency`.
+- Implement config defaults for `supervisor.auto-discover`, `supervisor.queue-depth`, and `supervisor.max-concurrency`.
 - Implement JSON response envelopes and error result shape.
 
 Exit criteria:

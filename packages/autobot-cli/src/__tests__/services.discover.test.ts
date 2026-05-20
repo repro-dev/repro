@@ -128,7 +128,7 @@ function makeStore(
         return resolve(undefined);
       },
       getOverride(key: string) {
-        if (key === "engine.queue-depth") {
+        if (key === "supervisor.queue-depth") {
           return resolve(
             queueDepth !== null
               ? {

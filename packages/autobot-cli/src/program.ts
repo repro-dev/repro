@@ -265,7 +265,6 @@ export function createAutobotProgram(
 
   const supervisorCommand = program
     .command("supervisor")
-    .alias("engine")
     .description("manage the supervisor");
 
   registerLeafCommand(

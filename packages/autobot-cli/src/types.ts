@@ -97,21 +97,7 @@ export type AutobotCommandResult =
       warnings?: readonly Warning[];
     }
   | {
-      kind: "engine-status";
-      command: string;
-      repo: RepoRef;
-      data: EngineStatusData;
-      warnings?: readonly Warning[];
-    }
-  | {
       kind: "supervisor-status";
-      command: string;
-      repo: RepoRef;
-      data: EngineStatusData;
-      warnings?: readonly Warning[];
-    }
-  | {
-      kind: "engine-logs";
       command: string;
       repo: RepoRef;
       data: EngineStatusData;

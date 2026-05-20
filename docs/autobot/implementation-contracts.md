@@ -52,9 +52,9 @@ This document refines `cli-design.md` into implementation-ready contracts. It re
 ### 2026-05-13 Discovery And Selection Policy
 
 - Manual MVP discovery accepts repeatable `--project` flags; if none are provided, `discovery.projects` config is used, and if that is also empty the command scans all projects by omitting project flags.
-- Manual discovery first fetches a bounded remote scan set (currently 100 by default, or higher when needed to satisfy `--limit`), then prunes and caps post-filter candidates by `--limit` when provided; otherwise the effective cap defaults to `engine.queue-depth`.
+- Manual discovery first fetches a bounded remote scan set (currently 100 by default, or higher when needed to satisfy `--limit`), then prunes and caps post-filter candidates by `--limit` when provided; otherwise the effective cap defaults to `supervisor.queue-depth`.
 - REP-1170 will insert sequencing between fetch and limit.
-- When `engine.auto-discover=true`, supervisor ticks may auto-queue eligible candidates up to `engine.queue-depth`.
+- When `supervisor.auto-discover=true`, supervisor ticks may auto-queue eligible candidates up to `supervisor.queue-depth`.
 - Supervisor selection reconciles in-progress/stale state first, then starts oldest queued items first, subject to concurrency limits.
 
 ### 2026-05-13 Human Output
@@ -731,16 +731,16 @@ Running supervisors should reload config on the next tick where practical. `requ
 
 ### MVP Keys
 
-| Key                            | Type    | Default | Bounds / Values                                 | Env Var                                | Requires Restart | Description                                                                                              |
-| ------------------------------ | ------- | ------- | ----------------------------------------------- | -------------------------------------- | ---------------- | -------------------------------------------------------------------------------------------------------- |
-| `engine.auto-discover`         | boolean | `false` | `true`/`false`                                  | `AUTOBOT_ENGINE_AUTO_DISCOVER`         | `false`          | Whether supervisor ticks may discover and queue candidate work automatically.                            |
-| `engine.queue-depth`           | integer | `5`     | `0..100`                                        | `AUTOBOT_ENGINE_QUEUE_DEPTH`           | `false`          | Maximum queued-but-not-running items maintained by auto-discovery. `0` disables auto-queueing.           |
-| `engine.max-concurrency`       | integer | `1`     | `1..16`                                         | `AUTOBOT_ENGINE_MAX_CONCURRENCY`       | `false`          | Maximum active runs the local supervisor may supervise at once.                                          |
-| `engine.tick-interval-seconds` | integer | `15`    | `1..3600`                                       | `AUTOBOT_ENGINE_TICK_INTERVAL_SECONDS` | `false`          | Delay between daemon supervisor ticks.                                                                   |
-| `delivery.require-review`      | boolean | `true`  | `true`/`false`                                  | `AUTOBOT_DELIVERY_REQUIRE_REVIEW`      | `false`          | Whether delivery workflow must include a review gate before completion.                                  |
-| `delivery.allow-release`       | boolean | `false` | `true`/`false`                                  | `AUTOBOT_DELIVERY_ALLOW_RELEASE`       | `false`          | Whether automated publish/release behavior is allowed. Inert while manual/automated release is deferred. |
-| `logs.retention-days`          | integer | `30`    | `1..365`                                        | `AUTOBOT_LOGS_RETENTION_DAYS`          | `false`          | Retention target for future log/artifact cleanup. MVP may report but not enforce this.                   |
-| `discovery.project`            | string  | `""`    | non-empty string when auto-discovery is enabled | `AUTOBOT_DISCOVERY_PROJECT`            | `false`          | Default Linear project used by `discover` and engine auto-discovery when `--project` is not supplied.    |
+| Key                                | Type    | Default | Bounds / Values                                 | Env Var                                | Requires Restart | Description                                                                                               |
+| ---------------------------------- | ------- | ------- | ----------------------------------------------- | -------------------------------------- | ---------------- | --------------------------------------------------------------------------------------------------------- |
+| `supervisor.auto-discover`         | boolean | `false` | `true`/`false`                                  | `AUTOBOT_ENGINE_AUTO_DISCOVER`         | `false`          | Whether supervisor ticks may discover and queue candidate work automatically.                             |
+| `supervisor.queue-depth`           | integer | `5`     | `0..100`                                        | `AUTOBOT_ENGINE_QUEUE_DEPTH`           | `false`          | Maximum queued-but-not-running items maintained by auto-discovery. `0` disables auto-queueing.            |
+| `supervisor.max-concurrency`       | integer | `1`     | `1..16`                                         | `AUTOBOT_ENGINE_MAX_CONCURRENCY`       | `false`          | Maximum active runs the local supervisor may supervise at once.                                           |
+| `supervisor.tick-interval-seconds` | integer | `15`    | `1..3600`                                       | `AUTOBOT_ENGINE_TICK_INTERVAL_SECONDS` | `false`          | Delay between daemon supervisor ticks.                                                                    |
+| `delivery.require-review`          | boolean | `true`  | `true`/`false`                                  | `AUTOBOT_DELIVERY_REQUIRE_REVIEW`      | `false`          | Whether delivery workflow must include a review gate before completion.                                   |
+| `delivery.allow-release`           | boolean | `false` | `true`/`false`                                  | `AUTOBOT_DELIVERY_ALLOW_RELEASE`       | `false`          | Whether automated publish/release behavior is allowed. Inert while manual/automated release is deferred.  |
+| `logs.retention-days`              | integer | `30`    | `1..365`                                        | `AUTOBOT_LOGS_RETENTION_DAYS`          | `false`          | Retention target for future log/artifact cleanup. MVP may report but not enforce this.                    |
+| `discovery.project`                | string  | `""`    | non-empty string when auto-discovery is enabled | `AUTOBOT_DISCOVERY_PROJECT`            | `false`          | Default Linear project used by `discover` and supervisor auto-discovery when `--project` is not supplied. |
 
 ### Value Parsing
 
@@ -853,9 +853,9 @@ Each supervisor tick runs in this order:
 
 1. Load effective config.
 2. Reconcile known in-progress, cancellation-requested, stale, and failed/ambiguous runs.
-3. If `engine.auto-discover=true`, discover eligible candidates for `discovery.project` and auto-queue until queued count reaches `engine.queue-depth`. If `discovery.project` is empty, emit an `engine.unhealthy` warning and skip auto-discovery.
+3. If `supervisor.auto-discover=true`, discover eligible candidates for `discovery.project` and auto-queue until queued count reaches `supervisor.queue-depth`. If `discovery.project` is empty, emit an `engine.unhealthy` warning and skip auto-discovery.
 4. Count active states: `claimed`, `preparing`, `planning`, `developing`, `testing`, `reviewing`, `reconciling`.
-5. Start new runs from `queued` while active count is below `engine.max-concurrency`.
+5. Start new runs from `queued` while active count is below `supervisor.max-concurrency`.
 6. Emit tick summary events and log lines.
 
 ### Queue Ordering
@@ -1039,14 +1039,14 @@ autobot discover --project Engineering -q | xargs -n1 autobot add
 
 ```text
 KEY                           VALUE  SOURCE   DESCRIPTION
-engine.auto-discover          false  default  Whether supervisor ticks may discover and queue candidate work automatically.
-engine.queue-depth            5      default  Maximum queued-but-not-running items maintained by auto-discovery.
-engine.max-concurrency        1      default  Maximum active runs the local supervisor may supervise at once.
-engine.tick-interval-seconds  15     default  Delay between daemon supervisor ticks.
+supervisor.auto-discover      false  default  Whether supervisor ticks may discover and queue candidate work automatically.
+supervisor.queue-depth        5      default  Maximum queued-but-not-running items maintained by auto-discovery.
+supervisor.max-concurrency    1      default  Maximum active runs the local supervisor may supervise at once.
+supervisor.tick-interval-seconds  15     default  Delay between daemon supervisor ticks.
 delivery.require-review       true   default  Whether delivery workflow must include a review gate before completion.
 delivery.allow-release        false  default  Whether automated publish/release behavior is allowed.
 logs.retention-days           30     default  Retention target for future log/artifact cleanup.
-discovery.project             ""     default  Default Linear project used by discovery and engine auto-discovery.
+discovery.project             ""     default  Default Linear project used by discovery and supervisor auto-discovery.
 ```
 
 ### Supervisor Run Once Dry Run Output

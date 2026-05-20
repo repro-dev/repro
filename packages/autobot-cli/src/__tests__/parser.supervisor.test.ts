@@ -5,11 +5,10 @@ import { createAutobotProgram } from "../program";
 import type { AutobotInvocation } from "../types";
 import { collectCommandPaths } from "./helpers";
 
-test("supervisor commands are preferred and engine remains a hidden alias", () => {
-  let aliasInvocation: AutobotInvocation | null = null;
+test("supervisor commands are preferred and engine is not registered", () => {
   const program = createAutobotProgram({
     onInvocation(invocation: AutobotInvocation) {
-      aliasInvocation = invocation;
+      void invocation;
     },
   });
   const help = program.helpInformation();
@@ -40,17 +39,4 @@ test("supervisor commands are preferred and engine remains a hidden alias", () =
       "supervisor stop",
     ],
   );
-
-  program.parse(["engine", "debug", "workflow", "list"], { from: "user" });
-
-  if (aliasInvocation === null) {
-    throw new Error("expected engine alias invocation");
-  }
-
-  assert.deepStrictEqual((aliasInvocation as AutobotInvocation).command_path, [
-    "supervisor",
-    "debug",
-    "workflow",
-    "list",
-  ]);
 });

@@ -388,7 +388,7 @@ Semantics:
 - Does not queue anything by default.
 - Excludes issues already known as non-terminal items unless `--all` is added in a future version.
 - With no `--project` flags, manual discovery scans all projects unless `discovery.projects` is configured.
-- `--limit` caps the post-filter candidate set; when omitted, discovery defaults the cap to `engine.queue-depth`.
+- `--limit` caps the post-filter candidate set; when omitted, discovery defaults the cap to `supervisor.queue-depth`.
 - Discovery first fetches a bounded remote scan set (currently 100 by default, or higher when needed to satisfy `--limit`), then prunes and applies the candidate cap.
 - REP-1170 will insert agent-led sequencing between fetch and limit.
 - `-q` prints issue IDs only, one per line, for piping into `autobot-next add`.
@@ -418,10 +418,10 @@ Shows all known config keys, effective values, source, and description.
 
 Required keys for MVP:
 
-- `engine.auto-discover`: boolean, default `false`.
-- `engine.queue-depth`: integer, default `5`.
-- `engine.max-concurrency`: integer, default `1`.
-- `engine.tick-interval-seconds`: integer, default `15`.
+- `supervisor.auto-discover`: boolean, default `false`.
+- `supervisor.queue-depth`: integer, default `5`.
+- `supervisor.max-concurrency`: integer, default `1`.
+- `supervisor.tick-interval-seconds`: integer, default `15`.
 - `discovery.projects`: string, default empty comma-separated allowlist.
 - `delivery.require-review`: boolean, default `true`.
 - `delivery.allow-release`: boolean, default `false` for MVP.
@@ -502,7 +502,7 @@ Semantics:
 autobot-next supervisor restart [--json]
 ```
 
-Deferred from MVP. Future command stops then starts the supervisor; the legacy engine spelling remains a compatibility path.
+Deferred from MVP. Future command stops then starts the supervisor.
 
 #### `autobot-next supervisor run-once`
 
@@ -514,7 +514,7 @@ Runs one scheduler tick without daemonizing.
 
 Semantics:
 
-- Performs auto-discovery if `engine.auto-discover=true` and a project is configured.
+- Performs auto-discovery if `supervisor.auto-discover=true` and a project is configured.
 - Selects eligible work.
 - Starts executions up to concurrency limits.
 - Reconciles stale/awaiting/failed state.
@@ -655,7 +655,7 @@ Top-level `autobot-next --help` should group commands by intent:
 
 - Queue: `add`, `remove`, `list`, `discover`.
 - Observe: `status`, `logs`, `inspect`.
-- Operate: `supervisor` (legacy `engine` compatibility path), `retry`, `cancel`, `reconcile`.
+- Operate: `supervisor`, `retry`, `cancel`, `reconcile`.
 - Deferred operate commands: `release`, `resume`.
 - Configure: `config`.
 - Debug: `workflow`.
@@ -682,18 +682,18 @@ The first implementation should include:
 - `autobot-next logs`
 - `autobot-next discover`
 - `autobot-next config list|get|set|unset`
-- `autobot-next supervisor status|run-once|start|stop` (legacy `autobot-next engine ...` compatibility path)
+- `autobot-next supervisor status|run-once|start|stop`
 - `autobot-next retry`
 - `autobot-next cancel`
 - `autobot-next reconcile`
 - `autobot-next inspect`
-- `autobot-next supervisor debug workflow list|validate|diagram` (legacy `autobot-next engine ...` compatibility path)
+- `autobot-next supervisor debug workflow list|validate|diagram`
 
 Defer from MVP unless the workflow prototype needs them:
 
 - `autobot-next release`
 - `autobot-next resume`
-- `autobot-next supervisor restart` (legacy `autobot-next engine ...` compatibility path)
+- `autobot-next supervisor restart`
 - hidden `autobot-next internal ...` commands.
 
 ## Acceptance Criteria For Implementation
@@ -704,6 +704,6 @@ Defer from MVP unless the workflow prototype needs them:
 - `autobot-next status` aggregate shows supervisor state, counts, in-progress items, warnings, and next action.
 - `autobot-next status <issue>` shows event history with separate queue, prepare, phase, failure, retry, and terminal rows.
 - `autobot-next config list` documents all known keys, defaults, effective values, sources, and descriptions.
-- `autobot-next supervisor run-once --dry-run` explains what would be selected without starting workers (legacy `autobot-next engine ...` compatibility path).
+- `autobot-next supervisor run-once --dry-run` explains what would be selected without starting workers.
 - Recovery command errors include actionable recovery commands.
 - Default output never exposes hidden/internal lifecycle commands as the preferred path.

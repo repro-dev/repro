@@ -119,10 +119,10 @@ function makeInvocation(
   };
 }
 
-test("engine run-once reconciles stale in-progress items before selecting the oldest queued items", async () => {
+test("supervisor run-once reconciles stale in-progress items before selecting the oldest queued items", async () => {
   const fixture = makeWorkflowStore({
     configOverrides: {
-      "engine.max-concurrency": 2,
+      "supervisor.max-concurrency": 2,
     },
     items: [
       {
@@ -245,11 +245,11 @@ test("engine run-once reconciles stale in-progress items before selecting the ol
   });
 
   const result = (await runFuture(
-    services.handleInvocation(makeInvocation(["engine", "run-once"])),
+    services.handleInvocation(makeInvocation(["supervisor", "run-once"])),
   )) as AutobotCommandResult;
 
-  assert.equal(result.kind, "queue-status");
-  assert.equal(result.command, "engine run-once");
+  assert.equal(result.kind, "supervisor-status");
+  assert.equal(result.command, "supervisor run-once");
   assert.equal(result.data.engine.last_tick_at, "2026-05-15T12:00:00Z");
   assert.deepEqual(result.data.tick?.reconciled_issue_ids, ["REP-203"]);
   assert.deepEqual(result.data.tick?.selected_issue_ids, [
@@ -295,10 +295,10 @@ test("engine run-once reconciles stale in-progress items before selecting the ol
   );
 });
 
-test("engine run-once hydrates Linear metadata before writing planning artifacts", async () => {
+test("supervisor run-once hydrates Linear metadata before writing planning artifacts", async () => {
   const fixture = makeWorkflowStore({
     configOverrides: {
-      "engine.max-concurrency": 1,
+      "supervisor.max-concurrency": 1,
     },
     items: [
       {
@@ -354,10 +354,10 @@ test("engine run-once hydrates Linear metadata before writing planning artifacts
   });
 
   const result = (await runFuture(
-    services.handleInvocation(makeInvocation(["engine", "run-once"])),
+    services.handleInvocation(makeInvocation(["supervisor", "run-once"])),
   )) as AutobotCommandResult;
 
-  assert.equal(result.kind, "queue-status");
+  assert.equal(result.kind, "supervisor-status");
   assert.deepEqual(fixture.itemUpserts.at(-1), {
     issue_id: "REP-400",
     title: "Hydrated queued item",
@@ -390,12 +390,12 @@ test("engine run-once hydrates Linear metadata before writing planning artifacts
   );
 });
 
-test("engine run-once --dry-run reports planned discovery and selection without mutations", async () => {
+test("supervisor run-once --dry-run reports planned discovery and selection without mutations", async () => {
   const fixture = makeWorkflowStore({
     configOverrides: {
-      "engine.auto-discover": true,
-      "engine.queue-depth": 2,
-      "engine.max-concurrency": 1,
+      "supervisor.auto-discover": true,
+      "supervisor.queue-depth": 2,
+      "supervisor.max-concurrency": 1,
       "discovery.projects": "Engineering, Platform",
     },
     items: [
@@ -499,12 +499,12 @@ test("engine run-once --dry-run reports planned discovery and selection without 
 
   const result = (await runFuture(
     services.handleInvocation({
-      ...makeInvocation(["engine", "run-once"]),
+      ...makeInvocation(["supervisor", "run-once"]),
       options: makeOptions({ dry_run: true }),
     }),
   )) as AutobotCommandResult;
 
-  assert.equal(result.kind, "queue-status");
+  assert.equal(result.kind, "supervisor-status");
   assert.equal(result.data.tick?.dry_run, true);
   assert.deepEqual(result.data.tick?.reconciled_issue_ids, ["REP-301"]);
   assert.deepEqual(result.data.tick?.discovered_issue_ids, [
@@ -531,12 +531,12 @@ test("engine run-once --dry-run reports planned discovery and selection without 
   assert.equal(fixture.transactionCalls, 0);
 });
 
-test("engine run-once persists discovered work and caps it by queue-depth", async () => {
+test("supervisor run-once persists discovered work and caps it by queue-depth", async () => {
   const fixture = makeWorkflowStore({
     configOverrides: {
-      "engine.auto-discover": true,
-      "engine.queue-depth": 2,
-      "engine.max-concurrency": 1,
+      "supervisor.auto-discover": true,
+      "supervisor.queue-depth": 2,
+      "supervisor.max-concurrency": 1,
       "discovery.projects": "Engineering, Platform",
     },
     items: [
@@ -625,10 +625,10 @@ test("engine run-once persists discovered work and caps it by queue-depth", asyn
   });
 
   const result = (await runFuture(
-    services.handleInvocation(makeInvocation(["engine", "run-once"])),
+    services.handleInvocation(makeInvocation(["supervisor", "run-once"])),
   )) as AutobotCommandResult;
 
-  assert.equal(result.kind, "queue-status");
+  assert.equal(result.kind, "supervisor-status");
   assert.equal(result.data.tick?.dry_run, false);
   assert.deepEqual(result.data.tick?.reconciled_issue_ids, []);
   assert.deepEqual(result.data.tick?.discovered_issue_ids, [

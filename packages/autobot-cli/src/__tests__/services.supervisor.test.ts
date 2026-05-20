@@ -55,7 +55,7 @@ function makeInvocation(
   };
 }
 
-test("supervisor status and logs use supervisor kinds while engine remains supported", async () => {
+test("supervisor status and logs use supervisor kinds without engine aliases", async () => {
   const root = await mkdtemp(
     path.join(process.cwd(), "..", "..", "tmp", "autobot-supervisor-"),
   );
@@ -101,26 +101,27 @@ test("supervisor status and logs use supervisor kinds while engine remains suppo
     assert.equal(runOnce.kind, "supervisor-status");
     assert.equal(runOnce.data.supervisor?.state, "unknown");
     assert.match(
-      runOnce.data.config.find((entry) => entry.key === "engine.auto-discover")
-        ?.description ?? "",
+      runOnce.data.config.find(
+        (entry) => entry.key === "supervisor.auto-discover",
+      )?.description ?? "",
       /supervisor ticks/i,
     );
     assert.doesNotMatch(
       runOnce.data.config.find(
-        (entry) => entry.key === "engine.max-concurrency",
+        (entry) => entry.key === "supervisor.max-concurrency",
       )?.description ?? "",
       /local engine/i,
     );
 
-    const legacy = (await runFuture(
-      services.handleInvocation({
-        ...makeInvocation(["engine", "status"]),
-        options: makeOptions({ repo: root }),
-      }),
-    )) as AutobotCommandResult;
-
-    assert.equal(legacy.kind, "engine-status");
-    assert.equal(legacy.data.engine.state, "stopped");
+    await assert.rejects(
+      runFuture(
+        services.handleInvocation({
+          ...makeInvocation(["engine", "status"]),
+          options: makeOptions({ repo: root }),
+        }),
+      ),
+      /engine status/i,
+    );
   } finally {
     await rm(root, { recursive: true, force: true });
   }

@@ -119,12 +119,12 @@ function makeInvocation(
   };
 }
 
-test("engine run-once preserves discovered metadata when it selects a new candidate", async () => {
+test("supervisor run-once preserves discovered metadata when it selects a new candidate", async () => {
   const fixture = makeWorkflowStore({
     configOverrides: {
-      "engine.auto-discover": true,
-      "engine.queue-depth": 1,
-      "engine.max-concurrency": 1,
+      "supervisor.auto-discover": true,
+      "supervisor.queue-depth": 1,
+      "supervisor.max-concurrency": 1,
       "discovery.projects": "Engineering, Platform",
     },
     items: [],
@@ -174,10 +174,10 @@ test("engine run-once preserves discovered metadata when it selects a new candid
   });
 
   const result = (await runFuture(
-    services.handleInvocation(makeInvocation(["engine", "run-once"])),
+    services.handleInvocation(makeInvocation(["supervisor", "run-once"])),
   )) as AutobotCommandResult;
 
-  assert.equal(result.kind, "queue-status");
+  assert.equal(result.kind, "supervisor-status");
   assert.deepEqual(result.data.tick?.selected_issue_ids, ["REP-400"]);
   assert.deepEqual(result.data.tick?.queued_issue_ids, ["REP-400"]);
   assert.ok(
@@ -212,10 +212,10 @@ test("engine run-once preserves discovered metadata when it selects a new candid
   );
 });
 
-test("engine run-once warns and skips discovery when discovery.projects is missing", async () => {
+test("supervisor run-once warns and skips discovery when discovery.projects is missing", async () => {
   const fixture = makeWorkflowStore({
     configOverrides: {
-      "engine.auto-discover": true,
+      "supervisor.auto-discover": true,
     },
     items: [],
   });
@@ -238,10 +238,10 @@ test("engine run-once warns and skips discovery when discovery.projects is missi
   });
 
   const result = (await runFuture(
-    services.handleInvocation(makeInvocation(["engine", "run-once"])),
+    services.handleInvocation(makeInvocation(["supervisor", "run-once"])),
   )) as AutobotCommandResult;
 
-  assert.equal(result.kind, "queue-status");
+  assert.equal(result.kind, "supervisor-status");
   assert.deepEqual(result.warnings?.map((warning) => warning.code), [
     "ENGINE_DISCOVERY_PROJECTS_MISSING",
   ]);

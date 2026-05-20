@@ -6,7 +6,6 @@ import type { ItemDetail, ItemSummary } from "@repro/autobot-core";
 import { assertNormalizedEqual } from "./helpers";
 import {
   renderAutobotDiscoverResults,
-  renderAutobotEngineStatus,
   renderAutobotFlowcraftInspect,
   renderAutobotItemDetail,
   renderAutobotItemSummary,
@@ -14,6 +13,7 @@ import {
   renderAutobotWorkflowDiagram,
   renderAutobotWorkflowList,
   renderAutobotWorkflowValidation,
+  renderAutobotSupervisorStatus,
 } from "../render/human";
 import type { DiscoverData } from "../types";
 
@@ -219,11 +219,47 @@ test("flowcraft inspect renderer includes persisted transports but keeps raw pay
   );
 });
 
-test("engine status renderer shows relay-aware worker supervision", () => {
+test("supervisor status renderer shows relay-aware worker supervision", () => {
   assertNormalizedEqual(
-    renderAutobotEngineStatus(
+    renderAutobotSupervisorStatus(
       {
         engine: {
+          state: "running",
+          pid: 4242,
+          started_at: "2026-05-15T10:00:00Z",
+          last_tick_at: "2026-05-15T10:05:00Z",
+          tick_interval_seconds: 15,
+          queue_depth: 1,
+          max_concurrency: 1,
+          active_runs: 1,
+          active_workers: [
+            {
+              worker_id: "worker-1",
+              issue_id: "REP-1154",
+              run_id: "run-1154",
+              state: "running",
+              pid: 4242,
+              started_at: "2026-05-15T10:00:00Z",
+              last_heartbeat_at: "2026-05-15T10:05:00Z",
+              transport: {
+                source: "relay",
+                workspace_id: "relay-workspace",
+                channel_id: "relay-channel",
+                thread_id: "relay-thread",
+                agent_id: "relay-agent",
+                message_id: "relay-message",
+              },
+            },
+          ],
+          health: [
+            {
+              code: "ENGINE_STOP_REQUESTED",
+              status: "warning",
+              message: "graceful shutdown requested",
+            },
+          ],
+        },
+        supervisor: {
           state: "running",
           pid: 4242,
           started_at: "2026-05-15T10:00:00Z",
@@ -301,8 +337,8 @@ test("engine status renderer shows relay-aware worker supervision", () => {
       { color: false },
     ),
     `
-    Engine status
-    Engine: running
+    Supervisor status
+    Supervisor: running
     PID: 4242
     Started: 2026-05-15T10:00:00Z
     Counts: queued: 1, claimed: 0, preparing: 0, planning: 0, developing: 0, testing: 0, reviewing: 0, reconciling: 0, awaiting: 0, failed: 0, escalated: 0, completed: 0, canceled: 0

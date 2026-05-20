@@ -79,7 +79,7 @@ const noOpArtifactReader = (input: { path: string }) => {
   return resolve(validRunPlan);
 };
 
-test("engine run-once hydrates planning artifacts from the default Linear issue loader", async (t) => {
+test("supervisor run-once hydrates planning artifacts from the default Linear issue loader", async (t) => {
   const loadLinearIssueCalls: Array<{ repoRoot: string; issueId: string }> = [];
 
   t.mock.module("@repro/autobot-adapters", {
@@ -109,7 +109,7 @@ test("engine run-once hydrates planning artifacts from the default Linear issue 
 
   const fixture = makeWorkflowStore({
     configOverrides: {
-      "engine.max-concurrency": 1,
+      "supervisor.max-concurrency": 1,
     },
     items: [
       {
@@ -159,8 +159,8 @@ test("engine run-once hydrates planning artifacts from the default Linear issue 
 
   const result = (await runFuture(
     services.handleInvocation({
-      command_path: ["engine", "run-once"],
-      command: "engine run-once",
+      command_path: ["supervisor", "run-once"],
+      command: "supervisor run-once",
       args: [],
       options: {
         json: false,
@@ -180,7 +180,7 @@ test("engine run-once hydrates planning artifacts from the default Linear issue 
     }),
   )) as { kind: string; data: { tick?: { selected_issue_ids: string[] } } };
 
-  assert.equal(result.kind, "queue-status");
+  assert.equal(result.kind, "supervisor-status");
   assert.deepEqual(loadLinearIssueCalls, [
     {
       repoRoot: "/worktrees/autobot",

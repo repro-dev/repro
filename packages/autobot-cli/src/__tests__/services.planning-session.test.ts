@@ -172,7 +172,7 @@ const emptySequenceNotesRunPlan = [
   "- Do not implement yet.",
 ].join("\n");
 
-test("engine run-once passes durable planning artifact paths into opencode", async () => {
+test("supervisor run-once passes durable planning artifact paths into opencode", async () => {
   const fixture = makeWorkflowStore({
     items: [makeQueuedPlanningItem()],
   });
@@ -242,10 +242,10 @@ test("engine run-once passes durable planning artifact paths into opencode", asy
   });
 
   const result = (await runFuture(
-    services.handleInvocation(makeInvocation(["engine", "run-once"])),
+    services.handleInvocation(makeInvocation(["supervisor", "run-once"])),
   )) as AutobotCommandResult;
 
-  assert.equal(result.kind, "queue-status");
+  assert.equal(result.kind, "supervisor-status");
   assert.deepEqual(reads, [
     {
       path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/classify.json",
@@ -297,7 +297,7 @@ test("engine run-once passes durable planning artifact paths into opencode", asy
   );
 });
 
-test("engine run-once stops on escalated classify output before planning", async () => {
+test("supervisor run-once stops on escalated classify output before planning", async () => {
   const fixture = makeWorkflowStore({
     items: [makeQueuedPlanningItem()],
   });
@@ -347,10 +347,10 @@ test("engine run-once stops on escalated classify output before planning", async
   });
 
   const result = (await runFuture(
-    services.handleInvocation(makeInvocation(["engine", "run-once"])),
+    services.handleInvocation(makeInvocation(["supervisor", "run-once"])),
   )) as AutobotCommandResult;
 
-  assert.equal(result.kind, "queue-status");
+  assert.equal(result.kind, "supervisor-status");
   assert.deepEqual(reads, [
     {
       path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/classify.json",
@@ -373,7 +373,7 @@ test("engine run-once stops on escalated classify output before planning", async
   );
 });
 
-test("engine run-once rejects invalid classify json before planning", async () => {
+test("supervisor run-once rejects invalid classify json before planning", async () => {
   const fixture = makeWorkflowStore({
     items: [makeQueuedPlanningItem()],
   });
@@ -428,10 +428,10 @@ test("engine run-once rejects invalid classify json before planning", async () =
   });
 
   const result = (await runFuture(
-    services.handleInvocation(makeInvocation(["engine", "run-once"])),
+    services.handleInvocation(makeInvocation(["supervisor", "run-once"])),
   )) as AutobotCommandResult;
 
-  assert.equal(result.kind, "queue-status");
+  assert.equal(result.kind, "supervisor-status");
   assert.deepEqual(reads, [
     {
       path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/classify.json",
@@ -454,7 +454,7 @@ test("engine run-once rejects invalid classify json before planning", async () =
   );
 });
 
-test("engine run-once rejects empty required run-plan sections before flowcraft completion", async () => {
+test("supervisor run-once rejects empty required run-plan sections before flowcraft completion", async () => {
   const fixture = makeWorkflowStore({
     items: [makeQueuedPlanningItem()],
   });
@@ -514,10 +514,10 @@ test("engine run-once rejects empty required run-plan sections before flowcraft 
   });
 
   const result = (await runFuture(
-    services.handleInvocation(makeInvocation(["engine", "run-once"])),
+    services.handleInvocation(makeInvocation(["supervisor", "run-once"])),
   )) as AutobotCommandResult;
 
-  assert.equal(result.kind, "queue-status");
+  assert.equal(result.kind, "supervisor-status");
   assert.ok(writes.length >= 4);
   assert.deepEqual(reads, [
     {
@@ -540,7 +540,7 @@ test("engine run-once rejects empty required run-plan sections before flowcraft 
   );
 });
 
-test("engine run-once preserves non-ready run plans without flowcraft completion", async () => {
+test("supervisor run-once preserves non-ready run plans without flowcraft completion", async () => {
   const fixture = makeWorkflowStore({
     items: [makeQueuedPlanningItem()],
   });
@@ -600,10 +600,10 @@ test("engine run-once preserves non-ready run plans without flowcraft completion
   });
 
   const result = (await runFuture(
-    services.handleInvocation(makeInvocation(["engine", "run-once"])),
+    services.handleInvocation(makeInvocation(["supervisor", "run-once"])),
   )) as AutobotCommandResult;
 
-  assert.equal(result.kind, "queue-status");
+  assert.equal(result.kind, "supervisor-status");
   assert.ok(writes.length >= 4);
   assert.deepEqual(reads, [
     {
@@ -627,7 +627,7 @@ test("engine run-once preserves non-ready run plans without flowcraft completion
   );
 });
 
-test("engine run-once records planner failure without flowcraft completion", async () => {
+test("supervisor run-once records planner failure without flowcraft completion", async () => {
   const fixture = makeWorkflowStore({
     items: [makeQueuedPlanningItem()],
   });
@@ -672,10 +672,10 @@ test("engine run-once records planner failure without flowcraft completion", asy
   });
 
   const result = (await runFuture(
-    services.handleInvocation(makeInvocation(["engine", "run-once"])),
+    services.handleInvocation(makeInvocation(["supervisor", "run-once"])),
   )) as AutobotCommandResult;
 
-  assert.equal(result.kind, "queue-status");
+  assert.equal(result.kind, "supervisor-status");
   assert.equal(fixture.executionRecords.length, 0);
   assert.equal(fixture.flowcraftEvents.length, 0);
   assert.ok(
