@@ -124,8 +124,8 @@ function renderStatusSection(
   options?: { color?: boolean },
 ): string {
   const theme = createTextTheme({ color: options?.color === true });
-  const status = input.supervisor ?? input.engine;
-  const statusLabel = input.supervisor !== undefined ? "Supervisor" : "Engine";
+  const status = input.supervisor;
+  const statusLabel = title.startsWith("Supervisor") ? "Supervisor" : "Engine";
   const counts = Object.entries(input.counts)
     .map(([state, count]) => `${state}: ${count}`)
     .join(", ");

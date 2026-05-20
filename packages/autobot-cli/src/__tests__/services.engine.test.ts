@@ -168,9 +168,10 @@ test("supervisor status reports stopped, running, and unhealthy runtime states",
     )) as AutobotCommandResult;
 
     assert.equal(stopped.kind, "supervisor-status");
-    assert.equal(stopped.data.engine.state, "stopped");
+    assert.equal("engine" in stopped.data, false);
+    assert.equal(stopped.data.supervisor.state, "stopped");
     assert.equal(stopped.data.message, "Supervisor is stopped");
-    assert.equal(stopped.data.engine.pid, null);
+    assert.equal(stopped.data.supervisor.pid, null);
 
     await writeRuntimeFiles(root, {
       pid: process.pid,
@@ -189,8 +190,8 @@ test("supervisor status reports stopped, running, and unhealthy runtime states",
     )) as AutobotCommandResult;
 
     assert.equal(running.kind, "supervisor-status");
-    assert.equal(running.data.engine.state, "running");
-    assert.equal(running.data.engine.pid, process.pid);
+    assert.equal(running.data.supervisor.state, "running");
+    assert.equal(running.data.supervisor.pid, process.pid);
     assert.equal(running.data.active_workers.length, 1);
     assert.equal(running.data.active_workers[0]?.worker_id, "worker-1");
 
@@ -211,9 +212,9 @@ test("supervisor status reports stopped, running, and unhealthy runtime states",
     )) as AutobotCommandResult;
 
     assert.equal(unhealthy.kind, "supervisor-status");
-    assert.equal(unhealthy.data.engine.state, "unhealthy");
+    assert.equal(unhealthy.data.supervisor.state, "unhealthy");
     assert.equal(
-      unhealthy.data.engine.health.some(
+      unhealthy.data.supervisor.health.some(
         (check) => check.code === "ENGINE_STALE_LOCK",
       ),
       true,
@@ -317,8 +318,8 @@ test("supervisor start acquires the lock and exits cleanly after stop is request
 
     assert.equal(result.kind, "supervisor-status");
     assert.equal(result.data.action, "start");
-    assert.equal(result.data.engine.state, "stopped");
-    assert.equal(result.data.engine.last_tick_at, "2026-05-15T12:00:00Z");
+    assert.equal(result.data.supervisor.state, "stopped");
+    assert.equal(result.data.supervisor.last_tick_at, "2026-05-15T12:00:00Z");
     assert.equal(sleepCalls > 0, true);
 
     const paths = resolveEngineRuntimePaths({
@@ -367,7 +368,7 @@ test("supervisor start polls for stop requests while waiting between ticks", asy
 
     assert.equal(result.kind, "supervisor-status");
     assert.equal(result.data.action, "start");
-    assert.equal(result.data.engine.state, "stopped");
+    assert.equal(result.data.supervisor.state, "stopped");
     assert.equal(
       sleepDurations[0] !== undefined && sleepDurations[0] < 15_000,
       true,
@@ -415,8 +416,11 @@ test("engine stop requests graceful shutdown and updates the runtime files", asy
 
     assert.equal(result.kind, "supervisor-status");
     assert.equal(result.data.action, "stop");
-    assert.equal(result.data.engine.state, "stopping");
-    assert.equal(result.data.engine.health[0]?.code, "ENGINE_STOP_REQUESTED");
+    assert.equal(result.data.supervisor.state, "stopping");
+    assert.equal(
+      result.data.supervisor.health[0]?.code,
+      "ENGINE_STOP_REQUESTED",
+    );
 
     const paths = resolveEngineRuntimePaths({
       path: root,
@@ -531,7 +535,7 @@ test("engine stop on an already stopped runtime stays stopped", async () => {
 
     assert.equal(result.kind, "supervisor-status");
     assert.equal(result.data.action, "stop");
-    assert.equal(result.data.engine.state, "stopped");
+    assert.equal(result.data.supervisor.state, "stopped");
     assert.equal(result.data.message, "Supervisor is already stopped");
 
     const paths = resolveEngineRuntimePaths({

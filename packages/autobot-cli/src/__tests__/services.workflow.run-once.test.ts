@@ -250,7 +250,7 @@ test("supervisor run-once reconciles stale in-progress items before selecting th
 
   assert.equal(result.kind, "supervisor-status");
   assert.equal(result.command, "supervisor run-once");
-  assert.equal(result.data.engine.last_tick_at, "2026-05-15T12:00:00Z");
+  assert.equal(result.data.supervisor.last_tick_at, "2026-05-15T12:00:00Z");
   assert.deepEqual(result.data.tick?.reconciled_issue_ids, ["REP-203"]);
   assert.deepEqual(result.data.tick?.selected_issue_ids, [
     "REP-200",

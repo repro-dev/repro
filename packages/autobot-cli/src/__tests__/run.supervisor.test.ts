@@ -41,18 +41,6 @@ test("supervisor status renders the preferred supervisor wording", async () => {
               state_dir: ".autobot",
             },
             data: {
-              engine: {
-                state: "running",
-                pid: 4242,
-                started_at: "2026-05-15T10:00:00Z",
-                last_tick_at: "2026-05-15T10:05:00Z",
-                tick_interval_seconds: 15,
-                queue_depth: 1,
-                max_concurrency: 1,
-                active_runs: 0,
-                active_workers: [],
-                health: [],
-              },
               supervisor: {
                 state: "running",
                 pid: 4242,

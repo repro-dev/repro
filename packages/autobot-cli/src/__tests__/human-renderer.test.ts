@@ -71,7 +71,7 @@ test("queue status renderer includes tick metadata when available", () => {
   assertNormalizedEqual(
     renderAutobotQueueStatus(
       {
-        engine: {
+        supervisor: {
           state: "unknown",
           pid: null,
           started_at: null,
@@ -223,42 +223,6 @@ test("supervisor status renderer shows relay-aware worker supervision", () => {
   assertNormalizedEqual(
     renderAutobotSupervisorStatus(
       {
-        engine: {
-          state: "running",
-          pid: 4242,
-          started_at: "2026-05-15T10:00:00Z",
-          last_tick_at: "2026-05-15T10:05:00Z",
-          tick_interval_seconds: 15,
-          queue_depth: 1,
-          max_concurrency: 1,
-          active_runs: 1,
-          active_workers: [
-            {
-              worker_id: "worker-1",
-              issue_id: "REP-1154",
-              run_id: "run-1154",
-              state: "running",
-              pid: 4242,
-              started_at: "2026-05-15T10:00:00Z",
-              last_heartbeat_at: "2026-05-15T10:05:00Z",
-              transport: {
-                source: "relay",
-                workspace_id: "relay-workspace",
-                channel_id: "relay-channel",
-                thread_id: "relay-thread",
-                agent_id: "relay-agent",
-                message_id: "relay-message",
-              },
-            },
-          ],
-          health: [
-            {
-              code: "ENGINE_STOP_REQUESTED",
-              status: "warning",
-              message: "graceful shutdown requested",
-            },
-          ],
-        },
         supervisor: {
           state: "running",
           pid: 4242,

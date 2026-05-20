@@ -67,8 +67,7 @@ export interface EngineTickReport {
 }
 
 export interface EngineStatusData {
-  engine: EngineStatus;
-  supervisor?: EngineStatus;
+  supervisor: EngineStatus;
   counts: Record<ItemState, number>;
   active_workers: WorkerSummary[];
   events?: readonly DomainEvent[];

@@ -1212,18 +1212,6 @@ function createQueueStatus(
                     ? {}
                     : { warnings: options.warnings }),
                   data: {
-                    engine: createEngineStatus(config, counts, {
-                      runtime: options.runtime ?? null,
-                      lastTickAt: options.lastTickAt ?? null,
-                      activeWorkers,
-                      events: options.events,
-                      ...(options.warnings === undefined
-                        ? {}
-                        : {
-                            health: options.warnings.map(warningToHealthCheck),
-                          }),
-                      fallbackState: options.fallbackState ?? "unknown",
-                    }),
                     supervisor: createEngineStatus(config, counts, {
                       runtime: options.runtime ?? null,
                       lastTickAt: options.lastTickAt ?? null,
@@ -1292,7 +1280,6 @@ function createEngineStatusResult(input: {
         kind: input.kind,
         data: {
           ...queueStatus.data,
-          supervisor: queueStatus.data.engine,
           action: input.action,
           message: input.message,
         },
@@ -4796,7 +4783,6 @@ function liftQueueStatusToSupervisorStatus(
     kind: "supervisor-status",
     data: {
       ...result.data,
-      supervisor: result.data.engine,
     },
   };
 }
@@ -5032,20 +5018,20 @@ function handleEngineStart(
                         AutobotCommandResult,
                         { kind: "queue-status" }
                       >;
-                      const engine = queueStatus.data.engine;
+                      const supervisor = queueStatus.data.supervisor;
                       currentRecord = {
                         pid: currentRecord.pid,
                         started_at: currentRecord.started_at,
-                        state: engine.health.some(
+                        state: supervisor.health.some(
                           (check: HealthCheck) => check.status === "error",
                         )
                           ? "unhealthy"
                           : "running",
-                        last_tick_at: engine.last_tick_at,
+                        last_tick_at: supervisor.last_tick_at,
                         stop_requested_at: snapshotBeforeTick.stop_requested_at,
                         health:
                           queueStatus.warnings?.map(warningToHealthCheck) ?? [],
-                        tick_interval_seconds: engine.tick_interval_seconds,
+                        tick_interval_seconds: supervisor.tick_interval_seconds,
                       };
 
                       if (cancelled) {
@@ -5077,7 +5063,7 @@ function handleEngineStart(
 
                               waitForEngineTickDelay(
                                 store.repo,
-                                engine.tick_interval_seconds * 1000,
+                                supervisor.tick_interval_seconds * 1000,
                                 sleep,
                               ).pipe(
                                 fork(releaseAndReject)(() => {
