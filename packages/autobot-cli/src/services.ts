@@ -66,6 +66,7 @@ import {
 import {
   createNoopPlanningSessionRunner,
   runOpenCodePlanningSession,
+  runPlanningPhaseSequence,
   type PlanningSessionArtifactPaths,
   type PlanningSessionResult,
   type PlanningSessionRunner,
@@ -2071,7 +2072,7 @@ function buildPlanningRunPlanArtifact(input: {
   };
 }
 
-function buildPlanningPhaseOutputArtifact(input: {
+export function buildPlanningPhaseOutputArtifact(input: {
   phase: PlanningPhaseName;
   path: string;
   content: string;
@@ -2099,7 +2100,7 @@ function buildPlanningPhaseOutputArtifact(input: {
   };
 }
 
-function readPlanningRunPlanArtifact(input: {
+export function readPlanningRunPlanArtifact(input: {
   path: string;
   reader: ArtifactReader;
 }): FutureInstance<unknown, { content: string | null; error: unknown | null }> {
@@ -2129,7 +2130,7 @@ type PlanningRunPlanAssessment = {
   readiness: PlanningRunPlanReadiness;
 };
 
-function assessPlanningRunPlanContent(
+export function assessPlanningRunPlanContent(
   content: string,
 ): PlanningRunPlanAssessment {
   const lines = content.split(/\r?\n/);
@@ -2235,73 +2236,7 @@ function assessPlanningRunPlanContent(
   };
 }
 
-function assessPlanningRiskAssessmentContent(content: string): {
-  errors: string[];
-  riskLevel: "standard" | "high" | null;
-} {
-  const lines = content.split(/\r?\n/);
-  const getHeadingLine = (heading: string): number =>
-    lines.findIndex((line) => line.trim() === `## ${heading}`);
-  const getSectionBody = (heading: string): string | null => {
-    const headingLine = getHeadingLine(heading);
-
-    if (headingLine === -1) {
-      return null;
-    }
-
-    const nextHeadingLine = lines.findIndex(
-      (line, index) => index > headingLine && line.startsWith("## "),
-    );
-    const endLine = nextHeadingLine === -1 ? lines.length : nextHeadingLine;
-
-    return lines
-      .slice(headingLine + 1, endLine)
-      .join("\n")
-      .trim();
-  };
-  const getFirstContentLine = (heading: string): string | null => {
-    const body = getSectionBody(heading);
-    if (body === null) {
-      return null;
-    }
-
-    const firstContentLine = body
-      .split(/\r?\n/)
-      .find((line) => line.trim().length > 0);
-
-    return firstContentLine?.trim() ?? null;
-  };
-  const requiredHeadings = [
-    "Risk Level",
-    "Risk Signals",
-    "Review Lanes",
-    "Why",
-  ];
-  const missingHeadings = requiredHeadings
-    .filter((heading) => getHeadingLine(heading) === -1)
-    .map((heading) => `missing ## ${heading}`);
-  const emptySectionErrors = requiredHeadings
-    .filter((heading) => {
-      const body = getSectionBody(heading);
-      return body === null || body.length === 0;
-    })
-    .map((heading) => `empty ## ${heading}`);
-  const riskLevelSentinel =
-    (getFirstContentLine("Risk Level") ?? null)?.toLowerCase() ?? null;
-  const riskLevel =
-    riskLevelSentinel === "standard"
-      ? "standard"
-      : riskLevelSentinel === "high"
-      ? "high"
-      : null;
-
-  return {
-    errors: [...missingHeadings, ...emptySectionErrors],
-    riskLevel,
-  };
-}
-
-function buildPlanningBaseArtifactDrafts(input: {
+export function buildPlanningBaseArtifactDrafts(input: {
   repoPath: string;
   item: ItemDetail;
   runId: string;
@@ -2365,7 +2300,7 @@ function buildPlanningBaseArtifactDrafts(input: {
   ];
 }
 
-function buildPlanningPhaseArtifactDrafts(input: {
+export function buildPlanningPhaseArtifactDrafts(input: {
   issueId: string;
   attempt: number;
   phase: PlanningPhaseName;
@@ -2438,7 +2373,7 @@ function buildPlanningArtifactDrafts(input: {
   ];
 }
 
-function buildPlanningPhaseOutputPath(input: {
+export function buildPlanningPhaseOutputPath(input: {
   contextPath: string;
   phase: PlanningPhaseName;
 }): string | null {
@@ -2458,7 +2393,7 @@ function buildPlanningPhaseOutputPath(input: {
   );
 }
 
-function persistPlanningArtifacts(
+export function persistPlanningArtifacts(
   drafts: PlanningArtifactDraft[],
   writer: ArtifactWriter,
   repoPath: string,
@@ -2475,7 +2410,7 @@ function persistPlanningArtifacts(
   ).pipe(map(() => undefined));
 }
 
-function createPlanningArtifactCreatedEvent(input: {
+export function createPlanningArtifactCreatedEvent(input: {
   issueId: string;
   runId: string;
   executionId: string;
@@ -2502,18 +2437,18 @@ function createPlanningArtifactCreatedEvent(input: {
   });
 }
 
-function buildPlanningSessionArtifactPaths(
+export function buildPlanningSessionArtifactPaths(
   drafts: PlanningArtifactDraft[],
   repoPath: string,
 ): PlanningSessionArtifactPaths;
-function buildPlanningSessionArtifactPaths(input: {
+export function buildPlanningSessionArtifactPaths(input: {
   repoPath: string;
   context: string;
   testPlan: string;
   contract: string;
   prompt: string;
 }): PlanningSessionArtifactPaths;
-function buildPlanningSessionArtifactPaths(
+export function buildPlanningSessionArtifactPaths(
   input:
     | PlanningArtifactDraft[]
     | {
@@ -2567,7 +2502,7 @@ function buildPlanningSessionArtifactPaths(
   };
 }
 
-function createPlanningSessionStartedEvent(input: {
+export function createPlanningSessionStartedEvent(input: {
   issueId: string;
   runId: string;
   executionId: string;
@@ -2595,7 +2530,7 @@ function createPlanningSessionStartedEvent(input: {
   });
 }
 
-function createPlanningSessionOutputEvent(input: {
+export function createPlanningSessionOutputEvent(input: {
   issueId: string;
   runId: string;
   executionId: string;
@@ -2621,7 +2556,7 @@ function createPlanningSessionOutputEvent(input: {
   });
 }
 
-function createPlanningSessionFinishedEvent(input: {
+export function createPlanningSessionFinishedEvent(input: {
   issueId: string;
   runId: string;
   executionId: string;
@@ -2647,358 +2582,6 @@ function createPlanningSessionFinishedEvent(input: {
       signal: input.result.signal,
     },
   });
-}
-
-type PlanningPhaseFailure = {
-  state: "awaiting" | "failed" | "escalated";
-  code: string;
-  message: string;
-  occurred_at: string;
-};
-
-type PlanningPhaseSequenceResult = {
-  artifacts: PlanningArtifactDraft[];
-  events: DomainEvent[];
-  finalSessionResult: PlanningSessionResult;
-  planningRunPlanValid: boolean;
-  planningRunPlanReady: boolean;
-  failure: PlanningPhaseFailure | null;
-};
-
-function runPlanningPhaseSequence(input: {
-  store: AutobotStore;
-  item: ItemDetail;
-  runId: string;
-  executionId: string;
-  startedAt: string;
-  artifactWriter: ArtifactWriter;
-  artifactReader: ArtifactReader;
-  planningSessionRunner: PlanningSessionRunner;
-}): FutureInstance<unknown, PlanningPhaseSequenceResult> {
-  const baseArtifacts = buildPlanningBaseArtifactDrafts({
-    repoPath: input.store.repo.path,
-    item: input.item,
-    runId: input.runId,
-    executionId: input.executionId,
-    startedAt: input.startedAt,
-  });
-  const baseEvents = baseArtifacts.map((artifact) =>
-    createPlanningArtifactCreatedEvent({
-      issueId: input.item.issue_id,
-      runId: input.runId,
-      executionId: input.executionId,
-      artifact,
-      occurredAt: input.startedAt,
-    }),
-  );
-  const contextArtifact = baseArtifacts[0]!;
-  const testPlanArtifact = baseArtifacts[1]!;
-  const contextPath = path.join(input.store.repo.path, contextArtifact.path);
-  const phaseOrder = ["plan"] as const satisfies readonly PlanningPhaseName[];
-
-  return persistPlanningArtifacts(
-    baseArtifacts,
-    input.artifactWriter,
-    input.store.repo.path,
-  ).pipe(
-    chain(() =>
-      Future((reject, resolveFuture) => {
-        const artifacts = [...baseArtifacts];
-        const events = [...baseEvents];
-
-        const runPhase = (index: number): void => {
-          if (index >= phaseOrder.length) {
-            resolveFuture({
-              artifacts,
-              events,
-              finalSessionResult: {
-                command: "opencode",
-                args: [],
-                started_at: input.startedAt,
-                finished_at: input.startedAt,
-                exit_code: 0,
-                signal: null,
-                stdout: "",
-                stderr: "",
-              },
-              planningRunPlanValid: true,
-              planningRunPlanReady: true,
-              failure: null,
-            });
-            return;
-          }
-
-          const phase = phaseOrder[index];
-          if (phase === undefined) {
-            reject(
-              new Error("planning phase order was exhausted unexpectedly"),
-            );
-            return;
-          }
-          const phaseDrafts = buildPlanningPhaseArtifactDrafts({
-            issueId: input.item.issue_id,
-            attempt: input.item.attempt,
-            phase,
-          });
-          const contractArtifact = phaseDrafts[0]!;
-          const promptArtifact = phaseDrafts[1]!;
-          const phaseArtifacts = buildPlanningSessionArtifactPaths({
-            repoPath: input.store.repo.path,
-            context: contextArtifact.path,
-            testPlan: testPlanArtifact.path,
-            contract: contractArtifact.path,
-            prompt: promptArtifact.path,
-          });
-          const phaseOutputPath = buildPlanningPhaseOutputPath({
-            contextPath,
-            phase,
-          });
-
-          persistPlanningArtifacts(
-            phaseDrafts,
-            input.artifactWriter,
-            input.store.repo.path,
-          )
-            .pipe(
-              chain(() =>
-                input.planningSessionRunner({
-                  phase,
-                  repo: input.store.repo,
-                  issueId: input.item.issue_id,
-                  attempt: input.item.attempt,
-                  runId: input.runId,
-                  executionId: input.executionId,
-                  artifactPaths: phaseArtifacts,
-                }),
-              ),
-            )
-            .pipe(
-              fork(reject)((planningSessionResult) => {
-                const startedEvent = createPlanningSessionStartedEvent({
-                  issueId: input.item.issue_id,
-                  runId: input.runId,
-                  executionId: input.executionId,
-                  command: planningSessionResult.command,
-                  args: planningSessionResult.args,
-                  artifactPaths: phaseArtifacts,
-                  occurredAt: planningSessionResult.started_at,
-                });
-                const outputEvents = [
-                  planningSessionResult.stdout.length > 0
-                    ? createPlanningSessionOutputEvent({
-                        issueId: input.item.issue_id,
-                        runId: input.runId,
-                        executionId: input.executionId,
-                        stream: "stdout",
-                        output: planningSessionResult.stdout,
-                        occurredAt: planningSessionResult.finished_at,
-                      })
-                    : null,
-                  planningSessionResult.stderr.length > 0
-                    ? createPlanningSessionOutputEvent({
-                        issueId: input.item.issue_id,
-                        runId: input.runId,
-                        executionId: input.executionId,
-                        stream: "stderr",
-                        output: planningSessionResult.stderr,
-                        occurredAt: planningSessionResult.finished_at,
-                      })
-                    : null,
-                ].filter((event): event is DomainEvent => event !== null);
-                const finishedEvent = createPlanningSessionFinishedEvent({
-                  issueId: input.item.issue_id,
-                  runId: input.runId,
-                  executionId: input.executionId,
-                  result: planningSessionResult,
-                });
-
-                events.push(startedEvent, ...outputEvents, finishedEvent);
-
-                if (
-                  planningSessionResult.exit_code !== 0 ||
-                  planningSessionResult.signal !== null
-                ) {
-                  resolveFuture({
-                    artifacts,
-                    events,
-                    finalSessionResult: planningSessionResult,
-                    planningRunPlanValid: false,
-                    planningRunPlanReady: false,
-                    failure: {
-                      state: "failed",
-                      code: "AUTOBOT-PLANNER-SESSION-FAILED",
-                      message: `planning session exited with code ${String(
-                        planningSessionResult.exit_code,
-                      )}`,
-                      occurred_at: planningSessionResult.finished_at,
-                    },
-                  });
-                  return;
-                }
-
-                if (phaseOutputPath === null) {
-                  runPhase(index + 1);
-                  return;
-                }
-
-                const outputPath = phaseOutputPath;
-
-                readPlanningRunPlanArtifact({
-                  path: outputPath,
-                  reader: input.artifactReader,
-                }).pipe(
-                  fork(reject)((outputRead) => {
-                    if (phase === "plan") {
-                      const assessment =
-                        outputRead.content !== null
-                          ? assessPlanningRunPlanContent(outputRead.content)
-                          : {
-                              errors: ["missing run-plan.md"],
-                              readiness: null,
-                            };
-
-                      if (
-                        outputRead.error !== null ||
-                        outputRead.content === null ||
-                        assessment.errors.length > 0 ||
-                        assessment.readiness === null ||
-                        assessment.readiness !== "ready_to_proceed"
-                      ) {
-                        resolveFuture({
-                          artifacts,
-                          events,
-                          finalSessionResult: planningSessionResult,
-                          planningRunPlanValid: false,
-                          planningRunPlanReady: false,
-                          failure: {
-                            state:
-                              assessment.readiness === "not_ready" ||
-                              assessment.readiness === "needs_research"
-                                ? "awaiting"
-                                : "failed",
-                            code:
-                              outputRead.error !== null
-                                ? "AUTOBOT-PLANNER-RUN-PLAN-READ-FAILED"
-                                : assessment.errors.length > 0
-                                ? "AUTOBOT-PLANNER-RUN-PLAN-INVALID"
-                                : "AUTOBOT-PLANNER-RUN-PLAN-NOT-READY",
-                            message:
-                              outputRead.error !== null
-                                ? `planning session could not read run-plan.md: ${String(
-                                    outputRead.error,
-                                  )}`
-                                : assessment.errors.length > 0
-                                ? `planning session produced invalid run-plan.md: ${assessment.errors.join(
-                                    ", ",
-                                  )}`
-                                : "planning session produced a non-ready run-plan.md; route to research-refine before implementation",
-                            occurred_at: planningSessionResult.finished_at,
-                          },
-                        });
-                        return;
-                      }
-
-                      const runPlanArtifact = buildPlanningPhaseOutputArtifact({
-                        phase,
-                        path: outputPath,
-                        content: outputRead.content,
-                      });
-                      if (runPlanArtifact !== null) {
-                        artifacts.push(runPlanArtifact);
-                        events.push(
-                          createPlanningArtifactCreatedEvent({
-                            issueId: input.item.issue_id,
-                            runId: input.runId,
-                            executionId: input.executionId,
-                            artifact: runPlanArtifact,
-                            occurredAt: planningSessionResult.finished_at,
-                          }),
-                        );
-                      }
-
-                      runPhase(index + 1);
-                      return;
-                    }
-
-                    if (phase === "risk-assess") {
-                      const assessment =
-                        outputRead.content !== null
-                          ? assessPlanningRiskAssessmentContent(
-                              outputRead.content,
-                            )
-                          : {
-                              errors: ["missing risk-assessment.md"],
-                              riskLevel: null,
-                            };
-
-                      if (
-                        outputRead.error !== null ||
-                        outputRead.content === null ||
-                        assessment.errors.length > 0 ||
-                        assessment.riskLevel === null
-                      ) {
-                        resolveFuture({
-                          artifacts,
-                          events,
-                          finalSessionResult: planningSessionResult,
-                          planningRunPlanValid: true,
-                          planningRunPlanReady: true,
-                          failure: {
-                            state: "failed",
-                            code: "AUTOBOT-PLANNER-RISK-INVALID",
-                            message:
-                              outputRead.error !== null
-                                ? `planning session could not read risk-assessment.md: ${String(
-                                    outputRead.error,
-                                  )}`
-                                : `planning session produced invalid risk-assessment.md: ${assessment.errors.join(
-                                    ", ",
-                                  )}`,
-                            occurred_at: planningSessionResult.finished_at,
-                          },
-                        });
-                        return;
-                      }
-
-                      const riskArtifact = buildPlanningPhaseOutputArtifact({
-                        phase,
-                        path: outputPath,
-                        content: outputRead.content,
-                      });
-                      if (riskArtifact !== null) {
-                        artifacts.push(riskArtifact);
-                        events.push(
-                          createPlanningArtifactCreatedEvent({
-                            issueId: input.item.issue_id,
-                            runId: input.runId,
-                            executionId: input.executionId,
-                            artifact: riskArtifact,
-                            occurredAt: planningSessionResult.finished_at,
-                          }),
-                        );
-                      }
-
-                      resolveFuture({
-                        artifacts,
-                        events,
-                        finalSessionResult: planningSessionResult,
-                        planningRunPlanValid: true,
-                        planningRunPlanReady: true,
-                        failure: null,
-                      });
-                    }
-                  }),
-                );
-              }),
-            );
-        };
-
-        runPhase(0);
-
-        return () => undefined;
-      }),
-    ),
-  );
 }
 
 function createMonotonicLaterTimestamp(timestamp: string): string {

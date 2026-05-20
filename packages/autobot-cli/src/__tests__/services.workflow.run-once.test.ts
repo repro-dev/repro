@@ -391,7 +391,7 @@ test("supervisor run-once hydrates Linear metadata before writing planning artif
     branch: "autobot/REP-400",
     queued_at: "2026-05-15T09:00:00Z",
     started_at: null,
-    updated_at: "2026-05-15T12:00:00.001Z",
+    updated_at: "2026-05-15T12:00:02.001Z",
     last_event: "workflow.phase.completed",
     last_error: null,
     recovery_commands: [],

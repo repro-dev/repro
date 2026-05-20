@@ -224,13 +224,13 @@ test("supervisor run-once passes durable planning artifact paths into opencode",
   assert.equal(fixture.executionRecords.length, 1);
   assert.equal(
     fixture.executionRecords[0]?.finished_at,
-    "2026-05-15T12:00:00.001Z",
+    "2026-05-15T12:00:02.001Z",
   );
   assert.equal(fixture.flowcraftEvents.length > 0, true);
   assert.equal(fixture.itemUpserts.at(-1)?.state, "completed");
   assert.equal(
     fixture.itemUpserts.at(-1)?.updated_at,
-    "2026-05-15T12:00:00.001Z",
+    "2026-05-15T12:00:02.001Z",
   );
 });
 
