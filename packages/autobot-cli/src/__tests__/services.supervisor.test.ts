@@ -100,6 +100,17 @@ test("supervisor status and logs use supervisor kinds while engine remains suppo
 
     assert.equal(runOnce.kind, "supervisor-status");
     assert.equal(runOnce.data.supervisor?.state, "unknown");
+    assert.match(
+      runOnce.data.config.find((entry) => entry.key === "engine.auto-discover")
+        ?.description ?? "",
+      /supervisor ticks/i,
+    );
+    assert.doesNotMatch(
+      runOnce.data.config.find(
+        (entry) => entry.key === "engine.max-concurrency",
+      )?.description ?? "",
+      /local engine/i,
+    );
 
     const legacy = (await runFuture(
       services.handleInvocation({

@@ -13,8 +13,8 @@ This document summarizes the current `autobot-next` intent from the repo docs an
 - `tmp/context-REP-1109.md` — shift from broad `running` lifecycle to first-class `preparing`.
 - `tmp/context-REP-1110.md` — repo-scoped config surface and `.autobot/` state directory expectation.
 - `tmp/context-autobot-status-events.md` — status history and event visibility goals.
-- `tmp/context-autobot-next-workers.md` — engine tick should schedule detached side-effect workers instead of blocking inline.
-- `tmp/debug-autobot-next-logging.md` — engine logs must report meaningful loop and processing activity.
+- `tmp/context-autobot-next-workers.md` — supervisor tick should schedule detached side-effect workers instead of blocking inline.
+- `tmp/debug-autobot-next-logging.md` — supervisor logs must report meaningful loop and processing activity.
 - `tmp/context-autonomous-opencode-orchestration.md` — broader monitor/runner principles: deterministic infrastructure, per-issue workspace isolation, durable artifacts, operator visibility, Linear as source of truth, GitHub/CI as validation truth.
 
 ## Current High-Level Goals
@@ -22,11 +22,11 @@ This document summarizes the current `autobot-next` intent from the repo docs an
 - Provide a repo-owned automation queue for Linear work items that can be operated locally from the main checkout.
 - Separate public queue language from internal claim/run implementation details.
 - Maintain durable local state under `.autobot/`, including queued items, active runs, retry metadata, config, logs, and event history.
-- Let a standalone engine claim queued work, prepare isolated workspaces, run delivery phases, reconcile outcomes, retry failed work, and complete or cancel terminal work.
+- Let a standalone supervisor claim queued work, prepare isolated workspaces, run delivery phases, reconcile outcomes, retry failed work, and complete or cancel terminal work.
 - Make lifecycle boundaries explicit so operators and automation can see where work actually is: `queued`, `claimed`, `preparing`, `planning`, `developing`, `testing`, `reviewing`, `reconciling`, `awaiting`, `failed`, `completed`, and `canceled`.
-- Keep transition decisions deterministic and auditable. The current engine README frames decisions as pure: input task plus observation plus config yields current state, next state, reason, and typed effects.
+- Keep transition decisions deterministic and auditable. The current supervisor README frames decisions as pure: input task plus observation plus config yields current state, next state, reason, and typed effects.
 - Keep side effects typed and observable. MVP effect requests include `claim`, `prepare-worktree`, `process-work`, `plan`, `develop`, `test`, `review`, `reconcile`, `recover`, and `noop`; future release/publish effects can be added after release semantics are defined. Effect outcomes should record success, failure, or skip.
-- Support parallel-first engine operation through queue depth and max concurrency controls, without implying only one selected work item exists.
+- Support parallel-first supervisor operation through queue depth and max concurrency controls, without implying only one selected work item exists.
 - Surface useful status and history to humans, including queueing, preparing, each delivery phase, processing activity, and failures.
 - Preserve operator controls for discovery, queue management, config, logs, retry, cancel, and reconcile. Manual release is post-MVP.
 
@@ -44,20 +44,20 @@ This document summarizes the current `autobot-next` intent from the repo docs an
 - Public item lifecycle: queue-oriented language for operators.
 - Internal lifecycle: explicit phase names, not broad `running` buckets.
 - Durable state root: `.autobot/` in the repo/workspace.
-- Required state categories: queue items, claims, active run attempts, per-phase events, retry metadata, terminal state, config, engine logs, and per-run artifacts.
+- Required state categories: queue items, claims, active run attempts, per-phase events, retry metadata, terminal state, config, supervisor logs, and per-run artifacts.
 
-### Engine Model
+### Supervisor Model
 
-- The engine is a long-running local daemon or foreground loop.
+- The supervisor is a long-running local daemon or foreground loop.
 - Each tick observes current durable state, selects eligible work deterministically, emits side-effect requests, and records outcomes.
 - The current desired direction separates pure transition policy from effect execution.
-- Worker delegation should keep the engine tick non-blocking. Long-running worktree preparation or delivery should run in detached workers or distributed jobs, while the engine continues scheduling and observing.
+- Worker delegation should keep the supervisor tick non-blocking. Long-running worktree preparation or delivery should run in detached workers or distributed jobs, while the supervisor continues scheduling and observing.
 - Recovery is first-class rather than hidden in generic failure handling.
 
 ### Event And Observability Model
 
 - `autobot-next status` should not only show final summaries; it should show queue, prepare, and delivery-phase history.
-- Engine logs should show actual processing activity, failures, and idle/scanning states, not only heartbeat/liveness.
+- Supervisor logs should show actual processing activity, failures, and idle/scanning states, not only heartbeat/liveness.
 - Event records should be durable and mergeable across queue lifecycle and per-run phase execution.
 
 ## Current User-Facing CLI Surface
@@ -70,7 +70,7 @@ Public queue interface from `docs/autobot/cli-design.md`:
 - `autobot-next remove <issue> [-f] [--json] [--dry-run]` removes a queued item and restores Linear assignment/state where possible.
 - `autobot-next list [--json]` shows non-terminal queued items.
 - `autobot-next status [issue] [--json]` shows aggregate queue state or per-item detail/history.
-- `autobot-next logs [issue] [-t] [--json]` inspects engine or issue logs.
+- `autobot-next logs [issue] [-t] [--json]` inspects supervisor or issue logs.
 - `autobot-next discover [--limit N] [--project name] [-q] [--json]` discovers candidate work and prints metadata by default, or identifiers with `-q`.
 - `autobot-next config get <key> [--json]` reads a repo-scoped setting.
 - `autobot-next config set <key> <value> [--json]` persists a repo-scoped setting.
@@ -182,7 +182,7 @@ Phase subflows:
 
 Autobot should own scheduling separately from FlowCraft execution.
 
-- The engine tick reads config and store state.
+- The supervisor tick reads config and store state.
 - It discovers/queues candidates when `engine.auto-discover` is enabled.
 - It selects runnable items using deterministic ordering: priority/policy rank, lifecycle rank, issue ID, queue position, and lease age.
 - It starts new FlowCraft executions until `engine.max-concurrency` is reached.
@@ -223,20 +223,20 @@ Core commands:
 - `autobot-next add <issue> [--json] [--dry-run]` — validate issue, create item, emit `item.queued`.
 - `autobot-next remove <issue> [-f] [--json] [--dry-run]` — remove queued item or request cancellation for in-progress item.
 - `autobot-next list [--state state] [--json]` — show non-terminal items by default.
-- `autobot-next status [issue] [--json] [--events]` — show aggregate queue/engine state or per-item timeline.
-- `autobot-next logs [issue|--engine] [-t] [--json]` — tail engine, worker, or issue logs.
+- `autobot-next status [issue] [--json] [--events]` — show aggregate queue/supervisor state or per-item timeline.
+- `autobot-next logs [issue|--engine] [-t] [--json]` — tail supervisor, worker, or issue logs.
 - `autobot-next discover [--limit N] [--project name] [-q] [--json]` — show candidate issue metadata; `-q` prints IDs only.
 - `autobot-next config list|get|set|unset ... [--json]` — manage repo-scoped config.
-- `autobot-next engine start|stop|status|run-once [--foreground] [--json]` — manage local daemon lifecycle. `restart` is post-MVP.
+- `autobot-next supervisor start|stop|status|run-once [--foreground] [--json]` — manage local daemon lifecycle. Legacy `engine` spelling remains a compatibility path; `restart` is post-MVP.
 - `autobot-next retry <issue> [--reason text] [--json]` — create a new attempt from the recorded failed phase.
 - `autobot-next cancel <issue> [--reason text] [--json]` — cancel in-progress or queued work.
 - `autobot-next reconcile [issue|--all] [--json]` — inspect and repair mismatches between store, workers, git, Linear, and GitHub.
 
 Developer/debug commands:
 
-- `autobot-next engine debug workflow list [--json]` — list available FlowCraft blueprints and versions.
-- `autobot-next engine debug workflow validate [workflow] [--json]` — run FlowCraft analysis/linting.
-- `autobot-next engine debug workflow diagram <workflow>` — print Mermaid graph.
+- `autobot-next supervisor debug workflow list [--json]` — list available FlowCraft blueprints and versions. Legacy `engine` spelling remains a compatibility path.
+- `autobot-next supervisor debug workflow validate [workflow] [--json]` — run FlowCraft analysis/linting. Legacy `engine` spelling remains a compatibility path.
+- `autobot-next supervisor debug workflow diagram <workflow>` — print Mermaid graph. Legacy `engine` spelling remains a compatibility path.
 - `autobot-next inspect <run-id> [--json]` — domain wrapper around FlowCraft history inspection.
 
 Deferred commands:
@@ -247,7 +247,7 @@ Deferred commands:
 JSON response conventions:
 
 - All JSON responses include `schema_version: 1`.
-- Status-oriented responses include `config`, `engine`, `items`, and `events` where applicable.
+- Status-oriented responses include `config`, `supervisor`, `items`, and `events` where applicable.
 - Mutating responses include `dry_run`, `changed`, `item`, and `events`.
 - Error responses include what failed, likely cause, and concrete recovery commands.
 
@@ -255,7 +255,7 @@ JSON response conventions:
 
 Default status should answer:
 
-- Is the engine running?
+- Is the supervisor running?
 - How many items are in each public state?
 - What is each in-progress item doing right now?
 - What worker owns it and when was it last seen?
@@ -351,24 +351,24 @@ Exit criteria:
 
 - CLI can queue items, show config, list/status items, display event timelines, and validate workflows without starting the daemon.
 
-### Phase 4: Local Engine Scheduler
+### Phase 4: Local Supervisor Scheduler
 
 Goals:
 
-- Add a local engine that starts FlowCraft executions from queued items.
+- Add a local supervisor that starts FlowCraft executions from queued items.
 
 Tasks:
 
-- Implement `autobot-next engine run-once` as the first scheduling primitive.
+- Implement `autobot-next supervisor run-once` as the first scheduling primitive.
 - Implement deterministic selection and max concurrency enforcement.
 - Implement worker/lease rows and heartbeat updates.
 - Implement `start`, `stop`, `status`, `run-once`, and foreground mode. `restart` is deferred from MVP.
-- Emit engine events for scanning, idle, selected, started, awaiting, failed, and reconciled.
+- Emit supervisor events for scanning, idle, selected, started, awaiting, failed, and reconciled.
 - Add cancellation handling through `AbortController` and process signals.
 
 Exit criteria:
 
-- The engine can process mocked items concurrently up to config limits, return to idle, and report useful logs/status.
+- The supervisor can process mocked items concurrently up to config limits, return to idle, and report useful logs/status.
 
 ### Phase 5: Real Side-Effect Adapters
 
@@ -417,7 +417,7 @@ Tasks:
 
 - Persist raw FlowCraft events and domain projections.
 - Add `autobot-next inspect <run-id>` using FlowCraft history plus domain context.
-- Add `autobot-next logs -t` for engine and issue logs.
+- Add `autobot-next logs -t` for supervisor and issue logs.
 - Add timeline compaction for long runs.
 - Add Mermaid graph output for current workflow versions.
 - Optionally add OpenTelemetry middleware for node spans.

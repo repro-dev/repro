@@ -68,7 +68,7 @@ Rules:
 - `2`: usage error, invalid flags, invalid argument shape.
 - `3`: external dependency failure, such as Linear, git, GitHub, or OpenCode unavailable.
 - `4`: state store failure, such as locked/corrupt/unmigrated SQLite state.
-- `5`: engine/worker lifecycle failure.
+- `5`: supervisor/worker lifecycle failure.
 - `10`: command completed but found unhealthy status, used by health/check commands.
 
 ## JSON Envelope
@@ -130,14 +130,14 @@ Status-oriented responses include:
 
 The CLI uses lifecycle phases as public item states in human output and JSON summaries:
 
-- `queued`: item is waiting for engine scheduling.
-- `claimed`: item has been selected and reserved by an engine/run.
+- `queued`: item is waiting for supervisor scheduling.
+- `claimed`: item has been selected and reserved by a supervisor/run.
 - `preparing`: workspace and run artifacts are being prepared.
 - `planning`: planning/context/test-plan work is in progress.
 - `developing`: implementation work is in progress.
 - `testing`: verification or test-agent work is in progress.
 - `reviewing`: review or security-review work is in progress.
-- `reconciling`: engine is comparing durable state against workers, git, Linear, GitHub, and FlowCraft history.
+- `reconciling`: supervisor is comparing durable state against workers, git, Linear, GitHub, and FlowCraft history.
 - `awaiting`: item is paused for a future human/external gate. This state is reserved, but human-gate resume behavior is deferred from MVP.
 - `failed`: item stopped on an unrecovered failure.
 - `completed`: item finished successfully for MVP purposes.
@@ -191,7 +191,7 @@ Human output:
 ```text
 Queued REP-123: Short issue title
 State: queued
-Next: engine will pick this up when capacity is available
+Next: supervisor will pick this up when capacity is available
 ```
 
 JSON `data` shape:
@@ -284,11 +284,11 @@ JSON `data` shape:
 autobot-next status [issue] [--json] [--events] [--all] [--verbose]
 ```
 
-Without an issue, shows engine and queue summary. With an issue, shows per-item detail.
+Without an issue, shows supervisor and queue summary. With an issue, shows per-item detail.
 
 Aggregate human output must answer:
 
-- Is the engine running?
+- Is the supervisor running?
 - How many items are in each public state?
 - What in-progress items are doing now?
 - Whether there are stale workers, blocked waits, or failed items.
@@ -298,7 +298,7 @@ Aggregate JSON `data` shape:
 
 ```json
 {
-  "engine": {
+  "supervisor": {
     "state": "running",
     "pid": 12345,
     "started_at": "2026-05-13T12:00:00.000Z",
@@ -362,11 +362,11 @@ Per-item JSON `data` shape:
 autobot-next logs [issue|--engine] [-t|--tail] [--json] [--lines <n>] [--phase <phase>]
 ```
 
-Shows engine or issue logs.
+Shows supervisor or issue logs.
 
 Semantics:
 
-- Default with no issue is engine logs.
+- Default with no issue is supervisor logs.
 - `autobot-next logs REP-123` shows issue/run logs, newest attempt by default.
 - `--phase` filters phase logs when available.
 - `-t` follows logs until interrupted.
@@ -693,7 +693,7 @@ Defer from MVP unless the workflow prototype needs them:
 
 - `autobot-next release`
 - `autobot-next resume`
-- `autobot-next engine restart`
+- `autobot-next supervisor restart` (legacy `autobot-next engine ...` compatibility path)
 - hidden `autobot-next internal ...` commands.
 
 ## Acceptance Criteria For Implementation
@@ -701,9 +701,9 @@ Defer from MVP unless the workflow prototype needs them:
 - Every command has human and JSON output tests.
 - Every JSON response includes `schema_version: 1`, `ok`, `command`, and either `data` or `error`.
 - Every mutating command has a `--dry-run` test where meaningful.
-- `autobot-next status` aggregate shows engine state, counts, in-progress items, warnings, and next action.
+- `autobot-next status` aggregate shows supervisor state, counts, in-progress items, warnings, and next action.
 - `autobot-next status <issue>` shows event history with separate queue, prepare, phase, failure, retry, and terminal rows.
 - `autobot-next config list` documents all known keys, defaults, effective values, sources, and descriptions.
-- `autobot-next engine run-once --dry-run` explains what would be selected without starting workers.
+- `autobot-next supervisor run-once --dry-run` explains what would be selected without starting workers (legacy `autobot-next engine ...` compatibility path).
 - Recovery command errors include actionable recovery commands.
 - Default output never exposes hidden/internal lifecycle commands as the preferred path.

@@ -364,7 +364,7 @@ const configDefinitions: readonly ConfigDefinition[] = [
     default_value: false,
     type: "boolean",
     description:
-      "Whether engine ticks may discover and queue candidate work automatically.",
+      "Whether supervisor ticks may discover and queue candidate work automatically.",
     requires_engine_restart: false,
     bounds: null,
     allowed_values: [true, false],
@@ -383,7 +383,8 @@ const configDefinitions: readonly ConfigDefinition[] = [
     key: "engine.max-concurrency",
     default_value: 1,
     type: "integer",
-    description: "Maximum active runs the local engine may supervise at once.",
+    description:
+      "Maximum active runs the local supervisor may supervise at once.",
     requires_engine_restart: false,
     bounds: { min: 1, max: 16 },
     allowed_values: null,
@@ -392,7 +393,7 @@ const configDefinitions: readonly ConfigDefinition[] = [
     key: "engine.tick-interval-seconds",
     default_value: 15,
     type: "integer",
-    description: "Delay between daemon scheduler ticks.",
+    description: "Delay between daemon supervisor ticks.",
     requires_engine_restart: false,
     bounds: { min: 1, max: 3600 },
     allowed_values: null,
