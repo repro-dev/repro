@@ -149,7 +149,7 @@ async function writeRuntimeFiles(
   await rm(paths.stop_path, { force: true });
 }
 
-test("engine status reports stopped, running, and unhealthy runtime states", async () => {
+test("supervisor status reports stopped, running, and unhealthy runtime states", async () => {
   const { root, fixture } = await createEngineWorktreeFixture();
   const services = createAutobotServices({
     artifactWriter: noOpArtifactWriter,
@@ -162,15 +162,16 @@ test("engine status reports stopped, running, and unhealthy runtime states", asy
   try {
     const stopped = (await runFuture(
       services.handleInvocation({
-        ...makeInvocation(["engine", "status"]),
+        ...makeInvocation(["supervisor", "status"]),
         options: makeOptions({ repo: root }),
       }),
     )) as AutobotCommandResult;
 
-    assert.equal(stopped.kind, "engine-status");
-    assert.equal(stopped.data.engine.state, "stopped");
-    assert.equal(stopped.data.message, "Engine is stopped");
-    assert.equal(stopped.data.engine.pid, null);
+    assert.equal(stopped.kind, "supervisor-status");
+    assert.equal("engine" in stopped.data, false);
+    assert.equal(stopped.data.supervisor.state, "stopped");
+    assert.equal(stopped.data.message, "Supervisor is stopped");
+    assert.equal(stopped.data.supervisor.pid, null);
 
     await writeRuntimeFiles(root, {
       pid: process.pid,
@@ -183,14 +184,14 @@ test("engine status reports stopped, running, and unhealthy runtime states", asy
 
     const running = (await runFuture(
       services.handleInvocation({
-        ...makeInvocation(["engine", "status"]),
+        ...makeInvocation(["supervisor", "status"]),
         options: makeOptions({ repo: root }),
       }),
     )) as AutobotCommandResult;
 
-    assert.equal(running.kind, "engine-status");
-    assert.equal(running.data.engine.state, "running");
-    assert.equal(running.data.engine.pid, process.pid);
+    assert.equal(running.kind, "supervisor-status");
+    assert.equal(running.data.supervisor.state, "running");
+    assert.equal(running.data.supervisor.pid, process.pid);
     assert.equal(running.data.active_workers.length, 1);
     assert.equal(running.data.active_workers[0]?.worker_id, "worker-1");
 
@@ -205,15 +206,15 @@ test("engine status reports stopped, running, and unhealthy runtime states", asy
 
     const unhealthy = (await runFuture(
       services.handleInvocation({
-        ...makeInvocation(["engine", "status"]),
+        ...makeInvocation(["supervisor", "status"]),
         options: makeOptions({ repo: root }),
       }),
     )) as AutobotCommandResult;
 
-    assert.equal(unhealthy.kind, "engine-status");
-    assert.equal(unhealthy.data.engine.state, "unhealthy");
+    assert.equal(unhealthy.kind, "supervisor-status");
+    assert.equal(unhealthy.data.supervisor.state, "unhealthy");
     assert.equal(
-      unhealthy.data.engine.health.some(
+      unhealthy.data.supervisor.health.some(
         (check) => check.code === "ENGINE_STALE_LOCK",
       ),
       true,
@@ -224,7 +225,7 @@ test("engine status reports stopped, running, and unhealthy runtime states", asy
   }
 });
 
-test("engine status uses store-owned worker transport without requerying runs", async () => {
+test("supervisor status uses store-owned worker transport without requerying runs", async () => {
   const { root, fixture } = await createEngineWorktreeFixture();
   const services = createAutobotServices({
     artifactWriter: noOpArtifactWriter,
@@ -236,7 +237,7 @@ test("engine status uses store-owned worker transport without requerying runs", 
 
   fixture.store.runs.get = (() => {
     throw new Error(
-      "engine status should not requery runs for worker transport",
+      "supervisor status should not requery runs for worker transport",
     );
   }) as typeof fixture.store.runs.get;
 
@@ -264,11 +265,11 @@ test("engine status uses store-owned worker transport without requerying runs", 
   try {
     await runFuture(
       services.handleInvocation({
-        ...makeInvocation(["engine", "status"]),
+        ...makeInvocation(["supervisor", "status"]),
         options: makeOptions({ repo: root }),
       }),
     ).then((result) => {
-      assert.equal(result.kind, "engine-status");
+      assert.equal(result.kind, "supervisor-status");
       assert.equal(result.data.active_workers[0]?.transport?.source, "relay");
       assert.equal(
         result.data.active_workers[0]?.transport?.channel_id,
@@ -281,7 +282,7 @@ test("engine status uses store-owned worker transport without requerying runs", 
   }
 });
 
-test("engine start acquires the lock and exits cleanly after stop is requested", async () => {
+test("supervisor start acquires the lock and exits cleanly after stop is requested", async () => {
   const { root, fixture } = await createEngineWorktreeFixture();
   let sleepCalls = 0;
   const services = createAutobotServices({
@@ -310,15 +311,15 @@ test("engine start acquires the lock and exits cleanly after stop is requested",
   try {
     const result = (await runFuture(
       services.handleInvocation({
-        ...makeInvocation(["engine", "start"]),
+        ...makeInvocation(["supervisor", "start"]),
         options: makeOptions({ repo: root }),
       }),
     )) as AutobotCommandResult;
 
-    assert.equal(result.kind, "engine-status");
+    assert.equal(result.kind, "supervisor-status");
     assert.equal(result.data.action, "start");
-    assert.equal(result.data.engine.state, "stopped");
-    assert.equal(result.data.engine.last_tick_at, "2026-05-15T12:00:00Z");
+    assert.equal(result.data.supervisor.state, "stopped");
+    assert.equal(result.data.supervisor.last_tick_at, "2026-05-15T12:00:00Z");
     assert.equal(sleepCalls > 0, true);
 
     const paths = resolveEngineRuntimePaths({
@@ -331,7 +332,7 @@ test("engine start acquires the lock and exits cleanly after stop is requested",
   }
 });
 
-test("engine start polls for stop requests while waiting between ticks", async () => {
+test("supervisor start polls for stop requests while waiting between ticks", async () => {
   const { root, fixture } = await createEngineWorktreeFixture();
   const sleepDurations: number[] = [];
   const services = createAutobotServices({
@@ -360,14 +361,14 @@ test("engine start polls for stop requests while waiting between ticks", async (
   try {
     const result = (await runFuture(
       services.handleInvocation({
-        ...makeInvocation(["engine", "start"]),
+        ...makeInvocation(["supervisor", "start"]),
         options: makeOptions({ repo: root }),
       }),
     )) as AutobotCommandResult;
 
-    assert.equal(result.kind, "engine-status");
+    assert.equal(result.kind, "supervisor-status");
     assert.equal(result.data.action, "start");
-    assert.equal(result.data.engine.state, "stopped");
+    assert.equal(result.data.supervisor.state, "stopped");
     assert.equal(
       sleepDurations[0] !== undefined && sleepDurations[0] < 15_000,
       true,
@@ -408,15 +409,18 @@ test("engine stop requests graceful shutdown and updates the runtime files", asy
 
     const result = (await runFuture(
       services.handleInvocation({
-        ...makeInvocation(["engine", "stop"]),
+        ...makeInvocation(["supervisor", "stop"]),
         options: makeOptions({ repo: root }),
       }),
     )) as AutobotCommandResult;
 
-    assert.equal(result.kind, "engine-status");
+    assert.equal(result.kind, "supervisor-status");
     assert.equal(result.data.action, "stop");
-    assert.equal(result.data.engine.state, "stopping");
-    assert.equal(result.data.engine.health[0]?.code, "ENGINE_STOP_REQUESTED");
+    assert.equal(result.data.supervisor.state, "stopping");
+    assert.equal(
+      result.data.supervisor.health[0]?.code,
+      "ENGINE_STOP_REQUESTED",
+    );
 
     const paths = resolveEngineRuntimePaths({
       path: root,
@@ -435,7 +439,7 @@ test("engine stop requests graceful shutdown and updates the runtime files", asy
   }
 });
 
-test("engine start refuses to replace an active process lock", async () => {
+test("supervisor start refuses to replace an active process lock", async () => {
   const { root, fixture } = await createEngineWorktreeFixture();
   const services = createAutobotServices({
     artifactWriter: noOpArtifactWriter,
@@ -460,7 +464,7 @@ test("engine start refuses to replace an active process lock", async () => {
 
     const error = (await runFuture(
       services.handleInvocation({
-        ...makeInvocation(["engine", "start"]),
+        ...makeInvocation(["supervisor", "start"]),
         options: makeOptions({ repo: root }),
       }),
     ).catch((caught) => caught)) as Error & { code?: string };
@@ -524,15 +528,15 @@ test("engine stop on an already stopped runtime stays stopped", async () => {
 
     const result = (await runFuture(
       services.handleInvocation({
-        ...makeInvocation(["engine", "stop"]),
+        ...makeInvocation(["supervisor", "stop"]),
         options: makeOptions({ repo: root }),
       }),
     )) as AutobotCommandResult;
 
-    assert.equal(result.kind, "engine-status");
+    assert.equal(result.kind, "supervisor-status");
     assert.equal(result.data.action, "stop");
-    assert.equal(result.data.engine.state, "stopped");
-    assert.equal(result.data.message, "Engine is already stopped");
+    assert.equal(result.data.supervisor.state, "stopped");
+    assert.equal(result.data.message, "Supervisor is already stopped");
 
     const paths = resolveEngineRuntimePaths({
       path: root,
@@ -551,7 +555,7 @@ test("engine stop on an already stopped runtime stays stopped", async () => {
   }
 });
 
-test("engine status excludes exited workers", async () => {
+test("supervisor status excludes exited workers", async () => {
   const { root, fixture } = await createEngineWorktreeFixture({
     workers: [
       {
@@ -585,12 +589,12 @@ test("engine status excludes exited workers", async () => {
   try {
     const result = (await runFuture(
       services.handleInvocation({
-        ...makeInvocation(["engine", "status"]),
+        ...makeInvocation(["supervisor", "status"]),
         options: makeOptions({ repo: root }),
       }),
     )) as AutobotCommandResult;
 
-    assert.equal(result.kind, "engine-status");
+    assert.equal(result.kind, "supervisor-status");
     assert.equal(result.data.active_workers.length, 1);
     assert.equal(result.data.active_workers[0]?.worker_id, "worker-1");
   } finally {
@@ -909,7 +913,7 @@ test("engine runtime acquisition preserves a concurrent stop request during star
   }
 });
 
-test("engine start releases runtime files when a tick step rejects", async () => {
+test("supervisor start releases runtime files when a tick step rejects", async () => {
   const { root, fixture } = await createEngineWorktreeFixture();
   const originalListItems = fixture.store.projections.listItems;
   fixture.store.projections.listItems = (() =>
@@ -934,7 +938,7 @@ test("engine start releases runtime files when a tick step rejects", async () =>
     await assert.rejects(
       runFuture(
         services.handleInvocation({
-          ...makeInvocation(["engine", "start"]),
+          ...makeInvocation(["supervisor", "start"]),
           options: makeOptions({ repo: root }),
         }),
       ),
@@ -1227,7 +1231,7 @@ test("engine runtime release ignores tick interval changes for the same owner", 
   }
 });
 
-test("engine start cancellation releases runtime ownership", async () => {
+test("supervisor start cancellation releases runtime ownership", async () => {
   const { root, fixture } = await createEngineWorktreeFixture();
   const services = createAutobotServices({
     artifactWriter: noOpArtifactWriter,
@@ -1247,7 +1251,7 @@ test("engine start cancellation releases runtime ownership", async () => {
 
   try {
     const future = services.handleInvocation({
-      ...makeInvocation(["engine", "start"]),
+      ...makeInvocation(["supervisor", "start"]),
       options: makeOptions({ repo: root }),
     });
 
@@ -1274,7 +1278,7 @@ test("engine start cancellation releases runtime ownership", async () => {
   }
 });
 
-test("engine start cancellation prevents an in-flight tick from rewriting status", async () => {
+test("supervisor start cancellation prevents an in-flight tick from rewriting status", async () => {
   const { root, fixture } = await createEngineWorktreeFixture();
   const originalListItems = fixture.store.projections.listItems;
   let releaseListItems: (() => void) | null = null;
@@ -1299,7 +1303,7 @@ test("engine start cancellation prevents an in-flight tick from rewriting status
 
   try {
     const future = services.handleInvocation({
-      ...makeInvocation(["engine", "start"]),
+      ...makeInvocation(["supervisor", "start"]),
       options: makeOptions({ repo: root }),
     });
 
@@ -1340,15 +1344,15 @@ test("engine start cancellation prevents an in-flight tick from rewriting status
   }
 });
 
-test("engine status health favors the current tick over persisted runtime warnings", () => {
+test("supervisor status health favors the current tick over persisted runtime warnings", () => {
   const warning = {
     code: "ENGINE_DISCOVERY_PROJECTS_MISSING",
     status: "warning" as const,
     message: "discovery.projects is required when auto-discover is enabled",
   };
   const config = [
-    { key: "engine.max-concurrency", value: 1 },
-    { key: "engine.tick-interval-seconds", value: 1 },
+    { key: "supervisor.max-concurrency", value: 1 },
+    { key: "supervisor.tick-interval-seconds", value: 1 },
   ] as Array<{ key: string; value: number }>;
   const counts = new Proxy(
     {},
@@ -1409,7 +1413,7 @@ test("engine status health favors the current tick over persisted runtime warnin
   );
 });
 
-test("engine status and logs surface engine events", async () => {
+test("supervisor status and logs surface engine events", async () => {
   const { root, fixture } = await createEngineWorktreeFixture();
   const originalList = fixture.store.events.list;
   const listCalls: Array<{
@@ -1519,24 +1523,24 @@ test("engine status and logs surface engine events", async () => {
 
     const status = (await runFuture(
       services.handleInvocation({
-        ...makeInvocation(["engine", "status"]),
+        ...makeInvocation(["supervisor", "status"]),
         options: makeOptions({ repo: root }),
       }),
     )) as AutobotCommandResult;
 
     const logs = (await runFuture(
       services.handleInvocation({
-        ...makeInvocation(["engine", "logs"]),
+        ...makeInvocation(["supervisor", "logs"]),
         options: makeOptions({ repo: root }),
       }),
     )) as AutobotCommandResult;
 
-    assert.equal(status.kind, "engine-status");
+    assert.equal(status.kind, "supervisor-status");
     assert.equal(
       status.data.events?.some((event) => event.type === "engine.tick.started"),
       true,
     );
-    assert.equal(logs.kind, "engine-logs");
+    assert.equal(logs.kind, "supervisor-logs");
     assert.equal(
       logs.data.events?.some((event) => event.type === "engine.tick.started"),
       true,

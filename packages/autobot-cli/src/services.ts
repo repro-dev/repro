@@ -360,17 +360,17 @@ function synthesizeEngineEvents(
 
 const configDefinitions: readonly ConfigDefinition[] = [
   {
-    key: "engine.auto-discover",
+    key: "supervisor.auto-discover",
     default_value: false,
     type: "boolean",
     description:
-      "Whether engine ticks may discover and queue candidate work automatically.",
+      "Whether supervisor ticks may discover and queue candidate work automatically.",
     requires_engine_restart: false,
     bounds: null,
     allowed_values: [true, false],
   },
   {
-    key: "engine.queue-depth",
+    key: "supervisor.queue-depth",
     default_value: 5,
     type: "integer",
     description:
@@ -380,19 +380,20 @@ const configDefinitions: readonly ConfigDefinition[] = [
     allowed_values: null,
   },
   {
-    key: "engine.max-concurrency",
+    key: "supervisor.max-concurrency",
     default_value: 1,
     type: "integer",
-    description: "Maximum active runs the local engine may supervise at once.",
+    description:
+      "Maximum active runs the local supervisor may supervise at once.",
     requires_engine_restart: false,
     bounds: { min: 1, max: 16 },
     allowed_values: null,
   },
   {
-    key: "engine.tick-interval-seconds",
+    key: "supervisor.tick-interval-seconds",
     default_value: 15,
     type: "integer",
-    description: "Delay between daemon scheduler ticks.",
+    description: "Delay between daemon supervisor ticks.",
     requires_engine_restart: false,
     bounds: { min: 1, max: 3600 },
     allowed_values: null,
@@ -680,9 +681,10 @@ export function createEngineStatus(
   } = {},
 ): EngineStatus {
   const maxConcurrency =
-    config.find((entry) => entry.key === "engine.max-concurrency")?.value ?? 1;
+    config.find((entry) => entry.key === "supervisor.max-concurrency")?.value ??
+    1;
   const tickIntervalSeconds =
-    config.find((entry) => entry.key === "engine.tick-interval-seconds")
+    config.find((entry) => entry.key === "supervisor.tick-interval-seconds")
       ?.value ?? 15;
   const runtime = input.runtime ?? null;
   const runtimeStatus = runtime?.status ?? null;
@@ -760,13 +762,16 @@ function resolveEngineTickSettings(config: ConfigEntry[]): EngineTickSettings {
     config.map((entry) => [entry.key, entry] as const),
   );
   const autoDiscover =
-    (configByKey.get("engine.auto-discover")?.value as boolean | undefined) ??
-    false;
+    (configByKey.get("supervisor.auto-discover")?.value as
+      | boolean
+      | undefined) ?? false;
   const queueDepth =
-    (configByKey.get("engine.queue-depth")?.value as number | undefined) ?? 0;
+    (configByKey.get("supervisor.queue-depth")?.value as number | undefined) ??
+    0;
   const maxConcurrency =
-    (configByKey.get("engine.max-concurrency")?.value as number | undefined) ??
-    1;
+    (configByKey.get("supervisor.max-concurrency")?.value as
+      | number
+      | undefined) ?? 1;
 
   return {
     autoDiscover,
@@ -1207,7 +1212,7 @@ function createQueueStatus(
                     ? {}
                     : { warnings: options.warnings }),
                   data: {
-                    engine: createEngineStatus(config, counts, {
+                    supervisor: createEngineStatus(config, counts, {
                       runtime: options.runtime ?? null,
                       lastTickAt: options.lastTickAt ?? null,
                       activeWorkers,
@@ -1253,7 +1258,7 @@ function createEngineStatusResult(input: {
   warnings?: readonly Warning[];
   action?: "start" | "stop";
   message?: string;
-  kind?: "engine-status" | "engine-logs";
+  kind: "supervisor-status" | "supervisor-logs";
 }): FutureInstance<unknown, AutobotCommandResult> {
   return createQueueStatus(input.store, {
     command: input.command,
@@ -1272,7 +1277,7 @@ function createEngineStatusResult(input: {
 
       return {
         ...queueStatus,
-        kind: input.kind ?? "engine-status",
+        kind: input.kind,
         data: {
           ...queueStatus.data,
           action: input.action,
@@ -1651,7 +1656,7 @@ function handleDiscover(
         return fallback.value as number;
       }
 
-      return configDefinitionsByKey.get("engine.queue-depth")!
+      return configDefinitionsByKey.get("supervisor.queue-depth")!
         .default_value as number;
     };
 
@@ -1783,7 +1788,7 @@ function handleDiscover(
     };
 
     if (projectFlags.length > 0) {
-      store.config.getOverride("engine.queue-depth").pipe(
+      store.config.getOverride("supervisor.queue-depth").pipe(
         fork(reject)((queueDepthOverride) => {
           resolveProjects(null, queueDepthOverride);
         }),
@@ -1791,7 +1796,7 @@ function handleDiscover(
     } else {
       store.config.getOverride("discovery.projects").pipe(
         fork(reject)((override) => {
-          store.config.getOverride("engine.queue-depth").pipe(
+          store.config.getOverride("supervisor.queue-depth").pipe(
             fork(reject)((queueDepthOverride) => {
               resolveProjects(override, queueDepthOverride);
             }),
@@ -3964,6 +3969,8 @@ function handleEngineRunOnce(
   loadLinearIssue?: AutobotServiceDependencies["loadLinearIssue"],
   runtime?: EngineRuntimeSnapshot | null,
 ): FutureInstance<unknown, AutobotCommandResult> {
+  const root = getSupervisorCommandRoot(invocation);
+
   return createConfigList(store).pipe(
     chain((config): FutureInstance<unknown, AutobotCommandResult> => {
       const settings = resolveEngineTickSettings(config);
@@ -4191,7 +4198,18 @@ function handleEngineRunOnce(
                           runtime: runtime ?? null,
                           tick: tickReport,
                           warnings,
-                        });
+                        }).pipe(
+                          map((result) =>
+                            root === "supervisor"
+                              ? liftQueueStatusToSupervisorStatus(
+                                  result as Extract<
+                                    AutobotCommandResult,
+                                    { kind: "queue-status" }
+                                  >,
+                                )
+                              : result,
+                          ),
+                        );
                       }
 
                       const startedEvent = createEngineTickEvent({
@@ -4248,7 +4266,18 @@ function handleEngineRunOnce(
                                 runtime: runtime ?? null,
                                 tick: tickReport,
                                 warnings,
-                              }),
+                              }).pipe(
+                                map((result) =>
+                                  root === "supervisor"
+                                    ? liftQueueStatusToSupervisorStatus(
+                                        result as Extract<
+                                          AutobotCommandResult,
+                                          { kind: "queue-status" }
+                                        >,
+                                      )
+                                    : result,
+                                ),
+                              ),
                             ),
                           ),
                         ),
@@ -4736,10 +4765,34 @@ function createItemDetailResult(
   });
 }
 
+function getSupervisorCommandRoot(invocation: AutobotInvocation): "supervisor" {
+  void invocation;
+  return "supervisor";
+}
+
+function getSupervisorNoun(root: "supervisor"): string {
+  void root;
+  return "Supervisor";
+}
+
+function liftQueueStatusToSupervisorStatus(
+  result: Extract<AutobotCommandResult, { kind: "queue-status" }>,
+): Extract<AutobotCommandResult, { kind: "supervisor-status" }> {
+  return {
+    ...result,
+    kind: "supervisor-status",
+    data: {
+      ...result.data,
+    },
+  };
+}
+
 function handleEngineStatus(
   invocation: AutobotInvocation,
   store: AutobotStore,
 ): FutureInstance<unknown, AutobotCommandResult> {
+  const root = getSupervisorCommandRoot(invocation);
+
   return loadEngineEvents(store).pipe(
     chain((events) =>
       readEngineRuntime(store.repo).pipe(
@@ -4751,24 +4804,25 @@ function handleEngineStatus(
             command: invocation.command,
             runtime,
             events: synthesizeEngineEvents(runtime, events),
+            kind: "supervisor-status",
             message:
               runtime.stop_requested_at !== null
-                ? "Graceful shutdown is in progress"
+                ? `${getSupervisorNoun(root)} graceful shutdown is in progress`
                 : runtime.stale_lock
-                ? "Engine lock is stale"
+                ? `${getSupervisorNoun(root)} lock is stale`
                 : runtimeState === "starting"
-                ? "Engine is starting"
+                ? `${getSupervisorNoun(root)} is starting`
                 : runtimeState === "running"
-                ? "Engine is running"
+                ? `${getSupervisorNoun(root)} is running`
                 : runtimeState === "stopping"
                 ? "Graceful shutdown is in progress"
                 : runtimeState === "unhealthy"
-                ? "Engine is unhealthy"
+                ? `${getSupervisorNoun(root)} is unhealthy`
                 : runtimeState === "stopped"
-                ? "Engine is stopped"
+                ? `${getSupervisorNoun(root)} is stopped`
                 : runtime.lock !== null || runtime.status !== null
-                ? "Engine is running"
-                : "Engine is stopped",
+                ? `${getSupervisorNoun(root)} is running`
+                : `${getSupervisorNoun(root)} is stopped`,
           });
         }),
       ),
@@ -4780,6 +4834,8 @@ function handleEngineLogs(
   invocation: AutobotInvocation,
   store: AutobotStore,
 ): FutureInstance<unknown, AutobotCommandResult> {
+  const root = getSupervisorCommandRoot(invocation);
+
   return loadEngineEvents(store).pipe(
     chain((events) =>
       readEngineRuntime(store.repo).pipe(
@@ -4789,8 +4845,8 @@ function handleEngineLogs(
             command: invocation.command,
             runtime,
             events: synthesizeEngineEvents(runtime, events),
-            kind: "engine-logs",
-            message: "Recent engine events",
+            kind: "supervisor-logs",
+            message: `Recent ${root} events`,
           }),
         ),
       ),
@@ -4803,6 +4859,8 @@ function handleEngineStop(
   store: AutobotStore,
   now: () => string,
 ): FutureInstance<unknown, AutobotCommandResult> {
+  const root = getSupervisorCommandRoot(invocation);
+
   return requestEngineStop(store.repo, now()).pipe(
     chain((runtime) =>
       createEngineStatusResult({
@@ -4810,12 +4868,13 @@ function handleEngineStop(
         command: invocation.command,
         runtime,
         action: "stop",
+        kind: "supervisor-status",
         message:
           runtime.status?.state === "stopped"
-            ? "Engine is already stopped"
+            ? `${getSupervisorNoun(root)} is already stopped`
             : runtime.lock === null && runtime.status === null
-            ? "No engine lock was active"
-            : "Graceful shutdown requested",
+            ? `No ${root} lock was active`
+            : `${getSupervisorNoun(root)} graceful shutdown requested`,
       }),
     ),
   );
@@ -4835,10 +4894,11 @@ function handleEngineStart(
     milliseconds: number,
   ) => FutureInstance<unknown, void> = createDelayFuture,
 ): FutureInstance<unknown, AutobotCommandResult> {
+  const root = getSupervisorCommandRoot(invocation);
   const result = createConfigList(store).pipe(
     chain((config) => {
       const tickIntervalSeconds = Number(
-        config.find((entry) => entry.key === "engine.tick-interval-seconds")
+        config.find((entry) => entry.key === "supervisor.tick-interval-seconds")
           ?.value ?? 15,
       );
       const startedAt = now();
@@ -4891,6 +4951,7 @@ function handleEngineStart(
                       stale_lock: false,
                     },
                     action: "start",
+                    kind: "supervisor-status",
                     message,
                   }).pipe(fork(reject)(resolveFuture));
                 }),
@@ -4914,15 +4975,15 @@ function handleEngineStart(
                       state: "stopped",
                       stop_requested_at: snapshotBeforeTick.stop_requested_at,
                     };
-                    finish("Engine stopped gracefully");
+                    finish(`${getSupervisorNoun(root)} stopped gracefully`);
                     return;
                   }
 
                   handleEngineRunOnce(
                     {
                       ...invocation,
-                      command_path: ["engine", "run-once"],
-                      command: "engine run-once",
+                      command_path: [root, "run-once"],
+                      command: `${root} run-once`,
                       args: [],
                       options: {
                         ...invocation.options,
@@ -4957,20 +5018,20 @@ function handleEngineStart(
                         AutobotCommandResult,
                         { kind: "queue-status" }
                       >;
-                      const engine = queueStatus.data.engine;
+                      const supervisor = queueStatus.data.supervisor;
                       currentRecord = {
                         pid: currentRecord.pid,
                         started_at: currentRecord.started_at,
-                        state: engine.health.some(
+                        state: supervisor.health.some(
                           (check: HealthCheck) => check.status === "error",
                         )
                           ? "unhealthy"
                           : "running",
-                        last_tick_at: engine.last_tick_at,
+                        last_tick_at: supervisor.last_tick_at,
                         stop_requested_at: snapshotBeforeTick.stop_requested_at,
                         health:
                           queueStatus.warnings?.map(warningToHealthCheck) ?? [],
-                        tick_interval_seconds: engine.tick_interval_seconds,
+                        tick_interval_seconds: supervisor.tick_interval_seconds,
                       };
 
                       if (cancelled) {
@@ -4992,13 +5053,17 @@ function handleEngineStart(
                               if (
                                 snapshotAfterTick.stop_requested_at !== null
                               ) {
-                                finish("Engine stopped gracefully");
+                                finish(
+                                  `${getSupervisorNoun(
+                                    root,
+                                  )} stopped gracefully`,
+                                );
                                 return;
                               }
 
                               waitForEngineTickDelay(
                                 store.repo,
-                                engine.tick_interval_seconds * 1000,
+                                supervisor.tick_interval_seconds * 1000,
                                 sleep,
                               ).pipe(
                                 fork(releaseAndReject)(() => {
@@ -5389,7 +5454,7 @@ function handleCommand(
       return handleInspect(invocation, store);
     case "logs":
       return handleLogs(invocation, store);
-    case "engine":
+    case "supervisor":
       switch (invocation.command_path[1]) {
         case "logs":
           return handleEngineLogs(invocation, store);
@@ -5464,7 +5529,7 @@ export function createAutobotServices(
   return {
     handleInvocation(invocation: AutobotInvocation) {
       if (
-        invocation.command_path[0] === "engine" &&
+        invocation.command_path[0] === "supervisor" &&
         invocation.command_path[1] === "debug" &&
         invocation.command_path[2] === "workflow"
       ) {

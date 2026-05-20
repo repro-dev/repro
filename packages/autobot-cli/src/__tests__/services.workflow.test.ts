@@ -65,12 +65,12 @@ test("workflow commands surface the FlowCraft skeleton", async () => {
 
   const listResult = (await runFuture(
     services.handleInvocation(
-      makeInvocation(["engine", "debug", "workflow", "list"]),
+      makeInvocation(["supervisor", "debug", "workflow", "list"]),
     ),
   )) as AutobotCommandResult;
 
   assert.equal(listResult.kind, "workflow-list");
-  assert.equal(listResult.command, "engine debug workflow list");
+  assert.equal(listResult.command, "supervisor debug workflow list");
   assert.deepEqual(listResult.data.workflows[0]?.node_ids, [
     "claim",
     "preparing",
@@ -81,7 +81,7 @@ test("workflow commands surface the FlowCraft skeleton", async () => {
 
   const validationResult = (await runFuture(
     services.handleInvocation(
-      makeInvocation(["engine", "debug", "workflow", "validate"]),
+      makeInvocation(["supervisor", "debug", "workflow", "validate"]),
     ),
   )) as AutobotCommandResult;
 
@@ -90,7 +90,7 @@ test("workflow commands surface the FlowCraft skeleton", async () => {
 
   const diagramResult = (await runFuture(
     services.handleInvocation(
-      makeInvocation(["engine", "debug", "workflow", "diagram"]),
+      makeInvocation(["supervisor", "debug", "workflow", "diagram"]),
     ),
   )) as AutobotCommandResult;
 

@@ -6,7 +6,6 @@ import type { ItemDetail, ItemSummary } from "@repro/autobot-core";
 import { assertNormalizedEqual } from "./helpers";
 import {
   renderAutobotDiscoverResults,
-  renderAutobotEngineStatus,
   renderAutobotFlowcraftInspect,
   renderAutobotItemDetail,
   renderAutobotItemSummary,
@@ -14,6 +13,7 @@ import {
   renderAutobotWorkflowDiagram,
   renderAutobotWorkflowList,
   renderAutobotWorkflowValidation,
+  renderAutobotSupervisorStatus,
 } from "../render/human";
 import type { DiscoverData } from "../types";
 
@@ -71,7 +71,7 @@ test("queue status renderer includes tick metadata when available", () => {
   assertNormalizedEqual(
     renderAutobotQueueStatus(
       {
-        engine: {
+        supervisor: {
           state: "unknown",
           pid: null,
           started_at: null,
@@ -219,11 +219,11 @@ test("flowcraft inspect renderer includes persisted transports but keeps raw pay
   );
 });
 
-test("engine status renderer shows relay-aware worker supervision", () => {
+test("supervisor status renderer shows relay-aware worker supervision", () => {
   assertNormalizedEqual(
-    renderAutobotEngineStatus(
+    renderAutobotSupervisorStatus(
       {
-        engine: {
+        supervisor: {
           state: "running",
           pid: 4242,
           started_at: "2026-05-15T10:00:00Z",
@@ -301,8 +301,8 @@ test("engine status renderer shows relay-aware worker supervision", () => {
       { color: false },
     ),
     `
-    Engine status
-    Engine: running
+    Supervisor status
+    Supervisor: running
     PID: 4242
     Started: 2026-05-15T10:00:00Z
     Counts: queued: 1, claimed: 0, preparing: 0, planning: 0, developing: 0, testing: 0, reviewing: 0, reconciling: 0, awaiting: 0, failed: 0, escalated: 0, completed: 0, canceled: 0

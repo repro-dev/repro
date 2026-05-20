@@ -124,21 +124,23 @@ function renderStatusSection(
   options?: { color?: boolean },
 ): string {
   const theme = createTextTheme({ color: options?.color === true });
+  const status = input.supervisor;
+  const statusLabel = title.startsWith("Supervisor") ? "Supervisor" : "Engine";
   const counts = Object.entries(input.counts)
     .map(([state, count]) => `${state}: ${count}`)
     .join(", ");
 
   const lines = [
     theme.bold(title),
-    `${theme.bold("Engine:")} ${input.engine.state}`,
-    `${theme.bold("PID:")} ${input.engine.pid ?? "n/a"}`,
-    `${theme.bold("Started:")} ${input.engine.started_at ?? "n/a"}`,
+    `${theme.bold(`${statusLabel}:`)} ${status.state}`,
+    `${theme.bold("PID:")} ${status.pid ?? "n/a"}`,
+    `${theme.bold("Started:")} ${status.started_at ?? "n/a"}`,
     `${theme.bold("Counts:")} ${counts}`,
   ];
 
-  if (input.engine.last_tick_at !== null) {
+  if (status.last_tick_at !== null) {
     lines.push(
-      `${theme.bold("Last tick:")} ${input.engine.last_tick_at}`,
+      `${theme.bold("Last tick:")} ${status.last_tick_at}`,
       `${theme.bold("Tick scope:")} queue scheduler`,
     );
   }
@@ -151,23 +153,23 @@ function renderStatusSection(
     lines.push(`${theme.bold("Message:")} ${input.message}`);
   }
 
-  if (input.engine.health.length > 0) {
+  if (status.health.length > 0) {
     lines.push(
       "",
       "Health:",
-      indentLines(input.engine.health.map(renderHealthEntry)),
+      indentLines(status.health.map(renderHealthEntry)),
     );
   }
 
-  if (input.engine.active_workers.length > 0) {
+  if (status.active_workers.length > 0) {
     lines.push(
       "",
       "Workers:",
-      indentLines(input.engine.active_workers.flatMap(renderWorkerEntry)),
+      indentLines(status.active_workers.flatMap(renderWorkerEntry)),
     );
   }
 
-  const events = input.events ?? input.engine.events ?? [];
+  const events = input.events ?? status.events ?? [];
 
   if (events.length > 0) {
     lines.push("", "Events:", indentLines(events.map(renderDomainEvent)));
@@ -337,11 +339,25 @@ export function renderAutobotEngineStatus(
   return renderStatusSection("Engine status", input, options);
 }
 
+export function renderAutobotSupervisorStatus(
+  input: EngineStatusData,
+  options?: { color?: boolean },
+): string {
+  return renderStatusSection("Supervisor status", input, options);
+}
+
 export function renderAutobotEngineLogs(
   input: EngineStatusData,
   options?: { color?: boolean },
 ): string {
   return renderStatusSection("Engine logs", input, options);
+}
+
+export function renderAutobotSupervisorLogs(
+  input: EngineStatusData,
+  options?: { color?: boolean },
+): string {
+  return renderStatusSection("Supervisor logs", input, options);
 }
 
 export function renderAutobotConfigList(config: ConfigEntry[]): string {

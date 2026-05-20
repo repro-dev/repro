@@ -46,16 +46,16 @@ This document refines `cli-design.md` into implementation-ready contracts. It re
 ### 2026-05-13 Config Model
 
 - Config precedence is flags, environment, repo config, profile config, defaults.
-- Running engines reload config on the next tick where practical.
+- Running supervisors reload config on the next tick where practical.
 - MVP includes delivery policy config keys even if some are inert until later delivery phases.
 
 ### 2026-05-13 Discovery And Selection Policy
 
 - Manual MVP discovery accepts repeatable `--project` flags; if none are provided, `discovery.projects` config is used, and if that is also empty the command scans all projects by omitting project flags.
-- Manual discovery first fetches a bounded remote scan set (currently 100 by default, or higher when needed to satisfy `--limit`), then prunes and caps post-filter candidates by `--limit` when provided; otherwise the effective cap defaults to `engine.queue-depth`.
+- Manual discovery first fetches a bounded remote scan set (currently 100 by default, or higher when needed to satisfy `--limit`), then prunes and caps post-filter candidates by `--limit` when provided; otherwise the effective cap defaults to `supervisor.queue-depth`.
 - REP-1170 will insert sequencing between fetch and limit.
-- When `engine.auto-discover=true`, engine ticks may auto-queue eligible candidates up to `engine.queue-depth`.
-- Engine selection reconciles in-progress/stale state first, then starts oldest queued items first, subject to concurrency limits.
+- When `supervisor.auto-discover=true`, supervisor ticks may auto-queue eligible candidates up to `supervisor.queue-depth`.
+- Supervisor selection reconciles in-progress/stale state first, then starts oldest queued items first, subject to concurrency limits.
 
 ### 2026-05-13 Human Output
 
@@ -74,32 +74,32 @@ Included:
 - `autobot logs`
 - `autobot discover`
 - `autobot config list|get|set|unset`
-- `autobot engine status|run-once|start|stop`
+- `autobot supervisor status|run-once|start|stop`
 - `autobot retry`
 - `autobot cancel`
 - `autobot reconcile`
 - `autobot inspect`
-- `autobot engine debug workflow list|validate|diagram`
+- `autobot supervisor debug workflow list|validate|diagram`
 
 Deferred:
 
 - `autobot resume`
 - `autobot release`
-- `autobot engine restart`
+- `autobot supervisor restart`
 - hidden `autobot internal ...` commands unless worker implementation proves they are necessary.
 
 ## Public State Model
 
 Public item states:
 
-- `queued`: item is waiting for engine scheduling.
-- `claimed`: item has been selected and reserved by an engine/run.
+- `queued`: item is waiting for supervisor scheduling.
+- `claimed`: item has been selected and reserved by a supervisor/run.
 - `preparing`: workspace and run artifacts are being prepared.
 - `planning`: planning/context/test-plan work is in progress.
 - `developing`: implementation work is in progress.
 - `testing`: verification or test-agent work is in progress.
 - `reviewing`: review or security-review work is in progress.
-- `reconciling`: engine is comparing durable state against workers, git, Linear, GitHub, and FlowCraft history.
+- `reconciling`: supervisor is comparing durable state against workers, git, Linear, GitHub, and FlowCraft history.
 - `awaiting`: item is paused for a future human/external gate. Deferred from MVP as an executable behavior, but reserved in the state model.
 - `failed`: item stopped on an unrecovered failure.
 - `completed`: item finished successfully for MVP purposes.
@@ -125,31 +125,31 @@ Default `autobot list` excludes terminal states:
 
 ## Transition Matrix
 
-Normal engine-owned forward transitions:
+Normal supervisor-owned forward transitions:
 
-| From          | To            | Owner           | Notes                                                    |
-| ------------- | ------------- | --------------- | -------------------------------------------------------- |
-| `queued`      | `claimed`     | engine          | Work selected and reserved.                              |
-| `claimed`     | `preparing`   | workflow        | Run/workspace setup begins.                              |
-| `preparing`   | `planning`    | workflow        | Workspace/artifacts are ready.                           |
-| `planning`    | `developing`  | workflow        | Plan accepted for implementation.                        |
-| `developing`  | `testing`     | workflow        | Implementation phase finished.                           |
-| `testing`     | `reviewing`   | workflow        | Verification passed enough to review.                    |
-| `reviewing`   | `reconciling` | workflow        | Review phase finished and final state must be inspected. |
-| `reconciling` | `completed`   | engine/workflow | Successful terminal outcome confirmed.                   |
-| `reconciling` | `failed`      | engine/workflow | Unrecovered mismatch or failed terminal check.           |
+| From          | To            | Owner               | Notes                                                    |
+| ------------- | ------------- | ------------------- | -------------------------------------------------------- |
+| `queued`      | `claimed`     | supervisor          | Work selected and reserved.                              |
+| `claimed`     | `preparing`   | workflow            | Run/workspace setup begins.                              |
+| `preparing`   | `planning`    | workflow            | Workspace/artifacts are ready.                           |
+| `planning`    | `developing`  | workflow            | Plan accepted for implementation.                        |
+| `developing`  | `testing`     | workflow            | Implementation phase finished.                           |
+| `testing`     | `reviewing`   | workflow            | Verification passed enough to review.                    |
+| `reviewing`   | `reconciling` | workflow            | Review phase finished and final state must be inspected. |
+| `reconciling` | `completed`   | supervisor/workflow | Successful terminal outcome confirmed.                   |
+| `reconciling` | `failed`      | supervisor/workflow | Unrecovered mismatch or failed terminal check.           |
 
 Failure transitions:
 
-| From          | To       | Owner           | Notes                                            |
-| ------------- | -------- | --------------- | ------------------------------------------------ |
-| `claimed`     | `failed` | engine/workflow | Claim/setup failure.                             |
-| `preparing`   | `failed` | workflow        | Workspace/artifact setup failure.                |
-| `planning`    | `failed` | workflow        | Planning failure.                                |
-| `developing`  | `failed` | workflow        | Implementation worker failure.                   |
-| `testing`     | `failed` | workflow        | Verification failure.                            |
-| `reviewing`   | `failed` | workflow        | Review failure or required changes not handled.  |
-| `reconciling` | `failed` | engine/workflow | State mismatch cannot be repaired automatically. |
+| From          | To       | Owner               | Notes                                            |
+| ------------- | -------- | ------------------- | ------------------------------------------------ |
+| `claimed`     | `failed` | supervisor/workflow | Claim/setup failure.                             |
+| `preparing`   | `failed` | workflow            | Workspace/artifact setup failure.                |
+| `planning`    | `failed` | workflow            | Planning failure.                                |
+| `developing`  | `failed` | workflow            | Implementation worker failure.                   |
+| `testing`     | `failed` | workflow            | Verification failure.                            |
+| `reviewing`   | `failed` | workflow            | Review failure or required changes not handled.  |
+| `reconciling` | `failed` | supervisor/workflow | State mismatch cannot be repaired automatically. |
 
 Operator-owned transitions:
 
@@ -439,7 +439,8 @@ interface ListData {
 }
 
 interface AggregateStatusData {
-  engine: EngineStatus;
+  supervisor: EngineStatus;
+  engine?: EngineStatus;
   counts: Record<ItemState, number>;
   items: ItemSummary[];
   config: ConfigEntry[];
@@ -472,19 +473,22 @@ interface LogLine {
 }
 
 interface EngineStatusData {
-  engine: EngineStatus;
+  supervisor: EngineStatus;
+  engine?: EngineStatus;
   config: ConfigEntry[];
 }
 
 interface EngineStartData {
   changed: boolean;
-  engine: EngineStatus;
+  supervisor: EngineStatus;
+  engine?: EngineStatus;
   events: DomainEvent[];
 }
 
 interface EngineStopData {
   changed: boolean;
-  engine: EngineStatus;
+  supervisor: EngineStatus;
+  engine?: EngineStatus;
   events: DomainEvent[];
 }
 
@@ -558,23 +562,23 @@ Required fields for every event are defined by `DomainEvent`.
 
 ### Item Events
 
-| Event                         | Severity  | Required Data                                                 | Emitted By                        |
-| ----------------------------- | --------- | ------------------------------------------------------------- | --------------------------------- |
-| `item.discovered`             | `info`    | `issue_id`, `title`, `project`, `priority`                    | `discover`, engine auto-discovery |
-| `item.queued`                 | `info`    | `issue_id`, `queue_position`, `reason`                        | `add`, engine auto-discovery      |
-| `item.duplicate_ignored`      | `warning` | `issue_id`, `existing_state`                                  | `add`, engine auto-discovery      |
-| `item.removed`                | `info`    | `issue_id`, `reason`                                          | `remove`                          |
-| `item.cancellation_requested` | `warning` | `issue_id`, `reason`, `force`                                 | `cancel`, `remove --force`        |
-| `item.canceled`               | `info`    | `issue_id`, `reason`                                          | `cancel`, `reconcile`, workflow   |
-| `item.completed`              | `info`    | `issue_id`, `run_id`, `attempt`                               | workflow, `reconcile`             |
-| `item.failed`                 | `error`   | `issue_id`, `run_id`, `attempt`, `error_code`, `failed_state` | workflow, `reconcile`             |
+| Event                         | Severity  | Required Data                                                 | Emitted By                            |
+| ----------------------------- | --------- | ------------------------------------------------------------- | ------------------------------------- |
+| `item.discovered`             | `info`    | `issue_id`, `title`, `project`, `priority`                    | `discover`, supervisor auto-discovery |
+| `item.queued`                 | `info`    | `issue_id`, `queue_position`, `reason`                        | `add`, supervisor auto-discovery      |
+| `item.duplicate_ignored`      | `warning` | `issue_id`, `existing_state`                                  | `add`, supervisor auto-discovery      |
+| `item.removed`                | `info`    | `issue_id`, `reason`                                          | `remove`                              |
+| `item.cancellation_requested` | `warning` | `issue_id`, `reason`, `force`                                 | `cancel`, `remove --force`            |
+| `item.canceled`               | `info`    | `issue_id`, `reason`                                          | `cancel`, `reconcile`, workflow       |
+| `item.completed`              | `info`    | `issue_id`, `run_id`, `attempt`                               | workflow, `reconcile`                 |
+| `item.failed`                 | `error`   | `issue_id`, `run_id`, `attempt`, `error_code`, `failed_state` | workflow, `reconcile`                 |
 
 ### Run Events
 
 | Event              | Severity  | Required Data                                                         | Emitted By                  |
 | ------------------ | --------- | --------------------------------------------------------------------- | --------------------------- |
-| `run.created`      | `info`    | `issue_id`, `run_id`, `attempt`, `blueprint_id`, `blueprint_version`  | engine                      |
-| `run.started`      | `info`    | `issue_id`, `run_id`, `attempt`, `flowcraft_execution_id`             | engine/workflow             |
+| `run.created`      | `info`    | `issue_id`, `run_id`, `attempt`, `blueprint_id`, `blueprint_version`  | supervisor                  |
+| `run.started`      | `info`    | `issue_id`, `run_id`, `attempt`, `flowcraft_execution_id`             | supervisor/workflow         |
 | `run.awaiting`     | `warning` | `issue_id`, `run_id`, `node_id`, `allowed_actions`                    | workflow; reserved post-MVP |
 | `run.retry_queued` | `info`    | `issue_id`, `previous_run_id`, `new_run_id`, `failed_state`, `reason` | `retry`                     |
 | `run.completed`    | `info`    | `issue_id`, `run_id`, `attempt`                                       | workflow                    |
@@ -589,37 +593,37 @@ Required fields for every event are defined by `DomainEvent`.
 | `phase.failed`    | `error`  | `issue_id`, `run_id`, `state`, `error_code`, `message` | workflow   |
 | `phase.skipped`   | `info`   | `issue_id`, `run_id`, `state`, `reason`                | workflow   |
 
-### Engine Events
+### Supervisor Events
 
-| Event                      | Severity  | Required Data                                   | Emitted By                     |
-| -------------------------- | --------- | ----------------------------------------------- | ------------------------------ |
-| `engine.started`           | `info`    | `pid`, `state_dir`                              | `engine start`                 |
-| `engine.stopped`           | `info`    | `pid`, `reason`                                 | `engine stop`, engine shutdown |
-| `engine.tick_started`      | `info`    | `tick_id`                                       | engine                         |
-| `engine.tick_finished`     | `info`    | `tick_id`, `selected_count`, `reconciled_count` | engine                         |
-| `engine.idle`              | `info`    | `tick_id`, `reason`                             | engine                         |
-| `engine.unhealthy`         | `error`   | `health_code`, `message`                        | engine, `engine status`        |
-| `engine.duplicate_ignored` | `warning` | `existing_pid`                                  | `engine start`                 |
+| Event                      | Severity  | Required Data                                   | Emitted By                             |
+| -------------------------- | --------- | ----------------------------------------------- | -------------------------------------- |
+| `engine.started`           | `info`    | `pid`, `state_dir`                              | `supervisor start`                     |
+| `engine.stopped`           | `info`    | `pid`, `reason`                                 | `supervisor stop`, supervisor shutdown |
+| `engine.tick_started`      | `info`    | `tick_id`                                       | supervisor                             |
+| `engine.tick_finished`     | `info`    | `tick_id`, `selected_count`, `reconciled_count` | supervisor                             |
+| `engine.idle`              | `info`    | `tick_id`, `reason`                             | supervisor                             |
+| `engine.unhealthy`         | `error`   | `health_code`, `message`                        | supervisor, `supervisor status`        |
+| `engine.duplicate_ignored` | `warning` | `existing_pid`                                  | `supervisor start`                     |
 
 ### Worker Events
 
-| Event                           | Severity  | Required Data                              | Emitted By                      |
-| ------------------------------- | --------- | ------------------------------------------ | ------------------------------- |
-| `worker.started`                | `info`    | `worker_id`, `pid`, `issue_id`, `run_id`   | engine                          |
-| `worker.heartbeat`              | `info`    | `worker_id`, `pid`, `issue_id`, `run_id`   | worker                          |
-| `worker.cancellation_requested` | `warning` | `worker_id`, `issue_id`, `run_id`, `force` | `cancel`, `engine stop --force` |
-| `worker.exited`                 | `info`    | `worker_id`, `exit_code`, `signal`         | engine/reconcile                |
-| `worker.stale`                  | `warning` | `worker_id`, `last_heartbeat_at`           | reconcile                       |
+| Event                           | Severity  | Required Data                              | Emitted By                          |
+| ------------------------------- | --------- | ------------------------------------------ | ----------------------------------- |
+| `worker.started`                | `info`    | `worker_id`, `pid`, `issue_id`, `run_id`   | supervisor                          |
+| `worker.heartbeat`              | `info`    | `worker_id`, `pid`, `issue_id`, `run_id`   | worker                              |
+| `worker.cancellation_requested` | `warning` | `worker_id`, `issue_id`, `run_id`, `force` | `cancel`, `supervisor stop --force` |
+| `worker.exited`                 | `info`    | `worker_id`, `exit_code`, `signal`         | supervisor/reconcile                |
+| `worker.stale`                  | `warning` | `worker_id`, `last_heartbeat_at`           | reconcile                           |
 
 ### Reconcile Events
 
-| Event                      | Severity  | Required Data                                       | Emitted By          |
-| -------------------------- | --------- | --------------------------------------------------- | ------------------- |
-| `reconcile.started`        | `info`    | `scope`                                             | `reconcile`, engine |
-| `reconcile.mismatch_found` | `warning` | `issue_id`, `mismatch_code`, `observed`, `expected` | reconcile           |
-| `reconcile.repair_applied` | `info`    | `issue_id`, `repair_code`, `from_state`, `to_state` | reconcile           |
-| `reconcile.repair_failed`  | `error`   | `issue_id`, `repair_code`, `error_code`, `message`  | reconcile           |
-| `reconcile.finished`       | `info`    | `scope`, `mismatch_count`, `repair_count`           | reconcile           |
+| Event                      | Severity  | Required Data                                       | Emitted By              |
+| -------------------------- | --------- | --------------------------------------------------- | ----------------------- |
+| `reconcile.started`        | `info`    | `scope`                                             | `reconcile`, supervisor |
+| `reconcile.mismatch_found` | `warning` | `issue_id`, `mismatch_code`, `observed`, `expected` | reconcile               |
+| `reconcile.repair_applied` | `info`    | `issue_id`, `repair_code`, `from_state`, `to_state` | reconcile               |
+| `reconcile.repair_failed`  | `error`   | `issue_id`, `repair_code`, `error_code`, `message`  | reconcile               |
+| `reconcile.finished`       | `info`    | `scope`, `mismatch_count`, `repair_count`           | reconcile               |
 
 ### Config Events
 
@@ -649,14 +653,14 @@ Error codes are stable within an implementation release but are not yet a long-t
 
 ### Repository And Store Errors
 
-| Code                       | Exit | Meaning                                                     | Typical Recovery Commands                                       |
-| -------------------------- | ---- | ----------------------------------------------------------- | --------------------------------------------------------------- |
-| `REPO_NOT_FOUND`           | `1`  | No repository root/state root could be resolved.            | `autobot --repo <path> status`                                  |
-| `REPO_WRONG_WORKTREE`      | `1`  | Command must be run from main checkout or with `--repo`.    | `autobot --repo <main-checkout> status`                         |
-| `STATE_DIR_UNAVAILABLE`    | `4`  | `.autobot/` cannot be created or read.                      | `autobot status --verbose`, `autobot reconcile --all --dry-run` |
-| `STATE_STORE_LOCKED`       | `4`  | SQLite/store lock could not be acquired.                    | `autobot engine status`, `autobot reconcile --all --dry-run`    |
-| `STATE_STORE_CORRUPT`      | `4`  | Store failed integrity or migration check.                  | `autobot status --verbose`, `autobot inspect <run-id> --json`   |
-| `STATE_MIGRATION_REQUIRED` | `4`  | Store version is older than CLI supports without migration. | `autobot status --verbose`                                      |
+| Code                       | Exit | Meaning                                                     | Typical Recovery Commands                                        |
+| -------------------------- | ---- | ----------------------------------------------------------- | ---------------------------------------------------------------- |
+| `REPO_NOT_FOUND`           | `1`  | No repository root/state root could be resolved.            | `autobot --repo <path> status`                                   |
+| `REPO_WRONG_WORKTREE`      | `1`  | Command must be run from main checkout or with `--repo`.    | `autobot --repo <main-checkout> status`                          |
+| `STATE_DIR_UNAVAILABLE`    | `4`  | `.autobot/` cannot be created or read.                      | `autobot status --verbose`, `autobot reconcile --all --dry-run`  |
+| `STATE_STORE_LOCKED`       | `4`  | SQLite/store lock could not be acquired.                    | `autobot supervisor status`, `autobot reconcile --all --dry-run` |
+| `STATE_STORE_CORRUPT`      | `4`  | Store failed integrity or migration check.                  | `autobot status --verbose`, `autobot inspect <run-id> --json`    |
+| `STATE_MIGRATION_REQUIRED` | `4`  | Store version is older than CLI supports without migration. | `autobot status --verbose`                                       |
 
 ### Item State Errors
 
@@ -674,13 +678,13 @@ Error codes are stable within an implementation release but are not yet a long-t
 
 | Code                     | Exit | Meaning                                          | Typical Recovery Commands                                                               |
 | ------------------------ | ---- | ------------------------------------------------ | --------------------------------------------------------------------------------------- |
-| `ENGINE_ALREADY_RUNNING` | `5`  | Engine lock/PID indicates an active daemon.      | `autobot engine status`, `autobot logs --engine -t`                                     |
-| `ENGINE_NOT_RUNNING`     | `5`  | Stop/status operation expected a running engine. | `autobot engine start`, `autobot engine run-once --dry-run`                             |
-| `ENGINE_START_FAILED`    | `5`  | Engine process could not start.                  | `autobot engine status --verbose`, `autobot logs --engine`                              |
-| `ENGINE_STOP_FAILED`     | `5`  | Engine did not stop within timeout.              | `autobot engine stop --force`, `autobot engine status --verbose`                        |
+| `ENGINE_ALREADY_RUNNING` | `5`  | Engine lock/PID indicates an active daemon.      | `autobot supervisor status`, `autobot logs --engine -t`                                 |
+| `ENGINE_NOT_RUNNING`     | `5`  | Stop/status operation expected a running engine. | `autobot supervisor start`, `autobot supervisor run-once --dry-run`                     |
+| `ENGINE_START_FAILED`    | `5`  | Engine process could not start.                  | `autobot supervisor status --verbose`, `autobot logs --engine`                          |
+| `ENGINE_STOP_FAILED`     | `5`  | Engine did not stop within timeout.              | `autobot supervisor stop --force`, `autobot supervisor status --verbose`                |
 | `WORKER_START_FAILED`    | `5`  | Worker process/job could not start.              | `autobot status <issue>`, `autobot retry <issue> --dry-run`                             |
 | `WORKER_STALE`           | `5`  | Worker heartbeat is stale.                       | `autobot reconcile <issue> --dry-run`, `autobot cancel <issue> --reason "stale worker"` |
-| `WORKER_CANCEL_FAILED`   | `5`  | Worker did not acknowledge cancellation.         | `autobot engine stop --force`, `autobot reconcile <issue> --dry-run`                    |
+| `WORKER_CANCEL_FAILED`   | `5`  | Worker did not acknowledge cancellation.         | `autobot supervisor stop --force`, `autobot reconcile <issue> --dry-run`                |
 
 ### External Dependency Errors
 
@@ -723,20 +727,20 @@ Config is resolved from highest to lowest precedence:
 
 Config commands modify repo config only. They do not write environment variables, profile config, or defaults.
 
-Running engines should reload config on the next tick where practical. `requires_engine_restart` should be `false` for MVP keys unless implementation proves a key cannot be safely reloaded.
+Running supervisors should reload config on the next tick where practical. `requires_engine_restart` should be `false` for MVP keys unless implementation proves a key cannot be safely reloaded.
 
 ### MVP Keys
 
-| Key                            | Type    | Default | Bounds / Values                                 | Env Var                                | Requires Restart | Description                                                                                              |
-| ------------------------------ | ------- | ------- | ----------------------------------------------- | -------------------------------------- | ---------------- | -------------------------------------------------------------------------------------------------------- |
-| `engine.auto-discover`         | boolean | `false` | `true`/`false`                                  | `AUTOBOT_ENGINE_AUTO_DISCOVER`         | `false`          | Whether engine ticks may discover and queue candidate work automatically.                                |
-| `engine.queue-depth`           | integer | `5`     | `0..100`                                        | `AUTOBOT_ENGINE_QUEUE_DEPTH`           | `false`          | Maximum queued-but-not-running items maintained by auto-discovery. `0` disables auto-queueing.           |
-| `engine.max-concurrency`       | integer | `1`     | `1..16`                                         | `AUTOBOT_ENGINE_MAX_CONCURRENCY`       | `false`          | Maximum active runs the local engine may supervise at once.                                              |
-| `engine.tick-interval-seconds` | integer | `15`    | `1..3600`                                       | `AUTOBOT_ENGINE_TICK_INTERVAL_SECONDS` | `false`          | Delay between daemon scheduler ticks.                                                                    |
-| `delivery.require-review`      | boolean | `true`  | `true`/`false`                                  | `AUTOBOT_DELIVERY_REQUIRE_REVIEW`      | `false`          | Whether delivery workflow must include a review gate before completion.                                  |
-| `delivery.allow-release`       | boolean | `false` | `true`/`false`                                  | `AUTOBOT_DELIVERY_ALLOW_RELEASE`       | `false`          | Whether automated publish/release behavior is allowed. Inert while manual/automated release is deferred. |
-| `logs.retention-days`          | integer | `30`    | `1..365`                                        | `AUTOBOT_LOGS_RETENTION_DAYS`          | `false`          | Retention target for future log/artifact cleanup. MVP may report but not enforce this.                   |
-| `discovery.project`            | string  | `""`    | non-empty string when auto-discovery is enabled | `AUTOBOT_DISCOVERY_PROJECT`            | `false`          | Default Linear project used by `discover` and engine auto-discovery when `--project` is not supplied.    |
+| Key                                | Type    | Default | Bounds / Values                                 | Env Var                                | Requires Restart | Description                                                                                               |
+| ---------------------------------- | ------- | ------- | ----------------------------------------------- | -------------------------------------- | ---------------- | --------------------------------------------------------------------------------------------------------- |
+| `supervisor.auto-discover`         | boolean | `false` | `true`/`false`                                  | `AUTOBOT_ENGINE_AUTO_DISCOVER`         | `false`          | Whether supervisor ticks may discover and queue candidate work automatically.                             |
+| `supervisor.queue-depth`           | integer | `5`     | `0..100`                                        | `AUTOBOT_ENGINE_QUEUE_DEPTH`           | `false`          | Maximum queued-but-not-running items maintained by auto-discovery. `0` disables auto-queueing.            |
+| `supervisor.max-concurrency`       | integer | `1`     | `1..16`                                         | `AUTOBOT_ENGINE_MAX_CONCURRENCY`       | `false`          | Maximum active runs the local supervisor may supervise at once.                                           |
+| `supervisor.tick-interval-seconds` | integer | `15`    | `1..3600`                                       | `AUTOBOT_ENGINE_TICK_INTERVAL_SECONDS` | `false`          | Delay between daemon supervisor ticks.                                                                    |
+| `delivery.require-review`          | boolean | `true`  | `true`/`false`                                  | `AUTOBOT_DELIVERY_REQUIRE_REVIEW`      | `false`          | Whether delivery workflow must include a review gate before completion.                                   |
+| `delivery.allow-release`           | boolean | `false` | `true`/`false`                                  | `AUTOBOT_DELIVERY_ALLOW_RELEASE`       | `false`          | Whether automated publish/release behavior is allowed. Inert while manual/automated release is deferred.  |
+| `logs.retention-days`              | integer | `30`    | `1..365`                                        | `AUTOBOT_LOGS_RETENTION_DAYS`          | `false`          | Retention target for future log/artifact cleanup. MVP may report but not enforce this.                    |
+| `discovery.project`                | string  | `""`    | non-empty string when auto-discovery is enabled | `AUTOBOT_DISCOVERY_PROJECT`            | `false`          | Default Linear project used by `discover` and supervisor auto-discovery when `--project` is not supplied. |
 
 ### Value Parsing
 
@@ -843,15 +847,15 @@ interface DiscoveryExclusion {
 
 Without `--verbose`, `excluded` may be an empty array even when exclusions occurred.
 
-## Engine Selection Policy
+## Supervisor Selection Policy
 
-Each engine tick runs in this order:
+Each supervisor tick runs in this order:
 
 1. Load effective config.
 2. Reconcile known in-progress, cancellation-requested, stale, and failed/ambiguous runs.
-3. If `engine.auto-discover=true`, discover eligible candidates for `discovery.project` and auto-queue until queued count reaches `engine.queue-depth`. If `discovery.project` is empty, emit an `engine.unhealthy` warning and skip auto-discovery.
+3. If `supervisor.auto-discover=true`, discover eligible candidates for `discovery.project` and auto-queue until queued count reaches `supervisor.queue-depth`. If `discovery.project` is empty, emit an `engine.unhealthy` warning and skip auto-discovery.
 4. Count active states: `claimed`, `preparing`, `planning`, `developing`, `testing`, `reviewing`, `reconciling`.
-5. Start new runs from `queued` while active count is below `engine.max-concurrency`.
+5. Start new runs from `queued` while active count is below `supervisor.max-concurrency`.
 6. Emit tick summary events and log lines.
 
 ### Queue Ordering
@@ -870,12 +874,12 @@ Linear priority does not reorder already queued items in MVP. Priority may still
 - Manual `add` must fail with `ITEM_ALREADY_QUEUED` for non-terminal duplicates.
 - Terminal requeue policy remains conservative: re-adding `completed` or `canceled` items is blocked unless a future explicit rerun policy is added.
 
-### `engine run-once --json`
+### `supervisor run-once --json`
 
 ```ts
-interface EngineRunOnceData {
+interface SupervisorRunOnceData {
   dry_run: boolean;
-  engine: EngineStatus;
+  supervisor: EngineStatus;
   discovered: DiscoveryCandidate[];
   queued: ItemSummary[];
   selected: ItemSummary[];
@@ -905,7 +909,7 @@ Tests should assert these examples semantically:
 ### Empty Aggregate Status
 
 ```text
-Autobot engine: stopped
+Autobot supervisor: stopped
 State dir: /repo/.autobot
 
 Queue
@@ -918,7 +922,7 @@ Next: autobot discover --project <name>
 ### Aggregate Status With Active And Failed Items
 
 ```text
-Autobot engine: running pid=12345 last_tick=2026-05-13T12:30:00.000Z
+Autobot supervisor: running pid=12345 last_tick=2026-05-13T12:30:00.000Z
 Concurrency: 1/2 active
 
 ISSUE    STATE       ATTEMPT  OWNER                    TITLE
@@ -943,7 +947,7 @@ Run: -
 Timeline
 2026-05-13T12:00:00.000Z  item.queued  Queued by user
 
-Next: autobot engine run-once --dry-run
+Next: autobot supervisor run-once --dry-run
 ```
 
 ### Active Item Detail
@@ -1035,20 +1039,20 @@ autobot discover --project Engineering -q | xargs -n1 autobot add
 
 ```text
 KEY                           VALUE  SOURCE   DESCRIPTION
-engine.auto-discover          false  default  Whether engine ticks may discover and queue candidate work automatically.
-engine.queue-depth            5      default  Maximum queued-but-not-running items maintained by auto-discovery.
-engine.max-concurrency        1      default  Maximum active runs the local engine may supervise at once.
-engine.tick-interval-seconds  15     default  Delay between daemon scheduler ticks.
+supervisor.auto-discover      false  default  Whether supervisor ticks may discover and queue candidate work automatically.
+supervisor.queue-depth        5      default  Maximum queued-but-not-running items maintained by auto-discovery.
+supervisor.max-concurrency    1      default  Maximum active runs the local supervisor may supervise at once.
+supervisor.tick-interval-seconds  15     default  Delay between daemon supervisor ticks.
 delivery.require-review       true   default  Whether delivery workflow must include a review gate before completion.
 delivery.allow-release        false  default  Whether automated publish/release behavior is allowed.
 logs.retention-days           30     default  Retention target for future log/artifact cleanup.
-discovery.project             ""     default  Default Linear project used by discovery and engine auto-discovery.
+discovery.project             ""     default  Default Linear project used by discovery and supervisor auto-discovery.
 ```
 
-### Engine Run Once Dry Run Output
+### Supervisor Run Once Dry Run Output
 
 ```text
-Engine dry run
+Supervisor dry run
 Would reconcile: 1 item
 Would discover: disabled
 Would start: 1 item
@@ -1056,12 +1060,12 @@ Would start: 1 item
 ISSUE    STATE   REASON
 REP-125  queued  oldest queued item and capacity available
 
-Next: autobot engine run-once
+Next: autobot supervisor run-once
 ```
 
 ## Remaining Refinement Before Implementation
 
-The CLI contract is now specific enough for parser, renderer, store-query, and response-envelope implementation. Before implementing engine/workflow behavior, still refine:
+The CLI contract is now specific enough for parser, renderer, store-query, and response-envelope implementation. Before implementing supervisor/workflow behavior, still refine:
 
 - Exact store schema/migrations.
 - FlowCraft blueprint IDs, versions, and node registry names.
