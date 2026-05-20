@@ -79,8 +79,11 @@ describe("schema-aware tool validation", () => {
 
     assert.ok(result.error.includes("args.detail"));
     assert.ok(result.reason.includes("verbose"));
-    assert.ok(result.suggestion.includes("getNetworkRequests({"));
-    assert.ok(result.suggestion.includes('"detail":"normal"'));
+    assert.ok(
+      result.suggestion.includes('getNetworkRequests({"detail":"normal"})'),
+    );
+    assert.ok(!result.suggestion.includes("statusMin"));
+    assert.ok(!result.suggestion.includes("timeRangeStartMs"));
   });
 
   it("rejects hallucinated unknown fields with an exact path", async () => {

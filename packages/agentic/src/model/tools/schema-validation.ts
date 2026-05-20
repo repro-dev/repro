@@ -100,12 +100,21 @@ function buildExampleValue(schema: SchemaNode, key?: string): unknown {
 
   if (type === "object") {
     const result: Record<string, unknown> = {};
-    const required = schema.required ?? Object.keys(schema.properties ?? {});
+    const required = schema.required ?? [];
     for (const prop of required) {
       const childSchema = schema.properties?.[prop];
       if (!childSchema) continue;
       result[prop] = buildExampleValue(childSchema, prop);
     }
+
+    if (
+      key &&
+      schema.properties?.[key] !== undefined &&
+      result[key] === undefined
+    ) {
+      result[key] = buildExampleValue(schema.properties[key]!, key);
+    }
+
     return result;
   }
 
@@ -115,6 +124,12 @@ function buildExampleValue(schema: SchemaNode, key?: string): unknown {
   }
 
   return examplePrimitiveValue(schema, key);
+}
+
+function extractFocusKey(path: string): string | undefined {
+  const raw = path.replace(/^args\.?/, "");
+  const key = raw.match(/^[^.[\]]+/)?.[0];
+  return key && key.length > 0 ? key : undefined;
 }
 
 function validateSchemaNode(
@@ -264,13 +279,15 @@ export function validateToolArgs(
   const failure = validateSchemaNode(parameters, args, "args");
   if (!failure) return null;
 
+  const focusKey = extractFocusKey(failure.path);
+
   return createError(
     `Invalid tool arguments for ${toolName}: ${failure.error}`,
     `Schema validation failed for ${failure.path}; received ${failure.received}`,
     buildRecoverySuggestion(
       toolName,
       failure,
-      buildExampleValue(parameters) as Record<string, unknown>,
+      buildExampleValue(parameters, focusKey) as Record<string, unknown>,
     ),
   );
 }
