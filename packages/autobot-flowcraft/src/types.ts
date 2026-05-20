@@ -52,6 +52,7 @@ export interface FlowcraftWorkflowDefinition {
   id: FlowcraftWorkflowId;
   version: string;
   description: string;
+  resiliency_notes: string[];
   flow: FlowBuilder<FlowcraftWorkflowContext, FlowcraftWorkflowDependencies>;
   runtime: unknown;
   blueprint: WorkflowBlueprint;

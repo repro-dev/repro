@@ -3548,7 +3548,8 @@ function runBoundedWorkflowTickForItem(
                                             sequenceResult.events.at(-1)
                                               ?.type ??
                                             null,
-                                          recovery_commands: [],
+                                          recovery_commands:
+                                            plan.metadata.recovery_commands,
                                           cancellation_requested: false,
                                           cancellation_requested_at: null,
                                           current_run: null,
@@ -3936,7 +3937,9 @@ function runBoundedWorkflowTickForItem(
                                                     plan.domain_events.at(-1)
                                                       ?.type ??
                                                     finishedEvent.type,
-                                                  recovery_commands: [],
+                                                  recovery_commands:
+                                                    plan.metadata
+                                                      .recovery_commands,
                                                   cancellation_requested: false,
                                                   cancellation_requested_at:
                                                     null,

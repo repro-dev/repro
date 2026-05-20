@@ -379,7 +379,7 @@ test("supervisor run-once hydrates Linear metadata before writing planning artif
     queued_at: "2026-05-15T09:00:00Z",
     started_at: null,
     updated_at: "2026-05-15T12:00:02.001Z",
-    last_event: "workflow.phase.completed",
+    last_event: "workflow.phase.planned",
     last_error: null,
     recovery_commands: [],
     cancellation_requested: false,

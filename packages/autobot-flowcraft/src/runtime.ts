@@ -25,7 +25,7 @@ import {
 } from "./flowcraft-runtime";
 
 import type { ItemState, TransportCorrelation } from "@repro/autobot-core";
-import { resolve, type FutureInstance } from "fluture";
+import { Future, type FutureInstance } from "fluture";
 
 const autobotDeliverIssueWorkflowId: FlowcraftWorkflowId =
   "autobot-deliver-issue";
@@ -42,20 +42,6 @@ const workflowPhaseSequence: FlowcraftPhaseId[] = [
   "reviewing",
   "review-fix",
   "reconcile",
-  "complete",
-];
-
-const workflowNodeOrder: FlowcraftNodeId[] = [
-  "claim",
-  "preparing",
-  "planning",
-  "developing",
-  "testing",
-  "reviewing",
-  "review-fix",
-  "review-loop",
-  "reconcile",
-  "escalated",
   "complete",
 ];
 
@@ -182,7 +168,7 @@ function createAutobotDeliverIssueWorkflow(): FlowcraftWorkflowDefinition {
     FlowcraftWorkflowContext,
     FlowcraftWorkflowDependencies
   >(autobotDeliverIssueWorkflowId)
-    .node("claim", createPhaseNode("claim"), { config: { maxRetries: 0 } })
+    .node("claim", createPhaseNode("claim"), { config: { maxRetries: 1 } })
     .node("preparing", createPhaseNode("preparing"), {
       config: { maxRetries: 1 },
     })
@@ -244,6 +230,11 @@ function createAutobotDeliverIssueWorkflow(): FlowcraftWorkflowDefinition {
     version: autobotDeliverIssueWorkflowVersion,
     description:
       "Claim an issue, prepare Linear data, plan the work, develop, test, review, loop for review fixes, reconcile, and complete it.",
+    resiliency_notes: [
+      "developing and testing use bounded retries with explicit timeouts; fallback/recover is intentionally not used because those phases should surface actionable failures to the supervisor",
+      "reviewing and review-fix stay in the bounded loop instead of using recover hooks so review iterations remain visible in execution history",
+      "reconcile and complete are terminal handoff phases and do not use fallback semantics",
+    ],
     flow,
     runtime,
     blueprint,
@@ -551,82 +542,6 @@ function getRuntimeEventNodeId(event: {
   return "workflow";
 }
 
-function createSyntheticFlowcraftEvents(input: {
-  workflow: FlowcraftWorkflowDefinition;
-  execution_id: string;
-  started_at: string;
-  finished_at: string;
-  phaseOutputs: FlowcraftExecutionNodeOutput[];
-  workflow_status: FlowcraftWorkflowStatus;
-}): Array<{
-  type: string;
-  payload: Record<string, unknown>;
-}> {
-  const events: Array<{
-    type: string;
-    payload: Record<string, unknown>;
-  }> = [
-    {
-      type: "workflow:start",
-      payload: {
-        blueprintId: input.workflow.blueprint.id,
-        executionId: input.execution_id,
-        started_at: input.started_at,
-      },
-    },
-    {
-      type: "workflow:resume",
-      payload: {
-        blueprintId: input.workflow.blueprint.id,
-        executionId: input.execution_id,
-        started_at: input.started_at,
-      },
-    },
-  ];
-
-  for (const output of input.phaseOutputs) {
-    events.push(
-      {
-        type: "node:start",
-        payload: {
-          nodeId: output.node_id,
-          executionId: input.execution_id,
-          input: output.output,
-          blueprintId: input.workflow.blueprint.id,
-        },
-      },
-      {
-        type: "node:finish",
-        payload: {
-          nodeId: output.node_id,
-          result: { output: output.output },
-          executionId: input.execution_id,
-          blueprintId: input.workflow.blueprint.id,
-        },
-      },
-    );
-  }
-
-  events.push({
-    type: "workflow:finish",
-    payload: {
-      blueprintId: input.workflow.blueprint.id,
-      executionId: input.execution_id,
-      status: input.workflow_status,
-      started_at: input.started_at,
-      finished_at: input.finished_at,
-    },
-  });
-
-  return events.map((event) => ({
-    type: event.type,
-    payload: stripNestedTransport({
-      ...event.payload,
-      executionId: input.execution_id,
-    }),
-  }));
-}
-
 function createExecutionPlan(input: {
   issue_id: string;
   run_id: string;
@@ -634,86 +549,122 @@ function createExecutionPlan(input: {
   started_at: string;
   finished_at: string;
   transport: TransportCorrelation | null;
-}): FlowcraftExecutionPlan {
+}): FutureInstance<unknown, FlowcraftExecutionPlan> {
   const workflow = flowcraftWorkflows[0];
-  const phaseOutputs: FlowcraftExecutionNodeOutput[] = workflowNodeOrder.map(
-    (nodeId, index) => ({
-      node_id: nodeId,
-      state:
-        nodeId in phaseDefinitions
-          ? phaseDefinitions[nodeId as FlowcraftPhaseId].state
-          : controlNodeDefinitions[nodeId as "review-loop" | "escalated"].state,
-      output:
-        nodeId in phaseDefinitions
-          ? {
-              phase: nodeId,
-              state: phaseDefinitions[nodeId as FlowcraftPhaseId].state,
-              order: index + 1,
-            }
-          : nodeId === reviewLoopId
-          ? {
-              phase: nodeId,
-              state: controlNodeDefinitions["review-loop"].state,
-              attempts: 1,
-              attempt_limit: reviewAttemptLimit,
-            }
-          : {
-              phase: nodeId,
-              state: controlNodeDefinitions.escalated.state,
-            },
-      occurred_at: input.started_at,
-    }),
-  );
 
-  const workflowStatus: FlowcraftWorkflowStatus = "completed";
-  const metadata = createFlowcraftExecutionMetadata({
-    workflow,
-    issue_id: input.issue_id,
-    run_id: input.run_id,
-    execution_id: input.execution_id,
-    started_at: input.started_at,
-    finished_at: input.finished_at,
-    workflow_status: workflowStatus,
-    phaseOutputs,
+  return Future((reject, resolveFuture) => {
+    const capturedEvents: Array<{
+      type: string;
+      payload: Record<string, unknown>;
+    }> = [];
+    const runtime = new FlowRuntime<
+      FlowcraftWorkflowContext,
+      FlowcraftWorkflowDependencies
+    >({
+      eventBus: {
+        emit(event) {
+          capturedEvents.push({
+            type: event.type,
+            payload: stripNestedTransport(
+              event.payload as Record<string, unknown>,
+            ),
+          });
+        },
+      },
+    });
+
+    void workflow.flow
+      .run(runtime, {
+        issue_id: input.issue_id,
+        run_id: input.run_id,
+        execution_id: input.execution_id,
+        started_at: input.started_at,
+        finished_at: input.finished_at,
+        review_attempts: 1,
+        review_max_attempts: reviewAttemptLimit,
+        review_requested: false,
+        phase_history: [],
+        transport: input.transport,
+      })
+      .then((result) => {
+        const phaseOutputs = capturedEvents
+          .filter(
+            (event) =>
+              event.type === "node:finish" &&
+              typeof event.payload.nodeId === "string" &&
+              event.payload.nodeId in phaseDefinitions,
+          )
+          .map((event) => {
+            const nodeId = event.payload.nodeId as FlowcraftPhaseId;
+            const resultPayload = isRecord(event.payload.result)
+              ? event.payload.result
+              : null;
+            const output =
+              resultPayload !== null && isRecord(resultPayload.output)
+                ? resultPayload.output
+                : isRecord(resultPayload?.output)
+                ? resultPayload.output
+                : {
+                    phase: nodeId,
+                    state: phaseDefinitions[nodeId].state,
+                  };
+
+            return {
+              node_id: nodeId,
+              state: phaseDefinitions[nodeId].state,
+              output: output as Record<string, unknown>,
+              occurred_at: input.started_at,
+            };
+          });
+
+        const workflowStatus = result.status as FlowcraftWorkflowStatus;
+        const metadata = createFlowcraftExecutionMetadata({
+          workflow,
+          issue_id: input.issue_id,
+          run_id: input.run_id,
+          execution_id: input.execution_id,
+          started_at: input.started_at,
+          finished_at: input.finished_at,
+          workflow_status: workflowStatus,
+          phaseOutputs,
+        });
+
+        const flowcraft_events = capturedEvents.map((event, index) =>
+          createCapturedRuntimeEventRecord({
+            execution_id: input.execution_id,
+            event,
+            index,
+            occurred_at:
+              event.type === "workflow:finish"
+                ? input.finished_at
+                : input.started_at,
+          }),
+        );
+
+        resolveFuture({
+          workflow,
+          execution_id: input.execution_id,
+          run_id: input.run_id,
+          issue_id: input.issue_id,
+          started_at: input.started_at,
+          finished_at: input.finished_at,
+          transport: input.transport,
+          metadata,
+          flowcraft_events,
+          domain_events: createPhaseEventsFromRun({
+            workflow,
+            issue_id: input.issue_id,
+            run_id: input.run_id,
+            execution_id: input.execution_id,
+            transport: input.transport,
+            started_at: input.started_at,
+            phaseOutputs,
+          }),
+        });
+      }, reject);
+
+    return () => undefined;
   });
-
-  const flowcraftEvents = createSyntheticFlowcraftEvents({
-    workflow,
-    execution_id: input.execution_id,
-    started_at: input.started_at,
-    finished_at: input.finished_at,
-    phaseOutputs,
-    workflow_status: workflowStatus,
-  }).map((event, index) =>
-    createCapturedRuntimeEventRecord({
-      execution_id: input.execution_id,
-      event,
-      index,
-      occurred_at:
-        event.type === "workflow:finish" ? input.finished_at : input.started_at,
-    }),
-  );
-
-  return {
-    workflow,
-    execution_id: input.execution_id,
-    run_id: input.run_id,
-    issue_id: input.issue_id,
-    started_at: input.started_at,
-    finished_at: input.finished_at,
-    transport: input.transport,
-    metadata,
-    flowcraft_events: flowcraftEvents,
-    domain_events: createPhaseEventsFromRun({
-      workflow,
-      issue_id: input.issue_id,
-      run_id: input.run_id,
-      execution_id: input.execution_id,
-      transport: input.transport,
-      started_at: input.started_at,
-      phaseOutputs,
-    }),
-  };
 }
 
 export const flowcraftWorkflows = [
@@ -755,7 +706,7 @@ export function executeAutobotDeliverIssueWorkflow(input: {
   finished_at: string;
   transport: TransportCorrelation | null;
 }): FutureInstance<unknown, FlowcraftExecutionPlan> {
-  return resolve(createExecutionPlan(input));
+  return createExecutionPlan(input);
 }
 
 export function buildFlowcraftExecutionPlan(input: {

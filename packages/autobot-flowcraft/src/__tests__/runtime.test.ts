@@ -147,27 +147,26 @@ test("execution plans persist serialized context, loop metadata, and phase event
   assert.equal(plan.metadata.loop.id, "review-loop");
   assert.equal(plan.metadata.loop.attempt_limit, 3);
   assert.match(plan.metadata.serialized_context, /"issue_id":"REP-1154"/);
-  assert.ok(plan.flowcraft_events.length >= 22);
+  assert.ok(plan.flowcraft_events.length >= 10);
   assert.equal(plan.flowcraft_events[0]?.type, "workflow:start");
   assert.equal(plan.flowcraft_events.at(-1)?.type, "workflow:finish");
   assert.equal(plan.transport?.channel_id, "relay-channel");
-  assert.equal(plan.domain_events.length, 9);
+  assert.deepEqual(
+    plan.metadata.node_outputs.map((output) => output.node_id),
+    ["claim", "preparing", "planning"],
+  );
+  assert.deepEqual(plan.metadata.recovery_commands, []);
+  assert.equal(
+    plan.flowcraft_events.some((event) => event.node_id === "escalated"),
+    false,
+  );
+  assert.equal(plan.domain_events.length, 3);
   assert.deepEqual(
     plan.domain_events.map((event) => event.state),
-    [
-      "claimed",
-      "preparing",
-      "planning",
-      "developing",
-      "testing",
-      "reviewing",
-      "reviewing",
-      "reconciling",
-      "completed",
-    ],
+    ["claimed", "preparing", "planning"],
   );
-  assert.equal(plan.domain_events[8]?.state, "completed");
-  assert.equal(plan.domain_events[8]?.transport?.channel_id, "relay-channel");
+  assert.equal(plan.domain_events[2]?.state, "planning");
+  assert.equal(plan.domain_events[2]?.transport?.channel_id, "relay-channel");
   assert.equal(
     JSON.stringify(plan.flowcraft_events).includes('"transport"'),
     false,
