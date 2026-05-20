@@ -23,6 +23,8 @@ import {
   renderAutobotQueueList,
   renderAutobotQueueMutation,
   renderAutobotQueueStatus,
+  renderAutobotSupervisorLogs,
+  renderAutobotSupervisorStatus,
   renderAutobotWarnings,
 } from "./render/human";
 import {
@@ -158,9 +160,23 @@ function renderSuccess(
         })}\n`,
       );
       return;
+    case "supervisor-status":
+      io.stdout.write(
+        `${renderAutobotSupervisorStatus(result.data, {
+          color: colorEnabled,
+        })}\n`,
+      );
+      return;
     case "engine-logs":
       io.stdout.write(
         `${renderAutobotEngineLogs(result.data, {
+          color: colorEnabled,
+        })}\n`,
+      );
+      return;
+    case "supervisor-logs":
+      io.stdout.write(
+        `${renderAutobotSupervisorLogs(result.data, {
           color: colorEnabled,
         })}\n`,
       );
@@ -292,7 +308,8 @@ export function runAutobotCli(
 
     const parsedInvocation = invocation as AutobotInvocation;
     const shouldHandleShutdownSignals =
-      parsedInvocation.command_path[0] === "engine" &&
+      (parsedInvocation.command_path[0] === "engine" ||
+        parsedInvocation.command_path[0] === "supervisor") &&
       parsedInvocation.command_path[1] === "start";
 
     let invocationCancel: (() => void) | null = null;

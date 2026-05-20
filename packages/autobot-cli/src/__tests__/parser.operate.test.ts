@@ -4,40 +4,40 @@ import test from "node:test";
 import { createAutobotProgram } from "../program";
 import { collectCommandPaths } from "./helpers";
 
-test("operate commands and engine subcommands are present in the parser tree", () => {
+test("operate commands and supervisor subcommands are present in the parser tree", () => {
   const program = createAutobotProgram();
   const topLevelNames = program.commands
     .map((command) => command.name())
     .sort();
 
   assert.ok(topLevelNames.includes("cancel"));
-  assert.ok(topLevelNames.includes("engine"));
+  assert.ok(topLevelNames.includes("supervisor"));
   assert.ok(topLevelNames.includes("inspect"));
   assert.ok(topLevelNames.includes("reconcile"));
   assert.ok(topLevelNames.includes("retry"));
 
   assert.deepStrictEqual(
     collectCommandPaths(program)
-      .filter((path) => path.startsWith("engine "))
+      .filter((path) => path.startsWith("supervisor "))
       .sort(),
     [
-      "engine debug",
-      "engine debug workflow",
-      "engine debug workflow diagram",
-      "engine debug workflow list",
-      "engine debug workflow validate",
-      "engine logs",
-      "engine run-once",
-      "engine start",
-      "engine status",
-      "engine stop",
+      "supervisor debug",
+      "supervisor debug workflow",
+      "supervisor debug workflow diagram",
+      "supervisor debug workflow list",
+      "supervisor debug workflow validate",
+      "supervisor logs",
+      "supervisor run-once",
+      "supervisor start",
+      "supervisor status",
+      "supervisor stop",
     ],
   );
 
-  const engineCommand = program.commands.find(
-    (command) => command.name() === "engine",
+  const supervisorCommand = program.commands.find(
+    (command) => command.name() === "supervisor",
   );
-  const runOnceCommand = engineCommand?.commands.find(
+  const runOnceCommand = supervisorCommand?.commands.find(
     (command) => command.name() === "run-once",
   );
 
@@ -50,7 +50,7 @@ test("operate commands and engine subcommands are present in the parser tree", (
     ),
   );
 
-  const startCommand = engineCommand?.commands.find(
+  const startCommand = supervisorCommand?.commands.find(
     (command) => command.name() === "start",
   );
 

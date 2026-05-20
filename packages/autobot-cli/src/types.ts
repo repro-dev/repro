@@ -68,6 +68,7 @@ export interface EngineTickReport {
 
 export interface EngineStatusData {
   engine: EngineStatus;
+  supervisor?: EngineStatus;
   counts: Record<ItemState, number>;
   active_workers: WorkerSummary[];
   events?: readonly DomainEvent[];
@@ -103,7 +104,21 @@ export type AutobotCommandResult =
       warnings?: readonly Warning[];
     }
   | {
+      kind: "supervisor-status";
+      command: string;
+      repo: RepoRef;
+      data: EngineStatusData;
+      warnings?: readonly Warning[];
+    }
+  | {
       kind: "engine-logs";
+      command: string;
+      repo: RepoRef;
+      data: EngineStatusData;
+      warnings?: readonly Warning[];
+    }
+  | {
+      kind: "supervisor-logs";
       command: string;
       repo: RepoRef;
       data: EngineStatusData;

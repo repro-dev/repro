@@ -74,18 +74,18 @@ Included:
 - `autobot logs`
 - `autobot discover`
 - `autobot config list|get|set|unset`
-- `autobot engine status|run-once|start|stop`
+- `autobot supervisor status|run-once|start|stop`
 - `autobot retry`
 - `autobot cancel`
 - `autobot reconcile`
 - `autobot inspect`
-- `autobot engine debug workflow list|validate|diagram`
+- `autobot supervisor debug workflow list|validate|diagram`
 
 Deferred:
 
 - `autobot resume`
 - `autobot release`
-- `autobot engine restart`
+- `autobot supervisor restart`
 - hidden `autobot internal ...` commands unless worker implementation proves they are necessary.
 
 ## Public State Model

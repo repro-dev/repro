@@ -1253,7 +1253,12 @@ function createEngineStatusResult(input: {
   warnings?: readonly Warning[];
   action?: "start" | "stop";
   message?: string;
-  kind?: "engine-status" | "engine-logs";
+  statusKey?: "engine" | "supervisor";
+  kind?:
+    | "engine-status"
+    | "supervisor-status"
+    | "engine-logs"
+    | "supervisor-logs";
 }): FutureInstance<unknown, AutobotCommandResult> {
   return createQueueStatus(input.store, {
     command: input.command,
@@ -1275,6 +1280,9 @@ function createEngineStatusResult(input: {
         kind: input.kind ?? "engine-status",
         data: {
           ...queueStatus.data,
+          ...(input.statusKey === "supervisor"
+            ? { supervisor: queueStatus.data.engine }
+            : {}),
           action: input.action,
           message: input.message,
         },
@@ -4736,10 +4744,34 @@ function createItemDetailResult(
   });
 }
 
+function getSupervisorCommandRoot(
+  invocation: AutobotInvocation,
+): "engine" | "supervisor" {
+  return invocation.command_path[0] === "supervisor" ? "supervisor" : "engine";
+}
+
+function getSupervisorStatusKind(
+  root: "engine" | "supervisor",
+): "engine-status" | "supervisor-status" {
+  return root === "supervisor" ? "supervisor-status" : "engine-status";
+}
+
+function getSupervisorLogsKind(
+  root: "engine" | "supervisor",
+): "engine-logs" | "supervisor-logs" {
+  return root === "supervisor" ? "supervisor-logs" : "engine-logs";
+}
+
+function getSupervisorNoun(root: "engine" | "supervisor"): string {
+  return root === "supervisor" ? "Supervisor" : "Engine";
+}
+
 function handleEngineStatus(
   invocation: AutobotInvocation,
   store: AutobotStore,
 ): FutureInstance<unknown, AutobotCommandResult> {
+  const root = getSupervisorCommandRoot(invocation);
+
   return loadEngineEvents(store).pipe(
     chain((events) =>
       readEngineRuntime(store.repo).pipe(
@@ -4751,24 +4783,26 @@ function handleEngineStatus(
             command: invocation.command,
             runtime,
             events: synthesizeEngineEvents(runtime, events),
+            statusKey: root === "supervisor" ? "supervisor" : "engine",
+            kind: getSupervisorStatusKind(root),
             message:
               runtime.stop_requested_at !== null
-                ? "Graceful shutdown is in progress"
+                ? `${getSupervisorNoun(root)} graceful shutdown is in progress`
                 : runtime.stale_lock
-                ? "Engine lock is stale"
+                ? `${getSupervisorNoun(root)} lock is stale`
                 : runtimeState === "starting"
-                ? "Engine is starting"
+                ? `${getSupervisorNoun(root)} is starting`
                 : runtimeState === "running"
-                ? "Engine is running"
+                ? `${getSupervisorNoun(root)} is running`
                 : runtimeState === "stopping"
                 ? "Graceful shutdown is in progress"
                 : runtimeState === "unhealthy"
-                ? "Engine is unhealthy"
+                ? `${getSupervisorNoun(root)} is unhealthy`
                 : runtimeState === "stopped"
-                ? "Engine is stopped"
+                ? `${getSupervisorNoun(root)} is stopped`
                 : runtime.lock !== null || runtime.status !== null
-                ? "Engine is running"
-                : "Engine is stopped",
+                ? `${getSupervisorNoun(root)} is running`
+                : `${getSupervisorNoun(root)} is stopped`,
           });
         }),
       ),
@@ -4780,6 +4814,8 @@ function handleEngineLogs(
   invocation: AutobotInvocation,
   store: AutobotStore,
 ): FutureInstance<unknown, AutobotCommandResult> {
+  const root = getSupervisorCommandRoot(invocation);
+
   return loadEngineEvents(store).pipe(
     chain((events) =>
       readEngineRuntime(store.repo).pipe(
@@ -4789,8 +4825,9 @@ function handleEngineLogs(
             command: invocation.command,
             runtime,
             events: synthesizeEngineEvents(runtime, events),
-            kind: "engine-logs",
-            message: "Recent engine events",
+            statusKey: root === "supervisor" ? "supervisor" : "engine",
+            kind: getSupervisorLogsKind(root),
+            message: `Recent ${root} events`,
           }),
         ),
       ),
@@ -4803,19 +4840,23 @@ function handleEngineStop(
   store: AutobotStore,
   now: () => string,
 ): FutureInstance<unknown, AutobotCommandResult> {
+  const root = getSupervisorCommandRoot(invocation);
+
   return requestEngineStop(store.repo, now()).pipe(
     chain((runtime) =>
       createEngineStatusResult({
         store,
         command: invocation.command,
         runtime,
+        statusKey: root === "supervisor" ? "supervisor" : "engine",
         action: "stop",
         message:
           runtime.status?.state === "stopped"
-            ? "Engine is already stopped"
+            ? `${getSupervisorNoun(root)} is already stopped`
             : runtime.lock === null && runtime.status === null
-            ? "No engine lock was active"
-            : "Graceful shutdown requested",
+            ? `No ${root} lock was active`
+            : `${getSupervisorNoun(root)} graceful shutdown requested`,
+        kind: getSupervisorStatusKind(root),
       }),
     ),
   );
@@ -4835,6 +4876,7 @@ function handleEngineStart(
     milliseconds: number,
   ) => FutureInstance<unknown, void> = createDelayFuture,
 ): FutureInstance<unknown, AutobotCommandResult> {
+  const root = getSupervisorCommandRoot(invocation);
   const result = createConfigList(store).pipe(
     chain((config) => {
       const tickIntervalSeconds = Number(
@@ -4891,6 +4933,8 @@ function handleEngineStart(
                       stale_lock: false,
                     },
                     action: "start",
+                    statusKey: root === "supervisor" ? "supervisor" : "engine",
+                    kind: getSupervisorStatusKind(root),
                     message,
                   }).pipe(fork(reject)(resolveFuture));
                 }),
@@ -4914,15 +4958,15 @@ function handleEngineStart(
                       state: "stopped",
                       stop_requested_at: snapshotBeforeTick.stop_requested_at,
                     };
-                    finish("Engine stopped gracefully");
+                    finish(`${getSupervisorNoun(root)} stopped gracefully`);
                     return;
                   }
 
                   handleEngineRunOnce(
                     {
                       ...invocation,
-                      command_path: ["engine", "run-once"],
-                      command: "engine run-once",
+                      command_path: [root, "run-once"],
+                      command: `${root} run-once`,
                       args: [],
                       options: {
                         ...invocation.options,
@@ -4992,7 +5036,11 @@ function handleEngineStart(
                               if (
                                 snapshotAfterTick.stop_requested_at !== null
                               ) {
-                                finish("Engine stopped gracefully");
+                                finish(
+                                  `${getSupervisorNoun(
+                                    root,
+                                  )} stopped gracefully`,
+                                );
                                 return;
                               }
 
@@ -5390,6 +5438,7 @@ function handleCommand(
     case "logs":
       return handleLogs(invocation, store);
     case "engine":
+    case "supervisor":
       switch (invocation.command_path[1]) {
         case "logs":
           return handleEngineLogs(invocation, store);
@@ -5464,7 +5513,8 @@ export function createAutobotServices(
   return {
     handleInvocation(invocation: AutobotInvocation) {
       if (
-        invocation.command_path[0] === "engine" &&
+        (invocation.command_path[0] === "engine" ||
+          invocation.command_path[0] === "supervisor") &&
         invocation.command_path[1] === "debug" &&
         invocation.command_path[2] === "workflow"
       ) {

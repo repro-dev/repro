@@ -8,7 +8,7 @@ The spec intentionally describes a new CLI. It preserves the useful public conce
 
 ## Product Positioning
 
-`autobot-next` is the repo-owned local automation CLI for Linear work items. It exposes queue, engine, status, logs, config, and recovery controls in operator language.
+`autobot-next` is the repo-owned local automation CLI for Linear work items. It exposes queue, supervisor, status, logs, config, and recovery controls in operator language.
 
 The CLI is not a raw FlowCraft CLI. FlowCraft execution IDs, node IDs, and blueprint internals may appear in debug commands and JSON diagnostics, but the primary user model is:
 
@@ -16,7 +16,7 @@ The CLI is not a raw FlowCraft CLI. FlowCraft execution IDs, node IDs, and bluep
 - Queue: local backlog of work items eligible for automated delivery.
 - Run: one delivery attempt for one item.
 - Phase/state: a user-understandable lifecycle step such as queued, preparing, planning, developing, testing, reviewing, reconciling, failed, completed, or canceled.
-- Engine: local scheduler/supervisor that starts and reconciles runs.
+- Supervisor: local scheduler/supervisor that starts and reconciles runs.
 - Worker: process or distributed job doing a bounded side effect.
 
 ## Design Goals
@@ -122,7 +122,7 @@ Mutating success responses include:
 Status-oriented responses include:
 
 - `config`: effective config snapshot.
-- `engine`: engine status snapshot when relevant.
+- `supervisor`: supervisor status snapshot when relevant.
 - `items`: item summaries when relevant.
 - `events`: event timeline when relevant.
 
@@ -147,7 +147,7 @@ Internal-only states should be hidden unless `--verbose` or `--json` diagnostic 
 
 - worker lock/lease state.
 - raw FlowCraft statuses such as `stalled` or `cancelled`; these should be mapped to public states such as `failed`, `awaiting`, or `canceled` plus diagnostics.
-- raw node IDs, unless in `engine debug workflow` or `inspect` debug commands.
+- raw node IDs, unless in `supervisor debug workflow` or `inspect` debug commands.
 
 ## Item Identity
 

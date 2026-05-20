@@ -263,22 +263,23 @@ export function createAutobotProgram(
     options.onInvocation,
   );
 
-  const engineCommand = program
-    .command("engine")
-    .description("manage the engine");
+  const supervisorCommand = program
+    .command("supervisor")
+    .alias("engine")
+    .description("manage the supervisor");
 
   registerLeafCommand(
-    engineCommand,
-    { command: "status", description: "show engine status" },
+    supervisorCommand,
+    { command: "status", description: "show supervisor status" },
     options.onInvocation,
   );
   registerLeafCommand(
-    engineCommand,
-    { command: "logs", description: "show engine logs" },
+    supervisorCommand,
+    { command: "logs", description: "show supervisor logs" },
     options.onInvocation,
   );
   registerLeafCommand(
-    engineCommand,
+    supervisorCommand,
     {
       command: "run-once",
       description:
@@ -288,7 +289,7 @@ export function createAutobotProgram(
     options.onInvocation,
   );
   registerLeafCommand(
-    engineCommand,
+    supervisorCommand,
     {
       command: "start",
       description:
@@ -297,15 +298,15 @@ export function createAutobotProgram(
     options.onInvocation,
   );
   registerLeafCommand(
-    engineCommand,
-    { command: "stop", description: "stop the engine" },
+    supervisorCommand,
+    { command: "stop", description: "stop the supervisor" },
     options.onInvocation,
   );
 
-  const engineDebugCommand = engineCommand
+  const supervisorDebugCommand = supervisorCommand
     .command("debug")
-    .description("engine debug helpers");
-  const workflowCommand = engineDebugCommand
+    .description("supervisor debug helpers");
+  const workflowCommand = supervisorDebugCommand
     .command("workflow")
     .description("inspect workflow helpers");
 

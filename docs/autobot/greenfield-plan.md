@@ -76,7 +76,7 @@ Public queue interface from `docs/autobot/cli-design.md`:
 - `autobot-next config set <key> <value> [--json]` persists a repo-scoped setting.
 - `autobot-next config unset <key> [--json]` removes a repo-scoped setting override.
 - `autobot-next config list [--json]` is referenced in examples and prior context as the discoverability surface for config keys.
-- `autobot-next engine debug workflow list|validate|diagram [--json]` keeps FlowCraft inspection available without advertising a top-level workflow group.
+- `autobot-next supervisor debug workflow list|validate|diagram [--json]` keeps FlowCraft inspection available without advertising a top-level workflow group.
 
 Public JSON responses are versioned with `schema_version: 1`. Public status-oriented responses include a `config` block sourced from `.autobot/config.json`. Current config keys are `engine.auto-discover`, `engine.queue-depth`, and `engine.max-concurrency`.
 

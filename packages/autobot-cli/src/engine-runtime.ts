@@ -180,12 +180,12 @@ export function createEngineAlreadyRunningError(input: {
 }): AutobotCliError {
   return new AutobotCliError({
     code: "ENGINE_ALREADY_RUNNING",
-    message: "Engine is already running",
-    what_failed: "engine start",
+    message: "Supervisor is already running",
+    what_failed: "supervisor start",
     likely_cause: `a daemon process with pid ${input.pid} already owns the lock`,
     recovery_commands: [
-      "autobot-next engine status",
-      "autobot-next engine stop",
+      "autobot-next supervisor status",
+      "autobot-next supervisor stop",
     ],
     details: input,
     exit_code: 2,
