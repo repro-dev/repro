@@ -20,42 +20,8 @@ function runFuture<T>(future: FutureInstance<unknown, T>): Promise<T> {
   });
 }
 
-const validClassify = JSON.stringify(
-  {
-    issue_shapes: ["feature"],
-    route: "proceed",
-    ready_to_proceed: true,
-    why: ["Ready for planning."],
-    next: "Continue to planning.",
-  },
-  null,
-  2,
-);
-
-const validRiskAssessment = [
-  "## Risk Level",
-  "standard",
-  "",
-  "## Risk Signals",
-  "- none",
-  "",
-  "## Review Lanes",
-  "- review-standard",
-  "",
-  "## Why",
-  "- No elevated signals.",
-].join("\n");
-
 const noOpArtifactWriter = () => resolve(undefined);
-const noOpArtifactReader = (input: { path: string }) => {
-  if (input.path.endsWith("classify.json")) {
-    return resolve(validClassify);
-  }
-
-  if (input.path.endsWith("risk-assessment.md")) {
-    return resolve(validRiskAssessment);
-  }
-
+const noOpArtifactReader = (_input: { path: string }) => {
   return resolve(validRunPlan);
 };
 const noOpLinearIssue = () => resolve(null);
@@ -304,7 +270,7 @@ test("supervisor run-once reconciles stale in-progress items before selecting th
       "developing",
       "testing",
       "reviewing",
-      "review-fix",
+      "review_fix",
       "review-loop",
       "reconcile",
       "complete",
@@ -313,6 +279,16 @@ test("supervisor run-once reconciles stale in-progress items before selecting th
   assert.match(
     executionMetadata?.serialized_context ?? "",
     /review_should_reconcile/,
+  );
+  assert.equal(
+    fixture.artifactRecords.some((artifact) => artifact.kind === "classify"),
+    false,
+  );
+  assert.equal(
+    fixture.artifactRecords.some(
+      (artifact) => artifact.kind === "risk-assessment",
+    ),
+    false,
   );
   assert.equal(fixture.itemUpserts.length, 3);
   assert.deepEqual(
@@ -415,7 +391,7 @@ test("supervisor run-once hydrates Linear metadata before writing planning artif
     branch: "autobot/REP-400",
     queued_at: "2026-05-15T09:00:00Z",
     started_at: null,
-    updated_at: "2026-05-15T12:00:02.001Z",
+    updated_at: "2026-05-15T12:00:00.001Z",
     last_event: "workflow.phase.completed",
     last_error: null,
     recovery_commands: [],

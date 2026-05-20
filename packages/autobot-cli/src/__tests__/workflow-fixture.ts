@@ -554,7 +554,7 @@ export function makeWorkflowStore(options: WorkflowStoreOptions = {}) {
                       occurred_at: "2026-05-15T11:00:00Z",
                     },
                     {
-                      node_id: "review-fix",
+                      node_id: "review_fix",
                       state: "reviewing",
                       output: { phase: "review-fix", state: "reviewing" },
                       occurred_at: "2026-05-15T11:00:00Z",
@@ -653,7 +653,7 @@ export function makeWorkflowStore(options: WorkflowStoreOptions = {}) {
                       occurred_at: "2026-05-15T11:20:00Z",
                     },
                     {
-                      node_id: "review-fix",
+                      node_id: "review_fix",
                       state: "reviewing",
                       output: { phase: "review-fix", state: "reviewing" },
                       occurred_at: "2026-05-15T11:20:00Z",
@@ -762,7 +762,7 @@ export function makeWorkflowStore(options: WorkflowStoreOptions = {}) {
                 {
                   flowcraft_event_id: "flowcraft-event-9",
                   execution_id: "exec-1154",
-                  node_id: "review-fix",
+                  node_id: "review_fix",
                   type: "node:finish",
                   occurred_at: "2026-05-15T11:00:00Z",
                   data: { status: "reviewing" },

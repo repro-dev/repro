@@ -40,7 +40,7 @@ test("autobot deliver issue workflow exposes explicit delivery phases and review
       "developing",
       "testing",
       "reviewing",
-      "review-fix",
+      "review_fix",
       "review-loop",
       "reconcile",
       "escalated",
@@ -55,7 +55,7 @@ test("autobot deliver issue workflow exposes explicit delivery phases and review
   assert.match(
     blueprint.nodes.find((node) => node.id === "review-loop")?.params
       ?.condition as string,
-    /^review_continue$/,
+    /^review_fix_continue$/,
   );
   assert.deepEqual(blueprint.metadata?.cycleEntryPoints, ["developing"]);
   assert.deepEqual(
@@ -68,11 +68,11 @@ test("autobot deliver issue workflow exposes explicit delivery phases and review
       ["planning", "developing", null],
       ["developing", "testing", null],
       ["testing", "reviewing", null],
-      ["reviewing", "review-fix", null],
-      ["review-fix", "review-loop", null],
+      ["reviewing", "review_fix", null],
+      ["review_fix", "review-loop", null],
       ["review-loop", "developing", "continue"],
       ["review-loop", "reconcile", "break"],
-      ["review-loop", "escalated", "escalate"],
+      ["review-loop", "escalated", "break"],
       ["reconcile", "complete", null],
     ].sort((left, right) => left.join("|").localeCompare(right.join("|"))),
   );
@@ -106,7 +106,7 @@ test("workflow validation and diagram output come from FlowCraft analysis", () =
     "developing",
     "testing",
     "reviewing",
-    "review-fix",
+    "review_fix",
     "review-loop",
     "reconcile",
     "escalated",
@@ -173,7 +173,7 @@ test("execution plans persist serialized context, loop metadata, and phase event
       "developing",
       "testing",
       "reviewing",
-      "review-fix",
+      "review_fix",
       "review-loop",
       "reconcile",
       "complete",
@@ -225,12 +225,12 @@ test("deliberate escalation stays distinct from completion", async () => {
     execution_id: "exec-1157",
     started_at: "2026-05-15T11:30:00.000Z",
     finished_at: "2026-05-15T11:30:01.000Z",
-    review_attempts: 1,
+    review_attempts: 0,
     review_max_attempts: 1,
-    review_requested: false,
+    review_requested: true,
     review_continue: false,
     review_should_reconcile: false,
-    review_should_escalate: true,
+    review_should_escalate: false,
     phase_history: [],
     transport: null,
   });
@@ -238,6 +238,12 @@ test("deliberate escalation stays distinct from completion", async () => {
   const context = result.context as unknown as Record<string, unknown>;
 
   assert.equal(result.status, "completed");
+  assert.equal(context["_outputs.review_fix"] !== undefined, true);
+  assert.equal(
+    (context["_outputs.review_fix"] as { review_should_escalate?: boolean })
+      ?.review_should_escalate,
+    true,
+  );
   assert.equal(context["_outputs.escalated"] !== undefined, true);
   assert.equal(context["_outputs.complete"], undefined);
 });

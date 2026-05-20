@@ -32,6 +32,7 @@ const autobotDeliverIssueWorkflowId: FlowcraftWorkflowId =
 const autobotDeliverIssueWorkflowVersion = "1.0.0";
 const reviewAttemptLimit = 3;
 const reviewLoopId = "review-loop" as const;
+const reviewFixNodeId = "review_fix" as const;
 
 type PhaseDefinition = {
   type: string;
@@ -129,15 +130,122 @@ function stripNestedTransport<T>(value: T): T {
   return result as T;
 }
 
+type NodeExecutionContext = {
+  input?: unknown;
+  context?: unknown;
+  dependencies?: {
+    workflowState?: {
+      getContext?: () => {
+        set: (key: string, value: unknown) => Promise<void> | void;
+        toJSON?: () =>
+          | Promise<Record<string, unknown>>
+          | Record<string, unknown>;
+      };
+    };
+  };
+};
+
+async function readNodeSnapshot(
+  nodeContext?: NodeExecutionContext,
+): Promise<Record<string, unknown>> {
+  if (nodeContext === undefined) {
+    return {};
+  }
+
+  const contextSnapshot = isRecord(nodeContext.context)
+    ? nodeContext.context
+    : {};
+  const inputSnapshot = isRecord(nodeContext.input) ? nodeContext.input : {};
+  const workflowStateContext =
+    nodeContext.dependencies?.workflowState?.getContext?.();
+  const workflowStateSnapshot = workflowStateContext?.toJSON
+    ? await Promise.resolve(workflowStateContext.toJSON())
+    : {};
+
+  return {
+    ...inputSnapshot,
+    ...contextSnapshot,
+    ...(isRecord(workflowStateSnapshot) ? workflowStateSnapshot : {}),
+  };
+}
+
+function toPhaseId(nodeId: FlowcraftNodeId): FlowcraftPhaseId | null {
+  if (nodeId === reviewFixNodeId) {
+    return "review-fix";
+  }
+
+  return nodeId in phaseDefinitions ? (nodeId as FlowcraftPhaseId) : null;
+}
+
+function pickReviewControlFields(
+  snapshot: Record<string, unknown>,
+): Record<string, unknown> {
+  const fields: Record<string, unknown> = {};
+
+  if (typeof snapshot.review_attempts === "number") {
+    fields.review_attempts = snapshot.review_attempts;
+  }
+
+  if (typeof snapshot.review_max_attempts === "number") {
+    fields.review_max_attempts = snapshot.review_max_attempts;
+  }
+
+  if (typeof snapshot.review_requested === "boolean") {
+    fields.review_requested = snapshot.review_requested;
+  }
+
+  if (typeof snapshot.review_continue === "boolean") {
+    fields.review_continue = snapshot.review_continue;
+  }
+
+  if (typeof snapshot.review_should_reconcile === "boolean") {
+    fields.review_should_reconcile = snapshot.review_should_reconcile;
+  }
+
+  if (typeof snapshot.review_should_escalate === "boolean") {
+    fields.review_should_escalate = snapshot.review_should_escalate;
+  }
+
+  if (typeof snapshot.review_fix_continue === "boolean") {
+    fields.review_fix_continue = snapshot.review_fix_continue;
+  }
+
+  if (typeof snapshot.review_fix_should_reconcile === "boolean") {
+    fields.review_fix_should_reconcile = snapshot.review_fix_should_reconcile;
+  }
+
+  if (typeof snapshot.review_fix_should_escalate === "boolean") {
+    fields.review_fix_should_escalate = snapshot.review_fix_should_escalate;
+  }
+
+  if (Array.isArray(snapshot.phase_history)) {
+    fields.phase_history = snapshot.phase_history.filter(
+      (entry) => typeof entry === "string",
+    );
+  }
+
+  return fields;
+}
+
 function createPhaseNode(
-  nodeId: FlowcraftPhaseId,
+  nodeId: FlowcraftPhaseId | typeof reviewFixNodeId,
 ): FlowcraftNodeImplementation {
-  return async () => ({
-    output: {
-      phase: nodeId,
-      state: phaseDefinitions[nodeId].state,
-    },
-  });
+  return async (nodeContext?: NodeExecutionContext) => {
+    const snapshot = await readNodeSnapshot(nodeContext);
+    const phaseId = toPhaseId(nodeId);
+
+    if (phaseId === null) {
+      throw new Error(`createPhaseNode cannot render control node ${nodeId}`);
+    }
+
+    return {
+      output: {
+        phase: phaseId,
+        state: phaseDefinitions[phaseId].state,
+        ...pickReviewControlFields(snapshot),
+      },
+    };
+  };
 }
 
 function createControlNode(
@@ -151,9 +259,60 @@ function createControlNode(
   });
 }
 
+function createReviewFixNode(): FlowcraftNodeImplementation {
+  return async (nodeContext?: NodeExecutionContext) => {
+    const snapshot = await readNodeSnapshot(nodeContext);
+    const reviewAttempts =
+      typeof snapshot.review_attempts === "number"
+        ? snapshot.review_attempts
+        : 0;
+    const reviewMaxAttempts =
+      typeof snapshot.review_max_attempts === "number"
+        ? snapshot.review_max_attempts
+        : reviewAttemptLimit;
+    const reviewRequested = snapshot.review_requested === true;
+    const nextReviewAttempts = reviewAttempts + 1;
+    const reviewContinue =
+      reviewRequested && nextReviewAttempts < reviewMaxAttempts;
+    const reviewShouldEscalate = reviewRequested && !reviewContinue;
+    const reviewFixSnapshot = {
+      review_attempts: nextReviewAttempts,
+      review_max_attempts: reviewMaxAttempts,
+      review_requested: reviewRequested,
+      review_continue: reviewContinue,
+      review_should_reconcile: reviewRequested ? false : true,
+      review_should_escalate: reviewShouldEscalate,
+      review_fix_continue: reviewContinue,
+      review_fix_should_reconcile: reviewRequested ? false : true,
+      review_fix_should_escalate: reviewShouldEscalate,
+    };
+
+    const workflowStateContext =
+      nodeContext?.dependencies?.workflowState?.getContext?.();
+    if (workflowStateContext !== undefined) {
+      await Promise.all(
+        Object.entries(reviewFixSnapshot).map(([key, value]) =>
+          Promise.resolve(workflowStateContext.set(key, value)),
+        ),
+      );
+    }
+
+    return {
+      output: {
+        phase: "review-fix",
+        state: phaseDefinitions["review-fix"].state,
+        ...pickReviewControlFields(snapshot),
+        ...reviewFixSnapshot,
+      },
+    };
+  };
+}
+
 function getNodeState(nodeId: FlowcraftNodeId): ItemState {
-  if (nodeId in phaseDefinitions) {
-    return phaseDefinitions[nodeId as FlowcraftPhaseId].state;
+  const phaseId = toPhaseId(nodeId);
+
+  if (phaseId !== null) {
+    return phaseDefinitions[phaseId].state;
   }
 
   return nodeId === "escalated"
@@ -187,13 +346,13 @@ function createAutobotDeliverIssueWorkflow(): FlowcraftWorkflowDefinition {
     .node("reviewing", createPhaseNode("reviewing"), {
       config: { maxRetries: 1, retryDelay: 5_000, timeout: 60_000 },
     })
-    .node("review-fix", createPhaseNode("review-fix"), {
+    .node(reviewFixNodeId, createReviewFixNode(), {
       config: { maxRetries: 1, timeout: 60_000 },
     })
     .loop("review-loop", {
       startNodeId: "developing",
-      endNodeId: "review-fix",
-      condition: "review_continue",
+      endNodeId: reviewFixNodeId,
+      condition: "review_fix_continue",
     })
     .node("reconcile", createPhaseNode("reconcile"))
     .node("escalated", createControlNode("escalated"))
@@ -203,13 +362,12 @@ function createAutobotDeliverIssueWorkflow(): FlowcraftWorkflowDefinition {
     .edge("planning", "developing")
     .edge("developing", "testing")
     .edge("testing", "reviewing")
-    .edge("reviewing", "review-fix")
+    .edge("reviewing", reviewFixNodeId)
     .edge("review-loop", "reconcile", {
-      condition: "review_should_reconcile",
+      condition: "review_fix_should_reconcile",
     })
     .edge("review-loop", "escalated", {
-      action: "escalate",
-      condition: "review_should_escalate",
+      condition: "review_fix_should_escalate",
     })
     .edge("reconcile", "complete")
     .setCycleEntryPoint("developing");
@@ -402,6 +560,9 @@ function createFlowcraftExecutionMetadata(input: {
   };
   nodeOutputs: FlowcraftExecutionNodeOutput[];
 }): FlowcraftExecutionMetadata {
+  const latestReviewFixOutput = [...input.nodeOutputs]
+    .reverse()
+    .find((output) => output.node_id === reviewFixNodeId)?.output;
   const workflowStatus: FlowcraftWorkflowStatus = input.nodeOutputs.some(
     (output) => output.node_id === "escalated",
   )
@@ -410,21 +571,26 @@ function createFlowcraftExecutionMetadata(input: {
   const itemState = mapFlowcraftStatusToItemState(workflowStatus);
   const phaseOutputs = input.nodeOutputs.filter(
     (output): output is FlowcraftExecutionNodeOutput =>
-      output.node_id in phaseDefinitions,
+      toPhaseId(output.node_id) !== null,
   );
   const developingAttempts = input.nodeOutputs.filter(
     (output) => output.node_id === "developing",
   ).length;
   const attemptLimit =
-    typeof input.runtimeResult.context.review_max_attempts === "number"
+    typeof latestReviewFixOutput?.review_max_attempts === "number"
+      ? latestReviewFixOutput.review_max_attempts
+      : typeof input.runtimeResult.context.review_max_attempts === "number"
       ? input.runtimeResult.context.review_max_attempts
       : reviewAttemptLimit;
   const loop: FlowcraftExecutionLoopMetadata = {
     id: reviewLoopId,
     attempt_limit: attemptLimit,
-    attempts: Math.max(1, developingAttempts),
-    exhausted: workflowStatus === "escalated",
-    continued: developingAttempts > 1,
+    attempts:
+      typeof latestReviewFixOutput?.review_attempts === "number"
+        ? latestReviewFixOutput.review_attempts
+        : Math.max(1, developingAttempts),
+    exhausted: latestReviewFixOutput?.review_should_escalate === true,
+    continued: latestReviewFixOutput?.review_continue === true,
     body: ["developing", "testing", "reviewing", "review-fix"],
   };
 
@@ -435,7 +601,7 @@ function createFlowcraftExecutionMetadata(input: {
     item_state: itemState,
     bounded: true,
     phase_sequence: phaseOutputs.map(
-      (output) => output.node_id as FlowcraftPhaseId,
+      (output) => toPhaseId(output.node_id) as FlowcraftPhaseId,
     ),
     loop,
     node_outputs: input.nodeOutputs,
@@ -474,10 +640,11 @@ function createPhaseEventsFromRun(input: {
   return input.phaseOutputs
     .filter(
       (event) =>
-        event.node_id in phaseDefinitions || event.node_id === "escalated",
+        toPhaseId(event.node_id) !== null || event.node_id === "escalated",
     )
     .map((event, index) => {
-      const phase = event.node_id as FlowcraftPhaseId;
+      const phase =
+        toPhaseId(event.node_id) ?? (event.node_id as FlowcraftPhaseId);
       const phaseDefinition =
         phase in phaseDefinitions
           ? phaseDefinitions[phase]
@@ -598,7 +765,7 @@ function createExecutionPlan(input: {
         execution_id: input.execution_id,
         started_at: input.started_at,
         finished_at: input.finished_at,
-        review_attempts: 1,
+        review_attempts: 0,
         review_max_attempts: reviewAttemptLimit,
         review_requested: false,
         review_continue: false,
@@ -613,7 +780,7 @@ function createExecutionPlan(input: {
             (event) =>
               event.type === "node:finish" &&
               typeof event.payload.nodeId === "string" &&
-              (event.payload.nodeId in phaseDefinitions ||
+              (toPhaseId(event.payload.nodeId as FlowcraftNodeId) !== null ||
                 event.payload.nodeId === "review-loop" ||
                 event.payload.nodeId === "escalated"),
           )
@@ -680,7 +847,7 @@ function createExecutionPlan(input: {
             started_at: input.started_at,
             phaseOutputs: nodeOutputs.filter(
               (output) =>
-                output.node_id in phaseDefinitions ||
+                toPhaseId(output.node_id) !== null ||
                 output.node_id === "escalated",
             ),
           }),

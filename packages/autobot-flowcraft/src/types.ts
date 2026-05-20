@@ -23,7 +23,11 @@ export type FlowcraftPhaseId =
   | "reconcile"
   | "complete";
 
-export type FlowcraftNodeId = FlowcraftPhaseId | "review-loop" | "escalated";
+export type FlowcraftNodeId =
+  | FlowcraftPhaseId
+  | "review_fix"
+  | "review-loop"
+  | "escalated";
 
 export type FlowcraftWorkflowStatus =
   | "completed"

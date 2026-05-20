@@ -2129,50 +2129,6 @@ type PlanningRunPlanAssessment = {
   readiness: PlanningRunPlanReadiness;
 };
 
-const planningClassifyIssueShapes = [
-  "feature",
-  "bug",
-  "tech debt",
-  "docs",
-  "infra",
-  "ui-bearing",
-] as const;
-
-type PlanningClassifyIssueShape = (typeof planningClassifyIssueShapes)[number];
-
-type PlanningClassifyRoute = "proceed" | "research-refine" | "escalate";
-
-type PlanningClassifyAssessment = {
-  errors: string[];
-  route: PlanningClassifyRoute | null;
-  readiness: PlanningRunPlanReadiness;
-};
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function isPlanningClassifyIssueShape(
-  value: unknown,
-): value is PlanningClassifyIssueShape {
-  return (
-    typeof value === "string" &&
-    planningClassifyIssueShapes.includes(value as PlanningClassifyIssueShape)
-  );
-}
-
-function isPlanningClassifyRoute(
-  value: unknown,
-): value is PlanningClassifyRoute {
-  return (
-    value === "proceed" || value === "research-refine" || value === "escalate"
-  );
-}
-
-function isNonEmptyTrimmedString(value: unknown): value is string {
-  return typeof value === "string" && value.trim().length > 0;
-}
-
 function assessPlanningRunPlanContent(
   content: string,
 ): PlanningRunPlanAssessment {
@@ -2275,115 +2231,6 @@ function assessPlanningRunPlanContent(
       ...invalidOpenQuestions,
       ...invalidReadiness,
     ],
-    readiness,
-  };
-}
-
-function assessPlanningClassifyContent(
-  content: string,
-): PlanningClassifyAssessment {
-  let parsed: unknown;
-
-  try {
-    parsed = JSON.parse(content) as unknown;
-  } catch (error) {
-    return {
-      errors: [
-        `invalid classify.json JSON: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      ],
-      route: null,
-      readiness: null,
-    };
-  }
-
-  if (!isPlainObject(parsed)) {
-    return {
-      errors: ["classify.json must be a JSON object"],
-      route: null,
-      readiness: null,
-    };
-  }
-
-  const errors: string[] = [];
-  const issueShapesValue = parsed.issue_shapes;
-  const routeValue = parsed.route;
-  const readyToProceedValue = parsed.ready_to_proceed;
-  const whyValue = parsed.why;
-  const nextValue = parsed.next;
-
-  if (!Array.isArray(issueShapesValue)) {
-    errors.push(
-      "issue_shapes must be a non-empty array of allowed shape strings",
-    );
-  } else {
-    if (issueShapesValue.length === 0) {
-      errors.push(
-        "issue_shapes must be a non-empty array of allowed shape strings",
-      );
-    }
-
-    const invalidIssueShapes = issueShapesValue.filter(
-      (value) => !isPlanningClassifyIssueShape(value),
-    );
-
-    if (invalidIssueShapes.length > 0) {
-      errors.push(
-        `issue_shapes contains unsupported values: ${invalidIssueShapes
-          .map((value) => JSON.stringify(value))
-          .join(", ")}`,
-      );
-    }
-  }
-
-  if (!isPlanningClassifyRoute(routeValue)) {
-    errors.push("route must be one of proceed, research-refine, or escalate");
-  }
-
-  if (typeof readyToProceedValue !== "boolean") {
-    errors.push("ready_to_proceed must be a boolean");
-  }
-
-  if (
-    !Array.isArray(whyValue) ||
-    whyValue.length === 0 ||
-    whyValue.some((value) => !isNonEmptyTrimmedString(value))
-  ) {
-    errors.push("why must be a non-empty array of non-empty strings");
-  }
-
-  if (!isNonEmptyTrimmedString(nextValue)) {
-    errors.push("next must be a non-empty string");
-  }
-
-  if (
-    isPlanningClassifyRoute(routeValue) &&
-    typeof readyToProceedValue === "boolean"
-  ) {
-    if (routeValue === "proceed" && readyToProceedValue !== true) {
-      errors.push("ready_to_proceed must be true when route is proceed");
-    }
-
-    if (routeValue !== "proceed" && readyToProceedValue !== false) {
-      errors.push(
-        "ready_to_proceed must be false when route is research-refine or escalate",
-      );
-    }
-  }
-
-  const readiness =
-    errors.length === 0
-      ? routeValue === "proceed"
-        ? "ready_to_proceed"
-        : routeValue === "research-refine"
-        ? "needs_research"
-        : "escalate"
-      : null;
-
-  return {
-    errors,
-    route: isPlanningClassifyRoute(routeValue) ? routeValue : null,
     readiness,
   };
 }
@@ -2847,12 +2694,7 @@ function runPlanningPhaseSequence(input: {
   const contextArtifact = baseArtifacts[0]!;
   const testPlanArtifact = baseArtifacts[1]!;
   const contextPath = path.join(input.store.repo.path, contextArtifact.path);
-  const phaseOrder = [
-    "prepare",
-    "classify",
-    "plan",
-    "risk-assess",
-  ] as const satisfies readonly PlanningPhaseName[];
+  const phaseOrder = ["plan"] as const satisfies readonly PlanningPhaseName[];
 
   return persistPlanningArtifacts(
     baseArtifacts,
@@ -3006,86 +2848,6 @@ function runPlanningPhaseSequence(input: {
                   reader: input.artifactReader,
                 }).pipe(
                   fork(reject)((outputRead) => {
-                    if (phase === "classify") {
-                      const assessment: PlanningClassifyAssessment =
-                        outputRead.content !== null
-                          ? assessPlanningClassifyContent(outputRead.content)
-                          : {
-                              errors: ["missing classify.json"],
-                              route: null,
-                              readiness: null,
-                            };
-
-                      if (
-                        outputRead.error !== null ||
-                        outputRead.content === null ||
-                        assessment.errors.length > 0 ||
-                        assessment.route !== "proceed" ||
-                        assessment.readiness !== "ready_to_proceed"
-                      ) {
-                        const classifyRoutedToResearchRefine =
-                          assessment.route === "research-refine";
-                        const classifyEscalated =
-                          assessment.route === "escalate";
-
-                        resolveFuture({
-                          artifacts,
-                          events,
-                          finalSessionResult: planningSessionResult,
-                          planningRunPlanValid: false,
-                          planningRunPlanReady: false,
-                          failure: {
-                            state: classifyRoutedToResearchRefine
-                              ? "awaiting"
-                              : classifyEscalated
-                              ? "escalated"
-                              : "failed",
-                            code: classifyRoutedToResearchRefine
-                              ? "AUTOBOT-PLANNER-CLASSIFY-NOT-PROCEEDING"
-                              : classifyEscalated
-                              ? "AUTOBOT-PLANNER-CLASSIFY-ESCALATED"
-                              : "AUTOBOT-PLANNER-CLASSIFY-INVALID",
-                            message: classifyRoutedToResearchRefine
-                              ? "planning classify phase routed to research-refine before planning"
-                              : classifyEscalated
-                              ? "planning classify phase escalated before planning"
-                              : `planning session produced invalid classify.json: ${
-                                  outputRead.content === null
-                                    ? outputRead.error !== null
-                                      ? String(outputRead.error)
-                                      : "missing classify.json"
-                                    : assessment.errors.join(", ")
-                                }`,
-                            occurred_at: planningSessionResult.finished_at,
-                          },
-                        });
-                        return;
-                      }
-
-                      const classifyArtifact = buildPlanningPhaseOutputArtifact(
-                        {
-                          phase,
-                          path: outputPath,
-                          content: outputRead.content,
-                        },
-                      );
-                      if (classifyArtifact !== null) {
-                        artifacts.push(classifyArtifact);
-                        events.push(
-                          createPlanningArtifactCreatedEvent({
-                            issueId: input.item.issue_id,
-                            runId: input.runId,
-                            executionId: input.executionId,
-                            artifact: classifyArtifact,
-                            occurredAt: planningSessionResult.finished_at,
-                          }),
-                        );
-                      }
-
-                      runPhase(index + 1);
-                      return;
-                    }
-
                     if (phase === "plan") {
                       const assessment =
                         outputRead.content !== null
