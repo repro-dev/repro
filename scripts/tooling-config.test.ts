@@ -161,6 +161,30 @@ describe('REP-642 tooling wiring', () => {
     assert.match(ci.slice(fmtStep), /run: pnpm run fmt:check/)
   })
 
+  it('wires Playwright E2E into CI on PRs and main', () => {
+    const ci = readText('.github/workflows/ci.yml')
+    const e2eJob = ci.indexOf('  e2e:\n')
+
+    assert.ok(e2eJob >= 0, 'expected e2e job to exist')
+    assert.match(ci, /pull_request:\n\s+branches:\n\s+- "main"/)
+    assert.match(ci, /push:\n\s+branches:\n\s+- "\\*\\*"/)
+    assert.match(
+      ci,
+      /e2e:[\s\S]*needs: \[build\][\s\S]*timeout-minutes: 10[\s\S]*if: \$\{\{ github\.event_name == 'pull_request' \|\| github\.ref == 'refs\/heads\/main' \}\}/
+    )
+    assert.match(ci, /Install Playwright Chromium/)
+    assert.match(
+      ci,
+      /PATH="\$PWD\/tmp\/ci-bin:\$PATH" \.\/bin\/reproctl start --wait --timeout 300s workspace/
+    )
+    assert.match(ci, /\.\/bin\/reproctl db seed/)
+    assert.match(
+      ci,
+      /xvfb-run --auto-servernum pnpm exec playwright test --project chromium/
+    )
+    assert.match(ci, /Upload Playwright artifacts on failure/)
+  })
+
   it('guards pre-commit against direct commits on main', () => {
     const preCommitHook = readText('.husky/pre-commit')
 

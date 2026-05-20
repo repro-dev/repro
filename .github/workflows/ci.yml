@@ -2,6 +2,9 @@ name: Build, test and deploy (split)
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches:
+      - "main"
   push:
     branches:
       - "**"
@@ -142,6 +145,66 @@ jobs:
         id: list-affected
         run: |
           echo "app_ids=$(moon query projects --affected --tags type.app | jq -c '[.projects[].id]')" >> $GITHUB_OUTPUT
+
+  e2e:
+    name: Playwright E2E
+    needs: [build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: ${{ github.event_name == 'pull_request' || github.ref == 'refs/heads/main' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Moon toolchain
+        uses: moonrepo/setup-toolchain@v0
+        with:
+          auto-install: true
+
+      - name: Set PNPM store directory
+        run: |
+          pnpm config set store-dir ~/.pnpm-store
+
+      - name: Get cached PNPM store
+        uses: actions/cache@v3
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      - name: Install dependencies
+        run: pnpm install --reporter=silent
+
+      - name: Get Moon cache
+        uses: actions/cache@v3
+        with:
+          path: .moon/cache
+          key: ${{ runner.os }}-moon-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-moon-
+
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install chromium
+
+      - name: Start workspace services
+        run: ./bin/reproctl start --wait --timeout 5m workspace
+
+      - name: Seed the test database
+        run: ./bin/reproctl db seed
+
+      - name: Run Playwright E2E tests
+        run: pnpm exec playwright test --project chromium
+
+      - name: Upload Playwright artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-artifacts-${{ github.run_number }}
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: ignore
 
   format-check:
     name: Lint and format check
