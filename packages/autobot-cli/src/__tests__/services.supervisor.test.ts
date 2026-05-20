@@ -91,6 +91,16 @@ test("supervisor status and logs use supervisor kinds while engine remains suppo
 
     assert.equal(logs.kind, "supervisor-logs");
 
+    const runOnce = (await runFuture(
+      services.handleInvocation({
+        ...makeInvocation(["supervisor", "run-once"]),
+        options: makeOptions({ repo: root, dry_run: true }),
+      }),
+    )) as AutobotCommandResult;
+
+    assert.equal(runOnce.kind, "supervisor-status");
+    assert.equal(runOnce.data.supervisor?.state, "unknown");
+
     const legacy = (await runFuture(
       services.handleInvocation({
         ...makeInvocation(["engine", "status"]),

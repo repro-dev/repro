@@ -3972,6 +3972,8 @@ function handleEngineRunOnce(
   loadLinearIssue?: AutobotServiceDependencies["loadLinearIssue"],
   runtime?: EngineRuntimeSnapshot | null,
 ): FutureInstance<unknown, AutobotCommandResult> {
+  const root = getSupervisorCommandRoot(invocation);
+
   return createConfigList(store).pipe(
     chain((config): FutureInstance<unknown, AutobotCommandResult> => {
       const settings = resolveEngineTickSettings(config);
@@ -4199,7 +4201,18 @@ function handleEngineRunOnce(
                           runtime: runtime ?? null,
                           tick: tickReport,
                           warnings,
-                        });
+                        }).pipe(
+                          map((result) =>
+                            root === "supervisor"
+                              ? liftQueueStatusToSupervisorStatus(
+                                  result as Extract<
+                                    AutobotCommandResult,
+                                    { kind: "queue-status" }
+                                  >,
+                                )
+                              : result,
+                          ),
+                        );
                       }
 
                       const startedEvent = createEngineTickEvent({
@@ -4256,7 +4269,18 @@ function handleEngineRunOnce(
                                 runtime: runtime ?? null,
                                 tick: tickReport,
                                 warnings,
-                              }),
+                              }).pipe(
+                                map((result) =>
+                                  root === "supervisor"
+                                    ? liftQueueStatusToSupervisorStatus(
+                                        result as Extract<
+                                          AutobotCommandResult,
+                                          { kind: "queue-status" }
+                                        >,
+                                      )
+                                    : result,
+                                ),
+                              ),
                             ),
                           ),
                         ),
@@ -4764,6 +4788,19 @@ function getSupervisorLogsKind(
 
 function getSupervisorNoun(root: "engine" | "supervisor"): string {
   return root === "supervisor" ? "Supervisor" : "Engine";
+}
+
+function liftQueueStatusToSupervisorStatus(
+  result: Extract<AutobotCommandResult, { kind: "queue-status" }>,
+): Extract<AutobotCommandResult, { kind: "supervisor-status" }> {
+  return {
+    ...result,
+    kind: "supervisor-status",
+    data: {
+      ...result.data,
+      supervisor: result.data.engine,
+    },
+  };
 }
 
 function handleEngineStatus(

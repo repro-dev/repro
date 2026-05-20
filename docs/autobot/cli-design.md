@@ -457,38 +457,38 @@ autobot-next config unset <key> [--json] [--dry-run]
 
 Removes one override and falls back to default/profile value.
 
-### Engine
+### Supervisor
 
-#### `autobot-next engine status`
+#### `autobot-next supervisor status`
 
 ```bash
-autobot-next engine status [--json] [--verbose]
+autobot-next supervisor status [--json] [--verbose]
 ```
 
 Shows daemon lifecycle, PID, uptime, last tick, config, active workers, and health warnings.
 
-#### `autobot-next engine start`
+#### `autobot-next supervisor start`
 
 ```bash
-autobot-next engine start [--foreground] [--json] [--once]
+autobot-next supervisor start [--foreground] [--json] [--once]
 ```
 
-Starts the local engine.
+Starts the local supervisor.
 
 Semantics:
 
-- Refuses to start a duplicate engine for the same state dir.
+- Refuses to start a duplicate supervisor for the same state dir.
 - `--foreground` runs in the current process and logs to stdout/stderr.
-- `--once` is an alias for `autobot-next engine run-once` and should not daemonize.
-- Writes `engine.started` event.
+- `--once` is an alias for `autobot-next supervisor run-once` and should not daemonize.
+- Writes `engine.started` event for compatibility.
 
-#### `autobot-next engine stop`
+#### `autobot-next supervisor stop`
 
 ```bash
-autobot-next engine stop [--json] [--timeout <seconds>] [-f|--force]
+autobot-next supervisor stop [--json] [--timeout <seconds>] [-f|--force]
 ```
 
-Stops the local engine.
+Stops the local supervisor.
 
 Semantics:
 
@@ -496,18 +496,18 @@ Semantics:
 - Does not kill active worker processes unless `--force` is provided.
 - With `--force`, records cancellation/reconciliation-needed events for active workers.
 
-#### `autobot-next engine restart` (deferred)
+#### `autobot-next supervisor restart` (deferred)
 
 ```bash
-autobot-next engine restart [--json]
+autobot-next supervisor restart [--json]
 ```
 
-Deferred from MVP. Future command stops then starts the engine.
+Deferred from MVP. Future command stops then starts the supervisor; the legacy engine spelling remains a compatibility path.
 
-#### `autobot-next engine run-once`
+#### `autobot-next supervisor run-once`
 
 ```bash
-autobot-next engine run-once [--json] [--dry-run]
+autobot-next supervisor run-once [--json] [--dry-run]
 ```
 
 Runs one scheduler tick without daemonizing.
@@ -655,7 +655,7 @@ Top-level `autobot-next --help` should group commands by intent:
 
 - Queue: `add`, `remove`, `list`, `discover`.
 - Observe: `status`, `logs`, `inspect`.
-- Operate: `engine`, `retry`, `cancel`, `reconcile`.
+- Operate: `supervisor` (legacy `engine` compatibility path), `retry`, `cancel`, `reconcile`.
 - Deferred operate commands: `release`, `resume`.
 - Configure: `config`.
 - Debug: `workflow`.
@@ -682,12 +682,12 @@ The first implementation should include:
 - `autobot-next logs`
 - `autobot-next discover`
 - `autobot-next config list|get|set|unset`
-- `autobot-next engine status|run-once|start|stop`
+- `autobot-next supervisor status|run-once|start|stop` (legacy `autobot-next engine ...` compatibility path)
 - `autobot-next retry`
 - `autobot-next cancel`
 - `autobot-next reconcile`
 - `autobot-next inspect`
-- `autobot-next engine debug workflow list|validate|diagram`
+- `autobot-next supervisor debug workflow list|validate|diagram` (legacy `autobot-next engine ...` compatibility path)
 
 Defer from MVP unless the workflow prototype needs them:
 
