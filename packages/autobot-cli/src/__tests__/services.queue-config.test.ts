@@ -56,7 +56,13 @@ function makeInvocation(
 }
 
 function makeItem(
-  state: "queued" | "claimed" | "failed" | "completed" | "canceled" = "queued",
+  state:
+    | "queued"
+    | "claimed"
+    | "failed"
+    | "escalated"
+    | "completed"
+    | "canceled" = "queued",
 ) {
   return {
     issue_id: "REP-1152",
@@ -144,7 +150,11 @@ function makeStore(
         }
 
         return resolve(
-          item.state === "completed" || item.state === "canceled" ? [] : [item],
+          item.state === "escalated" ||
+            item.state === "completed" ||
+            item.state === "canceled"
+            ? []
+            : [item],
         );
       },
       getItemDetail(issueId: string) {

@@ -11,6 +11,7 @@ type WorkflowItemState =
   | "queued"
   | "claimed"
   | "failed"
+  | "escalated"
   | "completed"
   | "canceled";
 
@@ -251,7 +252,9 @@ export function makeWorkflowStore(options: WorkflowStoreOptions = {}) {
             ? itemRecords
             : itemRecords.filter(
                 (item) =>
-                  item.state !== "completed" && item.state !== "canceled",
+                  item.state !== "escalated" &&
+                  item.state !== "completed" &&
+                  item.state !== "canceled",
               );
 
         return resolve(

@@ -4,6 +4,7 @@ import path from "node:path";
 
 import type {
   ArtifactRef,
+  ArtifactKind,
   ConfigEntry,
   ConfigSource,
   ConfigValue,
@@ -68,6 +69,7 @@ import {
   type PlanningSessionResult,
   type PlanningSessionRunner,
 } from "./planning-session";
+import type { SingleTrackPhaseContractName } from "./phase-contracts";
 import { renderSingleTrackPhaseContract } from "./phase-contracts";
 import {
   AutobotCliError,
@@ -141,13 +143,15 @@ type ArtifactReader = (input: {
 }) => FutureInstance<unknown, string>;
 
 type PlanningArtifactDraft = {
-  kind: "context" | "test-plan" | "prompt" | "contract" | "run-plan";
+  kind: ArtifactKind;
   path: string;
   description: string;
   content: string;
   content_hash: string;
   persist?: boolean;
 };
+
+type PlanningPhaseName = SingleTrackPhaseContractName;
 
 interface ConfigDefinition {
   key: string;
@@ -2038,10 +2042,14 @@ function renderPlanningTestPlanArtifact(input: {
 }
 
 function renderPlanningPromptArtifact(input: {
+  phase: PlanningPhaseName;
   issueId: string;
   attempt: number;
 }): string {
-  return renderSingleTrackPhaseContract("plan", input);
+  return renderSingleTrackPhaseContract(input.phase, {
+    issueId: input.issueId,
+    attempt: input.attempt,
+  });
 }
 
 function buildPlanningRunPlanArtifact(input: {
@@ -2052,6 +2060,34 @@ function buildPlanningRunPlanArtifact(input: {
     kind: "run-plan",
     path: input.path,
     description: "Planning run plan",
+    content: input.content,
+    content_hash: createContentHash(input.content),
+  };
+}
+
+function buildPlanningPhaseOutputArtifact(input: {
+  phase: PlanningPhaseName;
+  path: string;
+  content: string;
+}): PlanningArtifactDraft | null {
+  if (input.phase === "prepare") {
+    return null;
+  }
+
+  return {
+    kind:
+      input.phase === "classify"
+        ? "classify"
+        : input.phase === "risk-assess"
+        ? "risk-assessment"
+        : "run-plan",
+    path: input.path,
+    description:
+      input.phase === "classify"
+        ? "Planning classification"
+        : input.phase === "risk-assess"
+        ? "Planning risk assessment"
+        : "Planning run plan",
     content: input.content,
     content_hash: createContentHash(input.content),
   };
@@ -2086,6 +2122,50 @@ type PlanningRunPlanAssessment = {
   errors: string[];
   readiness: PlanningRunPlanReadiness;
 };
+
+const planningClassifyIssueShapes = [
+  "feature",
+  "bug",
+  "tech debt",
+  "docs",
+  "infra",
+  "ui-bearing",
+] as const;
+
+type PlanningClassifyIssueShape = (typeof planningClassifyIssueShapes)[number];
+
+type PlanningClassifyRoute = "proceed" | "research-refine" | "escalate";
+
+type PlanningClassifyAssessment = {
+  errors: string[];
+  route: PlanningClassifyRoute | null;
+  readiness: PlanningRunPlanReadiness;
+};
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isPlanningClassifyIssueShape(
+  value: unknown,
+): value is PlanningClassifyIssueShape {
+  return (
+    typeof value === "string" &&
+    planningClassifyIssueShapes.includes(value as PlanningClassifyIssueShape)
+  );
+}
+
+function isPlanningClassifyRoute(
+  value: unknown,
+): value is PlanningClassifyRoute {
+  return (
+    value === "proceed" || value === "research-refine" || value === "escalate"
+  );
+}
+
+function isNonEmptyTrimmedString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
 
 function assessPlanningRunPlanContent(
   content: string,
@@ -2122,6 +2202,19 @@ function assessPlanningRunPlanContent(
 
     return firstContentLine?.trim() ?? null;
   };
+  const normalizePlanningSentinel = (value: string | null): string | null => {
+    if (value === null) {
+      return null;
+    }
+
+    const trimmed = value.trim();
+    const unwrapped =
+      trimmed.startsWith("`") && trimmed.endsWith("`") && trimmed.length >= 2
+        ? trimmed.slice(1, -1).trim()
+        : trimmed;
+
+    return unwrapped.toLowerCase();
+  };
   const requiredHeadings = [
     "Readiness",
     "Sequence Notes",
@@ -2139,24 +2232,20 @@ function assessPlanningRunPlanContent(
     (heading) => `empty ## ${heading}`,
   );
   const hasOpenQuestions = getHeadingLine("Open Questions") !== -1;
-  const readinessSentinel =
-    getFirstContentLine("Readiness")?.toLowerCase() ?? null;
+  const readinessSentinel = normalizePlanningSentinel(
+    getFirstContentLine("Readiness"),
+  );
   const readiness =
     readinessSentinel === "ready_to_proceed"
       ? "ready_to_proceed"
       : readinessSentinel === "needs_research"
       ? "needs_research"
-      : readinessSentinel === "not_ready"
+      : readinessSentinel === "not_ready" ||
+        readinessSentinel === "not_ready_to_proceed"
       ? "not_ready"
       : readinessSentinel === "escalate"
       ? "escalate"
       : null;
-  const invalidReadiness =
-    readiness === null
-      ? [
-          "## Readiness must start with one of: ready_to_proceed, needs_research, not_ready, escalate",
-        ]
-      : [];
   const invalidOpenQuestions =
     hasOpenQuestions && readiness === "ready_to_proceed"
       ? ["## Open Questions is only allowed when ## Readiness is not ready"]
@@ -2164,6 +2253,12 @@ function assessPlanningRunPlanContent(
   const emptyOpenQuestions =
     hasOpenQuestions && (getSectionBody("Open Questions")?.length ?? 0) === 0
       ? ["empty ## Open Questions"]
+      : [];
+  const invalidReadiness =
+    readiness === null
+      ? [
+          "## Readiness must start with one of: ready_to_proceed, needs_research, not_ready, not_ready_to_proceed, escalate",
+        ]
       : [];
 
   return {
@@ -2178,13 +2273,189 @@ function assessPlanningRunPlanContent(
   };
 }
 
-function buildPlanningArtifactDrafts(input: {
+function assessPlanningClassifyContent(
+  content: string,
+): PlanningClassifyAssessment {
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(content) as unknown;
+  } catch (error) {
+    return {
+      errors: [
+        `invalid classify.json JSON: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      ],
+      route: null,
+      readiness: null,
+    };
+  }
+
+  if (!isPlainObject(parsed)) {
+    return {
+      errors: ["classify.json must be a JSON object"],
+      route: null,
+      readiness: null,
+    };
+  }
+
+  const errors: string[] = [];
+  const issueShapesValue = parsed.issue_shapes;
+  const routeValue = parsed.route;
+  const readyToProceedValue = parsed.ready_to_proceed;
+  const whyValue = parsed.why;
+  const nextValue = parsed.next;
+
+  if (!Array.isArray(issueShapesValue)) {
+    errors.push(
+      "issue_shapes must be a non-empty array of allowed shape strings",
+    );
+  } else {
+    if (issueShapesValue.length === 0) {
+      errors.push(
+        "issue_shapes must be a non-empty array of allowed shape strings",
+      );
+    }
+
+    const invalidIssueShapes = issueShapesValue.filter(
+      (value) => !isPlanningClassifyIssueShape(value),
+    );
+
+    if (invalidIssueShapes.length > 0) {
+      errors.push(
+        `issue_shapes contains unsupported values: ${invalidIssueShapes
+          .map((value) => JSON.stringify(value))
+          .join(", ")}`,
+      );
+    }
+  }
+
+  if (!isPlanningClassifyRoute(routeValue)) {
+    errors.push("route must be one of proceed, research-refine, or escalate");
+  }
+
+  if (typeof readyToProceedValue !== "boolean") {
+    errors.push("ready_to_proceed must be a boolean");
+  }
+
+  if (
+    !Array.isArray(whyValue) ||
+    whyValue.length === 0 ||
+    whyValue.some((value) => !isNonEmptyTrimmedString(value))
+  ) {
+    errors.push("why must be a non-empty array of non-empty strings");
+  }
+
+  if (!isNonEmptyTrimmedString(nextValue)) {
+    errors.push("next must be a non-empty string");
+  }
+
+  if (
+    isPlanningClassifyRoute(routeValue) &&
+    typeof readyToProceedValue === "boolean"
+  ) {
+    if (routeValue === "proceed" && readyToProceedValue !== true) {
+      errors.push("ready_to_proceed must be true when route is proceed");
+    }
+
+    if (routeValue !== "proceed" && readyToProceedValue !== false) {
+      errors.push(
+        "ready_to_proceed must be false when route is research-refine or escalate",
+      );
+    }
+  }
+
+  const readiness =
+    errors.length === 0
+      ? routeValue === "proceed"
+        ? "ready_to_proceed"
+        : routeValue === "research-refine"
+        ? "needs_research"
+        : "escalate"
+      : null;
+
+  return {
+    errors,
+    route: isPlanningClassifyRoute(routeValue) ? routeValue : null,
+    readiness,
+  };
+}
+
+function assessPlanningRiskAssessmentContent(content: string): {
+  errors: string[];
+  riskLevel: "standard" | "high" | null;
+} {
+  const lines = content.split(/\r?\n/);
+  const getHeadingLine = (heading: string): number =>
+    lines.findIndex((line) => line.trim() === `## ${heading}`);
+  const getSectionBody = (heading: string): string | null => {
+    const headingLine = getHeadingLine(heading);
+
+    if (headingLine === -1) {
+      return null;
+    }
+
+    const nextHeadingLine = lines.findIndex(
+      (line, index) => index > headingLine && line.startsWith("## "),
+    );
+    const endLine = nextHeadingLine === -1 ? lines.length : nextHeadingLine;
+
+    return lines
+      .slice(headingLine + 1, endLine)
+      .join("\n")
+      .trim();
+  };
+  const getFirstContentLine = (heading: string): string | null => {
+    const body = getSectionBody(heading);
+    if (body === null) {
+      return null;
+    }
+
+    const firstContentLine = body
+      .split(/\r?\n/)
+      .find((line) => line.trim().length > 0);
+
+    return firstContentLine?.trim() ?? null;
+  };
+  const requiredHeadings = [
+    "Risk Level",
+    "Risk Signals",
+    "Review Lanes",
+    "Why",
+  ];
+  const missingHeadings = requiredHeadings
+    .filter((heading) => getHeadingLine(heading) === -1)
+    .map((heading) => `missing ## ${heading}`);
+  const emptySectionErrors = requiredHeadings
+    .filter((heading) => {
+      const body = getSectionBody(heading);
+      return body === null || body.length === 0;
+    })
+    .map((heading) => `empty ## ${heading}`);
+  const riskLevelSentinel =
+    (getFirstContentLine("Risk Level") ?? null)?.toLowerCase() ?? null;
+  const riskLevel =
+    riskLevelSentinel === "standard"
+      ? "standard"
+      : riskLevelSentinel === "high"
+      ? "high"
+      : null;
+
+  return {
+    errors: [...missingHeadings, ...emptySectionErrors],
+    riskLevel,
+  };
+}
+
+function buildPlanningBaseArtifactDrafts(input: {
   repoPath: string;
   item: ItemDetail;
   runId: string;
   executionId: string;
   startedAt: string;
 }): PlanningArtifactDraft[] {
+  void input.repoPath;
   const contextPath = buildPlanningArtifactRelativePath(
     input.item.issue_id,
     input.item.attempt,
@@ -2194,21 +2465,6 @@ function buildPlanningArtifactDrafts(input: {
     input.item.issue_id,
     input.item.attempt,
     "test-plan.md",
-  );
-  const promptPath = buildPlanningArtifactRelativePath(
-    input.item.issue_id,
-    input.item.attempt,
-    "prompt.md",
-  );
-  const contractArtifactPath = buildPlanningArtifactRelativePath(
-    input.item.issue_id,
-    input.item.attempt,
-    "contract.md",
-  );
-  const runPlanPath = buildPlanningArtifactRelativePath(
-    input.item.issue_id,
-    input.item.attempt,
-    "run-plan.md",
   );
 
   const contextContent = renderPlanningContextArtifact({
@@ -2221,15 +2477,22 @@ function buildPlanningArtifactDrafts(input: {
     issueId: input.item.issue_id,
     title: input.item.title,
     contextPath,
-    contractPath: contractArtifactPath,
-    runPlanPath,
-    promptPath,
+    contractPath: buildPlanningArtifactRelativePath(
+      input.item.issue_id,
+      input.item.attempt,
+      "prepare-contract.md",
+    ),
+    runPlanPath: buildPlanningArtifactRelativePath(
+      input.item.issue_id,
+      input.item.attempt,
+      "run-plan.md",
+    ),
+    promptPath: buildPlanningArtifactRelativePath(
+      input.item.issue_id,
+      input.item.attempt,
+      "prepare-prompt.md",
+    ),
   });
-  const promptContent = renderPlanningPromptArtifact({
-    issueId: input.item.issue_id,
-    attempt: input.item.attempt,
-  });
-  const contractContent = promptContent;
 
   return [
     {
@@ -2246,21 +2509,100 @@ function buildPlanningArtifactDrafts(input: {
       content: testPlanContent,
       content_hash: createContentHash(testPlanContent),
     },
+  ];
+}
+
+function buildPlanningPhaseArtifactDrafts(input: {
+  issueId: string;
+  attempt: number;
+  phase: PlanningPhaseName;
+}): PlanningArtifactDraft[] {
+  const contractPath = buildPlanningArtifactRelativePath(
+    input.issueId,
+    input.attempt,
+    `${input.phase}-contract.md`,
+  );
+  const promptPath = buildPlanningArtifactRelativePath(
+    input.issueId,
+    input.attempt,
+    `${input.phase}-prompt.md`,
+  );
+  const promptContent = renderPlanningPromptArtifact({
+    phase: input.phase,
+    issueId: input.issueId,
+    attempt: input.attempt,
+  });
+
+  return [
     {
-      kind: "prompt",
-      path: promptPath,
-      description: "Planning prompt",
+      kind: "contract",
+      path: contractPath,
+      description: `Planning ${input.phase} contract`,
       content: promptContent,
       content_hash: createContentHash(promptContent),
     },
     {
-      kind: "contract",
-      path: contractArtifactPath,
-      description: "Planning contract",
-      content: contractContent,
-      content_hash: createContentHash(contractContent),
+      kind: "prompt",
+      path: promptPath,
+      description: `Planning ${input.phase} prompt`,
+      content: promptContent,
+      content_hash: createContentHash(promptContent),
     },
   ];
+}
+
+function buildPlanningArtifactDrafts(input: {
+  repoPath: string;
+  item: ItemDetail;
+  runId: string;
+  executionId: string;
+  startedAt: string;
+}): PlanningArtifactDraft[] {
+  void input.repoPath;
+  const baseDrafts = buildPlanningBaseArtifactDrafts(input);
+  const planDrafts = buildPlanningPhaseArtifactDrafts({
+    issueId: input.item.issue_id,
+    attempt: input.item.attempt,
+    phase: "plan",
+  });
+  const runPlanPath = buildPlanningArtifactRelativePath(
+    input.item.issue_id,
+    input.item.attempt,
+    "run-plan.md",
+  );
+
+  return [
+    ...baseDrafts,
+    ...planDrafts,
+    {
+      kind: "run-plan",
+      path: runPlanPath,
+      description: "Planning run plan",
+      content: "",
+      content_hash: createContentHash(""),
+      persist: false,
+    },
+  ];
+}
+
+function buildPlanningPhaseOutputPath(input: {
+  contextPath: string;
+  phase: PlanningPhaseName;
+}): string | null {
+  const rootPath = path.dirname(input.contextPath);
+
+  if (input.phase === "prepare") {
+    return null;
+  }
+
+  return path.join(
+    rootPath,
+    input.phase === "classify"
+      ? "classify.json"
+      : input.phase === "risk-assess"
+      ? "risk-assessment.md"
+      : "run-plan.md",
+  );
 }
 
 function persistPlanningArtifacts(
@@ -2310,32 +2652,65 @@ function createPlanningArtifactCreatedEvent(input: {
 function buildPlanningSessionArtifactPaths(
   drafts: PlanningArtifactDraft[],
   repoPath: string,
+): PlanningSessionArtifactPaths;
+function buildPlanningSessionArtifactPaths(input: {
+  repoPath: string;
+  context: string;
+  testPlan: string;
+  contract: string;
+  prompt: string;
+}): PlanningSessionArtifactPaths;
+function buildPlanningSessionArtifactPaths(
+  input:
+    | PlanningArtifactDraft[]
+    | {
+        repoPath: string;
+        context: string;
+        testPlan: string;
+        contract: string;
+        prompt: string;
+      },
+  repoPath?: string,
 ): PlanningSessionArtifactPaths {
-  const context = drafts.find((draft) => draft.kind === "context")?.path;
-  const testPlan = drafts.find((draft) => draft.kind === "test-plan")?.path;
-  const prompt = drafts.find((draft) => draft.kind === "prompt")?.path;
-  const contract = drafts.find((draft) => draft.kind === "contract")?.path;
-  const runPlan =
-    context === undefined
-      ? undefined
-      : path.join(path.dirname(context), "run-plan.md");
+  if (Array.isArray(input)) {
+    const context = input.find((draft) => draft.kind === "context")?.path;
+    const testPlan = input.find((draft) => draft.kind === "test-plan")?.path;
+    const prompt = input.find((draft) => draft.kind === "prompt")?.path;
+    const contract = input.find((draft) => draft.kind === "contract")?.path;
+    const runPlan =
+      context === undefined
+        ? undefined
+        : path.join(path.dirname(context), "run-plan.md");
 
-  if (
-    context === undefined ||
-    testPlan === undefined ||
-    prompt === undefined ||
-    contract === undefined ||
-    runPlan === undefined
-  ) {
-    throw new Error("planning artifacts are incomplete");
+    if (
+      context === undefined ||
+      testPlan === undefined ||
+      prompt === undefined ||
+      contract === undefined ||
+      runPlan === undefined ||
+      repoPath === undefined
+    ) {
+      throw new Error("planning artifacts are incomplete");
+    }
+
+    return {
+      context: path.join(repoPath, context),
+      testPlan: path.join(repoPath, testPlan),
+      contract: path.join(repoPath, contract),
+      runPlan: path.join(repoPath, runPlan),
+      prompt: path.join(repoPath, prompt),
+    };
   }
 
   return {
-    context: path.join(repoPath, context),
-    testPlan: path.join(repoPath, testPlan),
-    contract: path.join(repoPath, contract),
-    runPlan: path.join(repoPath, runPlan),
-    prompt: path.join(repoPath, prompt),
+    context: path.join(input.repoPath, input.context),
+    testPlan: path.join(input.repoPath, input.testPlan),
+    contract: path.join(input.repoPath, input.contract),
+    runPlan: path.join(
+      path.dirname(path.join(input.repoPath, input.context)),
+      "run-plan.md",
+    ),
+    prompt: path.join(input.repoPath, input.prompt),
   };
 }
 
@@ -2419,6 +2794,443 @@ function createPlanningSessionFinishedEvent(input: {
       signal: input.result.signal,
     },
   });
+}
+
+type PlanningPhaseFailure = {
+  state: "awaiting" | "failed" | "escalated";
+  code: string;
+  message: string;
+  occurred_at: string;
+};
+
+type PlanningPhaseSequenceResult = {
+  artifacts: PlanningArtifactDraft[];
+  events: DomainEvent[];
+  finalSessionResult: PlanningSessionResult;
+  planningRunPlanValid: boolean;
+  planningRunPlanReady: boolean;
+  failure: PlanningPhaseFailure | null;
+};
+
+function runPlanningPhaseSequence(input: {
+  store: AutobotStore;
+  item: ItemDetail;
+  runId: string;
+  executionId: string;
+  startedAt: string;
+  artifactWriter: ArtifactWriter;
+  artifactReader: ArtifactReader;
+  planningSessionRunner: PlanningSessionRunner;
+}): FutureInstance<unknown, PlanningPhaseSequenceResult> {
+  const baseArtifacts = buildPlanningBaseArtifactDrafts({
+    repoPath: input.store.repo.path,
+    item: input.item,
+    runId: input.runId,
+    executionId: input.executionId,
+    startedAt: input.startedAt,
+  });
+  const baseEvents = baseArtifacts.map((artifact) =>
+    createPlanningArtifactCreatedEvent({
+      issueId: input.item.issue_id,
+      runId: input.runId,
+      executionId: input.executionId,
+      artifact,
+      occurredAt: input.startedAt,
+    }),
+  );
+  const contextArtifact = baseArtifacts[0]!;
+  const testPlanArtifact = baseArtifacts[1]!;
+  const contextPath = path.join(input.store.repo.path, contextArtifact.path);
+  const phaseOrder = [
+    "prepare",
+    "classify",
+    "plan",
+    "risk-assess",
+  ] as const satisfies readonly PlanningPhaseName[];
+
+  return persistPlanningArtifacts(
+    baseArtifacts,
+    input.artifactWriter,
+    input.store.repo.path,
+  ).pipe(
+    chain(() =>
+      Future((reject, resolveFuture) => {
+        const artifacts = [...baseArtifacts];
+        const events = [...baseEvents];
+
+        const runPhase = (index: number): void => {
+          if (index >= phaseOrder.length) {
+            resolveFuture({
+              artifacts,
+              events,
+              finalSessionResult: {
+                command: "opencode",
+                args: [],
+                started_at: input.startedAt,
+                finished_at: input.startedAt,
+                exit_code: 0,
+                signal: null,
+                stdout: "",
+                stderr: "",
+              },
+              planningRunPlanValid: true,
+              planningRunPlanReady: true,
+              failure: null,
+            });
+            return;
+          }
+
+          const phase = phaseOrder[index];
+          if (phase === undefined) {
+            reject(
+              new Error("planning phase order was exhausted unexpectedly"),
+            );
+            return;
+          }
+          const phaseDrafts = buildPlanningPhaseArtifactDrafts({
+            issueId: input.item.issue_id,
+            attempt: input.item.attempt,
+            phase,
+          });
+          const contractArtifact = phaseDrafts[0]!;
+          const promptArtifact = phaseDrafts[1]!;
+          const phaseArtifacts = buildPlanningSessionArtifactPaths({
+            repoPath: input.store.repo.path,
+            context: contextArtifact.path,
+            testPlan: testPlanArtifact.path,
+            contract: contractArtifact.path,
+            prompt: promptArtifact.path,
+          });
+          const phaseOutputPath = buildPlanningPhaseOutputPath({
+            contextPath,
+            phase,
+          });
+
+          persistPlanningArtifacts(
+            phaseDrafts,
+            input.artifactWriter,
+            input.store.repo.path,
+          )
+            .pipe(
+              chain(() =>
+                input.planningSessionRunner({
+                  phase,
+                  repo: input.store.repo,
+                  issueId: input.item.issue_id,
+                  attempt: input.item.attempt,
+                  runId: input.runId,
+                  executionId: input.executionId,
+                  artifactPaths: phaseArtifacts,
+                }),
+              ),
+            )
+            .pipe(
+              fork(reject)((planningSessionResult) => {
+                const startedEvent = createPlanningSessionStartedEvent({
+                  issueId: input.item.issue_id,
+                  runId: input.runId,
+                  executionId: input.executionId,
+                  command: planningSessionResult.command,
+                  args: planningSessionResult.args,
+                  artifactPaths: phaseArtifacts,
+                  occurredAt: planningSessionResult.started_at,
+                });
+                const outputEvents = [
+                  planningSessionResult.stdout.length > 0
+                    ? createPlanningSessionOutputEvent({
+                        issueId: input.item.issue_id,
+                        runId: input.runId,
+                        executionId: input.executionId,
+                        stream: "stdout",
+                        output: planningSessionResult.stdout,
+                        occurredAt: planningSessionResult.finished_at,
+                      })
+                    : null,
+                  planningSessionResult.stderr.length > 0
+                    ? createPlanningSessionOutputEvent({
+                        issueId: input.item.issue_id,
+                        runId: input.runId,
+                        executionId: input.executionId,
+                        stream: "stderr",
+                        output: planningSessionResult.stderr,
+                        occurredAt: planningSessionResult.finished_at,
+                      })
+                    : null,
+                ].filter((event): event is DomainEvent => event !== null);
+                const finishedEvent = createPlanningSessionFinishedEvent({
+                  issueId: input.item.issue_id,
+                  runId: input.runId,
+                  executionId: input.executionId,
+                  result: planningSessionResult,
+                });
+
+                events.push(startedEvent, ...outputEvents, finishedEvent);
+
+                if (
+                  planningSessionResult.exit_code !== 0 ||
+                  planningSessionResult.signal !== null
+                ) {
+                  resolveFuture({
+                    artifacts,
+                    events,
+                    finalSessionResult: planningSessionResult,
+                    planningRunPlanValid: false,
+                    planningRunPlanReady: false,
+                    failure: {
+                      state: "failed",
+                      code: "AUTOBOT-PLANNER-SESSION-FAILED",
+                      message: `planning session exited with code ${String(
+                        planningSessionResult.exit_code,
+                      )}`,
+                      occurred_at: planningSessionResult.finished_at,
+                    },
+                  });
+                  return;
+                }
+
+                if (phaseOutputPath === null) {
+                  runPhase(index + 1);
+                  return;
+                }
+
+                const outputPath = phaseOutputPath;
+
+                readPlanningRunPlanArtifact({
+                  path: outputPath,
+                  reader: input.artifactReader,
+                }).pipe(
+                  fork(reject)((outputRead) => {
+                    if (phase === "classify") {
+                      const assessment: PlanningClassifyAssessment =
+                        outputRead.content !== null
+                          ? assessPlanningClassifyContent(outputRead.content)
+                          : {
+                              errors: ["missing classify.json"],
+                              route: null,
+                              readiness: null,
+                            };
+
+                      if (
+                        outputRead.error !== null ||
+                        outputRead.content === null ||
+                        assessment.errors.length > 0 ||
+                        assessment.route !== "proceed" ||
+                        assessment.readiness !== "ready_to_proceed"
+                      ) {
+                        const classifyRoutedToResearchRefine =
+                          assessment.route === "research-refine";
+                        const classifyEscalated =
+                          assessment.route === "escalate";
+
+                        resolveFuture({
+                          artifacts,
+                          events,
+                          finalSessionResult: planningSessionResult,
+                          planningRunPlanValid: false,
+                          planningRunPlanReady: false,
+                          failure: {
+                            state: classifyRoutedToResearchRefine
+                              ? "awaiting"
+                              : classifyEscalated
+                              ? "escalated"
+                              : "failed",
+                            code: classifyRoutedToResearchRefine
+                              ? "AUTOBOT-PLANNER-CLASSIFY-NOT-PROCEEDING"
+                              : classifyEscalated
+                              ? "AUTOBOT-PLANNER-CLASSIFY-ESCALATED"
+                              : "AUTOBOT-PLANNER-CLASSIFY-INVALID",
+                            message: classifyRoutedToResearchRefine
+                              ? "planning classify phase routed to research-refine before planning"
+                              : classifyEscalated
+                              ? "planning classify phase escalated before planning"
+                              : `planning session produced invalid classify.json: ${
+                                  outputRead.content === null
+                                    ? outputRead.error !== null
+                                      ? String(outputRead.error)
+                                      : "missing classify.json"
+                                    : assessment.errors.join(", ")
+                                }`,
+                            occurred_at: planningSessionResult.finished_at,
+                          },
+                        });
+                        return;
+                      }
+
+                      const classifyArtifact = buildPlanningPhaseOutputArtifact(
+                        {
+                          phase,
+                          path: outputPath,
+                          content: outputRead.content,
+                        },
+                      );
+                      if (classifyArtifact !== null) {
+                        artifacts.push(classifyArtifact);
+                        events.push(
+                          createPlanningArtifactCreatedEvent({
+                            issueId: input.item.issue_id,
+                            runId: input.runId,
+                            executionId: input.executionId,
+                            artifact: classifyArtifact,
+                            occurredAt: planningSessionResult.finished_at,
+                          }),
+                        );
+                      }
+
+                      runPhase(index + 1);
+                      return;
+                    }
+
+                    if (phase === "plan") {
+                      const assessment =
+                        outputRead.content !== null
+                          ? assessPlanningRunPlanContent(outputRead.content)
+                          : {
+                              errors: ["missing run-plan.md"],
+                              readiness: null,
+                            };
+
+                      if (
+                        outputRead.error !== null ||
+                        outputRead.content === null ||
+                        assessment.errors.length > 0 ||
+                        assessment.readiness === null ||
+                        assessment.readiness !== "ready_to_proceed"
+                      ) {
+                        resolveFuture({
+                          artifacts,
+                          events,
+                          finalSessionResult: planningSessionResult,
+                          planningRunPlanValid: false,
+                          planningRunPlanReady: false,
+                          failure: {
+                            state:
+                              assessment.readiness === "not_ready" ||
+                              assessment.readiness === "needs_research"
+                                ? "awaiting"
+                                : "failed",
+                            code:
+                              outputRead.error !== null
+                                ? "AUTOBOT-PLANNER-RUN-PLAN-READ-FAILED"
+                                : assessment.errors.length > 0
+                                ? "AUTOBOT-PLANNER-RUN-PLAN-INVALID"
+                                : "AUTOBOT-PLANNER-RUN-PLAN-NOT-READY",
+                            message:
+                              outputRead.error !== null
+                                ? `planning session could not read run-plan.md: ${String(
+                                    outputRead.error,
+                                  )}`
+                                : assessment.errors.length > 0
+                                ? `planning session produced invalid run-plan.md: ${assessment.errors.join(
+                                    ", ",
+                                  )}`
+                                : "planning session produced a non-ready run-plan.md; route to research-refine before implementation",
+                            occurred_at: planningSessionResult.finished_at,
+                          },
+                        });
+                        return;
+                      }
+
+                      const runPlanArtifact = buildPlanningPhaseOutputArtifact({
+                        phase,
+                        path: outputPath,
+                        content: outputRead.content,
+                      });
+                      if (runPlanArtifact !== null) {
+                        artifacts.push(runPlanArtifact);
+                        events.push(
+                          createPlanningArtifactCreatedEvent({
+                            issueId: input.item.issue_id,
+                            runId: input.runId,
+                            executionId: input.executionId,
+                            artifact: runPlanArtifact,
+                            occurredAt: planningSessionResult.finished_at,
+                          }),
+                        );
+                      }
+
+                      runPhase(index + 1);
+                      return;
+                    }
+
+                    if (phase === "risk-assess") {
+                      const assessment =
+                        outputRead.content !== null
+                          ? assessPlanningRiskAssessmentContent(
+                              outputRead.content,
+                            )
+                          : {
+                              errors: ["missing risk-assessment.md"],
+                              riskLevel: null,
+                            };
+
+                      if (
+                        outputRead.error !== null ||
+                        outputRead.content === null ||
+                        assessment.errors.length > 0 ||
+                        assessment.riskLevel === null
+                      ) {
+                        resolveFuture({
+                          artifacts,
+                          events,
+                          finalSessionResult: planningSessionResult,
+                          planningRunPlanValid: true,
+                          planningRunPlanReady: true,
+                          failure: {
+                            state: "failed",
+                            code: "AUTOBOT-PLANNER-RISK-INVALID",
+                            message:
+                              outputRead.error !== null
+                                ? `planning session could not read risk-assessment.md: ${String(
+                                    outputRead.error,
+                                  )}`
+                                : `planning session produced invalid risk-assessment.md: ${assessment.errors.join(
+                                    ", ",
+                                  )}`,
+                            occurred_at: planningSessionResult.finished_at,
+                          },
+                        });
+                        return;
+                      }
+
+                      const riskArtifact = buildPlanningPhaseOutputArtifact({
+                        phase,
+                        path: outputPath,
+                        content: outputRead.content,
+                      });
+                      if (riskArtifact !== null) {
+                        artifacts.push(riskArtifact);
+                        events.push(
+                          createPlanningArtifactCreatedEvent({
+                            issueId: input.item.issue_id,
+                            runId: input.runId,
+                            executionId: input.executionId,
+                            artifact: riskArtifact,
+                            occurredAt: planningSessionResult.finished_at,
+                          }),
+                        );
+                      }
+
+                      resolveFuture({
+                        artifacts,
+                        events,
+                        finalSessionResult: planningSessionResult,
+                        planningRunPlanValid: true,
+                        planningRunPlanReady: true,
+                        failure: null,
+                      });
+                    }
+                  }),
+                );
+              }),
+            );
+        };
+
+        runPhase(0);
+
+        return () => undefined;
+      }),
+    ),
+  );
 }
 
 function createMonotonicLaterTimestamp(timestamp: string): string {
@@ -2556,6 +3368,200 @@ function runBoundedWorkflowTickForItem(
           repo: store.repo,
           issueId: target.issue_id,
         });
+
+  return store.projections
+    .getItemDetail(target.issue_id)
+    .pipe(
+      chain((itemDetail) =>
+        loadLinearIssueFuture.pipe(
+          chain((linearIssue) => {
+            const planningItem = hydratePlanningItemDetail(
+              itemDetail ?? fallbackItemDetail,
+              linearIssue,
+            );
+
+            return runPlanningPhaseSequence({
+              store,
+              item: planningItem,
+              runId,
+              executionId,
+              startedAt,
+              artifactWriter,
+              artifactReader,
+              planningSessionRunner,
+            }).pipe(
+              chain(
+                (sequenceResult): FutureInstance<unknown, void> =>
+                  store.transaction((transaction) => {
+                    const recordArtifact = (draft: PlanningArtifactDraft) =>
+                      transaction.artifacts
+                        .record({
+                          issue_id: target.issue_id,
+                          run_id: runId,
+                          attempt: target.attempt,
+                          kind: draft.kind,
+                          path: draft.path,
+                          description: draft.description,
+                          content_hash: draft.content_hash,
+                          supersedes_artifact_id: null,
+                          inherited_from_artifact_id: null,
+                          created_at: startedAt,
+                        })
+                        .pipe(map(() => undefined));
+                    const appendEvent = (event: DomainEvent) =>
+                      transaction.events
+                        .append(event)
+                        .pipe(map(() => undefined));
+
+                    const failure = sequenceResult.failure;
+                    if (failure !== null) {
+                      return transaction.runs
+                        .upsert({
+                          run_id: runId,
+                          issue_id: target.issue_id,
+                          attempt: target.attempt,
+                          state: failure.state,
+                          flowcraft_execution_id: null,
+                          blueprint_id: "autobot-planning-session",
+                          blueprint_version: "1.0.0",
+                          started_at: startedAt,
+                          finished_at: failure.occurred_at,
+                          worker_id: null,
+                          last_heartbeat_at: null,
+                          transport: null,
+                        })
+                        .pipe(
+                          chain(() =>
+                            sequenceFutures([
+                              ...sequenceResult.artifacts.map(recordArtifact),
+                              ...sequenceResult.events.map(appendEvent),
+                              transaction.items
+                                .upsert(
+                                  toItemRecordFromDetail({
+                                    ...planningItem,
+                                    state: failure.state,
+                                    updated_at: failure.occurred_at,
+                                    last_event:
+                                      sequenceResult.events.at(-1)?.type ??
+                                      null,
+                                    last_error: {
+                                      code: failure.code,
+                                      message: failure.message,
+                                      occurred_at: failure.occurred_at,
+                                    },
+                                    recovery_commands: [
+                                      `autobot-next logs ${target.issue_id} --json`,
+                                    ],
+                                    cancellation_requested: false,
+                                    cancellation_requested_at: null,
+                                    current_run: null,
+                                    artifacts: [],
+                                    events: [],
+                                  }),
+                                )
+                                .pipe(map(() => undefined)),
+                            ]).pipe(map(() => undefined)),
+                          ),
+                        );
+                    }
+
+                    const flowcraftFinishedAt = createMonotonicLaterTimestamp(
+                      sequenceResult.finalSessionResult.finished_at,
+                    );
+
+                    return executeAutobotDeliverIssueWorkflow({
+                      issue_id: target.issue_id,
+                      run_id: runId,
+                      execution_id: executionId,
+                      started_at: startedAt,
+                      finished_at: flowcraftFinishedAt,
+                      transport: null,
+                    }).pipe(
+                      chain(
+                        (
+                          plan: FlowcraftExecutionPlan,
+                        ): FutureInstance<unknown, void> =>
+                          transaction.runs
+                            .upsert({
+                              run_id: runId,
+                              issue_id: target.issue_id,
+                              attempt: target.attempt,
+                              state: "completed",
+                              flowcraft_execution_id: executionId,
+                              blueprint_id: plan.workflow.id,
+                              blueprint_version: plan.workflow.version,
+                              started_at: startedAt,
+                              finished_at: flowcraftFinishedAt,
+                              worker_id: null,
+                              last_heartbeat_at: null,
+                              transport: null,
+                            })
+                            .pipe(
+                              chain(
+                                (run): FutureInstance<unknown, void> =>
+                                  sequenceFutures([
+                                    ...sequenceResult.artifacts.map(
+                                      recordArtifact,
+                                    ),
+                                    ...sequenceResult.events.map(appendEvent),
+                                    transaction.flowcraft
+                                      .recordExecution({
+                                        execution_id: executionId,
+                                        issue_id: target.issue_id,
+                                        run_id: run.run_id,
+                                        state: "completed",
+                                        started_at: startedAt,
+                                        finished_at: flowcraftFinishedAt,
+                                        metadata: plan.metadata,
+                                      })
+                                      .pipe(map(() => undefined)),
+                                    ...plan.flowcraft_events.map(
+                                      (event: FlowcraftEventRecord) =>
+                                        transaction.flowcraft
+                                          .recordEvent(event)
+                                          .pipe(map(() => undefined)),
+                                    ),
+                                    ...plan.domain_events.map(
+                                      (event: DomainEvent) =>
+                                        transaction.events
+                                          .append(event)
+                                          .pipe(map(() => undefined)),
+                                    ),
+                                    transaction.items
+                                      .upsert(
+                                        toItemRecordFromDetail({
+                                          ...planningItem,
+                                          state: "completed",
+                                          updated_at: flowcraftFinishedAt,
+                                          last_event:
+                                            plan.domain_events.at(-1)?.type ??
+                                            sequenceResult.events.at(-1)
+                                              ?.type ??
+                                            null,
+                                          recovery_commands: [],
+                                          cancellation_requested: false,
+                                          cancellation_requested_at: null,
+                                          current_run: null,
+                                          artifacts: [],
+                                          events: [],
+                                        }),
+                                      )
+                                      .pipe(map(() => undefined)),
+                                  ]).pipe(map(() => undefined)),
+                              ),
+                            ),
+                      ),
+                    );
+                  }),
+              ),
+            );
+          }),
+        ),
+      ),
+    )
+    .pipe(
+      chainRej((error) => markPlanningFailure(store, target, tickAt, error)),
+    );
 
   return store.projections
     .getItemDetail(target.issue_id)

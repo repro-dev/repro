@@ -30,6 +30,7 @@ test("forward transitions advance through the public lifecycle", () => {
 
   assert.equal(getForwardTransition("completed"), null);
   assert.equal(getForwardTransition("canceled"), null);
+  assert.equal(getForwardTransition("escalated"), null);
 });
 
 test("failure transitions only allow in-progress states to fail", () => {
@@ -52,6 +53,7 @@ test("failure transitions only allow in-progress states to fail", () => {
   assert.equal(getFailureTransition("awaiting"), null);
   assert.equal(getFailureTransition("completed"), null);
   assert.equal(getFailureTransition("canceled"), null);
+  assert.equal(getFailureTransition("escalated"), null);
 });
 
 test("retry is only allowed from failed and never requeues terminals", () => {
@@ -67,6 +69,7 @@ test("retry is only allowed from failed and never requeues terminals", () => {
     "reviewing",
     "reconciling",
     "awaiting",
+    "escalated",
     "completed",
     "canceled",
   ] as const) {
@@ -95,7 +98,11 @@ test("cancellation is requested for in-progress states and rejected for terminal
 
   const completed = getCancellationTransition("completed");
   const canceled = getCancellationTransition("canceled");
+  const escalated = getCancellationTransition("escalated");
 
   assert.equal(completed.kind, "rejected");
   assert.equal(canceled.kind, "rejected");
+  assert.equal(escalated.kind, "rejected");
+  assert.equal(isTerminalState("escalated"), true);
+  assert.equal(isImmediateCancellationState("escalated"), false);
 });

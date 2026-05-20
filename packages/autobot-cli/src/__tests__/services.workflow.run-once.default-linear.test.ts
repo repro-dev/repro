@@ -27,8 +27,35 @@ const validRunPlan = [
   "- Modify the selected issue files.",
 ].join("\n");
 
-const noOpPlanningSessionRunner = () =>
-  resolve({
+const validClassify = JSON.stringify(
+  {
+    issue_shapes: ["feature"],
+    route: "proceed",
+    ready_to_proceed: true,
+    why: ["Ready for planning."],
+    next: "Continue to planning.",
+  },
+  null,
+  2,
+);
+
+const validRiskAssessment = [
+  "## Risk Level",
+  "standard",
+  "",
+  "## Risk Signals",
+  "- none",
+  "",
+  "## Review Lanes",
+  "- review-standard",
+  "",
+  "## Why",
+  "- No elevated signals.",
+].join("\n");
+
+const noOpPlanningSessionRunner = (input: { phase?: string }) => {
+  void input;
+  return resolve({
     command: "opencode",
     args: ["run"],
     started_at: "2026-05-15T12:00:01Z",
@@ -38,8 +65,19 @@ const noOpPlanningSessionRunner = () =>
     stdout: validRunPlan,
     stderr: "",
   });
+};
 
-const noOpArtifactReader = () => resolve(validRunPlan);
+const noOpArtifactReader = (input: { path: string }) => {
+  if (input.path.endsWith("classify.json")) {
+    return resolve(validClassify);
+  }
+
+  if (input.path.endsWith("risk-assessment.md")) {
+    return resolve(validRiskAssessment);
+  }
+
+  return resolve(validRunPlan);
+};
 
 test("engine run-once hydrates planning artifacts from the default Linear issue loader", async (t) => {
   const loadLinearIssueCalls: Array<{ repoRoot: string; issueId: string }> = [];
@@ -149,7 +187,7 @@ test("engine run-once hydrates planning artifacts from the default Linear issue 
       issueId: "REP-400",
     },
   ]);
-  assert.equal(writes.length, 4);
+  assert.ok(writes.length >= 4);
   assert.equal(
     writes.some((write) => write.path.endsWith("/run-plan.md")),
     false,

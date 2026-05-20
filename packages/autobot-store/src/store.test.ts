@@ -188,10 +188,52 @@ test('next runnable projection returns the newest non-terminal item', async () =
     })
   )
 
+  await runFuture(
+    store.items.upsert({
+      issue_id: 'REP-1153',
+      title: 'Escalated item',
+      url: 'https://linear.app/repro/issue/REP-1153/escalated-item',
+      state: 'escalated',
+      attempt: 1,
+      priority: 2,
+      owner: 'gary',
+      workspace: 'repro',
+      branch: 'autobot/REP-1153',
+      queued_at: '2026-05-14T09:08:00Z',
+      started_at: '2026-05-14T09:09:00Z',
+      updated_at: '2026-05-14T09:10:00Z',
+      last_event: 'item.escalated',
+      last_error: null,
+      recovery_commands: [],
+      cancellation_requested: false,
+      cancellation_requested_at: null,
+      state_name: 'Done',
+      state_type: 'completed',
+      project: 'Platform',
+      labels: ['Feature'],
+      assignee: 'Gary',
+      current_run_id: null,
+    })
+  )
+
   const nextRunnable = await runFuture(store.projections.getNextRunnableItem())
 
   assert.equal(nextRunnable?.issue_id, 'REP-1152')
   assert.equal(nextRunnable?.state, 'claimed')
+
+  const visibleItems = await runFuture(store.projections.listItems())
+  assert.equal(
+    visibleItems.some(item => item.issue_id === 'REP-1153'),
+    false
+  )
+
+  const allItems = await runFuture(
+    store.projections.listItems({ include_terminal: true })
+  )
+  assert.equal(
+    allItems.some(item => item.issue_id === 'REP-1153'),
+    true
+  )
 
   await runFuture(store.close())
 })
