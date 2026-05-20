@@ -63,6 +63,7 @@ export function buildOpenCodePlanningCommand(
       input.repo.path,
       "--title",
       `Autobot ${input.phase ?? "plan"} ${input.issueId}`,
+      buildPlanningSessionPrompt(input),
       "--file",
       input.artifactPaths.context,
       "--file",
@@ -71,7 +72,6 @@ export function buildOpenCodePlanningCommand(
       input.artifactPaths.contract,
       "--file",
       input.artifactPaths.prompt,
-      buildPlanningSessionPrompt(input),
     ],
   };
 }

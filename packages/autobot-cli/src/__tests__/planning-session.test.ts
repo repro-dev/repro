@@ -47,9 +47,13 @@ test("buildOpenCodePlanningCommand wires durable planning artifacts", () => {
     "/worktrees/autobot",
     "--title",
     "Autobot plan REP-1208",
-    "--file",
+    renderSingleTrackPhaseContract("plan", {
+      issueId: "REP-1208",
+      attempt: 2,
+    }),
   ]);
-  assert.deepEqual(command.args.slice(8, 16), [
+  assert.deepEqual(command.args.slice(8), [
+    "--file",
     "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/context.md",
     "--file",
     "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/test-plan.md",
@@ -57,11 +61,14 @@ test("buildOpenCodePlanningCommand wires durable planning artifacts", () => {
     "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/contract.md",
     "--file",
     "/worktrees/autobot/.autobot/runs/REP-1208/attempt-2/prompt.md",
+  ]);
+  assert.equal(
+    command.args[7],
     renderSingleTrackPhaseContract("plan", {
       issueId: "REP-1208",
       attempt: 2,
     }),
-  ]);
+  );
   assert.doesNotMatch(command.args.at(-1) ?? "", /<issue-id>|<attempt>/);
 });
 
@@ -91,17 +98,18 @@ test("buildOpenCodePlanningCommand renders each phase contract", () => {
     });
 
     assert.equal(
-      command.args.at(-1),
+      command.args[7],
       renderSingleTrackPhaseContract(phase, {
         issueId: "REP-1208",
         attempt: 2,
       }),
     );
+    assert.equal(command.args[8], "--file");
     assert.match(
       command.args[6] ?? "",
       new RegExp(`Autobot ${phase} REP-1208`),
     );
-    assert.doesNotMatch(command.args.at(-1) ?? "", /<issue-id>|<attempt>/);
+    assert.doesNotMatch(command.args[7] ?? "", /<issue-id>|<attempt>/);
   }
 });
 
