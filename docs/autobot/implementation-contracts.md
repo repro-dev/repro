@@ -439,7 +439,8 @@ interface ListData {
 }
 
 interface AggregateStatusData {
-  engine: EngineStatus;
+  supervisor: EngineStatus;
+  engine?: EngineStatus;
   counts: Record<ItemState, number>;
   items: ItemSummary[];
   config: ConfigEntry[];
@@ -472,19 +473,22 @@ interface LogLine {
 }
 
 interface EngineStatusData {
-  engine: EngineStatus;
+  supervisor: EngineStatus;
+  engine?: EngineStatus;
   config: ConfigEntry[];
 }
 
 interface EngineStartData {
   changed: boolean;
-  engine: EngineStatus;
+  supervisor: EngineStatus;
+  engine?: EngineStatus;
   events: DomainEvent[];
 }
 
 interface EngineStopData {
   changed: boolean;
-  engine: EngineStatus;
+  supervisor: EngineStatus;
+  engine?: EngineStatus;
   events: DomainEvent[];
 }
 

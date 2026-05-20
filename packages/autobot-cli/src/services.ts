@@ -1220,6 +1220,18 @@ function createQueueStatus(
                           }),
                       fallbackState: options.fallbackState ?? "unknown",
                     }),
+                    supervisor: createEngineStatus(config, counts, {
+                      runtime: options.runtime ?? null,
+                      lastTickAt: options.lastTickAt ?? null,
+                      activeWorkers,
+                      events: options.events,
+                      ...(options.warnings === undefined
+                        ? {}
+                        : {
+                            health: options.warnings.map(warningToHealthCheck),
+                          }),
+                      fallbackState: options.fallbackState ?? "unknown",
+                    }),
                     counts,
                     active_workers: activeWorkers,
                     events: options.events,
