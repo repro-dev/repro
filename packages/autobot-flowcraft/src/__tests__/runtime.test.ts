@@ -3,7 +3,11 @@ import test from "node:test";
 
 import { fork, type FutureInstance } from "fluture";
 
-import { generateMermaid } from "../flowcraft-runtime";
+import { FlowRuntime, generateMermaid } from "../flowcraft-runtime";
+import type {
+  FlowcraftWorkflowContext,
+  FlowcraftWorkflowDependencies,
+} from "../types";
 
 import {
   buildFlowcraftExecutionPlan,
@@ -51,7 +55,7 @@ test("autobot deliver issue workflow exposes explicit delivery phases and review
   assert.match(
     blueprint.nodes.find((node) => node.id === "review-loop")?.params
       ?.condition as string,
-    /review_attempts < context\.review_max_attempts/,
+    /^review_continue$/,
   );
   assert.deepEqual(blueprint.metadata?.cycleEntryPoints, ["developing"]);
   assert.deepEqual(
@@ -146,29 +150,94 @@ test("execution plans persist serialized context, loop metadata, and phase event
   assert.equal(plan.metadata.item_state, "completed");
   assert.equal(plan.metadata.loop.id, "review-loop");
   assert.equal(plan.metadata.loop.attempt_limit, 3);
+  assert.equal(plan.metadata.loop.attempts, 1);
+  assert.equal(plan.metadata.loop.continued, false);
+  assert.equal(plan.metadata.loop.exhausted, false);
+  assert.deepEqual(plan.metadata.phase_sequence, [
+    "claim",
+    "preparing",
+    "planning",
+    "developing",
+    "testing",
+    "reviewing",
+    "review-fix",
+    "reconcile",
+    "complete",
+  ]);
+  assert.deepEqual(
+    plan.metadata.node_outputs.map((output) => output.node_id),
+    [
+      "claim",
+      "preparing",
+      "planning",
+      "developing",
+      "testing",
+      "reviewing",
+      "review-fix",
+      "review-loop",
+      "reconcile",
+      "complete",
+    ],
+  );
   assert.match(plan.metadata.serialized_context, /"issue_id":"REP-1154"/);
+  assert.match(plan.metadata.serialized_context, /"_outputs\.complete"/);
   assert.ok(plan.flowcraft_events.length >= 10);
   assert.equal(plan.flowcraft_events[0]?.type, "workflow:start");
   assert.equal(plan.flowcraft_events.at(-1)?.type, "workflow:finish");
   assert.equal(plan.transport?.channel_id, "relay-channel");
-  assert.deepEqual(
-    plan.metadata.node_outputs.map((output) => output.node_id),
-    ["claim", "preparing", "planning"],
-  );
   assert.deepEqual(plan.metadata.recovery_commands, []);
   assert.equal(
     plan.flowcraft_events.some((event) => event.node_id === "escalated"),
     false,
   );
-  assert.equal(plan.domain_events.length, 3);
+  assert.equal(plan.domain_events.length, 9);
   assert.deepEqual(
     plan.domain_events.map((event) => event.state),
-    ["claimed", "preparing", "planning"],
+    [
+      "claimed",
+      "preparing",
+      "planning",
+      "developing",
+      "testing",
+      "reviewing",
+      "reviewing",
+      "reconciling",
+      "completed",
+    ],
   );
-  assert.equal(plan.domain_events[2]?.state, "planning");
-  assert.equal(plan.domain_events[2]?.transport?.channel_id, "relay-channel");
+  assert.equal(plan.domain_events[8]?.state, "completed");
+  assert.equal(plan.domain_events[8]?.transport?.channel_id, "relay-channel");
   assert.equal(
     JSON.stringify(plan.flowcraft_events).includes('"transport"'),
     false,
   );
+});
+
+test("deliberate escalation stays distinct from completion", async () => {
+  const workflow = flowcraftWorkflows[0];
+  const runtime = new FlowRuntime<
+    FlowcraftWorkflowContext,
+    FlowcraftWorkflowDependencies
+  >({ eventBus: { emit() {} } });
+  const result = await workflow.flow.run(runtime, {
+    issue_id: "REP-1157",
+    run_id: "run-1157",
+    execution_id: "exec-1157",
+    started_at: "2026-05-15T11:30:00.000Z",
+    finished_at: "2026-05-15T11:30:01.000Z",
+    review_attempts: 1,
+    review_max_attempts: 1,
+    review_requested: false,
+    review_continue: false,
+    review_should_reconcile: false,
+    review_should_escalate: true,
+    phase_history: [],
+    transport: null,
+  });
+
+  const context = result.context as unknown as Record<string, unknown>;
+
+  assert.equal(result.status, "completed");
+  assert.equal(context["_outputs.escalated"] !== undefined, true);
+  assert.equal(context["_outputs.complete"], undefined);
 });

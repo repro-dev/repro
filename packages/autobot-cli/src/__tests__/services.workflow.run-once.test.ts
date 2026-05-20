@@ -272,11 +272,48 @@ test("supervisor run-once reconciles stale in-progress items before selecting th
   const executionMetadata = fixture.executionRecords[0]?.metadata as
     | {
         item_state: string;
-        loop?: { id: string };
+        workflow_status?: string;
+        loop?: { id: string; attempts?: number; continued?: boolean };
+        phase_sequence?: string[];
+        node_outputs?: Array<{ node_id: string }>;
+        serialized_context?: string;
       }
     | undefined;
   assert.equal(executionMetadata?.item_state, "completed");
+  assert.equal(executionMetadata?.workflow_status, "completed");
   assert.equal(executionMetadata?.loop?.id, "review-loop");
+  assert.equal(executionMetadata?.loop?.attempts, 1);
+  assert.equal(executionMetadata?.loop?.continued, false);
+  assert.deepEqual(executionMetadata?.phase_sequence, [
+    "claim",
+    "preparing",
+    "planning",
+    "developing",
+    "testing",
+    "reviewing",
+    "review-fix",
+    "reconcile",
+    "complete",
+  ]);
+  assert.deepEqual(
+    executionMetadata?.node_outputs?.map((output) => output.node_id),
+    [
+      "claim",
+      "preparing",
+      "planning",
+      "developing",
+      "testing",
+      "reviewing",
+      "review-fix",
+      "review-loop",
+      "reconcile",
+      "complete",
+    ],
+  );
+  assert.match(
+    executionMetadata?.serialized_context ?? "",
+    /review_should_reconcile/,
+  );
   assert.equal(fixture.itemUpserts.length, 3);
   assert.deepEqual(
     fixture.itemUpserts.map((item) => [item.issue_id, item.state]),
@@ -379,7 +416,7 @@ test("supervisor run-once hydrates Linear metadata before writing planning artif
     queued_at: "2026-05-15T09:00:00Z",
     started_at: null,
     updated_at: "2026-05-15T12:00:02.001Z",
-    last_event: "workflow.phase.planned",
+    last_event: "workflow.phase.completed",
     last_error: null,
     recovery_commands: [],
     cancellation_requested: false,

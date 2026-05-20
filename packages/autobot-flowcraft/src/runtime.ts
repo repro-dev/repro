@@ -33,18 +33,6 @@ const autobotDeliverIssueWorkflowVersion = "1.0.0";
 const reviewAttemptLimit = 3;
 const reviewLoopId = "review-loop" as const;
 
-const workflowPhaseSequence: FlowcraftPhaseId[] = [
-  "claim",
-  "preparing",
-  "planning",
-  "developing",
-  "testing",
-  "reviewing",
-  "review-fix",
-  "reconcile",
-  "complete",
-];
-
 type PhaseDefinition = {
   type: string;
   state: ItemState;
@@ -163,6 +151,16 @@ function createControlNode(
   });
 }
 
+function getNodeState(nodeId: FlowcraftNodeId): ItemState {
+  if (nodeId in phaseDefinitions) {
+    return phaseDefinitions[nodeId as FlowcraftPhaseId].state;
+  }
+
+  return nodeId === "escalated"
+    ? controlNodeDefinitions.escalated.state
+    : controlNodeDefinitions["review-loop"].state;
+}
+
 function createAutobotDeliverIssueWorkflow(): FlowcraftWorkflowDefinition {
   const flow = createFlow<
     FlowcraftWorkflowContext,
@@ -176,7 +174,12 @@ function createAutobotDeliverIssueWorkflow(): FlowcraftWorkflowDefinition {
       config: { maxRetries: 1 },
     })
     .node("developing", createPhaseNode("developing"), {
-      config: { maxRetries: 2, retryDelay: 5_000, timeout: 60_000 },
+      config: {
+        maxRetries: 2,
+        retryDelay: 5_000,
+        timeout: 60_000,
+        joinStrategy: "any",
+      },
     })
     .node("testing", createPhaseNode("testing"), {
       config: { maxRetries: 2, retryDelay: 5_000, timeout: 120_000 },
@@ -190,7 +193,7 @@ function createAutobotDeliverIssueWorkflow(): FlowcraftWorkflowDefinition {
     .loop("review-loop", {
       startNodeId: "developing",
       endNodeId: "review-fix",
-      condition: "context.review_attempts < context.review_max_attempts",
+      condition: "review_continue",
     })
     .node("reconcile", createPhaseNode("reconcile"))
     .node("escalated", createControlNode("escalated"))
@@ -202,12 +205,11 @@ function createAutobotDeliverIssueWorkflow(): FlowcraftWorkflowDefinition {
     .edge("testing", "reviewing")
     .edge("reviewing", "review-fix")
     .edge("review-loop", "reconcile", {
-      condition:
-        "context.review_attempts < context.review_max_attempts && context.review_requested === false",
+      condition: "review_should_reconcile",
     })
     .edge("review-loop", "escalated", {
       action: "escalate",
-      condition: "context.review_attempts >= context.review_max_attempts",
+      condition: "review_should_escalate",
     })
     .edge("reconcile", "complete")
     .setCycleEntryPoint("developing");
@@ -393,61 +395,70 @@ export function getFlowcraftRecoveryCommands(
 
 function createFlowcraftExecutionMetadata(input: {
   workflow: FlowcraftWorkflowDefinition;
-  issue_id: string;
-  run_id: string;
-  execution_id: string;
-  started_at: string;
-  finished_at: string;
-  workflow_status: FlowcraftWorkflowStatus;
-  phaseOutputs: FlowcraftExecutionNodeOutput[];
+  runtimeResult: {
+    context: FlowcraftWorkflowContext & Record<string, unknown>;
+    serializedContext: string;
+    status: FlowcraftWorkflowStatus;
+  };
+  nodeOutputs: FlowcraftExecutionNodeOutput[];
 }): FlowcraftExecutionMetadata {
-  const itemState = mapFlowcraftStatusToItemState(input.workflow_status);
+  const workflowStatus: FlowcraftWorkflowStatus = input.nodeOutputs.some(
+    (output) => output.node_id === "escalated",
+  )
+    ? "escalated"
+    : input.runtimeResult.status;
+  const itemState = mapFlowcraftStatusToItemState(workflowStatus);
+  const phaseOutputs = input.nodeOutputs.filter(
+    (output): output is FlowcraftExecutionNodeOutput =>
+      output.node_id in phaseDefinitions,
+  );
+  const developingAttempts = input.nodeOutputs.filter(
+    (output) => output.node_id === "developing",
+  ).length;
+  const attemptLimit =
+    typeof input.runtimeResult.context.review_max_attempts === "number"
+      ? input.runtimeResult.context.review_max_attempts
+      : reviewAttemptLimit;
   const loop: FlowcraftExecutionLoopMetadata = {
     id: reviewLoopId,
-    attempt_limit: reviewAttemptLimit,
-    attempts: 1,
-    exhausted: input.workflow_status === "escalated",
-    continued: input.workflow_status === "completed",
+    attempt_limit: attemptLimit,
+    attempts: Math.max(1, developingAttempts),
+    exhausted: workflowStatus === "escalated",
+    continued: developingAttempts > 1,
     body: ["developing", "testing", "reviewing", "review-fix"],
   };
 
   return {
     workflow_id: input.workflow.id,
     workflow_version: input.workflow.version,
-    workflow_status: input.workflow_status,
+    workflow_status: workflowStatus,
     item_state: itemState,
     bounded: true,
-    phase_sequence: workflowPhaseSequence,
+    phase_sequence: phaseOutputs.map(
+      (output) => output.node_id as FlowcraftPhaseId,
+    ),
     loop,
-    node_outputs: input.phaseOutputs,
+    node_outputs: input.nodeOutputs,
     recovery_commands: getFlowcraftRecoveryCommands(
-      input.workflow_status,
-      input.issue_id,
+      workflowStatus,
+      input.runtimeResult.context.issue_id,
     ),
     terminal_state: {
       state: itemState,
       reason:
-        input.workflow_status === "completed"
+        workflowStatus === "completed"
           ? "workflow completed"
-          : input.workflow_status === "escalated"
+          : workflowStatus === "escalated"
           ? "human handoff requested"
-          : input.workflow_status === "awaiting"
+          : workflowStatus === "awaiting"
           ? "waiting for external input"
-          : input.workflow_status === "cancelled"
+          : workflowStatus === "cancelled"
           ? "run cancelled"
-          : input.workflow_status === "stalled"
+          : workflowStatus === "stalled"
           ? "workflow stalled"
           : "workflow failed",
     },
-    serialized_context: JSON.stringify({
-      issue_id: input.issue_id,
-      run_id: input.run_id,
-      execution_id: input.execution_id,
-      started_at: input.started_at,
-      finished_at: input.finished_at,
-      phase_sequence: workflowPhaseSequence,
-      loop,
-    }),
+    serialized_context: input.runtimeResult.serializedContext,
   };
 }
 
@@ -461,16 +472,23 @@ function createPhaseEventsFromRun(input: {
   phaseOutputs: FlowcraftExecutionNodeOutput[];
 }): FlowcraftExecutionPlan["domain_events"] {
   return input.phaseOutputs
-    .filter((event) => event.node_id in phaseDefinitions)
+    .filter(
+      (event) =>
+        event.node_id in phaseDefinitions || event.node_id === "escalated",
+    )
     .map((event, index) => {
       const phase = event.node_id as FlowcraftPhaseId;
+      const phaseDefinition =
+        phase in phaseDefinitions
+          ? phaseDefinitions[phase]
+          : controlNodeDefinitions.escalated;
       return {
         event_id: `${input.execution_id}-${phase}-domain-${index}`,
         issue_id: input.issue_id,
         run_id: input.run_id,
-        type: phaseDefinitions[phase].type,
-        state: phaseDefinitions[phase].state,
-        message: phaseDefinitions[phase].message,
+        type: phaseDefinition.type,
+        state: phaseDefinition.state,
+        message: phaseDefinition.message,
         severity: "info" as const,
         occurred_at: event.occurred_at,
         actor: "autobot-flowcraft",
@@ -583,19 +601,24 @@ function createExecutionPlan(input: {
         review_attempts: 1,
         review_max_attempts: reviewAttemptLimit,
         review_requested: false,
+        review_continue: false,
+        review_should_reconcile: true,
+        review_should_escalate: false,
         phase_history: [],
         transport: input.transport,
       })
       .then((result) => {
-        const phaseOutputs = capturedEvents
+        const nodeOutputs = capturedEvents
           .filter(
             (event) =>
               event.type === "node:finish" &&
               typeof event.payload.nodeId === "string" &&
-              event.payload.nodeId in phaseDefinitions,
+              (event.payload.nodeId in phaseDefinitions ||
+                event.payload.nodeId === "review-loop" ||
+                event.payload.nodeId === "escalated"),
           )
           .map((event) => {
-            const nodeId = event.payload.nodeId as FlowcraftPhaseId;
+            const nodeId = event.payload.nodeId as FlowcraftNodeId;
             const resultPayload = isRecord(event.payload.result)
               ? event.payload.result
               : null;
@@ -606,27 +629,24 @@ function createExecutionPlan(input: {
                 ? resultPayload.output
                 : {
                     phase: nodeId,
-                    state: phaseDefinitions[nodeId].state,
+                    state: getNodeState(nodeId),
                   };
 
             return {
               node_id: nodeId,
-              state: phaseDefinitions[nodeId].state,
+              state: getNodeState(nodeId),
               output: output as Record<string, unknown>,
               occurred_at: input.started_at,
             };
           });
-
-        const workflowStatus = result.status as FlowcraftWorkflowStatus;
         const metadata = createFlowcraftExecutionMetadata({
           workflow,
-          issue_id: input.issue_id,
-          run_id: input.run_id,
-          execution_id: input.execution_id,
-          started_at: input.started_at,
-          finished_at: input.finished_at,
-          workflow_status: workflowStatus,
-          phaseOutputs,
+          runtimeResult: result as {
+            context: FlowcraftWorkflowContext & Record<string, unknown>;
+            serializedContext: string;
+            status: FlowcraftWorkflowStatus;
+          },
+          nodeOutputs,
         });
 
         const flowcraft_events = capturedEvents.map((event, index) =>
@@ -658,7 +678,11 @@ function createExecutionPlan(input: {
             execution_id: input.execution_id,
             transport: input.transport,
             started_at: input.started_at,
-            phaseOutputs,
+            phaseOutputs: nodeOutputs.filter(
+              (output) =>
+                output.node_id in phaseDefinitions ||
+                output.node_id === "escalated",
+            ),
           }),
         });
       }, reject);

@@ -137,15 +137,57 @@ test("inspect resolves runs and flowcraft executions with persisted events", asy
   const executionMetadata = byRun.data.lookup.execution?.metadata as
     | {
         item_state: string;
-        loop?: { id: string };
+        workflow_status?: string;
+        loop?: { id: string; attempts?: number; continued?: boolean };
+        phase_sequence?: string[];
+        node_outputs?: Array<{ node_id: string }>;
+        serialized_context?: string;
       }
     | undefined;
   assert.equal(executionMetadata?.item_state, "completed");
+  assert.equal(executionMetadata?.workflow_status, "completed");
   assert.equal(executionMetadata?.loop?.id, "review-loop");
-  assert.ok(byRun.data.lookup.flowcraft_events.length >= 3);
+  assert.equal(executionMetadata?.loop?.attempts, 1);
+  assert.equal(executionMetadata?.loop?.continued, false);
+  assert.deepEqual(executionMetadata?.phase_sequence, [
+    "claim",
+    "preparing",
+    "planning",
+    "developing",
+    "testing",
+    "reviewing",
+    "review-fix",
+    "reconcile",
+    "complete",
+  ]);
+  assert.deepEqual(
+    executionMetadata?.node_outputs?.map((output) => output.node_id),
+    [
+      "claim",
+      "preparing",
+      "planning",
+      "developing",
+      "testing",
+      "reviewing",
+      "review-fix",
+      "review-loop",
+      "reconcile",
+      "complete",
+    ],
+  );
+  assert.match(
+    executionMetadata?.serialized_context ?? "",
+    /review_should_reconcile/,
+  );
+  assert.ok(byRun.data.lookup.flowcraft_events.length >= 13);
   assert.ok(
     byRun.data.lookup.flowcraft_events.some(
       (event) => event.node_id === "review-loop",
+    ),
+  );
+  assert.ok(
+    byRun.data.lookup.flowcraft_events.some(
+      (event) => event.node_id === "complete",
     ),
   );
 });

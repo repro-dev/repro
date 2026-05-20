@@ -42,6 +42,9 @@ export interface FlowcraftWorkflowContext {
   review_attempts: number;
   review_max_attempts: number;
   review_requested: boolean;
+  review_continue: boolean;
+  review_should_reconcile: boolean;
+  review_should_escalate: boolean;
   phase_history: FlowcraftPhaseId[];
   transport: TransportCorrelation | null;
 }
