@@ -2158,6 +2158,19 @@ function assessPlanningRunPlanContent(
 
     return firstContentLine?.trim() ?? null;
   };
+  const normalizePlanningSentinel = (value: string | null): string | null => {
+    if (value === null) {
+      return null;
+    }
+
+    const trimmed = value.trim();
+    const unwrapped =
+      trimmed.startsWith("`") && trimmed.endsWith("`") && trimmed.length >= 2
+        ? trimmed.slice(1, -1).trim()
+        : trimmed;
+
+    return unwrapped.toLowerCase();
+  };
   const requiredHeadings = [
     "Readiness",
     "Sequence Notes",
@@ -2175,24 +2188,20 @@ function assessPlanningRunPlanContent(
     (heading) => `empty ## ${heading}`,
   );
   const hasOpenQuestions = getHeadingLine("Open Questions") !== -1;
-  const readinessSentinel =
-    getFirstContentLine("Readiness")?.toLowerCase() ?? null;
+  const readinessSentinel = normalizePlanningSentinel(
+    getFirstContentLine("Readiness"),
+  );
   const readiness =
     readinessSentinel === "ready_to_proceed"
       ? "ready_to_proceed"
       : readinessSentinel === "needs_research"
       ? "needs_research"
-      : readinessSentinel === "not_ready"
+      : readinessSentinel === "not_ready" ||
+        readinessSentinel === "not_ready_to_proceed"
       ? "not_ready"
       : readinessSentinel === "escalate"
       ? "escalate"
       : null;
-  const invalidReadiness =
-    readiness === null
-      ? [
-          "## Readiness must start with one of: ready_to_proceed, needs_research, not_ready, escalate",
-        ]
-      : [];
   const invalidOpenQuestions =
     hasOpenQuestions && readiness === "ready_to_proceed"
       ? ["## Open Questions is only allowed when ## Readiness is not ready"]
@@ -2200,6 +2209,12 @@ function assessPlanningRunPlanContent(
   const emptyOpenQuestions =
     hasOpenQuestions && (getSectionBody("Open Questions")?.length ?? 0) === 0
       ? ["empty ## Open Questions"]
+      : [];
+  const invalidReadiness =
+    readiness === null
+      ? [
+          "## Readiness must start with one of: ready_to_proceed, needs_research, not_ready, not_ready_to_proceed, escalate",
+        ]
       : [];
 
   return {
@@ -2251,6 +2266,19 @@ function assessPlanningClassifyContent(content: string): {
 
     return firstContentLine?.trim() ?? null;
   };
+  const normalizePlanningSentinel = (value: string | null): string | null => {
+    if (value === null) {
+      return null;
+    }
+
+    const trimmed = value.trim();
+    const unwrapped =
+      trimmed.startsWith("`") && trimmed.endsWith("`") && trimmed.length >= 2
+        ? trimmed.slice(1, -1).trim()
+        : trimmed;
+
+    return unwrapped.toLowerCase();
+  };
   const requiredHeadings = [
     "Issue Shapes",
     "Route",
@@ -2267,8 +2295,7 @@ function assessPlanningClassifyContent(content: string): {
       return body === null || body.length === 0;
     })
     .map((heading) => `empty ## ${heading}`);
-  const routeSentinel =
-    (getFirstContentLine("Route") ?? null)?.toLowerCase() ?? null;
+  const routeSentinel = normalizePlanningSentinel(getFirstContentLine("Route"));
   const route =
     routeSentinel === "proceed"
       ? "proceed"
@@ -2277,14 +2304,16 @@ function assessPlanningClassifyContent(content: string): {
       : routeSentinel === "escalate"
       ? "escalate"
       : null;
-  const readinessSentinel =
-    (getFirstContentLine("Readiness") ?? null)?.toLowerCase() ?? null;
+  const readinessSentinel = normalizePlanningSentinel(
+    getFirstContentLine("Readiness"),
+  );
   const readiness =
     readinessSentinel === "ready_to_proceed"
       ? "ready_to_proceed"
       : readinessSentinel === "needs_research"
       ? "needs_research"
-      : readinessSentinel === "not_ready"
+      : readinessSentinel === "not_ready" ||
+        readinessSentinel === "not_ready_to_proceed"
       ? "not_ready"
       : readinessSentinel === "escalate"
       ? "escalate"
@@ -2937,6 +2966,11 @@ function runPlanningPhaseSequence(input: {
                         assessment.route !== "proceed" ||
                         assessment.readiness !== "ready_to_proceed"
                       ) {
+                        const classifyRoutedToResearchRefine =
+                          assessment.route === "research-refine";
+                        const classifyEscalated =
+                          assessment.route === "escalate";
+
                         resolveFuture({
                           artifacts,
                           events,
@@ -2944,26 +2978,27 @@ function runPlanningPhaseSequence(input: {
                           planningRunPlanValid: false,
                           planningRunPlanReady: false,
                           failure: {
-                            state:
-                              assessment.route === "research-refine"
-                                ? "awaiting"
-                                : "failed",
-                            code:
-                              assessment.route === "research-refine"
-                                ? "AUTOBOT-PLANNER-CLASSIFY-NOT-PROCEEDING"
-                                : outputRead.error !== null
-                                ? "AUTOBOT-PLANNER-CLASSIFY-READ-FAILED"
-                                : "AUTOBOT-PLANNER-CLASSIFY-INVALID",
-                            message:
-                              assessment.route === "research-refine"
-                                ? "planning classify phase routed to research-refine before planning"
-                                : outputRead.error !== null
-                                ? `planning session could not read classify.md: ${String(
-                                    outputRead.error,
-                                  )}`
-                                : `planning session produced invalid classify.md: ${assessment.errors.join(
-                                    ", ",
-                                  )}`,
+                            state: classifyRoutedToResearchRefine
+                              ? "awaiting"
+                              : "failed",
+                            code: classifyRoutedToResearchRefine
+                              ? "AUTOBOT-PLANNER-CLASSIFY-NOT-PROCEEDING"
+                              : classifyEscalated
+                              ? "AUTOBOT-PLANNER-CLASSIFY-ESCALATED"
+                              : outputRead.error !== null
+                              ? "AUTOBOT-PLANNER-CLASSIFY-READ-FAILED"
+                              : "AUTOBOT-PLANNER-CLASSIFY-INVALID",
+                            message: classifyRoutedToResearchRefine
+                              ? "planning classify phase routed to research-refine before planning"
+                              : classifyEscalated
+                              ? "planning classify phase escalated before planning"
+                              : outputRead.error !== null
+                              ? `planning session could not read classify.md: ${String(
+                                  outputRead.error,
+                                )}`
+                              : `planning session produced invalid classify.md: ${assessment.errors.join(
+                                  ", ",
+                                )}`,
                             occurred_at: planningSessionResult.finished_at,
                           },
                         });

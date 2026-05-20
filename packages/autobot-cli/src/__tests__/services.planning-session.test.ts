@@ -110,6 +110,23 @@ const validClassify = [
   "- Continue to planning.",
 ].join("\n");
 
+const escalatedClassify = [
+  "## Issue Shapes",
+  '{"issue_shapes": ["feature", "infra"]}',
+  "",
+  "## Route",
+  "`escalate`",
+  "",
+  "## Readiness",
+  "`not_ready_to_proceed`",
+  "",
+  "## Why",
+  "- This issue is already active.",
+  "",
+  "## Next",
+  "- Escalate instead of planning.",
+].join("\n");
+
 const validRiskAssessment = [
   "## Risk Level",
   "standard",
@@ -276,6 +293,81 @@ test("engine run-once passes durable planning artifact paths into opencode", asy
   assert.equal(
     fixture.itemUpserts.at(-1)?.updated_at,
     "2026-05-15T12:00:02.001Z",
+  );
+});
+
+test("engine run-once stops on escalated classify output before planning", async () => {
+  const fixture = makeWorkflowStore({
+    items: [makeQueuedPlanningItem()],
+  });
+  const reads: Array<{ path: string }> = [];
+  const services = createAutobotServices({
+    artifactWriter() {
+      return resolve(undefined);
+    },
+    artifactReader(input) {
+      reads.push(input);
+      return resolve(escalatedClassify);
+    },
+    planningSessionRunner(input) {
+      void input;
+      return resolve({
+        command: "opencode",
+        args: ["run"],
+        started_at: "2026-05-15T12:00:01Z",
+        finished_at: "2026-05-15T12:00:02Z",
+        exit_code: 0,
+        signal: null,
+        stdout: "planner stdout",
+        stderr: "planner stderr",
+      });
+    },
+    loadLinearIssue() {
+      return resolve({
+        issue_id: "REP-1208",
+        title: "Bridge OpenCode planning sessions",
+        url: "https://linear.app/repro/issue/REP-1208/bridge-opencode-planning-sessions",
+        state_name: "Todo",
+        state_type: "unstarted",
+        project: "Engineering",
+        labels: ["backend"],
+        assignee: "Gary",
+      });
+    },
+    openStore() {
+      return resolve(fixture.store as unknown as AutobotStore);
+    },
+    now() {
+      return "2026-05-15T12:00:00Z";
+    },
+    randomId() {
+      return "run-1208";
+    },
+  });
+
+  const result = (await runFuture(
+    services.handleInvocation(makeInvocation(["engine", "run-once"])),
+  )) as AutobotCommandResult;
+
+  assert.equal(result.kind, "queue-status");
+  assert.deepEqual(reads, [
+    {
+      path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/classify.md",
+    },
+  ]);
+  assert.equal(fixture.executionRecords.length, 0);
+  assert.equal(fixture.flowcraftEvents.length, 0);
+  assert.equal(fixture.itemUpserts.at(-1)?.state, "failed");
+  assert.equal(
+    (fixture.itemUpserts.at(-1)?.last_error as { code?: string } | null)?.code,
+    "AUTOBOT-PLANNER-CLASSIFY-ESCALATED",
+  );
+  assert.match(
+    String(
+      (fixture.itemUpserts.at(-1)?.last_error as { message?: string } | null)
+        ?.message ?? "",
+    ),
+    /escalat/i,
   );
 });
 
