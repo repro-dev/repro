@@ -7,6 +7,8 @@ import { generateMermaid } from "../flowcraft-runtime";
 
 import {
   buildFlowcraftExecutionPlan,
+  getFlowcraftRecoveryCommands,
+  mapFlowcraftStatusToItemState,
   type FlowcraftExecutionPlan,
   flowcraftWorkflows,
   listFlowcraftWorkflows,
@@ -20,19 +22,63 @@ function runFuture<T>(future: FutureInstance<unknown, T>): Promise<T> {
   });
 }
 
-test("autobot deliver issue workflow is FlowCraft-backed with stable phase ids", () => {
+test("autobot deliver issue workflow exposes explicit delivery phases and review loop metadata", () => {
   const workflow = flowcraftWorkflows[0];
   const blueprint = workflow.flow.toBlueprint();
 
   assert.equal(workflow.id, "autobot-deliver-issue");
   assert.deepEqual(
     blueprint.nodes.map((node) => node.id),
-    ["claim", "preparing", "planning", "reconcile", "complete"],
+    [
+      "claim",
+      "preparing",
+      "planning",
+      "developing",
+      "testing",
+      "reviewing",
+      "review-fix",
+      "review-loop",
+      "reconcile",
+      "escalated",
+      "complete",
+    ],
+  );
+  assert.equal(
+    blueprint.nodes.find((node) => node.id === "developing")?.config
+      ?.maxRetries,
+    2,
+  );
+  assert.match(
+    blueprint.nodes.find((node) => node.id === "review-loop")?.params
+      ?.condition as string,
+    /review_attempts < context\.review_max_attempts/,
+  );
+  assert.deepEqual(blueprint.metadata?.cycleEntryPoints, ["developing"]);
+  assert.deepEqual(
+    blueprint.edges
+      .map((edge) => [edge.source, edge.target, edge.action ?? null])
+      .sort((left, right) => left.join("|").localeCompare(right.join("|"))),
+    [
+      ["claim", "preparing", null],
+      ["preparing", "planning", null],
+      ["planning", "developing", null],
+      ["developing", "testing", null],
+      ["testing", "reviewing", null],
+      ["reviewing", "review-fix", null],
+      ["review-fix", "review-loop", null],
+      ["review-loop", "developing", "continue"],
+      ["review-loop", "reconcile", "break"],
+      ["review-loop", "escalated", "escalate"],
+      ["reconcile", "complete", null],
+    ].sort((left, right) => left.join("|").localeCompare(right.join("|"))),
   );
   assert.deepEqual(workflow.blueprint, blueprint);
   assert.deepEqual(workflow.analysis.startNodeIds, ["claim"]);
-  assert.deepEqual(workflow.analysis.terminalNodeIds, ["complete"]);
-  assert.equal(workflow.analysis.isDag, true);
+  assert.deepEqual(workflow.analysis.terminalNodeIds, [
+    "escalated",
+    "complete",
+  ]);
+  assert.equal(workflow.analysis.isDag, false);
   assert.equal(workflow.lint.isValid, true);
 });
 
@@ -53,12 +99,29 @@ test("workflow validation and diagram output come from FlowCraft analysis", () =
     "claim",
     "preparing",
     "planning",
+    "developing",
+    "testing",
+    "reviewing",
+    "review-fix",
+    "review-loop",
     "reconcile",
+    "escalated",
     "complete",
   ]);
 });
 
-test("execution plans project the skeleton phases into events", async () => {
+test("flowcraft status mappings preserve terminal-state recovery semantics", () => {
+  assert.equal(mapFlowcraftStatusToItemState("completed"), "completed");
+  assert.equal(mapFlowcraftStatusToItemState("awaiting"), "awaiting");
+  assert.equal(mapFlowcraftStatusToItemState("failed"), "failed");
+  assert.equal(mapFlowcraftStatusToItemState("cancelled"), "canceled");
+  assert.equal(mapFlowcraftStatusToItemState("stalled"), "failed");
+  assert.deepEqual(getFlowcraftRecoveryCommands("failed", "REP-1154"), [
+    "autobot-next logs REP-1154 --json",
+  ]);
+});
+
+test("execution plans persist serialized context, loop metadata, and phase events", async () => {
   const plan = await runFuture<FlowcraftExecutionPlan>(
     buildFlowcraftExecutionPlan({
       issue_id: "REP-1154",
@@ -78,17 +141,33 @@ test("execution plans project the skeleton phases into events", async () => {
   );
 
   assert.equal(plan.workflow.id, "autobot-deliver-issue");
-  assert.ok(plan.flowcraft_events.length >= 10);
+  assert.equal(plan.metadata.workflow_id, "autobot-deliver-issue");
+  assert.equal(plan.metadata.workflow_status, "completed");
+  assert.equal(plan.metadata.item_state, "completed");
+  assert.equal(plan.metadata.loop.id, "review-loop");
+  assert.equal(plan.metadata.loop.attempt_limit, 3);
+  assert.match(plan.metadata.serialized_context, /"issue_id":"REP-1154"/);
+  assert.ok(plan.flowcraft_events.length >= 22);
   assert.equal(plan.flowcraft_events[0]?.type, "workflow:start");
   assert.equal(plan.flowcraft_events.at(-1)?.type, "workflow:finish");
-  assert.equal(plan.metadata.transport, undefined);
-  assert.equal(plan.domain_events.length, 5);
+  assert.equal(plan.transport?.channel_id, "relay-channel");
+  assert.equal(plan.domain_events.length, 9);
   assert.deepEqual(
     plan.domain_events.map((event) => event.state),
-    ["claimed", "preparing", "planning", "reconciling", "completed"],
+    [
+      "claimed",
+      "preparing",
+      "planning",
+      "developing",
+      "testing",
+      "reviewing",
+      "reviewing",
+      "reconciling",
+      "completed",
+    ],
   );
-  assert.equal(plan.domain_events[4]?.state, "completed");
-  assert.equal(plan.domain_events[4]?.transport?.channel_id, "relay-channel");
+  assert.equal(plan.domain_events[8]?.state, "completed");
+  assert.equal(plan.domain_events[8]?.transport?.channel_id, "relay-channel");
   assert.equal(
     JSON.stringify(plan.flowcraft_events).includes('"transport"'),
     false,

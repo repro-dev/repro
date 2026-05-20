@@ -269,6 +269,14 @@ test("supervisor run-once reconciles stale in-progress items before selecting th
   );
   assert.equal(fixture.runUpserts.length, 2);
   assert.equal(fixture.executionRecords.length, 2);
+  const executionMetadata = fixture.executionRecords[0]?.metadata as
+    | {
+        item_state: string;
+        loop?: { id: string };
+      }
+    | undefined;
+  assert.equal(executionMetadata?.item_state, "completed");
+  assert.equal(executionMetadata?.loop?.id, "review-loop");
   assert.equal(fixture.itemUpserts.length, 3);
   assert.deepEqual(
     fixture.itemUpserts.map((item) => [item.issue_id, item.state]),

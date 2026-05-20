@@ -496,6 +496,25 @@ export function makeWorkflowStore(options: WorkflowStoreOptions = {}) {
                   workflow_version: "1.0.0",
                   bounded: true,
                   status: "completed",
+                  item_state: "completed",
+                  loop: {
+                    id: "review-loop",
+                    attempt_limit: 3,
+                    attempts: 1,
+                  },
+                  phase_sequence: [
+                    "claim",
+                    "preparing",
+                    "planning",
+                    "developing",
+                    "testing",
+                    "reviewing",
+                    "review-fix",
+                    "reconcile",
+                    "complete",
+                  ],
+                  serialized_context:
+                    '{"issue_id":"REP-1154","run_id":"run-1154","execution_id":"exec-1154"}',
                 },
               }
             : executionId === "flowcraft-exec-1156"
@@ -511,6 +530,25 @@ export function makeWorkflowStore(options: WorkflowStoreOptions = {}) {
                   workflow_version: "1.0.0",
                   bounded: true,
                   status: "completed",
+                  item_state: "completed",
+                  loop: {
+                    id: "review-loop",
+                    attempt_limit: 3,
+                    attempts: 1,
+                  },
+                  phase_sequence: [
+                    "claim",
+                    "preparing",
+                    "planning",
+                    "developing",
+                    "testing",
+                    "reviewing",
+                    "review-fix",
+                    "reconcile",
+                    "complete",
+                  ],
+                  serialized_context:
+                    '{"issue_id":"REP-1156","run_id":null,"execution_id":"flowcraft-exec-1156"}',
                 },
               }
             : null,
@@ -534,6 +572,22 @@ export function makeWorkflowStore(options: WorkflowStoreOptions = {}) {
                   type: "execution.started",
                   occurred_at: "2026-05-15T11:00:00Z",
                   data: {},
+                },
+                {
+                  flowcraft_event_id: "flowcraft-event-2",
+                  execution_id: "exec-1154",
+                  node_id: "review-loop",
+                  type: "node:finish",
+                  occurred_at: "2026-05-15T11:00:00Z",
+                  data: { status: "completed" },
+                },
+                {
+                  flowcraft_event_id: "flowcraft-event-3",
+                  execution_id: "exec-1154",
+                  node_id: "complete",
+                  type: "workflow:finish",
+                  occurred_at: "2026-05-15T11:00:01Z",
+                  data: { status: "completed" },
                 },
               ]
             : [],

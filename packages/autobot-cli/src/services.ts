@@ -35,6 +35,7 @@ import {
 import {
   executeAutobotDeliverIssueWorkflow,
   getFlowcraftWorkflow,
+  mapFlowcraftStatusToItemState,
   listFlowcraftWorkflows,
   renderFlowcraftWorkflowDiagram,
   validateFlowcraftWorkflows,
@@ -3485,13 +3486,17 @@ function runBoundedWorkflowTickForItem(
                       chain(
                         (
                           plan: FlowcraftExecutionPlan,
-                        ): FutureInstance<unknown, void> =>
-                          transaction.runs
+                        ): FutureInstance<unknown, void> => {
+                          const runState = mapFlowcraftStatusToItemState(
+                            plan.metadata.workflow_status,
+                          );
+
+                          return transaction.runs
                             .upsert({
                               run_id: runId,
                               issue_id: target.issue_id,
                               attempt: target.attempt,
-                              state: "completed",
+                              state: runState,
                               flowcraft_execution_id: executionId,
                               blueprint_id: plan.workflow.id,
                               blueprint_version: plan.workflow.version,
@@ -3514,7 +3519,7 @@ function runBoundedWorkflowTickForItem(
                                         execution_id: executionId,
                                         issue_id: target.issue_id,
                                         run_id: run.run_id,
-                                        state: "completed",
+                                        state: runState,
                                         started_at: startedAt,
                                         finished_at: flowcraftFinishedAt,
                                         metadata: plan.metadata,
@@ -3536,7 +3541,7 @@ function runBoundedWorkflowTickForItem(
                                       .upsert(
                                         toItemRecordFromDetail({
                                           ...planningItem,
-                                          state: "completed",
+                                          state: runState,
                                           updated_at: flowcraftFinishedAt,
                                           last_event:
                                             plan.domain_events.at(-1)?.type ??
@@ -3554,7 +3559,8 @@ function runBoundedWorkflowTickForItem(
                                       .pipe(map(() => undefined)),
                                   ]).pipe(map(() => undefined)),
                               ),
-                            ),
+                            );
+                        },
                       ),
                     );
                   }),
@@ -3841,8 +3847,12 @@ function runBoundedWorkflowTickForItem(
                             chain(
                               (
                                 plan: FlowcraftExecutionPlan,
-                              ): FutureInstance<unknown, void> =>
-                                store.transaction((transaction) => {
+                              ): FutureInstance<unknown, void> => {
+                                const runState = mapFlowcraftStatusToItemState(
+                                  plan.metadata.workflow_status,
+                                );
+
+                                return store.transaction((transaction) => {
                                   const recordArtifact = (
                                     draft: PlanningArtifactDraft,
                                   ) =>
@@ -3870,7 +3880,7 @@ function runBoundedWorkflowTickForItem(
                                       run_id: runId,
                                       issue_id: target.issue_id,
                                       attempt: target.attempt,
-                                      state: "completed",
+                                      state: runState,
                                       flowcraft_execution_id: executionId,
                                       blueprint_id: plan.workflow.id,
                                       blueprint_version: plan.workflow.version,
@@ -3896,7 +3906,7 @@ function runBoundedWorkflowTickForItem(
                                                 execution_id: executionId,
                                                 issue_id: target.issue_id,
                                                 run_id: run.run_id,
-                                                state: "completed",
+                                                state: runState,
                                                 started_at: startedAt,
                                                 finished_at:
                                                   flowcraftFinishedAt,
@@ -3919,7 +3929,7 @@ function runBoundedWorkflowTickForItem(
                                               .upsert(
                                                 toItemRecordFromDetail({
                                                   ...planningItem,
-                                                  state: "completed",
+                                                  state: runState,
                                                   updated_at:
                                                     flowcraftFinishedAt,
                                                   last_event:
@@ -3939,7 +3949,8 @@ function runBoundedWorkflowTickForItem(
                                           ]).pipe(map(() => undefined)),
                                       ),
                                     );
-                                }),
+                                });
+                              },
                             ),
                           );
                         },

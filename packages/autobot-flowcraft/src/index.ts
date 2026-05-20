@@ -2,13 +2,18 @@ export {
   buildFlowcraftExecutionPlan,
   flowcraftWorkflows,
   getFlowcraftWorkflow,
+  getFlowcraftRecoveryCommands,
   listFlowcraftWorkflows,
+  mapFlowcraftStatusToItemState,
   renderFlowcraftWorkflowDiagram,
   executeAutobotDeliverIssueWorkflow,
   validateFlowcraftWorkflows,
 } from "./runtime";
 
 export type {
+  FlowcraftExecutionLoopMetadata,
+  FlowcraftExecutionMetadata,
+  FlowcraftExecutionNodeOutput,
   FlowcraftExecutionPlan,
   FlowcraftNodeId,
   FlowcraftNodeImplementation,
@@ -20,4 +25,5 @@ export type {
   FlowcraftWorkflowDependencies,
   FlowcraftWorkflowSummary,
   FlowcraftWorkflowId,
+  FlowcraftWorkflowStatus,
 } from "./runtime";

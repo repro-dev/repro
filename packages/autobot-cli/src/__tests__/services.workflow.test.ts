@@ -53,7 +53,7 @@ function makeInvocation(
   };
 }
 
-test("workflow commands surface the FlowCraft skeleton", async () => {
+test("workflow commands surface the Flowcraft delivery graph", async () => {
   const fixture = makeWorkflowStore();
   let openStoreCalls = 0;
   const services = createAutobotServices({
@@ -75,7 +75,13 @@ test("workflow commands surface the FlowCraft skeleton", async () => {
     "claim",
     "preparing",
     "planning",
+    "developing",
+    "testing",
+    "reviewing",
+    "review-fix",
+    "review-loop",
     "reconcile",
+    "escalated",
     "complete",
   ]);
 
@@ -87,6 +93,10 @@ test("workflow commands surface the FlowCraft skeleton", async () => {
 
   assert.equal(validationResult.kind, "workflow-validation");
   assert.equal(validationResult.data.validations[0]?.valid, true);
+  assert.deepEqual(
+    validationResult.data.validations[0]?.analysis.terminalNodeIds,
+    ["escalated", "complete"],
+  );
 
   const diagramResult = (await runFuture(
     services.handleInvocation(
@@ -124,7 +134,20 @@ test("inspect resolves runs and flowcraft executions with persisted events", asy
   assert.equal(byRun.kind, "flowcraft-inspect");
   assert.equal(byRun.data.lookup.kind, "run");
   assert.equal(byRun.data.lookup.domain_events.length, 1);
-  assert.equal(byRun.data.lookup.flowcraft_events.length, 1);
+  const executionMetadata = byRun.data.lookup.execution?.metadata as
+    | {
+        item_state: string;
+        loop?: { id: string };
+      }
+    | undefined;
+  assert.equal(executionMetadata?.item_state, "completed");
+  assert.equal(executionMetadata?.loop?.id, "review-loop");
+  assert.ok(byRun.data.lookup.flowcraft_events.length >= 3);
+  assert.ok(
+    byRun.data.lookup.flowcraft_events.some(
+      (event) => event.node_id === "review-loop",
+    ),
+  );
 });
 
 test("inspect loads artifacts and domain events for runs without flowcraft execution ids", async () => {
