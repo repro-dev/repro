@@ -221,9 +221,18 @@ export function executeToolCalls(
         ...context,
         toolCall,
       });
-    } catch (err) {
+    } catch {
+      const rawArguments = toolCall.function.arguments ?? "";
+      const preview =
+        rawArguments.length > 200
+          ? `${rawArguments.slice(0, 197)}...`
+          : rawArguments || "(empty)";
       toolFut = resolve({
-        error: err instanceof Error ? err.message : "Tool execution failed",
+        ...createError(
+          `Malformed JSON arguments for ${toolCall.function.name}: ${preview}`,
+          "The tool arguments string could not be parsed as JSON",
+          `Retry ${toolCall.function.name} with valid JSON arguments, for example ${toolCall.function.name}({})`,
+        ),
       });
     }
 

@@ -1,6 +1,11 @@
 import { FutureInstance, resolve } from "fluture";
-import { RecordingDataAccessor, ToolExecutionContext } from "../../types";
+import {
+  RecordingDataAccessor,
+  ToolDefinition,
+  ToolExecutionContext,
+} from "../../types";
 import { createError } from "./common";
+import { buildToolCallExamples, validateToolArgs } from "./schema-validation";
 export type { ToolHandler } from "./common";
 import { TOOL_DEFINITION as askUserDef, handler as askUser } from "./ask-user";
 import {
@@ -94,6 +99,10 @@ export const tools = [
   compareDOMAtTimesDef,
 ];
 
+const toolDefinitions: Record<string, ToolDefinition> = Object.fromEntries(
+  tools.map((tool) => [tool.function.name, tool]),
+) as Record<string, ToolDefinition>;
+
 // Subset of tools for the browser extension agent. captureScreenshot is
 // excluded until it has been tested and refined in the extension context.
 export const extensionTools = tools.filter(
@@ -130,15 +139,23 @@ export function executeTool(
   args: Record<string, unknown>,
   context?: ToolExecutionContext,
 ): FutureInstance<unknown, unknown> {
+  const toolDefinition = toolDefinitions[name];
   const handler = toolHandlers[name];
   if (!handler) {
+    const availableExamples = buildToolCallExamples(tools);
     return resolve(
       createError(
         `Unknown tool: ${name}`,
         "The tool name does not match any registered tool",
-        `Available tools are: ${Object.keys(toolHandlers).join(", ")}`,
+        `Try one of these concrete calls: ${availableExamples}`,
       ),
     );
   }
+
+  const validationError = validateToolArgs(name, toolDefinition, args);
+  if (validationError) {
+    return resolve(validationError);
+  }
+
   return handler(recording, args, context);
 }
