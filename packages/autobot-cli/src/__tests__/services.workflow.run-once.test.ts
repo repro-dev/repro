@@ -405,9 +405,7 @@ test("supervisor run-once hydrates Linear metadata before writing planning artif
     current_run_id: null,
   });
   assert.ok(
-    fixture.domainEvents.some(
-      (event) => event.type === "workflow.artifact.created",
-    ),
+    fixture.artifactRecords.some((artifact) => artifact.kind === "run-plan"),
   );
 });
 

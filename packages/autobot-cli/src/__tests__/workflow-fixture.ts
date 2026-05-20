@@ -10,6 +10,7 @@ type Mutable<T> = {
 type WorkflowItemState =
   | "queued"
   | "claimed"
+  | "awaiting"
   | "failed"
   | "escalated"
   | "completed"
@@ -497,6 +498,43 @@ export function makeWorkflowStore(options: WorkflowStoreOptions = {}) {
                   bounded: true,
                   workflow_status: "completed",
                   item_state: "completed",
+                  planning_artifacts: [
+                    {
+                      kind: "context",
+                      path: ".autobot/runs/run-1154/attempt-1/context.md",
+                      description: "Planning context",
+                      content_hash: "hash-context",
+                      persist: true,
+                    },
+                    {
+                      kind: "test-plan",
+                      path: ".autobot/runs/run-1154/attempt-1/test-plan.md",
+                      description: "Planning test plan",
+                      content_hash: "hash-test-plan",
+                      persist: true,
+                    },
+                    {
+                      kind: "run-plan",
+                      path: ".autobot/runs/run-1154/attempt-1/run-plan.md",
+                      description: "Planning run plan",
+                      content_hash: "hash-run-plan",
+                      persist: true,
+                    },
+                  ],
+                  planning_session_result: {
+                    command: "opencode",
+                    args: ["run"],
+                    started_at: "2026-05-15T11:00:00Z",
+                    finished_at: "2026-05-15T11:00:01Z",
+                    exit_code: 0,
+                    signal: null,
+                    stdout: "",
+                    stderr: "",
+                  },
+                  planning_run_plan_valid: true,
+                  planning_run_plan_ready: true,
+                  planning_should_fail: false,
+                  planning_failure_reason: null,
                   loop: {
                     id: "review-loop",
                     attempt_limit: 3,

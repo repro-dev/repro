@@ -8,7 +8,64 @@ import type {
   WorkflowBlueprint,
 } from "./flowcraft-runtime";
 
-import type { ItemState, TransportCorrelation } from "@repro/autobot-core";
+import type {
+  ArtifactKind,
+  ItemDetail,
+  ItemState,
+  RepoRef,
+  TransportCorrelation,
+} from "@repro/autobot-core";
+import type { FutureInstance } from "fluture";
+
+export interface FlowcraftPlanningArtifactDraft {
+  kind: ArtifactKind;
+  path: string;
+  description: string;
+  content: string;
+  content_hash: string;
+  persist?: boolean;
+}
+
+export interface FlowcraftPlanningSessionArtifactPaths {
+  context: string;
+  testPlan: string;
+  contract: string;
+  runPlan: string;
+  prompt: string;
+}
+
+export interface FlowcraftPlanningSessionInput {
+  repo: RepoRef;
+  issueId: string;
+  attempt: number;
+  runId: string;
+  executionId: string;
+  artifactPaths: FlowcraftPlanningSessionArtifactPaths;
+}
+
+export interface FlowcraftPlanningSessionResult {
+  command: string;
+  args: string[];
+  started_at: string;
+  finished_at: string;
+  exit_code: number | null;
+  signal: NodeJS.Signals | null;
+  stdout: string;
+  stderr: string;
+}
+
+export type FlowcraftArtifactWriter = (input: {
+  path: string;
+  content: string;
+}) => FutureInstance<unknown, void>;
+
+export type FlowcraftArtifactReader = (input: {
+  path: string;
+}) => FutureInstance<unknown, string>;
+
+export type FlowcraftPlanningSessionRunner = (
+  input: FlowcraftPlanningSessionInput,
+) => FutureInstance<unknown, FlowcraftPlanningSessionResult>;
 
 export type FlowcraftWorkflowId = "autobot-deliver-issue";
 
@@ -27,6 +84,7 @@ export type FlowcraftNodeId =
   | FlowcraftPhaseId
   | "review_fix"
   | "review-loop"
+  | "planning-failed"
   | "escalated";
 
 export type FlowcraftWorkflowStatus =
@@ -52,8 +110,6 @@ export interface FlowcraftWorkflowContext {
   phase_history: FlowcraftPhaseId[];
   transport: TransportCorrelation | null;
 }
-
-export type FlowcraftWorkflowDependencies = Record<string, never>;
 
 export interface FlowcraftWorkflowDefinition {
   id: FlowcraftWorkflowId;
@@ -125,6 +181,12 @@ export interface FlowcraftExecutionMetadata {
   phase_sequence: FlowcraftPhaseId[];
   loop: FlowcraftExecutionLoopMetadata;
   node_outputs: FlowcraftExecutionNodeOutput[];
+  planning_artifacts: FlowcraftPlanningArtifactDraft[];
+  planning_session_result: FlowcraftPlanningSessionResult | null;
+  planning_run_plan_valid: boolean;
+  planning_run_plan_ready: boolean;
+  planning_should_fail: boolean;
+  planning_failure_reason: string | null;
   recovery_commands: string[];
   terminal_state: {
     state: ItemState;
@@ -164,6 +226,20 @@ export interface FlowcraftExecutionPlan {
     transport: TransportCorrelation | null;
     data: Record<string, unknown>;
   }>;
+}
+
+export interface FlowcraftAutobotPlanningDependencies {
+  repo: RepoRef;
+  item: ItemDetail;
+  artifactDrafts: FlowcraftPlanningArtifactDraft[];
+  artifactPaths: FlowcraftPlanningSessionArtifactPaths;
+  artifactWriter: FlowcraftArtifactWriter;
+  artifactReader: FlowcraftArtifactReader;
+  planningSessionRunner: FlowcraftPlanningSessionRunner;
+}
+
+export interface FlowcraftWorkflowDependencies {
+  autobotPlanning?: FlowcraftAutobotPlanningDependencies;
 }
 
 export type FlowcraftNodeImplementation = NodeFunction | NodeClass;

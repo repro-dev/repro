@@ -75,6 +75,7 @@ test("workflow commands surface the Flowcraft delivery graph", async () => {
     "claim",
     "preparing",
     "planning",
+    "planning-failed",
     "developing",
     "testing",
     "reviewing",
@@ -95,7 +96,7 @@ test("workflow commands surface the Flowcraft delivery graph", async () => {
   assert.equal(validationResult.data.validations[0]?.valid, true);
   assert.deepEqual(
     validationResult.data.validations[0]?.analysis.terminalNodeIds,
-    ["escalated", "complete"],
+    ["planning-failed", "escalated", "complete"],
   );
 
   const diagramResult = (await runFuture(
@@ -141,11 +142,26 @@ test("inspect resolves runs and flowcraft executions with persisted events", asy
         loop?: { id: string; attempts?: number; continued?: boolean };
         phase_sequence?: string[];
         node_outputs?: Array<{ node_id: string }>;
+        planning_run_plan_valid?: boolean;
+        planning_run_plan_ready?: boolean;
+        planning_should_fail?: boolean;
+        planning_failure_reason?: string | null;
+        planning_artifacts?: Array<{ kind: string }>;
         serialized_context?: string;
       }
     | undefined;
   assert.equal(executionMetadata?.item_state, "completed");
   assert.equal(executionMetadata?.workflow_status, "completed");
+  assert.equal(executionMetadata?.planning_run_plan_valid, true);
+  assert.equal(executionMetadata?.planning_run_plan_ready, true);
+  assert.equal(executionMetadata?.planning_should_fail, false);
+  assert.equal(executionMetadata?.planning_failure_reason, null);
+  assert.ok(
+    Array.isArray(executionMetadata?.planning_artifacts) &&
+      executionMetadata?.planning_artifacts.some(
+        (artifact: { kind: string }) => artifact.kind === "run-plan",
+      ),
+  );
   assert.equal(executionMetadata?.loop?.id, "review-loop");
   assert.equal(executionMetadata?.loop?.attempts, 1);
   assert.equal(executionMetadata?.loop?.continued, false);

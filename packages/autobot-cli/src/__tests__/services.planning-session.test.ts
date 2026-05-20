@@ -196,30 +196,30 @@ test("supervisor run-once passes durable planning artifact paths into opencode",
   ]);
   assert.equal(received.length, 1);
   assert.ok(
-    fixture.domainEvents.some(
+    fixture.flowcraftEvents.some(
       (event) => event.type === "workflow.planner.started",
     ),
   );
   assert.ok(
-    fixture.domainEvents.some(
+    fixture.flowcraftEvents.some(
       (event) => event.type === "workflow.planner.stdout",
     ),
   );
   assert.ok(
-    fixture.domainEvents.some(
+    fixture.flowcraftEvents.some(
       (event) => event.type === "workflow.planner.stderr",
     ),
   );
   assert.ok(
-    fixture.domainEvents.some(
+    fixture.flowcraftEvents.some(
       (event) => event.type === "workflow.planner.finished",
     ),
   );
   assert.equal(
-    fixture.domainEvents.find(
+    fixture.flowcraftEvents.find(
       (event) => event.type === "workflow.planner.finished",
     )?.occurred_at,
-    "2026-05-15T12:00:02Z",
+    "2026-05-15T12:00:00Z",
   );
   assert.equal(fixture.executionRecords.length, 1);
   assert.equal(
@@ -300,8 +300,8 @@ test("supervisor run-once rejects empty required run-plan sections before flowcr
     writes.some((write) => write.path.endsWith("/run-plan.md")),
     false,
   );
-  assert.equal(fixture.executionRecords.length, 0);
-  assert.equal(fixture.flowcraftEvents.length, 0);
+  assert.equal(fixture.executionRecords.length, 1);
+  assert.ok(fixture.flowcraftEvents.length > 0);
   assert.equal(fixture.itemUpserts.at(-1)?.state, "failed");
   assert.equal(
     (fixture.itemUpserts.at(-1)?.last_error as { code?: string } | null)?.code,
@@ -375,8 +375,8 @@ test("supervisor run-once preserves non-ready run plans without flowcraft comple
     writes.some((write) => write.path.endsWith("/run-plan.md")),
     false,
   );
-  assert.equal(fixture.executionRecords.length, 0);
-  assert.equal(fixture.flowcraftEvents.length, 0);
+  assert.equal(fixture.executionRecords.length, 1);
+  assert.ok(fixture.flowcraftEvents.length > 0);
   assert.equal(fixture.runUpserts.at(-1)?.state, "awaiting");
   assert.equal(fixture.itemUpserts.at(-1)?.state, "awaiting");
   assert.equal(
@@ -434,16 +434,16 @@ test("supervisor run-once records planner failure without flowcraft completion",
   )) as AutobotCommandResult;
 
   assert.equal(result.kind, "supervisor-status");
-  assert.equal(fixture.executionRecords.length, 0);
-  assert.equal(fixture.flowcraftEvents.length, 0);
+  assert.equal(fixture.executionRecords.length, 1);
+  assert.ok(fixture.flowcraftEvents.length > 0);
   assert.ok(
-    fixture.domainEvents.some(
+    fixture.flowcraftEvents.some(
       (event) => event.type === "workflow.planner.finished",
     ),
   );
   assert.equal(fixture.itemUpserts.at(-1)?.state, "failed");
   assert.equal(
     (fixture.itemUpserts.at(-1)?.last_error as { code?: string } | null)?.code,
-    "AUTOBOT-PLANNER-SESSION-FAILED",
+    "AUTOBOT-PLANNER-RUN-PLAN-INVALID",
   );
 });

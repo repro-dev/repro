@@ -1,5 +1,11 @@
 import type { EdgeDefinition } from "./flowcraft-runtime";
 import type {
+  FlowcraftArtifactReader,
+  FlowcraftArtifactWriter,
+  FlowcraftPlanningArtifactDraft,
+  FlowcraftPlanningSessionArtifactPaths,
+  FlowcraftPlanningSessionResult,
+  FlowcraftPlanningSessionRunner,
   FlowcraftExecutionLoopMetadata,
   FlowcraftExecutionMetadata,
   FlowcraftExecutionNodeOutput,
@@ -24,8 +30,10 @@ import {
   FlowRuntime,
 } from "./flowcraft-runtime";
 
+import { createHash } from "node:crypto";
+import path from "node:path";
 import type { ItemState, TransportCorrelation } from "@repro/autobot-core";
-import { Future, type FutureInstance } from "fluture";
+import { Future, fork, type FutureInstance } from "fluture";
 
 const autobotDeliverIssueWorkflowId: FlowcraftWorkflowId =
   "autobot-deliver-issue";
@@ -33,6 +41,18 @@ const autobotDeliverIssueWorkflowVersion = "1.0.0";
 const reviewAttemptLimit = 3;
 const reviewLoopId = "review-loop" as const;
 const reviewFixNodeId = "review_fix" as const;
+
+type PlanningReadiness =
+  | "ready_to_proceed"
+  | "needs_research"
+  | "not_ready"
+  | "escalate"
+  | null;
+
+type PlanningRunPlanAssessment = {
+  errors: string[];
+  readiness: PlanningReadiness;
+};
 
 type PhaseDefinition = {
   type: string;
@@ -89,13 +109,18 @@ const phaseDefinitions: Record<FlowcraftPhaseId, PhaseDefinition> = {
 };
 
 const controlNodeDefinitions: Record<
-  "review-loop" | "escalated",
+  "review-loop" | "planning-failed" | "escalated",
   PhaseDefinition
 > = {
   "review-loop": {
     type: "workflow.phase.review_loop",
     state: "reviewing",
     message: "Review loop evaluated",
+  },
+  "planning-failed": {
+    type: "workflow.phase.planning_failed",
+    state: "failed",
+    message: "Planning failed",
   },
   escalated: {
     type: "workflow.phase.escalated",
@@ -130,20 +155,7 @@ function stripNestedTransport<T>(value: T): T {
   return result as T;
 }
 
-type NodeExecutionContext = {
-  input?: unknown;
-  context?: unknown;
-  dependencies?: {
-    workflowState?: {
-      getContext?: () => {
-        set: (key: string, value: unknown) => Promise<void> | void;
-        toJSON?: () =>
-          | Promise<Record<string, unknown>>
-          | Record<string, unknown>;
-      };
-    };
-  };
-};
+type NodeExecutionContext = any;
 
 async function readNodeSnapshot(
   nodeContext?: NodeExecutionContext,
@@ -249,7 +261,7 @@ function createPhaseNode(
 }
 
 function createControlNode(
-  nodeId: "review-loop" | "escalated",
+  nodeId: "review-loop" | "planning-failed" | "escalated",
 ): FlowcraftNodeImplementation {
   return async () => ({
     output: {
@@ -257,6 +269,378 @@ function createControlNode(
       state: controlNodeDefinitions[nodeId].state,
     },
   });
+}
+
+function futureToPromise<T>(future: FutureInstance<unknown, T>): Promise<T> {
+  return new Promise((resolve, reject) => {
+    future.pipe(fork(reject)(resolve));
+  });
+}
+
+function createContentHash(content: string): string {
+  return createHash("sha256").update(content).digest("hex");
+}
+
+function assessPlanningRunPlanContent(
+  content: string,
+): PlanningRunPlanAssessment {
+  const lines = content.split(/\r?\n/);
+  const getHeadingLine = (heading: string): number =>
+    lines.findIndex((line) => line.trim() === `## ${heading}`);
+  const getSectionBody = (heading: string): string | null => {
+    const headingLine = getHeadingLine(heading);
+
+    if (headingLine === -1) {
+      return null;
+    }
+
+    const nextHeadingLine = lines.findIndex(
+      (line, index) => index > headingLine && line.startsWith("## "),
+    );
+    const endLine = nextHeadingLine === -1 ? lines.length : nextHeadingLine;
+
+    return lines
+      .slice(headingLine + 1, endLine)
+      .join("\n")
+      .trim();
+  };
+  const getFirstContentLine = (heading: string): string | null => {
+    const body = getSectionBody(heading);
+    if (body === null) {
+      return null;
+    }
+
+    const firstContentLine = body
+      .split(/\r?\n/)
+      .find((line) => line.trim().length > 0);
+
+    return firstContentLine?.trim() ?? null;
+  };
+  const normalizePlanningSentinel = (value: string | null): string | null => {
+    if (value === null) {
+      return null;
+    }
+
+    const trimmed = value.trim();
+    const unwrapped =
+      trimmed.startsWith("`") && trimmed.endsWith("`") && trimmed.length >= 2
+        ? trimmed.slice(1, -1).trim()
+        : trimmed;
+
+    return unwrapped.toLowerCase();
+  };
+  const requiredHeadings = [
+    "Readiness",
+    "Sequence Notes",
+    "Risk Notes",
+    "Plan",
+  ];
+  const missingHeadings = requiredHeadings
+    .filter((heading) => getHeadingLine(heading) === -1)
+    .map((heading) => `missing ## ${heading}`);
+  const emptySections = requiredHeadings.filter((heading) => {
+    const body = getSectionBody(heading);
+    return body === null || body.length === 0;
+  });
+  const emptySectionErrors = emptySections.map(
+    (heading) => `empty ## ${heading}`,
+  );
+  const hasOpenQuestions = getHeadingLine("Open Questions") !== -1;
+  const readinessSentinel = normalizePlanningSentinel(
+    getFirstContentLine("Readiness"),
+  );
+  const readiness =
+    readinessSentinel === "ready_to_proceed"
+      ? "ready_to_proceed"
+      : readinessSentinel === "needs_research"
+      ? "needs_research"
+      : readinessSentinel === "not_ready" ||
+        readinessSentinel === "not_ready_to_proceed"
+      ? "not_ready"
+      : readinessSentinel === "escalate"
+      ? "escalate"
+      : null;
+  const invalidOpenQuestions =
+    hasOpenQuestions && readiness === "ready_to_proceed"
+      ? ["## Open Questions is only allowed when ## Readiness is not ready"]
+      : [];
+  const emptyOpenQuestions =
+    hasOpenQuestions && (getSectionBody("Open Questions")?.length ?? 0) === 0
+      ? ["empty ## Open Questions"]
+      : [];
+  const invalidReadiness =
+    readiness === null
+      ? [
+          "## Readiness must start with one of: ready_to_proceed, needs_research, not_ready, not_ready_to_proceed, escalate",
+        ]
+      : [];
+
+  return {
+    errors: [
+      ...missingHeadings,
+      ...emptySectionErrors,
+      ...emptyOpenQuestions,
+      ...invalidOpenQuestions,
+      ...invalidReadiness,
+    ],
+    readiness,
+  };
+}
+
+function createPlanningNode(): FlowcraftNodeImplementation {
+  return async (nodeContext?: NodeExecutionContext) => {
+    const snapshot = await readNodeSnapshot(nodeContext);
+    const phaseId = "planning" as const;
+    const planning = nodeContext?.dependencies?.autobotPlanning;
+
+    if (
+      planning === undefined ||
+      nodeContext?.dependencies?.runtime === undefined ||
+      nodeContext.dependencies.runtime.executionId === undefined
+    ) {
+      return {
+        output: {
+          phase: phaseId,
+          state: phaseDefinitions[phaseId].state,
+          ...pickReviewControlFields(snapshot),
+        },
+      };
+    }
+
+    const { artifactDrafts, artifactPaths, artifactReader, artifactWriter } =
+      planning as {
+        artifactDrafts: FlowcraftPlanningArtifactDraft[];
+        artifactPaths: FlowcraftPlanningSessionArtifactPaths;
+        artifactReader: FlowcraftArtifactReader;
+        artifactWriter: FlowcraftArtifactWriter;
+        planningSessionRunner: FlowcraftPlanningSessionRunner;
+        repo: { path: string; state_dir: string };
+        item: { issue_id: string; attempt: number };
+      };
+    const runId = String(snapshot.run_id ?? snapshot.runId ?? "");
+    const executionId = nodeContext.dependencies.runtime.executionId;
+    const eventBus = nodeContext.dependencies.runtime.services.eventBus;
+    let planningSessionResult: FlowcraftPlanningSessionResult | null = null;
+    let runPlanAssessment: PlanningRunPlanAssessment = {
+      errors: [],
+      readiness: null,
+    };
+    let planningRunPlanValid = false;
+    let planningRunPlanReady = false;
+    let planningArtifacts = artifactDrafts;
+    let planningFailureReason: string | null = null;
+
+    try {
+      await Promise.all(
+        artifactDrafts
+          .filter(
+            (draft: FlowcraftPlanningArtifactDraft) => draft.persist !== false,
+          )
+          .map((draft: FlowcraftPlanningArtifactDraft) =>
+            futureToPromise(
+              artifactWriter({
+                path: path.join(planning.repo.path, draft.path),
+                content: draft.content,
+              }),
+            ),
+          ),
+      );
+
+      await eventBus.emit({
+        type: "workflow.planner.started",
+        payload: {
+          issueId: planning.item.issue_id,
+          runId,
+          executionId,
+          artifactPaths,
+        },
+      });
+
+      planningSessionResult = await futureToPromise(
+        planning.planningSessionRunner({
+          repo: planning.repo,
+          issueId: planning.item.issue_id,
+          attempt: planning.item.attempt,
+          runId,
+          executionId,
+          artifactPaths,
+        }),
+      );
+
+      const sessionResult = planningSessionResult;
+
+      if (sessionResult === null) {
+        throw new Error("planning session result missing");
+      }
+
+      if (sessionResult.stdout.length > 0) {
+        await eventBus.emit({
+          type: "workflow.planner.stdout",
+          payload: {
+            issueId: planning.item.issue_id,
+            runId,
+            executionId,
+            output: sessionResult.stdout,
+          },
+        });
+      }
+
+      if (sessionResult.stderr.length > 0) {
+        await eventBus.emit({
+          type: "workflow.planner.stderr",
+          payload: {
+            issueId: planning.item.issue_id,
+            runId,
+            executionId,
+            output: sessionResult.stderr,
+          },
+        });
+      }
+
+      await eventBus.emit({
+        type: "workflow.planner.finished",
+        payload: {
+          issueId: planning.item.issue_id,
+          runId,
+          executionId,
+          command: sessionResult.command,
+          args: sessionResult.args,
+          exitCode: sessionResult.exit_code,
+          signal: sessionResult.signal,
+        },
+      });
+
+      const planningSucceeded =
+        sessionResult.exit_code === 0 && sessionResult.signal === null;
+
+      if (!planningSucceeded) {
+        planningFailureReason = `planning session exited with code ${String(
+          sessionResult.exit_code,
+        )}`;
+      } else {
+        const runPlanContent = String(
+          await futureToPromise(
+            artifactReader({ path: artifactPaths.runPlan }),
+          ),
+        );
+        runPlanAssessment = assessPlanningRunPlanContent(runPlanContent);
+        planningRunPlanValid = runPlanAssessment.errors.length === 0;
+        planningRunPlanReady =
+          planningRunPlanValid &&
+          runPlanAssessment.readiness === "ready_to_proceed";
+        planningArtifacts = planningRunPlanValid
+          ? (artifactDrafts.map((draft: FlowcraftPlanningArtifactDraft) =>
+              draft.kind === "run-plan"
+                ? {
+                    ...draft,
+                    content: runPlanContent,
+                    content_hash: createContentHash(runPlanContent),
+                    persist: true,
+                  }
+                : draft,
+            ) as FlowcraftPlanningArtifactDraft[])
+          : artifactDrafts;
+
+        if (!planningRunPlanValid) {
+          planningFailureReason = `planning session produced invalid run-plan.md: ${runPlanAssessment.errors.join(
+            ", ",
+          )}`;
+        } else if (!planningRunPlanReady) {
+          await nodeContext.dependencies.workflowState?.markAsAwaiting?.(
+            phaseId,
+            {
+              reason: "run_plan_not_ready",
+            },
+          );
+        }
+      }
+    } catch (error) {
+      planningFailureReason =
+        error instanceof Error && error.message.length > 0
+          ? error.message
+          : "planning session failed";
+    }
+
+    const workflowStateContext =
+      nodeContext?.dependencies?.workflowState?.getContext?.();
+    if (workflowStateContext !== undefined) {
+      await Promise.all(
+        Object.entries({
+          planning_run_plan_valid: planningRunPlanValid,
+          planning_run_plan_ready: planningRunPlanReady,
+          planning_readiness: runPlanAssessment.readiness,
+          planning_should_fail: planningFailureReason !== null,
+          planning_failure_reason: planningFailureReason,
+          planning_session_result:
+            planningSessionResult === null
+              ? null
+              : {
+                  command: planningSessionResult.command,
+                  args: planningSessionResult.args,
+                  started_at: planningSessionResult.started_at,
+                  finished_at: planningSessionResult.finished_at,
+                  exit_code: planningSessionResult.exit_code,
+                  signal: planningSessionResult.signal,
+                  stdout: planningSessionResult.stdout,
+                  stderr: planningSessionResult.stderr,
+                },
+        }).map(([key, value]) =>
+          Promise.resolve(workflowStateContext.set(key, value)),
+        ),
+      );
+    }
+
+    return {
+      output: {
+        phase: phaseId,
+        state: phaseDefinitions[phaseId].state,
+        planning_run_plan_valid: planningRunPlanValid,
+        planning_run_plan_ready: planningRunPlanReady,
+        planning_readiness: runPlanAssessment.readiness,
+        planning_artifacts: planningArtifacts,
+        planning_should_fail: planningFailureReason !== null,
+        planning_failure_reason: planningFailureReason,
+        planning_session_result:
+          planningSessionResult === null
+            ? null
+            : {
+                command: planningSessionResult.command,
+                args: planningSessionResult.args,
+                started_at: planningSessionResult.started_at,
+                finished_at: planningSessionResult.finished_at,
+                exit_code: planningSessionResult.exit_code,
+                signal: planningSessionResult.signal,
+                stdout: planningSessionResult.stdout,
+                stderr: planningSessionResult.stderr,
+              },
+        ...pickReviewControlFields(snapshot),
+      },
+    };
+  };
+}
+
+function createPlanningFailureNode(): FlowcraftNodeImplementation {
+  return async (nodeContext?: NodeExecutionContext) => {
+    const snapshot = await readNodeSnapshot(nodeContext);
+    const reason =
+      typeof snapshot.planning_failure_reason === "string" &&
+      snapshot.planning_failure_reason.length > 0
+        ? snapshot.planning_failure_reason
+        : "planning failed";
+
+    nodeContext?.dependencies?.workflowState?.addError?.(
+      "planning-failed",
+      new Error(reason),
+    );
+
+    return {
+      output: {
+        phase: "planning-failed",
+        state: controlNodeDefinitions["planning-failed"].state,
+        planning_failure_reason: reason,
+      },
+    };
+  };
 }
 
 function createReviewFixNode(): FlowcraftNodeImplementation {
@@ -315,10 +699,27 @@ function getNodeState(nodeId: FlowcraftNodeId): ItemState {
     return phaseDefinitions[phaseId].state;
   }
 
-  return nodeId === "escalated"
-    ? controlNodeDefinitions.escalated.state
-    : controlNodeDefinitions["review-loop"].state;
+  return controlNodeDefinitions[nodeId as keyof typeof controlNodeDefinitions]
+    .state;
 }
+
+type PlanningNodeOutput = {
+  planning_artifacts?: unknown[];
+  planning_session_result?: {
+    command?: unknown;
+    args?: unknown;
+    started_at?: unknown;
+    finished_at?: unknown;
+    exit_code?: unknown;
+    signal?: unknown;
+    stdout?: unknown;
+    stderr?: unknown;
+  };
+  planning_run_plan_valid?: unknown;
+  planning_run_plan_ready?: unknown;
+  planning_should_fail?: unknown;
+  planning_failure_reason?: unknown;
+};
 
 function createAutobotDeliverIssueWorkflow(): FlowcraftWorkflowDefinition {
   const flow = createFlow<
@@ -329,9 +730,10 @@ function createAutobotDeliverIssueWorkflow(): FlowcraftWorkflowDefinition {
     .node("preparing", createPhaseNode("preparing"), {
       config: { maxRetries: 1 },
     })
-    .node("planning", createPhaseNode("planning"), {
+    .node("planning", createPlanningNode(), {
       config: { maxRetries: 1 },
     })
+    .node("planning-failed", createPlanningFailureNode())
     .node("developing", createPhaseNode("developing"), {
       config: {
         maxRetries: 2,
@@ -359,6 +761,9 @@ function createAutobotDeliverIssueWorkflow(): FlowcraftWorkflowDefinition {
     .node("complete", createPhaseNode("complete"))
     .edge("claim", "preparing")
     .edge("preparing", "planning")
+    .edge("planning", "planning-failed", {
+      condition: "planning_should_fail",
+    })
     .edge("planning", "developing")
     .edge("developing", "testing")
     .edge("testing", "reviewing")
@@ -563,6 +968,11 @@ function createFlowcraftExecutionMetadata(input: {
   const latestReviewFixOutput = [...input.nodeOutputs]
     .reverse()
     .find((output) => output.node_id === reviewFixNodeId)?.output;
+  const planningOutput = [...input.nodeOutputs]
+    .reverse()
+    .find((output) => output.node_id === "planning")?.output as
+    | PlanningNodeOutput
+    | undefined;
   const workflowStatus: FlowcraftWorkflowStatus = input.nodeOutputs.some(
     (output) => output.node_id === "escalated",
   )
@@ -573,6 +983,66 @@ function createFlowcraftExecutionMetadata(input: {
     (output): output is FlowcraftExecutionNodeOutput =>
       toPhaseId(output.node_id) !== null,
   );
+  const planningArtifacts =
+    planningOutput !== undefined &&
+    Array.isArray(planningOutput.planning_artifacts)
+      ? (planningOutput.planning_artifacts as unknown[]).filter(
+          (artifact): artifact is FlowcraftPlanningArtifactDraft =>
+            typeof artifact === "object" &&
+            artifact !== null &&
+            "kind" in artifact &&
+            "path" in artifact &&
+            "description" in artifact &&
+            "content" in artifact &&
+            "content_hash" in artifact &&
+            typeof (artifact as FlowcraftPlanningArtifactDraft).kind ===
+              "string" &&
+            typeof (artifact as FlowcraftPlanningArtifactDraft).path ===
+              "string" &&
+            typeof (artifact as FlowcraftPlanningArtifactDraft).description ===
+              "string" &&
+            typeof (artifact as FlowcraftPlanningArtifactDraft).content ===
+              "string" &&
+            typeof (artifact as FlowcraftPlanningArtifactDraft).content_hash ===
+              "string",
+        )
+      : [];
+  const planningSessionResultData = planningOutput?.planning_session_result;
+  const planningSessionResult =
+    planningSessionResultData !== undefined &&
+    typeof planningSessionResultData.command === "string" &&
+    Array.isArray(planningSessionResultData.args) &&
+    planningSessionResultData.args.every((arg) => typeof arg === "string") &&
+    typeof planningSessionResultData.started_at === "string" &&
+    typeof planningSessionResultData.finished_at === "string" &&
+    (typeof planningSessionResultData.exit_code === "number" ||
+      planningSessionResultData.exit_code === null) &&
+    (typeof planningSessionResultData.signal === "string" ||
+      planningSessionResultData.signal === null)
+      ? {
+          command: planningSessionResultData.command as string,
+          args: [...planningSessionResultData.args] as string[],
+          started_at: planningSessionResultData.started_at as string,
+          finished_at: planningSessionResultData.finished_at as string,
+          exit_code: planningSessionResultData.exit_code as number | null,
+          signal: planningSessionResultData.signal as NodeJS.Signals | null,
+          stdout:
+            typeof planningSessionResultData.stdout === "string"
+              ? planningSessionResultData.stdout
+              : "",
+          stderr:
+            typeof planningSessionResultData.stderr === "string"
+              ? planningSessionResultData.stderr
+              : "",
+        }
+      : null;
+  const planningRunPlanValid = planningOutput?.planning_run_plan_valid === true;
+  const planningRunPlanReady = planningOutput?.planning_run_plan_ready === true;
+  const planningShouldFail = planningOutput?.planning_should_fail === true;
+  const planningFailureReason =
+    typeof planningOutput?.planning_failure_reason === "string"
+      ? planningOutput.planning_failure_reason
+      : null;
   const developingAttempts = input.nodeOutputs.filter(
     (output) => output.node_id === "developing",
   ).length;
@@ -605,6 +1075,12 @@ function createFlowcraftExecutionMetadata(input: {
     ),
     loop,
     node_outputs: input.nodeOutputs,
+    planning_artifacts: planningArtifacts,
+    planning_session_result: planningSessionResult,
+    planning_run_plan_valid: planningRunPlanValid,
+    planning_run_plan_ready: planningRunPlanReady,
+    planning_should_fail: planningShouldFail,
+    planning_failure_reason: planningFailureReason,
     recovery_commands: getFlowcraftRecoveryCommands(
       workflowStatus,
       input.runtimeResult.context.issue_id,
@@ -734,6 +1210,7 @@ function createExecutionPlan(input: {
   started_at: string;
   finished_at: string;
   transport: TransportCorrelation | null;
+  dependencies?: FlowcraftWorkflowDependencies;
 }): FutureInstance<unknown, FlowcraftExecutionPlan> {
   const workflow = flowcraftWorkflows[0];
 
@@ -746,6 +1223,7 @@ function createExecutionPlan(input: {
       FlowcraftWorkflowContext,
       FlowcraftWorkflowDependencies
     >({
+      dependencies: input.dependencies ?? {},
       eventBus: {
         emit(event) {
           capturedEvents.push({
@@ -896,6 +1374,7 @@ export function executeAutobotDeliverIssueWorkflow(input: {
   started_at: string;
   finished_at: string;
   transport: TransportCorrelation | null;
+  dependencies?: FlowcraftWorkflowDependencies;
 }): FutureInstance<unknown, FlowcraftExecutionPlan> {
   return createExecutionPlan(input);
 }
@@ -907,6 +1386,7 @@ export function buildFlowcraftExecutionPlan(input: {
   started_at: string;
   finished_at: string;
   transport: TransportCorrelation | null;
+  dependencies?: FlowcraftWorkflowDependencies;
 }): FutureInstance<unknown, FlowcraftExecutionPlan> {
   return executeAutobotDeliverIssueWorkflow(input);
 }
