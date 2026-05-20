@@ -2123,25 +2123,48 @@ type PlanningRunPlanAssessment = {
   readiness: PlanningRunPlanReadiness;
 };
 
-function parsePlanningSectionSentinel(
-  firstContentLine: string | null,
-  key: string,
-): string | null {
-  if (firstContentLine === null) {
-    return null;
-  }
+const planningClassifyIssueShapes = [
+  "feature",
+  "bug",
+  "tech debt",
+  "docs",
+  "infra",
+  "ui-bearing",
+] as const;
 
-  const trimmed = firstContentLine.trim();
-  const keyedSentinelMatch = trimmed.match(
-    new RegExp(`^(?:-\\s*)?${key}\\s*:\\s*(.+)$`, "i"),
+type PlanningClassifyIssueShape = (typeof planningClassifyIssueShapes)[number];
+
+type PlanningClassifyRoute = "proceed" | "research-refine" | "escalate";
+
+type PlanningClassifyAssessment = {
+  errors: string[];
+  route: PlanningClassifyRoute | null;
+  readiness: PlanningRunPlanReadiness;
+};
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isPlanningClassifyIssueShape(
+  value: unknown,
+): value is PlanningClassifyIssueShape {
+  return (
+    typeof value === "string" &&
+    planningClassifyIssueShapes.includes(value as PlanningClassifyIssueShape)
   );
-  const value = keyedSentinelMatch?.[1] ?? trimmed;
-  const unwrapped =
-    value.startsWith("`") && value.endsWith("`") && value.length >= 2
-      ? value.slice(1, -1).trim()
-      : value.trim();
+}
 
-  return unwrapped.toLowerCase();
+function isPlanningClassifyRoute(
+  value: unknown,
+): value is PlanningClassifyRoute {
+  return (
+    value === "proceed" || value === "research-refine" || value === "escalate"
+  );
+}
+
+function isNonEmptyTrimmedString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
 }
 
 function assessPlanningRunPlanContent(
@@ -2250,98 +2273,111 @@ function assessPlanningRunPlanContent(
   };
 }
 
-function assessPlanningClassifyContent(content: string): {
-  errors: string[];
-  route: "proceed" | "research-refine" | "escalate" | null;
-  readiness: PlanningRunPlanReadiness;
-} {
-  const lines = content.split(/\r?\n/);
-  const getHeadingLine = (heading: string): number =>
-    lines.findIndex((line) => line.trim() === `## ${heading}`);
-  const getSectionBody = (heading: string): string | null => {
-    const headingLine = getHeadingLine(heading);
+function assessPlanningClassifyContent(
+  content: string,
+): PlanningClassifyAssessment {
+  let parsed: unknown;
 
-    if (headingLine === -1) {
-      return null;
-    }
+  try {
+    parsed = JSON.parse(content) as unknown;
+  } catch (error) {
+    return {
+      errors: [
+        `invalid classify.json JSON: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      ],
+      route: null,
+      readiness: null,
+    };
+  }
 
-    const nextHeadingLine = lines.findIndex(
-      (line, index) => index > headingLine && line.startsWith("## "),
+  if (!isPlainObject(parsed)) {
+    return {
+      errors: ["classify.json must be a JSON object"],
+      route: null,
+      readiness: null,
+    };
+  }
+
+  const errors: string[] = [];
+  const issueShapesValue = parsed.issue_shapes;
+  const routeValue = parsed.route;
+  const readyToProceedValue = parsed.ready_to_proceed;
+  const whyValue = parsed.why;
+  const nextValue = parsed.next;
+
+  if (!Array.isArray(issueShapesValue)) {
+    errors.push(
+      "issue_shapes must be a non-empty array of allowed shape strings",
     );
-    const endLine = nextHeadingLine === -1 ? lines.length : nextHeadingLine;
-
-    return lines
-      .slice(headingLine + 1, endLine)
-      .join("\n")
-      .trim();
-  };
-  const getFirstContentLine = (heading: string): string | null => {
-    const body = getSectionBody(heading);
-    if (body === null) {
-      return null;
+  } else {
+    if (issueShapesValue.length === 0) {
+      errors.push(
+        "issue_shapes must be a non-empty array of allowed shape strings",
+      );
     }
 
-    const firstContentLine = body
-      .split(/\r?\n/)
-      .find((line) => line.trim().length > 0);
+    const invalidIssueShapes = issueShapesValue.filter(
+      (value) => !isPlanningClassifyIssueShape(value),
+    );
 
-    return firstContentLine?.trim() ?? null;
-  };
-  const requiredHeadings = [
-    "Issue Shapes",
-    "Route",
-    "Readiness",
-    "Why",
-    "Next",
-  ];
-  const missingHeadings = requiredHeadings
-    .filter((heading) => getHeadingLine(heading) === -1)
-    .map((heading) => `missing ## ${heading}`);
-  const emptySectionErrors = requiredHeadings
-    .filter((heading) => {
-      const body = getSectionBody(heading);
-      return body === null || body.length === 0;
-    })
-    .map((heading) => `empty ## ${heading}`);
-  const routeSentinel = parsePlanningSectionSentinel(
-    getFirstContentLine("Route"),
-    "route",
-  );
-  const route =
-    routeSentinel === "proceed"
-      ? "proceed"
-      : routeSentinel === "research-refine"
-      ? "research-refine"
-      : routeSentinel === "escalate"
-      ? "escalate"
-      : null;
-  const readinessSentinel = parsePlanningSectionSentinel(
-    getFirstContentLine("Readiness"),
-    "ready_to_proceed",
-  );
+    if (invalidIssueShapes.length > 0) {
+      errors.push(
+        `issue_shapes contains unsupported values: ${invalidIssueShapes
+          .map((value) => JSON.stringify(value))
+          .join(", ")}`,
+      );
+    }
+  }
+
+  if (!isPlanningClassifyRoute(routeValue)) {
+    errors.push("route must be one of proceed, research-refine, or escalate");
+  }
+
+  if (typeof readyToProceedValue !== "boolean") {
+    errors.push("ready_to_proceed must be a boolean");
+  }
+
+  if (
+    !Array.isArray(whyValue) ||
+    whyValue.length === 0 ||
+    whyValue.some((value) => !isNonEmptyTrimmedString(value))
+  ) {
+    errors.push("why must be a non-empty array of non-empty strings");
+  }
+
+  if (!isNonEmptyTrimmedString(nextValue)) {
+    errors.push("next must be a non-empty string");
+  }
+
+  if (
+    isPlanningClassifyRoute(routeValue) &&
+    typeof readyToProceedValue === "boolean"
+  ) {
+    if (routeValue === "proceed" && readyToProceedValue !== true) {
+      errors.push("ready_to_proceed must be true when route is proceed");
+    }
+
+    if (routeValue !== "proceed" && readyToProceedValue !== false) {
+      errors.push(
+        "ready_to_proceed must be false when route is research-refine or escalate",
+      );
+    }
+  }
+
   const readiness =
-    readinessSentinel === "ready_to_proceed"
-      ? "ready_to_proceed"
-      : readinessSentinel === "true"
-      ? "ready_to_proceed"
-      : readinessSentinel === "needs_research"
-      ? "needs_research"
-      : readinessSentinel === "not_ready" ||
-        readinessSentinel === "false" ||
-        readinessSentinel === "not_ready_to_proceed"
-      ? "not_ready"
-      : readinessSentinel === "escalate"
-      ? "escalate"
+    errors.length === 0
+      ? routeValue === "proceed"
+        ? "ready_to_proceed"
+        : routeValue === "research-refine"
+        ? "needs_research"
+        : "escalate"
       : null;
-  const issueShapes = getSectionBody("Issue Shapes");
-  const issueShapeErrors =
-    issueShapes === null || issueShapes.length === 0
-      ? ["empty ## Issue Shapes"]
-      : [];
 
   return {
-    errors: [...missingHeadings, ...emptySectionErrors, ...issueShapeErrors],
-    route,
+    errors,
+    route: isPlanningClassifyRoute(routeValue) ? routeValue : null,
     readiness,
   };
 }
@@ -2562,7 +2598,7 @@ function buildPlanningPhaseOutputPath(input: {
   return path.join(
     rootPath,
     input.phase === "classify"
-      ? "classify.md"
+      ? "classify.json"
       : input.phase === "risk-assess"
       ? "risk-assessment.md"
       : "run-plan.md",
@@ -2965,11 +3001,11 @@ function runPlanningPhaseSequence(input: {
                 }).pipe(
                   fork(reject)((outputRead) => {
                     if (phase === "classify") {
-                      const assessment =
+                      const assessment: PlanningClassifyAssessment =
                         outputRead.content !== null
                           ? assessPlanningClassifyContent(outputRead.content)
                           : {
-                              errors: ["missing classify.md"],
+                              errors: ["missing classify.json"],
                               route: null,
                               readiness: null,
                             };
@@ -3000,20 +3036,18 @@ function runPlanningPhaseSequence(input: {
                               ? "AUTOBOT-PLANNER-CLASSIFY-NOT-PROCEEDING"
                               : classifyEscalated
                               ? "AUTOBOT-PLANNER-CLASSIFY-ESCALATED"
-                              : outputRead.error !== null
-                              ? "AUTOBOT-PLANNER-CLASSIFY-READ-FAILED"
                               : "AUTOBOT-PLANNER-CLASSIFY-INVALID",
                             message: classifyRoutedToResearchRefine
                               ? "planning classify phase routed to research-refine before planning"
                               : classifyEscalated
                               ? "planning classify phase escalated before planning"
-                              : outputRead.error !== null
-                              ? `planning session could not read classify.md: ${String(
-                                  outputRead.error,
-                                )}`
-                              : `planning session produced invalid classify.md: ${assessment.errors.join(
-                                  ", ",
-                                )}`,
+                              : `planning session produced invalid classify.json: ${
+                                  outputRead.content === null
+                                    ? outputRead.error !== null
+                                      ? String(outputRead.error)
+                                      : "missing classify.json"
+                                    : assessment.errors.join(", ")
+                                }`,
                             occurred_at: planningSessionResult.finished_at,
                           },
                         });

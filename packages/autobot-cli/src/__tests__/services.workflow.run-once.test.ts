@@ -20,22 +20,17 @@ function runFuture<T>(future: FutureInstance<unknown, T>): Promise<T> {
   });
 }
 
-const validClassify = [
-  "## Issue Shapes",
-  "- feature",
-  "",
-  "## Route",
-  "proceed",
-  "",
-  "## Readiness",
-  "ready_to_proceed",
-  "",
-  "## Why",
-  "- Ready for planning.",
-  "",
-  "## Next",
-  "- Continue to planning.",
-].join("\n");
+const validClassify = JSON.stringify(
+  {
+    issue_shapes: ["feature"],
+    route: "proceed",
+    ready_to_proceed: true,
+    why: ["Ready for planning."],
+    next: "Continue to planning.",
+  },
+  null,
+  2,
+);
 
 const validRiskAssessment = [
   "## Risk Level",
@@ -53,7 +48,7 @@ const validRiskAssessment = [
 
 const noOpArtifactWriter = () => resolve(undefined);
 const noOpArtifactReader = (input: { path: string }) => {
-  if (input.path.endsWith("classify.md")) {
+  if (input.path.endsWith("classify.json")) {
     return resolve(validClassify);
   }
 

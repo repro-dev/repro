@@ -93,39 +93,40 @@ const validRunPlan = [
   "- Modify packages/autobot-cli/src/services.ts.",
 ].join("\n");
 
-const validClassify = [
-  "## Issue Shapes",
-  "- feature",
-  "",
-  "## Route",
-  "proceed",
-  "",
-  "## Readiness",
-  "ready_to_proceed",
-  "",
-  "## Why",
-  "- Ready for planning.",
-  "",
-  "## Next",
-  "- Continue to planning.",
-].join("\n");
+const validClassify = JSON.stringify(
+  {
+    issue_shapes: ["feature"],
+    route: "proceed",
+    ready_to_proceed: true,
+    why: ["Ready for planning."],
+    next: "Continue to planning.",
+  },
+  null,
+  2,
+);
 
-const escalatedClassify = [
-  "## Issue Shapes",
-  "- issue_shapes: [`feature`, `infra`]",
-  "",
-  "## Route",
-  "- route: `escalate`",
-  "",
-  "## Readiness",
-  "- ready_to_proceed: `false`",
-  "",
-  "## Why",
-  "- This issue is already active.",
-  "",
-  "## Next",
-  "- Escalate instead of planning.",
-].join("\n");
+const escalatedClassify = JSON.stringify(
+  {
+    issue_shapes: ["feature", "infra"],
+    route: "escalate",
+    ready_to_proceed: false,
+    why: ["This issue is already active."],
+    next: "Escalate instead of planning.",
+  },
+  null,
+  2,
+);
+
+const invalidClassify = JSON.stringify(
+  {
+    issue_shapes: ["feature"],
+    route: "proceed",
+    ready_to_proceed: true,
+    why: ["Ready for planning."],
+  },
+  null,
+  2,
+);
 
 const validRiskAssessment = [
   "## Risk Level",
@@ -194,7 +195,7 @@ test("engine run-once passes durable planning artifact paths into opencode", asy
     },
     artifactReader(input) {
       reads.push(input);
-      if (input.path.endsWith("classify.md")) {
+      if (input.path.endsWith("classify.json")) {
         return resolve(validClassify);
       }
 
@@ -247,7 +248,7 @@ test("engine run-once passes durable planning artifact paths into opencode", asy
   assert.equal(result.kind, "queue-status");
   assert.deepEqual(reads, [
     {
-      path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/classify.md",
+      path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/classify.json",
     },
     {
       path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/run-plan.md",
@@ -352,7 +353,7 @@ test("engine run-once stops on escalated classify output before planning", async
   assert.equal(result.kind, "queue-status");
   assert.deepEqual(reads, [
     {
-      path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/classify.md",
+      path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/classify.json",
     },
   ]);
   assert.equal(fixture.executionRecords.length, 0);
@@ -371,6 +372,86 @@ test("engine run-once stops on escalated classify output before planning", async
   );
 });
 
+test("engine run-once rejects invalid classify json before planning", async () => {
+  const fixture = makeWorkflowStore({
+    items: [makeQueuedPlanningItem()],
+  });
+  const reads: Array<{ path: string }> = [];
+  const services = createAutobotServices({
+    artifactWriter() {
+      return resolve(undefined);
+    },
+    artifactReader(input) {
+      reads.push(input);
+
+      if (input.path.endsWith("classify.json")) {
+        return resolve(invalidClassify);
+      }
+
+      return resolve(validRunPlan);
+    },
+    planningSessionRunner(input) {
+      void input;
+      return resolve({
+        command: "opencode",
+        args: ["run"],
+        started_at: "2026-05-15T12:00:01Z",
+        finished_at: "2026-05-15T12:00:02Z",
+        exit_code: 0,
+        signal: null,
+        stdout: "planner stdout",
+        stderr: "planner stderr",
+      });
+    },
+    loadLinearIssue() {
+      return resolve({
+        issue_id: "REP-1208",
+        title: "Bridge OpenCode planning sessions",
+        url: "https://linear.app/repro/issue/REP-1208/bridge-opencode-planning-sessions",
+        state_name: "Todo",
+        state_type: "unstarted",
+        project: "Engineering",
+        labels: ["backend"],
+        assignee: "Gary",
+      });
+    },
+    openStore() {
+      return resolve(fixture.store as unknown as AutobotStore);
+    },
+    now() {
+      return "2026-05-15T12:00:00Z";
+    },
+    randomId() {
+      return "run-1208";
+    },
+  });
+
+  const result = (await runFuture(
+    services.handleInvocation(makeInvocation(["engine", "run-once"])),
+  )) as AutobotCommandResult;
+
+  assert.equal(result.kind, "queue-status");
+  assert.deepEqual(reads, [
+    {
+      path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/classify.json",
+    },
+  ]);
+  assert.equal(fixture.executionRecords.length, 0);
+  assert.equal(fixture.flowcraftEvents.length, 0);
+  assert.equal(fixture.itemUpserts.at(-1)?.state, "failed");
+  assert.equal(
+    (fixture.itemUpserts.at(-1)?.last_error as { code?: string } | null)?.code,
+    "AUTOBOT-PLANNER-CLASSIFY-INVALID",
+  );
+  assert.match(
+    String(
+      (fixture.itemUpserts.at(-1)?.last_error as { message?: string } | null)
+        ?.message ?? "",
+    ),
+    /classify\.json|missing|required|invalid|JSON/i,
+  );
+});
+
 test("engine run-once rejects empty required run-plan sections before flowcraft completion", async () => {
   const fixture = makeWorkflowStore({
     items: [makeQueuedPlanningItem()],
@@ -384,7 +465,7 @@ test("engine run-once rejects empty required run-plan sections before flowcraft 
     },
     artifactReader(input) {
       reads.push(input);
-      if (input.path.endsWith("classify.md")) {
+      if (input.path.endsWith("classify.json")) {
         return resolve(validClassify);
       }
 
@@ -438,7 +519,7 @@ test("engine run-once rejects empty required run-plan sections before flowcraft 
   assert.ok(writes.length >= 4);
   assert.deepEqual(reads, [
     {
-      path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/classify.md",
+      path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/classify.json",
     },
     {
       path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/run-plan.md",
@@ -470,7 +551,7 @@ test("engine run-once preserves non-ready run plans without flowcraft completion
     },
     artifactReader(input) {
       reads.push(input);
-      if (input.path.endsWith("classify.md")) {
+      if (input.path.endsWith("classify.json")) {
         return resolve(validClassify);
       }
 
@@ -524,7 +605,7 @@ test("engine run-once preserves non-ready run plans without flowcraft completion
   assert.ok(writes.length >= 4);
   assert.deepEqual(reads, [
     {
-      path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/classify.md",
+      path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/classify.json",
     },
     {
       path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/run-plan.md",
