@@ -4,6 +4,7 @@ export {
   createFlow,
   generateMermaid,
   lintBlueprint,
+  UnsafeEvaluator,
 } from "../node_modules/flowcraft/dist/index.mjs";
 
 export type {

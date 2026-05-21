@@ -271,6 +271,24 @@ function createControlNode(
   });
 }
 
+function createReviewLoopNode(): FlowcraftNodeImplementation {
+  return async (nodeContext?: NodeExecutionContext) => {
+    const snapshot = await readNodeSnapshot(nodeContext);
+
+    return {
+      output: {
+        phase: "review-loop",
+        state: controlNodeDefinitions["review-loop"].state,
+        review_fix_continue: snapshot.review_fix_continue === true,
+        review_fix_should_reconcile:
+          snapshot.review_fix_should_reconcile === true,
+        review_fix_should_escalate:
+          snapshot.review_fix_should_escalate === true,
+      },
+    };
+  };
+}
+
 function futureToPromise<T>(future: FutureInstance<unknown, T>): Promise<T> {
   return new Promise((resolve, reject) => {
     future.pipe(fork(reject)(resolve));
@@ -751,28 +769,28 @@ function createAutobotDeliverIssueWorkflow(): FlowcraftWorkflowDefinition {
     .node(reviewFixNodeId, createReviewFixNode(), {
       config: { maxRetries: 1, timeout: 60_000 },
     })
-    .loop("review-loop", {
-      startNodeId: "developing",
-      endNodeId: reviewFixNodeId,
-      condition: "review_fix_continue",
-    })
+    .node("review-loop", createReviewLoopNode())
     .node("reconcile", createPhaseNode("reconcile"))
     .node("escalated", createControlNode("escalated"))
     .node("complete", createPhaseNode("complete"))
     .edge("claim", "preparing")
     .edge("preparing", "planning")
     .edge("planning", "planning-failed", {
-      condition: "planning_should_fail",
+      condition: "result.output.planning_should_fail",
     })
     .edge("planning", "developing")
     .edge("developing", "testing")
     .edge("testing", "reviewing")
     .edge("reviewing", reviewFixNodeId)
+    .edge(reviewFixNodeId, "review-loop")
     .edge("review-loop", "reconcile", {
-      condition: "review_fix_should_reconcile",
+      condition: "result.output.review_fix_should_reconcile",
     })
     .edge("review-loop", "escalated", {
-      condition: "review_fix_should_escalate",
+      condition: "result.output.review_fix_should_escalate",
+    })
+    .edge("review-loop", "developing", {
+      condition: "result.output.review_fix_continue",
     })
     .edge("reconcile", "complete")
     .setCycleEntryPoint("developing");

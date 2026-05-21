@@ -1908,67 +1908,85 @@ function handleInspect(
     );
   }
 
+  const inspectRun = (
+    run: RunSummary,
+  ): FutureInstance<unknown, AutobotCommandResult> => {
+    if (run.flowcraft_execution_id === null) {
+      return store.events.list(run.issue_id, { runId: run.run_id }).pipe(
+        chain(
+          (domain_events): FutureInstance<unknown, AutobotCommandResult> => {
+            return store.artifacts.list(run.issue_id).pipe(
+              map((artifacts) =>
+                createFlowcraftInspectResult({
+                  invocation,
+                  kind: "run",
+                  identifier,
+                  issue_id: run.issue_id,
+                  run,
+                  execution: null,
+                  artifacts,
+                  domain_events,
+                  flowcraft_events: [],
+                }),
+              ),
+            );
+          },
+        ),
+      );
+    }
+
+    return loadFlowcraftExecutionContext(
+      store,
+      run.flowcraft_execution_id,
+    ).pipe(
+      chain(({ execution, artifacts, flowcraft_events }) =>
+        store.events.list(run.issue_id, { runId: run.run_id }).pipe(
+          map((domain_events) =>
+            createFlowcraftInspectResult({
+              invocation,
+              kind: "run",
+              identifier,
+              issue_id: run.issue_id,
+              run,
+              execution,
+              artifacts,
+              domain_events,
+              flowcraft_events,
+            }),
+          ),
+        ),
+      ),
+    );
+  };
+
   return store.runs.get(identifier).pipe(
     chain((run): FutureInstance<unknown, AutobotCommandResult> => {
       if (run !== null) {
-        return store.events.list(run.issue_id, { runId: run.run_id }).pipe(
-          chain(
-            (domain_events): FutureInstance<unknown, AutobotCommandResult> => {
-              if (run.flowcraft_execution_id === null) {
-                return store.artifacts.list(run.issue_id).pipe(
-                  map((artifacts) =>
-                    createFlowcraftInspectResult({
-                      invocation,
-                      kind: "run",
-                      identifier,
-                      issue_id: run.issue_id,
-                      run,
-                      execution: null,
-                      artifacts,
-                      domain_events,
-                      flowcraft_events: [],
-                    }),
-                  ),
-                );
-              }
-
-              return loadFlowcraftExecutionContext(
-                store,
-                run.flowcraft_execution_id,
-              ).pipe(
-                map(({ execution, artifacts, flowcraft_events }) =>
-                  createFlowcraftInspectResult({
-                    invocation,
-                    kind: "run",
-                    identifier,
-                    issue_id: run.issue_id,
-                    run,
-                    execution,
-                    artifacts,
-                    domain_events,
-                    flowcraft_events,
-                  }),
-                ),
-              );
-            },
-          ),
-        );
+        return inspectRun(run);
       }
 
-      return Future((reject) => {
-        reject(
-          new AutobotCliError({
-            code: "FLOWCRAFT_EXECUTION_NOT_FOUND",
-            message: `No run or flowcraft execution found for ${identifier}`,
-            what_failed: "inspect request",
-            likely_cause: "the run or execution id is not stored locally",
-            recovery_commands: ["autobot-next status --json"],
-            details: { identifier },
-            exit_code: 2,
-          }),
-        );
-        return () => undefined;
-      });
+      return store.runs.getCurrent(identifier).pipe(
+        chain((currentRun): FutureInstance<unknown, AutobotCommandResult> => {
+          if (currentRun !== null) {
+            return inspectRun(currentRun);
+          }
+
+          return Future((reject) => {
+            reject(
+              new AutobotCliError({
+                code: "FLOWCRAFT_EXECUTION_NOT_FOUND",
+                message: `No run or flowcraft execution found for ${identifier}`,
+                what_failed: "inspect request",
+                likely_cause: "the run or execution id is not stored locally",
+                recovery_commands: ["autobot-next status --json"],
+                details: { identifier },
+                exit_code: 2,
+              }),
+            );
+            return () => undefined;
+          });
+        }),
+      );
     }),
   );
 }
@@ -2587,6 +2605,92 @@ function createMonotonicLaterTimestamp(timestamp: string): string {
   return new Date(Date.parse(timestamp) + 1).toISOString();
 }
 
+function persistWorkflowClaim(input: {
+  store: AutobotStore;
+  item: ItemDetail;
+  issueId: string;
+  attempt: number;
+  runId: string;
+  executionId: string;
+  occurredAt: string;
+  startedAt: string;
+  recoveryCommands: string[];
+}): FutureInstance<unknown, void> {
+  const event = createDomainEvent({
+    type: "workflow.phase.claimed",
+    severity: "info",
+    state: "claimed",
+    message: "Issue claimed",
+    issue_id: input.issueId,
+    run_id: input.runId,
+    occurred_at: input.occurredAt,
+    data: {
+      issue_id: input.issueId,
+      attempt: input.attempt,
+      run_id: input.runId,
+      execution_id: input.executionId,
+      phase: "claimed",
+      state: "claimed",
+      recovery_commands: input.recoveryCommands,
+      blueprint_id: "autobot-deliver-issue",
+      blueprint_version: "1.0.0",
+    },
+  });
+
+  return input.store.transaction((transaction) =>
+    sequenceFutures([
+      transaction.runs
+        .upsert({
+          run_id: input.runId,
+          issue_id: input.issueId,
+          attempt: input.attempt,
+          state: "claimed",
+          flowcraft_execution_id: input.executionId,
+          blueprint_id: "autobot-deliver-issue",
+          blueprint_version: "1.0.0",
+          started_at: input.startedAt,
+          finished_at: null,
+          worker_id: null,
+          last_heartbeat_at: null,
+          transport: null,
+        })
+        .pipe(map(() => undefined)),
+      transaction.items
+        .upsert(
+          toItemRecordFromDetail({
+            ...input.item,
+            state: "claimed",
+            started_at: input.item.started_at ?? input.startedAt,
+            updated_at: input.occurredAt,
+            last_event: event.type,
+            last_error: null,
+            recovery_commands: input.recoveryCommands,
+            cancellation_requested: false,
+            cancellation_requested_at: null,
+            current_run: {
+              run_id: input.runId,
+              issue_id: input.issueId,
+              attempt: input.attempt,
+              state: "claimed",
+              flowcraft_execution_id: input.executionId,
+              blueprint_id: "autobot-deliver-issue",
+              blueprint_version: "1.0.0",
+              started_at: input.startedAt,
+              finished_at: null,
+              worker_id: null,
+              last_heartbeat_at: null,
+              transport: null,
+            } satisfies RunSummary,
+            artifacts: [],
+            events: [],
+          }),
+        )
+        .pipe(map(() => undefined)),
+      transaction.events.append(event).pipe(map(() => undefined)),
+    ]).pipe(map(() => undefined)),
+  );
+}
+
 function hydratePlanningItemDetail(
   item: ItemDetail,
   linear: LinearIssueRef | null,
@@ -2701,6 +2805,7 @@ function runBoundedWorkflowTickForItem(
   const startedAt = tickAt;
   const runId = randomId();
   const executionId = `flowcraft-${runId}`;
+  const claimedAt = startedAt;
   const fallbackItemDetail: ItemDetail = {
     ...target,
     linear: null,
@@ -2742,162 +2847,181 @@ function runBoundedWorkflowTickForItem(
               store.repo.path,
             );
 
-            return executeAutobotDeliverIssueWorkflow({
-              issue_id: target.issue_id,
-              run_id: runId,
-              execution_id: executionId,
-              started_at: startedAt,
-              finished_at: createMonotonicLaterTimestamp(startedAt),
-              transport: null,
-              dependencies: {
-                autobotPlanning: {
-                  repo: store.repo,
-                  item: planningItem,
-                  artifactDrafts: planningArtifactDrafts,
-                  artifactPaths: planningArtifactPaths,
-                  artifactWriter,
-                  artifactReader,
-                  planningSessionRunner,
-                },
-              },
-            }).pipe(
-              chain(
-                (
-                  plan: FlowcraftExecutionPlan,
-                ): FutureInstance<unknown, void> => {
-                  const runState = mapFlowcraftStatusToItemState(
-                    plan.metadata.workflow_status,
-                  );
-                  const flowcraftFinishedAt = createMonotonicLaterTimestamp(
-                    plan.metadata.planning_session_result?.finished_at ??
-                      startedAt,
-                  );
-                  const planningSessionResult =
-                    plan.metadata.planning_session_result;
-                  const lastError =
-                    runState === "awaiting"
-                      ? {
-                          code: "AUTOBOT-PLANNER-RUN-PLAN-NOT-READY",
-                          message:
-                            "planning session produced a non-ready run-plan.md; route to research-refine before implementation",
-                          occurred_at:
-                            planningSessionResult?.finished_at ??
-                            flowcraftFinishedAt,
-                        }
-                      : plan.metadata.planning_should_fail === true
-                      ? planningSessionResult === null
-                        ? {
-                            code: "AUTOBOT-PLANNING-ARTIFACTS-FAILED",
-                            message:
-                              plan.metadata.planning_failure_reason ??
-                              "planning failed",
-                            occurred_at: flowcraftFinishedAt,
-                          }
-                        : plan.metadata.planning_run_plan_valid === false
-                        ? {
-                            code: "AUTOBOT-PLANNER-RUN-PLAN-INVALID",
-                            message:
-                              plan.metadata.planning_failure_reason ??
-                              "planning session produced invalid run-plan.md",
-                            occurred_at: planningSessionResult.finished_at,
-                          }
-                        : {
-                            code: "AUTOBOT-PLANNER-SESSION-FAILED",
-                            message: `planning session exited with code ${String(
-                              planningSessionResult.exit_code,
-                            )}`,
-                            occurred_at: planningSessionResult.finished_at,
-                          }
-                      : null;
+            const progressRecoveryCommands = [
+              `autobot-next status ${target.issue_id} --json`,
+              `autobot-next logs ${target.issue_id} --json`,
+            ];
 
-                  return store.transaction((transaction) => {
-                    const recordArtifact = (draft: PlanningArtifactDraft) =>
-                      transaction.artifacts
-                        .record({
-                          issue_id: target.issue_id,
-                          run_id: runId,
-                          attempt: target.attempt,
-                          kind: draft.kind,
-                          path: draft.path,
-                          description: draft.description,
-                          content_hash: draft.content_hash,
-                          supersedes_artifact_id: null,
-                          inherited_from_artifact_id: null,
-                          created_at: startedAt,
-                        })
-                        .pipe(map(() => undefined));
-                    return transaction.runs
-                      .upsert({
-                        run_id: runId,
-                        issue_id: target.issue_id,
-                        attempt: target.attempt,
-                        state: runState,
-                        flowcraft_execution_id: executionId,
-                        blueprint_id: plan.workflow.id,
-                        blueprint_version: plan.workflow.version,
-                        started_at: startedAt,
-                        finished_at: flowcraftFinishedAt,
-                        worker_id: null,
-                        last_heartbeat_at: null,
-                        transport: null,
-                      })
-                      .pipe(
-                        chain(
-                          (run): FutureInstance<unknown, void> =>
-                            sequenceFutures([
-                              ...plan.metadata.planning_artifacts
-                                .filter((draft) => draft.persist !== false)
-                                .map(recordArtifact),
-                              transaction.flowcraft
-                                .recordExecution({
-                                  execution_id: executionId,
-                                  issue_id: target.issue_id,
-                                  run_id: run.run_id,
-                                  state: runState,
-                                  started_at: startedAt,
-                                  finished_at: flowcraftFinishedAt,
-                                  metadata: plan.metadata,
-                                })
-                                .pipe(map(() => undefined)),
-                              ...plan.flowcraft_events.map(
-                                (event: FlowcraftEventRecord) =>
-                                  transaction.flowcraft
-                                    .recordEvent(event)
-                                    .pipe(map(() => undefined)),
-                              ),
-                              ...plan.domain_events.map((event: DomainEvent) =>
-                                transaction.events
-                                  .append(event)
-                                  .pipe(map(() => undefined)),
-                              ),
-                              transaction.items
-                                .upsert(
-                                  toItemRecordFromDetail({
-                                    ...planningItem,
-                                    state: runState,
-                                    updated_at: flowcraftFinishedAt,
-                                    last_error: lastError,
-                                    last_event:
-                                      plan.domain_events.at(-1)?.type ??
-                                      plan.flowcraft_events.at(-1)?.type ??
-                                      null,
-                                    recovery_commands:
-                                      plan.metadata.recovery_commands,
-                                    cancellation_requested: false,
-                                    cancellation_requested_at: null,
-                                    current_run: null,
-                                    artifacts: [],
-                                    events: [],
-                                  }),
-                                )
-                                .pipe(map(() => undefined)),
-                            ]).pipe(map(() => undefined)),
-                        ),
-                      );
-                  });
+            return sequenceFutures([
+              persistWorkflowClaim({
+                store,
+                item: planningItem,
+                issueId: target.issue_id,
+                attempt: target.attempt,
+                runId,
+                executionId,
+                occurredAt: claimedAt,
+                startedAt,
+                recoveryCommands: progressRecoveryCommands,
+              }),
+              executeAutobotDeliverIssueWorkflow({
+                issue_id: target.issue_id,
+                run_id: runId,
+                execution_id: executionId,
+                started_at: startedAt,
+                finished_at: createMonotonicLaterTimestamp(startedAt),
+                transport: null,
+                dependencies: {
+                  autobotPlanning: {
+                    repo: store.repo,
+                    item: planningItem,
+                    artifactDrafts: planningArtifactDrafts,
+                    artifactPaths: planningArtifactPaths,
+                    artifactWriter,
+                    artifactReader,
+                    planningSessionRunner,
+                  },
                 },
+              }).pipe(
+                chain(
+                  (
+                    plan: FlowcraftExecutionPlan,
+                  ): FutureInstance<unknown, void> => {
+                    const runState = mapFlowcraftStatusToItemState(
+                      plan.metadata.workflow_status,
+                    );
+                    const flowcraftFinishedAt = createMonotonicLaterTimestamp(
+                      plan.metadata.planning_session_result?.finished_at ??
+                        startedAt,
+                    );
+                    const planningSessionResult =
+                      plan.metadata.planning_session_result;
+                    const lastError =
+                      runState === "awaiting"
+                        ? {
+                            code: "AUTOBOT-PLANNER-RUN-PLAN-NOT-READY",
+                            message:
+                              "planning session produced a non-ready run-plan.md; route to research-refine before implementation",
+                            occurred_at:
+                              planningSessionResult?.finished_at ??
+                              flowcraftFinishedAt,
+                          }
+                        : plan.metadata.planning_should_fail === true
+                        ? planningSessionResult === null
+                          ? {
+                              code: "AUTOBOT-PLANNING-ARTIFACTS-FAILED",
+                              message:
+                                plan.metadata.planning_failure_reason ??
+                                "planning failed",
+                              occurred_at: flowcraftFinishedAt,
+                            }
+                          : plan.metadata.planning_run_plan_valid === false
+                          ? {
+                              code: "AUTOBOT-PLANNER-RUN-PLAN-INVALID",
+                              message:
+                                plan.metadata.planning_failure_reason ??
+                                "planning session produced invalid run-plan.md",
+                              occurred_at: planningSessionResult.finished_at,
+                            }
+                          : {
+                              code: "AUTOBOT-PLANNER-SESSION-FAILED",
+                              message: `planning session exited with code ${String(
+                                planningSessionResult.exit_code,
+                              )}`,
+                              occurred_at: planningSessionResult.finished_at,
+                            }
+                        : null;
+
+                    return store.transaction((transaction) => {
+                      const recordArtifact = (draft: PlanningArtifactDraft) =>
+                        transaction.artifacts
+                          .record({
+                            issue_id: target.issue_id,
+                            run_id: runId,
+                            attempt: target.attempt,
+                            kind: draft.kind,
+                            path: draft.path,
+                            description: draft.description,
+                            content_hash: draft.content_hash,
+                            supersedes_artifact_id: null,
+                            inherited_from_artifact_id: null,
+                            created_at: startedAt,
+                          })
+                          .pipe(map(() => undefined));
+                      return transaction.runs
+                        .upsert({
+                          run_id: runId,
+                          issue_id: target.issue_id,
+                          attempt: target.attempt,
+                          state: runState,
+                          flowcraft_execution_id: executionId,
+                          blueprint_id: plan.workflow.id,
+                          blueprint_version: plan.workflow.version,
+                          started_at: startedAt,
+                          finished_at: flowcraftFinishedAt,
+                          worker_id: null,
+                          last_heartbeat_at: null,
+                          transport: null,
+                        })
+                        .pipe(
+                          chain(
+                            (run): FutureInstance<unknown, void> =>
+                              sequenceFutures([
+                                ...plan.metadata.planning_artifacts
+                                  .filter((draft) => draft.persist !== false)
+                                  .map(recordArtifact),
+                                transaction.flowcraft
+                                  .recordExecution({
+                                    execution_id: executionId,
+                                    issue_id: target.issue_id,
+                                    run_id: run.run_id,
+                                    state: runState,
+                                    started_at: startedAt,
+                                    finished_at: flowcraftFinishedAt,
+                                    metadata: plan.metadata,
+                                  })
+                                  .pipe(map(() => undefined)),
+                                ...plan.flowcraft_events.map(
+                                  (event: FlowcraftEventRecord) =>
+                                    transaction.flowcraft
+                                      .recordEvent(event)
+                                      .pipe(map(() => undefined)),
+                                ),
+                                ...plan.domain_events.map(
+                                  (event: DomainEvent) =>
+                                    transaction.events
+                                      .append(event)
+                                      .pipe(map(() => undefined)),
+                                ),
+                                transaction.items
+                                  .upsert(
+                                    toItemRecordFromDetail({
+                                      ...planningItem,
+                                      state: runState,
+                                      updated_at: flowcraftFinishedAt,
+                                      last_error: lastError,
+                                      last_event:
+                                        plan.domain_events.at(-1)?.type ??
+                                        plan.flowcraft_events.at(-1)?.type ??
+                                        null,
+                                      recovery_commands:
+                                        plan.metadata.recovery_commands,
+                                      cancellation_requested: false,
+                                      cancellation_requested_at: null,
+                                      current_run: null,
+                                      artifacts: [],
+                                      events: [],
+                                    }),
+                                  )
+                                  .pipe(map(() => undefined)),
+                              ]).pipe(map(() => undefined)),
+                          ),
+                        );
+                    });
+                  },
+                ),
               ),
-            );
+            ]).pipe(map(() => undefined));
           }),
         ),
       ),

@@ -53,11 +53,6 @@ test("autobot deliver issue workflow exposes explicit delivery phases and review
       ?.maxRetries,
     2,
   );
-  assert.match(
-    blueprint.nodes.find((node) => node.id === "review-loop")?.params
-      ?.condition as string,
-    /^review_fix_continue$/,
-  );
   assert.deepEqual(blueprint.metadata?.cycleEntryPoints, ["developing"]);
   assert.deepEqual(
     blueprint.edges
@@ -72,9 +67,9 @@ test("autobot deliver issue workflow exposes explicit delivery phases and review
       ["testing", "reviewing", null],
       ["reviewing", "review_fix", null],
       ["review_fix", "review-loop", null],
-      ["review-loop", "developing", "continue"],
-      ["review-loop", "reconcile", "break"],
-      ["review-loop", "escalated", "break"],
+      ["review-loop", "developing", null],
+      ["review-loop", "reconcile", null],
+      ["review-loop", "escalated", null],
       ["reconcile", "complete", null],
     ].sort((left, right) => left.join("|").localeCompare(right.join("|"))),
   );

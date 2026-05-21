@@ -111,7 +111,24 @@ test("workflow commands surface the Flowcraft delivery graph", async () => {
 });
 
 test("inspect resolves runs and flowcraft executions with persisted events", async () => {
-  const fixture = makeWorkflowStore();
+  const fixture = makeWorkflowStore({
+    currentRuns: {
+      "REP-1154": {
+        run_id: "run-1154",
+        issue_id: "REP-1154",
+        attempt: 1,
+        state: "claimed",
+        flowcraft_execution_id: "exec-1154",
+        blueprint_id: "autobot-deliver-issue",
+        blueprint_version: "1.0.0",
+        started_at: "2026-05-15T11:00:00Z",
+        finished_at: null,
+        worker_id: null,
+        last_heartbeat_at: null,
+        transport: null,
+      },
+    },
+  });
   const services = createAutobotServices({
     openStore() {
       return resolve(fixture.store as unknown as AutobotStore);
@@ -206,6 +223,19 @@ test("inspect resolves runs and flowcraft executions with persisted events", asy
       (event) => event.node_id === "complete",
     ),
   );
+
+  const byIssue = (await runFuture(
+    services.handleInvocation({
+      ...makeInvocation(["inspect"]),
+      args: ["REP-1154"],
+      command: "inspect REP-1154",
+    }),
+  )) as AutobotCommandResult;
+
+  assert.equal(byIssue.kind, "flowcraft-inspect");
+  assert.equal(byIssue.data.lookup.kind, "run");
+  assert.equal(byIssue.data.lookup.issue_id, "REP-1154");
+  assert.equal(byIssue.data.lookup.run?.run_id, "run-1154");
 });
 
 test("inspect loads artifacts and domain events for runs without flowcraft execution ids", async () => {
