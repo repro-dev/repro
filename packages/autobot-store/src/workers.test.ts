@@ -38,6 +38,27 @@ function openRawDb(repoRoot: string) {
   return new SQLiteDatabase(dbPath(repoRoot))
 }
 
+function makePlannerWorkerArgs(repoRoot: string, issueId: string) {
+  return [
+    'run',
+    '--agent',
+    'planner',
+    '--dir',
+    repoRoot,
+    '--title',
+    `Autobot plan ${issueId}`,
+    'Planning contract prompt',
+    '--file',
+    `${repoRoot}/.autobot/runs/${issueId}/attempt-1/context.md`,
+    '--file',
+    `${repoRoot}/.autobot/runs/${issueId}/attempt-1/test-plan.md`,
+    '--file',
+    `${repoRoot}/.autobot/runs/${issueId}/attempt-1/contract.md`,
+    '--file',
+    `${repoRoot}/.autobot/runs/${issueId}/attempt-1/prompt.md`,
+  ]
+}
+
 afterEach(async () => {
   while (tempRoots.length > 0) {
     const root = tempRoots.pop()
@@ -64,7 +85,7 @@ test('creates and updates durable worker lifecycle records', async () => {
       child_pid: null,
       process_group_id: null,
       command: 'opencode',
-      args: ['run-worker', '--issue', 'REP-1221'],
+      args: makePlannerWorkerArgs(repoRoot, 'REP-1221'),
       started_at: '2026-05-21T15:00:00Z',
       last_heartbeat_at: null,
       deadline_at: '2026-05-21T16:00:00Z',
@@ -81,7 +102,7 @@ test('creates and updates durable worker lifecycle records', async () => {
   assert.equal(created.state, 'starting')
   assert.equal(created.pid, null)
   assert.equal(created.child_pid, null)
-  assert.deepEqual(created.args, ['run-worker', '--issue', 'REP-1221'])
+  assert.deepEqual(created.args, makePlannerWorkerArgs(repoRoot, 'REP-1221'))
   assert.equal(created.stdout_log_path, '.autobot/workers/worker-1.stdout.log')
 
   const running = await runFuture(
@@ -181,7 +202,24 @@ test('lists stale orphan workers without depending on issue or run ids', async (
       child_pid: null,
       process_group_id: null,
       command: 'opencode',
-      args: ['run-worker'],
+      args: [
+        'run',
+        '--agent',
+        'planner',
+        '--dir',
+        repoRoot,
+        '--title',
+        'Autobot plan orphan',
+        'Planning contract prompt',
+        '--file',
+        `${repoRoot}/.autobot/runs/orphan/attempt-1/context.md`,
+        '--file',
+        `${repoRoot}/.autobot/runs/orphan/attempt-1/test-plan.md`,
+        '--file',
+        `${repoRoot}/.autobot/runs/orphan/attempt-1/contract.md`,
+        '--file',
+        `${repoRoot}/.autobot/runs/orphan/attempt-1/prompt.md`,
+      ],
       started_at: '2026-05-21T14:00:00Z',
       last_heartbeat_at: '2026-05-21T14:05:00Z',
       deadline_at: null,
@@ -208,7 +246,10 @@ test('lists stale orphan workers without depending on issue or run ids', async (
     .prepare('SELECT result_json, args_json FROM workers WHERE worker_id = ?')
     .get('worker-orphan') as { result_json: string | null; args_json: string }
   assert.equal(row.result_json, null)
-  assert.equal(row.args_json, '["run-worker"]')
+  assert.equal(
+    row.args_json,
+    JSON.stringify(makePlannerWorkerArgs(repoRoot, 'orphan'))
+  )
   db.close()
 
   await runFuture(store.close())

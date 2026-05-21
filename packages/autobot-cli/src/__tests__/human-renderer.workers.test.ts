@@ -9,6 +9,27 @@ import {
   renderAutobotQueueStatus,
 } from "../render/human";
 
+function makePlannerWorkerArgs(issueId: string): string[] {
+  return [
+    "run",
+    "--agent",
+    "planner",
+    "--dir",
+    "/worktrees/autobot",
+    "--title",
+    `Autobot plan ${issueId}`,
+    "Planning contract prompt",
+    "--file",
+    `/worktrees/autobot/.autobot/runs/${issueId}/attempt-1/context.md`,
+    "--file",
+    `/worktrees/autobot/.autobot/runs/${issueId}/attempt-1/test-plan.md`,
+    "--file",
+    `/worktrees/autobot/.autobot/runs/${issueId}/attempt-1/contract.md`,
+    "--file",
+    `/worktrees/autobot/.autobot/runs/${issueId}/attempt-1/prompt.md`,
+  ];
+}
+
 test("queue status renderer includes durable worker metadata", () => {
   assertNormalizedEqual(
     renderAutobotQueueStatus(
@@ -35,7 +56,7 @@ test("queue status renderer includes durable worker metadata", () => {
               child_pid: 5252,
               process_group_id: 4242,
               command: "opencode",
-              args: ["run-worker", "--issue", "REP-1221"],
+              args: makePlannerWorkerArgs("REP-1221"),
               started_at: "2026-05-21T15:00:00Z",
               last_heartbeat_at: "2026-05-21T15:05:00Z",
               deadline_at: "2026-05-21T16:00:00Z",
@@ -94,7 +115,7 @@ test("queue status renderer includes durable worker metadata", () => {
         phase: testing
         process_group_id: 4242
         command: opencode
-        args: ["run-worker","--issue","REP-1221"]
+        args: ["run","--agent","planner","--dir","/worktrees/autobot","--title","Autobot plan REP-1221","Planning contract prompt","--file","/worktrees/autobot/.autobot/runs/REP-1221/attempt-1/context.md","--file","/worktrees/autobot/.autobot/runs/REP-1221/attempt-1/test-plan.md","--file","/worktrees/autobot/.autobot/runs/REP-1221/attempt-1/contract.md","--file","/worktrees/autobot/.autobot/runs/REP-1221/attempt-1/prompt.md"]
         deadline_at: 2026-05-21T16:00:00Z
         stdout_log_path: .autobot/workers/worker-1.stdout.log
         stderr_log_path: .autobot/workers/worker-1.stderr.log
@@ -119,7 +140,7 @@ test("item detail and flowcraft inspect render current workers", () => {
     child_pid: 5252,
     process_group_id: 4242,
     command: "opencode",
-    args: ["run-worker", "--issue", "REP-1221"],
+    args: makePlannerWorkerArgs("REP-1221"),
     started_at: "2026-05-21T15:00:00Z",
     last_heartbeat_at: "2026-05-21T15:05:00Z",
     deadline_at: "2026-05-21T16:00:00Z",
@@ -200,7 +221,7 @@ test("item detail and flowcraft inspect render current workers", () => {
         phase: testing
         process_group_id: 4242
         command: opencode
-        args: ["run-worker","--issue","REP-1221"]
+        args: ["run","--agent","planner","--dir","/worktrees/autobot","--title","Autobot plan REP-1221","Planning contract prompt","--file","/worktrees/autobot/.autobot/runs/REP-1221/attempt-1/context.md","--file","/worktrees/autobot/.autobot/runs/REP-1221/attempt-1/test-plan.md","--file","/worktrees/autobot/.autobot/runs/REP-1221/attempt-1/contract.md","--file","/worktrees/autobot/.autobot/runs/REP-1221/attempt-1/prompt.md"]
         deadline_at: 2026-05-21T16:00:00Z
         stdout_log_path: .autobot/workers/worker-1.stdout.log
         stderr_log_path: .autobot/workers/worker-1.stderr.log
@@ -256,7 +277,7 @@ test("item detail and flowcraft inspect render current workers", () => {
         phase: testing
         process_group_id: 4242
         command: opencode
-        args: ["run-worker","--issue","REP-1221"]
+        args: ["run","--agent","planner","--dir","/worktrees/autobot","--title","Autobot plan REP-1221","Planning contract prompt","--file","/worktrees/autobot/.autobot/runs/REP-1221/attempt-1/context.md","--file","/worktrees/autobot/.autobot/runs/REP-1221/attempt-1/test-plan.md","--file","/worktrees/autobot/.autobot/runs/REP-1221/attempt-1/contract.md","--file","/worktrees/autobot/.autobot/runs/REP-1221/attempt-1/prompt.md"]
         deadline_at: 2026-05-21T16:00:00Z
         stdout_log_path: .autobot/workers/worker-1.stdout.log
         stderr_log_path: .autobot/workers/worker-1.stderr.log

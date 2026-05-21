@@ -53,6 +53,27 @@ function makeInvocation(
   };
 }
 
+function makePlannerWorkerArgs(issueId: string, repoPath: string): string[] {
+  return [
+    "run",
+    "--agent",
+    "planner",
+    "--dir",
+    repoPath,
+    "--title",
+    `Autobot plan ${issueId}`,
+    "Planning contract prompt",
+    "--file",
+    `${repoPath}/.autobot/runs/${issueId}/attempt-1/context.md`,
+    "--file",
+    `${repoPath}/.autobot/runs/${issueId}/attempt-1/test-plan.md`,
+    "--file",
+    `${repoPath}/.autobot/runs/${issueId}/attempt-1/contract.md`,
+    "--file",
+    `${repoPath}/.autobot/runs/${issueId}/attempt-1/prompt.md`,
+  ];
+}
+
 test("status only surfaces non-terminal workers from the store", async () => {
   const fixture = makeWorkflowStore({
     workers: [
@@ -67,7 +88,7 @@ test("status only surfaces non-terminal workers from the store", async () => {
         pid: 4242,
         process_group_id: 4242,
         command: "opencode",
-        args: ["run-worker", "--issue", "REP-1154"],
+        args: makePlannerWorkerArgs("REP-1154", "/worktrees/autobot"),
         started_at: "2026-05-15T10:00:00Z",
         last_heartbeat_at: "2026-05-15T10:05:00Z",
         deadline_at: null,
@@ -90,7 +111,24 @@ test("status only surfaces non-terminal workers from the store", async () => {
         pid: null,
         process_group_id: null,
         command: "opencode",
-        args: ["run-worker"],
+        args: [
+          "run",
+          "--agent",
+          "planner",
+          "--dir",
+          "/worktrees/autobot",
+          "--title",
+          "Autobot plan orphan",
+          "Planning contract prompt",
+          "--file",
+          "/worktrees/autobot/.autobot/runs/orphan/attempt-1/context.md",
+          "--file",
+          "/worktrees/autobot/.autobot/runs/orphan/attempt-1/test-plan.md",
+          "--file",
+          "/worktrees/autobot/.autobot/runs/orphan/attempt-1/contract.md",
+          "--file",
+          "/worktrees/autobot/.autobot/runs/orphan/attempt-1/prompt.md",
+        ],
         started_at: "2026-05-15T09:00:00Z",
         last_heartbeat_at: "2026-05-15T09:05:00Z",
         deadline_at: null,
@@ -113,7 +151,7 @@ test("status only surfaces non-terminal workers from the store", async () => {
         pid: 4243,
         process_group_id: 4243,
         command: "opencode",
-        args: ["run-worker", "--issue", "REP-1155"],
+        args: makePlannerWorkerArgs("REP-1155", "/worktrees/autobot"),
         started_at: "2026-05-15T08:00:00Z",
         last_heartbeat_at: "2026-05-15T08:05:00Z",
         deadline_at: null,
@@ -186,7 +224,7 @@ test("inspect resolves the current worker for a running flowcraft execution", as
         pid: 4242,
         process_group_id: 4242,
         command: "opencode",
-        args: ["run-worker", "--issue", "REP-1154"],
+        args: makePlannerWorkerArgs("REP-1154", "/worktrees/autobot"),
         started_at: "2026-05-15T10:00:00Z",
         last_heartbeat_at: "2026-05-15T10:05:00Z",
         deadline_at: null,
@@ -253,7 +291,7 @@ test("status renders current worker data from item detail projections", async ()
         pid: 4343,
         process_group_id: 4343,
         command: "opencode",
-        args: ["run-worker", "--issue", "REP-1156"],
+        args: makePlannerWorkerArgs("REP-1156", "/worktrees/autobot"),
         started_at: "2026-05-15T11:00:00Z",
         last_heartbeat_at: "2026-05-15T11:05:00Z",
         deadline_at: null,
