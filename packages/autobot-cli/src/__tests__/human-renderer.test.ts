@@ -144,6 +144,7 @@ test("flowcraft inspect renderer includes persisted transports but keeps raw pay
             message_id: "relay-message",
           },
         },
+        worker: null,
         execution: {
           execution_id: "exec-1154",
           issue_id: "REP-1154",

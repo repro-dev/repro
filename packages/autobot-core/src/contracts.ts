@@ -189,6 +189,7 @@ export interface ItemSummary {
 export interface ItemDetail extends ItemSummary {
   linear: LinearIssueRef | null;
   current_run: RunSummary | null;
+  current_worker?: WorkerSummary | null;
   cancellation_requested: boolean;
   cancellation_requested_at: IsoTimestamp | null;
   recovery_commands: string[];
@@ -204,14 +205,44 @@ export type EngineState =
   | "unhealthy"
   | "unknown";
 
+export const workerLifecycleStates = [
+  "starting",
+  "running",
+  "completed",
+  "failed",
+  "canceled",
+  "stale",
+] as const;
+
+export type WorkerLifecycleState = (typeof workerLifecycleStates)[number];
+
+export type WorkerState =
+  | WorkerLifecycleState
+  | "cancellation-requested"
+  | "exited";
+
 export interface WorkerSummary {
   worker_id: string;
   issue_id: string | null;
   run_id: string | null;
-  state: "starting" | "running" | "cancellation-requested" | "stale" | "exited";
+  flowcraft_execution_id?: string | null;
+  workflow_node_id?: string | null;
+  phase?: string | null;
+  state: WorkerState;
   pid: number | null;
+  process_group_id?: number | null;
+  command?: string | null;
+  args?: string[];
   started_at: IsoTimestamp;
   last_heartbeat_at: IsoTimestamp | null;
+  deadline_at?: IsoTimestamp | null;
+  stdout_log_path?: string | null;
+  stderr_log_path?: string | null;
+  result?: Record<string, unknown> | null;
+  result_artifact_path?: string | null;
+  exit_code?: number | null;
+  signal?: string | null;
+  finished_at?: IsoTimestamp | null;
   transport: TransportCorrelation | null;
 }
 

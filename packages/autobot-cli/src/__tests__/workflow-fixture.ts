@@ -59,10 +59,32 @@ type WorkflowWorkerRecord = {
   worker_id: string;
   issue_id: string | null;
   run_id: string | null;
-  state: "starting" | "running" | "cancellation-requested" | "stale" | "exited";
+  flowcraft_execution_id?: string | null;
+  workflow_node_id?: string | null;
+  phase?: string | null;
+  state:
+    | "starting"
+    | "running"
+    | "completed"
+    | "failed"
+    | "canceled"
+    | "stale"
+    | "cancellation-requested"
+    | "exited";
   pid: number | null;
+  process_group_id?: number | null;
+  command?: string | null;
+  args?: string[];
   started_at: string;
   last_heartbeat_at: string | null;
+  deadline_at?: string | null;
+  stdout_log_path?: string | null;
+  stderr_log_path?: string | null;
+  result?: Record<string, unknown> | null;
+  result_artifact_path?: string | null;
+  exit_code?: number | null;
+  signal?: string | null;
+  finished_at?: string | null;
 };
 
 type WorkflowStoreOptions = {
@@ -186,6 +208,32 @@ export function makeWorkflowStore(options: WorkflowStoreOptions = {}) {
   const workerRecords = [...(options.workers ?? [])].map((worker) => ({
     ...worker,
   }));
+  const currentWorkerStates = new Set([
+    "starting",
+    "running",
+    "stale",
+    "cancellation-requested",
+  ]);
+  const terminalWorkerStates = new Set([
+    "completed",
+    "failed",
+    "canceled",
+    "exited",
+  ]);
+  const upsertWorker = (input: Record<string, unknown>) => {
+    const next = { ...input } as (typeof workerRecords)[number];
+    const index = workerRecords.findIndex(
+      (worker) => worker.worker_id === next.worker_id,
+    );
+
+    if (index === -1) {
+      workerRecords.push(next);
+    } else {
+      workerRecords[index] = next;
+    }
+
+    return next;
+  };
   const currentRuns = new Map(
     Object.entries(options.currentRuns ?? {}).map(
       ([issueId, run]) => [issueId, run] as const,
@@ -451,11 +499,72 @@ export function makeWorkflowStore(options: WorkflowStoreOptions = {}) {
       },
     },
     workers: {
-      upsert() {
-        return resolve(undefined);
+      create(input: Record<string, unknown>) {
+        return resolve(upsertWorker(input));
       },
-      list() {
-        return resolve([...workerRecords]);
+      update(input: Record<string, unknown>) {
+        return resolve(upsertWorker(input));
+      },
+      upsert(input: Record<string, unknown>) {
+        return resolve(upsertWorker(input));
+      },
+      get(workerId: string) {
+        return resolve(
+          workerRecords.find((worker) => worker.worker_id === workerId) ?? null,
+        );
+      },
+      list(input?: { includeTerminal?: boolean }) {
+        const visibleWorkers =
+          input?.includeTerminal === false
+            ? workerRecords.filter(
+                (worker) => !terminalWorkerStates.has(worker.state),
+              )
+            : workerRecords;
+
+        return resolve(
+          [...visibleWorkers].sort((left, right) =>
+            right.started_at.localeCompare(left.started_at),
+          ),
+        );
+      },
+      resolveCurrentByRun(runId: string) {
+        return resolve(
+          [...workerRecords]
+            .filter(
+              (worker) =>
+                worker.run_id === runId &&
+                currentWorkerStates.has(worker.state),
+            )
+            .sort((left, right) =>
+              right.started_at.localeCompare(left.started_at),
+            )[0] ?? null,
+        );
+      },
+      resolveCurrentByIssue(issueId: string) {
+        return resolve(
+          [...workerRecords]
+            .filter(
+              (worker) =>
+                worker.issue_id === issueId &&
+                currentWorkerStates.has(worker.state),
+            )
+            .sort((left, right) =>
+              right.started_at.localeCompare(left.started_at),
+            )[0] ?? null,
+        );
+      },
+      resolveCurrentByFlowcraftExecution(executionId: string) {
+        return resolve(
+          [...workerRecords]
+            .filter(
+              (worker) =>
+                worker.flowcraft_execution_id === executionId &&
+                currentWorkerStates.has(worker.state),
+            )
+            .sort((left, right) =>
+              right.started_at.localeCompare(left.started_at),
+            )[0] ?? null,
+        );
       },
     },
     artifacts: {

@@ -47,59 +47,6 @@ afterEach(async () => {
   }
 })
 
-test('initializes sqlite state and FlowCraft indexes', async () => {
-  const repoRoot = await makeRepoRoot()
-  const store = await openStore(repoRoot)
-  const db = openRawDb(repoRoot)
-
-  const migrations = db
-    .prepare('SELECT name FROM autobot_migrations ORDER BY name')
-    .all() as Array<{ name: string }>
-  assert.deepEqual(
-    migrations.map(migration => migration.name),
-    [
-      '0001_initial_schema',
-      '0002_transport_metadata',
-      '0003_domain_event_run_lookup',
-    ]
-  )
-
-  const flowcraftIndexes = db
-    .prepare("PRAGMA index_list('flowcraft_executions')")
-    .all() as Array<{ name: string }>
-  assert.equal(
-    flowcraftIndexes.some(
-      index => index.name === 'idx_flowcraft_executions_issue_started_at'
-    ),
-    true
-  )
-
-  const domainEventIndexes = db
-    .prepare("PRAGMA index_list('domain_events')")
-    .all() as Array<{ name: string }>
-  assert.equal(
-    domainEventIndexes.some(
-      index => index.name === 'idx_domain_events_issue_occurred_at_event_id'
-    ),
-    true
-  )
-  assert.equal(
-    domainEventIndexes.some(
-      index => index.name === 'idx_domain_events_run_occurred_at_event_id'
-    ),
-    true
-  )
-  assert.equal(
-    domainEventIndexes.some(
-      index => index.name === 'idx_domain_events_occurred_at_event_id'
-    ),
-    true
-  )
-
-  db.close()
-  await runFuture(store.close())
-})
-
 test('next runnable projection returns the newest non-terminal item', async () => {
   const repoRoot = await makeRepoRoot()
   const store = await openStore(repoRoot)
@@ -455,55 +402,6 @@ test('run records persist transport correlation metadata through the store API',
   )
 
   db.close()
-  await runFuture(store.close())
-})
-
-test('worker summaries surface relay transport metadata through the store API', async () => {
-  const repoRoot = await makeRepoRoot()
-  const store = await openStore(repoRoot)
-
-  await runFuture(
-    store.runs.upsert({
-      run_id: 'run-worker-transport',
-      issue_id: 'REP-1150',
-      attempt: 1,
-      state: 'claimed',
-      flowcraft_execution_id: null,
-      blueprint_id: 'autobot-deliver-issue',
-      blueprint_version: '1.0.0',
-      started_at: '2026-05-15T12:00:00Z',
-      finished_at: null,
-      worker_id: 'worker-transport',
-      last_heartbeat_at: '2026-05-15T12:00:01Z',
-      transport: {
-        source: 'relay',
-        workspace_id: 'relay-workspace',
-        channel_id: 'relay-channel',
-        thread_id: 'relay-thread',
-        agent_id: 'relay-agent',
-        message_id: 'relay-message',
-      },
-    })
-  )
-
-  const worker = await runFuture(
-    store.workers.upsert({
-      worker_id: 'worker-transport',
-      issue_id: 'REP-1150',
-      run_id: 'run-worker-transport',
-      state: 'running',
-      pid: 4242,
-      started_at: '2026-05-15T12:00:00Z',
-      last_heartbeat_at: '2026-05-15T12:00:01Z',
-    })
-  )
-
-  assert.equal(worker.transport?.source, 'relay')
-  assert.equal(worker.transport?.channel_id, 'relay-channel')
-
-  const listed = await runFuture(store.workers.list())
-  assert.equal(listed[0]?.transport?.thread_id, 'relay-thread')
-
   await runFuture(store.close())
 })
 

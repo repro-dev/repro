@@ -52,10 +52,24 @@ export interface WorkersTable {
   worker_id: string
   issue_id: string | null
   run_id: string | null
+  flowcraft_execution_id: string | null
+  workflow_node_id: string | null
+  phase: string | null
   state: string
   pid: number | null
+  process_group_id: number | null
+  command: string | null
+  args_json: string
   started_at: string
   last_heartbeat_at: string | null
+  deadline_at: string | null
+  stdout_log_path: string | null
+  stderr_log_path: string | null
+  result_json: string | null
+  result_artifact_path: string | null
+  exit_code: number | null
+  signal: string | null
+  finished_at: string | null
 }
 
 export interface ConfigOverridesTable {

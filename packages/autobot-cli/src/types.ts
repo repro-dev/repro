@@ -206,6 +206,7 @@ export type AutobotCommandResult =
           identifier: string;
           issue_id: string | null;
           run: RunSummary | null;
+          worker: WorkerSummary | null;
           execution: FlowcraftExecutionRecord | null;
           artifacts: ArtifactRef[];
           domain_events: DomainEvent[];
