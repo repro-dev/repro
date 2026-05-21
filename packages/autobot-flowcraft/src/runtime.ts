@@ -1220,7 +1220,10 @@ function createMonotonicRuntimeEventOccurredAts(input: {
     );
   }
 
-  const occurredAts = new Array<string>(input.count);
+  const occurredAts = Array.from(
+    { length: input.count },
+    () => input.started_at,
+  );
   occurredAts[0] = input.started_at;
   occurredAts[input.count - 1] = input.finished_at;
 
