@@ -185,6 +185,58 @@ test('creates and updates durable worker lifecycle records', async () => {
   await runFuture(store.close())
 })
 
+test('persists worker spawn errors durably', async () => {
+  const repoRoot = await makeRepoRoot()
+  const store = await openStore(repoRoot)
+
+  const failed = await runFuture(
+    store.workers.create({
+      worker_id: 'worker-spawn-failed',
+      issue_id: 'REP-1222',
+      run_id: 'run-1222',
+      flowcraft_execution_id: 'flowcraft-1222',
+      workflow_node_id: 'plan',
+      phase: 'plan',
+      state: 'failed',
+      pid: null,
+      child_pid: null,
+      process_group_id: null,
+      command: 'opencode',
+      args: makePlannerWorkerArgs(repoRoot, 'REP-1222'),
+      started_at: '2026-05-21T15:10:00Z',
+      last_heartbeat_at: '2026-05-21T15:10:01Z',
+      deadline_at: null,
+      stdout_log_path: '.autobot/workers/worker-spawn-failed.stdout.log',
+      stderr_log_path: '.autobot/workers/worker-spawn-failed.stderr.log',
+      spawn_error: {
+        code: 'AUTOBOT-WORKER-SPAWN-FAILED',
+        message: 'unable to start worker wrapper',
+        occurred_at: '2026-05-21T15:10:02Z',
+      },
+      result: null,
+      result_artifact_path: null,
+      exit_code: null,
+      signal: null,
+      finished_at: '2026-05-21T15:10:02Z',
+    })
+  )
+
+  assert.deepEqual(failed.spawn_error, {
+    code: 'AUTOBOT-WORKER-SPAWN-FAILED',
+    message: 'unable to start worker wrapper',
+    occurred_at: '2026-05-21T15:10:02Z',
+  })
+
+  const stored = await runFuture(store.workers.get('worker-spawn-failed'))
+  assert.deepEqual(stored?.spawn_error, {
+    code: 'AUTOBOT-WORKER-SPAWN-FAILED',
+    message: 'unable to start worker wrapper',
+    occurred_at: '2026-05-21T15:10:02Z',
+  })
+
+  await runFuture(store.close())
+})
+
 test('lists stale orphan workers without depending on issue or run ids', async () => {
   const repoRoot = await makeRepoRoot()
   const store = await openStore(repoRoot)

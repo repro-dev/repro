@@ -66,6 +66,7 @@ export interface WorkersTable {
   deadline_at: string | null
   stdout_log_path: string | null
   stderr_log_path: string | null
+  spawn_error_json: string | null
   result_json: string | null
   result_artifact_path: string | null
   exit_code: number | null

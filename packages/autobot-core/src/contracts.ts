@@ -239,6 +239,7 @@ export interface WorkerSummary {
   deadline_at?: IsoTimestamp | null;
   stdout_log_path?: string | null;
   stderr_log_path?: string | null;
+  spawn_error?: ErrorSummary | null;
   result?: Record<string, unknown> | null;
   result_artifact_path?: string | null;
   exit_code?: number | null;

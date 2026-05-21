@@ -93,6 +93,7 @@ export interface WorkerRecord {
   deadline_at?: string | null
   stdout_log_path?: string | null
   stderr_log_path?: string | null
+  spawn_error?: ErrorSummary | null
   result?: Record<string, unknown> | null
   result_artifact_path?: string | null
   exit_code?: number | null
@@ -332,6 +333,7 @@ function fromWorkerRow(
     deadline_at: row.deadline_at,
     stdout_log_path: row.stdout_log_path,
     stderr_log_path: row.stderr_log_path,
+    spawn_error: decodeJsonNullable<ErrorSummary>(row.spawn_error_json),
     result: decodeJsonNullable<Record<string, unknown>>(row.result_json),
     result_artifact_path: row.result_artifact_path,
     exit_code: row.exit_code,
@@ -372,6 +374,7 @@ function normalizeWorkerRecord(input: WorkerRecord): WorkerRecord {
     deadline_at: input.deadline_at ?? null,
     stdout_log_path: input.stdout_log_path ?? null,
     stderr_log_path: input.stderr_log_path ?? null,
+    spawn_error: input.spawn_error ?? null,
     result: input.result ?? null,
     result_artifact_path: input.result_artifact_path ?? null,
     exit_code: input.exit_code ?? null,
@@ -677,6 +680,10 @@ export function createAutobotRepositories(
             deadline_at: record.deadline_at,
             stdout_log_path: record.stdout_log_path,
             stderr_log_path: record.stderr_log_path,
+            spawn_error_json:
+              record.spawn_error === null
+                ? null
+                : encodeJson(record.spawn_error),
             result_json:
               record.result === null ? null : encodeJson(record.result),
             result_artifact_path: record.result_artifact_path,
@@ -702,6 +709,10 @@ export function createAutobotRepositories(
               deadline_at: record.deadline_at,
               stdout_log_path: record.stdout_log_path,
               stderr_log_path: record.stderr_log_path,
+              spawn_error_json:
+                record.spawn_error === null
+                  ? null
+                  : encodeJson(record.spawn_error),
               result_json:
                 record.result === null ? null : encodeJson(record.result),
               result_artifact_path: record.result_artifact_path,

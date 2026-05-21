@@ -9,6 +9,7 @@ export const autobotMigrationNames = [
   '0003_domain_event_run_lookup',
   '0004_durable_worker_records',
   '0005_worker_child_pid',
+  '0006_worker_spawn_error',
 ] as const
 
 type MigrationName = (typeof autobotMigrationNames)[number]
@@ -111,6 +112,7 @@ async function createBaseTables(db: Kysely<AutobotSchema>) {
     .addColumn('deadline_at', 'text')
     .addColumn('stdout_log_path', 'text')
     .addColumn('stderr_log_path', 'text')
+    .addColumn('spawn_error_json', 'text')
     .addColumn('result_json', 'text')
     .addColumn('result_artifact_path', 'text')
     .addColumn('exit_code', 'integer')
@@ -290,6 +292,7 @@ async function addDurableWorkerRecordColumns(db: Kysely<AutobotSchema>) {
     'ALTER TABLE workers ADD COLUMN deadline_at text',
     'ALTER TABLE workers ADD COLUMN stdout_log_path text',
     'ALTER TABLE workers ADD COLUMN stderr_log_path text',
+    'ALTER TABLE workers ADD COLUMN spawn_error_json text',
     'ALTER TABLE workers ADD COLUMN result_json text',
     'ALTER TABLE workers ADD COLUMN result_artifact_path text',
     'ALTER TABLE workers ADD COLUMN exit_code integer',
@@ -339,6 +342,16 @@ async function addWorkerChildPidColumn(db: Kysely<AutobotSchema>) {
   }
 }
 
+async function addWorkerSpawnErrorColumn(db: Kysely<AutobotSchema>) {
+  try {
+    await sql`ALTER TABLE workers ADD COLUMN spawn_error_json text`.execute(db)
+  } catch (error) {
+    if (!String(error).includes('duplicate column name')) {
+      throw error
+    }
+  }
+}
+
 async function createAppendOnlyTriggers(db: Kysely<AutobotSchema>) {
   await sql`
     CREATE TRIGGER IF NOT EXISTS domain_events_no_update
@@ -363,6 +376,7 @@ const migrations: readonly Migration[] = [
   { name: '0003_domain_event_run_lookup', up: addDomainEventRunLookupIndex },
   { name: '0004_durable_worker_records', up: addDurableWorkerRecordColumns },
   { name: '0005_worker_child_pid', up: addWorkerChildPidColumn },
+  { name: '0006_worker_spawn_error', up: addWorkerSpawnErrorColumn },
 ]
 
 async function ensureMigrationsTable(db: Kysely<AutobotSchema>) {
