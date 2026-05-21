@@ -1244,7 +1244,12 @@ function createMonotonicRuntimeEventOccurredAts(input: {
       startedAtMs,
       Math.min(finishedAtMs, startedAtMs + offsetMs),
     );
-    occurredAts[index] = new Date(occurredAtMs).toISOString();
+    occurredAts[index] =
+      occurredAtMs === startedAtMs
+        ? input.started_at
+        : occurredAtMs === finishedAtMs
+        ? input.finished_at
+        : new Date(occurredAtMs).toISOString();
   }
 
   return occurredAts;
