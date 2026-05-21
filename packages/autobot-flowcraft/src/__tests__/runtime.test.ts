@@ -26,6 +26,18 @@ function runFuture<T>(future: FutureInstance<unknown, T>): Promise<T> {
   });
 }
 
+function assertNonDecreasingTimestamps(timestamps: string[]): void {
+  for (let index = 1; index < timestamps.length; index += 1) {
+    const previous = timestamps[index - 1];
+    const current = timestamps[index];
+
+    assert.ok(
+      current !== undefined && previous !== undefined && current >= previous,
+      `expected timestamps to be non-decreasing at index ${index}`,
+    );
+  }
+}
+
 test("autobot deliver issue workflow exposes explicit delivery phases and review loop metadata", () => {
   const workflow = flowcraftWorkflows[0];
   const blueprint = workflow.flow.toBlueprint();
@@ -194,6 +206,24 @@ test("execution plans persist serialized context, loop metadata, and phase event
   assert.equal(
     plan.flowcraft_events.some((event) => event.node_id === "escalated"),
     false,
+  );
+  assert.equal(plan.flowcraft_events[0]?.occurred_at, plan.started_at);
+  assert.equal(plan.flowcraft_events.at(-1)?.occurred_at, plan.finished_at);
+  assertNonDecreasingTimestamps(
+    plan.flowcraft_events.map((event) => event.occurred_at),
+  );
+  assertNonDecreasingTimestamps(
+    plan.metadata.node_outputs.map((output) => output.occurred_at),
+  );
+  assertNonDecreasingTimestamps(
+    plan.domain_events.map((event) => event.occurred_at),
+  );
+  assert.ok(
+    new Set(plan.metadata.node_outputs.map((output) => output.occurred_at))
+      .size > 1,
+  );
+  assert.ok(
+    new Set(plan.domain_events.map((event) => event.occurred_at)).size > 1,
   );
   assert.equal(plan.domain_events.length, 9);
   assert.deepEqual(

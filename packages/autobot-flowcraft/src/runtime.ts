@@ -1194,6 +1194,62 @@ function createCapturedRuntimeEventRecord(input: {
   };
 }
 
+function createMonotonicRuntimeEventOccurredAts(input: {
+  started_at: string;
+  finished_at: string;
+  count: number;
+}): string[] {
+  if (input.count <= 0) {
+    return [];
+  }
+
+  if (input.count === 1) {
+    return [input.started_at];
+  }
+
+  const startedAtMs = Date.parse(input.started_at);
+  const finishedAtMs = Date.parse(input.finished_at);
+
+  if (!Number.isFinite(startedAtMs) || !Number.isFinite(finishedAtMs)) {
+    return Array.from({ length: input.count }, (_value, index) =>
+      index === 0
+        ? input.started_at
+        : index === input.count - 1
+        ? input.finished_at
+        : input.started_at,
+    );
+  }
+
+  const occurredAts = new Array<string>(input.count);
+  occurredAts[0] = input.started_at;
+  occurredAts[input.count - 1] = input.finished_at;
+
+  if (input.count === 2) {
+    return occurredAts;
+  }
+
+  const intervalMs = finishedAtMs - startedAtMs;
+
+  if (intervalMs <= 0) {
+    for (let index = 1; index < input.count - 1; index += 1) {
+      occurredAts[index] = input.started_at;
+    }
+
+    return occurredAts;
+  }
+
+  for (let index = 1; index < input.count - 1; index += 1) {
+    const offsetMs = Math.floor((intervalMs * index) / (input.count - 1));
+    const occurredAtMs = Math.max(
+      startedAtMs,
+      Math.min(finishedAtMs, startedAtMs + offsetMs),
+    );
+    occurredAts[index] = new Date(occurredAtMs).toISOString();
+  }
+
+  return occurredAts;
+}
+
 function getRuntimeEventNodeId(event: {
   type: string;
   payload: Record<string, unknown>;
@@ -1271,37 +1327,46 @@ function createExecutionPlan(input: {
         transport: input.transport,
       })
       .then((result) => {
-        const nodeOutputs = capturedEvents
-          .filter(
-            (event) =>
-              event.type === "node:finish" &&
-              typeof event.payload.nodeId === "string" &&
-              (toPhaseId(event.payload.nodeId as FlowcraftNodeId) !== null ||
-                event.payload.nodeId === "review-loop" ||
-                event.payload.nodeId === "escalated"),
-          )
-          .map((event) => {
-            const nodeId = event.payload.nodeId as FlowcraftNodeId;
-            const resultPayload = isRecord(event.payload.result)
-              ? event.payload.result
-              : null;
-            const output =
-              resultPayload !== null && isRecord(resultPayload.output)
-                ? resultPayload.output
-                : isRecord(resultPayload?.output)
-                ? resultPayload.output
-                : {
-                    phase: nodeId,
-                    state: getNodeState(nodeId),
-                  };
+        const capturedEventOccurredAts = createMonotonicRuntimeEventOccurredAts(
+          {
+            started_at: input.started_at,
+            finished_at: input.finished_at,
+            count: capturedEvents.length,
+          },
+        );
 
-            return {
-              node_id: nodeId,
-              state: getNodeState(nodeId),
-              output: output as Record<string, unknown>,
-              occurred_at: input.started_at,
-            };
-          });
+        const nodeOutputs = capturedEvents.flatMap((event, index) => {
+          if (
+            event.type !== "node:finish" ||
+            typeof event.payload.nodeId !== "string" ||
+            (toPhaseId(event.payload.nodeId as FlowcraftNodeId) === null &&
+              event.payload.nodeId !== "review-loop" &&
+              event.payload.nodeId !== "escalated")
+          ) {
+            return [];
+          }
+
+          const nodeId = event.payload.nodeId as FlowcraftNodeId;
+          const resultPayload = isRecord(event.payload.result)
+            ? event.payload.result
+            : null;
+          const output =
+            resultPayload !== null && isRecord(resultPayload.output)
+              ? resultPayload.output
+              : isRecord(resultPayload?.output)
+              ? resultPayload.output
+              : {
+                  phase: nodeId,
+                  state: getNodeState(nodeId),
+                };
+
+          return {
+            node_id: nodeId,
+            state: getNodeState(nodeId),
+            output: output as Record<string, unknown>,
+            occurred_at: capturedEventOccurredAts[index] ?? input.started_at,
+          };
+        });
         const metadata = createFlowcraftExecutionMetadata({
           workflow,
           runtimeResult: result as {
@@ -1317,10 +1382,7 @@ function createExecutionPlan(input: {
             execution_id: input.execution_id,
             event,
             index,
-            occurred_at:
-              event.type === "workflow:finish"
-                ? input.finished_at
-                : input.started_at,
+            occurred_at: capturedEventOccurredAts[index] ?? input.started_at,
           }),
         );
 
