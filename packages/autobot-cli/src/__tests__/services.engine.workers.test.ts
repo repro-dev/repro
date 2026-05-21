@@ -238,3 +238,70 @@ test("inspect resolves the current worker for a running flowcraft execution", as
   assert.equal(result.data.lookup.worker?.worker_id, "worker-running");
   assert.equal(result.data.lookup.worker?.state, "running");
 });
+
+test("status renders current worker data from item detail projections", async () => {
+  const fixture = makeWorkflowStore({
+    workers: [
+      {
+        worker_id: "worker-current",
+        issue_id: "REP-1156",
+        run_id: null,
+        flowcraft_execution_id: "exec-1156",
+        workflow_node_id: "developing",
+        phase: "developing",
+        state: "cancellation-requested",
+        pid: 4343,
+        process_group_id: 4343,
+        command: "autobot-next run-worker",
+        args: ["--issue", "REP-1156"],
+        started_at: "2026-05-15T11:00:00Z",
+        last_heartbeat_at: "2026-05-15T11:05:00Z",
+        deadline_at: null,
+        stdout_log_path: ".autobot/workers/worker-current.stdout.log",
+        stderr_log_path: ".autobot/workers/worker-current.stderr.log",
+        result: null,
+        result_artifact_path: null,
+        exit_code: null,
+        signal: null,
+        finished_at: null,
+      },
+    ],
+    currentRuns: {
+      "REP-1156": {
+        run_id: "run-1156",
+        issue_id: "REP-1156",
+        attempt: 1,
+        state: "claimed",
+        flowcraft_execution_id: "exec-1156",
+        blueprint_id: "autobot-deliver-issue",
+        blueprint_version: "1.0.0",
+        started_at: "2026-05-15T11:00:00Z",
+        finished_at: null,
+        worker_id: "missing-worker",
+        last_heartbeat_at: "2026-05-15T11:05:00Z",
+        transport: null,
+      },
+    },
+  });
+
+  const services = createAutobotServices({
+    artifactWriter: () => resolve(undefined),
+    loadLinearIssue: () => resolve(null),
+    openStore() {
+      return resolve(fixture.store as unknown as AutobotStore);
+    },
+  });
+
+  const result = (await runFuture(
+    services.handleInvocation({
+      ...makeInvocation(["status"]),
+      args: ["REP-1156"],
+      command: "status REP-1156",
+      options: makeOptions({ repo: "/worktrees/autobot" }),
+    }),
+  )) as AutobotCommandResult;
+
+  assert.equal(result.kind, "item-detail");
+  assert.equal(result.data.current_worker?.worker_id, "worker-current");
+  assert.equal(result.data.current_worker?.state, "cancellation-requested");
+});

@@ -250,6 +250,47 @@ export function makeWorkflowStore(options: WorkflowStoreOptions = {}) {
 
   const findCurrentRun = (issueId: string) => currentRuns.get(issueId) ?? null;
 
+  const resolveCurrentWorker = (issueId: string) => {
+    const currentRun = findCurrentRun(issueId);
+    const lookupPredicates: Array<
+      (worker: (typeof workerRecords)[number]) => boolean
+    > = [];
+
+    if (currentRun?.worker_id != null) {
+      lookupPredicates.push(
+        (worker) => worker.worker_id === currentRun.worker_id,
+      );
+    }
+
+    if (currentRun?.flowcraft_execution_id != null) {
+      lookupPredicates.push(
+        (worker) =>
+          worker.flowcraft_execution_id === currentRun.flowcraft_execution_id,
+      );
+    }
+
+    if (currentRun !== null) {
+      lookupPredicates.push((worker) => worker.run_id === currentRun.run_id);
+    }
+
+    lookupPredicates.push((worker) => worker.issue_id === issueId);
+
+    for (const predicate of lookupPredicates) {
+      const currentWorker = [...workerRecords]
+        .filter((worker) => predicate(worker))
+        .filter((worker) => currentWorkerStates.has(worker.state))
+        .sort((left, right) =>
+          right.started_at.localeCompare(left.started_at),
+        )[0];
+
+      if (currentWorker !== undefined) {
+        return currentWorker;
+      }
+    }
+
+    return null;
+  };
+
   const upsertItem = (input: Record<string, unknown>) => {
     const issueId = input.issue_id as string | undefined;
     if (issueId === undefined) {
@@ -319,11 +360,18 @@ export function makeWorkflowStore(options: WorkflowStoreOptions = {}) {
       },
       getItemDetail(issueId: string) {
         const item = findItem(issueId);
+        const currentRun = findCurrentRun(issueId);
+        const currentWorker = resolveCurrentWorker(issueId);
         return resolve(
           item === null
             ? null
             : {
                 ...item,
+                current_run: currentRun === null ? null : { ...currentRun },
+                current_worker:
+                  currentWorker === null
+                    ? null
+                    : { ...currentWorker, transport: null },
                 artifacts: [...(artifactsByIssue.get(issueId) ?? [])],
               },
         );

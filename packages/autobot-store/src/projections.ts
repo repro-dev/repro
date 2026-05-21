@@ -311,33 +311,46 @@ async function resolveCurrentWorker(
     .where('state', 'in', currentWorkerStates)
     .orderBy('started_at', 'desc')
 
-  if (currentRun?.worker_id != null) {
-    const row = await currentWorkerQuery
-      .where('worker_id', '=', currentRun.worker_id)
-      .executeTakeFirst()
+  const currentWorkerLookups: Array<
+    () => Promise<Selectable<AutobotSchema['workers']> | undefined>
+  > = []
 
-    return row === undefined
-      ? null
-      : fromWorkerRow(row, await resolveWorkerTransport(db, row.run_id))
+  if (currentRun?.worker_id != null) {
+    currentWorkerLookups.push(() =>
+      currentWorkerQuery
+        .where('worker_id', '=', currentRun.worker_id)
+        .executeTakeFirst()
+    )
+  }
+
+  if (currentRun?.flowcraft_execution_id != null) {
+    currentWorkerLookups.push(() =>
+      currentWorkerQuery
+        .where('flowcraft_execution_id', '=', currentRun.flowcraft_execution_id)
+        .executeTakeFirst()
+    )
   }
 
   if (currentRun !== null) {
-    const row = await currentWorkerQuery
-      .where('run_id', '=', currentRun.run_id)
-      .executeTakeFirst()
-
-    return row === undefined
-      ? null
-      : fromWorkerRow(row, await resolveWorkerTransport(db, row.run_id))
+    currentWorkerLookups.push(() =>
+      currentWorkerQuery
+        .where('run_id', '=', currentRun.run_id)
+        .executeTakeFirst()
+    )
   }
 
-  const row = await currentWorkerQuery
-    .where('issue_id', '=', issueId)
-    .executeTakeFirst()
+  currentWorkerLookups.push(() =>
+    currentWorkerQuery.where('issue_id', '=', issueId).executeTakeFirst()
+  )
 
-  return row === undefined
-    ? null
-    : fromWorkerRow(row, await resolveWorkerTransport(db, row.run_id))
+  for (const lookup of currentWorkerLookups) {
+    const row = await lookup()
+    if (row !== undefined) {
+      return fromWorkerRow(row, await resolveWorkerTransport(db, row.run_id))
+    }
+  }
+
+  return null
 }
 
 export function listItems(db: Db, input?: ItemStateFilter) {
