@@ -69,7 +69,6 @@ async function createLegacyPre0004Store(repoRoot: string) {
       run_id text,
       state text not null,
       pid integer,
-      child_pid integer,
       started_at text not null,
       last_heartbeat_at text
     );
