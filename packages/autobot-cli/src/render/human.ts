@@ -101,13 +101,10 @@ function renderWorkerEntry(
     `  issue_id: ${worker.issue_id ?? "n/a"}`,
     `  run_id: ${worker.run_id ?? "n/a"}`,
     `  pid: ${worker.pid ?? "n/a"}`,
+    `  child_pid: ${worker.child_pid ?? "n/a"}`,
     `  started_at: ${worker.started_at}`,
     `  last_heartbeat_at: ${worker.last_heartbeat_at ?? "n/a"}`,
   ];
-
-  if (worker.child_pid != null) {
-    lines.splice(5, 0, `  child_pid: ${worker.child_pid}`);
-  }
 
   if (worker.flowcraft_execution_id != null) {
     lines.push(`  flowcraft_execution_id: ${worker.flowcraft_execution_id}`);

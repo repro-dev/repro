@@ -62,6 +62,7 @@ test('initializes sqlite state with durable worker migrations and indexes', asyn
       '0002_transport_metadata',
       '0003_domain_event_run_lookup',
       '0004_durable_worker_records',
+      '0005_worker_child_pid',
     ]
   )
 

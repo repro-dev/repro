@@ -38,7 +38,7 @@ async function openStore(repoRoot: string): Promise<AutobotStore> {
   return runFuture<AutobotStore>(createAutobotStore({ repo: repoRoot }))
 }
 
-async function createLegacyPre0004Store(repoRoot: string) {
+async function createLegacyPre0005Store(repoRoot: string) {
   await mkdir(path.join(repoRoot, '.autobot'), { recursive: true })
   const db = openRawDb(repoRoot)
 
@@ -67,10 +67,24 @@ async function createLegacyPre0004Store(repoRoot: string) {
       worker_id text primary key,
       issue_id text,
       run_id text,
+      flowcraft_execution_id text,
+      workflow_node_id text,
+      phase text,
       state text not null,
       pid integer,
+      process_group_id integer,
+      command text,
+      args_json text not null default '[]',
       started_at text not null,
-      last_heartbeat_at text
+      last_heartbeat_at text,
+      deadline_at text,
+      stdout_log_path text,
+      stderr_log_path text,
+      result_json text,
+      result_artifact_path text,
+      exit_code integer,
+      signal text,
+      finished_at text
     );
 
     CREATE TABLE domain_events (
@@ -89,6 +103,14 @@ async function createLegacyPre0004Store(repoRoot: string) {
 
     CREATE INDEX idx_domain_events_run_occurred_at_event_id
     ON domain_events (run_id, occurred_at, event_id);
+
+    CREATE INDEX idx_workers_state ON workers (state);
+    CREATE INDEX idx_workers_run_state_started_at
+    ON workers (run_id, state, started_at);
+    CREATE INDEX idx_workers_issue_state_started_at
+    ON workers (issue_id, state, started_at);
+    CREATE INDEX idx_workers_flowcraft_execution_state_started_at
+    ON workers (flowcraft_execution_id, state, started_at);
   `)
 
   const appliedAt = '2026-05-21T14:00:00Z'
@@ -96,6 +118,7 @@ async function createLegacyPre0004Store(repoRoot: string) {
     '0001_initial_schema',
     '0002_transport_metadata',
     '0003_domain_event_run_lookup',
+    '0004_durable_worker_records',
   ]) {
     db.prepare(
       'INSERT INTO autobot_migrations (name, applied_at) VALUES (?, ?)'
@@ -137,27 +160,55 @@ async function createLegacyPre0004Store(repoRoot: string) {
   )
 
   db.prepare(
-    'INSERT INTO workers (worker_id, issue_id, run_id, state, pid, started_at, last_heartbeat_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    'INSERT INTO workers (worker_id, issue_id, run_id, flowcraft_execution_id, workflow_node_id, phase, state, pid, process_group_id, command, args_json, started_at, last_heartbeat_at, deadline_at, stdout_log_path, stderr_log_path, result_json, result_artifact_path, exit_code, signal, finished_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
   ).run(
     'worker-legacy-cancel',
     'REP-1221',
     'run-legacy-cancel',
+    null,
+    'planning',
+    'planning',
     'cancellation-requested',
     4242,
+    4242,
+    'opencode',
+    JSON.stringify(['run-worker', '--issue', 'REP-1221']),
     '2026-05-21T13:00:00Z',
-    '2026-05-21T13:05:00Z'
+    '2026-05-21T13:05:00Z',
+    null,
+    '.autobot/workers/worker-legacy-cancel.stdout.log',
+    '.autobot/workers/worker-legacy-cancel.stderr.log',
+    null,
+    null,
+    null,
+    null,
+    null
   )
 
   db.prepare(
-    'INSERT INTO workers (worker_id, issue_id, run_id, state, pid, started_at, last_heartbeat_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    'INSERT INTO workers (worker_id, issue_id, run_id, flowcraft_execution_id, workflow_node_id, phase, state, pid, process_group_id, command, args_json, started_at, last_heartbeat_at, deadline_at, stdout_log_path, stderr_log_path, result_json, result_artifact_path, exit_code, signal, finished_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
   ).run(
     'worker-legacy-exited',
     'REP-1221',
     'run-legacy-exited',
+    null,
+    'testing',
+    'testing',
     'exited',
     4243,
+    4243,
+    'opencode',
+    JSON.stringify(['run-worker', '--issue', 'REP-1221']),
     '2026-05-21T12:00:00Z',
-    '2026-05-21T12:05:00Z'
+    '2026-05-21T12:05:00Z',
+    null,
+    '.autobot/workers/worker-legacy-exited.stdout.log',
+    '.autobot/workers/worker-legacy-exited.stderr.log',
+    null,
+    null,
+    0,
+    null,
+    '2026-05-21T12:10:00Z'
   )
 
   db.close()
@@ -172,9 +223,9 @@ afterEach(async () => {
   }
 })
 
-test('migrates pre-0004 worker rows and durable worker indexes', async () => {
+test('migrates pre-0005 worker rows and durable worker indexes', async () => {
   const repoRoot = await makeRepoRoot()
-  await createLegacyPre0004Store(repoRoot)
+  await createLegacyPre0005Store(repoRoot)
 
   const store = await openStore(repoRoot)
   const db = openRawDb(repoRoot)
@@ -189,6 +240,7 @@ test('migrates pre-0004 worker rows and durable worker indexes', async () => {
       '0002_transport_metadata',
       '0003_domain_event_run_lookup',
       '0004_durable_worker_records',
+      '0005_worker_child_pid',
     ]
   )
 
@@ -238,6 +290,19 @@ test('migrates pre-0004 worker rows and durable worker indexes', async () => {
       ['worker-legacy-cancel', 'cancellation-requested'],
       ['worker-legacy-exited', 'exited'],
     ]
+  )
+
+  assert.deepEqual(
+    workers.map(worker => [worker.worker_id, worker.child_pid]),
+    [
+      ['worker-legacy-cancel', null],
+      ['worker-legacy-exited', null],
+    ]
+  )
+
+  assert.equal(
+    (await runFuture(store.workers.get('worker-legacy-cancel')))?.child_pid,
+    null
   )
 
   const workerRows = db

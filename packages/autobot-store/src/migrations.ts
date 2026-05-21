@@ -8,6 +8,7 @@ export const autobotMigrationNames = [
   '0002_transport_metadata',
   '0003_domain_event_run_lookup',
   '0004_durable_worker_records',
+  '0005_worker_child_pid',
 ] as const
 
 type MigrationName = (typeof autobotMigrationNames)[number]
@@ -328,6 +329,16 @@ async function addDurableWorkerRecordColumns(db: Kysely<AutobotSchema>) {
     .execute()
 }
 
+async function addWorkerChildPidColumn(db: Kysely<AutobotSchema>) {
+  try {
+    await sql`ALTER TABLE workers ADD COLUMN child_pid integer`.execute(db)
+  } catch (error) {
+    if (!String(error).includes('duplicate column name')) {
+      throw error
+    }
+  }
+}
+
 async function createAppendOnlyTriggers(db: Kysely<AutobotSchema>) {
   await sql`
     CREATE TRIGGER IF NOT EXISTS domain_events_no_update
@@ -351,6 +362,7 @@ const migrations: readonly Migration[] = [
   { name: '0002_transport_metadata', up: addTransportMetadataColumns },
   { name: '0003_domain_event_run_lookup', up: addDomainEventRunLookupIndex },
   { name: '0004_durable_worker_records', up: addDurableWorkerRecordColumns },
+  { name: '0005_worker_child_pid', up: addWorkerChildPidColumn },
 ]
 
 async function ensureMigrationsTable(db: Kysely<AutobotSchema>) {

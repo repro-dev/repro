@@ -34,8 +34,8 @@ test("queue status renderer includes durable worker metadata", () => {
               pid: 4242,
               child_pid: 5252,
               process_group_id: 4242,
-              command: "autobot-next run-worker",
-              args: ["--issue", "REP-1221"],
+              command: "opencode",
+              args: ["run-worker", "--issue", "REP-1221"],
               started_at: "2026-05-21T15:00:00Z",
               last_heartbeat_at: "2026-05-21T15:05:00Z",
               deadline_at: "2026-05-21T16:00:00Z",
@@ -93,8 +93,8 @@ test("queue status renderer includes durable worker metadata", () => {
         workflow_node_id: testing
         phase: testing
         process_group_id: 4242
-        command: autobot-next run-worker
-        args: ["--issue","REP-1221"]
+        command: opencode
+        args: ["run-worker","--issue","REP-1221"]
         deadline_at: 2026-05-21T16:00:00Z
         stdout_log_path: .autobot/workers/worker-1.stdout.log
         stderr_log_path: .autobot/workers/worker-1.stderr.log
@@ -118,8 +118,8 @@ test("item detail and flowcraft inspect render current workers", () => {
     pid: 4242,
     child_pid: 5252,
     process_group_id: 4242,
-    command: "autobot-next run-worker",
-    args: ["--issue", "REP-1221"],
+    command: "opencode",
+    args: ["run-worker", "--issue", "REP-1221"],
     started_at: "2026-05-21T15:00:00Z",
     last_heartbeat_at: "2026-05-21T15:05:00Z",
     deadline_at: "2026-05-21T16:00:00Z",
@@ -199,8 +199,8 @@ test("item detail and flowcraft inspect render current workers", () => {
         workflow_node_id: testing
         phase: testing
         process_group_id: 4242
-        command: autobot-next run-worker
-        args: ["--issue","REP-1221"]
+        command: opencode
+        args: ["run-worker","--issue","REP-1221"]
         deadline_at: 2026-05-21T16:00:00Z
         stdout_log_path: .autobot/workers/worker-1.stdout.log
         stderr_log_path: .autobot/workers/worker-1.stderr.log
@@ -255,8 +255,8 @@ test("item detail and flowcraft inspect render current workers", () => {
         workflow_node_id: testing
         phase: testing
         process_group_id: 4242
-        command: autobot-next run-worker
-        args: ["--issue","REP-1221"]
+        command: opencode
+        args: ["run-worker","--issue","REP-1221"]
         deadline_at: 2026-05-21T16:00:00Z
         stdout_log_path: .autobot/workers/worker-1.stdout.log
         stderr_log_path: .autobot/workers/worker-1.stderr.log

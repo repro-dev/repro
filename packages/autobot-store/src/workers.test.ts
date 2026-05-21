@@ -63,8 +63,8 @@ test('creates and updates durable worker lifecycle records', async () => {
       pid: null,
       child_pid: null,
       process_group_id: null,
-      command: 'autobot-next run-worker',
-      args: ['--issue', 'REP-1221'],
+      command: 'opencode',
+      args: ['run-worker', '--issue', 'REP-1221'],
       started_at: '2026-05-21T15:00:00Z',
       last_heartbeat_at: null,
       deadline_at: '2026-05-21T16:00:00Z',
@@ -81,7 +81,7 @@ test('creates and updates durable worker lifecycle records', async () => {
   assert.equal(created.state, 'starting')
   assert.equal(created.pid, null)
   assert.equal(created.child_pid, null)
-  assert.deepEqual(created.args, ['--issue', 'REP-1221'])
+  assert.deepEqual(created.args, ['run-worker', '--issue', 'REP-1221'])
   assert.equal(created.stdout_log_path, '.autobot/workers/worker-1.stdout.log')
 
   const running = await runFuture(
@@ -180,8 +180,8 @@ test('lists stale orphan workers without depending on issue or run ids', async (
       pid: null,
       child_pid: null,
       process_group_id: null,
-      command: 'autobot-next run-worker',
-      args: [],
+      command: 'opencode',
+      args: ['run-worker'],
       started_at: '2026-05-21T14:00:00Z',
       last_heartbeat_at: '2026-05-21T14:05:00Z',
       deadline_at: null,
@@ -208,7 +208,7 @@ test('lists stale orphan workers without depending on issue or run ids', async (
     .prepare('SELECT result_json, args_json FROM workers WHERE worker_id = ?')
     .get('worker-orphan') as { result_json: string | null; args_json: string }
   assert.equal(row.result_json, null)
-  assert.equal(row.args_json, '[]')
+  assert.equal(row.args_json, '["run-worker"]')
   db.close()
 
   await runFuture(store.close())
