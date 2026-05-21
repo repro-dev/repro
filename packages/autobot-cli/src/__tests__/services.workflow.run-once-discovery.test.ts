@@ -21,41 +21,7 @@ function runFuture<T>(future: FutureInstance<unknown, T>): Promise<T> {
 }
 
 const noOpArtifactWriter = () => resolve(undefined);
-const validClassify = JSON.stringify(
-  {
-    issue_shapes: ["feature"],
-    route: "proceed",
-    ready_to_proceed: true,
-    why: ["Ready for planning."],
-    next: "Continue to planning.",
-  },
-  null,
-  2,
-);
-
-const validRiskAssessment = [
-  "## Risk Level",
-  "standard",
-  "",
-  "## Risk Signals",
-  "- none",
-  "",
-  "## Review Lanes",
-  "- review-standard",
-  "",
-  "## Why",
-  "- No elevated signals.",
-].join("\n");
-
-const noOpArtifactReader = (input: { path: string }) => {
-  if (input.path.endsWith("classify.json")) {
-    return resolve(validClassify);
-  }
-
-  if (input.path.endsWith("risk-assessment.md")) {
-    return resolve(validRiskAssessment);
-  }
-
+const noOpArtifactReader = (_input: { path: string }) => {
   return resolve(validRunPlan);
 };
 const noOpLinearIssue = () => resolve(null);
@@ -186,8 +152,8 @@ test("supervisor run-once preserves discovered metadata when it selects a new ca
         item.issue_id === "REP-401" && item.reason === "queue-depth-exhausted",
     ),
   );
-  assert.ok(fixture.artifactRecords.length >= 5);
-  assert.equal(fixture.artifactRecords.at(-1)?.kind, "risk-assessment");
+  assert.ok(fixture.artifactRecords.length >= 3);
+  assert.equal(fixture.artifactRecords.at(-1)?.kind, "run-plan");
 
   const rep400Upserts = fixture.itemUpserts.filter(
     (item) => item.issue_id === "REP-400",

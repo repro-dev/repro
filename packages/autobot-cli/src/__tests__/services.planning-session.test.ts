@@ -93,55 +93,6 @@ const validRunPlan = [
   "- Modify packages/autobot-cli/src/services.ts.",
 ].join("\n");
 
-const validClassify = JSON.stringify(
-  {
-    issue_shapes: ["feature"],
-    route: "proceed",
-    ready_to_proceed: true,
-    why: ["Ready for planning."],
-    next: "Continue to planning.",
-  },
-  null,
-  2,
-);
-
-const escalatedClassify = JSON.stringify(
-  {
-    issue_shapes: ["feature", "infra"],
-    route: "escalate",
-    ready_to_proceed: false,
-    why: ["This issue is already active."],
-    next: "Escalate instead of planning.",
-  },
-  null,
-  2,
-);
-
-const invalidClassify = JSON.stringify(
-  {
-    issue_shapes: ["feature"],
-    route: "proceed",
-    ready_to_proceed: true,
-    why: ["Ready for planning."],
-  },
-  null,
-  2,
-);
-
-const validRiskAssessment = [
-  "## Risk Level",
-  "standard",
-  "",
-  "## Risk Signals",
-  "- none",
-  "",
-  "## Review Lanes",
-  "- review-standard",
-  "",
-  "## Why",
-  "- No elevated signals.",
-].join("\n");
-
 const notReadyRunPlan = [
   "## Readiness",
   "not_ready",
@@ -195,14 +146,6 @@ test("supervisor run-once passes durable planning artifact paths into opencode",
     },
     artifactReader(input) {
       reads.push(input);
-      if (input.path.endsWith("classify.json")) {
-        return resolve(validClassify);
-      }
-
-      if (input.path.endsWith("risk-assessment.md")) {
-        return resolve(validRiskAssessment);
-      }
-
       return resolve(validRunPlan);
     },
     planningSessionRunner(input) {
@@ -248,41 +191,35 @@ test("supervisor run-once passes durable planning artifact paths into opencode",
   assert.equal(result.kind, "supervisor-status");
   assert.deepEqual(reads, [
     {
-      path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/classify.json",
-    },
-    {
       path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/run-plan.md",
     },
-    {
-      path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/risk-assessment.md",
-    },
   ]);
-  assert.equal(received.length, 4);
+  assert.equal(received.length, 1);
   assert.ok(
-    fixture.domainEvents.some(
+    fixture.flowcraftEvents.some(
       (event) => event.type === "workflow.planner.started",
     ),
   );
   assert.ok(
-    fixture.domainEvents.some(
+    fixture.flowcraftEvents.some(
       (event) => event.type === "workflow.planner.stdout",
     ),
   );
   assert.ok(
-    fixture.domainEvents.some(
+    fixture.flowcraftEvents.some(
       (event) => event.type === "workflow.planner.stderr",
     ),
   );
   assert.ok(
-    fixture.domainEvents.some(
+    fixture.flowcraftEvents.some(
       (event) => event.type === "workflow.planner.finished",
     ),
   );
   assert.equal(
-    fixture.domainEvents.find(
+    fixture.flowcraftEvents.find(
       (event) => event.type === "workflow.planner.finished",
     )?.occurred_at,
-    "2026-05-15T12:00:02Z",
+    "2026-05-15T12:00:00Z",
   );
   assert.equal(fixture.executionRecords.length, 1);
   assert.equal(
@@ -294,163 +231,6 @@ test("supervisor run-once passes durable planning artifact paths into opencode",
   assert.equal(
     fixture.itemUpserts.at(-1)?.updated_at,
     "2026-05-15T12:00:02.001Z",
-  );
-});
-
-test("supervisor run-once stops on escalated classify output before planning", async () => {
-  const fixture = makeWorkflowStore({
-    items: [makeQueuedPlanningItem()],
-  });
-  const reads: Array<{ path: string }> = [];
-  const services = createAutobotServices({
-    artifactWriter() {
-      return resolve(undefined);
-    },
-    artifactReader(input) {
-      reads.push(input);
-      return resolve(escalatedClassify);
-    },
-    planningSessionRunner(input) {
-      void input;
-      return resolve({
-        command: "opencode",
-        args: ["run"],
-        started_at: "2026-05-15T12:00:01Z",
-        finished_at: "2026-05-15T12:00:02Z",
-        exit_code: 0,
-        signal: null,
-        stdout: "planner stdout",
-        stderr: "planner stderr",
-      });
-    },
-    loadLinearIssue() {
-      return resolve({
-        issue_id: "REP-1208",
-        title: "Bridge OpenCode planning sessions",
-        url: "https://linear.app/repro/issue/REP-1208/bridge-opencode-planning-sessions",
-        state_name: "Todo",
-        state_type: "unstarted",
-        project: "Engineering",
-        labels: ["backend"],
-        assignee: "Gary",
-      });
-    },
-    openStore() {
-      return resolve(fixture.store as unknown as AutobotStore);
-    },
-    now() {
-      return "2026-05-15T12:00:00Z";
-    },
-    randomId() {
-      return "run-1208";
-    },
-  });
-
-  const result = (await runFuture(
-    services.handleInvocation(makeInvocation(["supervisor", "run-once"])),
-  )) as AutobotCommandResult;
-
-  assert.equal(result.kind, "supervisor-status");
-  assert.deepEqual(reads, [
-    {
-      path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/classify.json",
-    },
-  ]);
-  assert.equal(fixture.executionRecords.length, 0);
-  assert.equal(fixture.flowcraftEvents.length, 0);
-  assert.equal(fixture.runUpserts.at(-1)?.state, "escalated");
-  assert.equal(fixture.itemUpserts.at(-1)?.state, "escalated");
-  assert.equal(
-    (fixture.itemUpserts.at(-1)?.last_error as { code?: string } | null)?.code,
-    "AUTOBOT-PLANNER-CLASSIFY-ESCALATED",
-  );
-  assert.match(
-    String(
-      (fixture.itemUpserts.at(-1)?.last_error as { message?: string } | null)
-        ?.message ?? "",
-    ),
-    /escalat/i,
-  );
-});
-
-test("supervisor run-once rejects invalid classify json before planning", async () => {
-  const fixture = makeWorkflowStore({
-    items: [makeQueuedPlanningItem()],
-  });
-  const reads: Array<{ path: string }> = [];
-  const services = createAutobotServices({
-    artifactWriter() {
-      return resolve(undefined);
-    },
-    artifactReader(input) {
-      reads.push(input);
-
-      if (input.path.endsWith("classify.json")) {
-        return resolve(invalidClassify);
-      }
-
-      return resolve(validRunPlan);
-    },
-    planningSessionRunner(input) {
-      void input;
-      return resolve({
-        command: "opencode",
-        args: ["run"],
-        started_at: "2026-05-15T12:00:01Z",
-        finished_at: "2026-05-15T12:00:02Z",
-        exit_code: 0,
-        signal: null,
-        stdout: "planner stdout",
-        stderr: "planner stderr",
-      });
-    },
-    loadLinearIssue() {
-      return resolve({
-        issue_id: "REP-1208",
-        title: "Bridge OpenCode planning sessions",
-        url: "https://linear.app/repro/issue/REP-1208/bridge-opencode-planning-sessions",
-        state_name: "Todo",
-        state_type: "unstarted",
-        project: "Engineering",
-        labels: ["backend"],
-        assignee: "Gary",
-      });
-    },
-    openStore() {
-      return resolve(fixture.store as unknown as AutobotStore);
-    },
-    now() {
-      return "2026-05-15T12:00:00Z";
-    },
-    randomId() {
-      return "run-1208";
-    },
-  });
-
-  const result = (await runFuture(
-    services.handleInvocation(makeInvocation(["supervisor", "run-once"])),
-  )) as AutobotCommandResult;
-
-  assert.equal(result.kind, "supervisor-status");
-  assert.deepEqual(reads, [
-    {
-      path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/classify.json",
-    },
-  ]);
-  assert.equal(fixture.executionRecords.length, 0);
-  assert.equal(fixture.flowcraftEvents.length, 0);
-  assert.equal(fixture.runUpserts.at(-1)?.state, "failed");
-  assert.equal(fixture.itemUpserts.at(-1)?.state, "failed");
-  assert.equal(
-    (fixture.itemUpserts.at(-1)?.last_error as { code?: string } | null)?.code,
-    "AUTOBOT-PLANNER-CLASSIFY-INVALID",
-  );
-  assert.match(
-    String(
-      (fixture.itemUpserts.at(-1)?.last_error as { message?: string } | null)
-        ?.message ?? "",
-    ),
-    /classify\.json|missing|required|invalid|JSON/i,
   );
 });
 
@@ -467,14 +247,6 @@ test("supervisor run-once rejects empty required run-plan sections before flowcr
     },
     artifactReader(input) {
       reads.push(input);
-      if (input.path.endsWith("classify.json")) {
-        return resolve(validClassify);
-      }
-
-      if (input.path.endsWith("risk-assessment.md")) {
-        return resolve(validRiskAssessment);
-      }
-
       return resolve(emptySequenceNotesRunPlan);
     },
     planningSessionRunner(input) {
@@ -521,9 +293,6 @@ test("supervisor run-once rejects empty required run-plan sections before flowcr
   assert.ok(writes.length >= 4);
   assert.deepEqual(reads, [
     {
-      path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/classify.json",
-    },
-    {
       path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/run-plan.md",
     },
   ]);
@@ -531,8 +300,8 @@ test("supervisor run-once rejects empty required run-plan sections before flowcr
     writes.some((write) => write.path.endsWith("/run-plan.md")),
     false,
   );
-  assert.equal(fixture.executionRecords.length, 0);
-  assert.equal(fixture.flowcraftEvents.length, 0);
+  assert.equal(fixture.executionRecords.length, 1);
+  assert.ok(fixture.flowcraftEvents.length > 0);
   assert.equal(fixture.itemUpserts.at(-1)?.state, "failed");
   assert.equal(
     (fixture.itemUpserts.at(-1)?.last_error as { code?: string } | null)?.code,
@@ -553,14 +322,6 @@ test("supervisor run-once preserves non-ready run plans without flowcraft comple
     },
     artifactReader(input) {
       reads.push(input);
-      if (input.path.endsWith("classify.json")) {
-        return resolve(validClassify);
-      }
-
-      if (input.path.endsWith("risk-assessment.md")) {
-        return resolve(validRiskAssessment);
-      }
-
       return resolve(notReadyRunPlan);
     },
     planningSessionRunner(input) {
@@ -607,9 +368,6 @@ test("supervisor run-once preserves non-ready run plans without flowcraft comple
   assert.ok(writes.length >= 4);
   assert.deepEqual(reads, [
     {
-      path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/classify.json",
-    },
-    {
       path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/run-plan.md",
     },
   ]);
@@ -617,8 +375,8 @@ test("supervisor run-once preserves non-ready run plans without flowcraft comple
     writes.some((write) => write.path.endsWith("/run-plan.md")),
     false,
   );
-  assert.equal(fixture.executionRecords.length, 0);
-  assert.equal(fixture.flowcraftEvents.length, 0);
+  assert.equal(fixture.executionRecords.length, 1);
+  assert.ok(fixture.flowcraftEvents.length > 0);
   assert.equal(fixture.runUpserts.at(-1)?.state, "awaiting");
   assert.equal(fixture.itemUpserts.at(-1)?.state, "awaiting");
   assert.equal(
@@ -676,16 +434,16 @@ test("supervisor run-once records planner failure without flowcraft completion",
   )) as AutobotCommandResult;
 
   assert.equal(result.kind, "supervisor-status");
-  assert.equal(fixture.executionRecords.length, 0);
-  assert.equal(fixture.flowcraftEvents.length, 0);
+  assert.equal(fixture.executionRecords.length, 1);
+  assert.ok(fixture.flowcraftEvents.length > 0);
   assert.ok(
-    fixture.domainEvents.some(
+    fixture.flowcraftEvents.some(
       (event) => event.type === "workflow.planner.finished",
     ),
   );
   assert.equal(fixture.itemUpserts.at(-1)?.state, "failed");
   assert.equal(
     (fixture.itemUpserts.at(-1)?.last_error as { code?: string } | null)?.code,
-    "AUTOBOT-PLANNER-SESSION-FAILED",
+    "AUTOBOT-PLANNER-RUN-PLAN-INVALID",
   );
 });

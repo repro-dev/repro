@@ -20,42 +20,8 @@ function runFuture<T>(future: FutureInstance<unknown, T>): Promise<T> {
   });
 }
 
-const validClassify = JSON.stringify(
-  {
-    issue_shapes: ["feature"],
-    route: "proceed",
-    ready_to_proceed: true,
-    why: ["Ready for planning."],
-    next: "Continue to planning.",
-  },
-  null,
-  2,
-);
-
-const validRiskAssessment = [
-  "## Risk Level",
-  "standard",
-  "",
-  "## Risk Signals",
-  "- none",
-  "",
-  "## Review Lanes",
-  "- review-standard",
-  "",
-  "## Why",
-  "- No elevated signals.",
-].join("\n");
-
 const noOpArtifactWriter = () => resolve(undefined);
-const noOpArtifactReader = (input: { path: string }) => {
-  if (input.path.endsWith("classify.json")) {
-    return resolve(validClassify);
-  }
-
-  if (input.path.endsWith("risk-assessment.md")) {
-    return resolve(validRiskAssessment);
-  }
-
+const noOpArtifactReader = (_input: { path: string }) => {
   return resolve(validRunPlan);
 };
 const noOpLinearIssue = () => resolve(null);
@@ -267,18 +233,84 @@ test("supervisor run-once reconciles stale in-progress items before selecting th
       ["REP-202", "queued"],
     ],
   );
-  assert.equal(fixture.runUpserts.length, 2);
+  assert.equal(fixture.runUpserts.length, 4);
   assert.equal(fixture.executionRecords.length, 2);
-  assert.equal(fixture.itemUpserts.length, 3);
+  const executionMetadata = fixture.executionRecords[0]?.metadata as
+    | {
+        item_state: string;
+        workflow_status?: string;
+        loop?: { id: string; attempts?: number; continued?: boolean };
+        phase_sequence?: string[];
+        node_outputs?: Array<{ node_id: string }>;
+        serialized_context?: string;
+      }
+    | undefined;
+  assert.equal(executionMetadata?.item_state, "completed");
+  assert.equal(executionMetadata?.workflow_status, "completed");
+  assert.equal(executionMetadata?.loop?.id, "review-loop");
+  assert.equal(executionMetadata?.loop?.attempts, 1);
+  assert.equal(executionMetadata?.loop?.continued, false);
+  assert.deepEqual(executionMetadata?.phase_sequence, [
+    "claim",
+    "preparing",
+    "planning",
+    "developing",
+    "testing",
+    "reviewing",
+    "review-fix",
+    "reconcile",
+    "complete",
+  ]);
+  assert.deepEqual(
+    executionMetadata?.node_outputs?.map((output) => output.node_id),
+    [
+      "claim",
+      "preparing",
+      "planning",
+      "developing",
+      "testing",
+      "reviewing",
+      "review_fix",
+      "review-loop",
+      "reconcile",
+      "complete",
+    ],
+  );
+  assert.match(
+    executionMetadata?.serialized_context ?? "",
+    /review_should_reconcile/,
+  );
+  assert.equal(
+    fixture.artifactRecords.some((artifact) => artifact.kind === "classify"),
+    false,
+  );
+  assert.equal(
+    fixture.artifactRecords.some(
+      (artifact) => artifact.kind === "risk-assessment",
+    ),
+    false,
+  );
+  assert.equal(fixture.itemUpserts.length, 5);
   assert.deepEqual(
     fixture.itemUpserts.map((item) => [item.issue_id, item.state]),
     [
       ["REP-203", "failed"],
+      ["REP-200", "claimed"],
       ["REP-200", "completed"],
+      ["REP-201", "claimed"],
       ["REP-201", "completed"],
     ],
   );
-  assert.equal(fixture.transactionCalls, 2);
+  assert.deepEqual(
+    fixture.runUpserts.map((run) => [run.issue_id, run.state]),
+    [
+      ["REP-200", "claimed"],
+      ["REP-200", "completed"],
+      ["REP-201", "claimed"],
+      ["REP-201", "completed"],
+    ],
+  );
+  assert.equal(fixture.transactionCalls, 4);
   assert.ok(
     fixture.domainEvents.some((event) => event.type === "engine.tick.started"),
   );
@@ -383,10 +415,62 @@ test("supervisor run-once hydrates Linear metadata before writing planning artif
     assignee: "Gary",
     current_run_id: null,
   });
+  assert.deepEqual(
+    fixture.itemUpserts.map((item) => [
+      item.issue_id,
+      item.state,
+      item.started_at,
+      item.updated_at,
+      item.last_event,
+      item.current_run_id,
+    ]),
+    [
+      [
+        "REP-400",
+        "claimed",
+        "2026-05-15T12:00:00Z",
+        "2026-05-15T12:00:00Z",
+        "workflow.phase.claimed",
+        "run-400",
+      ],
+      [
+        "REP-400",
+        "completed",
+        null,
+        "2026-05-15T12:00:02.001Z",
+        "workflow.phase.completed",
+        null,
+      ],
+    ],
+  );
+  assert.deepEqual(
+    fixture.runUpserts.map((run) => [run.state, run.finished_at]),
+    [
+      ["claimed", null],
+      ["completed", "2026-05-15T12:00:02.001Z"],
+    ],
+  );
   assert.ok(
     fixture.domainEvents.some(
-      (event) => event.type === "workflow.artifact.created",
+      (event) =>
+        event.issue_id === "REP-400" && event.type === "workflow.phase.claimed",
     ),
+  );
+  assert.ok(
+    fixture.domainEvents.some(
+      (event) =>
+        event.issue_id === "REP-400" &&
+        event.type === "workflow.phase.prepared",
+    ),
+  );
+  assert.ok(
+    fixture.domainEvents.some(
+      (event) =>
+        event.issue_id === "REP-400" && event.type === "workflow.phase.planned",
+    ),
+  );
+  assert.ok(
+    fixture.artifactRecords.some((artifact) => artifact.kind === "run-plan"),
   );
 });
 
