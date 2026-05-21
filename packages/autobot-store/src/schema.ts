@@ -57,6 +57,7 @@ export interface WorkersTable {
   phase: string | null
   state: string
   pid: number | null
+  child_pid: number | null
   process_group_id: number | null
   command: string | null
   args_json: string

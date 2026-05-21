@@ -230,6 +230,7 @@ export interface WorkerSummary {
   phase?: string | null;
   state: WorkerState;
   pid: number | null;
+  child_pid?: number | null;
   process_group_id?: number | null;
   command?: string | null;
   args?: string[];

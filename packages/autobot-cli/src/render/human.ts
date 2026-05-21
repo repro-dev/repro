@@ -105,6 +105,10 @@ function renderWorkerEntry(
     `  last_heartbeat_at: ${worker.last_heartbeat_at ?? "n/a"}`,
   ];
 
+  if (worker.child_pid != null) {
+    lines.splice(5, 0, `  child_pid: ${worker.child_pid}`);
+  }
+
   if (worker.flowcraft_execution_id != null) {
     lines.push(`  flowcraft_execution_id: ${worker.flowcraft_execution_id}`);
   }

@@ -89,6 +89,7 @@ function fromWorkerRow(
     phase: row.phase,
     state: row.state as WorkerSummary['state'],
     pid: row.pid,
+    child_pid: row.child_pid,
     process_group_id: row.process_group_id,
     command: row.command,
     args: decodeJsonArray<string>(row.args_json),

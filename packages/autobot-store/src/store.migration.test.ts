@@ -69,6 +69,7 @@ async function createLegacyPre0004Store(repoRoot: string) {
       run_id text,
       state text not null,
       pid integer,
+      child_pid integer,
       started_at text not null,
       last_heartbeat_at text
     );
@@ -201,6 +202,7 @@ test('migrates pre-0004 worker rows and durable worker indexes', async () => {
     'flowcraft_execution_id',
     'workflow_node_id',
     'phase',
+    'child_pid',
     'process_group_id',
     'command',
     'args_json',
@@ -238,6 +240,14 @@ test('migrates pre-0004 worker rows and durable worker indexes', async () => {
       ['worker-legacy-exited', 'exited'],
     ]
   )
+
+  const workerRows = db
+    .prepare('SELECT worker_id, child_pid FROM workers ORDER BY worker_id')
+    .all() as Array<{ worker_id: string; child_pid: number | null }>
+  assert.deepEqual(workerRows, [
+    { worker_id: 'worker-legacy-cancel', child_pid: null },
+    { worker_id: 'worker-legacy-exited', child_pid: null },
+  ])
 
   assert.equal(
     (await runFuture(store.workers.resolveCurrentByRun('run-legacy-cancel')))

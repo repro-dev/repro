@@ -79,6 +79,7 @@ test('initializes sqlite state with durable worker migrations and indexes', asyn
       'phase',
       'state',
       'pid',
+      'child_pid',
       'process_group_id',
       'command',
       'args_json',

@@ -84,6 +84,7 @@ export interface WorkerRecord {
   phase?: string | null
   state: WorkerSummary['state']
   pid: number | null
+  child_pid?: number | null
   process_group_id?: number | null
   command?: string | null
   args?: string[]
@@ -322,6 +323,7 @@ function fromWorkerRow(
     phase: row.phase,
     state: row.state as WorkerSummary['state'],
     pid: row.pid,
+    child_pid: row.child_pid,
     process_group_id: row.process_group_id,
     command: row.command,
     args: decodeJsonArray<string>(row.args_json),
@@ -362,6 +364,7 @@ function normalizeWorkerRecord(input: WorkerRecord): WorkerRecord {
     workflow_node_id: input.workflow_node_id ?? null,
     phase: input.phase ?? null,
     pid: input.pid ?? null,
+    child_pid: input.child_pid ?? null,
     process_group_id: input.process_group_id ?? null,
     command: input.command ?? null,
     args: input.args ?? [],
@@ -665,6 +668,7 @@ export function createAutobotRepositories(
             phase: record.phase,
             state: record.state,
             pid: record.pid,
+            child_pid: record.child_pid,
             process_group_id: record.process_group_id,
             command: record.command,
             args_json: encodeJsonArray(record.args ?? []),
@@ -689,6 +693,7 @@ export function createAutobotRepositories(
               phase: record.phase,
               state: record.state,
               pid: record.pid,
+              child_pid: record.child_pid,
               process_group_id: record.process_group_id,
               command: record.command,
               args_json: encodeJsonArray(record.args ?? []),

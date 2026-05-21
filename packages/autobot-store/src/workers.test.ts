@@ -61,6 +61,7 @@ test('creates and updates durable worker lifecycle records', async () => {
       phase: 'developing',
       state: 'starting',
       pid: null,
+      child_pid: null,
       process_group_id: null,
       command: 'autobot-next run-worker',
       args: ['--issue', 'REP-1221'],
@@ -79,6 +80,7 @@ test('creates and updates durable worker lifecycle records', async () => {
 
   assert.equal(created.state, 'starting')
   assert.equal(created.pid, null)
+  assert.equal(created.child_pid, null)
   assert.deepEqual(created.args, ['--issue', 'REP-1221'])
   assert.equal(created.stdout_log_path, '.autobot/workers/worker-1.stdout.log')
 
@@ -87,6 +89,7 @@ test('creates and updates durable worker lifecycle records', async () => {
       ...created,
       state: 'running',
       pid: 4242,
+      child_pid: 5252,
       process_group_id: 4242,
       last_heartbeat_at: '2026-05-21T15:05:00Z',
       workflow_node_id: 'testing',
@@ -96,6 +99,7 @@ test('creates and updates durable worker lifecycle records', async () => {
 
   assert.equal(running.state, 'running')
   assert.equal(running.pid, 4242)
+  assert.equal(running.child_pid, 5252)
   assert.equal(running.process_group_id, 4242)
   assert.equal(running.last_heartbeat_at, '2026-05-21T15:05:00Z')
 
@@ -131,6 +135,7 @@ test('creates and updates durable worker lifecycle records', async () => {
   assert.equal(completed.state, 'completed')
   assert.deepEqual(completed.result, { ok: true })
   assert.equal(completed.exit_code, 0)
+  assert.equal(completed.child_pid, 5252)
   assert.equal(completed.finished_at, '2026-05-21T15:06:01Z')
 
   assert.equal(
@@ -173,6 +178,7 @@ test('lists stale orphan workers without depending on issue or run ids', async (
       phase: 'planning',
       state: 'stale',
       pid: null,
+      child_pid: null,
       process_group_id: null,
       command: 'autobot-next run-worker',
       args: [],

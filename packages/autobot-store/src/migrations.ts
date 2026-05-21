@@ -101,6 +101,7 @@ async function createBaseTables(db: Kysely<AutobotSchema>) {
     .addColumn('phase', 'text')
     .addColumn('state', 'text', column => column.notNull())
     .addColumn('pid', 'integer')
+    .addColumn('child_pid', 'integer')
     .addColumn('process_group_id', 'integer')
     .addColumn('command', 'text')
     .addColumn('args_json', 'text', column => column.notNull().defaultTo('[]'))
@@ -281,6 +282,7 @@ async function addDurableWorkerRecordColumns(db: Kysely<AutobotSchema>) {
     'ALTER TABLE workers ADD COLUMN flowcraft_execution_id text',
     'ALTER TABLE workers ADD COLUMN workflow_node_id text',
     'ALTER TABLE workers ADD COLUMN phase text',
+    'ALTER TABLE workers ADD COLUMN child_pid integer',
     'ALTER TABLE workers ADD COLUMN process_group_id integer',
     'ALTER TABLE workers ADD COLUMN command text',
     "ALTER TABLE workers ADD COLUMN args_json text NOT NULL DEFAULT '[]'",

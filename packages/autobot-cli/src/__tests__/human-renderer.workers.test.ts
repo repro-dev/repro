@@ -32,6 +32,7 @@ test("queue status renderer includes durable worker metadata", () => {
               phase: "testing",
               state: "running",
               pid: 4242,
+              child_pid: 5252,
               process_group_id: 4242,
               command: "autobot-next run-worker",
               args: ["--issue", "REP-1221"],
@@ -85,6 +86,7 @@ test("queue status renderer includes durable worker metadata", () => {
         issue_id: REP-1221
         run_id: run-1221
         pid: 4242
+        child_pid: 5252
         started_at: 2026-05-21T15:00:00Z
         last_heartbeat_at: 2026-05-21T15:05:00Z
         flowcraft_execution_id: flowcraft-1221
@@ -114,6 +116,7 @@ test("item detail and flowcraft inspect render current workers", () => {
     phase: "testing",
     state: "running",
     pid: 4242,
+    child_pid: 5252,
     process_group_id: 4242,
     command: "autobot-next run-worker",
     args: ["--issue", "REP-1221"],
@@ -189,6 +192,7 @@ test("item detail and flowcraft inspect render current workers", () => {
         issue_id: REP-1221
         run_id: run-1221
         pid: 4242
+        child_pid: 5252
         started_at: 2026-05-21T15:00:00Z
         last_heartbeat_at: 2026-05-21T15:05:00Z
         flowcraft_execution_id: flowcraft-1221
@@ -244,6 +248,7 @@ test("item detail and flowcraft inspect render current workers", () => {
         issue_id: REP-1221
         run_id: run-1221
         pid: 4242
+        child_pid: 5252
         started_at: 2026-05-21T15:00:00Z
         last_heartbeat_at: 2026-05-21T15:05:00Z
         flowcraft_execution_id: flowcraft-1221
