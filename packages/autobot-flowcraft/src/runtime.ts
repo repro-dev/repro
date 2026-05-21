@@ -732,7 +732,7 @@ type PlanningNodeOutput = {
     signal?: unknown;
     stdout?: unknown;
     stderr?: unknown;
-  };
+  } | null;
   planning_run_plan_valid?: unknown;
   planning_run_plan_ready?: unknown;
   planning_should_fail?: unknown;
@@ -1027,7 +1027,7 @@ function createFlowcraftExecutionMetadata(input: {
       : [];
   const planningSessionResultData = planningOutput?.planning_session_result;
   const planningSessionResult =
-    planningSessionResultData !== undefined &&
+    isRecord(planningSessionResultData) &&
     typeof planningSessionResultData.command === "string" &&
     Array.isArray(planningSessionResultData.args) &&
     planningSessionResultData.args.every((arg) => typeof arg === "string") &&

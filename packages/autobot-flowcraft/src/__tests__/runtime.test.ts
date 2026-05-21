@@ -366,6 +366,62 @@ test("planning waits on non-ready run plans and records flowcraft evidence", asy
   );
 });
 
+test("explicit null planning session results stay null in execution metadata", async () => {
+  const workflow = flowcraftWorkflows[0];
+  const flow = workflow.flow as unknown as {
+    blueprint: { nodes: Array<{ id: string; uses: string }> };
+    functionRegistry: Map<string, unknown>;
+  };
+  const planningNode = flow.blueprint.nodes.find(
+    (node) => node.id === "planning",
+  );
+
+  assert.ok(planningNode);
+
+  const originalPlanningImplementation = flow.functionRegistry.get(
+    planningNode.uses,
+  );
+
+  assert.ok(originalPlanningImplementation);
+
+  flow.functionRegistry.set(
+    planningNode.uses,
+    async () =>
+      ({
+        output: {
+          phase: "planning",
+          state: "planning",
+          planning_artifacts: [],
+          planning_session_result: null,
+          planning_run_plan_valid: false,
+          planning_run_plan_ready: false,
+          planning_should_fail: false,
+          planning_failure_reason: null,
+        },
+      }) as never,
+  );
+
+  try {
+    const plan = await runFuture<FlowcraftExecutionPlan>(
+      buildFlowcraftExecutionPlan({
+        issue_id: "REP-1154",
+        run_id: "run-1154",
+        execution_id: "exec-1154",
+        started_at: "2026-05-15T11:00:00.000Z",
+        finished_at: "2026-05-15T11:00:01.000Z",
+        transport: null,
+      }),
+    );
+
+    assert.equal(plan.metadata.planning_session_result, null);
+  } finally {
+    flow.functionRegistry.set(
+      planningNode.uses,
+      originalPlanningImplementation,
+    );
+  }
+});
+
 test("planning failures route through the failed terminal node", async () => {
   const workflow = flowcraftWorkflows[0];
   const runtime = new FlowRuntime<
