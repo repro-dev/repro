@@ -23,12 +23,15 @@ export type {
   Severity,
   TransportCorrelation,
   Warning,
+  WorkerLifecycleState,
   WorkerSummary,
+  WorkerState,
 } from "./contracts";
 
 export {
   itemStates,
   nonTerminalItemStates,
+  workerLifecycleStates,
   terminalItemStates,
 } from "./contracts";
 

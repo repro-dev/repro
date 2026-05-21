@@ -15,7 +15,12 @@ import type {
 import { Future, fork, type FutureInstance } from 'fluture'
 import type { Kysely, Selectable } from 'kysely'
 
-import { decodeJsonNullable, encodeJson, encodeJsonArray } from './json'
+import {
+  decodeJsonArray,
+  decodeJsonNullable,
+  encodeJson,
+  encodeJsonArray,
+} from './json'
 import {
   createItemProjections,
   type ItemProjections,
@@ -74,10 +79,25 @@ export interface WorkerRecord {
   worker_id: string
   issue_id: string | null
   run_id: string | null
+  flowcraft_execution_id?: string | null
+  workflow_node_id?: string | null
+  phase?: string | null
   state: WorkerSummary['state']
   pid: number | null
+  child_pid?: number | null
+  process_group_id?: number | null
+  command?: string | null
+  args?: string[]
   started_at: string
   last_heartbeat_at: string | null
+  deadline_at?: string | null
+  stdout_log_path?: string | null
+  stderr_log_path?: string | null
+  result?: Record<string, unknown> | null
+  result_artifact_path?: string | null
+  exit_code?: number | null
+  signal?: string | null
+  finished_at?: string | null
 }
 
 export interface ConfigOverrideRecord {
@@ -135,8 +155,22 @@ export interface RunRepository {
 }
 
 export interface WorkerRepository {
+  create(input: WorkerRecord): FutureInstance<unknown, WorkerSummary>
+  update(input: WorkerRecord): FutureInstance<unknown, WorkerSummary>
   upsert(input: WorkerRecord): FutureInstance<unknown, WorkerSummary>
-  list(): FutureInstance<unknown, WorkerSummary[]>
+  get(workerId: string): FutureInstance<unknown, WorkerSummary | null>
+  list(input?: {
+    includeTerminal?: boolean
+  }): FutureInstance<unknown, WorkerSummary[]>
+  resolveCurrentByRun(
+    runId: string
+  ): FutureInstance<unknown, WorkerSummary | null>
+  resolveCurrentByIssue(
+    issueId: string
+  ): FutureInstance<unknown, WorkerSummary | null>
+  resolveCurrentByFlowcraftExecution(
+    executionId: string
+  ): FutureInstance<unknown, WorkerSummary | null>
 }
 
 export interface ConfigRepository {
@@ -284,12 +318,84 @@ function fromWorkerRow(
     worker_id: row.worker_id,
     issue_id: row.issue_id,
     run_id: row.run_id,
+    flowcraft_execution_id: row.flowcraft_execution_id,
+    workflow_node_id: row.workflow_node_id,
+    phase: row.phase,
     state: row.state as WorkerSummary['state'],
     pid: row.pid,
+    child_pid: row.child_pid,
+    process_group_id: row.process_group_id,
+    command: row.command,
+    args: decodeJsonArray<string>(row.args_json),
     started_at: row.started_at,
     last_heartbeat_at: row.last_heartbeat_at,
+    deadline_at: row.deadline_at,
+    stdout_log_path: row.stdout_log_path,
+    stderr_log_path: row.stderr_log_path,
+    result: decodeJsonNullable<Record<string, unknown>>(row.result_json),
+    result_artifact_path: row.result_artifact_path,
+    exit_code: row.exit_code,
+    signal: row.signal,
+    finished_at: row.finished_at,
     transport,
   }
+}
+
+const terminalWorkerStates = new Set<WorkerSummary['state']>([
+  'completed',
+  'failed',
+  'canceled',
+  'exited',
+])
+
+const currentWorkerStates = new Set<WorkerSummary['state']>([
+  'starting',
+  'running',
+  'stale',
+  'cancellation-requested',
+])
+
+function normalizeWorkerRecord(input: WorkerRecord): WorkerRecord {
+  return {
+    ...input,
+    issue_id: input.issue_id ?? null,
+    run_id: input.run_id ?? null,
+    flowcraft_execution_id: input.flowcraft_execution_id ?? null,
+    workflow_node_id: input.workflow_node_id ?? null,
+    phase: input.phase ?? null,
+    pid: input.pid ?? null,
+    child_pid: input.child_pid ?? null,
+    process_group_id: input.process_group_id ?? null,
+    command: input.command ?? null,
+    args: input.args ?? [],
+    last_heartbeat_at: input.last_heartbeat_at ?? null,
+    deadline_at: input.deadline_at ?? null,
+    stdout_log_path: input.stdout_log_path ?? null,
+    stderr_log_path: input.stderr_log_path ?? null,
+    result: input.result ?? null,
+    result_artifact_path: input.result_artifact_path ?? null,
+    exit_code: input.exit_code ?? null,
+    signal: input.signal ?? null,
+    finished_at: input.finished_at ?? null,
+  }
+}
+
+function selectCurrentWorkerQuery(db: Db) {
+  return db
+    .selectFrom('workers')
+    .selectAll()
+    .where('state', 'in', [...currentWorkerStates])
+    .orderBy('started_at', 'desc')
+}
+
+function selectWorkersQuery(db: Db, includeTerminal = true) {
+  let query = db.selectFrom('workers').selectAll().orderBy('started_at', 'desc')
+
+  if (!includeTerminal) {
+    query = query.where('state', 'not in', [...terminalWorkerStates])
+  }
+
+  return query
 }
 
 async function resolveWorkerTransport(
@@ -547,19 +653,61 @@ export function createAutobotRepositories(
   }
 
   const workers: WorkerRepository = {
-    upsert(input) {
+    create(input) {
       return futureAsync(async () => {
+        const record = normalizeWorkerRecord(input)
+
         await db
           .insertInto('workers')
-          .values(input)
+          .values({
+            worker_id: record.worker_id,
+            issue_id: record.issue_id,
+            run_id: record.run_id,
+            flowcraft_execution_id: record.flowcraft_execution_id,
+            workflow_node_id: record.workflow_node_id,
+            phase: record.phase,
+            state: record.state,
+            pid: record.pid,
+            child_pid: record.child_pid,
+            process_group_id: record.process_group_id,
+            command: record.command,
+            args_json: encodeJsonArray(record.args ?? []),
+            started_at: record.started_at,
+            last_heartbeat_at: record.last_heartbeat_at,
+            deadline_at: record.deadline_at,
+            stdout_log_path: record.stdout_log_path,
+            stderr_log_path: record.stderr_log_path,
+            result_json:
+              record.result === null ? null : encodeJson(record.result),
+            result_artifact_path: record.result_artifact_path,
+            exit_code: record.exit_code,
+            signal: record.signal,
+            finished_at: record.finished_at,
+          })
           .onConflict(conflict =>
             conflict.column('worker_id').doUpdateSet({
-              issue_id: input.issue_id,
-              run_id: input.run_id,
-              state: input.state,
-              pid: input.pid,
-              started_at: input.started_at,
-              last_heartbeat_at: input.last_heartbeat_at,
+              issue_id: record.issue_id,
+              run_id: record.run_id,
+              flowcraft_execution_id: record.flowcraft_execution_id,
+              workflow_node_id: record.workflow_node_id,
+              phase: record.phase,
+              state: record.state,
+              pid: record.pid,
+              child_pid: record.child_pid,
+              process_group_id: record.process_group_id,
+              command: record.command,
+              args_json: encodeJsonArray(record.args ?? []),
+              started_at: record.started_at,
+              last_heartbeat_at: record.last_heartbeat_at,
+              deadline_at: record.deadline_at,
+              stdout_log_path: record.stdout_log_path,
+              stderr_log_path: record.stderr_log_path,
+              result_json:
+                record.result === null ? null : encodeJson(record.result),
+              result_artifact_path: record.result_artifact_path,
+              exit_code: record.exit_code,
+              signal: record.signal,
+              finished_at: record.finished_at,
             })
           )
           .execute()
@@ -567,23 +715,74 @@ export function createAutobotRepositories(
         const row = await db
           .selectFrom('workers')
           .selectAll()
-          .where('worker_id', '=', input.worker_id)
+          .where('worker_id', '=', record.worker_id)
           .executeTakeFirstOrThrow()
         return fromWorkerRow(row, await resolveWorkerTransport(db, row.run_id))
       })
     },
-    list() {
+    update(input) {
+      return workers.create(input)
+    },
+    upsert(input) {
+      return workers.create(input)
+    },
+    get(workerId) {
       return futureAsync(async () => {
-        const rows = await db
+        const row = await db
           .selectFrom('workers')
           .selectAll()
-          .orderBy('started_at', 'desc')
-          .execute()
+          .where('worker_id', '=', workerId)
+          .executeTakeFirst()
+
+        return row === undefined
+          ? null
+          : fromWorkerRow(row, await resolveWorkerTransport(db, row.run_id))
+      })
+    },
+    list(input) {
+      return futureAsync(async () => {
+        const rows = await selectWorkersQuery(
+          db,
+          input?.includeTerminal !== false
+        ).execute()
         return Promise.all(
           rows.map(async row =>
             fromWorkerRow(row, await resolveWorkerTransport(db, row.run_id))
           )
         )
+      })
+    },
+    resolveCurrentByRun(runId) {
+      return futureAsync(async () => {
+        const row = await selectCurrentWorkerQuery(db)
+          .where('run_id', '=', runId)
+          .executeTakeFirst()
+
+        return row === undefined
+          ? null
+          : fromWorkerRow(row, await resolveWorkerTransport(db, row.run_id))
+      })
+    },
+    resolveCurrentByIssue(issueId) {
+      return futureAsync(async () => {
+        const row = await selectCurrentWorkerQuery(db)
+          .where('issue_id', '=', issueId)
+          .executeTakeFirst()
+
+        return row === undefined
+          ? null
+          : fromWorkerRow(row, await resolveWorkerTransport(db, row.run_id))
+      })
+    },
+    resolveCurrentByFlowcraftExecution(executionId) {
+      return futureAsync(async () => {
+        const row = await selectCurrentWorkerQuery(db)
+          .where('flowcraft_execution_id', '=', executionId)
+          .executeTakeFirst()
+
+        return row === undefined
+          ? null
+          : fromWorkerRow(row, await resolveWorkerTransport(db, row.run_id))
       })
     },
   }

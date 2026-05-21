@@ -30,6 +30,65 @@ function runFuture<T>(future: FutureInstance<unknown, T>): Promise<T> {
   });
 }
 
+async function waitForFile(path: string, timeoutMs = 1_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    try {
+      await readFile(path, "utf8");
+      return;
+    } catch {
+      await new Promise((resolvePromise) => setTimeout(resolvePromise, 10));
+    }
+  }
+
+  await assert.doesNotReject(readFile(path, "utf8"));
+}
+
+async function waitForMissingFile(
+  path: string,
+  timeoutMs = 1_000,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    try {
+      await readFile(path, "utf8");
+    } catch {
+      return;
+    }
+
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 10));
+  }
+
+  await assert.rejects(readFile(path, "utf8"));
+}
+
+async function waitForRuntimeState(
+  path: string,
+  state: string,
+  timeoutMs = 1_000,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    const status = JSON.parse(await readFile(path, "utf8")) as {
+      state: string;
+    };
+
+    if (status.state === state) {
+      return;
+    }
+
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 10));
+  }
+
+  const status = JSON.parse(await readFile(path, "utf8")) as {
+    state: string;
+  };
+  assert.equal(status.state, state);
+}
+
 const noOpArtifactWriter = () => resolve(undefined);
 const noOpLinearIssue = () => resolve(null);
 
@@ -1262,17 +1321,11 @@ test("supervisor start cancellation releases runtime ownership", async () => {
       state_dir: ".autobot",
     });
 
-    await new Promise((resolvePromise) => setTimeout(resolvePromise, 25));
-    await assert.doesNotReject(readFile(paths.lock_path, "utf8"));
+    await waitForFile(paths.lock_path);
     cancel();
-    await new Promise((resolvePromise) => setTimeout(resolvePromise, 25));
 
-    await assert.rejects(readFile(paths.lock_path, "utf8"));
-    const status = JSON.parse(await readFile(paths.status_path, "utf8")) as {
-      state: string;
-    };
-
-    assert.equal(status.state, "stopped");
+    await waitForMissingFile(paths.lock_path);
+    await waitForRuntimeState(paths.status_path, "stopped");
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -1314,18 +1367,12 @@ test("supervisor start cancellation prevents an in-flight tick from rewriting st
       state_dir: ".autobot",
     });
 
-    await new Promise((resolvePromise) => setTimeout(resolvePromise, 25));
-    await assert.doesNotReject(readFile(paths.lock_path, "utf8"));
+    await waitForFile(paths.lock_path);
 
     cancel();
-    await new Promise((resolvePromise) => setTimeout(resolvePromise, 25));
 
-    let status = JSON.parse(await readFile(paths.status_path, "utf8")) as {
-      state: string;
-    };
-
-    assert.equal(status.state, "stopped");
-    await assert.rejects(readFile(paths.lock_path, "utf8"));
+    await waitForRuntimeState(paths.status_path, "stopped");
+    await waitForMissingFile(paths.lock_path);
 
     const release = releaseListItems as (() => void) | null;
     if (release !== null) {
@@ -1333,7 +1380,7 @@ test("supervisor start cancellation prevents an in-flight tick from rewriting st
     }
     await new Promise((resolvePromise) => setTimeout(resolvePromise, 50));
 
-    status = JSON.parse(await readFile(paths.status_path, "utf8")) as {
+    const status = JSON.parse(await readFile(paths.status_path, "utf8")) as {
       state: string;
     };
 

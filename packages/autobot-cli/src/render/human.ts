@@ -8,6 +8,7 @@ import {
   type ItemSummary,
   type RunSummary,
   type TransportCorrelation,
+  type WorkerSummary,
 } from "@repro/autobot-core";
 import type {
   FlowcraftEventRecord,
@@ -92,18 +93,76 @@ function renderHealthEntry(health: EngineStatus["health"][number]): string {
 
 function renderWorkerEntry(
   worker: EngineStatus["active_workers"][number],
+  title = "Worker",
 ): string[] {
   const lines = [
-    `Worker: ${worker.worker_id}`,
+    `${title}: ${worker.worker_id}`,
     `  state: ${worker.state}`,
     `  issue_id: ${worker.issue_id ?? "n/a"}`,
     `  run_id: ${worker.run_id ?? "n/a"}`,
     `  pid: ${worker.pid ?? "n/a"}`,
+    `  child_pid: ${worker.child_pid ?? "n/a"}`,
     `  started_at: ${worker.started_at}`,
     `  last_heartbeat_at: ${worker.last_heartbeat_at ?? "n/a"}`,
   ];
 
-  if (worker.transport !== null) {
+  if (worker.flowcraft_execution_id != null) {
+    lines.push(`  flowcraft_execution_id: ${worker.flowcraft_execution_id}`);
+  }
+
+  if (worker.workflow_node_id != null) {
+    lines.push(`  workflow_node_id: ${worker.workflow_node_id}`);
+  }
+
+  if (worker.phase != null) {
+    lines.push(`  phase: ${worker.phase}`);
+  }
+
+  if (worker.process_group_id != null) {
+    lines.push(`  process_group_id: ${worker.process_group_id}`);
+  }
+
+  if (worker.command != null) {
+    lines.push(`  command: ${worker.command}`);
+  }
+
+  if (worker.args !== undefined) {
+    lines.push(`  args: ${JSON.stringify(worker.args)}`);
+  }
+
+  if (worker.deadline_at != null) {
+    lines.push(`  deadline_at: ${worker.deadline_at}`);
+  }
+
+  if (worker.stdout_log_path != null) {
+    lines.push(`  stdout_log_path: ${worker.stdout_log_path}`);
+  }
+
+  if (worker.stderr_log_path != null) {
+    lines.push(`  stderr_log_path: ${worker.stderr_log_path}`);
+  }
+
+  if (worker.finished_at != null) {
+    lines.push(`  finished_at: ${worker.finished_at}`);
+  }
+
+  if (worker.exit_code != null) {
+    lines.push(`  exit_code: ${worker.exit_code}`);
+  }
+
+  if (worker.signal != null) {
+    lines.push(`  signal: ${worker.signal}`);
+  }
+
+  if (worker.result_artifact_path != null) {
+    lines.push(`  result_artifact_path: ${worker.result_artifact_path}`);
+  }
+
+  if (worker.result != null) {
+    lines.push(`  result: ${JSON.stringify(worker.result)}`);
+  }
+
+  if (worker.transport != null) {
     lines.push(
       "  Relay:",
       `    source: ${worker.transport.source}`,
@@ -165,7 +224,9 @@ function renderStatusSection(
     lines.push(
       "",
       "Workers:",
-      indentLines(status.active_workers.flatMap(renderWorkerEntry)),
+      indentLines(
+        status.active_workers.flatMap((worker) => renderWorkerEntry(worker)),
+      ),
     );
   }
 
@@ -279,6 +340,13 @@ export function renderAutobotItemDetail(
       `  worker_id: ${item.current_run.worker_id ?? "n/a"}`,
       `  last_heartbeat_at: ${item.current_run.last_heartbeat_at ?? "n/a"}`,
       ...renderTransportCorrelation(item.current_run.transport),
+    );
+  }
+
+  if (item.current_worker !== null && item.current_worker !== undefined) {
+    lines.push(
+      "Current worker:",
+      indentLines(renderWorkerEntry(item.current_worker)),
     );
   }
 
@@ -543,6 +611,7 @@ export function renderAutobotFlowcraftInspect(input: {
     identifier: string;
     issue_id: string | null;
     run: RunSummary | null;
+    worker: WorkerSummary | null;
     execution: FlowcraftExecutionRecord | null;
     artifacts: ArtifactRef[];
     domain_events: DomainEvent[];
@@ -554,6 +623,12 @@ export function renderAutobotFlowcraftInspect(input: {
     `Lookup: ${input.lookup.kind}`,
     `Issue: ${input.lookup.issue_id ?? "n/a"}`,
     ...renderExecutionSummary(input.lookup.execution),
+    ...(input.lookup.worker === null
+      ? []
+      : [
+          "Lookup worker:",
+          indentLines(renderWorkerEntry(input.lookup.worker)),
+        ]),
     ...renderTransportCorrelation(input.lookup.run?.transport ?? null),
     ...renderArtifacts(input.lookup.artifacts),
   ];

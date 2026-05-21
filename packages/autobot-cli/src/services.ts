@@ -18,6 +18,7 @@ import type {
   ItemSummary,
   RepoRef,
   RunSummary,
+  WorkerSummary,
 } from "@repro/autobot-core";
 import {
   itemStates,
@@ -90,6 +91,7 @@ import type {
 type FlowcraftExecutionContext = {
   execution: FlowcraftExecutionRecord | null;
   run: RunSummary | null;
+  worker: WorkerSummary | null;
   artifacts: ArtifactRef[];
   flowcraft_events: FlowcraftEventRecord[];
 };
@@ -231,13 +233,7 @@ function warningToHealthCheck(warning: Warning): {
 function loadActiveWorkers(
   store: AutobotStore,
 ): FutureInstance<unknown, Array<EngineStatusData["active_workers"][number]>> {
-  return store.workers
-    .list()
-    .pipe(
-      map((workers: Array<EngineStatusData["active_workers"][number]>) =>
-        workers.filter((worker) => worker.state !== "exited"),
-      ),
-    ) as FutureInstance<
+  return store.workers.list({ includeTerminal: false }) as FutureInstance<
     unknown,
     Array<EngineStatusData["active_workers"][number]>
   >;
@@ -1035,7 +1031,10 @@ function reconcileEngineItem(
 
         if (
           worker !== null &&
-          (worker.state === "stale" || worker.state === "exited")
+          (worker.state === "stale" ||
+            worker.state === "failed" ||
+            worker.state === "canceled" ||
+            worker.state === "exited")
         ) {
           const nextItem = buildItemSummaryFromExisting(item, "failed", tickAt);
           const reconcileEvent = createEngineReconciledEvent({
@@ -1386,6 +1385,7 @@ function createFlowcraftInspectResult(input: {
   identifier: string;
   issue_id: string | null;
   run: RunSummary | null;
+  worker: WorkerSummary | null;
   execution: FlowcraftExecutionRecord | null;
   artifacts: ArtifactRef[];
   domain_events: DomainEvent[];
@@ -1401,6 +1401,7 @@ function createFlowcraftInspectResult(input: {
         identifier: input.identifier,
         issue_id: input.issue_id,
         run: input.run,
+        worker: input.worker,
         execution: input.execution,
         artifacts: input.artifacts,
         domain_events: input.domain_events,
@@ -1420,6 +1421,7 @@ function loadFlowcraftExecutionContext(
         return resolve({
           execution,
           run: null,
+          worker: null,
           artifacts: [],
           flowcraft_events: [],
         } as FlowcraftExecutionContext);
@@ -1430,19 +1432,37 @@ function loadFlowcraftExecutionContext(
           ? resolve(null)
           : store.runs.get(execution.run_id);
 
+      const workerFuture =
+        execution.run_id === null
+          ? store.workers.resolveCurrentByFlowcraftExecution(executionId)
+          : store.workers
+              .resolveCurrentByFlowcraftExecution(executionId)
+              .pipe(
+                chain((worker) =>
+                  worker !== null
+                    ? resolve(worker)
+                    : store.workers.resolveCurrentByRun(execution.run_id!),
+                ),
+              );
+
       return runFuture.pipe(
         chain((run) =>
-          store.artifacts.list(execution.issue_id).pipe(
-            chain((artifacts) =>
-              store.flowcraft.listEvents(executionId).pipe(
-                map(
-                  (flowcraft_events) =>
-                    ({
-                      execution,
-                      run,
-                      artifacts,
-                      flowcraft_events,
-                    }) as FlowcraftExecutionContext,
+          workerFuture.pipe(
+            chain((worker) =>
+              store.artifacts.list(execution.issue_id).pipe(
+                chain((artifacts) =>
+                  store.flowcraft.listEvents(executionId).pipe(
+                    map(
+                      (flowcraft_events) =>
+                        ({
+                          execution,
+                          run,
+                          worker,
+                          artifacts,
+                          flowcraft_events,
+                        }) as FlowcraftExecutionContext,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -1863,6 +1883,7 @@ function handleInspect(
         ({
           execution,
           run,
+          worker,
           artifacts,
           flowcraft_events,
         }): FutureInstance<unknown, AutobotCommandResult> => {
@@ -1896,6 +1917,7 @@ function handleInspect(
                     identifier,
                     issue_id: execution.issue_id,
                     run,
+                    worker,
                     execution,
                     artifacts,
                     domain_events,
@@ -1912,25 +1934,29 @@ function handleInspect(
     run: RunSummary,
   ): FutureInstance<unknown, AutobotCommandResult> => {
     if (run.flowcraft_execution_id === null) {
-      return store.events.list(run.issue_id, { runId: run.run_id }).pipe(
-        chain(
-          (domain_events): FutureInstance<unknown, AutobotCommandResult> => {
-            return store.artifacts.list(run.issue_id).pipe(
-              map((artifacts) =>
-                createFlowcraftInspectResult({
-                  invocation,
-                  kind: "run",
-                  identifier,
-                  issue_id: run.issue_id,
-                  run,
-                  execution: null,
-                  artifacts,
-                  domain_events,
-                  flowcraft_events: [],
-                }),
-              ),
-            );
-          },
+      return store.workers.resolveCurrentByRun(run.run_id).pipe(
+        chain((worker) =>
+          store.events.list(run.issue_id, { runId: run.run_id }).pipe(
+            chain(
+              (domain_events): FutureInstance<unknown, AutobotCommandResult> =>
+                store.artifacts.list(run.issue_id).pipe(
+                  map((artifacts) =>
+                    createFlowcraftInspectResult({
+                      invocation,
+                      kind: "run",
+                      identifier,
+                      issue_id: run.issue_id,
+                      run,
+                      worker,
+                      execution: null,
+                      artifacts,
+                      domain_events,
+                      flowcraft_events: [],
+                    }),
+                  ),
+                ),
+            ),
+          ),
         ),
       );
     }
@@ -1939,7 +1965,7 @@ function handleInspect(
       store,
       run.flowcraft_execution_id,
     ).pipe(
-      chain(({ execution, artifacts, flowcraft_events }) =>
+      chain(({ execution, worker, artifacts, flowcraft_events }) =>
         store.events.list(run.issue_id, { runId: run.run_id }).pipe(
           map((domain_events) =>
             createFlowcraftInspectResult({
@@ -1949,6 +1975,7 @@ function handleInspect(
               issue_id: run.issue_id,
               run,
               execution,
+              worker,
               artifacts,
               domain_events,
               flowcraft_events,

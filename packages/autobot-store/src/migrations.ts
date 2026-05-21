@@ -7,6 +7,8 @@ export const autobotMigrationNames = [
   '0001_initial_schema',
   '0002_transport_metadata',
   '0003_domain_event_run_lookup',
+  '0004_durable_worker_records',
+  '0005_worker_child_pid',
 ] as const
 
 type MigrationName = (typeof autobotMigrationNames)[number]
@@ -95,10 +97,25 @@ async function createBaseTables(db: Kysely<AutobotSchema>) {
     .addColumn('worker_id', 'text', column => column.primaryKey())
     .addColumn('issue_id', 'text')
     .addColumn('run_id', 'text')
+    .addColumn('flowcraft_execution_id', 'text')
+    .addColumn('workflow_node_id', 'text')
+    .addColumn('phase', 'text')
     .addColumn('state', 'text', column => column.notNull())
     .addColumn('pid', 'integer')
+    .addColumn('child_pid', 'integer')
+    .addColumn('process_group_id', 'integer')
+    .addColumn('command', 'text')
+    .addColumn('args_json', 'text', column => column.notNull().defaultTo('[]'))
     .addColumn('started_at', 'text', column => column.notNull())
     .addColumn('last_heartbeat_at', 'text')
+    .addColumn('deadline_at', 'text')
+    .addColumn('stdout_log_path', 'text')
+    .addColumn('stderr_log_path', 'text')
+    .addColumn('result_json', 'text')
+    .addColumn('result_artifact_path', 'text')
+    .addColumn('exit_code', 'integer')
+    .addColumn('signal', 'text')
+    .addColumn('finished_at', 'text')
     .execute()
 
   await db.schema
@@ -106,6 +123,27 @@ async function createBaseTables(db: Kysely<AutobotSchema>) {
     .ifNotExists()
     .on('workers')
     .columns(['state'])
+    .execute()
+
+  await db.schema
+    .createIndex('idx_workers_run_state_started_at')
+    .ifNotExists()
+    .on('workers')
+    .columns(['run_id', 'state', 'started_at'])
+    .execute()
+
+  await db.schema
+    .createIndex('idx_workers_issue_state_started_at')
+    .ifNotExists()
+    .on('workers')
+    .columns(['issue_id', 'state', 'started_at'])
+    .execute()
+
+  await db.schema
+    .createIndex('idx_workers_flowcraft_execution_state_started_at')
+    .ifNotExists()
+    .on('workers')
+    .columns(['flowcraft_execution_id', 'state', 'started_at'])
     .execute()
 
   await db.schema
@@ -240,6 +278,67 @@ async function addDomainEventRunLookupIndex(db: Kysely<AutobotSchema>) {
     .execute()
 }
 
+async function addDurableWorkerRecordColumns(db: Kysely<AutobotSchema>) {
+  const statements = [
+    'ALTER TABLE workers ADD COLUMN flowcraft_execution_id text',
+    'ALTER TABLE workers ADD COLUMN workflow_node_id text',
+    'ALTER TABLE workers ADD COLUMN phase text',
+    'ALTER TABLE workers ADD COLUMN child_pid integer',
+    'ALTER TABLE workers ADD COLUMN process_group_id integer',
+    'ALTER TABLE workers ADD COLUMN command text',
+    "ALTER TABLE workers ADD COLUMN args_json text NOT NULL DEFAULT '[]'",
+    'ALTER TABLE workers ADD COLUMN deadline_at text',
+    'ALTER TABLE workers ADD COLUMN stdout_log_path text',
+    'ALTER TABLE workers ADD COLUMN stderr_log_path text',
+    'ALTER TABLE workers ADD COLUMN result_json text',
+    'ALTER TABLE workers ADD COLUMN result_artifact_path text',
+    'ALTER TABLE workers ADD COLUMN exit_code integer',
+    'ALTER TABLE workers ADD COLUMN signal text',
+    'ALTER TABLE workers ADD COLUMN finished_at text',
+  ] as const
+
+  for (const statement of statements) {
+    try {
+      await sql.raw(statement).execute(db)
+    } catch (error) {
+      if (!String(error).includes('duplicate column name')) {
+        throw error
+      }
+    }
+  }
+
+  await db.schema
+    .createIndex('idx_workers_run_state_started_at')
+    .ifNotExists()
+    .on('workers')
+    .columns(['run_id', 'state', 'started_at'])
+    .execute()
+
+  await db.schema
+    .createIndex('idx_workers_issue_state_started_at')
+    .ifNotExists()
+    .on('workers')
+    .columns(['issue_id', 'state', 'started_at'])
+    .execute()
+
+  await db.schema
+    .createIndex('idx_workers_flowcraft_execution_state_started_at')
+    .ifNotExists()
+    .on('workers')
+    .columns(['flowcraft_execution_id', 'state', 'started_at'])
+    .execute()
+}
+
+async function addWorkerChildPidColumn(db: Kysely<AutobotSchema>) {
+  try {
+    await sql`ALTER TABLE workers ADD COLUMN child_pid integer`.execute(db)
+  } catch (error) {
+    if (!String(error).includes('duplicate column name')) {
+      throw error
+    }
+  }
+}
+
 async function createAppendOnlyTriggers(db: Kysely<AutobotSchema>) {
   await sql`
     CREATE TRIGGER IF NOT EXISTS domain_events_no_update
@@ -262,6 +361,8 @@ const migrations: readonly Migration[] = [
   { name: '0001_initial_schema', up: createBaseTables },
   { name: '0002_transport_metadata', up: addTransportMetadataColumns },
   { name: '0003_domain_event_run_lookup', up: addDomainEventRunLookupIndex },
+  { name: '0004_durable_worker_records', up: addDurableWorkerRecordColumns },
+  { name: '0005_worker_child_pid', up: addWorkerChildPidColumn },
 ]
 
 async function ensureMigrationsTable(db: Kysely<AutobotSchema>) {

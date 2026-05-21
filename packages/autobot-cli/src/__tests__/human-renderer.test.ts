@@ -144,6 +144,7 @@ test("flowcraft inspect renderer includes persisted transports but keeps raw pay
             message_id: "relay-message",
           },
         },
+        worker: null,
         execution: {
           execution_id: "exec-1154",
           issue_id: "REP-1154",
@@ -320,6 +321,7 @@ test("supervisor status renderer shows relay-aware worker supervision", () => {
       issue_id: REP-1154
       run_id: run-1154
       pid: 4242
+      child_pid: n/a
       started_at: 2026-05-15T10:00:00Z
       last_heartbeat_at: 2026-05-15T10:05:00Z
       Relay:

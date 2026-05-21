@@ -6,6 +6,7 @@ import type {
   ItemSummary,
   RunSummary,
   TransportCorrelation,
+  WorkerSummary,
 } from '@repro/autobot-core'
 import { Future, type FutureInstance } from 'fluture'
 import type { Kysely, Selectable } from 'kysely'
@@ -66,6 +67,63 @@ function fromRunRow(row: Selectable<AutobotSchema['runs']>): RunSummary {
     last_heartbeat_at: row.last_heartbeat_at,
     transport: decodeJsonNullable<TransportCorrelation>(row.transport_json),
   }
+}
+
+const currentWorkerStates = [
+  'starting',
+  'running',
+  'stale',
+  'cancellation-requested',
+] as const
+
+function fromWorkerRow(
+  row: Selectable<AutobotSchema['workers']>,
+  transport: TransportCorrelation | null
+): WorkerSummary {
+  return {
+    worker_id: row.worker_id,
+    issue_id: row.issue_id,
+    run_id: row.run_id,
+    flowcraft_execution_id: row.flowcraft_execution_id,
+    workflow_node_id: row.workflow_node_id,
+    phase: row.phase,
+    state: row.state as WorkerSummary['state'],
+    pid: row.pid,
+    child_pid: row.child_pid,
+    process_group_id: row.process_group_id,
+    command: row.command,
+    args: decodeJsonArray<string>(row.args_json),
+    started_at: row.started_at,
+    last_heartbeat_at: row.last_heartbeat_at,
+    deadline_at: row.deadline_at,
+    stdout_log_path: row.stdout_log_path,
+    stderr_log_path: row.stderr_log_path,
+    result: decodeJsonNullable<Record<string, unknown>>(row.result_json),
+    result_artifact_path: row.result_artifact_path,
+    exit_code: row.exit_code,
+    signal: row.signal,
+    finished_at: row.finished_at,
+    transport,
+  }
+}
+
+async function resolveWorkerTransport(
+  db: Db,
+  runId: string | null
+): Promise<TransportCorrelation | null> {
+  if (runId === null) {
+    return null
+  }
+
+  const row = await db
+    .selectFrom('runs')
+    .select(['transport_json'])
+    .where('run_id', '=', runId)
+    .executeTakeFirst()
+
+  return row === undefined
+    ? null
+    : decodeJsonNullable<TransportCorrelation>(row.transport_json)
 }
 
 function fromArtifactRow(
@@ -215,11 +273,18 @@ export function createItemProjections(db: Db): ItemProjections {
               .execute(),
           ])
 
+          const currentWorker = await resolveCurrentWorker(
+            db,
+            issueId,
+            currentRun ?? null
+          )
+
           resolve({
             ...fromItemRow(row),
             linear: toLinear(row),
             current_run:
               currentRun === undefined ? null : fromRunRow(currentRun),
+            current_worker: currentWorker,
             cancellation_requested: row.cancellation_requested === 1,
             cancellation_requested_at: row.cancellation_requested_at,
             recovery_commands: decodeJsonArray<string>(
@@ -234,6 +299,59 @@ export function createItemProjections(db: Db): ItemProjections {
       })
     },
   }
+}
+
+async function resolveCurrentWorker(
+  db: Db,
+  issueId: string,
+  currentRun: Selectable<AutobotSchema['runs']> | null
+): Promise<WorkerSummary | null> {
+  const currentWorkerQuery = db
+    .selectFrom('workers')
+    .selectAll()
+    .where('state', 'in', currentWorkerStates)
+    .orderBy('started_at', 'desc')
+
+  const currentWorkerLookups: Array<
+    () => Promise<Selectable<AutobotSchema['workers']> | undefined>
+  > = []
+
+  if (currentRun?.worker_id != null) {
+    currentWorkerLookups.push(() =>
+      currentWorkerQuery
+        .where('worker_id', '=', currentRun.worker_id)
+        .executeTakeFirst()
+    )
+  }
+
+  if (currentRun?.flowcraft_execution_id != null) {
+    currentWorkerLookups.push(() =>
+      currentWorkerQuery
+        .where('flowcraft_execution_id', '=', currentRun.flowcraft_execution_id)
+        .executeTakeFirst()
+    )
+  }
+
+  if (currentRun !== null) {
+    currentWorkerLookups.push(() =>
+      currentWorkerQuery
+        .where('run_id', '=', currentRun.run_id)
+        .executeTakeFirst()
+    )
+  }
+
+  currentWorkerLookups.push(() =>
+    currentWorkerQuery.where('issue_id', '=', issueId).executeTakeFirst()
+  )
+
+  for (const lookup of currentWorkerLookups) {
+    const row = await lookup()
+    if (row !== undefined) {
+      return fromWorkerRow(row, await resolveWorkerTransport(db, row.run_id))
+    }
+  }
+
+  return null
 }
 
 export function listItems(db: Db, input?: ItemStateFilter) {
