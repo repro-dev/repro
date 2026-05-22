@@ -10,7 +10,11 @@ import type {
   ItemDetail,
   RepoRef,
 } from "@repro/autobot-core";
-import { createAutobotStore, type AutobotStore } from "@repro/autobot-store";
+import {
+  createAutobotStore,
+  type AutobotStore,
+  type WorkerRecord,
+} from "@repro/autobot-store";
 
 import {
   buildWorkerLogPaths,
@@ -141,6 +145,65 @@ function futureToPromise<T>(future: FutureInstance<unknown, T>): Promise<T> {
   });
 }
 
+function buildPlanningSessionWorkerRecord(
+  input: PlanningSessionInput,
+  command: PlanningSessionCommand,
+  logPaths: ReturnType<typeof buildWorkerLogPaths>,
+  startedAt: string,
+  overrides: Partial<WorkerRecord> = {},
+): WorkerRecord {
+  return {
+    worker_id: `worker-${input.runId}`,
+    issue_id: input.issueId,
+    run_id: input.runId,
+    flowcraft_execution_id: input.executionId,
+    workflow_node_id: input.phase ?? "plan",
+    phase: input.phase ?? "plan",
+    state: "starting",
+    pid: null,
+    child_pid: null,
+    process_group_id: null,
+    command: command.command,
+    args: command.args,
+    started_at: startedAt,
+    last_heartbeat_at: null,
+    deadline_at: null,
+    stdout_log_path: logPaths.stdout_log_path,
+    stderr_log_path: logPaths.stderr_log_path,
+    spawn_error: null,
+    result: null,
+    result_artifact_path: null,
+    exit_code: null,
+    signal: null,
+    finished_at: null,
+    ...overrides,
+  };
+}
+
+function toPlanningSessionSpawnError(error: unknown, occurredAt: string) {
+  return {
+    code: "AUTOBOT-WORKER-SPAWN-FAILED",
+    message:
+      error instanceof Error && error.message.length > 0
+        ? error.message
+        : String(error),
+    occurred_at: occurredAt,
+  };
+}
+
+async function withPlanningSessionStore<T>(
+  repo: RepoRef,
+  handler: (store: AutobotStore) => Promise<T>,
+): Promise<T> {
+  const store = await futureToPromise(createAutobotStore({ repo }));
+
+  try {
+    return await handler(store);
+  } finally {
+    await futureToPromise(store.close());
+  }
+}
+
 export function runOpenCodePlanningSession(
   input: PlanningSessionInput,
 ): FutureInstance<unknown, PlanningSessionResult> {
@@ -167,8 +230,6 @@ export function runOpenCodePlanningSession(
     };
     let settled = false;
     let child: ReturnType<typeof spawn> | null = null;
-    let store: AutobotStore | null = null;
-    let storeClosed = false;
 
     const readLog = async (filePath: string) => {
       try {
@@ -188,47 +249,61 @@ export function runOpenCodePlanningSession(
       }
     };
 
-    const closeStore = async () => {
-      if (store === null || storeClosed) {
-        return;
-      }
+    const recordWrapperSpawnFailure = async (error: unknown) => {
+      await withPlanningSessionStore(input.repo, async (store) => {
+        await futureToPromise(
+          store.workers.upsert(
+            buildPlanningSessionWorkerRecord(
+              input,
+              command,
+              logPaths,
+              startedAt,
+              {
+                state: "failed",
+                pid: child?.pid ?? null,
+                last_heartbeat_at: startedAt,
+                spawn_error: toPlanningSessionSpawnError(error, startedAt),
+                finished_at: startedAt,
+              },
+            ),
+          ),
+        );
+      });
+    };
 
-      storeClosed = true;
-      await futureToPromise(store.close());
+    const resolvePlanningSessionResult = async (
+      exitCode: number | null,
+      signal: NodeJS.Signals | null,
+    ) => {
+      const worker = await withPlanningSessionStore(
+        input.repo,
+        async (store) => {
+          return await futureToPromise(store.workers.get(workerId));
+        },
+      );
+
+      const [stdout, stderr] = await Promise.all([
+        readLog(logPaths.stdout_path),
+        readLog(logPaths.stderr_path),
+      ]);
+      const finishedAt = worker?.finished_at ?? new Date().toISOString();
+      const workerSignal = (worker?.signal as NodeJS.Signals | null) ?? signal;
+
+      resolveFuture(
+        buildPlanningSessionResult(
+          command,
+          startedAt,
+          finishedAt,
+          worker?.exit_code ?? exitCode,
+          workerSignal,
+          stdout,
+          stderr,
+        ),
+      );
     };
 
     void (async () => {
       try {
-        store = await futureToPromise(createAutobotStore({ repo: input.repo }));
-
-        await futureToPromise(
-          store.workers.create({
-            worker_id: workerId,
-            issue_id: input.issueId,
-            run_id: input.runId,
-            flowcraft_execution_id: input.executionId,
-            workflow_node_id: input.phase ?? "plan",
-            phase: input.phase ?? "plan",
-            state: "starting",
-            pid: null,
-            child_pid: null,
-            process_group_id: null,
-            command: command.command,
-            args: command.args,
-            started_at: startedAt,
-            last_heartbeat_at: null,
-            deadline_at: null,
-            stdout_log_path: logPaths.stdout_log_path,
-            stderr_log_path: logPaths.stderr_log_path,
-            spawn_error: null,
-            result: null,
-            result_artifact_path: null,
-            exit_code: null,
-            signal: null,
-            finished_at: null,
-          }),
-        );
-
         const invocation = buildWorkerRunnerInvocation(workerCommand);
         child = spawn(invocation.command, invocation.args, {
           cwd: input.repo.path,
@@ -236,121 +311,49 @@ export function runOpenCodePlanningSession(
           stdio: ["ignore", "ignore", "ignore"],
         });
 
-        await futureToPromise(
-          store.workers.update({
-            worker_id: workerId,
-            issue_id: input.issueId,
-            run_id: input.runId,
-            flowcraft_execution_id: input.executionId,
-            workflow_node_id: input.phase ?? "plan",
-            phase: input.phase ?? "plan",
-            state: "starting",
-            pid: child.pid ?? null,
-            child_pid: null,
-            process_group_id: null,
-            command: command.command,
-            args: command.args,
-            started_at: startedAt,
-            last_heartbeat_at: startedAt,
-            deadline_at: null,
-            stdout_log_path: logPaths.stdout_log_path,
-            stderr_log_path: logPaths.stderr_log_path,
-            spawn_error: null,
-            result: null,
-            result_artifact_path: null,
-            exit_code: null,
-            signal: null,
-            finished_at: null,
-          }),
-        );
-
-        child.once("error", async (error) => {
-          if (settled || store === null) {
+        child.once("error", (error) => {
+          if (settled) {
             return;
           }
 
           settled = true;
-          try {
-            await futureToPromise(
-              store.workers.update({
-                worker_id: workerId,
-                issue_id: input.issueId,
-                run_id: input.runId,
-                flowcraft_execution_id: input.executionId,
-                workflow_node_id: input.phase ?? "plan",
-                phase: input.phase ?? "plan",
-                state: "failed",
-                pid: child?.pid ?? null,
-                child_pid: null,
-                process_group_id: null,
-                command: command.command,
-                args: command.args,
-                started_at: startedAt,
-                last_heartbeat_at: startedAt,
-                deadline_at: null,
-                stdout_log_path: logPaths.stdout_log_path,
-                stderr_log_path: logPaths.stderr_log_path,
-                spawn_error: {
-                  code: "AUTOBOT-WORKER-SPAWN-FAILED",
-                  message:
-                    error instanceof Error && error.message.length > 0
-                      ? error.message
-                      : String(error),
-                  occurred_at: startedAt,
-                },
-                result: null,
-                result_artifact_path: null,
-                exit_code: null,
-                signal: null,
-                finished_at: startedAt,
-              }),
-            );
-          } finally {
-            await closeStore();
-          }
-          reject(error);
+          void (async () => {
+            try {
+              await recordWrapperSpawnFailure(error);
+              reject(error);
+            } catch (recordError) {
+              reject(recordError);
+            }
+          })();
         });
 
-        child.once("close", async (exitCode, signal) => {
-          if (settled || store === null) {
+        child.once("close", (exitCode, signal) => {
+          if (settled) {
             return;
           }
 
           settled = true;
-          try {
-            const finishedAt = new Date().toISOString();
-
-            const worker = await futureToPromise(store.workers.get(workerId));
-            const [stdout, stderr] = await Promise.all([
-              readLog(logPaths.stdout_path),
-              readLog(logPaths.stderr_path),
-            ]);
-
-            resolveFuture(
-              buildPlanningSessionResult(
-                command,
-                startedAt,
-                worker?.finished_at ?? finishedAt,
-                worker?.exit_code ?? exitCode,
-                (worker?.signal as NodeJS.Signals | null) ?? signal,
-                stdout,
-                stderr,
-              ),
-            );
-          } catch (error) {
-            reject(error);
-          } finally {
-            await closeStore();
-          }
+          void (async () => {
+            try {
+              await resolvePlanningSessionResult(exitCode, signal);
+            } catch (error) {
+              reject(error);
+            }
+          })();
         });
       } catch (error) {
         if (!settled) {
           settled = true;
-          try {
-            await closeStore();
-          } finally {
+          void (async () => {
+            try {
+              await recordWrapperSpawnFailure(error);
+            } catch (recordError) {
+              reject(recordError);
+              return;
+            }
+
             reject(error);
-          }
+          })();
         }
       }
     })();

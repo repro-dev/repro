@@ -12,6 +12,7 @@ import { createAutobotRepositories, type AutobotStore } from './repositories'
 
 export interface OpenAutobotStoreInput {
   repo: RepoRef | string
+  skipMigrations?: boolean
 }
 
 export function resolveAutobotStateDir(repo: RepoRef | string): string {
@@ -39,6 +40,33 @@ export function createAutobotStoreClient(repo: RepoRef | string) {
   })
 }
 
+function isSqliteBusy(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    (('code' in error &&
+      (error as { code?: unknown }).code === 'SQLITE_BUSY') ||
+      ('message' in error &&
+        typeof (error as { message?: unknown }).message === 'string' &&
+        (error as { message: string }).message.includes('database is locked')))
+  )
+}
+
+async function migrateAutobotStoreWithRetry(db: Kysely<AutobotSchema>) {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      await migrateAutobotStore(db)
+      return
+    } catch (error) {
+      if (!isSqliteBusy(error) || attempt === 1) {
+        throw error
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 50))
+    }
+  }
+}
+
 export function createAutobotStore(
   input: OpenAutobotStoreInput
 ): FutureInstance<unknown, AutobotStore> {
@@ -61,7 +89,9 @@ export function createAutobotStore(
         await mkdir(repo.state_dir, { recursive: true })
 
         const db = createAutobotStoreClient(repo)
-        await migrateAutobotStore(db)
+        if (input.skipMigrations !== true) {
+          await migrateAutobotStoreWithRetry(db)
+        }
 
         const store = createAutobotRepositories(db, repo)
         if (!cancelled) {

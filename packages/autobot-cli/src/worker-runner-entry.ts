@@ -14,7 +14,7 @@ function runFuture<T>(future: FutureInstance<unknown, T>): Promise<T> {
   });
 }
 
-async function main(argv: string[]) {
+export async function main(argv: string[]) {
   const rawInput = argv[2];
 
   if (rawInput === undefined) {
@@ -25,6 +25,7 @@ async function main(argv: string[]) {
   const store = await runFuture(
     createAutobotStore({
       repo: input.repo,
+      skipMigrations: true,
     }),
   );
 
@@ -38,7 +39,9 @@ async function main(argv: string[]) {
   }
 }
 
-void main(process.argv).catch((error) => {
-  process.stderr.write(`${String(error)}\n`);
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  void main(process.argv).catch((error) => {
+    process.stderr.write(`${String(error)}\n`);
+    process.exitCode = 1;
+  });
+}
