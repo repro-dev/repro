@@ -1129,13 +1129,29 @@ function createPhaseEventsFromRun(input: {
   execution_id: string;
   transport: TransportCorrelation | null;
   started_at: string;
+  finished_at: string;
+  planning_session_result: FlowcraftPlanningSessionResult | null;
   phaseOutputs: FlowcraftExecutionNodeOutput[];
 }): FlowcraftExecutionPlan["domain_events"] {
+  const durablePlanningPhaseIds = new Set<FlowcraftPhaseId>([
+    "preparing",
+    "planning",
+    "complete",
+  ]);
+  const completedAt =
+    input.planning_session_result === null
+      ? input.finished_at
+      : new Date(
+          Date.parse(input.planning_session_result.finished_at) + 1,
+        ).toISOString();
+
   return input.phaseOutputs
-    .filter(
-      (event) =>
-        toPhaseId(event.node_id) !== null || event.node_id === "escalated",
-    )
+    .filter((event) => {
+      const phase =
+        toPhaseId(event.node_id) ?? (event.node_id as FlowcraftPhaseId);
+
+      return durablePlanningPhaseIds.has(phase);
+    })
     .map((event, index) => {
       const phase =
         toPhaseId(event.node_id) ?? (event.node_id as FlowcraftPhaseId);
@@ -1151,7 +1167,6 @@ function createPhaseEventsFromRun(input: {
         state: phaseDefinition.state,
         message: phaseDefinition.message,
         severity: "info" as const,
-        occurred_at: event.occurred_at,
         actor: "autobot-flowcraft",
         transport: input.transport,
         data: {
@@ -1164,6 +1179,7 @@ function createPhaseEventsFromRun(input: {
           output: stripNestedTransport(event.output),
           started_at: input.started_at,
         },
+        occurred_at: phase === "complete" ? completedAt : event.occurred_at,
       };
     });
 }
@@ -1411,6 +1427,8 @@ function createExecutionPlan(input: {
             execution_id: input.execution_id,
             transport: input.transport,
             started_at: input.started_at,
+            finished_at: input.finished_at,
+            planning_session_result: metadata.planning_session_result,
             phaseOutputs: nodeOutputs.filter(
               (output) =>
                 toPhaseId(output.node_id) !== null ||

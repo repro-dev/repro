@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import path from "node:path";
+import { readFile } from "node:fs/promises";
 
 import { Future, chain, fork, resolve, type FutureInstance } from "fluture";
 
@@ -9,7 +10,17 @@ import type {
   ItemDetail,
   RepoRef,
 } from "@repro/autobot-core";
-import type { AutobotStore } from "@repro/autobot-store";
+import {
+  createAutobotStore,
+  type AutobotStore,
+  type WorkerRecord,
+} from "@repro/autobot-store";
+
+import {
+  buildWorkerLogPaths,
+  buildWorkerRunnerInvocation,
+  type WorkerCommandInput,
+} from "./worker-runner";
 
 import type { SingleTrackPhaseContractName } from "./phase-contracts";
 import { renderSingleTrackPhaseContract } from "./phase-contracts";
@@ -128,59 +139,224 @@ function buildPlanningSessionResult(
   };
 }
 
+function futureToPromise<T>(future: FutureInstance<unknown, T>): Promise<T> {
+  return new Promise((resolvePromise, rejectPromise) => {
+    future.pipe(fork(rejectPromise)(resolvePromise));
+  });
+}
+
+function buildPlanningSessionWorkerRecord(
+  input: PlanningSessionInput,
+  command: PlanningSessionCommand,
+  logPaths: ReturnType<typeof buildWorkerLogPaths>,
+  startedAt: string,
+  overrides: Partial<WorkerRecord> = {},
+): WorkerRecord {
+  return {
+    worker_id: `worker-${input.runId}`,
+    issue_id: input.issueId,
+    run_id: input.runId,
+    flowcraft_execution_id: input.executionId,
+    workflow_node_id: input.phase ?? "plan",
+    phase: input.phase ?? "plan",
+    state: "starting",
+    pid: null,
+    child_pid: null,
+    process_group_id: null,
+    command: command.command,
+    args: command.args,
+    started_at: startedAt,
+    last_heartbeat_at: null,
+    deadline_at: null,
+    stdout_log_path: logPaths.stdout_log_path,
+    stderr_log_path: logPaths.stderr_log_path,
+    spawn_error: null,
+    result: null,
+    result_artifact_path: null,
+    exit_code: null,
+    signal: null,
+    finished_at: null,
+    ...overrides,
+  };
+}
+
+function toPlanningSessionSpawnError(error: unknown, occurredAt: string) {
+  return {
+    code: "AUTOBOT-WORKER-SPAWN-FAILED",
+    message:
+      error instanceof Error && error.message.length > 0
+        ? error.message
+        : String(error),
+    occurred_at: occurredAt,
+  };
+}
+
+async function withPlanningSessionStore<T>(
+  repo: RepoRef,
+  handler: (store: AutobotStore) => Promise<T>,
+): Promise<T> {
+  const store = await futureToPromise(createAutobotStore({ repo }));
+
+  try {
+    return await handler(store);
+  } finally {
+    await futureToPromise(store.close());
+  }
+}
+
 export function runOpenCodePlanningSession(
   input: PlanningSessionInput,
 ): FutureInstance<unknown, PlanningSessionResult> {
   const command = buildOpenCodePlanningCommand(input);
 
   return Future((reject, resolveFuture) => {
+    const workerId = `worker-${input.runId}`;
     const startedAt = new Date().toISOString();
-    const child = spawn(command.command, command.args, {
-      cwd: input.repo.path,
-      env: process.env,
-      stdio: ["ignore", "pipe", "pipe"],
+    const logPaths = buildWorkerLogPaths({
+      repo: input.repo,
+      worker_id: workerId,
     });
-    let stdout = "";
-    let stderr = "";
+    const workerCommand: WorkerCommandInput = {
+      repo: input.repo,
+      worker_id: workerId,
+      issue_id: input.issueId,
+      run_id: input.runId,
+      execution_id: input.executionId,
+      command: command.command,
+      args: command.args,
+      started_at: startedAt,
+      stdout_log_path: logPaths.stdout_log_path,
+      stderr_log_path: logPaths.stderr_log_path,
+    };
     let settled = false;
+    let child: ReturnType<typeof spawn> | null = null;
 
-    child.stdout?.setEncoding("utf8");
-    child.stdout?.on("data", (chunk: string) => {
-      stdout += chunk;
-    });
+    const readLog = async (filePath: string) => {
+      try {
+        return await readFile(filePath, "utf8");
+      } catch (error) {
+        const code = (error as { code?: unknown }).code;
+        if (
+          typeof error === "object" &&
+          error !== null &&
+          "code" in error &&
+          code === "ENOENT"
+        ) {
+          return "";
+        }
 
-    child.stderr?.setEncoding("utf8");
-    child.stderr?.on("data", (chunk: string) => {
-      stderr += chunk;
-    });
-
-    child.on("error", (error) => {
-      if (settled) {
-        return;
+        throw error;
       }
+    };
 
-      settled = true;
-      reject(error);
-    });
+    const recordWrapperSpawnFailure = async (error: unknown) => {
+      await withPlanningSessionStore(input.repo, async (store) => {
+        await futureToPromise(
+          store.workers.upsert(
+            buildPlanningSessionWorkerRecord(
+              input,
+              command,
+              logPaths,
+              startedAt,
+              {
+                state: "failed",
+                pid: child?.pid ?? null,
+                last_heartbeat_at: startedAt,
+                spawn_error: toPlanningSessionSpawnError(error, startedAt),
+                finished_at: startedAt,
+              },
+            ),
+          ),
+        );
+      });
+    };
 
-    child.on("close", (exitCode, signal) => {
-      if (settled) {
-        return;
-      }
+    const resolvePlanningSessionResult = async (
+      exitCode: number | null,
+      signal: NodeJS.Signals | null,
+    ) => {
+      const worker = await withPlanningSessionStore(
+        input.repo,
+        async (store) => {
+          return await futureToPromise(store.workers.get(workerId));
+        },
+      );
 
-      settled = true;
+      const [stdout, stderr] = await Promise.all([
+        readLog(logPaths.stdout_path),
+        readLog(logPaths.stderr_path),
+      ]);
+      const finishedAt = worker?.finished_at ?? new Date().toISOString();
+      const workerSignal = (worker?.signal as NodeJS.Signals | null) ?? signal;
+
       resolveFuture(
         buildPlanningSessionResult(
           command,
           startedAt,
-          new Date().toISOString(),
-          exitCode,
-          signal,
+          finishedAt,
+          worker?.exit_code ?? exitCode,
+          workerSignal,
           stdout,
           stderr,
         ),
       );
-    });
+    };
+
+    void (async () => {
+      try {
+        const invocation = buildWorkerRunnerInvocation(workerCommand);
+        child = spawn(invocation.command, invocation.args, {
+          cwd: input.repo.path,
+          env: process.env,
+          stdio: ["ignore", "ignore", "ignore"],
+        });
+
+        child.once("error", (error) => {
+          if (settled) {
+            return;
+          }
+
+          settled = true;
+          void (async () => {
+            try {
+              await recordWrapperSpawnFailure(error);
+              reject(error);
+            } catch (recordError) {
+              reject(recordError);
+            }
+          })();
+        });
+
+        child.once("close", (exitCode, signal) => {
+          if (settled) {
+            return;
+          }
+
+          settled = true;
+          void (async () => {
+            try {
+              await resolvePlanningSessionResult(exitCode, signal);
+            } catch (error) {
+              reject(error);
+            }
+          })();
+        });
+      } catch (error) {
+        if (!settled) {
+          settled = true;
+          void (async () => {
+            try {
+              await recordWrapperSpawnFailure(error);
+            } catch (recordError) {
+              reject(recordError);
+              return;
+            }
+
+            reject(error);
+          })();
+        }
+      }
+    })();
 
     return () => {
       if (settled) {
@@ -188,7 +364,7 @@ export function runOpenCodePlanningSession(
       }
 
       settled = true;
-      child.kill();
+      child?.kill();
     };
   });
 }

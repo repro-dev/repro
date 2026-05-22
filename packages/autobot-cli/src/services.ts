@@ -2632,6 +2632,22 @@ function createMonotonicLaterTimestamp(timestamp: string): string {
   return new Date(Date.parse(timestamp) + 1).toISOString();
 }
 
+function createCurrentOrLaterTimestamp(
+  previousTimestamp: string,
+  currentTimestamp: string,
+): string {
+  const previousMs = Date.parse(previousTimestamp);
+  const currentMs = Date.parse(currentTimestamp);
+
+  if (Number.isFinite(previousMs) && Number.isFinite(currentMs)) {
+    return currentMs > previousMs
+      ? currentTimestamp
+      : createMonotonicLaterTimestamp(previousTimestamp);
+  }
+
+  return currentTimestamp;
+}
+
 function persistWorkflowClaim(input: {
   store: AutobotStore;
   item: ItemDetail;
@@ -2708,6 +2724,87 @@ function persistWorkflowClaim(input: {
               last_heartbeat_at: null,
               transport: null,
             } satisfies RunSummary,
+            artifacts: [],
+            events: [],
+          }),
+        )
+        .pipe(map(() => undefined)),
+      transaction.events.append(event).pipe(map(() => undefined)),
+    ]).pipe(map(() => undefined)),
+  );
+}
+
+function persistWorkflowProgressTransition(input: {
+  store: AutobotStore;
+  item: ItemDetail;
+  issueId: string;
+  attempt: number;
+  runId: string;
+  executionId: string;
+  state: "preparing" | "planning";
+  phase: "preparing" | "planning";
+  eventType: "workflow.phase.preparing" | "workflow.phase.planning";
+  message: string;
+  occurredAt: string;
+  startedAt: string;
+  recoveryCommands: string[];
+}): FutureInstance<unknown, void> {
+  const event = createDomainEvent({
+    type: input.eventType,
+    severity: "info",
+    state: input.state,
+    message: input.message,
+    issue_id: input.issueId,
+    run_id: input.runId,
+    occurred_at: input.occurredAt,
+    data: {
+      issue_id: input.issueId,
+      attempt: input.attempt,
+      run_id: input.runId,
+      execution_id: input.executionId,
+      phase: input.phase,
+      state: input.state,
+      recovery_commands: input.recoveryCommands,
+      blueprint_id: "autobot-deliver-issue",
+      blueprint_version: "1.0.0",
+    },
+  });
+
+  const currentRun: RunSummary = {
+    run_id: input.runId,
+    issue_id: input.issueId,
+    attempt: input.attempt,
+    state: input.state,
+    flowcraft_execution_id: input.executionId,
+    blueprint_id: "autobot-deliver-issue",
+    blueprint_version: "1.0.0",
+    started_at: input.startedAt,
+    finished_at: null,
+    worker_id: null,
+    last_heartbeat_at: null,
+    transport: null,
+  };
+
+  return input.store.transaction((transaction) =>
+    sequenceFutures([
+      transaction.runs
+        .upsert({
+          ...currentRun,
+        })
+        .pipe(map(() => undefined)),
+      transaction.items
+        .upsert(
+          toItemRecordFromDetail({
+            ...input.item,
+            state: input.state,
+            started_at: input.item.started_at ?? input.startedAt,
+            updated_at: input.occurredAt,
+            last_event: event.type,
+            last_error: null,
+            recovery_commands: input.recoveryCommands,
+            cancellation_requested: false,
+            cancellation_requested_at: null,
+            current_run: currentRun,
             artifacts: [],
             events: [],
           }),
@@ -2824,6 +2921,7 @@ function runBoundedWorkflowTickForItem(
   target: ItemSummary,
   tickAt: string,
   randomId: () => string,
+  now: () => string,
   artifactWriter: ArtifactWriter = defaultArtifactWriter,
   artifactReader: ArtifactReader = defaultArtifactReader,
   planningSessionRunner: PlanningSessionRunner = createNoopPlanningSessionRunner(),
@@ -2878,6 +2976,19 @@ function runBoundedWorkflowTickForItem(
               `autobot-next status ${target.issue_id} --json`,
               `autobot-next logs ${target.issue_id} --json`,
             ];
+            const preparingAt = createCurrentOrLaterTimestamp(claimedAt, now());
+            const planningAt = createCurrentOrLaterTimestamp(
+              preparingAt,
+              now(),
+            );
+            const workflowStartedAt = createCurrentOrLaterTimestamp(
+              planningAt,
+              now(),
+            );
+            const workflowFinishedAt = createCurrentOrLaterTimestamp(
+              workflowStartedAt,
+              now(),
+            );
 
             return sequenceFutures([
               persistWorkflowClaim({
@@ -2891,12 +3002,42 @@ function runBoundedWorkflowTickForItem(
                 startedAt,
                 recoveryCommands: progressRecoveryCommands,
               }),
+              persistWorkflowProgressTransition({
+                store,
+                item: planningItem,
+                issueId: target.issue_id,
+                attempt: target.attempt,
+                runId,
+                executionId,
+                state: "preparing",
+                phase: "preparing",
+                eventType: "workflow.phase.preparing",
+                message: "Issue is preparing",
+                occurredAt: preparingAt,
+                startedAt,
+                recoveryCommands: progressRecoveryCommands,
+              }),
+              persistWorkflowProgressTransition({
+                store,
+                item: planningItem,
+                issueId: target.issue_id,
+                attempt: target.attempt,
+                runId,
+                executionId,
+                state: "planning",
+                phase: "planning",
+                eventType: "workflow.phase.planning",
+                message: "Issue is planning",
+                occurredAt: planningAt,
+                startedAt,
+                recoveryCommands: progressRecoveryCommands,
+              }),
               executeAutobotDeliverIssueWorkflow({
                 issue_id: target.issue_id,
                 run_id: runId,
                 execution_id: executionId,
-                started_at: startedAt,
-                finished_at: createMonotonicLaterTimestamp(startedAt),
+                started_at: workflowStartedAt,
+                finished_at: workflowFinishedAt,
                 transport: null,
                 dependencies: {
                   autobotPlanning: {
@@ -2919,7 +3060,7 @@ function runBoundedWorkflowTickForItem(
                     );
                     const flowcraftFinishedAt = createMonotonicLaterTimestamp(
                       plan.metadata.planning_session_result?.finished_at ??
-                        startedAt,
+                        workflowStartedAt,
                     );
                     const planningSessionResult =
                       plan.metadata.planning_session_result;
@@ -3746,6 +3887,7 @@ function handleEngineRunOnce(
                             target,
                             tickAt,
                             randomId,
+                            now,
                             artifactWriter,
                             artifactReader,
                             planningSessionRunner,

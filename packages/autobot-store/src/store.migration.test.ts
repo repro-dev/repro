@@ -275,6 +275,7 @@ test('migrates pre-0005 worker rows and durable worker indexes', async () => {
       '0003_domain_event_run_lookup',
       '0004_durable_worker_records',
       '0005_worker_child_pid',
+      '0006_worker_spawn_error',
     ]
   )
 
@@ -294,6 +295,7 @@ test('migrates pre-0005 worker rows and durable worker indexes', async () => {
     'deadline_at',
     'stdout_log_path',
     'stderr_log_path',
+    'spawn_error_json',
     'result_json',
     'result_artifact_path',
     'exit_code',

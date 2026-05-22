@@ -225,23 +225,30 @@ test("execution plans persist serialized context, loop metadata, and phase event
   assert.ok(
     new Set(plan.domain_events.map((event) => event.occurred_at)).size > 1,
   );
-  assert.equal(plan.domain_events.length, 9);
   assert.deepEqual(
-    plan.domain_events.map((event) => event.state),
+    plan.domain_events.map((event) => event.type),
     [
-      "claimed",
-      "preparing",
-      "planning",
-      "developing",
-      "testing",
-      "reviewing",
-      "reviewing",
-      "reconciling",
-      "completed",
+      "workflow.phase.prepared",
+      "workflow.phase.planned",
+      "workflow.phase.completed",
     ],
   );
-  assert.equal(plan.domain_events[8]?.state, "completed");
-  assert.equal(plan.domain_events[8]?.transport?.channel_id, "relay-channel");
+  assert.equal(plan.domain_events.length, 3);
+  assert.equal(plan.domain_events[2]?.state, "completed");
+  assert.equal(plan.domain_events[2]?.occurred_at, plan.finished_at);
+  assert.equal(plan.domain_events[2]?.transport?.channel_id, "relay-channel");
+  assert.equal(
+    plan.domain_events.some((event) =>
+      [
+        "workflow.phase.developing",
+        "workflow.phase.testing",
+        "workflow.phase.reviewing",
+        "workflow.phase.review_fix",
+        "workflow.phase.reconciled",
+      ].includes(event.type),
+    ),
+    false,
+  );
   assert.equal(
     JSON.stringify(plan.flowcraft_events).includes('"transport"'),
     false,

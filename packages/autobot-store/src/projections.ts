@@ -1,6 +1,7 @@
 import type {
   ArtifactRef,
   DomainEvent,
+  ErrorSummary,
   ItemDetail,
   LinearIssueRef,
   ItemSummary,
@@ -98,6 +99,7 @@ function fromWorkerRow(
     deadline_at: row.deadline_at,
     stdout_log_path: row.stdout_log_path,
     stderr_log_path: row.stderr_log_path,
+    spawn_error: decodeJsonNullable<ErrorSummary>(row.spawn_error_json),
     result: decodeJsonNullable<Record<string, unknown>>(row.result_json),
     result_artifact_path: row.result_artifact_path,
     exit_code: row.exit_code,
