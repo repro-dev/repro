@@ -92,4 +92,19 @@ describe("REP-642 tooling wiring", () => {
     assert.match(ci.slice(lintStep, fmtStep), /run: pnpm run lint/);
     assert.match(ci.slice(fmtStep), /run: pnpm run fmt:check/);
   });
+
+  it("guards pre-commit against direct commits on main", () => {
+    const preCommitHook = readText(".husky/pre-commit");
+
+    assert.match(
+      preCommitHook,
+      /git symbolic-ref --quiet --short HEAD 2>\/dev\/null \|\| true/,
+    );
+    assert.match(preCommitHook, /if \[ "\$current_branch" = "main" \]; then/);
+    assert.match(preCommitHook, /exit 1/);
+    assert.match(
+      preCommitHook,
+      /existing worktree or local branch[\s\S]*new worktree or branch/i,
+    );
+  });
 });

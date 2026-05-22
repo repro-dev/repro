@@ -1,4 +1,15 @@
-# Check that generated manpages are up to date when sources change.
+# Keep main as the control plane; implementation work belongs on branches/worktrees.
+current_branch=$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)
+if [ "$current_branch" = "main" ]; then
+  cat >&2 <<'EOF'
+Direct commits to main are blocked.
+
+Check whether you should be committing to an existing worktree or local branch.
+If neither applies, create a new worktree or branch before continuing.
+EOF
+  exit 1
+fi
+
 staged_manpages=$(git diff --cached --name-only -- 'docs/man/*.1.md')
 if [ -n "$staged_manpages" ]; then
   scripts/generate-manpages.sh --check
