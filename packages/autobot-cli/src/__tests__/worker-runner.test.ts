@@ -11,6 +11,7 @@ import { createAutobotStore } from "@repro/autobot-store";
 
 import {
   buildWorkerRunnerInvocation,
+  buildWorkerLogPaths,
   runWorkerCommand,
 } from "../worker-runner";
 
@@ -97,6 +98,30 @@ test("buildWorkerRunnerInvocation keeps command and args separate", () => {
   };
   assert.equal(payload.command, "opencode");
   assert.deepEqual(payload.args, ["run", "--agent", "planner"]);
+});
+
+test("buildWorkerLogPaths uses the absolute state dir without nesting repo path", async () => {
+  const repoRoot = await makeRepoRoot();
+  const absoluteStateDir = path.join(repoRoot, ".autobot");
+
+  const paths = buildWorkerLogPaths({
+    repo: {
+      path: repoRoot,
+      state_dir: absoluteStateDir,
+    },
+    worker_id: "worker-abs",
+  });
+
+  assert.equal(
+    paths.stdout_path,
+    path.join(absoluteStateDir, "workers", "worker-abs.stdout.log"),
+  );
+  assert.equal(
+    paths.stderr_path,
+    path.join(absoluteStateDir, "workers", "worker-abs.stderr.log"),
+  );
+  assert.equal(paths.stdout_log_path, ".autobot/workers/worker-abs.stdout.log");
+  assert.equal(paths.stderr_log_path, ".autobot/workers/worker-abs.stderr.log");
 });
 
 test("runWorkerCommand records pids, logs, and terminal outcome", async () => {

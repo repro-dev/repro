@@ -64,22 +64,36 @@ export function buildWorkerLogPaths(input: {
   repo: RepoRef;
   worker_id: string;
 }): WorkerLogPaths {
-  const stdout_log_path = path.join(
-    input.repo.state_dir,
+  const repoPath = path.resolve(input.repo.path);
+  const stateDirPath = path.resolve(repoPath, input.repo.state_dir);
+  const stdout_path = path.join(
+    stateDirPath,
     "workers",
     `${input.worker_id}.stdout.log`,
   );
-  const stderr_log_path = path.join(
-    input.repo.state_dir,
+  const stderr_path = path.join(
+    stateDirPath,
     "workers",
     `${input.worker_id}.stderr.log`,
   );
+  const stdout_log_path = path.relative(repoPath, stdout_path);
+  const stderr_log_path = path.relative(repoPath, stderr_path);
 
   return {
-    stdout_path: path.join(input.repo.path, stdout_log_path),
-    stderr_path: path.join(input.repo.path, stderr_log_path),
-    stdout_log_path,
-    stderr_log_path,
+    stdout_path,
+    stderr_path,
+    stdout_log_path:
+      stdout_log_path.length > 0 &&
+      !stdout_log_path.startsWith("..") &&
+      !path.isAbsolute(stdout_log_path)
+        ? stdout_log_path
+        : stdout_path,
+    stderr_log_path:
+      stderr_log_path.length > 0 &&
+      !stderr_log_path.startsWith("..") &&
+      !path.isAbsolute(stderr_log_path)
+        ? stderr_log_path
+        : stderr_path,
   };
 }
 
