@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 
 def load_services(path):
@@ -26,6 +27,55 @@ def get_launch(entry):
     if isinstance(launch, dict):
         return launch
     return None
+
+
+def _service_app_dir(entry):
+    app_dir = entry.get("app_dir")
+    if isinstance(app_dir, str) and app_dir:
+        return app_dir
+    return None
+
+
+def is_next_local_service(entry, root_dir):
+    if entry.get("type") != "local":
+        return False
+
+    app_dir = _service_app_dir(entry)
+    if app_dir is None:
+        return False
+
+    package_json_path = Path(root_dir) / app_dir / "package.json"
+    if not package_json_path.is_file():
+        return False
+
+    try:
+        with open(package_json_path, encoding="utf-8") as file:
+            package = json.load(file)
+    except (OSError, json.JSONDecodeError):
+        return False
+
+    for dependency_key in (
+        "dependencies",
+        "devDependencies",
+        "peerDependencies",
+        "optionalDependencies",
+    ):
+        dependencies = package.get(dependency_key)
+        if isinstance(dependencies, dict) and "next" in dependencies:
+            return True
+
+    return False
+
+
+def get_next_local_service_output_dir(entry, root_dir):
+    if not is_next_local_service(entry, root_dir):
+        return None
+
+    app_dir = _service_app_dir(entry)
+    if app_dir is None:
+        return None
+
+    return str(Path(root_dir) / app_dir / ".next")
 
 
 def list_launchable_service_names(path):
