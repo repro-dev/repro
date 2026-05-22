@@ -219,7 +219,7 @@ test("supervisor run-once passes durable planning artifact paths into opencode",
     fixture.flowcraftEvents.find(
       (event) => event.type === "workflow.planner.finished",
     )?.occurred_at,
-    "2026-05-15T12:00:00Z",
+    "2026-05-15T12:00:00.003Z",
   );
   assert.equal(fixture.executionRecords.length, 1);
   assert.equal(
@@ -325,6 +325,8 @@ test("supervisor run-once preserves non-ready run plans without flowcraft comple
       return resolve(notReadyRunPlan);
     },
     planningSessionRunner(input) {
+      assert.equal(fixture.itemUpserts.at(-1)?.state, "planning");
+      assert.equal(fixture.runUpserts.at(-1)?.state, "planning");
       void input;
       return resolve({
         command: "opencode",
@@ -377,6 +379,22 @@ test("supervisor run-once preserves non-ready run plans without flowcraft comple
   );
   assert.equal(fixture.executionRecords.length, 1);
   assert.ok(fixture.flowcraftEvents.length > 0);
+  assert.equal(
+    fixture.itemUpserts.some((item) => item.state === "preparing"),
+    true,
+  );
+  assert.equal(
+    fixture.itemUpserts.some((item) => item.state === "planning"),
+    true,
+  );
+  assert.equal(
+    fixture.runUpserts.some((run) => run.state === "preparing"),
+    true,
+  );
+  assert.equal(
+    fixture.runUpserts.some((run) => run.state === "planning"),
+    true,
+  );
   assert.equal(fixture.runUpserts.at(-1)?.state, "awaiting");
   assert.equal(fixture.itemUpserts.at(-1)?.state, "awaiting");
   assert.equal(

@@ -233,7 +233,7 @@ test("supervisor run-once reconciles stale in-progress items before selecting th
       ["REP-202", "queued"],
     ],
   );
-  assert.equal(fixture.runUpserts.length, 4);
+  assert.equal(fixture.runUpserts.length, 8);
   assert.equal(fixture.executionRecords.length, 2);
   const executionMetadata = fixture.executionRecords[0]?.metadata as
     | {
@@ -290,14 +290,18 @@ test("supervisor run-once reconciles stale in-progress items before selecting th
     ),
     false,
   );
-  assert.equal(fixture.itemUpserts.length, 5);
+  assert.equal(fixture.itemUpserts.length, 9);
   assert.deepEqual(
     fixture.itemUpserts.map((item) => [item.issue_id, item.state]),
     [
       ["REP-203", "failed"],
       ["REP-200", "claimed"],
+      ["REP-200", "preparing"],
+      ["REP-200", "planning"],
       ["REP-200", "completed"],
       ["REP-201", "claimed"],
+      ["REP-201", "preparing"],
+      ["REP-201", "planning"],
       ["REP-201", "completed"],
     ],
   );
@@ -305,12 +309,16 @@ test("supervisor run-once reconciles stale in-progress items before selecting th
     fixture.runUpserts.map((run) => [run.issue_id, run.state]),
     [
       ["REP-200", "claimed"],
+      ["REP-200", "preparing"],
+      ["REP-200", "planning"],
       ["REP-200", "completed"],
       ["REP-201", "claimed"],
+      ["REP-201", "preparing"],
+      ["REP-201", "planning"],
       ["REP-201", "completed"],
     ],
   );
-  assert.equal(fixture.transactionCalls, 4);
+  assert.equal(fixture.transactionCalls, 8);
   assert.ok(
     fixture.domainEvents.some((event) => event.type === "engine.tick.started"),
   );
@@ -435,6 +443,22 @@ test("supervisor run-once hydrates Linear metadata before writing planning artif
       ],
       [
         "REP-400",
+        "preparing",
+        "2026-05-15T12:00:00Z",
+        "2026-05-15T12:00:00.001Z",
+        "workflow.phase.preparing",
+        "run-400",
+      ],
+      [
+        "REP-400",
+        "planning",
+        "2026-05-15T12:00:00Z",
+        "2026-05-15T12:00:00.002Z",
+        "workflow.phase.planning",
+        "run-400",
+      ],
+      [
+        "REP-400",
         "completed",
         null,
         "2026-05-15T12:00:02.001Z",
@@ -447,6 +471,8 @@ test("supervisor run-once hydrates Linear metadata before writing planning artif
     fixture.runUpserts.map((run) => [run.state, run.finished_at]),
     [
       ["claimed", null],
+      ["preparing", null],
+      ["planning", null],
       ["completed", "2026-05-15T12:00:02.001Z"],
     ],
   );
@@ -454,6 +480,20 @@ test("supervisor run-once hydrates Linear metadata before writing planning artif
     fixture.domainEvents.some(
       (event) =>
         event.issue_id === "REP-400" && event.type === "workflow.phase.claimed",
+    ),
+  );
+  assert.ok(
+    fixture.domainEvents.some(
+      (event) =>
+        event.issue_id === "REP-400" &&
+        event.type === "workflow.phase.preparing",
+    ),
+  );
+  assert.ok(
+    fixture.domainEvents.some(
+      (event) =>
+        event.issue_id === "REP-400" &&
+        event.type === "workflow.phase.planning",
     ),
   );
   assert.ok(
@@ -468,6 +508,44 @@ test("supervisor run-once hydrates Linear metadata before writing planning artif
       (event) =>
         event.issue_id === "REP-400" && event.type === "workflow.phase.planned",
     ),
+  );
+  assert.equal(
+    fixture.domainEvents.filter(
+      (event) =>
+        event.issue_id === "REP-400" && event.type === "workflow.phase.claimed",
+    ).length,
+    1,
+  );
+  assert.equal(
+    fixture.domainEvents.filter(
+      (event) =>
+        event.issue_id === "REP-400" &&
+        event.type === "workflow.phase.preparing",
+    ).length,
+    1,
+  );
+  assert.equal(
+    fixture.domainEvents.filter(
+      (event) =>
+        event.issue_id === "REP-400" &&
+        event.type === "workflow.phase.planning",
+    ).length,
+    1,
+  );
+  assert.equal(
+    fixture.domainEvents.filter(
+      (event) =>
+        event.issue_id === "REP-400" &&
+        event.type === "workflow.phase.prepared",
+    ).length,
+    1,
+  );
+  assert.equal(
+    fixture.domainEvents.filter(
+      (event) =>
+        event.issue_id === "REP-400" && event.type === "workflow.phase.planned",
+    ).length,
+    1,
   );
   assert.ok(
     fixture.artifactRecords.some((artifact) => artifact.kind === "run-plan"),

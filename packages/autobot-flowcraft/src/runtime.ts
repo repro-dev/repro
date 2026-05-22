@@ -1132,10 +1132,15 @@ function createPhaseEventsFromRun(input: {
   phaseOutputs: FlowcraftExecutionNodeOutput[];
 }): FlowcraftExecutionPlan["domain_events"] {
   return input.phaseOutputs
-    .filter(
-      (event) =>
-        toPhaseId(event.node_id) !== null || event.node_id === "escalated",
-    )
+    .filter((event) => {
+      const phase =
+        toPhaseId(event.node_id) ?? (event.node_id as FlowcraftPhaseId);
+
+      return (
+        (toPhaseId(event.node_id) !== null || event.node_id === "escalated") &&
+        phase !== "claim"
+      );
+    })
     .map((event, index) => {
       const phase =
         toPhaseId(event.node_id) ?? (event.node_id as FlowcraftPhaseId);
