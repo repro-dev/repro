@@ -188,7 +188,7 @@ jobs:
         run: pnpm exec playwright install chromium
 
       - name: Start workspace services
-        run: ./bin/reproctl start --wait --timeout 5m workspace
+        run: ./bin/reproctl start --wait --timeout 300s workspace
 
       - name: Seed the test database
         run: ./bin/reproctl db seed
