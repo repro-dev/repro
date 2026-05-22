@@ -10,6 +10,8 @@ import type { ErrorSummary, RepoRef } from "@repro/autobot-core";
 import type { AutobotStore, WorkerRecord } from "@repro/autobot-store";
 import { serializeError } from "serialize-error";
 
+const tsxPreloadPath = require.resolve("tsx/cjs");
+
 export interface WorkerCommandInput {
   repo: RepoRef;
   worker_id: string;
@@ -86,7 +88,7 @@ export function buildWorkerRunnerInvocation(input: WorkerCommandInput) {
 
   return {
     command: process.execPath,
-    args: ["-r", "tsx", entrypointPath, JSON.stringify(input)],
+    args: ["-r", tsxPreloadPath, entrypointPath, JSON.stringify(input)],
   };
 }
 

@@ -15,6 +15,7 @@ import {
 } from "../worker-runner";
 
 const tempRoots: string[] = [];
+const tsxPreloadPath = require.resolve("tsx/cjs");
 
 function runFuture<T>(future: FutureInstance<unknown, T>): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -88,7 +89,7 @@ test("buildWorkerRunnerInvocation keeps command and args separate", () => {
 
   assert.equal(invocation.command, process.execPath);
   assert.equal(invocation.args[0], "-r");
-  assert.equal(invocation.args[1], "tsx");
+  assert.equal(invocation.args[1], tsxPreloadPath);
   assert.match(invocation.args[2] ?? "", /worker-runner-entry\.ts$/);
   const payload = JSON.parse(invocation.args[3] ?? "{}") as {
     command: string;
