@@ -25,12 +25,14 @@ function runFuture<T>(future: FutureInstance<unknown, T>): Promise<T> {
 }
 
 async function waitFor(predicate: () => boolean) {
-  for (let attempt = 0; attempt < 100; attempt += 1) {
+  const deadline = Date.now() + 5_000;
+
+  while (Date.now() < deadline) {
     if (predicate()) {
       return;
     }
 
-    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise((resolve) => setTimeout(resolve, 10));
   }
 
   throw new Error("timed out waiting for test condition");
