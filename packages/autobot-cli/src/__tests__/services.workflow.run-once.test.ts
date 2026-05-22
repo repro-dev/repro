@@ -512,6 +512,34 @@ test("supervisor run-once hydrates Linear metadata before writing planning artif
   assert.equal(
     fixture.domainEvents.filter(
       (event) =>
+        event.issue_id === "REP-400" &&
+        typeof event.type === "string" &&
+        [
+          "workflow.phase.developing",
+          "workflow.phase.testing",
+          "workflow.phase.reviewing",
+          "workflow.phase.review_fix",
+          "workflow.phase.reconciled",
+        ].includes(event.type),
+    ).length,
+    0,
+  );
+  assert.deepEqual(
+    fixture.domainEvents
+      .filter((event) => event.issue_id === "REP-400")
+      .map((event) => [event.type, event.occurred_at]),
+    [
+      ["workflow.phase.claimed", "2026-05-15T12:00:00Z"],
+      ["workflow.phase.preparing", "2026-05-15T12:00:00.001Z"],
+      ["workflow.phase.planning", "2026-05-15T12:00:00.002Z"],
+      ["workflow.phase.prepared", "2026-05-15T12:00:00.003Z"],
+      ["workflow.phase.planned", "2026-05-15T12:00:00.003Z"],
+      ["workflow.phase.completed", "2026-05-15T12:00:02.001Z"],
+    ],
+  );
+  assert.equal(
+    fixture.domainEvents.filter(
+      (event) =>
         event.issue_id === "REP-400" && event.type === "workflow.phase.claimed",
     ).length,
     1,
@@ -544,6 +572,14 @@ test("supervisor run-once hydrates Linear metadata before writing planning artif
     fixture.domainEvents.filter(
       (event) =>
         event.issue_id === "REP-400" && event.type === "workflow.phase.planned",
+    ).length,
+    1,
+  );
+  assert.equal(
+    fixture.domainEvents.filter(
+      (event) =>
+        event.issue_id === "REP-400" &&
+        event.type === "workflow.phase.completed",
     ).length,
     1,
   );
