@@ -70,6 +70,10 @@ export type PlanningSessionRunner = (
   input: PlanningSessionInput,
 ) => FutureInstance<unknown, PlanningSessionResult>;
 
+export type PlanningWorkerStarter = (
+  input: PlanningSessionInput,
+) => FutureInstance<unknown, void>;
+
 type PlanningPhaseFailure = {
   state: "awaiting" | "failed" | "escalated";
   code: string;
@@ -180,6 +184,144 @@ function buildPlanningSessionWorkerRecord(
   };
 }
 
+function buildPlanningSessionWorkerCommand(input: PlanningSessionInput): {
+  command: PlanningSessionCommand;
+  workerId: string;
+  startedAt: string;
+  logPaths: ReturnType<typeof buildWorkerLogPaths>;
+  workerCommand: WorkerCommandInput;
+} {
+  const command = buildOpenCodePlanningCommand(input);
+  const workerId = `worker-${input.runId}`;
+  const startedAt = new Date().toISOString();
+  const logPaths = buildWorkerLogPaths({
+    repo: input.repo,
+    worker_id: workerId,
+  });
+
+  return {
+    command,
+    workerId,
+    startedAt,
+    logPaths,
+    workerCommand: {
+      repo: input.repo,
+      worker_id: workerId,
+      issue_id: input.issueId,
+      run_id: input.runId,
+      execution_id: input.executionId,
+      command: command.command,
+      args: command.args,
+      started_at: startedAt,
+      stdout_log_path: logPaths.stdout_log_path,
+      stderr_log_path: logPaths.stderr_log_path,
+    },
+  };
+}
+
+export function startOpenCodePlanningSessionWorker(
+  input: PlanningSessionInput,
+): FutureInstance<unknown, void> {
+  return Future((reject, resolveFuture) => {
+    const { command, startedAt, logPaths, workerCommand } =
+      buildPlanningSessionWorkerCommand(input);
+    let child: ReturnType<typeof spawn> | null = null;
+    let settled = false;
+
+    const recordFailure = async (error: unknown) => {
+      await withPlanningSessionStore(input.repo, async (store) => {
+        await futureToPromise(
+          store.workers.upsert(
+            buildPlanningSessionWorkerRecord(
+              input,
+              command,
+              logPaths,
+              startedAt,
+              {
+                state: "failed",
+                pid: child?.pid ?? null,
+                child_pid: child?.pid ?? null,
+                process_group_id: child?.pid ?? null,
+                last_heartbeat_at: startedAt,
+                spawn_error: toPlanningSessionSpawnError(error, startedAt),
+                finished_at: startedAt,
+              },
+            ),
+          ),
+        );
+      });
+    };
+
+    void (async () => {
+      try {
+        await withPlanningSessionStore(input.repo, async (store) => {
+          await futureToPromise(
+            store.workers.upsert(
+              buildPlanningSessionWorkerRecord(
+                input,
+                command,
+                logPaths,
+                startedAt,
+              ),
+            ),
+          );
+        });
+
+        const invocation = buildWorkerRunnerInvocation(workerCommand);
+        child = spawn(invocation.command, invocation.args, {
+          cwd: input.repo.path,
+          env: process.env,
+          stdio: ["ignore", "ignore", "ignore"],
+          detached: true,
+        });
+
+        child.once("error", (error) => {
+          if (settled) {
+            return;
+          }
+
+          settled = true;
+          void recordFailure(error).then(() => reject(error), reject);
+        });
+
+        child.unref();
+
+        await withPlanningSessionStore(input.repo, async (store) => {
+          await futureToPromise(
+            store.workers.upsert(
+              buildPlanningSessionWorkerRecord(
+                input,
+                command,
+                logPaths,
+                startedAt,
+                {
+                  pid: child?.pid ?? null,
+                  child_pid: child?.pid ?? null,
+                  process_group_id: child?.pid ?? null,
+                  last_heartbeat_at: startedAt,
+                },
+              ),
+            ),
+          );
+        });
+
+        if (!settled) {
+          settled = true;
+          resolveFuture(undefined);
+        }
+      } catch (error) {
+        if (!settled) {
+          settled = true;
+          await recordFailure(error).catch(() => undefined);
+          reject(error);
+        }
+      }
+    })();
+
+    return () => undefined;
+  });
+}
+
 function toPlanningSessionSpawnError(error: unknown, occurredAt: string) {
   return {
     code: "AUTOBOT-WORKER-SPAWN-FAILED",
@@ -207,27 +349,10 @@ async function withPlanningSessionStore<T>(
 export function runOpenCodePlanningSession(
   input: PlanningSessionInput,
 ): FutureInstance<unknown, PlanningSessionResult> {
-  const command = buildOpenCodePlanningCommand(input);
+  const { command, workerId, startedAt, logPaths, workerCommand } =
+    buildPlanningSessionWorkerCommand(input);
 
   return Future((reject, resolveFuture) => {
-    const workerId = `worker-${input.runId}`;
-    const startedAt = new Date().toISOString();
-    const logPaths = buildWorkerLogPaths({
-      repo: input.repo,
-      worker_id: workerId,
-    });
-    const workerCommand: WorkerCommandInput = {
-      repo: input.repo,
-      worker_id: workerId,
-      issue_id: input.issueId,
-      run_id: input.runId,
-      execution_id: input.executionId,
-      command: command.command,
-      args: command.args,
-      started_at: startedAt,
-      stdout_log_path: logPaths.stdout_log_path,
-      stderr_log_path: logPaths.stderr_log_path,
-    };
     let settled = false;
     let child: ReturnType<typeof spawn> | null = null;
 

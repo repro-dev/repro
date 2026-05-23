@@ -69,9 +69,11 @@ import {
 import {
   createNoopPlanningSessionRunner,
   runOpenCodePlanningSession,
+  startOpenCodePlanningSessionWorker,
   type PlanningSessionArtifactPaths,
   type PlanningSessionResult,
   type PlanningSessionRunner,
+  type PlanningWorkerStarter,
 } from "./planning-session";
 import type { SingleTrackPhaseContractName } from "./phase-contracts";
 import { renderSingleTrackPhaseContract } from "./phase-contracts";
@@ -122,6 +124,7 @@ export interface AutobotServiceDependencies {
   artifactWriter?: ArtifactWriter;
   artifactReader?: ArtifactReader;
   planningSessionRunner?: PlanningSessionRunner;
+  planningWorkerStarter?: PlanningWorkerStarter;
   discoverIssues?: (
     input: DiscoverIssueInput,
   ) => FutureInstance<unknown, DiscoverCandidate[]>;
@@ -1090,6 +1093,7 @@ const retryableFailureCodes = new Set([
   "AUTOBOT-WORKER-STALE",
   "AUTOBOT-WORKER-MISSING-PROCESS",
   "AUTOBOT-WORKER-SPAWN-FAILED",
+  "AUTOBOT-PLANNING-WORKER-RESULT-MISSING",
 ]);
 
 function isRetryableFailedItem(item: ItemSummary): boolean {
@@ -1268,6 +1272,332 @@ type EngineTickReconciliationOutcome = {
   skipped: EngineTickSkip[];
 };
 
+function isPlanningWorker(worker: WorkerSummary): boolean {
+  return (
+    worker.phase === "planning" ||
+    worker.phase === "plan" ||
+    worker.workflow_node_id === "planning" ||
+    worker.workflow_node_id === "plan"
+  );
+}
+
+function isPlanningWorkerReconciliationState(
+  state: RunSummary["state"],
+): boolean {
+  return state === "claimed" || state === "preparing" || state === "planning";
+}
+
+function planningSessionResultFromWorker(
+  worker: WorkerSummary,
+): PlanningSessionResult | null {
+  const result = worker.result;
+
+  if (result === null || result === undefined) {
+    return null;
+  }
+
+  if (
+    typeof result.command !== "string" ||
+    !Array.isArray(result.args) ||
+    !result.args.every((arg) => typeof arg === "string") ||
+    typeof result.started_at !== "string" ||
+    typeof result.finished_at !== "string" ||
+    (typeof result.exit_code !== "number" && result.exit_code !== null) ||
+    (typeof result.signal !== "string" && result.signal !== null) ||
+    typeof result.stdout !== "string" ||
+    typeof result.stderr !== "string"
+  ) {
+    return null;
+  }
+
+  return {
+    command: result.command,
+    args: result.args,
+    started_at: result.started_at,
+    finished_at: result.finished_at,
+    exit_code: result.exit_code,
+    signal: result.signal as NodeJS.Signals | null,
+    stdout: result.stdout,
+    stderr: result.stderr,
+  };
+}
+
+function reconcileCompletedPlanningWorker(input: {
+  store: AutobotStore;
+  item: ItemSummary;
+  currentRun: RunSummary;
+  worker: WorkerSummary;
+  tickAt: string;
+  dryRun: boolean;
+  artifactWriter: ArtifactWriter;
+  artifactReader: ArtifactReader;
+}): FutureInstance<unknown, EngineTickReconciliationOutcome> {
+  const planningSessionResult = planningSessionResultFromWorker(input.worker);
+
+  if (planningSessionResult === null) {
+    const lastError = createWorkerReconciliationError({
+      code: "AUTOBOT-PLANNING-WORKER-RESULT-MISSING",
+      message:
+        "completed planning worker did not produce a valid result payload for workflow reconciliation",
+      occurredAt: input.tickAt,
+    });
+    const nextItem = buildItemSummaryFromExisting(
+      input.item,
+      "failed",
+      input.tickAt,
+    );
+
+    if (input.dryRun) {
+      return resolve({
+        item: nextItem,
+        reconciled_issue_id: input.item.issue_id,
+        skipped: [],
+      });
+    }
+
+    return input.store.runs
+      .upsert({
+        ...input.currentRun,
+        state: "failed",
+        finished_at: input.tickAt,
+        worker_id: null,
+        last_heartbeat_at: null,
+      })
+      .pipe(
+        chain(() =>
+          input.store.items
+            .upsert(
+              createReconciledItemRecord({
+                item: input.item,
+                state: "failed",
+                updatedAt: input.tickAt,
+                lastError,
+                recoveryCommands: createWorkerRecoveryCommands(
+                  input.item.issue_id,
+                  true,
+                ),
+              }),
+            )
+            .pipe(
+              chain(() =>
+                input.store.events
+                  .append(
+                    createEngineReconciledEvent({
+                      issue_id: input.item.issue_id,
+                      previous_state: input.item.state,
+                      next_state: "failed",
+                      reason: "planning-worker-result-missing",
+                      tick_at: input.tickAt,
+                    }),
+                  )
+                  .pipe(
+                    map(() => ({
+                      item: nextItem,
+                      reconciled_issue_id: input.item.issue_id,
+                      skipped: [],
+                    })),
+                  ),
+              ),
+            ),
+        ),
+      );
+  }
+
+  if (input.dryRun) {
+    return resolve({
+      item: input.item,
+      reconciled_issue_id: null,
+      skipped: [],
+    });
+  }
+
+  const fallbackItemDetail: ItemDetail = {
+    ...input.item,
+    linear: null,
+    current_run: input.currentRun,
+    cancellation_requested: false,
+    cancellation_requested_at: null,
+    recovery_commands: [`autobot-next status ${input.item.issue_id} --json`],
+    artifacts: [],
+    events: [],
+  };
+
+  return input.store.projections.getItemDetail(input.item.issue_id).pipe(
+    chain((itemDetail) => {
+      const planningItem = itemDetail ?? fallbackItemDetail;
+      const planningArtifactDrafts = buildPlanningArtifactDrafts({
+        repoPath: input.store.repo.path,
+        item: planningItem,
+        runId: input.currentRun.run_id,
+        executionId: input.currentRun.flowcraft_execution_id!,
+        startedAt: input.currentRun.started_at,
+      });
+      const planningArtifactPaths = buildPlanningSessionArtifactPaths(
+        planningArtifactDrafts,
+        input.store.repo.path,
+      );
+      const workflowFinishedAt = createCurrentOrLaterTimestamp(
+        input.tickAt,
+        planningSessionResult.finished_at,
+      );
+
+      return executeAutobotDeliverIssueWorkflow({
+        issue_id: input.item.issue_id,
+        run_id: input.currentRun.run_id,
+        execution_id: input.currentRun.flowcraft_execution_id!,
+        started_at: input.tickAt,
+        finished_at: workflowFinishedAt,
+        transport: null,
+        dependencies: {
+          autobotPlanning: {
+            repo: input.store.repo,
+            item: planningItem,
+            artifactDrafts: planningArtifactDrafts,
+            artifactPaths: planningArtifactPaths,
+            artifactWriter: input.artifactWriter,
+            artifactReader: input.artifactReader,
+            planningSessionRunner: () => resolve(planningSessionResult),
+          },
+        },
+      }).pipe(
+        chain((plan: FlowcraftExecutionPlan) => {
+          const runState = mapFlowcraftStatusToItemState(
+            plan.metadata.workflow_status,
+          );
+          const flowcraftFinishedAt = createMonotonicLaterTimestamp(
+            plan.metadata.planning_session_result?.finished_at ??
+              workflowFinishedAt,
+          );
+          const planningSessionResult = plan.metadata.planning_session_result;
+          const lastError =
+            runState === "awaiting"
+              ? {
+                  code: "AUTOBOT-PLANNER-RUN-PLAN-NOT-READY",
+                  message:
+                    "planning session produced a non-ready run-plan.md; route to research-refine before implementation",
+                  occurred_at:
+                    plan.metadata.planning_session_result?.finished_at ??
+                    flowcraftFinishedAt,
+                }
+              : plan.metadata.planning_should_fail === true
+              ? planningSessionResult === null
+                ? {
+                    code: "AUTOBOT-PLANNING-ARTIFACTS-FAILED",
+                    message:
+                      plan.metadata.planning_failure_reason ??
+                      "planning failed",
+                    occurred_at: flowcraftFinishedAt,
+                  }
+                : plan.metadata.planning_run_plan_valid === false
+                ? {
+                    code: "AUTOBOT-PLANNER-RUN-PLAN-INVALID",
+                    message:
+                      plan.metadata.planning_failure_reason ??
+                      "planning session produced invalid run-plan.md",
+                    occurred_at: planningSessionResult.finished_at,
+                  }
+                : {
+                    code: "AUTOBOT-PLANNER-SESSION-FAILED",
+                    message: `planning session exited with code ${String(
+                      planningSessionResult.exit_code,
+                    )}`,
+                    occurred_at: planningSessionResult.finished_at,
+                  }
+              : null;
+          const nextItem = buildItemSummaryFromExisting(
+            input.item,
+            runState,
+            flowcraftFinishedAt,
+          );
+
+          return input.store.transaction((transaction) => {
+            const recordArtifact = (draft: PlanningArtifactDraft) =>
+              transaction.artifacts
+                .record({
+                  issue_id: input.item.issue_id,
+                  run_id: input.currentRun.run_id,
+                  attempt: input.item.attempt,
+                  kind: draft.kind,
+                  path: draft.path,
+                  description: draft.description,
+                  content_hash: draft.content_hash,
+                  supersedes_artifact_id: null,
+                  inherited_from_artifact_id: null,
+                  created_at: input.currentRun.started_at,
+                })
+                .pipe(map(() => undefined));
+
+            return transaction.runs
+              .upsert({
+                ...input.currentRun,
+                state: runState,
+                finished_at: flowcraftFinishedAt,
+                worker_id: null,
+                last_heartbeat_at: null,
+              })
+              .pipe(
+                chain((run) =>
+                  sequenceFutures([
+                    ...plan.metadata.planning_artifacts
+                      .filter((draft) => draft.persist !== false)
+                      .map(recordArtifact),
+                    transaction.flowcraft
+                      .recordExecution({
+                        execution_id: input.currentRun.flowcraft_execution_id!,
+                        issue_id: input.item.issue_id,
+                        run_id: run.run_id,
+                        state: runState,
+                        started_at: input.currentRun.started_at,
+                        finished_at: flowcraftFinishedAt,
+                        metadata: plan.metadata,
+                      })
+                      .pipe(map(() => undefined)),
+                    ...plan.flowcraft_events.map((event) =>
+                      transaction.flowcraft
+                        .recordEvent(event)
+                        .pipe(map(() => undefined)),
+                    ),
+                    ...plan.domain_events.map((event) =>
+                      transaction.events
+                        .append(event)
+                        .pipe(map(() => undefined)),
+                    ),
+                    transaction.items
+                      .upsert(
+                        toItemRecordFromDetail({
+                          ...planningItem,
+                          state: runState,
+                          updated_at: flowcraftFinishedAt,
+                          last_error: lastError,
+                          last_event:
+                            plan.domain_events.at(-1)?.type ??
+                            plan.flowcraft_events.at(-1)?.type ??
+                            null,
+                          recovery_commands: plan.metadata.recovery_commands,
+                          cancellation_requested: false,
+                          cancellation_requested_at: null,
+                          current_run: null,
+                          artifacts: [],
+                          events: [],
+                        }),
+                      )
+                      .pipe(map(() => undefined)),
+                  ]).pipe(
+                    map(() => ({
+                      item: nextItem,
+                      reconciled_issue_id: input.item.issue_id,
+                      skipped: [],
+                    })),
+                  ),
+                ),
+              );
+          });
+        }),
+      );
+    }),
+  );
+}
+
 function reconcileEngineItem(
   store: AutobotStore,
   item: ItemSummary,
@@ -1276,6 +1606,8 @@ function reconcileEngineItem(
   tickAt: string,
   dryRun: boolean,
   maxRetries: number,
+  artifactWriter: ArtifactWriter,
+  artifactReader: ArtifactReader,
   isProcessAlive?: AutobotServiceDependencies["isProcessAlive"],
   killProcess?: AutobotServiceDependencies["kill"],
 ): FutureInstance<unknown, EngineTickReconciliationOutcome> {
@@ -1388,6 +1720,22 @@ function reconcileEngineItem(
             worker.state === "completed" ||
             (worker.exit_code === 0 && worker.signal === null)
           ) {
+            if (
+              isPlanningWorker(worker) &&
+              isPlanningWorkerReconciliationState(currentRun.state)
+            ) {
+              return reconcileCompletedPlanningWorker({
+                store,
+                item,
+                currentRun,
+                worker,
+                tickAt,
+                dryRun,
+                artifactWriter,
+                artifactReader,
+              });
+            }
+
             const nextItem = buildItemSummaryFromExisting(
               item,
               "completed",
@@ -1807,6 +2155,126 @@ function reconcileEngineItem(
   );
 }
 
+function isInProgressItemEligibleForReconciliation(
+  store: AutobotStore,
+  item: ItemSummary,
+  workers: WorkerSummary[],
+  workersById: Map<string, WorkerSummary>,
+  tickAt: string,
+  isProcessAlive?: AutobotServiceDependencies["isProcessAlive"],
+): FutureInstance<unknown, boolean> {
+  if (!isInProgressState(item.state)) {
+    return resolve(false);
+  }
+
+  return store.runs.getCurrent(item.issue_id).pipe(
+    map((currentRun) => {
+      if (currentRun === null || isTerminalState(currentRun.state)) {
+        return true;
+      }
+
+      const worker = findCurrentWorker({
+        item,
+        currentRun,
+        workers,
+        workersById,
+      });
+
+      if (worker === null) {
+        return false;
+      }
+
+      if (
+        worker.state === "completed" ||
+        worker.state === "failed" ||
+        worker.state === "cancellation-requested" ||
+        worker.spawn_error != null ||
+        (worker.exit_code ?? null) !== null ||
+        (worker.signal ?? null) !== null
+      ) {
+        return true;
+      }
+
+      if (
+        worker.state === "running" ||
+        worker.state === "starting" ||
+        worker.state === "stale"
+      ) {
+        const liveness = resolveProcessLiveness(worker, isProcessAlive);
+
+        if (!liveness.anyAlive) {
+          return true;
+        }
+
+        return (
+          worker.state !== "stale" &&
+          worker.deadline_at !== null &&
+          worker.deadline_at !== undefined &&
+          worker.deadline_at <= tickAt
+        );
+      }
+
+      return false;
+    }),
+  );
+}
+
+function reconcileEligibleEngineItems(input: {
+  store: AutobotStore;
+  items: ItemSummary[];
+  workers: WorkerSummary[];
+  workersById: Map<string, WorkerSummary>;
+  tickAt: string;
+  dryRun: boolean;
+  maxRetries: number;
+  artifactWriter: ArtifactWriter;
+  artifactReader: ArtifactReader;
+  isProcessAlive?: AutobotServiceDependencies["isProcessAlive"];
+  killProcess?: AutobotServiceDependencies["kill"];
+}): FutureInstance<unknown, EngineTickReconciliationOutcome[]> {
+  const scan = (
+    index: number,
+    outcomes: EngineTickReconciliationOutcome[],
+  ): FutureInstance<unknown, EngineTickReconciliationOutcome[]> => {
+    const item = input.items[index];
+
+    if (item === undefined) {
+      return resolve(outcomes);
+    }
+
+    return isInProgressItemEligibleForReconciliation(
+      input.store,
+      item,
+      input.workers,
+      input.workersById,
+      input.tickAt,
+      input.isProcessAlive,
+    ).pipe(
+      chain((eligible) => {
+        if (!eligible) {
+          return scan(index + 1, outcomes);
+        }
+
+        return reconcileEngineItem(
+          input.store,
+          item,
+          input.workers,
+          input.workersById,
+          input.tickAt,
+          input.dryRun,
+          input.maxRetries,
+          input.artifactWriter,
+          input.artifactReader,
+          input.isProcessAlive,
+          input.killProcess,
+        ).pipe(chain((outcome) => scan(index + 1, [...outcomes, outcome])));
+      }),
+    );
+  };
+
+  return scan(0, []);
+}
+
 function reconcileRetryableFailedItem(
   store: AutobotStore,
   item: ItemSummary,
@@ -2200,17 +2668,49 @@ function createFlowcraftInspectResult(input: {
 function loadFlowcraftExecutionContext(
   store: AutobotStore,
   executionId: string,
+  fallbackRun: RunSummary | null = null,
 ): FutureInstance<unknown, FlowcraftExecutionContext> {
   return store.flowcraft.getExecution(executionId).pipe(
     chain((execution) => {
       if (execution === null) {
-        return resolve({
-          execution,
-          run: null,
-          worker: null,
-          artifacts: [],
-          flowcraft_events: [],
-        } as FlowcraftExecutionContext);
+        const workerFuture =
+          fallbackRun === null
+            ? store.workers.resolveCurrentByFlowcraftExecution(executionId)
+            : store.workers
+                .resolveCurrentByFlowcraftExecution(executionId)
+                .pipe(
+                  chain((worker) =>
+                    worker !== null
+                      ? resolve(worker)
+                      : store.workers.resolveCurrentByRun(fallbackRun.run_id),
+                  ),
+                );
+
+        return workerFuture.pipe(
+          chain(
+            (worker): FutureInstance<unknown, FlowcraftExecutionContext> => {
+              if (fallbackRun === null) {
+                return resolve({
+                  execution,
+                  run: null,
+                  worker,
+                  artifacts: [] as ArtifactRef[],
+                  flowcraft_events: [],
+                });
+              }
+
+              return store.artifacts.list(fallbackRun.issue_id).pipe(
+                map((artifacts) => ({
+                  execution,
+                  run: fallbackRun,
+                  worker,
+                  artifacts,
+                  flowcraft_events: [],
+                })),
+              );
+            },
+          ),
+        ) as FutureInstance<unknown, FlowcraftExecutionContext>;
       }
 
       const runFuture =
@@ -2750,6 +3250,7 @@ function handleInspect(
     return loadFlowcraftExecutionContext(
       store,
       run.flowcraft_execution_id,
+      run,
     ).pipe(
       chain(({ execution, worker, artifacts, flowcraft_events }) =>
         store.events.list(run.issue_id, { runId: run.run_id }).pipe(
@@ -3698,6 +4199,7 @@ function runBoundedWorkflowTickForItem(
   artifactWriter: ArtifactWriter = defaultArtifactWriter,
   artifactReader: ArtifactReader = defaultArtifactReader,
   planningSessionRunner: PlanningSessionRunner = createNoopPlanningSessionRunner(),
+  planningWorkerStarter?: PlanningWorkerStarter,
   loadLinearIssueDependency?: AutobotServiceDependencies["loadLinearIssue"],
 ): FutureInstance<unknown, void> {
   const startedAt = tickAt;
@@ -3762,6 +4264,83 @@ function runBoundedWorkflowTickForItem(
               workflowStartedAt,
               now(),
             );
+
+            if (planningWorkerStarter !== undefined) {
+              const artifactCreatedEvents = planningArtifactDrafts
+                .filter((draft) => draft.persist !== false)
+                .map((artifact) =>
+                  createPlanningArtifactCreatedEvent({
+                    issueId: target.issue_id,
+                    runId,
+                    executionId,
+                    artifact,
+                    occurredAt: planningAt,
+                  }),
+                );
+
+              return sequenceFutures([
+                persistWorkflowClaim({
+                  store,
+                  item: planningItem,
+                  issueId: target.issue_id,
+                  attempt: target.attempt,
+                  runId,
+                  executionId,
+                  occurredAt: claimedAt,
+                  startedAt,
+                  recoveryCommands: progressRecoveryCommands,
+                }),
+                persistWorkflowProgressTransition({
+                  store,
+                  item: planningItem,
+                  issueId: target.issue_id,
+                  attempt: target.attempt,
+                  runId,
+                  executionId,
+                  state: "preparing",
+                  phase: "preparing",
+                  eventType: "workflow.phase.preparing",
+                  message: "Issue is preparing",
+                  occurredAt: preparingAt,
+                  startedAt,
+                  recoveryCommands: progressRecoveryCommands,
+                }),
+                persistWorkflowProgressTransition({
+                  store,
+                  item: planningItem,
+                  issueId: target.issue_id,
+                  attempt: target.attempt,
+                  runId,
+                  executionId,
+                  state: "planning",
+                  phase: "planning",
+                  eventType: "workflow.phase.planning",
+                  message: "Issue is planning",
+                  occurredAt: planningAt,
+                  startedAt,
+                  recoveryCommands: progressRecoveryCommands,
+                }),
+                persistPlanningArtifacts(
+                  planningArtifactDrafts,
+                  artifactWriter,
+                  store.repo.path,
+                ),
+                sequenceFutures(
+                  artifactCreatedEvents.map((event) =>
+                    store.events.append(event).pipe(map(() => undefined)),
+                  ),
+                ).pipe(map(() => undefined)),
+                planningWorkerStarter({
+                  phase: "plan",
+                  repo: store.repo,
+                  issueId: target.issue_id,
+                  attempt: target.attempt,
+                  runId,
+                  executionId,
+                  artifactPaths: planningArtifactPaths,
+                }),
+              ]).pipe(map(() => undefined));
+            }
 
             return sequenceFutures([
               persistWorkflowClaim({
@@ -3981,6 +4560,7 @@ function handleEngineRunOnce(
   artifactWriter: ArtifactWriter = defaultArtifactWriter,
   artifactReader: ArtifactReader = defaultArtifactReader,
   planningSessionRunner: PlanningSessionRunner = createNoopPlanningSessionRunner(),
+  planningWorkerStarter?: PlanningWorkerStarter,
   loadLinearIssue?: AutobotServiceDependencies["loadLinearIssue"],
   isProcessAlive?: AutobotServiceDependencies["isProcessAlive"],
   killProcess?: AutobotServiceDependencies["kill"],
@@ -4016,338 +4596,354 @@ function handleEngineRunOnce(
               const selectedIssueIds: string[] = [];
               const startedIssueIds: string[] = [];
               const skipped: EngineTickSkip[] = [];
+              const inProgressItems = workingItems.filter((item) =>
+                isInProgressState(item.state),
+              );
+              const applyReconciliationOutcome = (
+                outcome: EngineTickReconciliationOutcome,
+              ) => {
+                if (outcome.reconciled_issue_id !== null) {
+                  reconciledIssueIds.push(outcome.reconciled_issue_id);
+                }
 
-              const reconcileFutures = workingItems
-                .filter((item) => isInProgressState(item.state))
-                .map((item) =>
-                  reconcileEngineItem(
-                    store,
-                    item,
-                    workers,
-                    workersById,
-                    tickAt,
-                    invocation.options.dry_run,
-                    settings.maxRetries,
-                    isProcessAlive,
-                    killProcess,
-                  ).pipe(
-                    map((outcome) => {
-                      if (outcome.reconciled_issue_id !== null) {
-                        reconciledIssueIds.push(outcome.reconciled_issue_id);
-                      }
-
-                      const index = workingItems.findIndex(
-                        (current) => current.issue_id === outcome.item.issue_id,
-                      );
-                      if (index !== -1) {
-                        workingItems[index] = outcome.item;
-                      }
-
-                      return outcome;
-                    }),
-                  ),
+                const index = workingItems.findIndex(
+                  (current) => current.issue_id === outcome.item.issue_id,
                 );
+                if (index !== -1) {
+                  workingItems[index] = outcome.item;
+                }
 
-              return sequenceFutures(reconcileFutures).pipe(
-                chain(() => {
-                  const retryFutures = workingItems
-                    .filter((item) => isRetryableFailedItem(item))
-                    .map((item) =>
+                return outcome;
+              };
+
+              return reconcileEligibleEngineItems({
+                store,
+                items: inProgressItems,
+                workers,
+                workersById,
+                tickAt,
+                dryRun: invocation.options.dry_run,
+                maxRetries: settings.maxRetries,
+                artifactWriter,
+                artifactReader,
+                isProcessAlive,
+                killProcess,
+              })
+                .pipe(
+                  map((outcomes) => {
+                    for (const outcome of outcomes) {
+                      applyReconciliationOutcome(outcome);
+                    }
+
+                    return outcomes;
+                  }),
+                )
+                .pipe(
+                  chain(() => {
+                    const retryableItems = workingItems.filter((item) =>
+                      isRetryableFailedItem(item),
+                    );
+                    const retryFutures = retryableItems.map((item) =>
                       reconcileRetryableFailedItem(
                         store,
                         item,
                         tickAt,
                         invocation.options.dry_run,
                         settings.maxRetries,
-                      ).pipe(
-                        map((outcome) => {
-                          if (outcome.reconciled_issue_id !== null) {
-                            reconciledIssueIds.push(
-                              outcome.reconciled_issue_id,
-                            );
-                          }
-
-                          const index = workingItems.findIndex(
-                            (current) =>
-                              current.issue_id === outcome.item.issue_id,
-                          );
-                          if (index !== -1) {
-                            workingItems[index] = outcome.item;
-                          }
-
-                          return outcome;
-                        }),
-                      ),
+                      ).pipe(map(applyReconciliationOutcome)),
                     );
 
-                  return sequenceFutures(retryFutures).pipe(
-                    chain(() => {
-                      const queueDiscoveredCandidates = (
-                        candidates: DiscoverCandidate[],
-                      ): FutureInstance<unknown, void> => {
-                        discoveredIssueIds.push(
-                          ...candidates.map((candidate) => candidate.issue_id),
-                        );
+                    return sequenceFutures(retryFutures).pipe(
+                      chain(() => {
+                        const refreshWorkingItems = invocation.options.dry_run
+                          ? resolve(undefined)
+                          : store.projections.listItems().pipe(
+                              map((items) => {
+                                workingItems.splice(
+                                  0,
+                                  workingItems.length,
+                                  ...items,
+                                );
+                              }),
+                            );
 
-                        const knownIssueIds = new Map(
-                          workingItems.map(
-                            (item) => [item.issue_id, item] as const,
-                          ),
-                        );
-                        const queueBudget = Math.max(
-                          0,
-                          settings.queueDepth -
-                            workingItems.filter(
-                              (item) => item.state === "queued",
-                            ).length,
-                        );
-                        const accepted: EngineTickCandidateRecord[] = [];
-
-                        for (const candidate of candidates) {
-                          const existing = knownIssueIds.get(
-                            candidate.issue_id,
+                        const queueDiscoveredCandidates = (
+                          candidates: DiscoverCandidate[],
+                        ): FutureInstance<unknown, void> => {
+                          discoveredIssueIds.push(
+                            ...candidates.map(
+                              (candidate) => candidate.issue_id,
+                            ),
                           );
-                          if (existing !== undefined) {
-                            skipped.push({
-                              issue_id: candidate.issue_id,
-                              reason: "local-existing",
-                              details: {
-                                state: existing.state,
-                              },
-                            });
-                            continue;
-                          }
 
-                          if (accepted.length >= queueBudget) {
-                            skipped.push({
-                              issue_id: candidate.issue_id,
-                              reason: "queue-depth-exhausted",
-                              details: {
-                                queue_depth: settings.queueDepth,
-                              },
-                            });
-                            continue;
-                          }
-
-                          const queueCandidate = createDiscoveredItemRecord(
-                            candidate,
-                            tickAt,
+                          const knownIssueIds = new Map(
+                            workingItems.map(
+                              (item) => [item.issue_id, item] as const,
+                            ),
                           );
-                          accepted.push(queueCandidate);
-                          knownIssueIds.set(
-                            candidate.issue_id,
-                            queueCandidate.summary,
-                          );
-                        }
-
-                        const queueCandidates = accepted;
-
-                        queuedIssueIds.push(
-                          ...queueCandidates.map(
-                            (candidate) => candidate.summary.issue_id,
-                          ),
-                        );
-
-                        for (const candidate of queueCandidates) {
-                          workingItems.push(candidate.summary);
-                        }
-
-                        if (
-                          invocation.options.dry_run ||
-                          queueCandidates.length === 0
-                        ) {
-                          return resolve(undefined);
-                        }
-
-                        const persistQueueFutures = queueCandidates.flatMap(
-                          (candidate, index) => {
-                            const queuePosition =
+                          const queueBudget = Math.max(
+                            0,
+                            settings.queueDepth -
                               workingItems.filter(
                                 (item) => item.state === "queued",
-                              ).length -
-                              queueCandidates.length +
-                              index +
-                              1;
-                            const event = createDomainEvent({
-                              type: "item.queued",
-                              severity: "info",
-                              state: "queued",
-                              message: "Item queued",
-                              issue_id: candidate.summary.issue_id,
-                              occurred_at: tickAt,
-                              data: {
-                                issue_id: candidate.summary.issue_id,
-                                queue_position: queuePosition,
-                                reason: "automatic discovery",
-                              },
-                            });
-
-                            return [
-                              store.items
-                                .upsert(candidate.record)
-                                .pipe(map(() => undefined)),
-                              store.events
-                                .append(event)
-                                .pipe(map(() => undefined)),
-                            ];
-                          },
-                        );
-
-                        return sequenceFutures(persistQueueFutures).pipe(
-                          map(() => undefined),
-                        );
-                      };
-
-                      const discoveryFuture = settings.autoDiscover
-                        ? settings.discoveryProjects.length === 0
-                          ? (warnings.push(createEngineDiscoveryWarning()),
-                            resolve(undefined))
-                          : defaultDiscoverIssues({
-                              repo: store.repo,
-                              projects: settings.discoveryProjects,
-                              scanLimit: settings.scanLimit,
-                            }).pipe(chain(queueDiscoveredCandidates))
-                        : resolve(undefined);
-
-                      return discoveryFuture.pipe(
-                        chain(() => {
-                          const activeCount = workingItems.filter((item) =>
-                            isInProgressState(item.state),
-                          ).length;
-                          const capacity = Math.max(
-                            0,
-                            settings.maxConcurrency - activeCount,
+                              ).length,
                           );
-                          const queuedItems = [...workingItems]
-                            .filter((item) => item.state === "queued")
-                            .sort(compareQueuedItems);
-                          const selectedItems = queuedItems.slice(0, capacity);
+                          const accepted: EngineTickCandidateRecord[] = [];
 
-                          selectedIssueIds.push(
-                            ...selectedItems.map((item) => item.issue_id),
-                          );
-                          if (!invocation.options.dry_run) {
-                            startedIssueIds.push(...selectedIssueIds);
-                          }
-                          skipped.push(
-                            ...queuedItems.slice(capacity).map((item) => ({
-                              issue_id: item.issue_id,
-                              reason: "capacity-exhausted",
-                              details: {
-                                capacity,
-                              },
-                            })),
-                          );
+                          for (const candidate of candidates) {
+                            const existing = knownIssueIds.get(
+                              candidate.issue_id,
+                            );
+                            if (existing !== undefined) {
+                              skipped.push({
+                                issue_id: candidate.issue_id,
+                                reason: "local-existing",
+                                details: {
+                                  state: existing.state,
+                                },
+                              });
+                              continue;
+                            }
 
-                          const tickReport: EngineTickReport = {
-                            dry_run: invocation.options.dry_run,
-                            tick_at: tickAt,
-                            reconciled_issue_ids: reconciledIssueIds,
-                            discovered_issue_ids: discoveredIssueIds,
-                            queued_issue_ids: queuedIssueIds,
-                            selected_issue_ids: selectedIssueIds,
-                            started_issue_ids: startedIssueIds,
-                            skipped,
-                          };
+                            if (accepted.length >= queueBudget) {
+                              skipped.push({
+                                issue_id: candidate.issue_id,
+                                reason: "queue-depth-exhausted",
+                                details: {
+                                  queue_depth: settings.queueDepth,
+                                },
+                              });
+                              continue;
+                            }
 
-                          if (invocation.options.dry_run) {
-                            return createQueueStatus(store, {
-                              command: invocation.command,
-                              lastTickAt: tickAt,
-                              runtime: runtime ?? null,
-                              tick: tickReport,
-                              warnings,
-                            }).pipe(
-                              map((result) =>
-                                root === "supervisor"
-                                  ? liftQueueStatusToSupervisorStatus(
-                                      result as Extract<
-                                        AutobotCommandResult,
-                                        { kind: "queue-status" }
-                                      >,
-                                    )
-                                  : result,
-                              ),
+                            const queueCandidate = createDiscoveredItemRecord(
+                              candidate,
+                              tickAt,
+                            );
+                            accepted.push(queueCandidate);
+                            knownIssueIds.set(
+                              candidate.issue_id,
+                              queueCandidate.summary,
                             );
                           }
 
-                          const startedEvent = createEngineTickEvent({
-                            type: "engine.tick.started",
-                            tickAt,
-                            selectedIssueIds,
-                            reconciledIssueIds,
-                            queuedIssueIds,
-                            startedIssueIds,
-                          });
-                          const selectedEvent = createEngineTickEvent({
-                            type: "engine.tick.selected",
-                            tickAt,
-                            selectedIssueIds,
-                            reconciledIssueIds,
-                            queuedIssueIds,
-                            startedIssueIds,
-                          });
-                          const finishedEvent = createEngineTickEvent({
-                            type: "engine.tick.finished",
-                            tickAt,
-                            selectedIssueIds,
-                            reconciledIssueIds,
-                            queuedIssueIds,
-                            startedIssueIds,
-                          });
+                          const queueCandidates = accepted;
 
-                          return sequenceFutures([
-                            store.events
-                              .append(startedEvent)
-                              .pipe(map(() => undefined)),
-                            store.events
-                              .append(selectedEvent)
-                              .pipe(map(() => undefined)),
-                            ...selectedItems.map((target) =>
-                              runBoundedWorkflowTickForItem(
-                                store,
-                                target,
-                                tickAt,
-                                randomId,
-                                now,
-                                artifactWriter,
-                                artifactReader,
-                                planningSessionRunner,
-                                loadLinearIssue,
-                              ),
+                          queuedIssueIds.push(
+                            ...queueCandidates.map(
+                              (candidate) => candidate.summary.issue_id,
                             ),
-                          ]).pipe(
-                            chain(() =>
-                              store.events.append(finishedEvent).pipe(
+                          );
+
+                          for (const candidate of queueCandidates) {
+                            workingItems.push(candidate.summary);
+                          }
+
+                          if (
+                            invocation.options.dry_run ||
+                            queueCandidates.length === 0
+                          ) {
+                            return resolve(undefined);
+                          }
+
+                          const persistQueueFutures = queueCandidates.flatMap(
+                            (candidate, index) => {
+                              const queuePosition =
+                                workingItems.filter(
+                                  (item) => item.state === "queued",
+                                ).length -
+                                queueCandidates.length +
+                                index +
+                                1;
+                              const event = createDomainEvent({
+                                type: "item.queued",
+                                severity: "info",
+                                state: "queued",
+                                message: "Item queued",
+                                issue_id: candidate.summary.issue_id,
+                                occurred_at: tickAt,
+                                data: {
+                                  issue_id: candidate.summary.issue_id,
+                                  queue_position: queuePosition,
+                                  reason: "automatic discovery",
+                                },
+                              });
+
+                              return [
+                                store.items
+                                  .upsert(candidate.record)
+                                  .pipe(map(() => undefined)),
+                                store.events
+                                  .append(event)
+                                  .pipe(map(() => undefined)),
+                              ];
+                            },
+                          );
+
+                          return sequenceFutures(persistQueueFutures).pipe(
+                            map(() => undefined),
+                          );
+                        };
+
+                        const discoveryFuture = settings.autoDiscover
+                          ? settings.discoveryProjects.length === 0
+                            ? (warnings.push(createEngineDiscoveryWarning()),
+                              resolve(undefined))
+                            : defaultDiscoverIssues({
+                                repo: store.repo,
+                                projects: settings.discoveryProjects,
+                                scanLimit: settings.scanLimit,
+                              }).pipe(chain(queueDiscoveredCandidates))
+                          : resolve(undefined);
+
+                        return refreshWorkingItems
+                          .pipe(chain(() => discoveryFuture))
+                          .pipe(
+                            chain(() => {
+                              const activeCount = workingItems.filter((item) =>
+                                isInProgressState(item.state),
+                              ).length;
+                              const capacity = Math.max(
+                                0,
+                                settings.maxConcurrency - activeCount,
+                              );
+                              const queuedItems = [...workingItems]
+                                .filter((item) => item.state === "queued")
+                                .sort(compareQueuedItems);
+                              const selectionLimit = capacity;
+                              const selectedItems = queuedItems.slice(
+                                0,
+                                selectionLimit,
+                              );
+
+                              selectedIssueIds.push(
+                                ...selectedItems.map((item) => item.issue_id),
+                              );
+                              if (!invocation.options.dry_run) {
+                                startedIssueIds.push(...selectedIssueIds);
+                              }
+                              skipped.push(
+                                ...queuedItems
+                                  .slice(selectedItems.length)
+                                  .map((item) => ({
+                                    issue_id: item.issue_id,
+                                    reason: "capacity-exhausted",
+                                    details: {
+                                      capacity,
+                                    },
+                                  })),
+                              );
+
+                              const tickReport: EngineTickReport = {
+                                dry_run: invocation.options.dry_run,
+                                tick_at: tickAt,
+                                reconciled_issue_ids: reconciledIssueIds,
+                                discovered_issue_ids: discoveredIssueIds,
+                                queued_issue_ids: queuedIssueIds,
+                                selected_issue_ids: selectedIssueIds,
+                                started_issue_ids: startedIssueIds,
+                                skipped,
+                              };
+
+                              if (invocation.options.dry_run) {
+                                return createQueueStatus(store, {
+                                  command: invocation.command,
+                                  lastTickAt: tickAt,
+                                  runtime: runtime ?? null,
+                                  tick: tickReport,
+                                  warnings,
+                                }).pipe(
+                                  map((result) =>
+                                    root === "supervisor"
+                                      ? liftQueueStatusToSupervisorStatus(
+                                          result as Extract<
+                                            AutobotCommandResult,
+                                            { kind: "queue-status" }
+                                          >,
+                                        )
+                                      : result,
+                                  ),
+                                );
+                              }
+
+                              const startedEvent = createEngineTickEvent({
+                                type: "engine.tick.started",
+                                tickAt,
+                                selectedIssueIds,
+                                reconciledIssueIds,
+                                queuedIssueIds,
+                                startedIssueIds,
+                              });
+                              const selectedEvent = createEngineTickEvent({
+                                type: "engine.tick.selected",
+                                tickAt,
+                                selectedIssueIds,
+                                reconciledIssueIds,
+                                queuedIssueIds,
+                                startedIssueIds,
+                              });
+                              const finishedEvent = createEngineTickEvent({
+                                type: "engine.tick.finished",
+                                tickAt,
+                                selectedIssueIds,
+                                reconciledIssueIds,
+                                queuedIssueIds,
+                                startedIssueIds,
+                              });
+
+                              return sequenceFutures([
+                                store.events
+                                  .append(startedEvent)
+                                  .pipe(map(() => undefined)),
+                                store.events
+                                  .append(selectedEvent)
+                                  .pipe(map(() => undefined)),
+                                ...selectedItems.map((target) =>
+                                  runBoundedWorkflowTickForItem(
+                                    store,
+                                    target,
+                                    tickAt,
+                                    randomId,
+                                    now,
+                                    artifactWriter,
+                                    artifactReader,
+                                    planningSessionRunner,
+                                    planningWorkerStarter,
+                                    loadLinearIssue,
+                                  ),
+                                ),
+                              ]).pipe(
                                 chain(() =>
-                                  createQueueStatus(store, {
-                                    command: invocation.command,
-                                    lastTickAt: tickAt,
-                                    runtime: runtime ?? null,
-                                    tick: tickReport,
-                                    warnings,
-                                  }).pipe(
-                                    map((result) =>
-                                      root === "supervisor"
-                                        ? liftQueueStatusToSupervisorStatus(
-                                            result as Extract<
-                                              AutobotCommandResult,
-                                              { kind: "queue-status" }
-                                            >,
-                                          )
-                                        : result,
+                                  store.events.append(finishedEvent).pipe(
+                                    chain(() =>
+                                      createQueueStatus(store, {
+                                        command: invocation.command,
+                                        lastTickAt: tickAt,
+                                        runtime: runtime ?? null,
+                                        tick: tickReport,
+                                        warnings,
+                                      }).pipe(
+                                        map((result) =>
+                                          root === "supervisor"
+                                            ? liftQueueStatusToSupervisorStatus(
+                                                result as Extract<
+                                                  AutobotCommandResult,
+                                                  { kind: "queue-status" }
+                                                >,
+                                              )
+                                            : result,
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                            ),
+                              );
+                            }),
                           );
-                        }),
-                      );
-                    }),
-                  );
-                }),
-              );
+                      }),
+                    );
+                  }),
+                );
             }),
           ),
         ),
@@ -4951,6 +5547,7 @@ function handleEngineStart(
   artifactWriter: ArtifactWriter = defaultArtifactWriter,
   artifactReader: ArtifactReader = defaultArtifactReader,
   planningSessionRunner: PlanningSessionRunner = createNoopPlanningSessionRunner(),
+  planningWorkerStarter?: PlanningWorkerStarter,
   loadLinearIssue?: AutobotServiceDependencies["loadLinearIssue"],
   isProcessAlive?: AutobotServiceDependencies["isProcessAlive"],
   killProcess?: AutobotServiceDependencies["kill"],
@@ -5061,6 +5658,7 @@ function handleEngineStart(
                     artifactWriter,
                     artifactReader,
                     planningSessionRunner,
+                    planningWorkerStarter,
                     loadLinearIssue,
                     isProcessAlive,
                     killProcess,
@@ -5495,6 +6093,7 @@ function handleCommand(
   artifactWriter: ArtifactWriter = defaultArtifactWriter,
   artifactReader: ArtifactReader = defaultArtifactReader,
   planningSessionRunner: PlanningSessionRunner = createNoopPlanningSessionRunner(),
+  planningWorkerStarter?: PlanningWorkerStarter,
   loadLinearIssue?: AutobotServiceDependencies["loadLinearIssue"],
   isProcessAlive?: AutobotServiceDependencies["isProcessAlive"],
   killProcess?: AutobotServiceDependencies["kill"],
@@ -5536,6 +6135,7 @@ function handleCommand(
             artifactWriter,
             artifactReader,
             planningSessionRunner,
+            planningWorkerStarter,
             loadLinearIssue,
             isProcessAlive,
             killProcess,
@@ -5552,6 +6152,7 @@ function handleCommand(
             artifactWriter,
             artifactReader,
             planningSessionRunner,
+            planningWorkerStarter,
             loadLinearIssue,
             isProcessAlive,
             killProcess,
@@ -5589,6 +6190,11 @@ export function createAutobotServices(
   const artifactReader = dependencies.artifactReader ?? defaultArtifactReader;
   const planningSessionRunner =
     dependencies.planningSessionRunner ?? runOpenCodePlanningSession;
+  const planningWorkerStarter =
+    dependencies.planningWorkerStarter ??
+    (dependencies.planningSessionRunner === undefined
+      ? startOpenCodePlanningSessionWorker
+      : undefined);
   // Planning only: hydrate Linear metadata for artifact generation.
   const loadPlanningLinearIssue =
     dependencies.loadLinearIssue ??
@@ -5617,6 +6223,7 @@ export function createAutobotServices(
           dependencies.artifactWriter ?? defaultArtifactWriter,
           artifactReader,
           planningSessionRunner,
+          planningWorkerStarter,
           loadPlanningLinearIssue,
           dependencies.isProcessAlive,
           dependencies.kill,
