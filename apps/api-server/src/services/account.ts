@@ -37,6 +37,7 @@ import {
 } from '~/modules/database'
 import { EmailUtils } from '~/modules/email-utils'
 import { BillingService } from '~/services/billing'
+import { getSessionPolicy } from '~/services/sessionPolicy'
 import {
   badRequest,
   notFound,
@@ -65,7 +66,6 @@ export function createAccountService(
   database: Database,
   emailUtils: EmailUtils,
   billingService?: BillingService,
-  sessionHardExpirySeconds: number = 28 * 24 * 3600,
   _config: SystemConfig = defaultSystemConfig
 ) {
   function ensureStaffUser(
@@ -1166,8 +1166,6 @@ export function createAccountService(
     sessionToken: string
   ): FutureInstance<Error, Session> {
     const tokenHash = hashToken(sessionToken)
-    // Reject sessions older than the hard expiry window
-    const cutoff = addMinutes(new Date(), -sessionHardExpirySeconds / 60)
 
     return attemptQuery(async () => {
       return database
@@ -1180,16 +1178,24 @@ export function createAccountService(
           'createdAt',
         ])
         .where('sessionTokenHash', '=', tokenHash)
-        .where('createdAt', '>', cutoff)
         .executeTakeFirstOrThrow(() => notFound())
     }).pipe(
-      map(values => ({
-        ...withEncodedId(values),
-        // Return the raw token to the caller, not the stored hash
-        sessionToken,
-        subjectId: encodeId(values.subjectId),
-        createdAt: values.createdAt.toISOString(),
-      }))
+      chain(values => {
+        const policy = getSessionPolicy(values.subjectType)
+        const cutoff = addMinutes(new Date(), -policy.hardExpirySeconds / 60)
+
+        if (values.createdAt <= cutoff) {
+          return reject(notFound())
+        }
+
+        return resolve({
+          ...withEncodedId(values),
+          // Return the raw token to the caller, not the stored hash
+          sessionToken,
+          subjectId: encodeId(values.subjectId),
+          createdAt: values.createdAt.toISOString(),
+        })
+      })
     )
   }
 
@@ -1207,11 +1213,25 @@ export function createAccountService(
   }
 
   function deleteExpiredSessions(): FutureInstance<Error, bigint> {
-    const cutoff = addMinutes(new Date(), -sessionHardExpirySeconds / 60)
+    const currentDate = new Date()
+    const userCutoff = addMinutes(
+      currentDate,
+      -getSessionPolicy('user').hardExpirySeconds / 60
+    )
+    const staffCutoff = addMinutes(
+      currentDate,
+      -getSessionPolicy('staff').hardExpirySeconds / 60
+    )
+
     return attemptQuery(() =>
       database
         .deleteFrom('sessions')
-        .where('createdAt', '<=', cutoff)
+        .where(
+          sql<boolean>`
+            ("subjectType" = 'user' and "createdAt" <= ${userCutoff})
+            or ("subjectType" = 'staff' and "createdAt" <= ${staffCutoff})
+          `
+        )
         .executeTakeFirst()
     ).pipe(map(result => result?.numDeletedRows ?? 0n))
   }

@@ -2,7 +2,7 @@ import expect from 'expect'
 import { FastifyInstance } from 'fastify'
 import { promise } from 'fluture'
 import { sql } from 'kysely'
-import { after, before, beforeEach, describe, it } from 'node:test'
+import { after, before, beforeEach, describe, it, mock } from 'node:test'
 import { Env, createEnv } from '~/config/createEnv'
 import { createSessionDecorator } from '~/decorators/session'
 import { createStubPaddleClient } from '~/modules/billing'
@@ -111,6 +111,69 @@ describe('Decorators > Session — Bearer token / API key auth', () => {
     return { user, apiKey }
   }
 
+  async function createUserSession(createdAt?: Date) {
+    const account = await promise(
+      harness.accountService.createAccount('Session Account')
+    )
+    const user = await promise(
+      harness.accountService.createUser(
+        account.id,
+        'Session User',
+        harness.env.SESSION_COOKIE + '@example.com',
+        'hunter2!'
+      )
+    )
+    const session = await promise(
+      harness.accountService.createSession(user.id, 'user')
+    )
+
+    if (createdAt != null) {
+      await sql`
+        UPDATE sessions
+        SET "createdAt" = ${createdAt}
+        WHERE id = ${decodeId(session.id) as number}
+      `.execute(harness.db)
+    }
+
+    return session
+  }
+
+  async function createStaffSession(createdAt?: Date) {
+    const staffUser = await promise(
+      harness.accountService.createStaffUser(
+        'Session Staff',
+        'staff-' + harness.env.SESSION_COOKIE + '@example.com',
+        'hunter2!'
+      )
+    )
+    const session = await promise(
+      harness.accountService.createSession(staffUser.id, 'staff')
+    )
+
+    if (createdAt != null) {
+      await sql`
+        UPDATE sessions
+        SET "createdAt" = ${createdAt}
+        WHERE id = ${decodeId(session.id) as number}
+      `.execute(harness.db)
+    }
+
+    return session
+  }
+
+  function getSessionCookieExpires(
+    res: Awaited<ReturnType<typeof app.inject>>
+  ) {
+    const sessionCookie = res.cookies.find(
+      c => c.name === harness.env.SESSION_COOKIE
+    )
+
+    expect(sessionCookie).toBeDefined()
+    expect(sessionCookie?.expires).toBeDefined()
+
+    return new Date(sessionCookie?.expires as string | Date)
+  }
+
   // Bug 1 — getCurrentUser() should work for API key auth (was: 404 because
   // getSessionByToken was called for synthetic sessions with no DB row)
   describe('Bug 1: getCurrentUser() via valid API key Bearer token', () => {
@@ -203,6 +266,106 @@ describe('Decorators > Session — Bearer token / API key auth', () => {
       })
 
       expect(res.statusCode).toEqual(401)
+    })
+  })
+
+  describe('Subject-specific session cookie expiry', () => {
+    it('sets a user cookie from the 30 day soft expiry when below the 90 day hard cap', async () => {
+      const fixedNow = new Date('2030-01-01T00:00:00.000Z')
+      mock.timers.enable({ apis: ['Date'], now: fixedNow })
+
+      try {
+        const session = await createUserSession(fixedNow)
+
+        const res = await app.inject({
+          method: 'GET',
+          url: '/me',
+          cookies: {
+            [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
+          },
+        })
+
+        expect(res.statusCode).toEqual(200)
+        expect(getSessionCookieExpires(res).getTime()).toEqual(
+          fixedNow.getTime() + 30 * 24 * 3600 * 1000
+        )
+      } finally {
+        mock.timers.reset()
+      }
+    })
+
+    it('caps a user cookie at the 90 day hard expiry', async () => {
+      const fixedNow = new Date('2030-01-01T00:00:00.000Z')
+      mock.timers.enable({ apis: ['Date'], now: fixedNow })
+
+      try {
+        const createdAt = new Date(fixedNow.getTime() - 70 * 24 * 3600 * 1000)
+        const session = await createUserSession(createdAt)
+
+        const res = await app.inject({
+          method: 'GET',
+          url: '/me',
+          cookies: {
+            [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
+          },
+        })
+
+        expect(res.statusCode).toEqual(200)
+        expect(getSessionCookieExpires(res).getTime()).toEqual(
+          createdAt.getTime() + 90 * 24 * 3600 * 1000
+        )
+      } finally {
+        mock.timers.reset()
+      }
+    })
+
+    it('sets a staff cookie from the 12 hour soft expiry when below the 7 day hard cap', async () => {
+      const fixedNow = new Date('2030-01-01T00:00:00.000Z')
+      mock.timers.enable({ apis: ['Date'], now: fixedNow })
+
+      try {
+        const session = await createStaffSession(fixedNow)
+
+        const res = await app.inject({
+          method: 'GET',
+          url: '/me',
+          cookies: {
+            [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
+          },
+        })
+
+        expect(res.statusCode).toEqual(200)
+        expect(getSessionCookieExpires(res).getTime()).toEqual(
+          fixedNow.getTime() + 12 * 3600 * 1000
+        )
+      } finally {
+        mock.timers.reset()
+      }
+    })
+
+    it('caps a staff cookie at the 7 day hard expiry', async () => {
+      const fixedNow = new Date('2030-01-01T00:00:00.000Z')
+      mock.timers.enable({ apis: ['Date'], now: fixedNow })
+
+      try {
+        const createdAt = new Date(fixedNow.getTime() - 6.75 * 24 * 3600 * 1000)
+        const session = await createStaffSession(createdAt)
+
+        const res = await app.inject({
+          method: 'GET',
+          url: '/me',
+          cookies: {
+            [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
+          },
+        })
+
+        expect(res.statusCode).toEqual(200)
+        expect(getSessionCookieExpires(res).getTime()).toEqual(
+          createdAt.getTime() + 7 * 24 * 3600 * 1000
+        )
+      } finally {
+        mock.timers.reset()
+      }
     })
   })
 })

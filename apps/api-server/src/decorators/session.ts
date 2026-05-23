@@ -16,6 +16,7 @@ import {
 import { Env } from '~/config/createEnv'
 import { AccountService } from '~/services/account'
 import { ApiKeyService } from '~/services/apiKeys'
+import { getSessionPolicy } from '~/services/sessionPolicy'
 import { isNotFound, notAuthenticated } from '~/utils/errors'
 
 declare module 'fastify' {
@@ -227,11 +228,12 @@ export function createSessionDecorator(
 
       const currentDate = new Date()
       const createdAt = parseISO(req.session.createdAt)
+      const policy = getSessionPolicy(req.session.subjectType)
 
-      // SESSION_SOFT_EXPIRY and SESSION_HARD_EXPIRY are in seconds; convert to minutes
+      // Policy values are in seconds; convert to minutes for date-fns.
       const expires = min([
-        addMinutes(currentDate, env.SESSION_SOFT_EXPIRY / 60),
-        addMinutes(createdAt, env.SESSION_HARD_EXPIRY / 60),
+        addMinutes(currentDate, policy.softExpirySeconds / 60),
+        addMinutes(createdAt, policy.hardExpirySeconds / 60),
       ])
 
       res.setCookie(env.SESSION_COOKIE, req.session.sessionToken, {

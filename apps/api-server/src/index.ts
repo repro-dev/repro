@@ -89,8 +89,7 @@ const billingService = createBillingService(database, env)
 const accountService = createAccountService(
   database,
   emailUtils,
-  billingService,
-  env.SESSION_HARD_EXPIRY
+  billingService
 )
 const agenticService = createAgenticService(database, httpClient)
 const oauthService = createOAuthService(database)
