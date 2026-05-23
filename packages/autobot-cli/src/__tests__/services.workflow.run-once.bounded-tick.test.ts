@@ -101,6 +101,7 @@ test("default supervisor run-once starts planning workers up to capacity and ret
     ],
   });
   const started: string[] = [];
+  const runIds = ["run-300", "run-301"];
   const planningWorkerStarter: PlanningWorkerStarter = (input) => {
     started.push(input.issueId);
     return resolve(undefined);
@@ -108,7 +109,7 @@ test("default supervisor run-once starts planning workers up to capacity and ret
   const services = createAutobotServices({
     openStore: () => resolve(fixture.store as unknown as AutobotStore),
     now: () => "2026-05-15T12:00:00Z",
-    randomId: () => "run-300",
+    randomId: () => runIds.shift() ?? "run-300",
     artifactWriter: () => resolve(undefined),
     artifactReader: () => resolve(validRunPlan),
     loadLinearIssue: () => resolve(null),
@@ -321,6 +322,133 @@ test("later run-once advances the workflow from a completed planning worker resu
   assert.equal(fixture.executionRecords[0]?.execution_id, "flowcraft-run-303");
   assert.equal(fixture.runUpserts.at(-1)?.state, "completed");
   assert.equal(fixture.itemUpserts.at(-1)?.state, "completed");
+});
+test("completed planning worker reconciliation is idempotent after awaiting Flowcraft progress", async () => {
+  const fixture = makeWorkflowStore({
+    items: [
+      {
+        ...queuedItem("REP-311", "2026-05-15T09:00:00Z"),
+        state: "planning",
+        updated_at: "2026-05-15T12:00:00Z",
+        started_at: "2026-05-15T12:00:00Z",
+      },
+    ],
+    currentRuns: {
+      "REP-311": {
+        run_id: "run-311",
+        issue_id: "REP-311",
+        attempt: 1,
+        state: "planning",
+        flowcraft_execution_id: "flowcraft-run-311",
+        blueprint_id: "autobot-deliver-issue",
+        blueprint_version: "1.0.0",
+        started_at: "2026-05-15T12:00:00Z",
+        finished_at: null,
+        worker_id: "worker-run-311",
+        last_heartbeat_at: "2026-05-15T12:00:01Z",
+        transport: null,
+      },
+    },
+    workers: [
+      {
+        worker_id: "worker-run-311",
+        issue_id: "REP-311",
+        run_id: "run-311",
+        flowcraft_execution_id: "flowcraft-run-311",
+        workflow_node_id: "plan",
+        phase: "plan",
+        state: "completed",
+        pid: 123,
+        started_at: "2026-05-15T12:00:00Z",
+        last_heartbeat_at: "2026-05-15T12:00:02Z",
+        exit_code: 0,
+        signal: null,
+        finished_at: "2026-05-15T12:00:02Z",
+        result: {
+          command: "opencode",
+          args: ["run"],
+          started_at: "2026-05-15T12:00:00Z",
+          finished_at: "2026-05-15T12:00:02Z",
+          exit_code: 0,
+          signal: null,
+          stdout: validRunPlan,
+          stderr: "",
+        },
+      },
+    ],
+    flowcraftEvents: [
+      {
+        flowcraft_event_id: "flowcraft-run-311-00",
+        execution_id: "flowcraft-run-311",
+        node_id: "workflow",
+        type: "workflow:start",
+        occurred_at: "2026-05-15T12:00:00.000Z",
+        data: {},
+      },
+    ],
+    domainEvents: [
+      {
+        event_id: "flowcraft-run-311-preparing-domain-0",
+        issue_id: "REP-311",
+        run_id: "run-311",
+        type: "workflow.phase.prepared",
+        state: "preparing",
+        message: "Issue preparation complete",
+        severity: "info",
+        occurred_at: "2026-05-15T12:00:00.001Z",
+        actor: "autobot-flowcraft",
+        transport: null,
+        data: { phase: "preparing" },
+      },
+      {
+        event_id: "flowcraft-run-311-planning-domain-1",
+        issue_id: "REP-311",
+        run_id: "run-311",
+        type: "workflow.phase.planned",
+        state: "planning",
+        message: "Issue planning complete",
+        severity: "info",
+        occurred_at: "2026-05-15T12:00:00.002Z",
+        actor: "autobot-flowcraft",
+        transport: null,
+        data: { phase: "planning" },
+      },
+    ],
+  });
+  const services = createAutobotServices({
+    openStore: () => resolve(fixture.store as unknown as AutobotStore),
+    now: () => "2026-05-15T12:00:03Z",
+    artifactWriter: () => resolve(undefined),
+    artifactReader: () => resolve(validRunPlan),
+    isProcessAlive: () => false,
+  });
+
+  await runFuture(
+    services.handleInvocation(makeInvocation(["supervisor", "run-once"])),
+  );
+
+  assert.equal(
+    fixture.flowcraftEvents.filter(
+      (event) => event.flowcraft_event_id === "flowcraft-run-311-00",
+    ).length,
+    1,
+  );
+  assert.equal(
+    fixture.domainEvents.filter(
+      (event) =>
+        event.issue_id === "REP-311" &&
+        event.type === "workflow.phase.prepared",
+    ).length,
+    1,
+  );
+  assert.equal(
+    fixture.domainEvents.filter(
+      (event) =>
+        event.issue_id === "REP-311" && event.type === "workflow.phase.planned",
+    ).length,
+    1,
+  );
+  assert.equal(fixture.runUpserts.at(-1)?.state, "completed");
 });
 test("run-once reconciles multiple completed in-progress workers per tick", async () => {
   const fixture = makeWorkflowStore({

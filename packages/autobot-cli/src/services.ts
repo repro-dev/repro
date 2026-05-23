@@ -1325,6 +1325,45 @@ function planningSessionResultFromWorker(
   };
 }
 
+function filterNewFlowcraftEvents(
+  events: FlowcraftEventRecord[],
+  persistedEvents: FlowcraftEventRecord[],
+): FlowcraftEventRecord[] {
+  const persistedEventIds = new Set(
+    persistedEvents.map((event) => event.flowcraft_event_id),
+  );
+
+  return events.filter(
+    (event) => !persistedEventIds.has(event.flowcraft_event_id),
+  );
+}
+
+function isPersistedProgressPhaseEvent(event: DomainEvent): boolean {
+  const phase = event.data.phase;
+
+  return (
+    (event.type === "workflow.phase.prepared" && phase === "preparing") ||
+    (event.type === "workflow.phase.planned" && phase === "planning")
+  );
+}
+
+function filterPersistedPhaseDomainEvents(
+  events: DomainEvent[],
+  persistedEvents: DomainEvent[],
+): DomainEvent[] {
+  const persistedProgressTypes = new Set(
+    persistedEvents
+      .filter(isPersistedProgressPhaseEvent)
+      .map((event) => event.type),
+  );
+
+  return events.filter(
+    (event) =>
+      !isPersistedProgressPhaseEvent(event) ||
+      !persistedProgressTypes.has(event.type),
+  );
+}
+
 function reconcileCompletedPlanningWorker(input: {
   store: AutobotStore;
   item: ItemSummary;
@@ -1513,88 +1552,116 @@ function reconcileCompletedPlanningWorker(input: {
             flowcraftFinishedAt,
           );
 
-          return input.store.transaction((transaction) => {
-            const recordArtifact = (draft: PlanningArtifactDraft) =>
-              transaction.artifacts
-                .record({
-                  issue_id: input.item.issue_id,
-                  run_id: input.currentRun.run_id,
-                  attempt: input.item.attempt,
-                  kind: draft.kind,
-                  path: draft.path,
-                  description: draft.description,
-                  content_hash: draft.content_hash,
-                  supersedes_artifact_id: null,
-                  inherited_from_artifact_id: null,
-                  created_at: input.currentRun.started_at,
-                })
-                .pipe(map(() => undefined));
+          return input.store.flowcraft
+            .listEvents(input.currentRun.flowcraft_execution_id!)
+            .pipe(
+              chain((persistedFlowcraftEvents) =>
+                input.store.events
+                  .list(input.item.issue_id, {
+                    runId: input.currentRun.run_id,
+                    typePrefix: "workflow.phase.",
+                    order: "asc",
+                  })
+                  .pipe(
+                    chain((persistedDomainEvents) => {
+                      const finalFlowcraftEvents = filterNewFlowcraftEvents(
+                        plan.flowcraft_events,
+                        persistedFlowcraftEvents,
+                      );
+                      const finalDomainEvents =
+                        filterPersistedPhaseDomainEvents(
+                          plan.domain_events,
+                          persistedDomainEvents,
+                        );
 
-            return transaction.runs
-              .upsert({
-                ...input.currentRun,
-                state: runState,
-                finished_at: flowcraftFinishedAt,
-                worker_id: null,
-                last_heartbeat_at: null,
-              })
-              .pipe(
-                chain((run) =>
-                  sequenceFutures([
-                    ...plan.metadata.planning_artifacts
-                      .filter((draft) => draft.persist !== false)
-                      .map(recordArtifact),
-                    transaction.flowcraft
-                      .recordExecution({
-                        execution_id: input.currentRun.flowcraft_execution_id!,
-                        issue_id: input.item.issue_id,
-                        run_id: run.run_id,
-                        state: runState,
-                        started_at: input.currentRun.started_at,
-                        finished_at: flowcraftFinishedAt,
-                        metadata: plan.metadata,
-                      })
-                      .pipe(map(() => undefined)),
-                    ...plan.flowcraft_events.map((event) =>
-                      transaction.flowcraft
-                        .recordEvent(event)
-                        .pipe(map(() => undefined)),
-                    ),
-                    ...plan.domain_events.map((event) =>
-                      transaction.events
-                        .append(event)
-                        .pipe(map(() => undefined)),
-                    ),
-                    transaction.items
-                      .upsert(
-                        toItemRecordFromDetail({
-                          ...planningItem,
-                          state: runState,
-                          updated_at: flowcraftFinishedAt,
-                          last_error: lastError,
-                          last_event:
-                            plan.domain_events.at(-1)?.type ??
-                            plan.flowcraft_events.at(-1)?.type ??
-                            null,
-                          recovery_commands: plan.metadata.recovery_commands,
-                          cancellation_requested: false,
-                          cancellation_requested_at: null,
-                          current_run: null,
-                          artifacts: [],
-                          events: [],
-                        }),
-                      )
-                      .pipe(map(() => undefined)),
-                  ]).pipe(
-                    map(() => ({
-                      item: nextItem,
-                      reconciled_issue_id: input.item.issue_id,
-                      skipped: [],
-                    })),
+                      return input.store.transaction((transaction) => {
+                        const recordArtifact = (draft: PlanningArtifactDraft) =>
+                          transaction.artifacts
+                            .record({
+                              issue_id: input.item.issue_id,
+                              run_id: input.currentRun.run_id,
+                              attempt: input.item.attempt,
+                              kind: draft.kind,
+                              path: draft.path,
+                              description: draft.description,
+                              content_hash: draft.content_hash,
+                              supersedes_artifact_id: null,
+                              inherited_from_artifact_id: null,
+                              created_at: input.currentRun.started_at,
+                            })
+                            .pipe(map(() => undefined));
+
+                        return transaction.runs
+                          .upsert({
+                            ...input.currentRun,
+                            state: runState,
+                            finished_at: flowcraftFinishedAt,
+                            worker_id: null,
+                            last_heartbeat_at: null,
+                          })
+                          .pipe(
+                            chain((run) =>
+                              sequenceFutures([
+                                ...plan.metadata.planning_artifacts
+                                  .filter((draft) => draft.persist !== false)
+                                  .map(recordArtifact),
+                                transaction.flowcraft
+                                  .recordExecution({
+                                    execution_id:
+                                      input.currentRun.flowcraft_execution_id!,
+                                    issue_id: input.item.issue_id,
+                                    run_id: run.run_id,
+                                    state: runState,
+                                    started_at: input.currentRun.started_at,
+                                    finished_at: flowcraftFinishedAt,
+                                    metadata: plan.metadata,
+                                  })
+                                  .pipe(map(() => undefined)),
+                                ...finalFlowcraftEvents.map((event) =>
+                                  transaction.flowcraft
+                                    .recordEvent(event)
+                                    .pipe(map(() => undefined)),
+                                ),
+                                ...finalDomainEvents.map((event) =>
+                                  transaction.events
+                                    .append(event)
+                                    .pipe(map(() => undefined)),
+                                ),
+                                transaction.items
+                                  .upsert(
+                                    toItemRecordFromDetail({
+                                      ...planningItem,
+                                      state: runState,
+                                      updated_at: flowcraftFinishedAt,
+                                      last_error: lastError,
+                                      last_event:
+                                        finalDomainEvents.at(-1)?.type ??
+                                        plan.flowcraft_events.at(-1)?.type ??
+                                        null,
+                                      recovery_commands:
+                                        plan.metadata.recovery_commands,
+                                      cancellation_requested: false,
+                                      cancellation_requested_at: null,
+                                      current_run: null,
+                                      artifacts: [],
+                                      events: [],
+                                    }),
+                                  )
+                                  .pipe(map(() => undefined)),
+                              ]).pipe(
+                                map(() => ({
+                                  item: nextItem,
+                                  reconciled_issue_id: input.item.issue_id,
+                                  skipped: [],
+                                })),
+                              ),
+                            ),
+                          );
+                      });
+                    }),
                   ),
-                ),
-              );
-          });
+              ),
+            );
         }),
       );
     }),
