@@ -1273,7 +1273,18 @@ type EngineTickReconciliationOutcome = {
 };
 
 function isPlanningWorker(worker: WorkerSummary): boolean {
-  return worker.phase === "planning" || worker.phase === "plan";
+  return (
+    worker.phase === "planning" ||
+    worker.phase === "plan" ||
+    worker.workflow_node_id === "planning" ||
+    worker.workflow_node_id === "plan"
+  );
+}
+
+function isPlanningWorkerReconciliationState(
+  state: RunSummary["state"],
+): boolean {
+  return state === "claimed" || state === "preparing" || state === "planning";
 }
 
 function planningSessionResultFromWorker(
@@ -1288,6 +1299,7 @@ function planningSessionResultFromWorker(
   if (
     typeof result.command !== "string" ||
     !Array.isArray(result.args) ||
+    !result.args.every((arg) => typeof arg === "string") ||
     typeof result.started_at !== "string" ||
     typeof result.finished_at !== "string" ||
     (typeof result.exit_code !== "number" && result.exit_code !== null) ||
@@ -1300,7 +1312,7 @@ function planningSessionResultFromWorker(
 
   return {
     command: result.command,
-    args: result.args.filter((arg): arg is string => typeof arg === "string"),
+    args: result.args,
     started_at: result.started_at,
     finished_at: result.finished_at,
     exit_code: result.exit_code,
@@ -1708,7 +1720,10 @@ function reconcileEngineItem(
             worker.state === "completed" ||
             (worker.exit_code === 0 && worker.signal === null)
           ) {
-            if (isPlanningWorker(worker) && currentRun.state === "planning") {
+            if (
+              isPlanningWorker(worker) &&
+              isPlanningWorkerReconciliationState(currentRun.state)
+            ) {
               return reconcileCompletedPlanningWorker({
                 store,
                 item,

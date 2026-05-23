@@ -40,7 +40,7 @@ function makeInvocation(command_path: string[]): AutobotInvocation {
 
 function item(
   issueId: string,
-  state: "planning" | "queued",
+  state: "claimed" | "preparing" | "planning" | "queued",
   updatedAt: string,
 ) {
   return {
@@ -68,12 +68,17 @@ function item(
   };
 }
 
-function planningRun(issueId: string, runId: string, startedAt: string) {
+function planningRun(
+  issueId: string,
+  runId: string,
+  startedAt: string,
+  state: "claimed" | "preparing" | "planning" = "planning",
+) {
   return {
     run_id: runId,
     issue_id: issueId,
     attempt: 1,
-    state: "planning" as const,
+    state,
     flowcraft_execution_id: `flowcraft-${runId}`,
     blueprint_id: "autobot-deliver-issue",
     blueprint_version: "1.0.0",
@@ -82,6 +87,29 @@ function planningRun(issueId: string, runId: string, startedAt: string) {
     worker_id: `worker-${runId}`,
     last_heartbeat_at: startedAt,
     transport: null,
+  };
+}
+
+function completedPlanningWorker(
+  issueId: string,
+  runId: string,
+  result: Record<string, unknown> | null,
+) {
+  return {
+    worker_id: `worker-${runId}`,
+    issue_id: issueId,
+    run_id: runId,
+    flowcraft_execution_id: `flowcraft-${runId}`,
+    workflow_node_id: "plan",
+    phase: "plan",
+    state: "completed" as const,
+    pid: 123,
+    started_at: "2026-05-15T12:00:00Z",
+    last_heartbeat_at: "2026-05-15T12:00:02Z",
+    exit_code: 0,
+    signal: null,
+    finished_at: "2026-05-15T12:00:02Z",
+    result,
   };
 }
 
@@ -238,4 +266,95 @@ test("completed planning worker with missing result records retryable lastError"
     "autobot-next logs REP-413 --json",
   ]);
   assert.equal(retryRecord?.attempt, 2);
+});
+
+test("completed planning worker on a preparing run is validated before reconciliation", async () => {
+  const fixture = makeWorkflowStore({
+    items: [item("REP-414", "preparing", "2026-05-15T12:00:00Z")],
+    currentRuns: {
+      "REP-414": planningRun(
+        "REP-414",
+        "run-414",
+        "2026-05-15T12:00:00Z",
+        "preparing",
+      ),
+    },
+    workers: [
+      completedPlanningWorker("REP-414", "run-414", {
+        command: "opencode",
+        args: [123],
+        started_at: "2026-05-15T12:00:00Z",
+        finished_at: "2026-05-15T12:00:02Z",
+        exit_code: 0,
+        signal: null,
+        stdout: validRunPlan,
+        stderr: "",
+      }),
+    ],
+  });
+  const services = createAutobotServices({
+    openStore: () => resolve(fixture.store as unknown as AutobotStore),
+    now: () => "2026-05-15T12:00:03Z",
+    artifactWriter: () => resolve(undefined),
+    artifactReader: () => resolve(validRunPlan),
+  });
+
+  await runFuture(
+    services.handleInvocation(makeInvocation(["supervisor", "run-once"])),
+  );
+
+  const failedRecord = fixture.itemUpserts.find(
+    (upsert) => upsert.issue_id === "REP-414" && upsert.state === "failed",
+  );
+
+  assert.equal(fixture.executionRecords.length, 0);
+  assert.equal(
+    (failedRecord?.last_error as { code?: string } | null)?.code,
+    "AUTOBOT-PLANNING-WORKER-RESULT-MISSING",
+  );
+  assert.match(
+    (failedRecord?.last_error as { message?: string } | null)?.message ?? "",
+    /completed planning worker did not produce a valid result/,
+  );
+});
+
+test("completed planning worker result requires every arg to be a string", async () => {
+  const fixture = makeWorkflowStore({
+    items: [item("REP-415", "planning", "2026-05-15T12:00:00Z")],
+    currentRuns: {
+      "REP-415": planningRun("REP-415", "run-415", "2026-05-15T12:00:00Z"),
+    },
+    workers: [
+      completedPlanningWorker("REP-415", "run-415", {
+        command: "opencode",
+        args: ["run", 123],
+        started_at: "2026-05-15T12:00:00Z",
+        finished_at: "2026-05-15T12:00:02Z",
+        exit_code: 0,
+        signal: null,
+        stdout: validRunPlan,
+        stderr: "",
+      }),
+    ],
+  });
+  const services = createAutobotServices({
+    openStore: () => resolve(fixture.store as unknown as AutobotStore),
+    now: () => "2026-05-15T12:00:03Z",
+    artifactWriter: () => resolve(undefined),
+    artifactReader: () => resolve(validRunPlan),
+  });
+
+  await runFuture(
+    services.handleInvocation(makeInvocation(["supervisor", "run-once"])),
+  );
+
+  const failedRecord = fixture.itemUpserts.find(
+    (upsert) => upsert.issue_id === "REP-415" && upsert.state === "failed",
+  );
+
+  assert.equal(fixture.executionRecords.length, 0);
+  assert.equal(
+    (failedRecord?.last_error as { code?: string } | null)?.code,
+    "AUTOBOT-PLANNING-WORKER-RESULT-MISSING",
+  );
 });
