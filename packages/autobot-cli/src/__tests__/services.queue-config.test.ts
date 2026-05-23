@@ -346,5 +346,5 @@ test("status without an issue returns aggregate queue and config data", async ()
   assert.equal(result.kind, "queue-status");
   assert.equal(result.data.counts.queued, 1);
   assert.equal(result.data.items.length, 1);
-  assert.equal(result.data.config.length, 8);
+  assert.equal(result.data.config.length, 9);
 });

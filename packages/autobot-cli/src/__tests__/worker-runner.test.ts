@@ -222,6 +222,226 @@ test("runWorkerCommand records pids, logs, and terminal outcome", async () => {
   await runFuture(store.close());
 });
 
+test("runWorkerCommand persists a durable structured result artifact", async () => {
+  const repoRoot = await makeRepoRoot();
+  const store = await runFuture(
+    createAutobotStore({
+      repo: {
+        path: repoRoot,
+        state_dir: ".autobot",
+      },
+    }),
+  );
+  await runFuture(
+    store.runs.upsert({
+      run_id: "run-1222-result",
+      issue_id: "REP-1222",
+      attempt: 1,
+      state: "claimed",
+      flowcraft_execution_id: "flowcraft-run-1222-result",
+      blueprint_id: "autobot-deliver-issue",
+      blueprint_version: "1.0.0",
+      started_at: "2026-05-21T15:40:00Z",
+      finished_at: null,
+      worker_id: null,
+      last_heartbeat_at: null,
+      transport: null,
+    }),
+  );
+  const child = new FakeChildProcess(4343);
+
+  const future = runWorkerCommand(
+    {
+      repo: {
+        path: repoRoot,
+        state_dir: ".autobot",
+      },
+      worker_id: "worker-structured-result",
+      issue_id: "REP-1222",
+      run_id: "run-1222-result",
+      execution_id: "flowcraft-run-1222-result",
+      command: "opencode",
+      args: ["run", "--agent", "planner"],
+      started_at: "2026-05-21T15:40:00Z",
+      stdout_log_path: ".autobot/workers/worker-structured-result.stdout.log",
+      stderr_log_path: ".autobot/workers/worker-structured-result.stderr.log",
+    },
+    store,
+    {
+      now: () => "2026-05-21T15:40:01Z",
+      spawn(command, args, options) {
+        void command;
+        void args;
+        void options;
+        return child as unknown as never;
+      },
+      kill() {
+        return true;
+      },
+    },
+  );
+
+  const promise = runFuture(future);
+
+  await waitFor(() => child.listenerCount("close") > 0);
+  child.stdout.write("stdout line\n");
+  child.stderr.write("stderr line\n");
+  child.stdout.end();
+  child.stderr.end();
+  child.emit("close", 0, null);
+
+  const result = await promise;
+  assert.equal(result.exit_code, 0);
+
+  const linkedRun = await runFuture(store.runs.get("run-1222-result"));
+  assert.equal(linkedRun?.worker_id, "worker-structured-result");
+
+  const worker = await runFuture(store.workers.get("worker-structured-result"));
+  assert.deepEqual(worker?.result, {
+    worker_id: "worker-structured-result",
+    issue_id: "REP-1222",
+    run_id: "run-1222-result",
+    execution_id: "flowcraft-run-1222-result",
+    command: "opencode",
+    args: ["run", "--agent", "planner"],
+    started_at: "2026-05-21T15:40:00Z",
+    finished_at: "2026-05-21T15:40:01Z",
+    exit_code: 0,
+    signal: null,
+    stdout: result.stdout,
+    stderr: result.stderr,
+  });
+  assert.equal(
+    worker?.result_artifact_path,
+    ".autobot/workers/worker-structured-result.result.json",
+  );
+
+  const resultArtifact = await readFile(
+    path.join(
+      repoRoot,
+      ".autobot/workers/worker-structured-result.result.json",
+    ),
+    "utf8",
+  );
+  assert.deepEqual(JSON.parse(resultArtifact), worker?.result);
+
+  await runFuture(store.close());
+});
+
+test("runWorkerCommand refreshes heartbeat and deadline while the child is running", async () => {
+  const repoRoot = await makeRepoRoot();
+  const store = await runFuture(
+    createAutobotStore({
+      repo: {
+        path: repoRoot,
+        state_dir: ".autobot",
+      },
+    }),
+  );
+  await runFuture(
+    store.runs.upsert({
+      run_id: "run-1222-heartbeat",
+      issue_id: "REP-1222",
+      attempt: 1,
+      state: "claimed",
+      flowcraft_execution_id: "flowcraft-run-1222-heartbeat",
+      blueprint_id: "autobot-deliver-issue",
+      blueprint_version: "1.0.0",
+      started_at: "2026-05-21T15:50:00Z",
+      finished_at: null,
+      worker_id: null,
+      last_heartbeat_at: null,
+      transport: null,
+    }),
+  );
+  const child = new FakeChildProcess(4444);
+  const timestamps = [
+    "2026-05-21T15:50:00Z",
+    "2026-05-21T15:50:01Z",
+    "2026-05-21T15:50:02Z",
+    "2026-05-21T15:50:03Z",
+    "2026-05-21T15:50:04Z",
+  ];
+  let timestampIndex = 0;
+  const fallbackTimestamp =
+    timestamps[timestamps.length - 1] ??
+    timestamps[0] ??
+    "2026-05-21T15:50:04Z";
+  const nextTimestamp = (): string => {
+    const next = timestamps[timestampIndex] ?? fallbackTimestamp;
+    timestampIndex += 1;
+    return next;
+  };
+
+  const future = runWorkerCommand(
+    {
+      repo: {
+        path: repoRoot,
+        state_dir: ".autobot",
+      },
+      worker_id: "worker-heartbeat",
+      issue_id: "REP-1222",
+      run_id: "run-1222-heartbeat",
+      execution_id: "flowcraft-run-1222-heartbeat",
+      command: "opencode",
+      args: ["run", "--agent", "planner"],
+      started_at: "2026-05-21T15:50:00Z",
+      stdout_log_path: ".autobot/workers/worker-heartbeat.stdout.log",
+      stderr_log_path: ".autobot/workers/worker-heartbeat.stderr.log",
+    },
+    store,
+    {
+      now: nextTimestamp,
+      heartbeatIntervalMs: 5,
+      heartbeatDeadlineMs: 50,
+      spawn(command, args, options) {
+        void command;
+        void args;
+        void options;
+        return child as unknown as never;
+      },
+      kill() {
+        return true;
+      },
+    },
+  );
+
+  const promise = runFuture(future);
+
+  await waitFor(() => child.listenerCount("close") > 0);
+
+  const initialWorker = await runFuture(store.workers.get("worker-heartbeat"));
+  const initialHeartbeatAt = initialWorker?.last_heartbeat_at;
+  assert.equal(initialWorker?.state, "running");
+  assert.equal(initialWorker?.deadline_at !== null, true);
+
+  const linkedRun = await runFuture(store.runs.get("run-1222-heartbeat"));
+  assert.equal(linkedRun?.worker_id, "worker-heartbeat");
+
+  let updatedWorker: typeof initialWorker = initialWorker;
+  for (let index = 0; index < 20; index += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    updatedWorker = (await runFuture(
+      store.workers.get("worker-heartbeat"),
+    )) as typeof initialWorker;
+    if (updatedWorker?.last_heartbeat_at !== initialHeartbeatAt) {
+      break;
+    }
+  }
+
+  assert.notEqual(updatedWorker?.last_heartbeat_at, initialHeartbeatAt);
+  assert.notEqual(updatedWorker?.deadline_at, initialWorker?.deadline_at);
+
+  child.stdout.end();
+  child.stderr.end();
+  child.emit("close", 0, null);
+
+  const result = await promise;
+  assert.equal(result.exit_code, 0);
+
+  await runFuture(store.close());
+});
+
 test("runWorkerCommand cancels the worker process group", async () => {
   const repoRoot = await makeRepoRoot();
   const store = await runFuture(

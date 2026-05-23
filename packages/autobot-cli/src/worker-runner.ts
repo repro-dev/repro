@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { createWriteStream } from "node:fs";
-import { mkdir, readFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { Future, fork, type FutureInstance } from "fluture";
@@ -45,6 +45,8 @@ export interface WorkerRunnerHooks {
   kill?: (pid: number, signal?: NodeJS.Signals | number) => boolean;
   now?: () => string;
   trapSignals?: boolean;
+  heartbeatIntervalMs?: number;
+  heartbeatDeadlineMs?: number;
 }
 
 type WorkerLogPaths = {
@@ -95,6 +97,34 @@ export function buildWorkerLogPaths(input: {
         ? stderr_log_path
         : stderr_path,
   };
+}
+
+function buildWorkerResultPaths(input: { repo: RepoRef; worker_id: string }): {
+  result_path: string;
+  result_artifact_path: string;
+} {
+  const repoPath = path.resolve(input.repo.path);
+  const stateDirPath = path.resolve(repoPath, input.repo.state_dir);
+  const result_path = path.join(
+    stateDirPath,
+    "workers",
+    `${input.worker_id}.result.json`,
+  );
+  const result_artifact_path = path.relative(repoPath, result_path);
+
+  return {
+    result_path,
+    result_artifact_path:
+      result_artifact_path.length > 0 &&
+      !result_artifact_path.startsWith("..") &&
+      !path.isAbsolute(result_artifact_path)
+        ? result_artifact_path
+        : result_path,
+  };
+}
+
+function deadlineAt(occurredAt: string, milliseconds: number): string {
+  return new Date(new Date(occurredAt).getTime() + milliseconds).toISOString();
 }
 
 export function buildWorkerRunnerInvocation(input: WorkerCommandInput) {
@@ -222,8 +252,14 @@ export function runWorkerCommand(
     const spawnCommand = hooks.spawn ?? spawn;
     const killProcess = hooks.kill ?? process.kill;
     const now = hooks.now ?? (() => new Date().toISOString());
+    const heartbeatIntervalMs = hooks.heartbeatIntervalMs ?? 5_000;
+    const heartbeatDeadlineMs = hooks.heartbeatDeadlineMs ?? 15_000;
     const abortController = new AbortController();
     const logPaths = buildWorkerLogPaths({
+      repo: input.repo,
+      worker_id: input.worker_id,
+    });
+    const workerResultPaths = buildWorkerResultPaths({
       repo: input.repo,
       worker_id: input.worker_id,
     });
@@ -233,6 +269,7 @@ export function runWorkerCommand(
     let processGroupId: number | null = null;
     let child: ChildProcess | null = null;
     let logStreams: Awaited<ReturnType<typeof openLogStreams>> | null = null;
+    let heartbeatTimer: NodeJS.Timeout | null = null;
     let signalHandlersInstalled = false;
     let workerRecord = workerRecordFromInput(input, {
       state: "starting",
@@ -245,10 +282,93 @@ export function runWorkerCommand(
       await futureToPromise(store.workers.upsert(next));
     };
 
+    const syncRunWorkerLink = async (heartbeatAt: string) => {
+      if (input.run_id === null) {
+        return;
+      }
+
+      const currentRun = await futureToPromise(store.runs.get(input.run_id));
+      if (currentRun === null) {
+        return;
+      }
+
+      await futureToPromise(
+        store.runs.upsert({
+          ...currentRun,
+          worker_id: input.worker_id,
+          last_heartbeat_at: heartbeatAt,
+        }),
+      );
+    };
+
+    const stopHeartbeatTimer = () => {
+      if (heartbeatTimer === null) {
+        return;
+      }
+
+      clearInterval(heartbeatTimer);
+      heartbeatTimer = null;
+    };
+
+    const writeHeartbeatRecord = async () => {
+      if (settled || child === null) {
+        return;
+      }
+
+      const heartbeatAt = now();
+
+      await writeWorkerRecord({
+        ...workerRecord,
+        state: "running",
+        pid: child?.pid ?? workerRecord.pid,
+        child_pid: child?.pid ?? workerRecord.child_pid,
+        process_group_id: processGroupId,
+        last_heartbeat_at: heartbeatAt,
+        deadline_at: deadlineAt(heartbeatAt, heartbeatDeadlineMs),
+        spawn_error: null,
+      });
+      await syncRunWorkerLink(heartbeatAt);
+    };
+
+    const writeTerminalResultArtifact = async (terminal: {
+      finishedAt: string;
+      exitCode: number | null;
+      signal: NodeJS.Signals | null;
+      stdout: string;
+      stderr: string;
+    }) => {
+      const result = {
+        worker_id: input.worker_id,
+        issue_id: input.issue_id,
+        run_id: input.run_id,
+        execution_id: input.execution_id,
+        command: input.command,
+        args: input.args,
+        started_at: input.started_at,
+        finished_at: terminal.finishedAt,
+        exit_code: terminal.exitCode,
+        signal: terminal.signal,
+        stdout: terminal.stdout,
+        stderr: terminal.stderr,
+      };
+
+      await mkdir(path.dirname(workerResultPaths.result_path), {
+        recursive: true,
+      });
+      await writeFile(
+        workerResultPaths.result_path,
+        `${JSON.stringify(result, null, 2)}\n`,
+        "utf8",
+      );
+
+      return result;
+    };
+
     const finalize = async (
       exitCode: number | null,
       signal: NodeJS.Signals | null,
     ) => {
+      stopHeartbeatTimer();
       const finishedAt = now();
       const state = terminalStateForResult(exitCode, signal, cancelled);
 
@@ -261,6 +381,18 @@ export function runWorkerCommand(
         ]);
       }
 
+      const [stdout, stderr] = await Promise.all([
+        readLogFile(logPaths.stdout_path),
+        readLogFile(logPaths.stderr_path),
+      ]);
+      const result = await writeTerminalResultArtifact({
+        finishedAt,
+        exitCode,
+        signal,
+        stdout,
+        stderr,
+      });
+
       await writeWorkerRecord({
         ...workerRecord,
         state,
@@ -268,16 +400,14 @@ export function runWorkerCommand(
         child_pid: child?.pid ?? workerRecord.child_pid,
         process_group_id: processGroupId,
         last_heartbeat_at: finishedAt,
+        deadline_at: null,
         exit_code: exitCode,
         signal,
         finished_at: finishedAt,
+        result,
+        result_artifact_path: workerResultPaths.result_artifact_path,
       });
       cleanupSignalHandlers();
-
-      const [stdout, stderr] = await Promise.all([
-        readLogFile(logPaths.stdout_path),
-        readLogFile(logPaths.stderr_path),
-      ]);
 
       return {
         command: input.command,
@@ -292,6 +422,7 @@ export function runWorkerCommand(
     };
 
     const handleFailure = async (error: unknown) => {
+      stopHeartbeatTimer();
       const failedAt = now();
 
       if (logStreams !== null) {
@@ -307,6 +438,7 @@ export function runWorkerCommand(
         ...workerRecord,
         state: "failed",
         last_heartbeat_at: failedAt,
+        deadline_at: null,
         spawn_error: toSpawnErrorSummary(error, failedAt),
         finished_at: failedAt,
       });
@@ -363,6 +495,8 @@ export function runWorkerCommand(
 
       cancelled = true;
       settled = true;
+      stopHeartbeatTimer();
+      const heartbeatAt = now();
 
       const currentPid = processGroupId ?? child?.pid ?? null;
 
@@ -386,7 +520,8 @@ export function runWorkerCommand(
         pid: child?.pid ?? workerRecord.pid,
         child_pid: child?.pid ?? workerRecord.child_pid,
         process_group_id: currentPid,
-        last_heartbeat_at: now(),
+        last_heartbeat_at: heartbeatAt,
+        deadline_at: deadlineAt(heartbeatAt, heartbeatDeadlineMs),
       });
 
       if (
@@ -436,15 +571,29 @@ export function runWorkerCommand(
         signalHandlersInstalled = true;
       }
 
+      const heartbeatAt = now();
+
       await writeWorkerRecord({
         ...workerRecord,
         state: "running",
         pid: childProcess.pid ?? null,
         child_pid: childProcess.pid ?? null,
         process_group_id: childProcess.pid ?? null,
-        last_heartbeat_at: now(),
+        last_heartbeat_at: heartbeatAt,
+        deadline_at: deadlineAt(heartbeatAt, heartbeatDeadlineMs),
         spawn_error: null,
       });
+      await syncRunWorkerLink(heartbeatAt);
+
+      heartbeatTimer = setInterval(() => {
+        void writeHeartbeatRecord().catch((error) => {
+          if (!settled) {
+            settled = true;
+            void handleFailure(error);
+          }
+        });
+      }, heartbeatIntervalMs);
+      heartbeatTimer.unref?.();
     };
 
     void run().catch(handleSpawnError);
