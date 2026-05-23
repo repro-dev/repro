@@ -10,6 +10,12 @@ type Mutable<T> = {
 type WorkflowItemState =
   | "queued"
   | "claimed"
+  | "preparing"
+  | "planning"
+  | "developing"
+  | "testing"
+  | "reviewing"
+  | "reconciling"
   | "awaiting"
   | "failed"
   | "escalated"
