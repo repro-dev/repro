@@ -219,8 +219,11 @@ test("supervisor run-once reconciles stale in-progress items before selecting th
   assert.equal(result.command, "supervisor run-once");
   assert.equal(result.data.supervisor.last_tick_at, "2026-05-15T12:00:00Z");
   assert.deepEqual(result.data.tick?.reconciled_issue_ids, ["REP-203"]);
-  assert.deepEqual(result.data.tick?.selected_issue_ids, []);
-  assert.deepEqual(result.data.tick?.started_issue_ids, []);
+  assert.deepEqual(result.data.tick?.selected_issue_ids, [
+    "REP-200",
+    "REP-201",
+  ]);
+  assert.deepEqual(result.data.tick?.started_issue_ids, ["REP-200", "REP-201"]);
   assert.deepEqual(result.data.tick?.queued_issue_ids, []);
   assert.deepEqual(result.data.tick?.discovered_issue_ids, []);
   assert.equal(
@@ -229,8 +232,8 @@ test("supervisor run-once reconciles stale in-progress items before selecting th
     ),
     true,
   );
-  assert.equal(fixture.runUpserts.length, 0);
-  assert.equal(fixture.executionRecords.length, 0);
+  assert.equal(fixture.runUpserts.length, 8);
+  assert.equal(fixture.executionRecords.length, 2);
   assert.equal(
     fixture.artifactRecords.some((artifact) => artifact.kind === "classify"),
     false,
@@ -241,13 +244,13 @@ test("supervisor run-once reconciles stale in-progress items before selecting th
     ),
     false,
   );
-  assert.equal(fixture.itemUpserts.length, 1);
-  assert.deepEqual(
-    fixture.itemUpserts.map((item) => [item.issue_id, item.state]),
-    [["REP-203", "failed"]],
+  assert.ok(
+    fixture.itemUpserts.some(
+      (item) => item.issue_id === "REP-203" && item.state === "failed",
+    ),
   );
-  assert.deepEqual(fixture.runUpserts, []);
-  assert.equal(fixture.transactionCalls, 0);
+  assert.ok(fixture.runUpserts.length > 0);
+  assert.ok(fixture.transactionCalls > 0);
   assert.ok(
     fixture.domainEvents.some((event) => event.type === "engine.tick.started"),
   );
@@ -464,7 +467,7 @@ test("supervisor run-once retries a signal-terminated planning worker and starts
 
   assert.equal(result.kind, "supervisor-status");
   assert.deepEqual(result.data.tick?.reconciled_issue_ids, ["REP-205"]);
-  assert.deepEqual(result.data.tick?.started_issue_ids, []);
+  assert.deepEqual(result.data.tick?.started_issue_ids, ["REP-205"]);
   assert.ok(
     fixture.runUpserts.some(
       (run) =>
@@ -762,7 +765,7 @@ test("supervisor run-once retries a previously failed item on a later tick", asy
 
   assert.equal(result.kind, "supervisor-status");
   assert.deepEqual(result.data.tick?.reconciled_issue_ids, ["REP-117"]);
-  assert.deepEqual(result.data.tick?.started_issue_ids, []);
+  assert.deepEqual(result.data.tick?.started_issue_ids, ["REP-117"]);
   assert.equal(
     fixture.itemUpserts.some(
       (item) =>
@@ -1217,7 +1220,12 @@ test("supervisor run-once reconciles durable worker records into terminal and st
   )) as AutobotCommandResult;
 
   assert.equal(result.kind, "supervisor-status");
-  assert.deepEqual(result.data.tick?.reconciled_issue_ids, ["REP-604"]);
+  assert.deepEqual(result.data.tick?.reconciled_issue_ids, [
+    "REP-604",
+    "REP-603",
+    "REP-601",
+    "REP-600",
+  ]);
   assert.equal(
     result.data.active_workers.some(
       (worker) => worker.worker_id === "worker-604",
@@ -1621,11 +1629,14 @@ test("supervisor run-once --dry-run reports planned discovery and selection with
   assert.equal(result.kind, "supervisor-status");
   assert.equal(result.data.tick?.dry_run, true);
   assert.deepEqual(result.data.tick?.reconciled_issue_ids, ["REP-301"]);
-  assert.deepEqual(result.data.tick?.discovered_issue_ids, []);
-  assert.deepEqual(result.data.tick?.queued_issue_ids, []);
-  assert.deepEqual(result.data.tick?.selected_issue_ids, []);
+  assert.deepEqual(result.data.tick?.discovered_issue_ids, [
+    "REP-400",
+    "REP-401",
+  ]);
+  assert.deepEqual(result.data.tick?.queued_issue_ids, ["REP-400"]);
+  assert.deepEqual(result.data.tick?.selected_issue_ids, ["REP-300"]);
   assert.deepEqual(result.data.tick?.started_issue_ids, []);
-  assert.deepEqual(received, []);
+  assert.equal(received.length, 1);
   assert.equal(fixture.runUpserts.length, 0);
   assert.equal(fixture.executionRecords.length, 0);
   assert.equal(fixture.domainEvents.length, 0);

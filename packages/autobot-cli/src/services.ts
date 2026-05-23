@@ -2219,7 +2219,7 @@ function isInProgressItemEligibleForReconciliation(
   );
 }
 
-function reconcileFirstEligibleEngineItem(input: {
+function reconcileEligibleEngineItems(input: {
   store: AutobotStore;
   items: ItemSummary[];
   workers: WorkerSummary[];
@@ -2231,14 +2231,15 @@ function reconcileFirstEligibleEngineItem(input: {
   artifactReader: ArtifactReader;
   isProcessAlive?: AutobotServiceDependencies["isProcessAlive"];
   killProcess?: AutobotServiceDependencies["kill"];
-}): FutureInstance<unknown, EngineTickReconciliationOutcome | null> {
+}): FutureInstance<unknown, EngineTickReconciliationOutcome[]> {
   const scan = (
     index: number,
-  ): FutureInstance<unknown, EngineTickReconciliationOutcome | null> => {
+    outcomes: EngineTickReconciliationOutcome[],
+  ): FutureInstance<unknown, EngineTickReconciliationOutcome[]> => {
     const item = input.items[index];
 
     if (item === undefined) {
-      return resolve(null);
+      return resolve(outcomes);
     }
 
     return isInProgressItemEligibleForReconciliation(
@@ -2251,7 +2252,7 @@ function reconcileFirstEligibleEngineItem(input: {
     ).pipe(
       chain((eligible) => {
         if (!eligible) {
-          return scan(index + 1);
+          return scan(index + 1, outcomes);
         }
 
         return reconcileEngineItem(
@@ -2266,12 +2267,12 @@ function reconcileFirstEligibleEngineItem(input: {
           input.artifactReader,
           input.isProcessAlive,
           input.killProcess,
-        );
+        ).pipe(chain((outcome) => scan(index + 1, [...outcomes, outcome])));
       }),
     );
   };
 
-  return scan(0);
+  return scan(0, []);
 }
 
 function reconcileRetryableFailedItem(
@@ -4595,85 +4596,6 @@ function handleEngineRunOnce(
               const selectedIssueIds: string[] = [];
               const startedIssueIds: string[] = [];
               const skipped: EngineTickSkip[] = [];
-              const finishBoundedTick = (): FutureInstance<
-                unknown,
-                AutobotCommandResult
-              > => {
-                const tickReport: EngineTickReport = {
-                  dry_run: invocation.options.dry_run,
-                  tick_at: tickAt,
-                  reconciled_issue_ids: reconciledIssueIds,
-                  discovered_issue_ids: discoveredIssueIds,
-                  queued_issue_ids: queuedIssueIds,
-                  selected_issue_ids: selectedIssueIds,
-                  started_issue_ids: startedIssueIds,
-                  skipped,
-                };
-
-                const createStatus = () =>
-                  createQueueStatus(store, {
-                    command: invocation.command,
-                    lastTickAt: tickAt,
-                    runtime: runtime ?? null,
-                    tick: tickReport,
-                    warnings,
-                  }).pipe(
-                    map((result) =>
-                      root === "supervisor"
-                        ? liftQueueStatusToSupervisorStatus(
-                            result as Extract<
-                              AutobotCommandResult,
-                              { kind: "queue-status" }
-                            >,
-                          )
-                        : result,
-                    ),
-                  );
-
-                if (invocation.options.dry_run) {
-                  return createStatus();
-                }
-
-                return sequenceFutures([
-                  store.events
-                    .append(
-                      createEngineTickEvent({
-                        type: "engine.tick.started",
-                        tickAt,
-                        selectedIssueIds,
-                        reconciledIssueIds,
-                        queuedIssueIds,
-                        startedIssueIds,
-                      }),
-                    )
-                    .pipe(map(() => undefined)),
-                  store.events
-                    .append(
-                      createEngineTickEvent({
-                        type: "engine.tick.selected",
-                        tickAt,
-                        selectedIssueIds,
-                        reconciledIssueIds,
-                        queuedIssueIds,
-                        startedIssueIds,
-                      }),
-                    )
-                    .pipe(map(() => undefined)),
-                  store.events
-                    .append(
-                      createEngineTickEvent({
-                        type: "engine.tick.finished",
-                        tickAt,
-                        selectedIssueIds,
-                        reconciledIssueIds,
-                        queuedIssueIds,
-                        startedIssueIds,
-                      }),
-                    )
-                    .pipe(map(() => undefined)),
-                ]).pipe(chain(createStatus));
-              };
-
               const inProgressItems = workingItems.filter((item) =>
                 isInProgressState(item.state),
               );
@@ -4694,7 +4616,7 @@ function handleEngineRunOnce(
                 return outcome;
               };
 
-              return reconcileFirstEligibleEngineItem({
+              return reconcileEligibleEngineItems({
                 store,
                 items: inProgressItems,
                 workers,
@@ -4708,40 +4630,42 @@ function handleEngineRunOnce(
                 killProcess,
               })
                 .pipe(
-                  map((outcome) => {
-                    if (outcome !== null) {
+                  map((outcomes) => {
+                    for (const outcome of outcomes) {
                       applyReconciliationOutcome(outcome);
                     }
 
-                    return outcome;
+                    return outcomes;
                   }),
                 )
                 .pipe(
-                  chain((inProgressOutcome) => {
-                    if (inProgressOutcome !== null) {
-                      return finishBoundedTick();
-                    }
-
+                  chain(() => {
                     const retryableItems = workingItems.filter((item) =>
                       isRetryableFailedItem(item),
                     );
-                    const retryFutures = retryableItems
-                      .slice(0, 1)
-                      .map((item) =>
-                        reconcileRetryableFailedItem(
-                          store,
-                          item,
-                          tickAt,
-                          invocation.options.dry_run,
-                          settings.maxRetries,
-                        ).pipe(map(applyReconciliationOutcome)),
-                      );
+                    const retryFutures = retryableItems.map((item) =>
+                      reconcileRetryableFailedItem(
+                        store,
+                        item,
+                        tickAt,
+                        invocation.options.dry_run,
+                        settings.maxRetries,
+                      ).pipe(map(applyReconciliationOutcome)),
+                    );
 
                     return sequenceFutures(retryFutures).pipe(
                       chain(() => {
-                        if (retryableItems.length > 0) {
-                          return finishBoundedTick();
-                        }
+                        const refreshWorkingItems = invocation.options.dry_run
+                          ? resolve(undefined)
+                          : store.projections.listItems().pipe(
+                              map((items) => {
+                                workingItems.splice(
+                                  0,
+                                  workingItems.length,
+                                  ...items,
+                                );
+                              }),
+                            );
 
                         const queueDiscoveredCandidates = (
                           candidates: DiscoverCandidate[],
@@ -4872,158 +4796,150 @@ function handleEngineRunOnce(
                               }).pipe(chain(queueDiscoveredCandidates))
                           : resolve(undefined);
 
-                        return discoveryFuture.pipe(
-                          chain(() => {
-                            const activeCount = workingItems.filter((item) =>
-                              isInProgressState(item.state),
-                            ).length;
-                            const capacity = Math.max(
-                              0,
-                              settings.maxConcurrency - activeCount,
-                            );
-                            const queuedItems = [...workingItems]
-                              .filter((item) => item.state === "queued")
-                              .sort(compareQueuedItems);
-                            const selectionLimit =
-                              planningWorkerStarter === undefined
-                                ? capacity
-                                : capacity > 0
-                                ? 1
-                                : 0;
-                            const selectedItems = queuedItems.slice(
-                              0,
-                              selectionLimit,
-                            );
-
-                            selectedIssueIds.push(
-                              ...selectedItems.map((item) => item.issue_id),
-                            );
-                            if (!invocation.options.dry_run) {
-                              startedIssueIds.push(...selectedIssueIds);
-                            }
-                            skipped.push(
-                              ...queuedItems
-                                .slice(selectedItems.length)
-                                .map((item) => ({
-                                  issue_id: item.issue_id,
-                                  reason:
-                                    capacity <= 0
-                                      ? "capacity-exhausted"
-                                      : planningWorkerStarter === undefined
-                                      ? "capacity-exhausted"
-                                      : "bounded-tick-limit",
-                                  details: {
-                                    capacity,
-                                  },
-                                })),
-                            );
-
-                            const tickReport: EngineTickReport = {
-                              dry_run: invocation.options.dry_run,
-                              tick_at: tickAt,
-                              reconciled_issue_ids: reconciledIssueIds,
-                              discovered_issue_ids: discoveredIssueIds,
-                              queued_issue_ids: queuedIssueIds,
-                              selected_issue_ids: selectedIssueIds,
-                              started_issue_ids: startedIssueIds,
-                              skipped,
-                            };
-
-                            if (invocation.options.dry_run) {
-                              return createQueueStatus(store, {
-                                command: invocation.command,
-                                lastTickAt: tickAt,
-                                runtime: runtime ?? null,
-                                tick: tickReport,
-                                warnings,
-                              }).pipe(
-                                map((result) =>
-                                  root === "supervisor"
-                                    ? liftQueueStatusToSupervisorStatus(
-                                        result as Extract<
-                                          AutobotCommandResult,
-                                          { kind: "queue-status" }
-                                        >,
-                                      )
-                                    : result,
-                                ),
+                        return refreshWorkingItems
+                          .pipe(chain(() => discoveryFuture))
+                          .pipe(
+                            chain(() => {
+                              const activeCount = workingItems.filter((item) =>
+                                isInProgressState(item.state),
+                              ).length;
+                              const capacity = Math.max(
+                                0,
+                                settings.maxConcurrency - activeCount,
                               );
-                            }
+                              const queuedItems = [...workingItems]
+                                .filter((item) => item.state === "queued")
+                                .sort(compareQueuedItems);
+                              const selectionLimit = capacity;
+                              const selectedItems = queuedItems.slice(
+                                0,
+                                selectionLimit,
+                              );
 
-                            const startedEvent = createEngineTickEvent({
-                              type: "engine.tick.started",
-                              tickAt,
-                              selectedIssueIds,
-                              reconciledIssueIds,
-                              queuedIssueIds,
-                              startedIssueIds,
-                            });
-                            const selectedEvent = createEngineTickEvent({
-                              type: "engine.tick.selected",
-                              tickAt,
-                              selectedIssueIds,
-                              reconciledIssueIds,
-                              queuedIssueIds,
-                              startedIssueIds,
-                            });
-                            const finishedEvent = createEngineTickEvent({
-                              type: "engine.tick.finished",
-                              tickAt,
-                              selectedIssueIds,
-                              reconciledIssueIds,
-                              queuedIssueIds,
-                              startedIssueIds,
-                            });
+                              selectedIssueIds.push(
+                                ...selectedItems.map((item) => item.issue_id),
+                              );
+                              if (!invocation.options.dry_run) {
+                                startedIssueIds.push(...selectedIssueIds);
+                              }
+                              skipped.push(
+                                ...queuedItems
+                                  .slice(selectedItems.length)
+                                  .map((item) => ({
+                                    issue_id: item.issue_id,
+                                    reason: "capacity-exhausted",
+                                    details: {
+                                      capacity,
+                                    },
+                                  })),
+                              );
 
-                            return sequenceFutures([
-                              store.events
-                                .append(startedEvent)
-                                .pipe(map(() => undefined)),
-                              store.events
-                                .append(selectedEvent)
-                                .pipe(map(() => undefined)),
-                              ...selectedItems.map((target) =>
-                                runBoundedWorkflowTickForItem(
-                                  store,
-                                  target,
-                                  tickAt,
-                                  randomId,
-                                  now,
-                                  artifactWriter,
-                                  artifactReader,
-                                  planningSessionRunner,
-                                  planningWorkerStarter,
-                                  loadLinearIssue,
+                              const tickReport: EngineTickReport = {
+                                dry_run: invocation.options.dry_run,
+                                tick_at: tickAt,
+                                reconciled_issue_ids: reconciledIssueIds,
+                                discovered_issue_ids: discoveredIssueIds,
+                                queued_issue_ids: queuedIssueIds,
+                                selected_issue_ids: selectedIssueIds,
+                                started_issue_ids: startedIssueIds,
+                                skipped,
+                              };
+
+                              if (invocation.options.dry_run) {
+                                return createQueueStatus(store, {
+                                  command: invocation.command,
+                                  lastTickAt: tickAt,
+                                  runtime: runtime ?? null,
+                                  tick: tickReport,
+                                  warnings,
+                                }).pipe(
+                                  map((result) =>
+                                    root === "supervisor"
+                                      ? liftQueueStatusToSupervisorStatus(
+                                          result as Extract<
+                                            AutobotCommandResult,
+                                            { kind: "queue-status" }
+                                          >,
+                                        )
+                                      : result,
+                                  ),
+                                );
+                              }
+
+                              const startedEvent = createEngineTickEvent({
+                                type: "engine.tick.started",
+                                tickAt,
+                                selectedIssueIds,
+                                reconciledIssueIds,
+                                queuedIssueIds,
+                                startedIssueIds,
+                              });
+                              const selectedEvent = createEngineTickEvent({
+                                type: "engine.tick.selected",
+                                tickAt,
+                                selectedIssueIds,
+                                reconciledIssueIds,
+                                queuedIssueIds,
+                                startedIssueIds,
+                              });
+                              const finishedEvent = createEngineTickEvent({
+                                type: "engine.tick.finished",
+                                tickAt,
+                                selectedIssueIds,
+                                reconciledIssueIds,
+                                queuedIssueIds,
+                                startedIssueIds,
+                              });
+
+                              return sequenceFutures([
+                                store.events
+                                  .append(startedEvent)
+                                  .pipe(map(() => undefined)),
+                                store.events
+                                  .append(selectedEvent)
+                                  .pipe(map(() => undefined)),
+                                ...selectedItems.map((target) =>
+                                  runBoundedWorkflowTickForItem(
+                                    store,
+                                    target,
+                                    tickAt,
+                                    randomId,
+                                    now,
+                                    artifactWriter,
+                                    artifactReader,
+                                    planningSessionRunner,
+                                    planningWorkerStarter,
+                                    loadLinearIssue,
+                                  ),
                                 ),
-                              ),
-                            ]).pipe(
-                              chain(() =>
-                                store.events.append(finishedEvent).pipe(
-                                  chain(() =>
-                                    createQueueStatus(store, {
-                                      command: invocation.command,
-                                      lastTickAt: tickAt,
-                                      runtime: runtime ?? null,
-                                      tick: tickReport,
-                                      warnings,
-                                    }).pipe(
-                                      map((result) =>
-                                        root === "supervisor"
-                                          ? liftQueueStatusToSupervisorStatus(
-                                              result as Extract<
-                                                AutobotCommandResult,
-                                                { kind: "queue-status" }
-                                              >,
-                                            )
-                                          : result,
+                              ]).pipe(
+                                chain(() =>
+                                  store.events.append(finishedEvent).pipe(
+                                    chain(() =>
+                                      createQueueStatus(store, {
+                                        command: invocation.command,
+                                        lastTickAt: tickAt,
+                                        runtime: runtime ?? null,
+                                        tick: tickReport,
+                                        warnings,
+                                      }).pipe(
+                                        map((result) =>
+                                          root === "supervisor"
+                                            ? liftQueueStatusToSupervisorStatus(
+                                                result as Extract<
+                                                  AutobotCommandResult,
+                                                  { kind: "queue-status" }
+                                                >,
+                                              )
+                                            : result,
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ),
-                              ),
-                            );
-                          }),
-                        );
+                              );
+                            }),
+                          );
                       }),
                     );
                   }),

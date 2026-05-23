@@ -90,7 +90,7 @@ const invalidRunPlan = [
   "- Planner returned a malformed plan.",
 ].join("\n");
 
-test("default supervisor run-once starts one planning worker and returns before Flowcraft completion", async () => {
+test("default supervisor run-once starts planning workers up to capacity and returns before Flowcraft completion", async () => {
   const fixture = makeWorkflowStore({
     configOverrides: {
       "supervisor.max-concurrency": 3,
@@ -120,20 +120,13 @@ test("default supervisor run-once starts one planning worker and returns before 
   );
 
   assert.equal(result.kind, "supervisor-status");
-  assert.deepEqual(started, ["REP-300"]);
+  assert.deepEqual(started, ["REP-300", "REP-301"]);
   assert.equal(fixture.executionRecords.length, 0);
-  assert.equal(fixture.runUpserts.at(-1)?.state, "planning");
-  assert.equal(fixture.itemUpserts.at(-1)?.state, "planning");
   assert.deepEqual((result.data.tick?.selected_issue_ids ?? []).sort(), [
     "REP-300",
+    "REP-301",
   ]);
-  assert.equal(
-    result.data.tick?.skipped.some(
-      (skip) =>
-        skip.issue_id === "REP-301" && skip.reason === "bounded-tick-limit",
-    ),
-    true,
-  );
+  assert.deepEqual(result.data.tick?.skipped, []);
 });
 test("inspect resolves an in-progress planning worker before Flowcraft execution is recorded", async () => {
   const fixture = makeWorkflowStore({
@@ -258,7 +251,7 @@ test("later run-once advances the workflow from a completed planning worker resu
   assert.equal(fixture.runUpserts.at(-1)?.state, "completed");
   assert.equal(fixture.itemUpserts.at(-1)?.state, "completed");
 });
-test("run-once reconciles only one completed in-progress worker per tick", async () => {
+test("run-once reconciles multiple completed in-progress workers per tick", async () => {
   const fixture = makeWorkflowStore({
     configOverrides: {
       "supervisor.max-concurrency": 3,
@@ -351,13 +344,14 @@ test("run-once reconciles only one completed in-progress worker per tick", async
   );
 
   assert.equal(result.kind, "supervisor-status");
-  assert.deepEqual(result.data.tick?.reconciled_issue_ids, ["REP-305"]);
-  assert.deepEqual(result.data.tick?.selected_issue_ids, []);
-  assert.deepEqual(started, []);
-  assert.equal(fixture.executionRecords.length, 1);
-  assert.equal(fixture.executionRecords[0]?.issue_id, "REP-305");
+  assert.deepEqual((result.data.tick?.reconciled_issue_ids ?? []).sort(), [
+    "REP-304",
+    "REP-305",
+  ]);
+  assert.deepEqual(result.data.tick?.selected_issue_ids, ["REP-306"]);
+  assert.equal(fixture.executionRecords.length, 2);
 });
-test("run-once retries only one failed item and does not start queued work in the same tick", async () => {
+test("run-once retries multiple failed items and starts queued work with remaining capacity", async () => {
   const fixture = makeWorkflowStore({
     configOverrides: {
       "supervisor.max-concurrency": 3,
@@ -411,21 +405,23 @@ test("run-once retries only one failed item and does not start queued work in th
   );
 
   assert.equal(result.kind, "supervisor-status");
-  assert.deepEqual(result.data.tick?.reconciled_issue_ids, ["REP-308"]);
-  assert.deepEqual(result.data.tick?.selected_issue_ids, []);
-  assert.deepEqual(started, []);
+  assert.deepEqual((result.data.tick?.reconciled_issue_ids ?? []).sort(), [
+    "REP-307",
+    "REP-308",
+  ]);
+  assert.deepEqual(result.data.tick?.selected_issue_ids, [
+    "REP-307",
+    "REP-308",
+    "REP-309",
+  ]);
   assert.equal(
     fixture.itemUpserts.some(
       (item) =>
-        item.issue_id === "REP-308" &&
+        item.issue_id === "REP-307" &&
         item.state === "queued" &&
         item.attempt === 2,
     ),
     true,
-  );
-  assert.equal(
-    fixture.itemUpserts.some((item) => item.issue_id === "REP-307"),
-    false,
   );
 });
 test("completed planning worker failure preserves invalid plan lastError", async () => {

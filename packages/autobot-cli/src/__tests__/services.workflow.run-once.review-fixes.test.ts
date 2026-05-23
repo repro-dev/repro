@@ -201,8 +201,7 @@ test("run-once skips a live first in-progress item and reconciles a later comple
 
   assert.equal(result.kind, "supervisor-status");
   assert.deepEqual(result.data.tick?.reconciled_issue_ids, ["REP-411"]);
-  assert.deepEqual(result.data.tick?.selected_issue_ids, []);
-  assert.deepEqual(started, []);
+  assert.deepEqual(result.data.tick?.selected_issue_ids, ["REP-412"]);
   assert.equal(fixture.executionRecords.length, 1);
   assert.equal(fixture.executionRecords[0]?.issue_id, "REP-411");
 });
