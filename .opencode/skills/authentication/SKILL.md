@@ -105,6 +105,22 @@ All endpoints live under the `basePath` prefix:
 
 OAuth routes are registered under `/account` via `socialAuthRouter` (see `accountPlugins` in `apps/api-server/src/index.ts`).
 
+## Session lifetime policy
+
+Browser auth uses opaque, cookie-backed server sessions rather than JWT access/refresh tokens. Session tokens are stored as hashes in the `sessions` table and the raw token is sent in the signed `SESSION_COOKIE`.
+
+Subject-specific lifetime policy lives in `apps/api-server/src/services/sessionPolicy.ts`:
+
+| Subject type | Soft cookie expiry | Hard server expiry |
+| ------------ | ------------------ | ------------------ |
+| `user`       | 30 days            | 90 days            |
+| `staff`      | 12 hours           | 7 days             |
+
+- `apps/api-server/src/decorators/session.ts` applies the soft cookie expiry on each response and caps it at the subject-specific hard expiry from `session.createdAt`.
+- `apps/api-server/src/services/account.ts` enforces hard expiry in `getSessionByToken()` and deletes expired rows in `deleteExpiredSessions()` using the same policy.
+- Synthetic API-key sessions use `id: ''` and must never write `Set-Cookie` headers.
+- Do not reintroduce global `SESSION_SOFT_EXPIRY` / `SESSION_HARD_EXPIRY` behavior for workspace/admin sessions unless the product requirement explicitly calls for configurable policy.
+
 ## Feature gates
 
 Feature gates are string-keyed flags stored in the database. They are fetched client-side from `GET /feature-gates/enabled`. Use `useHasGate('gate-name')` in components, or `<IfGate gate="gate-name">` for declarative gating. The server-side service is `featureGateService`.
