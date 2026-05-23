@@ -121,7 +121,78 @@ test("default supervisor run-once starts planning workers up to capacity and ret
 
   assert.equal(result.kind, "supervisor-status");
   assert.deepEqual(started, ["REP-300", "REP-301"]);
-  assert.equal(fixture.executionRecords.length, 4);
+  assert.equal(fixture.executionRecords.length, 6);
+  const workerExecution = fixture.executionRecords.find(
+    (record) =>
+      record.issue_id === "REP-300" &&
+      record.execution_id === "flowcraft-run-300" &&
+      record.state === "awaiting" &&
+      (record.metadata as { workflow_status?: string } | undefined)
+        ?.workflow_status === "awaiting",
+  );
+  const workerMetadata = workerExecution?.metadata as
+    | {
+        workflow_status?: string;
+        item_state?: string;
+        phase_sequence?: string[];
+        node_outputs?: Array<{ node_id: string }>;
+        recovery_commands?: string[];
+        serialized_context?: string;
+      }
+    | undefined;
+  assert.equal(workerMetadata?.workflow_status, "awaiting");
+  assert.equal(workerMetadata?.item_state, "awaiting");
+  assert.deepEqual(workerMetadata?.phase_sequence, [
+    "claim",
+    "preparing",
+    "planning",
+  ]);
+  assert.deepEqual(
+    workerMetadata?.node_outputs?.map((output) => output.node_id),
+    ["claim", "preparing", "planning"],
+  );
+  assert.deepEqual(workerMetadata?.recovery_commands, [
+    "autobot-next inspect REP-300 --json",
+  ]);
+  assert.match(
+    workerMetadata?.serialized_context ?? "",
+    /planning_worker_running/,
+  );
+  assert.ok(
+    fixture.flowcraftEvents.some(
+      (event) =>
+        event.execution_id === "flowcraft-run-300" &&
+        event.node_id === "planning" &&
+        event.type === "node:finish",
+    ),
+  );
+  const listedExecutions = await runFuture(
+    fixture.store.flowcraft.listExecutions(),
+  );
+  assert.ok(
+    listedExecutions.some(
+      (execution) =>
+        execution.execution_id === "flowcraft-run-300" &&
+        execution.state === "awaiting",
+    ),
+  );
+  const inspectResult = await runFuture(
+    services.handleInvocation({
+      ...makeInvocation(["inspect"]),
+      args: ["flowcraft-run-300"],
+      command: "inspect flowcraft-run-300",
+    }),
+  );
+  assert.equal(inspectResult.kind, "flowcraft-inspect");
+  assert.equal(
+    inspectResult.data.lookup.execution?.metadata.workflow_status,
+    "awaiting",
+  );
+  assert.ok(
+    inspectResult.data.lookup.flowcraft_events.some(
+      (event) => event.node_id === "planning" && event.type === "node:finish",
+    ),
+  );
   assert.deepEqual((result.data.tick?.selected_issue_ids ?? []).sort(), [
     "REP-300",
     "REP-301",

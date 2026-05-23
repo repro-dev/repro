@@ -4120,6 +4120,38 @@ function createFlowcraftProgressWriter(input: {
   };
 }
 
+function persistAwaitingWorkerFlowcraftExecution(input: {
+  store: AutobotStore;
+  issueId: string;
+  runId: string;
+  executionId: string;
+  startedAt: string;
+  plan: FlowcraftExecutionPlan;
+}): FutureInstance<unknown, void> {
+  const executionState = mapFlowcraftStatusToItemState(
+    input.plan.metadata.workflow_status,
+  );
+
+  return input.store.transaction((transaction) =>
+    sequenceFutures([
+      transaction.flowcraft
+        .recordExecution({
+          execution_id: input.executionId,
+          issue_id: input.issueId,
+          run_id: input.runId,
+          state: executionState,
+          started_at: input.startedAt,
+          finished_at: input.plan.finished_at,
+          metadata: input.plan.metadata,
+        })
+        .pipe(map(() => undefined)),
+      ...input.plan.flowcraft_events.map((event: FlowcraftEventRecord) =>
+        transaction.flowcraft.recordEvent(event).pipe(map(() => undefined)),
+      ),
+    ]).pipe(map(() => undefined)),
+  );
+}
+
 function hydratePlanningItemDetail(
   item: ItemDetail,
   linear: LinearIssueRef | null,
@@ -4357,7 +4389,18 @@ function runBoundedWorkflowTickForItem(
                           : progressPhaseTimes.preparing,
                     },
                   },
-                }).pipe(map(() => undefined)),
+                }).pipe(
+                  chain((plan: FlowcraftExecutionPlan) =>
+                    persistAwaitingWorkerFlowcraftExecution({
+                      store,
+                      issueId: target.issue_id,
+                      runId,
+                      executionId,
+                      startedAt,
+                      plan,
+                    }),
+                  ),
+                ),
               ]).pipe(map(() => undefined));
             }
 

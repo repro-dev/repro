@@ -647,6 +647,13 @@ export function makeWorkflowStore(options: WorkflowStoreOptions = {}) {
       },
       getExecution(executionId: string) {
         flowcraftGetLookups.push(executionId);
+        const recordedExecution = [...executionRecords]
+          .reverse()
+          .find((execution) => execution.execution_id === executionId);
+        if (recordedExecution !== undefined) {
+          return resolve({ ...recordedExecution });
+        }
+
         return resolve(
           executionId === "exec-1154"
             ? {
@@ -887,13 +894,20 @@ export function makeWorkflowStore(options: WorkflowStoreOptions = {}) {
         );
       },
       listExecutions() {
-        return resolve([]);
+        return resolve([...executionRecords]);
       },
       recordEvent(input: Record<string, unknown>) {
         flowcraftEvents.push(input);
         return resolve(input);
       },
       listEvents(executionId: string) {
+        const recordedEvents = flowcraftEvents.filter(
+          (event) => event.execution_id === executionId,
+        );
+        if (recordedEvents.length > 0) {
+          return resolve([...recordedEvents]);
+        }
+
         return resolve(
           executionId === "exec-1154"
             ? [
