@@ -82,6 +82,21 @@ const validRunPlan = [
   "## Plan",
   "- Deliver the issue.",
 ].join("\n");
+
+function awaitingFlowcraftEvents(executionId: string) {
+  return Array.from({ length: 18 }, (_value, index) => ({
+    flowcraft_event_id: `${executionId}-${String(index).padStart(2, "0")}`,
+    execution_id: executionId,
+    node_id: index === 0 ? "workflow" : "planning",
+    type: index === 0 ? "workflow:start" : "workflow:awaiting-progress",
+    occurred_at: "2026-05-15T12:00:00.000Z",
+    data: {
+      status: "awaiting",
+      awaiting_event_index: index,
+    },
+  }));
+}
+
 const invalidRunPlan = [
   "## Readiness",
   "ready_to_proceed",
@@ -376,16 +391,7 @@ test("completed planning worker reconciliation is idempotent after awaiting Flow
         },
       },
     ],
-    flowcraftEvents: [
-      {
-        flowcraft_event_id: "flowcraft-run-311-00",
-        execution_id: "flowcraft-run-311",
-        node_id: "workflow",
-        type: "workflow:start",
-        occurred_at: "2026-05-15T12:00:00.000Z",
-        data: {},
-      },
-    ],
+    flowcraftEvents: awaitingFlowcraftEvents("flowcraft-run-311"),
     domainEvents: [
       {
         event_id: "flowcraft-run-311-preparing-domain-0",
@@ -432,6 +438,16 @@ test("completed planning worker reconciliation is idempotent after awaiting Flow
       (event) => event.flowcraft_event_id === "flowcraft-run-311-00",
     ).length,
     1,
+  );
+  assert.ok(
+    fixture.flowcraftEvents.some(
+      (event) => event.type === "workflow.planner.stdout",
+    ),
+  );
+  assert.ok(
+    fixture.flowcraftEvents.some(
+      (event) => event.type === "workflow.planner.finished",
+    ),
   );
   assert.equal(
     fixture.domainEvents.filter(

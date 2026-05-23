@@ -1329,13 +1329,66 @@ function filterNewFlowcraftEvents(
   events: FlowcraftEventRecord[],
   persistedEvents: FlowcraftEventRecord[],
 ): FlowcraftEventRecord[] {
-  const persistedEventIds = new Set(
-    persistedEvents.map((event) => event.flowcraft_event_id),
+  const persistedEventsById = new Map(
+    persistedEvents.map((event) => [event.flowcraft_event_id, event]),
   );
+  const occupiedEventIds = new Set(persistedEventsById.keys());
 
-  return events.filter(
-    (event) => !persistedEventIds.has(event.flowcraft_event_id),
+  return events.flatMap((event) => {
+    const persistedEvent = persistedEventsById.get(event.flowcraft_event_id);
+
+    if (persistedEvent === undefined) {
+      occupiedEventIds.add(event.flowcraft_event_id);
+      return [event];
+    }
+
+    if (flowcraftEventsMatch(event, persistedEvent)) {
+      return [];
+    }
+
+    const flowcraft_event_id = createReconciledFlowcraftEventId({
+      eventId: event.flowcraft_event_id,
+      occupiedEventIds,
+    });
+    occupiedEventIds.add(flowcraft_event_id);
+
+    return [
+      {
+        ...event,
+        flowcraft_event_id,
+      },
+    ];
+  });
+}
+
+function flowcraftEventsMatch(
+  left: FlowcraftEventRecord,
+  right: FlowcraftEventRecord,
+): boolean {
+  return (
+    left.flowcraft_event_id === right.flowcraft_event_id &&
+    left.execution_id === right.execution_id &&
+    left.node_id === right.node_id &&
+    left.type === right.type &&
+    left.occurred_at === right.occurred_at &&
+    JSON.stringify(left.data) === JSON.stringify(right.data)
   );
+}
+
+function createReconciledFlowcraftEventId(input: {
+  eventId: string;
+  occupiedEventIds: Set<string>;
+}): string {
+  for (let index = 1; ; index += 1) {
+    const candidate = `${input.eventId}-reconciled-${String(index).padStart(
+      2,
+      "0",
+    )}`;
+
+    if (!input.occupiedEventIds.has(candidate)) {
+      return candidate;
+    }
+  }
 }
 
 function isPersistedProgressPhaseEvent(event: DomainEvent): boolean {
