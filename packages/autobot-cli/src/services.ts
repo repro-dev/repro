@@ -1448,6 +1448,7 @@ function reconcileCompletedPlanningWorker(input: {
             plan.metadata.planning_session_result?.finished_at ??
               workflowFinishedAt,
           );
+          const planningSessionResult = plan.metadata.planning_session_result;
           const lastError =
             runState === "awaiting"
               ? {
@@ -1458,6 +1459,30 @@ function reconcileCompletedPlanningWorker(input: {
                     plan.metadata.planning_session_result?.finished_at ??
                     flowcraftFinishedAt,
                 }
+              : plan.metadata.planning_should_fail === true
+              ? planningSessionResult === null
+                ? {
+                    code: "AUTOBOT-PLANNING-ARTIFACTS-FAILED",
+                    message:
+                      plan.metadata.planning_failure_reason ??
+                      "planning failed",
+                    occurred_at: flowcraftFinishedAt,
+                  }
+                : plan.metadata.planning_run_plan_valid === false
+                ? {
+                    code: "AUTOBOT-PLANNER-RUN-PLAN-INVALID",
+                    message:
+                      plan.metadata.planning_failure_reason ??
+                      "planning session produced invalid run-plan.md",
+                    occurred_at: planningSessionResult.finished_at,
+                  }
+                : {
+                    code: "AUTOBOT-PLANNER-SESSION-FAILED",
+                    message: `planning session exited with code ${String(
+                      planningSessionResult.exit_code,
+                    )}`,
+                    occurred_at: planningSessionResult.finished_at,
+                  }
               : null;
           const nextItem = buildItemSummaryFromExisting(
             input.item,
@@ -4428,74 +4453,160 @@ function handleEngineRunOnce(
               const selectedIssueIds: string[] = [];
               const startedIssueIds: string[] = [];
               const skipped: EngineTickSkip[] = [];
+              const finishBoundedTick = (): FutureInstance<
+                unknown,
+                AutobotCommandResult
+              > => {
+                const tickReport: EngineTickReport = {
+                  dry_run: invocation.options.dry_run,
+                  tick_at: tickAt,
+                  reconciled_issue_ids: reconciledIssueIds,
+                  discovered_issue_ids: discoveredIssueIds,
+                  queued_issue_ids: queuedIssueIds,
+                  selected_issue_ids: selectedIssueIds,
+                  started_issue_ids: startedIssueIds,
+                  skipped,
+                };
 
-              const reconcileFutures = workingItems
-                .filter((item) => isInProgressState(item.state))
-                .map((item) =>
-                  reconcileEngineItem(
-                    store,
-                    item,
-                    workers,
-                    workersById,
-                    tickAt,
-                    invocation.options.dry_run,
-                    settings.maxRetries,
-                    artifactWriter,
-                    artifactReader,
-                    isProcessAlive,
-                    killProcess,
-                  ).pipe(
-                    map((outcome) => {
-                      if (outcome.reconciled_issue_id !== null) {
-                        reconciledIssueIds.push(outcome.reconciled_issue_id);
-                      }
+                const createStatus = () =>
+                  createQueueStatus(store, {
+                    command: invocation.command,
+                    lastTickAt: tickAt,
+                    runtime: runtime ?? null,
+                    tick: tickReport,
+                    warnings,
+                  }).pipe(
+                    map((result) =>
+                      root === "supervisor"
+                        ? liftQueueStatusToSupervisorStatus(
+                            result as Extract<
+                              AutobotCommandResult,
+                              { kind: "queue-status" }
+                            >,
+                          )
+                        : result,
+                    ),
+                  );
 
-                      const index = workingItems.findIndex(
-                        (current) => current.issue_id === outcome.item.issue_id,
-                      );
-                      if (index !== -1) {
-                        workingItems[index] = outcome.item;
-                      }
+                if (invocation.options.dry_run) {
+                  return createStatus();
+                }
 
-                      return outcome;
-                    }),
-                  ),
-                );
+                return sequenceFutures([
+                  store.events
+                    .append(
+                      createEngineTickEvent({
+                        type: "engine.tick.started",
+                        tickAt,
+                        selectedIssueIds,
+                        reconciledIssueIds,
+                        queuedIssueIds,
+                        startedIssueIds,
+                      }),
+                    )
+                    .pipe(map(() => undefined)),
+                  store.events
+                    .append(
+                      createEngineTickEvent({
+                        type: "engine.tick.selected",
+                        tickAt,
+                        selectedIssueIds,
+                        reconciledIssueIds,
+                        queuedIssueIds,
+                        startedIssueIds,
+                      }),
+                    )
+                    .pipe(map(() => undefined)),
+                  store.events
+                    .append(
+                      createEngineTickEvent({
+                        type: "engine.tick.finished",
+                        tickAt,
+                        selectedIssueIds,
+                        reconciledIssueIds,
+                        queuedIssueIds,
+                        startedIssueIds,
+                      }),
+                    )
+                    .pipe(map(() => undefined)),
+                ]).pipe(chain(createStatus));
+              };
+
+              const inProgressItems = workingItems.filter((item) =>
+                isInProgressState(item.state),
+              );
+              const reconcileFutures = inProgressItems.slice(0, 1).map((item) =>
+                reconcileEngineItem(
+                  store,
+                  item,
+                  workers,
+                  workersById,
+                  tickAt,
+                  invocation.options.dry_run,
+                  settings.maxRetries,
+                  artifactWriter,
+                  artifactReader,
+                  isProcessAlive,
+                  killProcess,
+                ).pipe(
+                  map((outcome) => {
+                    if (outcome.reconciled_issue_id !== null) {
+                      reconciledIssueIds.push(outcome.reconciled_issue_id);
+                    }
+
+                    const index = workingItems.findIndex(
+                      (current) => current.issue_id === outcome.item.issue_id,
+                    );
+                    if (index !== -1) {
+                      workingItems[index] = outcome.item;
+                    }
+
+                    return outcome;
+                  }),
+                ),
+              );
 
               return sequenceFutures(reconcileFutures).pipe(
                 chain(() => {
-                  const retryFutures = workingItems
-                    .filter((item) => isRetryableFailedItem(item))
-                    .map((item) =>
-                      reconcileRetryableFailedItem(
-                        store,
-                        item,
-                        tickAt,
-                        invocation.options.dry_run,
-                        settings.maxRetries,
-                      ).pipe(
-                        map((outcome) => {
-                          if (outcome.reconciled_issue_id !== null) {
-                            reconciledIssueIds.push(
-                              outcome.reconciled_issue_id,
-                            );
-                          }
+                  if (inProgressItems.length > 0) {
+                    return finishBoundedTick();
+                  }
 
-                          const index = workingItems.findIndex(
-                            (current) =>
-                              current.issue_id === outcome.item.issue_id,
-                          );
-                          if (index !== -1) {
-                            workingItems[index] = outcome.item;
-                          }
+                  const retryableItems = workingItems.filter((item) =>
+                    isRetryableFailedItem(item),
+                  );
+                  const retryFutures = retryableItems.slice(0, 1).map((item) =>
+                    reconcileRetryableFailedItem(
+                      store,
+                      item,
+                      tickAt,
+                      invocation.options.dry_run,
+                      settings.maxRetries,
+                    ).pipe(
+                      map((outcome) => {
+                        if (outcome.reconciled_issue_id !== null) {
+                          reconciledIssueIds.push(outcome.reconciled_issue_id);
+                        }
 
-                          return outcome;
-                        }),
-                      ),
-                    );
+                        const index = workingItems.findIndex(
+                          (current) =>
+                            current.issue_id === outcome.item.issue_id,
+                        );
+                        if (index !== -1) {
+                          workingItems[index] = outcome.item;
+                        }
+
+                        return outcome;
+                      }),
+                    ),
+                  );
 
                   return sequenceFutures(retryFutures).pipe(
                     chain(() => {
+                      if (retryableItems.length > 0) {
+                        return finishBoundedTick();
+                      }
+
                       const queueDiscoveredCandidates = (
                         candidates: DiscoverCandidate[],
                       ): FutureInstance<unknown, void> => {

@@ -1,14 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-
 import { fork, resolve, type FutureInstance } from "fluture";
-
 import type { AutobotStore } from "@repro/autobot-store";
-
 import { createAutobotServices } from "../services";
 import type { PlanningWorkerStarter } from "../planning-session";
 import type { AutobotGlobalOptions, AutobotInvocation } from "../types";
-
 import { makeWorkflowStore } from "./workflow-fixture";
 
 function runFuture<T>(future: FutureInstance<unknown, T>): Promise<T> {
@@ -37,7 +33,6 @@ function makeOptions(
     ...overrides,
   };
 }
-
 function makeInvocation(
   command_path: string[],
   overrides: Partial<AutobotGlobalOptions> = {},
@@ -49,7 +44,6 @@ function makeInvocation(
     options: makeOptions(overrides),
   };
 }
-
 function queuedItem(issueId: string, queuedAt: string) {
   return {
     issue_id: issueId,
@@ -75,7 +69,6 @@ function queuedItem(issueId: string, queuedAt: string) {
     events: [] as [],
   };
 }
-
 const validRunPlan = [
   "## Readiness",
   "ready_to_proceed",
@@ -88,6 +81,13 @@ const validRunPlan = [
   "",
   "## Plan",
   "- Deliver the issue.",
+].join("\n");
+const invalidRunPlan = [
+  "## Readiness",
+  "ready_to_proceed",
+  "",
+  "## Sequence Notes",
+  "- Planner returned a malformed plan.",
 ].join("\n");
 
 test("default supervisor run-once starts one planning worker and returns before Flowcraft completion", async () => {
@@ -135,7 +135,6 @@ test("default supervisor run-once starts one planning worker and returns before 
     true,
   );
 });
-
 test("inspect resolves an in-progress planning worker before Flowcraft execution is recorded", async () => {
   const fixture = makeWorkflowStore({
     items: [queuedItem("REP-302", "2026-05-15T09:00:00Z")],
@@ -188,7 +187,6 @@ test("inspect resolves an in-progress planning worker before Flowcraft execution
   assert.equal(result.data.lookup.worker?.worker_id, "worker-run-302");
   assert.deepEqual(result.data.lookup.flowcraft_events, []);
 });
-
 test("later run-once advances the workflow from a completed planning worker result", async () => {
   const fixture = makeWorkflowStore({
     items: [
@@ -259,4 +257,244 @@ test("later run-once advances the workflow from a completed planning worker resu
   assert.equal(fixture.executionRecords[0]?.execution_id, "flowcraft-run-303");
   assert.equal(fixture.runUpserts.at(-1)?.state, "completed");
   assert.equal(fixture.itemUpserts.at(-1)?.state, "completed");
+});
+test("run-once reconciles only one completed in-progress worker per tick", async () => {
+  const fixture = makeWorkflowStore({
+    configOverrides: {
+      "supervisor.max-concurrency": 3,
+    },
+    items: [
+      {
+        ...queuedItem("REP-304", "2026-05-15T09:00:00Z"),
+        state: "planning",
+        updated_at: "2026-05-15T12:00:00Z",
+        started_at: "2026-05-15T12:00:00Z",
+      },
+      {
+        ...queuedItem("REP-305", "2026-05-15T09:01:00Z"),
+        state: "planning",
+        updated_at: "2026-05-15T12:00:01Z",
+        started_at: "2026-05-15T12:00:01Z",
+      },
+      queuedItem("REP-306", "2026-05-15T09:02:00Z"),
+    ],
+    currentRuns: {
+      "REP-304": {
+        run_id: "run-304",
+        issue_id: "REP-304",
+        attempt: 1,
+        state: "planning",
+        flowcraft_execution_id: "flowcraft-run-304",
+        blueprint_id: "autobot-deliver-issue",
+        blueprint_version: "1.0.0",
+        started_at: "2026-05-15T12:00:00Z",
+        finished_at: null,
+        worker_id: "worker-run-304",
+        last_heartbeat_at: "2026-05-15T12:00:02Z",
+        transport: null,
+      },
+      "REP-305": {
+        run_id: "run-305",
+        issue_id: "REP-305",
+        attempt: 1,
+        state: "planning",
+        flowcraft_execution_id: "flowcraft-run-305",
+        blueprint_id: "autobot-deliver-issue",
+        blueprint_version: "1.0.0",
+        started_at: "2026-05-15T12:00:01Z",
+        finished_at: null,
+        worker_id: "worker-run-305",
+        last_heartbeat_at: "2026-05-15T12:00:03Z",
+        transport: null,
+      },
+    },
+    workers: ["304", "305"].map((id) => ({
+      worker_id: `worker-run-${id}`,
+      issue_id: `REP-${id}`,
+      run_id: `run-${id}`,
+      flowcraft_execution_id: `flowcraft-run-${id}`,
+      workflow_node_id: "plan",
+      phase: "plan",
+      state: "completed" as const,
+      pid: 123,
+      started_at: `2026-05-15T12:00:0${id === "304" ? "0" : "1"}Z`,
+      last_heartbeat_at: `2026-05-15T12:00:0${id === "304" ? "2" : "3"}Z`,
+      exit_code: 0,
+      signal: null,
+      finished_at: `2026-05-15T12:00:0${id === "304" ? "2" : "3"}Z`,
+      result: {
+        command: "opencode",
+        args: ["run"],
+        started_at: `2026-05-15T12:00:0${id === "304" ? "0" : "1"}Z`,
+        finished_at: `2026-05-15T12:00:0${id === "304" ? "2" : "3"}Z`,
+        exit_code: 0,
+        signal: null,
+        stdout: validRunPlan,
+        stderr: "",
+      },
+    })),
+  });
+  const started: string[] = [];
+  const services = createAutobotServices({
+    openStore: () => resolve(fixture.store as unknown as AutobotStore),
+    now: () => "2026-05-15T12:00:04Z",
+    artifactWriter: () => resolve(undefined),
+    artifactReader: () => resolve(validRunPlan),
+    planningWorkerStarter(input) {
+      started.push(input.issueId);
+      return resolve(undefined);
+    },
+  });
+
+  const result = await runFuture(
+    services.handleInvocation(makeInvocation(["supervisor", "run-once"])),
+  );
+
+  assert.equal(result.kind, "supervisor-status");
+  assert.deepEqual(result.data.tick?.reconciled_issue_ids, ["REP-305"]);
+  assert.deepEqual(result.data.tick?.selected_issue_ids, []);
+  assert.deepEqual(started, []);
+  assert.equal(fixture.executionRecords.length, 1);
+  assert.equal(fixture.executionRecords[0]?.issue_id, "REP-305");
+});
+test("run-once retries only one failed item and does not start queued work in the same tick", async () => {
+  const fixture = makeWorkflowStore({
+    configOverrides: {
+      "supervisor.max-concurrency": 3,
+      "supervisor.max-retries": 2,
+    },
+    items: [
+      {
+        ...queuedItem("REP-307", "2026-05-15T09:00:00Z"),
+        state: "failed",
+        attempt: 1,
+        updated_at: "2026-05-15T12:00:00Z",
+        started_at: "2026-05-15T11:59:00Z",
+        last_event: "engine.item.reconciled",
+        last_error: {
+          code: "AUTOBOT-WORKER-EXITED",
+          message: "worker exited with signal SIGTERM",
+          occurred_at: "2026-05-15T12:00:00Z",
+        },
+      } as any,
+      {
+        ...queuedItem("REP-308", "2026-05-15T09:01:00Z"),
+        state: "failed",
+        attempt: 1,
+        updated_at: "2026-05-15T12:00:01Z",
+        started_at: "2026-05-15T11:59:01Z",
+        last_event: "engine.item.reconciled",
+        last_error: {
+          code: "AUTOBOT-WORKER-EXITED",
+          message: "worker exited with signal SIGTERM",
+          occurred_at: "2026-05-15T12:00:01Z",
+        },
+      } as any,
+      queuedItem("REP-309", "2026-05-15T09:02:00Z"),
+    ],
+  });
+  const started: string[] = [];
+  const services = createAutobotServices({
+    openStore: () => resolve(fixture.store as unknown as AutobotStore),
+    now: () => "2026-05-15T12:00:02Z",
+    randomId: () => "run-retry",
+    artifactWriter: () => resolve(undefined),
+    artifactReader: () => resolve(validRunPlan),
+    planningWorkerStarter(input) {
+      started.push(input.issueId);
+      return resolve(undefined);
+    },
+  });
+
+  const result = await runFuture(
+    services.handleInvocation(makeInvocation(["supervisor", "run-once"])),
+  );
+
+  assert.equal(result.kind, "supervisor-status");
+  assert.deepEqual(result.data.tick?.reconciled_issue_ids, ["REP-308"]);
+  assert.deepEqual(result.data.tick?.selected_issue_ids, []);
+  assert.deepEqual(started, []);
+  assert.equal(
+    fixture.itemUpserts.some(
+      (item) =>
+        item.issue_id === "REP-308" &&
+        item.state === "queued" &&
+        item.attempt === 2,
+    ),
+    true,
+  );
+  assert.equal(
+    fixture.itemUpserts.some((item) => item.issue_id === "REP-307"),
+    false,
+  );
+});
+test("completed planning worker failure preserves invalid plan lastError", async () => {
+  const fixture = makeWorkflowStore({
+    items: [
+      {
+        ...queuedItem("REP-310", "2026-05-15T09:00:00Z"),
+        state: "planning",
+        updated_at: "2026-05-15T12:00:00Z",
+        started_at: "2026-05-15T12:00:00Z",
+      },
+    ],
+    currentRuns: {
+      "REP-310": {
+        run_id: "run-310",
+        issue_id: "REP-310",
+        attempt: 1,
+        state: "planning",
+        flowcraft_execution_id: "flowcraft-run-310",
+        blueprint_id: "autobot-deliver-issue",
+        blueprint_version: "1.0.0",
+        started_at: "2026-05-15T12:00:00Z",
+        finished_at: null,
+        worker_id: "worker-run-310",
+        last_heartbeat_at: "2026-05-15T12:00:01Z",
+        transport: null,
+      },
+    },
+    workers: [
+      {
+        worker_id: "worker-run-310",
+        issue_id: "REP-310",
+        run_id: "run-310",
+        flowcraft_execution_id: "flowcraft-run-310",
+        workflow_node_id: "plan",
+        phase: "plan",
+        state: "completed",
+        pid: 123,
+        started_at: "2026-05-15T12:00:00Z",
+        last_heartbeat_at: "2026-05-15T12:00:02Z",
+        exit_code: 0,
+        signal: null,
+        finished_at: "2026-05-15T12:00:02Z",
+        result: {
+          command: "opencode",
+          args: ["run"],
+          started_at: "2026-05-15T12:00:00Z",
+          finished_at: "2026-05-15T12:00:02Z",
+          exit_code: 0,
+          signal: null,
+          stdout: invalidRunPlan,
+          stderr: "",
+        },
+      },
+    ],
+  });
+  const services = createAutobotServices({
+    openStore: () => resolve(fixture.store as unknown as AutobotStore),
+    now: () => "2026-05-15T12:00:03Z",
+    artifactWriter: () => resolve(undefined),
+    artifactReader: () => resolve(invalidRunPlan),
+  });
+  await runFuture(
+    services.handleInvocation(makeInvocation(["supervisor", "run-once"])),
+  );
+
+  assert.equal(fixture.itemUpserts.at(-1)?.state, "failed");
+  assert.equal(
+    (fixture.itemUpserts.at(-1)?.last_error as { code?: string } | null)?.code,
+    "AUTOBOT-PLANNER-RUN-PLAN-INVALID",
+  );
 });
