@@ -121,7 +121,7 @@ test("default supervisor run-once starts planning workers up to capacity and ret
 
   assert.equal(result.kind, "supervisor-status");
   assert.deepEqual(started, ["REP-300", "REP-301"]);
-  assert.equal(fixture.executionRecords.length, 0);
+  assert.equal(fixture.executionRecords.length, 4);
   assert.deepEqual((result.data.tick?.selected_issue_ids ?? []).sort(), [
     "REP-300",
     "REP-301",

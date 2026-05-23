@@ -12,6 +12,7 @@ import type {
   FlowcraftExecutionPlan,
   FlowcraftNodeId,
   FlowcraftNodeImplementation,
+  FlowcraftPhaseProgressRecord,
   FlowcraftPhaseId,
   FlowcraftValidationIssue,
   FlowcraftValidationResult,
@@ -250,12 +251,23 @@ function createPhaseNode(
       throw new Error(`createPhaseNode cannot render control node ${nodeId}`);
     }
 
-    return {
-      output: {
+    const output = {
+      phase: phaseId,
+      state: phaseDefinitions[phaseId].state,
+      ...pickReviewControlFields(snapshot),
+    };
+
+    if (phaseId === "preparing") {
+      await persistPhaseProgress({
+        nodeContext,
+        snapshot,
         phase: phaseId,
-        state: phaseDefinitions[phaseId].state,
-        ...pickReviewControlFields(snapshot),
-      },
+        output,
+      });
+    }
+
+    return {
+      output,
     };
   };
 }
@@ -293,6 +305,74 @@ function futureToPromise<T>(future: FutureInstance<unknown, T>): Promise<T> {
   return new Promise((resolve, reject) => {
     future.pipe(fork(reject)(resolve));
   });
+}
+
+function getPhaseProgressRecoveryCommands(issueId: string): string[] {
+  return [
+    `autobot-next status ${issueId} --json`,
+    `autobot-next logs ${issueId} --json`,
+  ];
+}
+
+async function persistPhaseProgress(input: {
+  nodeContext?: NodeExecutionContext;
+  snapshot: Record<string, unknown>;
+  phase: "preparing" | "planning";
+  output: Record<string, unknown>;
+}): Promise<void> {
+  const planning = input.nodeContext?.dependencies?.autobotPlanning;
+  const progressWriter = planning?.progressWriter;
+
+  if (progressWriter === undefined) {
+    return;
+  }
+
+  const runId = String(input.snapshot.run_id ?? input.snapshot.runId ?? "");
+  const executionId = String(
+    input.snapshot.execution_id ??
+      input.snapshot.executionId ??
+      input.nodeContext?.dependencies?.runtime?.executionId ??
+      "",
+  );
+  const issueId = String(
+    input.snapshot.issue_id ??
+      input.snapshot.issueId ??
+      planning?.item?.issue_id ??
+      "",
+  );
+  const phaseDefinition = phaseDefinitions[input.phase];
+  const occurredAt = planning?.progressClock?.() ?? new Date().toISOString();
+  const nodeOutput = {
+    node_id: input.phase,
+    state: phaseDefinition.state,
+    output: input.output,
+    occurred_at: occurredAt,
+  } satisfies FlowcraftPhaseProgressRecord["node_output"];
+  const serializedContext = JSON.stringify(
+    stripNestedTransport({
+      ...input.snapshot,
+      [input.phase]: input.output,
+      [`_outputs.${input.phase}`]: input.output,
+    }),
+  );
+
+  await futureToPromise(
+    progressWriter({
+      issue_id: issueId,
+      run_id: runId,
+      execution_id: executionId,
+      workflow_id: autobotDeliverIssueWorkflowId,
+      workflow_version: autobotDeliverIssueWorkflowVersion,
+      phase: input.phase,
+      state: phaseDefinition.state,
+      event_type: phaseDefinition.type,
+      message: phaseDefinition.message,
+      occurred_at: occurredAt,
+      recovery_commands: getPhaseProgressRecoveryCommands(issueId),
+      serialized_context: serializedContext,
+      node_output: nodeOutput,
+    }),
+  );
 }
 
 function createContentHash(content: string): string {
@@ -436,7 +516,11 @@ function createPlanningNode(): FlowcraftNodeImplementation {
         item: { issue_id: string; attempt: number };
       };
     const runId = String(snapshot.run_id ?? snapshot.runId ?? "");
-    const executionId = nodeContext.dependencies.runtime.executionId;
+    const executionId = String(
+      snapshot.execution_id ??
+        snapshot.executionId ??
+        nodeContext.dependencies.runtime.executionId,
+    );
     const eventBus = nodeContext.dependencies.runtime.services.eventBus;
     let planningSessionResult: FlowcraftPlanningSessionResult | null = null;
     let runPlanAssessment: PlanningRunPlanAssessment = {
@@ -447,6 +531,19 @@ function createPlanningNode(): FlowcraftNodeImplementation {
     let planningRunPlanReady = false;
     let planningArtifacts = artifactDrafts;
     let planningFailureReason: string | null = null;
+
+    const progressOutput = {
+      phase: phaseId,
+      state: phaseDefinitions[phaseId].state,
+      ...pickReviewControlFields(snapshot),
+    };
+
+    await persistPhaseProgress({
+      nodeContext,
+      snapshot,
+      phase: phaseId,
+      output: progressOutput,
+    });
 
     try {
       await Promise.all(
@@ -473,6 +570,41 @@ function createPlanningNode(): FlowcraftNodeImplementation {
           artifactPaths,
         },
       });
+
+      if (planning.planningWorkerStarter !== undefined) {
+        await futureToPromise(
+          planning.planningWorkerStarter({
+            repo: planning.repo,
+            issueId: planning.item.issue_id,
+            attempt: planning.item.attempt,
+            runId,
+            executionId,
+            artifactPaths,
+          }),
+        );
+        await nodeContext.dependencies.workflowState?.markAsAwaiting?.(
+          phaseId,
+          {
+            reason: "planning_worker_running",
+          },
+        );
+
+        return {
+          output: {
+            phase: phaseId,
+            state: phaseDefinitions[phaseId].state,
+            planning_run_plan_valid: false,
+            planning_run_plan_ready: false,
+            planning_readiness: null,
+            planning_artifacts: planningArtifacts,
+            planning_should_fail: false,
+            planning_failure_reason: null,
+            planning_session_result: null,
+            planning_worker_running: true,
+            ...pickReviewControlFields(snapshot),
+          },
+        };
+      }
 
       planningSessionResult = await futureToPromise(
         planning.planningSessionRunner({
@@ -1504,6 +1636,8 @@ export type {
   FlowcraftExecutionPlan,
   FlowcraftNodeId,
   FlowcraftNodeImplementation,
+  FlowcraftPhaseProgressRecord,
+  FlowcraftPhaseProgressWriter,
   FlowcraftPhaseEvent,
   FlowcraftValidationIssue,
   FlowcraftValidationResult,

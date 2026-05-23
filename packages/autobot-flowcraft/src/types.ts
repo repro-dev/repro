@@ -67,6 +67,10 @@ export type FlowcraftPlanningSessionRunner = (
   input: FlowcraftPlanningSessionInput,
 ) => FutureInstance<unknown, FlowcraftPlanningSessionResult>;
 
+export type FlowcraftPlanningWorkerStarter = (
+  input: FlowcraftPlanningSessionInput,
+) => FutureInstance<unknown, void>;
+
 export type FlowcraftWorkflowId = "autobot-deliver-issue";
 
 export type FlowcraftPhaseId =
@@ -196,6 +200,26 @@ export interface FlowcraftExecutionMetadata {
   [key: string]: unknown;
 }
 
+export interface FlowcraftPhaseProgressRecord {
+  issue_id: string;
+  run_id: string;
+  execution_id: string;
+  workflow_id: FlowcraftWorkflowId;
+  workflow_version: string;
+  phase: FlowcraftPhaseId;
+  state: ItemState;
+  event_type: string;
+  message: string;
+  occurred_at: string;
+  recovery_commands: string[];
+  serialized_context: string;
+  node_output: FlowcraftExecutionNodeOutput;
+}
+
+export type FlowcraftPhaseProgressWriter = (
+  record: FlowcraftPhaseProgressRecord,
+) => FutureInstance<unknown, void>;
+
 export interface FlowcraftExecutionPlan {
   workflow: FlowcraftWorkflowDefinition;
   execution_id: string;
@@ -236,6 +260,9 @@ export interface FlowcraftAutobotPlanningDependencies {
   artifactWriter: FlowcraftArtifactWriter;
   artifactReader: FlowcraftArtifactReader;
   planningSessionRunner: FlowcraftPlanningSessionRunner;
+  progressWriter?: FlowcraftPhaseProgressWriter;
+  progressClock?: () => string;
+  planningWorkerStarter?: FlowcraftPlanningWorkerStarter;
 }
 
 export interface FlowcraftWorkflowDependencies {

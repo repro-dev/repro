@@ -233,7 +233,7 @@ test("supervisor run-once reconciles stale in-progress items before selecting th
     true,
   );
   assert.equal(fixture.runUpserts.length, 8);
-  assert.equal(fixture.executionRecords.length, 2);
+  assert.equal(fixture.executionRecords.length, 6);
   assert.equal(
     fixture.artifactRecords.some((artifact) => artifact.kind === "classify"),
     false,
@@ -1370,7 +1370,7 @@ test("supervisor run-once hydrates Linear metadata before writing planning artif
         "preparing",
         "2026-05-15T12:00:00Z",
         "2026-05-15T12:00:00.001Z",
-        "workflow.phase.preparing",
+        "workflow.phase.prepared",
         "run-400",
       ],
       [
@@ -1378,7 +1378,7 @@ test("supervisor run-once hydrates Linear metadata before writing planning artif
         "planning",
         "2026-05-15T12:00:00Z",
         "2026-05-15T12:00:00.002Z",
-        "workflow.phase.planning",
+        "workflow.phase.planned",
         "run-400",
       ],
       [
@@ -1404,20 +1404,6 @@ test("supervisor run-once hydrates Linear metadata before writing planning artif
     fixture.domainEvents.some(
       (event) =>
         event.issue_id === "REP-400" && event.type === "workflow.phase.claimed",
-    ),
-  );
-  assert.ok(
-    fixture.domainEvents.some(
-      (event) =>
-        event.issue_id === "REP-400" &&
-        event.type === "workflow.phase.preparing",
-    ),
-  );
-  assert.ok(
-    fixture.domainEvents.some(
-      (event) =>
-        event.issue_id === "REP-400" &&
-        event.type === "workflow.phase.planning",
     ),
   );
   assert.ok(
@@ -1454,10 +1440,8 @@ test("supervisor run-once hydrates Linear metadata before writing planning artif
       .map((event) => [event.type, event.occurred_at]),
     [
       ["workflow.phase.claimed", "2026-05-15T12:00:00Z"],
-      ["workflow.phase.preparing", "2026-05-15T12:00:00.001Z"],
-      ["workflow.phase.planning", "2026-05-15T12:00:00.002Z"],
-      ["workflow.phase.prepared", "2026-05-15T12:00:00.003Z"],
-      ["workflow.phase.planned", "2026-05-15T12:00:00.003Z"],
+      ["workflow.phase.prepared", "2026-05-15T12:00:00.001Z"],
+      ["workflow.phase.planned", "2026-05-15T12:00:00.002Z"],
       ["workflow.phase.completed", "2026-05-15T12:00:02.001Z"],
     ],
   );
@@ -1465,22 +1449,6 @@ test("supervisor run-once hydrates Linear metadata before writing planning artif
     fixture.domainEvents.filter(
       (event) =>
         event.issue_id === "REP-400" && event.type === "workflow.phase.claimed",
-    ).length,
-    1,
-  );
-  assert.equal(
-    fixture.domainEvents.filter(
-      (event) =>
-        event.issue_id === "REP-400" &&
-        event.type === "workflow.phase.preparing",
-    ).length,
-    1,
-  );
-  assert.equal(
-    fixture.domainEvents.filter(
-      (event) =>
-        event.issue_id === "REP-400" &&
-        event.type === "workflow.phase.planning",
     ).length,
     1,
   );

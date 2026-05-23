@@ -18,6 +18,8 @@ export type {
   FlowcraftNodeId,
   FlowcraftNodeImplementation,
   FlowcraftPhaseEvent,
+  FlowcraftPhaseProgressRecord,
+  FlowcraftPhaseProgressWriter,
   FlowcraftValidationIssue,
   FlowcraftValidationResult,
   FlowcraftWorkflowContext,
