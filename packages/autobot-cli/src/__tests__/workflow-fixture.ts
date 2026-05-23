@@ -72,6 +72,7 @@ type WorkflowWorkerRecord = {
     | "cancellation-requested"
     | "exited";
   pid: number | null;
+  child_pid?: number | null;
   process_group_id?: number | null;
   command?: string | null;
   args?: string[];

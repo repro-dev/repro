@@ -9,6 +9,7 @@ import type {
   ConfigSource,
   ConfigValue,
   DomainEvent,
+  ErrorSummary,
   EngineStatus,
   HealthCheck,
   LinearIssueRef,
@@ -30,6 +31,7 @@ import {
   type ItemRecord,
   type FlowcraftEventRecord,
   type FlowcraftExecutionRecord,
+  type WorkerRecord,
   type AutobotStore,
   type ConfigOverrideRecord,
 } from "@repro/autobot-store";
@@ -100,6 +102,7 @@ type EngineTickSettings = {
   autoDiscover: boolean;
   queueDepth: number;
   maxConcurrency: number;
+  maxRetries: number;
   discoveryProjects: string[];
   scanLimit: number;
 };
@@ -114,6 +117,8 @@ export interface AutobotServiceDependencies {
   now?: () => string;
   randomId?: () => string;
   sleep?: (milliseconds: number) => FutureInstance<unknown, void>;
+  kill?: (pid: number, signal?: NodeJS.Signals | number) => boolean;
+  isProcessAlive?: (pid: number) => boolean;
   artifactWriter?: ArtifactWriter;
   artifactReader?: ArtifactReader;
   planningSessionRunner?: PlanningSessionRunner;
@@ -384,6 +389,16 @@ const configDefinitions: readonly ConfigDefinition[] = [
       "Maximum active runs the local supervisor may supervise at once.",
     requires_engine_restart: false,
     bounds: { min: 1, max: 16 },
+    allowed_values: null,
+  },
+  {
+    key: "supervisor.max-retries",
+    default_value: 2,
+    type: "integer",
+    description:
+      "Maximum retry attempts the local supervisor may schedule for retryable work.",
+    requires_engine_restart: false,
+    bounds: { min: 0, max: 10 },
     allowed_values: null,
   },
   {
@@ -769,11 +784,15 @@ function resolveEngineTickSettings(config: ConfigEntry[]): EngineTickSettings {
     (configByKey.get("supervisor.max-concurrency")?.value as
       | number
       | undefined) ?? 1;
+  const maxRetries =
+    (configByKey.get("supervisor.max-retries")?.value as number | undefined) ??
+    2;
 
   return {
     autoDiscover,
     queueDepth,
     maxConcurrency,
+    maxRetries,
     discoveryProjects: normalizeDiscoverProjects(
       configByKey.get("discovery.projects")?.value as string | undefined,
     ),
@@ -813,6 +832,32 @@ function createEngineReconciledEvent(input: {
   });
 }
 
+function createEngineRetryScheduledEvent(input: {
+  issue_id: string;
+  previous_state: ItemState;
+  previous_attempt: number;
+  next_attempt: number;
+  reason: string;
+  tick_at: string;
+}): DomainEvent {
+  return createDomainEvent({
+    type: "engine.item.retry_scheduled",
+    severity: "info",
+    state: "queued",
+    message: "Engine scheduled item retry",
+    issue_id: input.issue_id,
+    occurred_at: input.tick_at,
+    data: {
+      issue_id: input.issue_id,
+      previous_state: input.previous_state,
+      next_state: "queued",
+      previous_attempt: input.previous_attempt,
+      next_attempt: input.next_attempt,
+      reason: input.reason,
+    },
+  });
+}
+
 function createEngineTickEvent(input: {
   type: "engine.tick.started" | "engine.tick.selected" | "engine.tick.finished";
   tickAt: string;
@@ -832,6 +877,31 @@ function createEngineTickEvent(input: {
       reconciled_issue_ids: input.reconciledIssueIds,
       queued_issue_ids: input.queuedIssueIds,
       started_issue_ids: input.startedIssueIds,
+    },
+  });
+}
+
+function createWorkerReconciledEvent(input: {
+  issue_id: string;
+  worker_id: string;
+  previous_state: string;
+  next_state: string;
+  reason: string;
+  tick_at: string;
+}): DomainEvent {
+  return createDomainEvent({
+    type: "engine.worker.reconciled",
+    severity: "info",
+    state: null,
+    message: "Engine reconciled worker state",
+    issue_id: input.issue_id,
+    occurred_at: input.tick_at,
+    data: {
+      issue_id: input.issue_id,
+      worker_id: input.worker_id,
+      previous_state: input.previous_state,
+      next_state: input.next_state,
+      reason: input.reason,
     },
   });
 }
@@ -889,11 +959,13 @@ function createReconciledItemRecord(input: {
   item: ItemSummary;
   state: ItemState;
   updatedAt: string;
+  lastError?: ErrorSummary | null;
+  recoveryCommands?: string[];
 }): ItemRecord {
   return {
     ...buildItemSummaryFromExisting(input.item, input.state, input.updatedAt),
     last_event: "engine.item.reconciled",
-    recovery_commands: [],
+    recovery_commands: input.recoveryCommands ?? [],
     cancellation_requested: false,
     cancellation_requested_at: null,
     state_name: null,
@@ -902,7 +974,157 @@ function createReconciledItemRecord(input: {
     labels: [],
     assignee: input.item.owner,
     current_run_id: null,
+    last_error: input.lastError ?? null,
   };
+}
+
+function buildRetryScheduledItemSummary(
+  item: ItemSummary,
+  updatedAt: string,
+  lastError: ErrorSummary,
+): ItemSummary {
+  return buildItemSummary({
+    ...item,
+    state: "queued",
+    attempt: item.attempt + 1,
+    updated_at: updatedAt,
+    last_event: "engine.item.retry_scheduled",
+    last_error: lastError,
+  });
+}
+
+function createRetryScheduledItemRecord(input: {
+  item: ItemSummary;
+  updatedAt: string;
+  lastError: ErrorSummary;
+  recoveryCommands?: string[];
+}): ItemRecord {
+  return {
+    ...buildRetryScheduledItemSummary(
+      input.item,
+      input.updatedAt,
+      input.lastError,
+    ),
+    recovery_commands: input.recoveryCommands ?? [],
+    cancellation_requested: false,
+    cancellation_requested_at: null,
+    state_name: null,
+    state_type: null,
+    project: null,
+    labels: [],
+    assignee: input.item.owner,
+    current_run_id: null,
+    last_error: input.lastError,
+  };
+}
+
+function createRetryExhaustedItemRecord(input: {
+  item: ItemSummary;
+  updatedAt: string;
+  lastError: ErrorSummary;
+  recoveryCommands?: string[];
+}): ItemRecord {
+  return {
+    ...buildRetryExhaustedItemSummary(
+      input.item,
+      input.updatedAt,
+      input.lastError,
+    ),
+    last_event: "engine.item.retry_exhausted",
+    recovery_commands: input.recoveryCommands ?? [],
+    cancellation_requested: false,
+    cancellation_requested_at: null,
+    state_name: null,
+    state_type: null,
+    project: null,
+    labels: [],
+    assignee: input.item.owner,
+    current_run_id: null,
+    last_error: input.lastError,
+  };
+}
+
+function buildRetryExhaustedItemSummary(
+  item: ItemSummary,
+  updatedAt: string,
+  lastError: ErrorSummary,
+): ItemSummary {
+  return buildItemSummary({
+    ...item,
+    state: "failed",
+    updated_at: updatedAt,
+    last_event: "engine.item.retry_exhausted",
+    last_error: lastError,
+  });
+}
+
+function createEngineRetryExhaustedEvent(input: {
+  issue_id: string;
+  previous_state: ItemState;
+  previous_attempt: number;
+  max_retries: number;
+  reason: string;
+  tick_at: string;
+}): DomainEvent {
+  return createDomainEvent({
+    type: "engine.item.retry_exhausted",
+    severity: "info",
+    state: "failed",
+    message: "Engine exhausted item retry budget",
+    issue_id: input.issue_id,
+    occurred_at: input.tick_at,
+    data: {
+      issue_id: input.issue_id,
+      previous_state: input.previous_state,
+      next_state: "failed",
+      previous_attempt: input.previous_attempt,
+      max_retries: input.max_retries,
+      reason: input.reason,
+    },
+  });
+}
+
+const retryableFailureCodes = new Set([
+  "AUTOBOT-WORKER-FAILED",
+  "AUTOBOT-WORKER-EXITED",
+  "AUTOBOT-WORKER-STALE",
+  "AUTOBOT-WORKER-MISSING-PROCESS",
+  "AUTOBOT-WORKER-SPAWN-FAILED",
+]);
+
+function isRetryableFailedItem(item: ItemSummary): boolean {
+  if (item.state !== "failed") {
+    return false;
+  }
+
+  if (item.last_event === "engine.item.retry_exhausted") {
+    return false;
+  }
+
+  const code = item.last_error?.code ?? null;
+  return code !== null && retryableFailureCodes.has(code);
+}
+
+function getRetryFailureReason(item: ItemSummary): string {
+  const code = item.last_error?.code ?? null;
+
+  switch (code) {
+    case "AUTOBOT-WORKER-STALE":
+      return "worker-stale";
+    case "AUTOBOT-WORKER-MISSING-PROCESS":
+      return "missing-process";
+    case "AUTOBOT-WORKER-FAILED":
+      return "worker-failed";
+    case "AUTOBOT-WORKER-SPAWN-FAILED":
+      return "worker-spawn-error";
+    case "AUTOBOT-WORKER-EXITED":
+    default:
+      return item.last_error?.message?.includes("signal") === true
+        ? "worker-signal"
+        : item.last_error?.message?.includes("code") === true
+        ? "worker-exit-code"
+        : "worker-exited";
+  }
 }
 
 function compareQueuedItems(left: ItemSummary, right: ItemSummary): number {
@@ -916,6 +1138,130 @@ function compareQueuedItems(left: ItemSummary, right: ItemSummary): number {
   );
 }
 
+function createWorkerRecoveryCommands(
+  issueId: string,
+  includeLogs: boolean,
+): string[] {
+  return [
+    `autobot-next status ${issueId} --json`,
+    ...(includeLogs ? [`autobot-next logs ${issueId} --json`] : []),
+  ];
+}
+
+function createWorkerReconciliationError(input: {
+  code: string;
+  message: string;
+  occurredAt: string;
+}): ErrorSummary {
+  return {
+    code: input.code,
+    message: input.message,
+    occurred_at: input.occurredAt,
+  };
+}
+
+function resolveProcessLiveness(
+  worker: WorkerSummary,
+  isProcessAlive?: (pid: number) => boolean,
+): {
+  runnerAlive: boolean;
+  childAlive: boolean;
+  processGroupAlive: boolean;
+  anyAlive: boolean;
+} {
+  const probe =
+    isProcessAlive ??
+    ((pid: number) => {
+      try {
+        process.kill(pid, 0);
+        return true;
+      } catch {
+        return false;
+      }
+    });
+
+  const runnerAlive = worker.pid !== null ? probe(worker.pid) : false;
+  const childPid = worker.child_pid ?? null;
+  const childAlive = childPid !== null ? probe(childPid) : false;
+  const processGroupId = worker.process_group_id ?? null;
+  const processGroupAlive =
+    processGroupId !== null ? probe(-processGroupId) : false;
+
+  return {
+    runnerAlive,
+    childAlive,
+    processGroupAlive,
+    anyAlive: runnerAlive || childAlive || processGroupAlive,
+  };
+}
+
+function toWorkerRecord(worker: WorkerSummary): WorkerRecord {
+  return {
+    worker_id: worker.worker_id,
+    issue_id: worker.issue_id,
+    run_id: worker.run_id,
+    flowcraft_execution_id: worker.flowcraft_execution_id ?? null,
+    workflow_node_id: worker.workflow_node_id ?? null,
+    phase: worker.phase ?? null,
+    state: worker.state,
+    pid: worker.pid,
+    child_pid: worker.child_pid ?? null,
+    process_group_id: worker.process_group_id ?? null,
+    command: worker.command ?? null,
+    args: worker.args ?? [],
+    started_at: worker.started_at,
+    last_heartbeat_at: worker.last_heartbeat_at,
+    deadline_at: worker.deadline_at ?? null,
+    stdout_log_path: worker.stdout_log_path ?? null,
+    stderr_log_path: worker.stderr_log_path ?? null,
+    spawn_error: worker.spawn_error ?? null,
+    result: worker.result ?? null,
+    result_artifact_path: worker.result_artifact_path ?? null,
+    exit_code: worker.exit_code ?? null,
+    signal: worker.signal ?? null,
+    finished_at: worker.finished_at ?? null,
+  };
+}
+
+function findCurrentWorker(input: {
+  item: ItemSummary;
+  currentRun: RunSummary;
+  workers: WorkerSummary[];
+  workersById: Map<string, WorkerSummary>;
+}): WorkerSummary | null {
+  const exactMatches: Array<string | null> = [
+    input.currentRun.worker_id,
+    input.currentRun.run_id,
+    input.currentRun.flowcraft_execution_id,
+    input.item.issue_id,
+  ];
+
+  for (const key of exactMatches) {
+    if (key === null) {
+      continue;
+    }
+
+    const matchById = input.workersById.get(key) ?? null;
+    if (matchById !== null) {
+      return matchById;
+    }
+
+    const matchByRun = input.workers.find((worker) => worker.run_id === key);
+    if (matchByRun !== undefined) {
+      return matchByRun;
+    }
+
+    const matchByIssue = input.workers.find(
+      (worker) => worker.issue_id === key,
+    );
+    if (matchByIssue !== undefined) {
+      return matchByIssue;
+    }
+  }
+
+  return null;
+}
+
 type EngineTickReconciliationOutcome = {
   item: ItemSummary;
   reconciled_issue_id: string | null;
@@ -925,9 +1271,13 @@ type EngineTickReconciliationOutcome = {
 function reconcileEngineItem(
   store: AutobotStore,
   item: ItemSummary,
-  workersById: Map<string, { worker_id: string; state: string }>,
+  workers: WorkerSummary[],
+  workersById: Map<string, WorkerSummary>,
   tickAt: string,
   dryRun: boolean,
+  maxRetries: number,
+  isProcessAlive?: AutobotServiceDependencies["isProcessAlive"],
+  killProcess?: AutobotServiceDependencies["kill"],
 ): FutureInstance<unknown, EngineTickReconciliationOutcome> {
   if (!isInProgressState(item.state)) {
     return resolve({
@@ -1024,66 +1374,427 @@ function reconcileEngineItem(
             );
         }
 
-        const worker =
-          currentRun.worker_id === null
-            ? null
-            : workersById.get(currentRun.worker_id) ?? null;
+        const worker = findCurrentWorker({
+          item,
+          currentRun,
+          workers,
+          workersById,
+        });
 
-        if (
-          worker !== null &&
-          (worker.state === "stale" ||
-            worker.state === "failed" ||
-            worker.state === "canceled" ||
-            worker.state === "exited")
-        ) {
-          const nextItem = buildItemSummaryFromExisting(item, "failed", tickAt);
-          const reconcileEvent = createEngineReconciledEvent({
-            issue_id: item.issue_id,
-            previous_state: item.state,
-            next_state: "failed",
-            reason: `worker-${worker.state}`,
-            tick_at: tickAt,
-          });
+        if (worker !== null) {
+          const liveness = resolveProcessLiveness(worker, isProcessAlive);
 
-          if (dryRun) {
+          if (
+            worker.state === "completed" ||
+            (worker.exit_code === 0 && worker.signal === null)
+          ) {
+            const nextItem = buildItemSummaryFromExisting(
+              item,
+              "completed",
+              tickAt,
+            );
+            const reconcileEvent = createEngineReconciledEvent({
+              issue_id: item.issue_id,
+              previous_state: item.state,
+              next_state: "completed",
+              reason: "worker-completed",
+              tick_at: tickAt,
+            });
+
+            if (dryRun) {
+              return resolve({
+                item: nextItem,
+                reconciled_issue_id: item.issue_id,
+                skipped: [],
+              });
+            }
+
+            return store.runs
+              .upsert({
+                ...currentRun,
+                state: "completed",
+                finished_at: tickAt,
+                worker_id: null,
+                last_heartbeat_at: null,
+              })
+              .pipe(
+                chain(() =>
+                  store.items
+                    .upsert(
+                      createReconciledItemRecord({
+                        item,
+                        state: "completed",
+                        updatedAt: tickAt,
+                      }),
+                    )
+                    .pipe(
+                      chain(() =>
+                        store.events.append(reconcileEvent).pipe(
+                          map(() => ({
+                            item: nextItem,
+                            reconciled_issue_id: item.issue_id,
+                            skipped: [],
+                          })),
+                        ),
+                      ),
+                    ),
+                ),
+              );
+          }
+
+          if (worker.state === "cancellation-requested") {
+            if (!dryRun && liveness.anyAlive && killProcess !== undefined) {
+              const pidToKill = worker.process_group_id ?? worker.pid;
+
+              if (pidToKill !== null) {
+                try {
+                  killProcess(-pidToKill, "SIGTERM");
+                } catch {
+                  try {
+                    killProcess(pidToKill, "SIGTERM");
+                  } catch {
+                    // Best effort only.
+                  }
+                }
+              }
+            }
+
+            const nextItem = buildItemSummaryFromExisting(
+              item,
+              "canceled",
+              tickAt,
+            );
+            const reconcileEvent = createEngineReconciledEvent({
+              issue_id: item.issue_id,
+              previous_state: item.state,
+              next_state: "canceled",
+              reason: "worker-cancellation-requested",
+              tick_at: tickAt,
+            });
+
+            if (dryRun) {
+              return resolve({
+                item: nextItem,
+                reconciled_issue_id: item.issue_id,
+                skipped: [],
+              });
+            }
+
+            return store.runs
+              .upsert({
+                ...currentRun,
+                state: "canceled",
+                finished_at: tickAt,
+                worker_id: null,
+                last_heartbeat_at: null,
+              })
+              .pipe(
+                chain(() =>
+                  store.items
+                    .upsert(
+                      createReconciledItemRecord({
+                        item,
+                        state: "canceled",
+                        updatedAt: tickAt,
+                        recoveryCommands: createWorkerRecoveryCommands(
+                          item.issue_id,
+                          false,
+                        ),
+                      }),
+                    )
+                    .pipe(
+                      chain(() =>
+                        store.workers
+                          .upsert({
+                            ...toWorkerRecord(worker),
+                            state: "canceled",
+                            last_heartbeat_at: tickAt,
+                            deadline_at: null,
+                            finished_at: tickAt,
+                          })
+                          .pipe(
+                            chain(() =>
+                              store.events.append(reconcileEvent).pipe(
+                                map(() => ({
+                                  item: nextItem,
+                                  reconciled_issue_id: item.issue_id,
+                                  skipped: [],
+                                })),
+                              ),
+                            ),
+                          ),
+                      ),
+                    ),
+                ),
+              );
+          }
+
+          if (
+            worker.state === "running" ||
+            worker.state === "starting" ||
+            worker.state === "stale"
+          ) {
+            if (!liveness.anyAlive) {
+              const lastError = createWorkerReconciliationError({
+                code:
+                  worker.state === "stale"
+                    ? "AUTOBOT-WORKER-STALE"
+                    : "AUTOBOT-WORKER-MISSING-PROCESS",
+                message:
+                  worker.state === "stale"
+                    ? "worker heartbeat is stale and no process is alive"
+                    : "worker process group or runner is missing",
+                occurredAt: tickAt,
+              });
+              const reason =
+                worker.state === "stale" ? "worker-stale" : "missing-process";
+              const retryable = item.attempt <= maxRetries;
+              const nextItem = retryable
+                ? buildRetryScheduledItemSummary(item, tickAt, lastError)
+                : buildItemSummaryFromExisting(item, "failed", tickAt);
+              const event = retryable
+                ? createEngineRetryScheduledEvent({
+                    issue_id: item.issue_id,
+                    previous_state: item.state,
+                    previous_attempt: item.attempt,
+                    next_attempt: item.attempt + 1,
+                    reason,
+                    tick_at: tickAt,
+                  })
+                : createEngineRetryExhaustedEvent({
+                    issue_id: item.issue_id,
+                    previous_state: item.state,
+                    previous_attempt: item.attempt,
+                    max_retries: maxRetries,
+                    reason,
+                    tick_at: tickAt,
+                  });
+
+              if (dryRun) {
+                return resolve({
+                  item: nextItem,
+                  reconciled_issue_id: item.issue_id,
+                  skipped: [],
+                });
+              }
+
+              return store.runs
+                .upsert({
+                  ...currentRun,
+                  state: "failed",
+                  finished_at: tickAt,
+                  worker_id: null,
+                  last_heartbeat_at: null,
+                })
+                .pipe(
+                  chain(() =>
+                    store.items
+                      .upsert(
+                        retryable
+                          ? createRetryScheduledItemRecord({
+                              item,
+                              updatedAt: tickAt,
+                              lastError,
+                              recoveryCommands: createWorkerRecoveryCommands(
+                                item.issue_id,
+                                true,
+                              ),
+                            })
+                          : createRetryExhaustedItemRecord({
+                              item,
+                              updatedAt: tickAt,
+                              lastError,
+                              recoveryCommands: createWorkerRecoveryCommands(
+                                item.issue_id,
+                                true,
+                              ),
+                            }),
+                      )
+                      .pipe(
+                        chain(() =>
+                          store.workers
+                            .upsert({
+                              ...toWorkerRecord(worker),
+                              state: "exited",
+                              last_heartbeat_at: tickAt,
+                              deadline_at: null,
+                              finished_at: tickAt,
+                            })
+                            .pipe(
+                              chain(() =>
+                                store.events.append(event).pipe(
+                                  map(() => ({
+                                    item: nextItem,
+                                    reconciled_issue_id: item.issue_id,
+                                    skipped: [],
+                                  })),
+                                ),
+                              ),
+                            ),
+                        ),
+                      ),
+                  ),
+                );
+            }
+
+            const workerDeadlineAt = worker.deadline_at ?? null;
+
+            if (
+              worker.state !== "stale" &&
+              workerDeadlineAt !== null &&
+              workerDeadlineAt <= tickAt
+            ) {
+              if (dryRun) {
+                return resolve({
+                  item,
+                  reconciled_issue_id: null,
+                  skipped: [],
+                });
+              }
+
+              return store.workers
+                .upsert({
+                  ...toWorkerRecord(worker),
+                  state: "stale",
+                })
+                .pipe(
+                  chain(() =>
+                    store.events
+                      .append(
+                        createWorkerReconciledEvent({
+                          issue_id: item.issue_id,
+                          worker_id: worker.worker_id,
+                          previous_state: worker.state,
+                          next_state: "stale",
+                          reason: "heartbeat-deadline-exceeded",
+                          tick_at: tickAt,
+                        }),
+                      )
+                      .pipe(
+                        map(() => ({
+                          item,
+                          reconciled_issue_id: null,
+                          skipped: [],
+                        })),
+                      ),
+                  ),
+                );
+            }
+
             return resolve({
-              item: nextItem,
-              reconciled_issue_id: item.issue_id,
+              item,
+              reconciled_issue_id: null,
               skipped: [],
             });
           }
 
-          return store.runs
-            .upsert({
-              ...currentRun,
-              state: "failed",
-              finished_at: tickAt,
-              worker_id: null,
-              last_heartbeat_at: null,
-            })
-            .pipe(
-              chain(() =>
-                store.items
-                  .upsert(
-                    createReconciledItemRecord({
-                      item,
-                      state: "failed",
-                      updatedAt: tickAt,
-                    }),
-                  )
-                  .pipe(
-                    chain(() =>
-                      store.events.append(reconcileEvent).pipe(
-                        map(() => ({
-                          item: nextItem,
-                          reconciled_issue_id: item.issue_id,
-                          skipped: [],
-                        })),
+          if (
+            worker.state === "failed" ||
+            worker.spawn_error != null ||
+            worker.exit_code !== null ||
+            worker.signal !== null
+          ) {
+            const reason =
+              worker.spawn_error != null
+                ? "worker-spawn-error"
+                : worker.signal !== null
+                ? "worker-signal"
+                : worker.exit_code !== null && worker.exit_code !== 0
+                ? "worker-exit-code"
+                : worker.state === "failed"
+                ? "worker-failed"
+                : "worker-exited";
+            const lastError =
+              worker.spawn_error ??
+              createWorkerReconciliationError({
+                code:
+                  worker.exit_code !== null && worker.exit_code !== 0
+                    ? "AUTOBOT-WORKER-FAILED"
+                    : "AUTOBOT-WORKER-EXITED",
+                message:
+                  worker.exit_code !== null && worker.exit_code !== 0
+                    ? `worker exited with code ${String(worker.exit_code)}`
+                    : worker.signal !== null
+                    ? `worker exited with signal ${worker.signal}`
+                    : "worker failed",
+                occurredAt: tickAt,
+              });
+            const retryable = item.attempt <= maxRetries;
+            const nextItem = retryable
+              ? buildRetryScheduledItemSummary(item, tickAt, lastError)
+              : buildItemSummaryFromExisting(item, "failed", tickAt);
+            const event = retryable
+              ? createEngineRetryScheduledEvent({
+                  issue_id: item.issue_id,
+                  previous_state: item.state,
+                  previous_attempt: item.attempt,
+                  next_attempt: item.attempt + 1,
+                  reason,
+                  tick_at: tickAt,
+                })
+              : createEngineRetryExhaustedEvent({
+                  issue_id: item.issue_id,
+                  previous_state: item.state,
+                  previous_attempt: item.attempt,
+                  max_retries: maxRetries,
+                  reason,
+                  tick_at: tickAt,
+                });
+
+            if (dryRun) {
+              return resolve({
+                item: nextItem,
+                reconciled_issue_id: item.issue_id,
+                skipped: [],
+              });
+            }
+
+            return store.runs
+              .upsert({
+                ...currentRun,
+                state: "failed",
+                finished_at: tickAt,
+                worker_id: null,
+                last_heartbeat_at: null,
+              })
+              .pipe(
+                chain(() =>
+                  store.items
+                    .upsert(
+                      retryable
+                        ? createRetryScheduledItemRecord({
+                            item,
+                            updatedAt: tickAt,
+                            lastError,
+                            recoveryCommands: createWorkerRecoveryCommands(
+                              item.issue_id,
+                              true,
+                            ),
+                          })
+                        : createRetryExhaustedItemRecord({
+                            item,
+                            updatedAt: tickAt,
+                            lastError,
+                            recoveryCommands: createWorkerRecoveryCommands(
+                              item.issue_id,
+                              true,
+                            ),
+                          }),
+                    )
+                    .pipe(
+                      chain(() =>
+                        store.events.append(event).pipe(
+                          map(() => ({
+                            item: nextItem,
+                            reconciled_issue_id: item.issue_id,
+                            skipped: [],
+                          })),
+                        ),
                       ),
                     ),
-                  ),
-              ),
-            );
+                ),
+              );
+          }
         }
 
         return resolve({
@@ -1094,6 +1805,81 @@ function reconcileEngineItem(
       },
     ),
   );
+}
+
+function reconcileRetryableFailedItem(
+  store: AutobotStore,
+  item: ItemSummary,
+  tickAt: string,
+  dryRun: boolean,
+  maxRetries: number,
+): FutureInstance<unknown, EngineTickReconciliationOutcome> {
+  if (!isRetryableFailedItem(item) || item.last_error === null) {
+    return resolve({
+      item,
+      reconciled_issue_id: null,
+      skipped: [],
+    });
+  }
+
+  const reason = getRetryFailureReason(item);
+  const retryable = item.attempt <= maxRetries;
+  const nextItem = retryable
+    ? buildRetryScheduledItemSummary(item, tickAt, item.last_error)
+    : buildRetryExhaustedItemSummary(item, tickAt, item.last_error);
+  const event = retryable
+    ? createEngineRetryScheduledEvent({
+        issue_id: item.issue_id,
+        previous_state: item.state,
+        previous_attempt: item.attempt,
+        next_attempt: item.attempt + 1,
+        reason,
+        tick_at: tickAt,
+      })
+    : createEngineRetryExhaustedEvent({
+        issue_id: item.issue_id,
+        previous_state: item.state,
+        previous_attempt: item.attempt,
+        max_retries: maxRetries,
+        reason,
+        tick_at: tickAt,
+      });
+
+  if (dryRun) {
+    return resolve({
+      item: nextItem,
+      reconciled_issue_id: item.issue_id,
+      skipped: [],
+    });
+  }
+
+  return store.items
+    .upsert(
+      retryable
+        ? createRetryScheduledItemRecord({
+            item,
+            updatedAt: tickAt,
+            lastError: item.last_error,
+            recoveryCommands: createWorkerRecoveryCommands(item.issue_id, true),
+          })
+        : createRetryExhaustedItemRecord({
+            item,
+            updatedAt: tickAt,
+            lastError: item.last_error,
+            recoveryCommands: createWorkerRecoveryCommands(item.issue_id, true),
+          }),
+    )
+    .pipe(
+      chain(() =>
+        store.events.append(event).pipe(
+          map(() => ({
+            item: nextItem,
+            reconciled_issue_id: item.issue_id,
+            skipped: [],
+          })),
+        ),
+      ),
+    );
 }
 
 function createConfigList(
@@ -3604,6 +4390,8 @@ function handleEngineRunOnce(
   artifactReader: ArtifactReader = defaultArtifactReader,
   planningSessionRunner: PlanningSessionRunner = createNoopPlanningSessionRunner(),
   loadLinearIssue?: AutobotServiceDependencies["loadLinearIssue"],
+  isProcessAlive?: AutobotServiceDependencies["isProcessAlive"],
+  killProcess?: AutobotServiceDependencies["kill"],
   runtime?: EngineRuntimeSnapshot | null,
 ): FutureInstance<unknown, AutobotCommandResult> {
   const root = getSupervisorCommandRoot(invocation);
@@ -3643,9 +4431,13 @@ function handleEngineRunOnce(
                   reconcileEngineItem(
                     store,
                     item,
+                    workers,
                     workersById,
                     tickAt,
                     invocation.options.dry_run,
+                    settings.maxRetries,
+                    isProcessAlive,
+                    killProcess,
                   ).pipe(
                     map((outcome) => {
                       if (outcome.reconciled_issue_id !== null) {
@@ -3666,259 +4458,299 @@ function handleEngineRunOnce(
 
               return sequenceFutures(reconcileFutures).pipe(
                 chain(() => {
-                  const queueDiscoveredCandidates = (
-                    candidates: DiscoverCandidate[],
-                  ): FutureInstance<unknown, void> => {
-                    discoveredIssueIds.push(
-                      ...candidates.map((candidate) => candidate.issue_id),
-                    );
-
-                    const knownIssueIds = new Map(
-                      workingItems.map(
-                        (item) => [item.issue_id, item] as const,
-                      ),
-                    );
-                    const queueBudget = Math.max(
-                      0,
-                      settings.queueDepth -
-                        workingItems.filter((item) => item.state === "queued")
-                          .length,
-                    );
-                    const accepted: EngineTickCandidateRecord[] = [];
-
-                    for (const candidate of candidates) {
-                      const existing = knownIssueIds.get(candidate.issue_id);
-                      if (existing !== undefined) {
-                        skipped.push({
-                          issue_id: candidate.issue_id,
-                          reason: "local-existing",
-                          details: {
-                            state: existing.state,
-                          },
-                        });
-                        continue;
-                      }
-
-                      if (accepted.length >= queueBudget) {
-                        skipped.push({
-                          issue_id: candidate.issue_id,
-                          reason: "queue-depth-exhausted",
-                          details: {
-                            queue_depth: settings.queueDepth,
-                          },
-                        });
-                        continue;
-                      }
-
-                      const queueCandidate = createDiscoveredItemRecord(
-                        candidate,
+                  const retryFutures = workingItems
+                    .filter((item) => isRetryableFailedItem(item))
+                    .map((item) =>
+                      reconcileRetryableFailedItem(
+                        store,
+                        item,
                         tickAt,
-                      );
-                      accepted.push(queueCandidate);
-                      knownIssueIds.set(
-                        candidate.issue_id,
-                        queueCandidate.summary,
-                      );
-                    }
+                        invocation.options.dry_run,
+                        settings.maxRetries,
+                      ).pipe(
+                        map((outcome) => {
+                          if (outcome.reconciled_issue_id !== null) {
+                            reconciledIssueIds.push(
+                              outcome.reconciled_issue_id,
+                            );
+                          }
 
-                    const queueCandidates = accepted;
+                          const index = workingItems.findIndex(
+                            (current) =>
+                              current.issue_id === outcome.item.issue_id,
+                          );
+                          if (index !== -1) {
+                            workingItems[index] = outcome.item;
+                          }
 
-                    queuedIssueIds.push(
-                      ...queueCandidates.map(
-                        (candidate) => candidate.summary.issue_id,
+                          return outcome;
+                        }),
                       ),
                     );
 
-                    for (const candidate of queueCandidates) {
-                      workingItems.push(candidate.summary);
-                    }
-
-                    if (
-                      invocation.options.dry_run ||
-                      queueCandidates.length === 0
-                    ) {
-                      return resolve(undefined);
-                    }
-
-                    const persistQueueFutures = queueCandidates.flatMap(
-                      (candidate, index) => {
-                        const queuePosition =
-                          workingItems.filter((item) => item.state === "queued")
-                            .length -
-                          queueCandidates.length +
-                          index +
-                          1;
-                        const event = createDomainEvent({
-                          type: "item.queued",
-                          severity: "info",
-                          state: "queued",
-                          message: "Item queued",
-                          issue_id: candidate.summary.issue_id,
-                          occurred_at: tickAt,
-                          data: {
-                            issue_id: candidate.summary.issue_id,
-                            queue_position: queuePosition,
-                            reason: "automatic discovery",
-                          },
-                        });
-
-                        return [
-                          store.items
-                            .upsert(candidate.record)
-                            .pipe(map(() => undefined)),
-                          store.events.append(event).pipe(map(() => undefined)),
-                        ];
-                      },
-                    );
-
-                    return sequenceFutures(persistQueueFutures).pipe(
-                      map(() => undefined),
-                    );
-                  };
-
-                  const discoveryFuture = settings.autoDiscover
-                    ? settings.discoveryProjects.length === 0
-                      ? (warnings.push(createEngineDiscoveryWarning()),
-                        resolve(undefined))
-                      : defaultDiscoverIssues({
-                          repo: store.repo,
-                          projects: settings.discoveryProjects,
-                          scanLimit: settings.scanLimit,
-                        }).pipe(chain(queueDiscoveredCandidates))
-                    : resolve(undefined);
-
-                  return discoveryFuture.pipe(
+                  return sequenceFutures(retryFutures).pipe(
                     chain(() => {
-                      const activeCount = workingItems.filter((item) =>
-                        isInProgressState(item.state),
-                      ).length;
-                      const capacity = Math.max(
-                        0,
-                        settings.maxConcurrency - activeCount,
-                      );
-                      const queuedItems = [...workingItems]
-                        .filter((item) => item.state === "queued")
-                        .sort(compareQueuedItems);
-                      const selectedItems = queuedItems.slice(0, capacity);
+                      const queueDiscoveredCandidates = (
+                        candidates: DiscoverCandidate[],
+                      ): FutureInstance<unknown, void> => {
+                        discoveredIssueIds.push(
+                          ...candidates.map((candidate) => candidate.issue_id),
+                        );
 
-                      selectedIssueIds.push(
-                        ...selectedItems.map((item) => item.issue_id),
-                      );
-                      if (!invocation.options.dry_run) {
-                        startedIssueIds.push(...selectedIssueIds);
-                      }
-                      skipped.push(
-                        ...queuedItems.slice(capacity).map((item) => ({
-                          issue_id: item.issue_id,
-                          reason: "capacity-exhausted",
-                          details: {
-                            capacity,
-                          },
-                        })),
-                      );
-
-                      const tickReport: EngineTickReport = {
-                        dry_run: invocation.options.dry_run,
-                        tick_at: tickAt,
-                        reconciled_issue_ids: reconciledIssueIds,
-                        discovered_issue_ids: discoveredIssueIds,
-                        queued_issue_ids: queuedIssueIds,
-                        selected_issue_ids: selectedIssueIds,
-                        started_issue_ids: startedIssueIds,
-                        skipped,
-                      };
-
-                      if (invocation.options.dry_run) {
-                        return createQueueStatus(store, {
-                          command: invocation.command,
-                          lastTickAt: tickAt,
-                          runtime: runtime ?? null,
-                          tick: tickReport,
-                          warnings,
-                        }).pipe(
-                          map((result) =>
-                            root === "supervisor"
-                              ? liftQueueStatusToSupervisorStatus(
-                                  result as Extract<
-                                    AutobotCommandResult,
-                                    { kind: "queue-status" }
-                                  >,
-                                )
-                              : result,
+                        const knownIssueIds = new Map(
+                          workingItems.map(
+                            (item) => [item.issue_id, item] as const,
                           ),
                         );
-                      }
+                        const queueBudget = Math.max(
+                          0,
+                          settings.queueDepth -
+                            workingItems.filter(
+                              (item) => item.state === "queued",
+                            ).length,
+                        );
+                        const accepted: EngineTickCandidateRecord[] = [];
 
-                      const startedEvent = createEngineTickEvent({
-                        type: "engine.tick.started",
-                        tickAt,
-                        selectedIssueIds,
-                        reconciledIssueIds,
-                        queuedIssueIds,
-                        startedIssueIds,
-                      });
-                      const selectedEvent = createEngineTickEvent({
-                        type: "engine.tick.selected",
-                        tickAt,
-                        selectedIssueIds,
-                        reconciledIssueIds,
-                        queuedIssueIds,
-                        startedIssueIds,
-                      });
-                      const finishedEvent = createEngineTickEvent({
-                        type: "engine.tick.finished",
-                        tickAt,
-                        selectedIssueIds,
-                        reconciledIssueIds,
-                        queuedIssueIds,
-                        startedIssueIds,
-                      });
+                        for (const candidate of candidates) {
+                          const existing = knownIssueIds.get(
+                            candidate.issue_id,
+                          );
+                          if (existing !== undefined) {
+                            skipped.push({
+                              issue_id: candidate.issue_id,
+                              reason: "local-existing",
+                              details: {
+                                state: existing.state,
+                              },
+                            });
+                            continue;
+                          }
 
-                      return sequenceFutures([
-                        store.events
-                          .append(startedEvent)
-                          .pipe(map(() => undefined)),
-                        store.events
-                          .append(selectedEvent)
-                          .pipe(map(() => undefined)),
-                        ...selectedItems.map((target) =>
-                          runBoundedWorkflowTickForItem(
-                            store,
-                            target,
+                          if (accepted.length >= queueBudget) {
+                            skipped.push({
+                              issue_id: candidate.issue_id,
+                              reason: "queue-depth-exhausted",
+                              details: {
+                                queue_depth: settings.queueDepth,
+                              },
+                            });
+                            continue;
+                          }
+
+                          const queueCandidate = createDiscoveredItemRecord(
+                            candidate,
                             tickAt,
-                            randomId,
-                            now,
-                            artifactWriter,
-                            artifactReader,
-                            planningSessionRunner,
-                            loadLinearIssue,
+                          );
+                          accepted.push(queueCandidate);
+                          knownIssueIds.set(
+                            candidate.issue_id,
+                            queueCandidate.summary,
+                          );
+                        }
+
+                        const queueCandidates = accepted;
+
+                        queuedIssueIds.push(
+                          ...queueCandidates.map(
+                            (candidate) => candidate.summary.issue_id,
                           ),
-                        ),
-                      ]).pipe(
-                        chain(() =>
-                          store.events.append(finishedEvent).pipe(
+                        );
+
+                        for (const candidate of queueCandidates) {
+                          workingItems.push(candidate.summary);
+                        }
+
+                        if (
+                          invocation.options.dry_run ||
+                          queueCandidates.length === 0
+                        ) {
+                          return resolve(undefined);
+                        }
+
+                        const persistQueueFutures = queueCandidates.flatMap(
+                          (candidate, index) => {
+                            const queuePosition =
+                              workingItems.filter(
+                                (item) => item.state === "queued",
+                              ).length -
+                              queueCandidates.length +
+                              index +
+                              1;
+                            const event = createDomainEvent({
+                              type: "item.queued",
+                              severity: "info",
+                              state: "queued",
+                              message: "Item queued",
+                              issue_id: candidate.summary.issue_id,
+                              occurred_at: tickAt,
+                              data: {
+                                issue_id: candidate.summary.issue_id,
+                                queue_position: queuePosition,
+                                reason: "automatic discovery",
+                              },
+                            });
+
+                            return [
+                              store.items
+                                .upsert(candidate.record)
+                                .pipe(map(() => undefined)),
+                              store.events
+                                .append(event)
+                                .pipe(map(() => undefined)),
+                            ];
+                          },
+                        );
+
+                        return sequenceFutures(persistQueueFutures).pipe(
+                          map(() => undefined),
+                        );
+                      };
+
+                      const discoveryFuture = settings.autoDiscover
+                        ? settings.discoveryProjects.length === 0
+                          ? (warnings.push(createEngineDiscoveryWarning()),
+                            resolve(undefined))
+                          : defaultDiscoverIssues({
+                              repo: store.repo,
+                              projects: settings.discoveryProjects,
+                              scanLimit: settings.scanLimit,
+                            }).pipe(chain(queueDiscoveredCandidates))
+                        : resolve(undefined);
+
+                      return discoveryFuture.pipe(
+                        chain(() => {
+                          const activeCount = workingItems.filter((item) =>
+                            isInProgressState(item.state),
+                          ).length;
+                          const capacity = Math.max(
+                            0,
+                            settings.maxConcurrency - activeCount,
+                          );
+                          const queuedItems = [...workingItems]
+                            .filter((item) => item.state === "queued")
+                            .sort(compareQueuedItems);
+                          const selectedItems = queuedItems.slice(0, capacity);
+
+                          selectedIssueIds.push(
+                            ...selectedItems.map((item) => item.issue_id),
+                          );
+                          if (!invocation.options.dry_run) {
+                            startedIssueIds.push(...selectedIssueIds);
+                          }
+                          skipped.push(
+                            ...queuedItems.slice(capacity).map((item) => ({
+                              issue_id: item.issue_id,
+                              reason: "capacity-exhausted",
+                              details: {
+                                capacity,
+                              },
+                            })),
+                          );
+
+                          const tickReport: EngineTickReport = {
+                            dry_run: invocation.options.dry_run,
+                            tick_at: tickAt,
+                            reconciled_issue_ids: reconciledIssueIds,
+                            discovered_issue_ids: discoveredIssueIds,
+                            queued_issue_ids: queuedIssueIds,
+                            selected_issue_ids: selectedIssueIds,
+                            started_issue_ids: startedIssueIds,
+                            skipped,
+                          };
+
+                          if (invocation.options.dry_run) {
+                            return createQueueStatus(store, {
+                              command: invocation.command,
+                              lastTickAt: tickAt,
+                              runtime: runtime ?? null,
+                              tick: tickReport,
+                              warnings,
+                            }).pipe(
+                              map((result) =>
+                                root === "supervisor"
+                                  ? liftQueueStatusToSupervisorStatus(
+                                      result as Extract<
+                                        AutobotCommandResult,
+                                        { kind: "queue-status" }
+                                      >,
+                                    )
+                                  : result,
+                              ),
+                            );
+                          }
+
+                          const startedEvent = createEngineTickEvent({
+                            type: "engine.tick.started",
+                            tickAt,
+                            selectedIssueIds,
+                            reconciledIssueIds,
+                            queuedIssueIds,
+                            startedIssueIds,
+                          });
+                          const selectedEvent = createEngineTickEvent({
+                            type: "engine.tick.selected",
+                            tickAt,
+                            selectedIssueIds,
+                            reconciledIssueIds,
+                            queuedIssueIds,
+                            startedIssueIds,
+                          });
+                          const finishedEvent = createEngineTickEvent({
+                            type: "engine.tick.finished",
+                            tickAt,
+                            selectedIssueIds,
+                            reconciledIssueIds,
+                            queuedIssueIds,
+                            startedIssueIds,
+                          });
+
+                          return sequenceFutures([
+                            store.events
+                              .append(startedEvent)
+                              .pipe(map(() => undefined)),
+                            store.events
+                              .append(selectedEvent)
+                              .pipe(map(() => undefined)),
+                            ...selectedItems.map((target) =>
+                              runBoundedWorkflowTickForItem(
+                                store,
+                                target,
+                                tickAt,
+                                randomId,
+                                now,
+                                artifactWriter,
+                                artifactReader,
+                                planningSessionRunner,
+                                loadLinearIssue,
+                              ),
+                            ),
+                          ]).pipe(
                             chain(() =>
-                              createQueueStatus(store, {
-                                command: invocation.command,
-                                lastTickAt: tickAt,
-                                runtime: runtime ?? null,
-                                tick: tickReport,
-                                warnings,
-                              }).pipe(
-                                map((result) =>
-                                  root === "supervisor"
-                                    ? liftQueueStatusToSupervisorStatus(
-                                        result as Extract<
-                                          AutobotCommandResult,
-                                          { kind: "queue-status" }
-                                        >,
-                                      )
-                                    : result,
+                              store.events.append(finishedEvent).pipe(
+                                chain(() =>
+                                  createQueueStatus(store, {
+                                    command: invocation.command,
+                                    lastTickAt: tickAt,
+                                    runtime: runtime ?? null,
+                                    tick: tickReport,
+                                    warnings,
+                                  }).pipe(
+                                    map((result) =>
+                                      root === "supervisor"
+                                        ? liftQueueStatusToSupervisorStatus(
+                                            result as Extract<
+                                              AutobotCommandResult,
+                                              { kind: "queue-status" }
+                                            >,
+                                          )
+                                        : result,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        ),
+                          );
+                        }),
                       );
                     }),
                   );
@@ -4528,6 +5360,8 @@ function handleEngineStart(
   artifactReader: ArtifactReader = defaultArtifactReader,
   planningSessionRunner: PlanningSessionRunner = createNoopPlanningSessionRunner(),
   loadLinearIssue?: AutobotServiceDependencies["loadLinearIssue"],
+  isProcessAlive?: AutobotServiceDependencies["isProcessAlive"],
+  killProcess?: AutobotServiceDependencies["kill"],
   sleep: (
     milliseconds: number,
   ) => FutureInstance<unknown, void> = createDelayFuture,
@@ -4636,6 +5470,8 @@ function handleEngineStart(
                     artifactReader,
                     planningSessionRunner,
                     loadLinearIssue,
+                    isProcessAlive,
+                    killProcess,
                     {
                       lock: currentRecord,
                       // Do not re-feed persisted warnings into the next tick.
@@ -5068,6 +5904,8 @@ function handleCommand(
   artifactReader: ArtifactReader = defaultArtifactReader,
   planningSessionRunner: PlanningSessionRunner = createNoopPlanningSessionRunner(),
   loadLinearIssue?: AutobotServiceDependencies["loadLinearIssue"],
+  isProcessAlive?: AutobotServiceDependencies["isProcessAlive"],
+  killProcess?: AutobotServiceDependencies["kill"],
   randomId: () => string = randomUUID,
   sleep: (
     milliseconds: number,
@@ -5107,6 +5945,8 @@ function handleCommand(
             artifactReader,
             planningSessionRunner,
             loadLinearIssue,
+            isProcessAlive,
+            killProcess,
           );
         case "status":
           return handleEngineStatus(invocation, store);
@@ -5121,6 +5961,8 @@ function handleCommand(
             artifactReader,
             planningSessionRunner,
             loadLinearIssue,
+            isProcessAlive,
+            killProcess,
             sleep,
           );
         case "stop":
@@ -5184,6 +6026,8 @@ export function createAutobotServices(
           artifactReader,
           planningSessionRunner,
           loadPlanningLinearIssue,
+          dependencies.isProcessAlive,
+          dependencies.kill,
           dependencies.randomId ?? randomUUID,
           dependencies.sleep ?? createDelayFuture,
         ),

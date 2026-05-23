@@ -89,6 +89,7 @@ test("supervisor run-once reconciles stale in-progress items before selecting th
   const fixture = makeWorkflowStore({
     configOverrides: {
       "supervisor.max-concurrency": 2,
+      "supervisor.max-retries": 2,
     },
     items: [
       {
@@ -333,6 +334,1068 @@ test("supervisor run-once reconciles stale in-progress items before selecting th
   assert.ok(
     fixture.domainEvents.some((event) => event.type === "engine.tick.finished"),
   );
+});
+
+test("supervisor run-once reconciles a planning worker even when the run lost its worker pointer", async () => {
+  const fixture = makeWorkflowStore({
+    items: [
+      {
+        issue_id: "REP-204",
+        title: "Interrupted planning item",
+        url: "https://linear.app/repro/issue/REP-204/interrupted-planning-item",
+        state: "claimed",
+        attempt: 1,
+        priority: 2,
+        owner: "Gary",
+        workspace: "autobot",
+        branch: "autobot/REP-204",
+        queued_at: "2026-05-15T08:00:00Z",
+        started_at: "2026-05-15T08:05:00Z",
+        updated_at: "2026-05-15T08:05:00Z",
+        last_event: null,
+        last_error: null,
+        recovery_commands: [],
+        linear: null,
+        current_run: null,
+        cancellation_requested: false,
+        cancellation_requested_at: null,
+        artifacts: [],
+        events: [],
+      },
+    ],
+    currentRuns: {
+      "REP-204": {
+        run_id: "run-204",
+        issue_id: "REP-204",
+        attempt: 1,
+        state: "claimed",
+        flowcraft_execution_id: "exec-204",
+        blueprint_id: "autobot-deliver-issue",
+        blueprint_version: "1.0.0",
+        started_at: "2026-05-15T08:05:00Z",
+        finished_at: null,
+        worker_id: null,
+        last_heartbeat_at: "2026-05-15T08:05:30Z",
+        transport: null,
+      },
+    },
+    workers: [
+      {
+        worker_id: "worker-run-204",
+        issue_id: "REP-204",
+        run_id: "run-204",
+        flowcraft_execution_id: "exec-204",
+        workflow_node_id: "planning",
+        phase: "planning",
+        state: "completed",
+        pid: 5001,
+        child_pid: 5001,
+        process_group_id: 5001,
+        command: "opencode",
+        args: ["run", "--agent", "planner"],
+        started_at: "2026-05-15T08:05:00Z",
+        last_heartbeat_at: "2026-05-15T08:06:00Z",
+        deadline_at: null,
+        stdout_log_path: ".autobot/workers/worker-run-204.stdout.log",
+        stderr_log_path: ".autobot/workers/worker-run-204.stderr.log",
+        result: { ok: true },
+        result_artifact_path: ".autobot/workers/worker-run-204.result.json",
+        exit_code: 0,
+        signal: null,
+        finished_at: "2026-05-15T08:06:30Z",
+      },
+    ],
+  });
+
+  const services = createAutobotServices({
+    artifactWriter: noOpArtifactWriter,
+    artifactReader: noOpArtifactReader,
+    planningSessionRunner: noOpPlanningSessionRunner,
+    loadLinearIssue: noOpLinearIssue,
+    openStore() {
+      return resolve(fixture.store as unknown as AutobotStore);
+    },
+    now() {
+      return "2026-05-15T12:00:00Z";
+    },
+  });
+
+  const result = (await runFuture(
+    services.handleInvocation(makeInvocation(["supervisor", "run-once"])),
+  )) as AutobotCommandResult;
+
+  assert.equal(result.kind, "supervisor-status");
+  assert.deepEqual(result.data.tick?.reconciled_issue_ids, ["REP-204"]);
+  assert.equal(fixture.itemUpserts.at(-1)?.issue_id, "REP-204");
+  assert.equal(fixture.itemUpserts.at(-1)?.state, "completed");
+});
+
+test("supervisor run-once retries a signal-terminated planning worker and starts the next attempt", async () => {
+  const fixture = makeWorkflowStore({
+    configOverrides: {
+      "supervisor.max-concurrency": 2,
+      "supervisor.max-retries": 2,
+    },
+    items: [
+      {
+        issue_id: "REP-205",
+        title: "Interrupted planning item",
+        url: "https://linear.app/repro/issue/REP-205/interrupted-planning-item",
+        state: "claimed",
+        attempt: 1,
+        priority: 2,
+        owner: "Gary",
+        workspace: "autobot",
+        branch: "autobot/REP-205",
+        queued_at: "2026-05-15T08:00:00Z",
+        started_at: "2026-05-15T08:05:00Z",
+        updated_at: "2026-05-15T08:05:00Z",
+        last_event: null,
+        last_error: null,
+        recovery_commands: [],
+        linear: null,
+        current_run: null,
+        cancellation_requested: false,
+        cancellation_requested_at: null,
+        artifacts: [],
+        events: [],
+      },
+    ],
+    currentRuns: {
+      "REP-205": {
+        run_id: "run-205",
+        issue_id: "REP-205",
+        attempt: 1,
+        state: "claimed",
+        flowcraft_execution_id: "exec-205",
+        blueprint_id: "autobot-deliver-issue",
+        blueprint_version: "1.0.0",
+        started_at: "2026-05-15T08:05:00Z",
+        finished_at: null,
+        worker_id: "worker-run-205",
+        last_heartbeat_at: "2026-05-15T08:05:30Z",
+        transport: null,
+      },
+    },
+    workers: [
+      {
+        worker_id: "worker-run-205",
+        issue_id: "REP-205",
+        run_id: "run-205",
+        flowcraft_execution_id: "exec-205",
+        workflow_node_id: "planning",
+        phase: "planning",
+        state: "failed",
+        pid: 5001,
+        child_pid: 5001,
+        process_group_id: 5001,
+        command: "opencode",
+        args: ["run", "--agent", "planner"],
+        started_at: "2026-05-15T08:05:00Z",
+        last_heartbeat_at: "2026-05-15T08:06:00Z",
+        deadline_at: null,
+        stdout_log_path: ".autobot/workers/worker-run-205.stdout.log",
+        stderr_log_path: ".autobot/workers/worker-run-205.stderr.log",
+        result: { ok: false },
+        result_artifact_path: ".autobot/workers/worker-run-205.result.json",
+        exit_code: null,
+        signal: "SIGTERM",
+        finished_at: "2026-05-15T08:06:30Z",
+      },
+    ],
+  });
+
+  const services = createAutobotServices({
+    artifactWriter: noOpArtifactWriter,
+    artifactReader: noOpArtifactReader,
+    planningSessionRunner: noOpPlanningSessionRunner,
+    loadLinearIssue: noOpLinearIssue,
+    openStore() {
+      return resolve(fixture.store as unknown as AutobotStore);
+    },
+    now() {
+      return "2026-05-15T12:00:00Z";
+    },
+    randomId() {
+      return "run-205-2";
+    },
+  });
+
+  const result = (await runFuture(
+    services.handleInvocation(makeInvocation(["supervisor", "run-once"])),
+  )) as AutobotCommandResult;
+
+  assert.equal(result.kind, "supervisor-status");
+  assert.deepEqual(result.data.tick?.reconciled_issue_ids, ["REP-205"]);
+  assert.deepEqual(result.data.tick?.started_issue_ids, ["REP-205"]);
+  assert.ok(
+    fixture.runUpserts.some(
+      (run) =>
+        run.issue_id === "REP-205" &&
+        run.attempt === 1 &&
+        run.state === "failed" &&
+        run.finished_at === "2026-05-15T12:00:00Z",
+    ),
+  );
+  assert.ok(
+    fixture.runUpserts.some(
+      (run) => run.issue_id === "REP-205" && run.attempt === 2,
+    ),
+  );
+  assert.deepEqual(
+    fixture.itemUpserts.find((item) => item.issue_id === "REP-205"),
+    {
+      issue_id: "REP-205",
+      title: "Interrupted planning item",
+      url: "https://linear.app/repro/issue/REP-205/interrupted-planning-item",
+      state: "queued",
+      attempt: 2,
+      priority: 2,
+      owner: "Gary",
+      workspace: "autobot",
+      branch: "autobot/REP-205",
+      queued_at: "2026-05-15T08:00:00Z",
+      started_at: "2026-05-15T08:05:00Z",
+      updated_at: "2026-05-15T12:00:00Z",
+      last_event: "engine.item.retry_scheduled",
+      last_error: {
+        code: "AUTOBOT-WORKER-EXITED",
+        message: "worker exited with signal SIGTERM",
+        occurred_at: "2026-05-15T12:00:00Z",
+      },
+      recovery_commands: [
+        "autobot-next status REP-205 --json",
+        "autobot-next logs REP-205 --json",
+      ],
+      cancellation_requested: false,
+      cancellation_requested_at: null,
+      state_name: null,
+      state_type: null,
+      project: null,
+      labels: [],
+      assignee: "Gary",
+      current_run_id: null,
+    },
+  );
+  const retryEvent = fixture.domainEvents.find(
+    (event) =>
+      event.issue_id === "REP-205" &&
+      event.type === "engine.item.retry_scheduled",
+  ) as
+    | {
+        data: {
+          previous_state: string;
+          next_state: string;
+          previous_attempt: number;
+          next_attempt: number;
+          reason: string;
+        };
+      }
+    | undefined;
+  assert.equal(retryEvent?.data.previous_state, "claimed");
+  assert.equal(retryEvent?.data.next_state, "queued");
+  assert.equal(retryEvent?.data.previous_attempt, 1);
+  assert.equal(retryEvent?.data.next_attempt, 2);
+  assert.equal(retryEvent?.data.reason, "worker-signal");
+});
+
+test("supervisor run-once exhausts retries for a signal-terminated worker past the retry budget", async () => {
+  const fixture = makeWorkflowStore({
+    configOverrides: {
+      "supervisor.max-concurrency": 2,
+      "supervisor.max-retries": 1,
+    },
+    items: [
+      {
+        issue_id: "REP-206",
+        title: "Exhausted planning item",
+        url: "https://linear.app/repro/issue/REP-206/exhausted-planning-item",
+        state: "claimed",
+        attempt: 2,
+        priority: 2,
+        owner: "Gary",
+        workspace: "autobot",
+        branch: "autobot/REP-206",
+        queued_at: "2026-05-15T08:00:00Z",
+        started_at: "2026-05-15T08:05:00Z",
+        updated_at: "2026-05-15T08:05:00Z",
+        last_event: null,
+        last_error: null,
+        recovery_commands: [],
+        linear: null,
+        current_run: null,
+        cancellation_requested: false,
+        cancellation_requested_at: null,
+        artifacts: [],
+        events: [],
+      },
+    ],
+    currentRuns: {
+      "REP-206": {
+        run_id: "run-206",
+        issue_id: "REP-206",
+        attempt: 2,
+        state: "claimed",
+        flowcraft_execution_id: "exec-206",
+        blueprint_id: "autobot-deliver-issue",
+        blueprint_version: "1.0.0",
+        started_at: "2026-05-15T08:05:00Z",
+        finished_at: null,
+        worker_id: "worker-run-206",
+        last_heartbeat_at: "2026-05-15T08:05:30Z",
+        transport: null,
+      },
+    },
+    workers: [
+      {
+        worker_id: "worker-run-206",
+        issue_id: "REP-206",
+        run_id: "run-206",
+        flowcraft_execution_id: "exec-206",
+        workflow_node_id: "planning",
+        phase: "planning",
+        state: "failed",
+        pid: 5002,
+        child_pid: 5002,
+        process_group_id: 5002,
+        command: "opencode",
+        args: ["run", "--agent", "planner"],
+        started_at: "2026-05-15T08:05:00Z",
+        last_heartbeat_at: "2026-05-15T08:06:00Z",
+        deadline_at: null,
+        stdout_log_path: ".autobot/workers/worker-run-206.stdout.log",
+        stderr_log_path: ".autobot/workers/worker-run-206.stderr.log",
+        result: { ok: false },
+        result_artifact_path: ".autobot/workers/worker-run-206.result.json",
+        exit_code: null,
+        signal: "SIGTERM",
+        finished_at: "2026-05-15T08:06:30Z",
+      },
+    ],
+  });
+
+  const services = createAutobotServices({
+    artifactWriter: noOpArtifactWriter,
+    artifactReader: noOpArtifactReader,
+    planningSessionRunner: noOpPlanningSessionRunner,
+    loadLinearIssue: noOpLinearIssue,
+    openStore() {
+      return resolve(fixture.store as unknown as AutobotStore);
+    },
+    now() {
+      return "2026-05-15T12:00:00Z";
+    },
+    randomId() {
+      return "run-206-2";
+    },
+  });
+
+  const result = (await runFuture(
+    services.handleInvocation(makeInvocation(["supervisor", "run-once"])),
+  )) as AutobotCommandResult;
+
+  assert.equal(result.kind, "supervisor-status");
+  assert.deepEqual(result.data.tick?.reconciled_issue_ids, ["REP-206"]);
+  assert.deepEqual(result.data.tick?.started_issue_ids, []);
+  assert.ok(
+    fixture.runUpserts.some(
+      (run) =>
+        run.issue_id === "REP-206" &&
+        run.attempt === 2 &&
+        run.state === "failed",
+    ),
+  );
+  assert.equal(
+    fixture.runUpserts.some(
+      (run) => run.issue_id === "REP-206" && run.attempt === 3,
+    ),
+    false,
+  );
+  assert.deepEqual(
+    fixture.itemUpserts.find((item) => item.issue_id === "REP-206"),
+    {
+      issue_id: "REP-206",
+      title: "Exhausted planning item",
+      url: "https://linear.app/repro/issue/REP-206/exhausted-planning-item",
+      state: "failed",
+      attempt: 2,
+      priority: 2,
+      owner: "Gary",
+      workspace: "autobot",
+      branch: "autobot/REP-206",
+      queued_at: "2026-05-15T08:00:00Z",
+      started_at: "2026-05-15T08:05:00Z",
+      updated_at: "2026-05-15T12:00:00Z",
+      last_event: "engine.item.retry_exhausted",
+      last_error: {
+        code: "AUTOBOT-WORKER-EXITED",
+        message: "worker exited with signal SIGTERM",
+        occurred_at: "2026-05-15T12:00:00Z",
+      },
+      recovery_commands: [
+        "autobot-next status REP-206 --json",
+        "autobot-next logs REP-206 --json",
+      ],
+      cancellation_requested: false,
+      cancellation_requested_at: null,
+      state_name: null,
+      state_type: null,
+      project: null,
+      labels: [],
+      assignee: "Gary",
+      current_run_id: null,
+    },
+  );
+  const exhaustedEvent = fixture.domainEvents.find(
+    (event) =>
+      event.issue_id === "REP-206" &&
+      event.type === "engine.item.retry_exhausted",
+  ) as
+    | {
+        data: {
+          previous_state: string;
+          next_state: string;
+          previous_attempt: number;
+          max_retries: number;
+          reason: string;
+        };
+      }
+    | undefined;
+  assert.equal(exhaustedEvent?.data.previous_state, "claimed");
+  assert.equal(exhaustedEvent?.data.next_state, "failed");
+  assert.equal(exhaustedEvent?.data.previous_attempt, 2);
+  assert.equal(exhaustedEvent?.data.max_retries, 1);
+  assert.equal(exhaustedEvent?.data.reason, "worker-signal");
+});
+
+test("supervisor run-once retries a previously failed item on a later tick", async () => {
+  const fixture = makeWorkflowStore({
+    configOverrides: {
+      "supervisor.max-concurrency": 1,
+      "supervisor.max-retries": 2,
+    },
+    items: [
+      {
+        issue_id: "REP-117",
+        title: "Stranded failed item",
+        url: "https://linear.app/repro/issue/REP-117/stranded-failed-item",
+        state: "failed",
+        attempt: 1,
+        priority: 2,
+        owner: "Gary",
+        workspace: "autobot",
+        branch: "autobot/REP-117",
+        queued_at: "2026-05-15T08:00:00Z",
+        started_at: "2026-05-15T08:05:00Z",
+        updated_at: "2026-05-15T08:06:00Z",
+        last_event: "engine.item.reconciled",
+        last_error: {
+          code: "AUTOBOT-WORKER-EXITED",
+          message: "worker exited with signal SIGTERM",
+          occurred_at: "2026-05-15T08:06:00Z",
+        },
+        recovery_commands: [
+          "autobot-next status REP-117 --json",
+          "autobot-next logs REP-117 --json",
+        ],
+        linear: null,
+        current_run: null,
+        cancellation_requested: false,
+        cancellation_requested_at: null,
+        artifacts: [],
+        events: [],
+      } as any,
+    ],
+  });
+
+  const services = createAutobotServices({
+    artifactWriter: noOpArtifactWriter,
+    artifactReader: noOpArtifactReader,
+    planningSessionRunner: noOpPlanningSessionRunner,
+    loadLinearIssue: noOpLinearIssue,
+    openStore() {
+      return resolve(fixture.store as unknown as AutobotStore);
+    },
+    now() {
+      return "2026-05-15T12:00:00Z";
+    },
+    randomId() {
+      return "run-117-2";
+    },
+  });
+
+  const result = (await runFuture(
+    services.handleInvocation(makeInvocation(["supervisor", "run-once"])),
+  )) as AutobotCommandResult;
+
+  assert.equal(result.kind, "supervisor-status");
+  assert.deepEqual(result.data.tick?.reconciled_issue_ids, ["REP-117"]);
+  assert.deepEqual(result.data.tick?.started_issue_ids, ["REP-117"]);
+  assert.equal(
+    fixture.itemUpserts.some(
+      (item) =>
+        item.issue_id === "REP-117" &&
+        item.state === "queued" &&
+        item.attempt === 2,
+    ),
+    true,
+  );
+  assert.equal(
+    fixture.runUpserts.some(
+      (run) => run.issue_id === "REP-117" && run.attempt === 2,
+    ),
+    true,
+  );
+  assert.equal(
+    fixture.domainEvents.some(
+      (event) =>
+        event.issue_id === "REP-117" &&
+        event.type === "engine.item.retry_scheduled",
+    ),
+    true,
+  );
+});
+
+test("supervisor run-once leaves a previously failed item failed once retries are exhausted", async () => {
+  const fixture = makeWorkflowStore({
+    configOverrides: {
+      "supervisor.max-concurrency": 1,
+      "supervisor.max-retries": 1,
+    },
+    items: [
+      {
+        issue_id: "REP-118",
+        title: "Exhausted failed item",
+        url: "https://linear.app/repro/issue/REP-118/exhausted-failed-item",
+        state: "failed",
+        attempt: 2,
+        priority: 2,
+        owner: "Gary",
+        workspace: "autobot",
+        branch: "autobot/REP-118",
+        queued_at: "2026-05-15T08:00:00Z",
+        started_at: "2026-05-15T08:05:00Z",
+        updated_at: "2026-05-15T08:06:00Z",
+        last_event: "engine.item.reconciled",
+        last_error: {
+          code: "AUTOBOT-WORKER-EXITED",
+          message: "worker exited with signal SIGTERM",
+          occurred_at: "2026-05-15T08:06:00Z",
+        },
+        recovery_commands: [
+          "autobot-next status REP-118 --json",
+          "autobot-next logs REP-118 --json",
+        ],
+        linear: null,
+        current_run: null,
+        cancellation_requested: false,
+        cancellation_requested_at: null,
+        artifacts: [],
+        events: [],
+      } as any,
+    ],
+  });
+
+  const services = createAutobotServices({
+    artifactWriter: noOpArtifactWriter,
+    artifactReader: noOpArtifactReader,
+    planningSessionRunner: noOpPlanningSessionRunner,
+    loadLinearIssue: noOpLinearIssue,
+    openStore() {
+      return resolve(fixture.store as unknown as AutobotStore);
+    },
+    now() {
+      return "2026-05-15T12:00:00Z";
+    },
+  });
+
+  const result = (await runFuture(
+    services.handleInvocation(makeInvocation(["supervisor", "run-once"])),
+  )) as AutobotCommandResult;
+
+  assert.equal(result.kind, "supervisor-status");
+  assert.deepEqual(result.data.tick?.reconciled_issue_ids, ["REP-118"]);
+  assert.deepEqual(result.data.tick?.started_issue_ids, []);
+  assert.equal(
+    fixture.itemUpserts.some(
+      (item) =>
+        item.issue_id === "REP-118" &&
+        item.state === "failed" &&
+        item.attempt === 2,
+    ),
+    true,
+  );
+  assert.equal(
+    fixture.runUpserts.some(
+      (run) => run.issue_id === "REP-118" && run.attempt === 3,
+    ),
+    false,
+  );
+  assert.equal(
+    fixture.domainEvents.some(
+      (event) =>
+        event.issue_id === "REP-118" &&
+        event.type === "engine.item.retry_exhausted",
+    ),
+    true,
+  );
+});
+
+test("supervisor run-once reconciles durable worker records into terminal and stale outcomes", async () => {
+  const workerArgs = (issueId: string) => [
+    "run",
+    "--agent",
+    "planner",
+    "--issue",
+    issueId,
+  ];
+  const fixture = makeWorkflowStore({
+    configOverrides: {
+      "supervisor.max-concurrency": 1,
+    },
+    items: [
+      {
+        issue_id: "REP-600",
+        title: "Completed worker",
+        url: "https://linear.app/repro/issue/REP-600/completed-worker",
+        state: "claimed",
+        attempt: 1,
+        priority: 2,
+        owner: "Gary",
+        workspace: "autobot",
+        branch: "autobot/REP-600",
+        queued_at: "2026-05-15T08:00:00Z",
+        started_at: "2026-05-15T08:05:00Z",
+        updated_at: "2026-05-15T08:05:00Z",
+        last_event: null,
+        last_error: null,
+        recovery_commands: [],
+        linear: null,
+        current_run: null,
+        cancellation_requested: false,
+        cancellation_requested_at: null,
+        artifacts: [],
+        events: [],
+      },
+      {
+        issue_id: "REP-601",
+        title: "Failed worker",
+        url: "https://linear.app/repro/issue/REP-601/failed-worker",
+        state: "claimed",
+        attempt: 1,
+        priority: 2,
+        owner: "Gary",
+        workspace: "autobot",
+        branch: "autobot/REP-601",
+        queued_at: "2026-05-15T08:10:00Z",
+        started_at: "2026-05-15T08:15:00Z",
+        updated_at: "2026-05-15T08:15:00Z",
+        last_event: null,
+        last_error: null,
+        recovery_commands: [],
+        linear: null,
+        current_run: null,
+        cancellation_requested: false,
+        cancellation_requested_at: null,
+        artifacts: [],
+        events: [],
+      },
+      {
+        issue_id: "REP-602",
+        title: "Stale worker",
+        url: "https://linear.app/repro/issue/REP-602/stale-worker",
+        state: "claimed",
+        attempt: 1,
+        priority: 2,
+        owner: "Gary",
+        workspace: "autobot",
+        branch: "autobot/REP-602",
+        queued_at: "2026-05-15T08:20:00Z",
+        started_at: "2026-05-15T08:25:00Z",
+        updated_at: "2026-05-15T08:25:00Z",
+        last_event: null,
+        last_error: null,
+        recovery_commands: [],
+        linear: null,
+        current_run: null,
+        cancellation_requested: false,
+        cancellation_requested_at: null,
+        artifacts: [],
+        events: [],
+      },
+      {
+        issue_id: "REP-603",
+        title: "Canceled worker",
+        url: "https://linear.app/repro/issue/REP-603/canceled-worker",
+        state: "claimed",
+        attempt: 1,
+        priority: 2,
+        owner: "Gary",
+        workspace: "autobot",
+        branch: "autobot/REP-603",
+        queued_at: "2026-05-15T08:30:00Z",
+        started_at: "2026-05-15T08:35:00Z",
+        updated_at: "2026-05-15T08:35:00Z",
+        last_event: null,
+        last_error: null,
+        recovery_commands: [],
+        linear: null,
+        current_run: null,
+        cancellation_requested: true,
+        cancellation_requested_at: "2026-05-15T08:40:00Z",
+        artifacts: [],
+        events: [],
+      },
+      {
+        issue_id: "REP-604",
+        title: "Missing-process worker",
+        url: "https://linear.app/repro/issue/REP-604/missing-process-worker",
+        state: "claimed",
+        attempt: 1,
+        priority: 2,
+        owner: "Gary",
+        workspace: "autobot",
+        branch: "autobot/REP-604",
+        queued_at: "2026-05-15T08:40:00Z",
+        started_at: "2026-05-15T08:45:00Z",
+        updated_at: "2026-05-15T08:45:00Z",
+        last_event: null,
+        last_error: null,
+        recovery_commands: [],
+        linear: null,
+        current_run: null,
+        cancellation_requested: false,
+        cancellation_requested_at: null,
+        artifacts: [],
+        events: [],
+      },
+    ],
+    currentRuns: {
+      "REP-600": {
+        run_id: "run-600",
+        issue_id: "REP-600",
+        attempt: 1,
+        state: "claimed",
+        flowcraft_execution_id: "exec-600",
+        blueprint_id: "autobot-deliver-issue",
+        blueprint_version: "1.0.0",
+        started_at: "2026-05-15T08:05:00Z",
+        finished_at: null,
+        worker_id: "worker-600",
+        last_heartbeat_at: "2026-05-15T08:05:30Z",
+        transport: null,
+      },
+      "REP-601": {
+        run_id: "run-601",
+        issue_id: "REP-601",
+        attempt: 1,
+        state: "claimed",
+        flowcraft_execution_id: "exec-601",
+        blueprint_id: "autobot-deliver-issue",
+        blueprint_version: "1.0.0",
+        started_at: "2026-05-15T08:15:00Z",
+        finished_at: null,
+        worker_id: "worker-601",
+        last_heartbeat_at: "2026-05-15T08:15:30Z",
+        transport: null,
+      },
+      "REP-602": {
+        run_id: "run-602",
+        issue_id: "REP-602",
+        attempt: 1,
+        state: "claimed",
+        flowcraft_execution_id: "exec-602",
+        blueprint_id: "autobot-deliver-issue",
+        blueprint_version: "1.0.0",
+        started_at: "2026-05-15T08:25:00Z",
+        finished_at: null,
+        worker_id: "worker-602",
+        last_heartbeat_at: "2026-05-15T08:25:30Z",
+        transport: null,
+      },
+      "REP-603": {
+        run_id: "run-603",
+        issue_id: "REP-603",
+        attempt: 1,
+        state: "claimed",
+        flowcraft_execution_id: "exec-603",
+        blueprint_id: "autobot-deliver-issue",
+        blueprint_version: "1.0.0",
+        started_at: "2026-05-15T08:35:00Z",
+        finished_at: null,
+        worker_id: "worker-603",
+        last_heartbeat_at: "2026-05-15T08:35:30Z",
+        transport: null,
+      },
+      "REP-604": {
+        run_id: "run-604",
+        issue_id: "REP-604",
+        attempt: 1,
+        state: "claimed",
+        flowcraft_execution_id: "exec-604",
+        blueprint_id: "autobot-deliver-issue",
+        blueprint_version: "1.0.0",
+        started_at: "2026-05-15T08:45:00Z",
+        finished_at: null,
+        worker_id: "worker-604",
+        last_heartbeat_at: "2026-05-15T08:45:30Z",
+        transport: null,
+      },
+    },
+    workers: [
+      {
+        worker_id: "worker-600",
+        issue_id: "REP-600",
+        run_id: "run-600",
+        flowcraft_execution_id: "exec-600",
+        workflow_node_id: "developing",
+        phase: "developing",
+        state: "completed",
+        pid: 3300,
+        child_pid: 3300,
+        process_group_id: 3300,
+        command: "opencode",
+        args: workerArgs("REP-600"),
+        started_at: "2026-05-15T08:05:00Z",
+        last_heartbeat_at: "2026-05-15T08:06:00Z",
+        deadline_at: null,
+        stdout_log_path: ".autobot/workers/worker-600.stdout.log",
+        stderr_log_path: ".autobot/workers/worker-600.stderr.log",
+        result: { ok: true },
+        result_artifact_path: ".autobot/workers/worker-600.result.json",
+        exit_code: 0,
+        signal: null,
+        finished_at: "2026-05-15T08:06:30Z",
+      },
+      {
+        worker_id: "worker-601",
+        issue_id: "REP-601",
+        run_id: "run-601",
+        flowcraft_execution_id: "exec-601",
+        workflow_node_id: "testing",
+        phase: "testing",
+        state: "failed",
+        pid: 3301,
+        child_pid: 3301,
+        process_group_id: 3301,
+        command: "opencode",
+        args: workerArgs("REP-601"),
+        started_at: "2026-05-15T08:15:00Z",
+        last_heartbeat_at: "2026-05-15T08:16:00Z",
+        deadline_at: null,
+        stdout_log_path: ".autobot/workers/worker-601.stdout.log",
+        stderr_log_path: ".autobot/workers/worker-601.stderr.log",
+        result: { ok: false },
+        result_artifact_path: ".autobot/workers/worker-601.result.json",
+        exit_code: 1,
+        signal: null,
+        finished_at: "2026-05-15T08:16:30Z",
+      },
+      {
+        worker_id: "worker-602",
+        issue_id: "REP-602",
+        run_id: "run-602",
+        flowcraft_execution_id: "exec-602",
+        workflow_node_id: "planning",
+        phase: "planning",
+        state: "running",
+        pid: 3303,
+        child_pid: 3303,
+        process_group_id: 3303,
+        command: "opencode",
+        args: workerArgs("REP-602"),
+        started_at: "2026-05-15T08:25:00Z",
+        last_heartbeat_at: "2026-05-15T08:25:30Z",
+        deadline_at: "2026-05-15T08:26:00Z",
+        stdout_log_path: ".autobot/workers/worker-602.stdout.log",
+        stderr_log_path: ".autobot/workers/worker-602.stderr.log",
+        result: null,
+        result_artifact_path: null,
+        exit_code: null,
+        signal: null,
+        finished_at: null,
+      },
+      {
+        worker_id: "worker-603",
+        issue_id: "REP-603",
+        run_id: "run-603",
+        flowcraft_execution_id: "exec-603",
+        workflow_node_id: "developing",
+        phase: "developing",
+        state: "cancellation-requested",
+        pid: 3304,
+        child_pid: 3304,
+        process_group_id: 3304,
+        command: "opencode",
+        args: workerArgs("REP-603"),
+        started_at: "2026-05-15T08:35:00Z",
+        last_heartbeat_at: "2026-05-15T08:35:30Z",
+        deadline_at: "2026-05-15T08:36:00Z",
+        stdout_log_path: ".autobot/workers/worker-603.stdout.log",
+        stderr_log_path: ".autobot/workers/worker-603.stderr.log",
+        result: null,
+        result_artifact_path: null,
+        exit_code: null,
+        signal: null,
+        finished_at: null,
+      },
+      {
+        worker_id: "worker-604",
+        issue_id: "REP-604",
+        run_id: "run-604",
+        flowcraft_execution_id: "exec-604",
+        workflow_node_id: "developing",
+        phase: "developing",
+        state: "running",
+        pid: 3305,
+        child_pid: 3305,
+        process_group_id: 3305,
+        command: "opencode",
+        args: workerArgs("REP-604"),
+        started_at: "2026-05-15T08:45:00Z",
+        last_heartbeat_at: "2026-05-15T08:45:30Z",
+        deadline_at: "2026-05-15T08:46:00Z",
+        stdout_log_path: ".autobot/workers/worker-604.stdout.log",
+        stderr_log_path: ".autobot/workers/worker-604.stderr.log",
+        result: null,
+        result_artifact_path: null,
+        exit_code: null,
+        signal: null,
+        finished_at: null,
+      },
+    ],
+  });
+  const killCalls: Array<[number, NodeJS.Signals | number | undefined]> = [];
+  const services = createAutobotServices({
+    artifactWriter: noOpArtifactWriter,
+    artifactReader: noOpArtifactReader,
+    planningSessionRunner: noOpPlanningSessionRunner,
+    loadLinearIssue: noOpLinearIssue,
+    openStore() {
+      return resolve(fixture.store as unknown as AutobotStore);
+    },
+    now() {
+      return "2026-05-15T12:00:00Z";
+    },
+    isProcessAlive(pid) {
+      return Math.abs(pid) === 3303;
+    },
+    kill(pid, signal) {
+      killCalls.push([pid, signal]);
+      return true;
+    },
+  });
+
+  const result = (await runFuture(
+    services.handleInvocation(makeInvocation(["supervisor", "run-once"])),
+  )) as AutobotCommandResult;
+
+  assert.equal(result.kind, "supervisor-status");
+  assert.deepEqual(result.data.tick?.reconciled_issue_ids.sort(), [
+    "REP-600",
+    "REP-601",
+    "REP-603",
+    "REP-604",
+  ]);
+  assert.equal(
+    result.data.active_workers.some(
+      (worker) => worker.worker_id === "worker-602" && worker.state === "stale",
+    ),
+    true,
+  );
+  assert.equal(
+    result.data.active_workers.some(
+      (worker) => worker.worker_id === "worker-600",
+    ),
+    false,
+  );
+  assert.equal(
+    result.data.active_workers.some(
+      (worker) => worker.worker_id === "worker-601",
+    ),
+    false,
+  );
+  assert.equal(
+    result.data.active_workers.some(
+      (worker) => worker.worker_id === "worker-603",
+    ),
+    false,
+  );
+  assert.equal(
+    result.data.active_workers.some(
+      (worker) => worker.worker_id === "worker-604",
+    ),
+    false,
+  );
+
+  const completedItem = fixture.itemUpserts.find(
+    (item) => item.issue_id === "REP-600",
+  ) as
+    | {
+        state?: string;
+        last_error?: { code?: string } | null;
+        recovery_commands?: string[];
+      }
+    | undefined;
+  const failedRetryItem = fixture.itemUpserts.find(
+    (item) => item.issue_id === "REP-601",
+  ) as
+    | {
+        state?: string;
+        attempt?: number;
+        last_error?: { code?: string } | null;
+        recovery_commands?: string[];
+        last_event?: string | null;
+      }
+    | undefined;
+  const canceledItem = fixture.itemUpserts.find(
+    (item) => item.issue_id === "REP-603",
+  ) as
+    | {
+        state?: string;
+        last_error?: { code?: string } | null;
+        recovery_commands?: string[];
+      }
+    | undefined;
+  const missingRetryItem = fixture.itemUpserts.find(
+    (item) => item.issue_id === "REP-604",
+  ) as
+    | {
+        state?: string;
+        attempt?: number;
+        last_error?: { code?: string } | null;
+        recovery_commands?: string[];
+        last_event?: string | null;
+      }
+    | undefined;
+
+  assert.equal(completedItem?.state, "completed");
+  assert.equal(completedItem?.last_error, null);
+  assert.deepEqual(completedItem?.recovery_commands, []);
+  assert.equal(failedRetryItem?.state, "queued");
+  assert.equal(failedRetryItem?.attempt, 2);
+  assert.equal(failedRetryItem?.last_event, "engine.item.retry_scheduled");
+  assert.equal(failedRetryItem?.last_error?.code, "AUTOBOT-WORKER-FAILED");
+  assert.deepEqual(failedRetryItem?.recovery_commands, [
+    "autobot-next status REP-601 --json",
+    "autobot-next logs REP-601 --json",
+  ]);
+  assert.equal(canceledItem?.state, "canceled");
+  assert.deepEqual(canceledItem?.recovery_commands, [
+    "autobot-next status REP-603 --json",
+  ]);
+  assert.equal(missingRetryItem?.state, "queued");
+  assert.equal(missingRetryItem?.attempt, 2);
+  assert.equal(missingRetryItem?.last_event, "engine.item.retry_scheduled");
+  assert.equal(
+    missingRetryItem?.last_error?.code,
+    "AUTOBOT-WORKER-MISSING-PROCESS",
+  );
+  assert.deepEqual(missingRetryItem?.recovery_commands, [
+    "autobot-next status REP-604 --json",
+    "autobot-next logs REP-604 --json",
+  ]);
+  assert.deepEqual(killCalls, []);
 });
 
 test("supervisor run-once hydrates Linear metadata before writing planning artifacts", async () => {
