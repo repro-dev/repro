@@ -1093,6 +1093,7 @@ const retryableFailureCodes = new Set([
   "AUTOBOT-WORKER-STALE",
   "AUTOBOT-WORKER-MISSING-PROCESS",
   "AUTOBOT-WORKER-SPAWN-FAILED",
+  "AUTOBOT-PLANNING-WORKER-RESULT-MISSING",
 ]);
 
 function isRetryableFailedItem(item: ItemSummary): boolean {
@@ -1322,6 +1323,12 @@ function reconcileCompletedPlanningWorker(input: {
   const planningSessionResult = planningSessionResultFromWorker(input.worker);
 
   if (planningSessionResult === null) {
+    const lastError = createWorkerReconciliationError({
+      code: "AUTOBOT-PLANNING-WORKER-RESULT-MISSING",
+      message:
+        "completed planning worker did not produce a valid result payload for workflow reconciliation",
+      occurredAt: input.tickAt,
+    });
     const nextItem = buildItemSummaryFromExisting(
       input.item,
       "failed",
@@ -1352,6 +1359,7 @@ function reconcileCompletedPlanningWorker(input: {
                 item: input.item,
                 state: "failed",
                 updatedAt: input.tickAt,
+                lastError,
                 recoveryCommands: createWorkerRecoveryCommands(
                   input.item.issue_id,
                   true,
@@ -2130,6 +2138,125 @@ function reconcileEngineItem(
       },
     ),
   );
+}
+
+function isInProgressItemEligibleForReconciliation(
+  store: AutobotStore,
+  item: ItemSummary,
+  workers: WorkerSummary[],
+  workersById: Map<string, WorkerSummary>,
+  tickAt: string,
+  isProcessAlive?: AutobotServiceDependencies["isProcessAlive"],
+): FutureInstance<unknown, boolean> {
+  if (!isInProgressState(item.state)) {
+    return resolve(false);
+  }
+
+  return store.runs.getCurrent(item.issue_id).pipe(
+    map((currentRun) => {
+      if (currentRun === null || isTerminalState(currentRun.state)) {
+        return true;
+      }
+
+      const worker = findCurrentWorker({
+        item,
+        currentRun,
+        workers,
+        workersById,
+      });
+
+      if (worker === null) {
+        return false;
+      }
+
+      if (
+        worker.state === "completed" ||
+        worker.state === "failed" ||
+        worker.state === "cancellation-requested" ||
+        worker.spawn_error != null ||
+        (worker.exit_code ?? null) !== null ||
+        (worker.signal ?? null) !== null
+      ) {
+        return true;
+      }
+
+      if (
+        worker.state === "running" ||
+        worker.state === "starting" ||
+        worker.state === "stale"
+      ) {
+        const liveness = resolveProcessLiveness(worker, isProcessAlive);
+
+        if (!liveness.anyAlive) {
+          return true;
+        }
+
+        return (
+          worker.state !== "stale" &&
+          worker.deadline_at !== null &&
+          worker.deadline_at !== undefined &&
+          worker.deadline_at <= tickAt
+        );
+      }
+
+      return false;
+    }),
+  );
+}
+
+function reconcileFirstEligibleEngineItem(input: {
+  store: AutobotStore;
+  items: ItemSummary[];
+  workers: WorkerSummary[];
+  workersById: Map<string, WorkerSummary>;
+  tickAt: string;
+  dryRun: boolean;
+  maxRetries: number;
+  artifactWriter: ArtifactWriter;
+  artifactReader: ArtifactReader;
+  isProcessAlive?: AutobotServiceDependencies["isProcessAlive"];
+  killProcess?: AutobotServiceDependencies["kill"];
+}): FutureInstance<unknown, EngineTickReconciliationOutcome | null> {
+  const scan = (
+    index: number,
+  ): FutureInstance<unknown, EngineTickReconciliationOutcome | null> => {
+    const item = input.items[index];
+
+    if (item === undefined) {
+      return resolve(null);
+    }
+
+    return isInProgressItemEligibleForReconciliation(
+      input.store,
+      item,
+      input.workers,
+      input.workersById,
+      input.tickAt,
+      input.isProcessAlive,
+    ).pipe(
+      chain((eligible) => {
+        if (!eligible) {
+          return scan(index + 1);
+        }
+
+        return reconcileEngineItem(
+          input.store,
+          item,
+          input.workers,
+          input.workersById,
+          input.tickAt,
+          input.dryRun,
+          input.maxRetries,
+          input.artifactWriter,
+          input.artifactReader,
+          input.isProcessAlive,
+          input.killProcess,
+        );
+      }),
+    );
+  };
+
+  return scan(0);
 }
 
 function reconcileRetryableFailedItem(
@@ -4535,361 +4662,357 @@ function handleEngineRunOnce(
               const inProgressItems = workingItems.filter((item) =>
                 isInProgressState(item.state),
               );
-              const reconcileFutures = inProgressItems.slice(0, 1).map((item) =>
-                reconcileEngineItem(
-                  store,
-                  item,
-                  workers,
-                  workersById,
-                  tickAt,
-                  invocation.options.dry_run,
-                  settings.maxRetries,
-                  artifactWriter,
-                  artifactReader,
-                  isProcessAlive,
-                  killProcess,
-                ).pipe(
-                  map((outcome) => {
-                    if (outcome.reconciled_issue_id !== null) {
-                      reconciledIssueIds.push(outcome.reconciled_issue_id);
-                    }
+              const applyReconciliationOutcome = (
+                outcome: EngineTickReconciliationOutcome,
+              ) => {
+                if (outcome.reconciled_issue_id !== null) {
+                  reconciledIssueIds.push(outcome.reconciled_issue_id);
+                }
 
-                    const index = workingItems.findIndex(
-                      (current) => current.issue_id === outcome.item.issue_id,
-                    );
-                    if (index !== -1) {
-                      workingItems[index] = outcome.item;
+                const index = workingItems.findIndex(
+                  (current) => current.issue_id === outcome.item.issue_id,
+                );
+                if (index !== -1) {
+                  workingItems[index] = outcome.item;
+                }
+
+                return outcome;
+              };
+
+              return reconcileFirstEligibleEngineItem({
+                store,
+                items: inProgressItems,
+                workers,
+                workersById,
+                tickAt,
+                dryRun: invocation.options.dry_run,
+                maxRetries: settings.maxRetries,
+                artifactWriter,
+                artifactReader,
+                isProcessAlive,
+                killProcess,
+              })
+                .pipe(
+                  map((outcome) => {
+                    if (outcome !== null) {
+                      applyReconciliationOutcome(outcome);
                     }
 
                     return outcome;
                   }),
-                ),
-              );
+                )
+                .pipe(
+                  chain((inProgressOutcome) => {
+                    if (inProgressOutcome !== null) {
+                      return finishBoundedTick();
+                    }
 
-              return sequenceFutures(reconcileFutures).pipe(
-                chain(() => {
-                  if (inProgressItems.length > 0) {
-                    return finishBoundedTick();
-                  }
+                    const retryableItems = workingItems.filter((item) =>
+                      isRetryableFailedItem(item),
+                    );
+                    const retryFutures = retryableItems
+                      .slice(0, 1)
+                      .map((item) =>
+                        reconcileRetryableFailedItem(
+                          store,
+                          item,
+                          tickAt,
+                          invocation.options.dry_run,
+                          settings.maxRetries,
+                        ).pipe(map(applyReconciliationOutcome)),
+                      );
 
-                  const retryableItems = workingItems.filter((item) =>
-                    isRetryableFailedItem(item),
-                  );
-                  const retryFutures = retryableItems.slice(0, 1).map((item) =>
-                    reconcileRetryableFailedItem(
-                      store,
-                      item,
-                      tickAt,
-                      invocation.options.dry_run,
-                      settings.maxRetries,
-                    ).pipe(
-                      map((outcome) => {
-                        if (outcome.reconciled_issue_id !== null) {
-                          reconciledIssueIds.push(outcome.reconciled_issue_id);
+                    return sequenceFutures(retryFutures).pipe(
+                      chain(() => {
+                        if (retryableItems.length > 0) {
+                          return finishBoundedTick();
                         }
 
-                        const index = workingItems.findIndex(
-                          (current) =>
-                            current.issue_id === outcome.item.issue_id,
-                        );
-                        if (index !== -1) {
-                          workingItems[index] = outcome.item;
-                        }
-
-                        return outcome;
-                      }),
-                    ),
-                  );
-
-                  return sequenceFutures(retryFutures).pipe(
-                    chain(() => {
-                      if (retryableItems.length > 0) {
-                        return finishBoundedTick();
-                      }
-
-                      const queueDiscoveredCandidates = (
-                        candidates: DiscoverCandidate[],
-                      ): FutureInstance<unknown, void> => {
-                        discoveredIssueIds.push(
-                          ...candidates.map((candidate) => candidate.issue_id),
-                        );
-
-                        const knownIssueIds = new Map(
-                          workingItems.map(
-                            (item) => [item.issue_id, item] as const,
-                          ),
-                        );
-                        const queueBudget = Math.max(
-                          0,
-                          settings.queueDepth -
-                            workingItems.filter(
-                              (item) => item.state === "queued",
-                            ).length,
-                        );
-                        const accepted: EngineTickCandidateRecord[] = [];
-
-                        for (const candidate of candidates) {
-                          const existing = knownIssueIds.get(
-                            candidate.issue_id,
+                        const queueDiscoveredCandidates = (
+                          candidates: DiscoverCandidate[],
+                        ): FutureInstance<unknown, void> => {
+                          discoveredIssueIds.push(
+                            ...candidates.map(
+                              (candidate) => candidate.issue_id,
+                            ),
                           );
-                          if (existing !== undefined) {
-                            skipped.push({
-                              issue_id: candidate.issue_id,
-                              reason: "local-existing",
-                              details: {
-                                state: existing.state,
-                              },
-                            });
-                            continue;
-                          }
 
-                          if (accepted.length >= queueBudget) {
-                            skipped.push({
-                              issue_id: candidate.issue_id,
-                              reason: "queue-depth-exhausted",
-                              details: {
-                                queue_depth: settings.queueDepth,
-                              },
-                            });
-                            continue;
-                          }
-
-                          const queueCandidate = createDiscoveredItemRecord(
-                            candidate,
-                            tickAt,
+                          const knownIssueIds = new Map(
+                            workingItems.map(
+                              (item) => [item.issue_id, item] as const,
+                            ),
                           );
-                          accepted.push(queueCandidate);
-                          knownIssueIds.set(
-                            candidate.issue_id,
-                            queueCandidate.summary,
-                          );
-                        }
-
-                        const queueCandidates = accepted;
-
-                        queuedIssueIds.push(
-                          ...queueCandidates.map(
-                            (candidate) => candidate.summary.issue_id,
-                          ),
-                        );
-
-                        for (const candidate of queueCandidates) {
-                          workingItems.push(candidate.summary);
-                        }
-
-                        if (
-                          invocation.options.dry_run ||
-                          queueCandidates.length === 0
-                        ) {
-                          return resolve(undefined);
-                        }
-
-                        const persistQueueFutures = queueCandidates.flatMap(
-                          (candidate, index) => {
-                            const queuePosition =
+                          const queueBudget = Math.max(
+                            0,
+                            settings.queueDepth -
                               workingItems.filter(
                                 (item) => item.state === "queued",
-                              ).length -
-                              queueCandidates.length +
-                              index +
-                              1;
-                            const event = createDomainEvent({
-                              type: "item.queued",
-                              severity: "info",
-                              state: "queued",
-                              message: "Item queued",
-                              issue_id: candidate.summary.issue_id,
-                              occurred_at: tickAt,
-                              data: {
-                                issue_id: candidate.summary.issue_id,
-                                queue_position: queuePosition,
-                                reason: "automatic discovery",
-                              },
-                            });
-
-                            return [
-                              store.items
-                                .upsert(candidate.record)
-                                .pipe(map(() => undefined)),
-                              store.events
-                                .append(event)
-                                .pipe(map(() => undefined)),
-                            ];
-                          },
-                        );
-
-                        return sequenceFutures(persistQueueFutures).pipe(
-                          map(() => undefined),
-                        );
-                      };
-
-                      const discoveryFuture = settings.autoDiscover
-                        ? settings.discoveryProjects.length === 0
-                          ? (warnings.push(createEngineDiscoveryWarning()),
-                            resolve(undefined))
-                          : defaultDiscoverIssues({
-                              repo: store.repo,
-                              projects: settings.discoveryProjects,
-                              scanLimit: settings.scanLimit,
-                            }).pipe(chain(queueDiscoveredCandidates))
-                        : resolve(undefined);
-
-                      return discoveryFuture.pipe(
-                        chain(() => {
-                          const activeCount = workingItems.filter((item) =>
-                            isInProgressState(item.state),
-                          ).length;
-                          const capacity = Math.max(
-                            0,
-                            settings.maxConcurrency - activeCount,
+                              ).length,
                           );
-                          const queuedItems = [...workingItems]
-                            .filter((item) => item.state === "queued")
-                            .sort(compareQueuedItems);
-                          const selectionLimit =
-                            planningWorkerStarter === undefined
-                              ? capacity
-                              : capacity > 0
-                              ? 1
-                              : 0;
-                          const selectedItems = queuedItems.slice(
-                            0,
-                            selectionLimit,
-                          );
+                          const accepted: EngineTickCandidateRecord[] = [];
 
-                          selectedIssueIds.push(
-                            ...selectedItems.map((item) => item.issue_id),
-                          );
-                          if (!invocation.options.dry_run) {
-                            startedIssueIds.push(...selectedIssueIds);
-                          }
-                          skipped.push(
-                            ...queuedItems
-                              .slice(selectedItems.length)
-                              .map((item) => ({
-                                issue_id: item.issue_id,
-                                reason:
-                                  capacity <= 0
-                                    ? "capacity-exhausted"
-                                    : planningWorkerStarter === undefined
-                                    ? "capacity-exhausted"
-                                    : "bounded-tick-limit",
+                          for (const candidate of candidates) {
+                            const existing = knownIssueIds.get(
+                              candidate.issue_id,
+                            );
+                            if (existing !== undefined) {
+                              skipped.push({
+                                issue_id: candidate.issue_id,
+                                reason: "local-existing",
                                 details: {
-                                  capacity,
+                                  state: existing.state,
                                 },
-                              })),
-                          );
+                              });
+                              continue;
+                            }
 
-                          const tickReport: EngineTickReport = {
-                            dry_run: invocation.options.dry_run,
-                            tick_at: tickAt,
-                            reconciled_issue_ids: reconciledIssueIds,
-                            discovered_issue_ids: discoveredIssueIds,
-                            queued_issue_ids: queuedIssueIds,
-                            selected_issue_ids: selectedIssueIds,
-                            started_issue_ids: startedIssueIds,
-                            skipped,
-                          };
+                            if (accepted.length >= queueBudget) {
+                              skipped.push({
+                                issue_id: candidate.issue_id,
+                                reason: "queue-depth-exhausted",
+                                details: {
+                                  queue_depth: settings.queueDepth,
+                                },
+                              });
+                              continue;
+                            }
 
-                          if (invocation.options.dry_run) {
-                            return createQueueStatus(store, {
-                              command: invocation.command,
-                              lastTickAt: tickAt,
-                              runtime: runtime ?? null,
-                              tick: tickReport,
-                              warnings,
-                            }).pipe(
-                              map((result) =>
-                                root === "supervisor"
-                                  ? liftQueueStatusToSupervisorStatus(
-                                      result as Extract<
-                                        AutobotCommandResult,
-                                        { kind: "queue-status" }
-                                      >,
-                                    )
-                                  : result,
-                              ),
+                            const queueCandidate = createDiscoveredItemRecord(
+                              candidate,
+                              tickAt,
+                            );
+                            accepted.push(queueCandidate);
+                            knownIssueIds.set(
+                              candidate.issue_id,
+                              queueCandidate.summary,
                             );
                           }
 
-                          const startedEvent = createEngineTickEvent({
-                            type: "engine.tick.started",
-                            tickAt,
-                            selectedIssueIds,
-                            reconciledIssueIds,
-                            queuedIssueIds,
-                            startedIssueIds,
-                          });
-                          const selectedEvent = createEngineTickEvent({
-                            type: "engine.tick.selected",
-                            tickAt,
-                            selectedIssueIds,
-                            reconciledIssueIds,
-                            queuedIssueIds,
-                            startedIssueIds,
-                          });
-                          const finishedEvent = createEngineTickEvent({
-                            type: "engine.tick.finished",
-                            tickAt,
-                            selectedIssueIds,
-                            reconciledIssueIds,
-                            queuedIssueIds,
-                            startedIssueIds,
-                          });
+                          const queueCandidates = accepted;
 
-                          return sequenceFutures([
-                            store.events
-                              .append(startedEvent)
-                              .pipe(map(() => undefined)),
-                            store.events
-                              .append(selectedEvent)
-                              .pipe(map(() => undefined)),
-                            ...selectedItems.map((target) =>
-                              runBoundedWorkflowTickForItem(
-                                store,
-                                target,
-                                tickAt,
-                                randomId,
-                                now,
-                                artifactWriter,
-                                artifactReader,
-                                planningSessionRunner,
-                                planningWorkerStarter,
-                                loadLinearIssue,
-                              ),
+                          queuedIssueIds.push(
+                            ...queueCandidates.map(
+                              (candidate) => candidate.summary.issue_id,
                             ),
-                          ]).pipe(
-                            chain(() =>
-                              store.events.append(finishedEvent).pipe(
-                                chain(() =>
-                                  createQueueStatus(store, {
-                                    command: invocation.command,
-                                    lastTickAt: tickAt,
-                                    runtime: runtime ?? null,
-                                    tick: tickReport,
-                                    warnings,
-                                  }).pipe(
-                                    map((result) =>
-                                      root === "supervisor"
-                                        ? liftQueueStatusToSupervisorStatus(
-                                            result as Extract<
-                                              AutobotCommandResult,
-                                              { kind: "queue-status" }
-                                            >,
-                                          )
-                                        : result,
+                          );
+
+                          for (const candidate of queueCandidates) {
+                            workingItems.push(candidate.summary);
+                          }
+
+                          if (
+                            invocation.options.dry_run ||
+                            queueCandidates.length === 0
+                          ) {
+                            return resolve(undefined);
+                          }
+
+                          const persistQueueFutures = queueCandidates.flatMap(
+                            (candidate, index) => {
+                              const queuePosition =
+                                workingItems.filter(
+                                  (item) => item.state === "queued",
+                                ).length -
+                                queueCandidates.length +
+                                index +
+                                1;
+                              const event = createDomainEvent({
+                                type: "item.queued",
+                                severity: "info",
+                                state: "queued",
+                                message: "Item queued",
+                                issue_id: candidate.summary.issue_id,
+                                occurred_at: tickAt,
+                                data: {
+                                  issue_id: candidate.summary.issue_id,
+                                  queue_position: queuePosition,
+                                  reason: "automatic discovery",
+                                },
+                              });
+
+                              return [
+                                store.items
+                                  .upsert(candidate.record)
+                                  .pipe(map(() => undefined)),
+                                store.events
+                                  .append(event)
+                                  .pipe(map(() => undefined)),
+                              ];
+                            },
+                          );
+
+                          return sequenceFutures(persistQueueFutures).pipe(
+                            map(() => undefined),
+                          );
+                        };
+
+                        const discoveryFuture = settings.autoDiscover
+                          ? settings.discoveryProjects.length === 0
+                            ? (warnings.push(createEngineDiscoveryWarning()),
+                              resolve(undefined))
+                            : defaultDiscoverIssues({
+                                repo: store.repo,
+                                projects: settings.discoveryProjects,
+                                scanLimit: settings.scanLimit,
+                              }).pipe(chain(queueDiscoveredCandidates))
+                          : resolve(undefined);
+
+                        return discoveryFuture.pipe(
+                          chain(() => {
+                            const activeCount = workingItems.filter((item) =>
+                              isInProgressState(item.state),
+                            ).length;
+                            const capacity = Math.max(
+                              0,
+                              settings.maxConcurrency - activeCount,
+                            );
+                            const queuedItems = [...workingItems]
+                              .filter((item) => item.state === "queued")
+                              .sort(compareQueuedItems);
+                            const selectionLimit =
+                              planningWorkerStarter === undefined
+                                ? capacity
+                                : capacity > 0
+                                ? 1
+                                : 0;
+                            const selectedItems = queuedItems.slice(
+                              0,
+                              selectionLimit,
+                            );
+
+                            selectedIssueIds.push(
+                              ...selectedItems.map((item) => item.issue_id),
+                            );
+                            if (!invocation.options.dry_run) {
+                              startedIssueIds.push(...selectedIssueIds);
+                            }
+                            skipped.push(
+                              ...queuedItems
+                                .slice(selectedItems.length)
+                                .map((item) => ({
+                                  issue_id: item.issue_id,
+                                  reason:
+                                    capacity <= 0
+                                      ? "capacity-exhausted"
+                                      : planningWorkerStarter === undefined
+                                      ? "capacity-exhausted"
+                                      : "bounded-tick-limit",
+                                  details: {
+                                    capacity,
+                                  },
+                                })),
+                            );
+
+                            const tickReport: EngineTickReport = {
+                              dry_run: invocation.options.dry_run,
+                              tick_at: tickAt,
+                              reconciled_issue_ids: reconciledIssueIds,
+                              discovered_issue_ids: discoveredIssueIds,
+                              queued_issue_ids: queuedIssueIds,
+                              selected_issue_ids: selectedIssueIds,
+                              started_issue_ids: startedIssueIds,
+                              skipped,
+                            };
+
+                            if (invocation.options.dry_run) {
+                              return createQueueStatus(store, {
+                                command: invocation.command,
+                                lastTickAt: tickAt,
+                                runtime: runtime ?? null,
+                                tick: tickReport,
+                                warnings,
+                              }).pipe(
+                                map((result) =>
+                                  root === "supervisor"
+                                    ? liftQueueStatusToSupervisorStatus(
+                                        result as Extract<
+                                          AutobotCommandResult,
+                                          { kind: "queue-status" }
+                                        >,
+                                      )
+                                    : result,
+                                ),
+                              );
+                            }
+
+                            const startedEvent = createEngineTickEvent({
+                              type: "engine.tick.started",
+                              tickAt,
+                              selectedIssueIds,
+                              reconciledIssueIds,
+                              queuedIssueIds,
+                              startedIssueIds,
+                            });
+                            const selectedEvent = createEngineTickEvent({
+                              type: "engine.tick.selected",
+                              tickAt,
+                              selectedIssueIds,
+                              reconciledIssueIds,
+                              queuedIssueIds,
+                              startedIssueIds,
+                            });
+                            const finishedEvent = createEngineTickEvent({
+                              type: "engine.tick.finished",
+                              tickAt,
+                              selectedIssueIds,
+                              reconciledIssueIds,
+                              queuedIssueIds,
+                              startedIssueIds,
+                            });
+
+                            return sequenceFutures([
+                              store.events
+                                .append(startedEvent)
+                                .pipe(map(() => undefined)),
+                              store.events
+                                .append(selectedEvent)
+                                .pipe(map(() => undefined)),
+                              ...selectedItems.map((target) =>
+                                runBoundedWorkflowTickForItem(
+                                  store,
+                                  target,
+                                  tickAt,
+                                  randomId,
+                                  now,
+                                  artifactWriter,
+                                  artifactReader,
+                                  planningSessionRunner,
+                                  planningWorkerStarter,
+                                  loadLinearIssue,
+                                ),
+                              ),
+                            ]).pipe(
+                              chain(() =>
+                                store.events.append(finishedEvent).pipe(
+                                  chain(() =>
+                                    createQueueStatus(store, {
+                                      command: invocation.command,
+                                      lastTickAt: tickAt,
+                                      runtime: runtime ?? null,
+                                      tick: tickReport,
+                                      warnings,
+                                    }).pipe(
+                                      map((result) =>
+                                        root === "supervisor"
+                                          ? liftQueueStatusToSupervisorStatus(
+                                              result as Extract<
+                                                AutobotCommandResult,
+                                                { kind: "queue-status" }
+                                              >,
+                                            )
+                                          : result,
+                                      ),
                                     ),
                                   ),
                                 ),
                               ),
-                            ),
-                          );
-                        }),
-                      );
-                    }),
-                  );
-                }),
-              );
+                            );
+                          }),
+                        );
+                      }),
+                    );
+                  }),
+                );
             }),
           ),
         ),
