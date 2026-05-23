@@ -1,0 +1,61 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "openai/gpt-5.5",
+  "command": {
+    "deliver": {
+      "model": "openai/gpt-5.5",
+      "template": ""
+    },
+    "groom": {
+      "model": "openai/gpt-5.5",
+      "template": ""
+    },
+    "enrich-issues": {
+      "model": "openai/gpt-5.5",
+      "template": ""
+    },
+    "review": {
+      "model": "openai/gpt-5.5",
+      "template": ""
+    },
+    "ledger": {
+      "model": "openai/gpt-5.5",
+      "template": ""
+    },
+    "handoff": {
+      "model": "openai/gpt-5.5",
+      "template": ""
+    },
+    "audit-skills": {
+      "model": "openai/gpt-5.5",
+      "template": ""
+    },
+    "update-visual-baselines": {
+      "model": "openai/gpt-5.5",
+      "template": ""
+    }
+  },
+  "agent": {
+    "develop": {
+      "model": "openai/gpt-5.5"
+    },
+    "librarian": {
+      "model": "openai/gpt-5.5"
+    },
+    "planner": {
+      "model": "openai/gpt-5.5"
+    },
+    "review": {
+      "model": "openai/gpt-5.5"
+    },
+    "test": {
+      "model": "openai/gpt-5.5"
+    },
+    "sequencer": {
+      "model": "openai/gpt-5.5"
+    },
+    "release": {
+      "model": "openai/gpt-5.5"
+    }
+  }
+}
