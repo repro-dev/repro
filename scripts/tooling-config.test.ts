@@ -166,6 +166,24 @@ describe('REP-642 tooling wiring', () => {
     const e2eJob = ci.indexOf('  e2e:\n')
 
     assert.ok(e2eJob >= 0, 'expected e2e job to exist')
+    const e2eCheckout = ci.indexOf('- name: Checkout repository', e2eJob)
+    const e2eToolchainSetup = ci.indexOf(
+      '- name: Setup Moon toolchain',
+      e2eJob
+    )
+    assert.ok(e2eCheckout >= 0, 'expected e2e job to check out the repo')
+    assert.ok(
+      e2eToolchainSetup >= 0,
+      'expected e2e job to set up the toolchain'
+    )
+    assert.ok(
+      e2eCheckout < e2eToolchainSetup,
+      'expected e2e checkout before toolchain setup'
+    )
+    assert.match(
+      ci.slice(e2eCheckout, e2eToolchainSetup),
+      /uses: actions\/checkout@v4[\s\S]*with:\n\s+fetch-depth: 0/
+    )
     assert.match(ci, /pull_request:\n\s+branches:\n\s+- "main"/)
     assert.match(ci, /push:\n\s+branches:\n\s+- "\\*\\*"/)
     assert.match(
