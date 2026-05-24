@@ -13,6 +13,12 @@ const TRACKED_TAGS = new Set([0, 1, 11])
 // Max serialised propsDelta size in characters
 const MAX_PROPS_DELTA_SIZE = 10_000
 
+// Max serialised hooksDelta size in characters
+const MAX_HOOKS_DELTA_SIZE = 10_000
+
+// Max hooks to walk in a single fiber
+const MAX_HOOKS = 100
+
 // Max depth for safe serialisation
 const MAX_SERIALISE_DEPTH = 3
 
@@ -20,11 +26,13 @@ interface Fiber {
   tag: number
   type?: { displayName?: string; name?: string } | null
   memoizedProps: Record<string, unknown> | null
+  memoizedState: unknown
   alternate: Fiber | null
   child: Fiber | null
   sibling: Fiber | null
   return: Fiber | null
   _debugID?: number
+  _debugHookTypes?: string[]
 }
 
 interface ReactDevToolsHook {
@@ -107,6 +115,98 @@ function getParentFiberId(fiber: Fiber): number | null {
     parent = parent.return
   }
   return null
+}
+
+// Guard to distinguish hook linked lists from class-component state objects.
+// A class state object that happens to contain a .next field would be mis-walked,
+// but this is extremely unlikely in practice.
+function isHookList(head: unknown): boolean {
+  if (head === null || typeof head !== 'object') return false
+  const next = (head as Record<string, unknown>).next
+  return next === null || (typeof next === 'object' && next !== null)
+}
+
+function areHookDepsEqual(prevDeps: unknown, nextDeps: unknown): boolean {
+  if (!Array.isArray(prevDeps) || !Array.isArray(nextDeps)) return false
+  if (prevDeps.length !== nextDeps.length) return false
+
+  return prevDeps.every((dep, index) => Object.is(dep, nextDeps[index]))
+}
+
+function getEffectDeps(memoizedState: unknown): unknown[] | null {
+  if (memoizedState === null || typeof memoizedState !== 'object') return null
+
+  const deps = (memoizedState as { deps?: unknown[] }).deps
+  return Array.isArray(deps) ? deps : null
+}
+
+// Walk fiber.memoizedState as a singly-linked list and build a delta of
+// hooks whose memoizedState changed vs. the alternate fiber.
+function getHooksDelta(fiber: Fiber): string {
+  if (!isHookList(fiber.memoizedState)) return '{}'
+
+  const deltas: Array<Record<string, unknown>> = []
+  const seen = new Set<unknown>()
+  let node: unknown = fiber.memoizedState
+  let prevNode: unknown = fiber.alternate?.memoizedState ?? null
+  let index = 0
+
+  while (node && index < MAX_HOOKS) {
+    if (seen.has(node)) break
+    seen.add(node)
+
+    const hookNode = node as { memoizedState: unknown; next: unknown }
+    const prevHookNode =
+      prevNode && isHookList(prevNode)
+        ? (prevNode as { memoizedState: unknown; next: unknown })
+        : null
+    const type = fiber._debugHookTypes?.[index]
+    const isEffectHook =
+      type === 'useEffect' ||
+      type === 'useLayoutEffect' ||
+      type === 'useInsertionEffect'
+    const currentDeps = isEffectHook
+      ? getEffectDeps(hookNode.memoizedState)
+      : null
+    const previousDeps =
+      prevHookNode && isEffectHook
+        ? getEffectDeps(prevHookNode.memoizedState)
+        : null
+
+    const changed =
+      prevHookNode === null ||
+      (isEffectHook
+        ? !areHookDepsEqual(previousDeps, currentDeps)
+        : !Object.is(hookNode.memoizedState, prevHookNode.memoizedState))
+
+    if (changed) {
+      const entry: Record<string, unknown> = { index }
+      if (type !== undefined) entry.type = type
+
+      if (isEffectHook) {
+        if (currentDeps !== null) entry.deps = currentDeps
+      } else if (type === 'useMemo' || type === 'useCallback') {
+        const arr = hookNode.memoizedState as [unknown, unknown[]] | null
+        if (Array.isArray(arr) && arr.length >= 2) {
+          entry.state = arr[0]
+          entry.deps = arr[1]
+        } else {
+          entry.state = hookNode.memoizedState
+        }
+      } else {
+        entry.state = hookNode.memoizedState
+      }
+
+      deltas.push(entry)
+    }
+
+    node = hookNode.next
+    prevNode = prevHookNode ? prevHookNode.next : null
+    index++
+  }
+
+  if (deltas.length === 0) return '{}'
+  return safeSerialise(deltas)
 }
 
 // Safe JSON serialiser with depth limit, circular ref guard, and type coercion
@@ -197,14 +297,13 @@ export function createReactObserver(
 
       const fiberNodeId = fiber._debugID ?? 0
       const parentFiberId = getParentFiberId(fiber)
+      const existing =
+        fiberNodeId !== 0 ? componentTree.get(fiberNodeId) : undefined
 
       // Always record every tracked fiber in the tree so the snapshot is
       // complete even for components whose props haven't changed this commit.
       // Skip sentinel ID 0 (fiber without _debugID).
       if (fiberNodeId !== 0) {
-        // Preserve existing props if this fiber had no changes in this commit;
-        // only overwrite when changedProps are available below.
-        const existing = componentTree.get(fiberNodeId)
         componentTree.set(fiberNodeId, {
           fiberNodeId,
           parentFiberId,
@@ -213,12 +312,14 @@ export function createReactObserver(
         })
       }
 
-      // Event emission is still gated on prop changes to limit event volume
+      // Event emission is gated on prop or hook changes to limit event volume
       const changedProps = getChangedProps(fiber.alternate, fiber)
-      if (!changedProps) return
+      const hooksDeltaStr = getHooksDelta(fiber)
+      if (!changedProps && hooksDeltaStr === '{}') return
 
-      const propsDelta = safeSerialise(changedProps)
+      const propsDelta = changedProps ? safeSerialise(changedProps) : '{}'
       if (propsDelta.length > MAX_PROPS_DELTA_SIZE) return
+      if (hooksDeltaStr.length > MAX_HOOKS_DELTA_SIZE) return
 
       const event: ReactCommitEvent = {
         type: StateEventType.ReactCommit,
@@ -226,7 +327,7 @@ export function createReactObserver(
         frameId: 0,
         componentName: name,
         propsDelta,
-        hooksDelta: '',
+        hooksDelta: hooksDeltaStr,
         // _debugID may be undefined on untracked fibers; fall back to 0
         fiberNodeId,
         parentFiberId,
@@ -241,7 +342,7 @@ export function createReactObserver(
           fiberNodeId,
           parentFiberId,
           componentName: name,
-          props: propsDelta,
+          props: changedProps ? propsDelta : existing?.props ?? '',
         })
       }
     })
