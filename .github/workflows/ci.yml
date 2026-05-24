@@ -208,6 +208,13 @@ jobs:
       - name: Start workspace services
         run: PATH="$PWD/tmp/ci-bin:$PATH" ./bin/reproctl start --wait --timeout 300s workspace
 
+      - name: Dump service diagnostics on failure
+        if: failure()
+        run: |
+          PATH="$PWD/tmp/ci-bin:$PATH" ./bin/reproctl status || true
+          PATH="$PWD/tmp/ci-bin:$PATH" ./bin/reproctl logs -n 200 || true
+          kubectl get pods,svc,endpoints -A -o wide || true
+
       - name: Seed the test database
         run: ./bin/reproctl db seed
 
