@@ -87,6 +87,27 @@ test("supervisor run-once hydrates planning artifacts from the default Linear is
       discoverLinearIssues() {
         throw new Error("discoverLinearIssues should not be called");
       },
+      resolveAutobotWorktreePaths(input: {
+        repoRoot: string;
+        issueId: string;
+      }) {
+        return {
+          issue_id: input.issueId,
+          branch: `autobot/${input.issueId}`,
+          slug: input.issueId,
+          worktree_path: `${input.repoRoot}/.autobot/worktrees/${input.issueId}`,
+          archived_worktree_path: null,
+        };
+      },
+      prepareAutobotWorktree(input: { repoRoot: string; issueId: string }) {
+        return resolve({
+          issue_id: input.issueId,
+          branch: `autobot/${input.issueId}`,
+          slug: input.issueId,
+          worktree_path: `${input.repoRoot}/.autobot/worktrees/${input.issueId}`,
+          archived_worktree_path: null,
+        });
+      },
       loadLinearIssue(input: { repoRoot: string; issueId: string }) {
         loadLinearIssueCalls.push(input);
         return resolve({
@@ -183,7 +204,7 @@ test("supervisor run-once hydrates planning artifacts from the default Linear is
   assert.equal(result.kind, "supervisor-status");
   assert.deepEqual(loadLinearIssueCalls, [
     {
-      repoRoot: "/worktrees/autobot",
+      repoRoot: "/worktrees/autobot/.autobot/worktrees/REP-400",
       issueId: "REP-400",
     },
   ]);

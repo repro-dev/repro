@@ -114,7 +114,7 @@ export type AutobotCommandResult =
       command: string;
       repo: RepoRef;
       data: {
-        action: "add" | "remove";
+        action: "add" | "remove" | "retry";
         changed: boolean;
         dry_run: boolean;
         item: ItemSummary;
