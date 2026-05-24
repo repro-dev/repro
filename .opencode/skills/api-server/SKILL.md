@@ -11,6 +11,10 @@ Load this skill when working in `apps/api-server` — adding routes, services, d
 
 `apps/api-server` is a **Fastify** HTTP server. Services are plain factory functions (no DI framework). All async work uses `FutureInstance` from `fluture`, not Promises.
 
+When a module needs runtime infrastructure such as an application logger, inject it once at the module/service factory boundary. Do not thread `ApiLogger` or similar infrastructure through individual operation calls such as `sendEmailInBackground(...)`; per-call arguments should be limited to real per-call data like request context or event metadata.
+
+If a module does not yet have a factory boundary, prefer adding a small `create*Module` factory over leaking infrastructure concerns into every call site.
+
 **Bootstrap** (`src/index.ts`):
 
 - Instantiates services in dependency order, then calls `bootstrap(routers)` which registers all Fastify plugins under their URL prefixes.
