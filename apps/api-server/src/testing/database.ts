@@ -9,7 +9,13 @@ export async function setUpTestDatabase() {
   const bin = path.resolve(__dirname, 'pg_tmp.sh')
   const port = await getPort()
 
-  const { stdout: connectionString } = await exec(bin, ['-t', '-p', `${port}`])
+  const { stdout: connectionString } = await exec(bin, [
+    '-t',
+    '-w',
+    '5',
+    '-p',
+    `${port}`,
+  ])
 
   const db = new Pool({
     connectionString,
