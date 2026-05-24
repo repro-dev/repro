@@ -34,6 +34,7 @@ import { createBillingWebhookService } from '~/services/billingWebhook'
 import { createFeatureGateService } from '~/services/featureGate'
 import { createHealthService } from '~/services/health'
 import { createOAuthService } from '~/services/oauth'
+import { createOutboxService } from '~/services/outbox'
 import { createProjectService } from '~/services/project'
 import { createRecordingService } from '~/services/recording'
 import { createSocialAuthService } from '~/services/socialAuth'
@@ -95,10 +96,12 @@ const agenticService = createAgenticService(database, httpClient)
 const oauthService = createOAuthService(database)
 const apiKeyService = createApiKeyService(database)
 const featureGateService = createFeatureGateService(database)
+const outboxService = createOutboxService(database)
 const healthService = createHealthService(
   database,
   storage,
-  redisClient ?? undefined
+  redisClient ?? undefined,
+  { service: outboxService, staleAfterMs: env.OUTBOX_WORKER_STALE_AFTER_MS }
 )
 const projectService = createProjectService(database)
 const recordingService = createRecordingService(database, storage)

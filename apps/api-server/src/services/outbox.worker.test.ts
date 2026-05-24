@@ -1,0 +1,164 @@
+import expect from 'expect'
+import { promise, reject, resolve } from 'fluture'
+import { after, before, beforeEach, describe, it } from 'node:test'
+import { Database } from '~/modules/database'
+import { setUpTestDatabase } from '~/testing/database'
+import { createOutboxService } from './outbox'
+import { createOutboxWorker } from './outboxWorker'
+
+type TestJobs = {
+  'test.work': { value: string }
+}
+
+describe('Services > Outbox worker', () => {
+  let db: Database
+  let close: () => Promise<void>
+
+  before(async () => {
+    const harness = await setUpTestDatabase()
+    db = harness.db
+    close = harness.close
+  })
+
+  beforeEach(async () => {
+    await db.deleteFrom('outbox_jobs').execute()
+  })
+
+  after(async () => {
+    await close()
+  })
+
+  it('claims due pending jobs and prevents another worker from claiming them', async () => {
+    const service = createOutboxService<TestJobs>(db)
+    await promise(
+      service.enqueue({ type: 'test.work', payload: { value: 'a' } })
+    )
+
+    const [firstClaim, secondClaim] = await Promise.all([
+      promise(
+        service.claimPendingJobs({ workerId: 'worker-a', batchSize: 10 })
+      ),
+      promise(
+        service.claimPendingJobs({ workerId: 'worker-b', batchSize: 10 })
+      ),
+    ])
+    const totalClaimed = firstClaim.length + secondClaim.length
+    const claimed = firstClaim[0] ?? secondClaim[0]
+
+    expect(totalClaimed).toEqual(1)
+    expect(claimed?.status).toEqual('running')
+    expect(claimed?.attempts).toEqual(1)
+  })
+
+  it('marks successful handler execution as succeeded', async () => {
+    const service = createOutboxService<TestJobs>(db)
+    await promise(
+      service.enqueue({ type: 'test.work', payload: { value: 'ok' } })
+    )
+    const worker = createOutboxWorker({
+      outboxService: service,
+      registry: { 'test.work': () => resolve(undefined) },
+      config: workerConfig(),
+    })
+
+    const result = await promise(worker.runOnce())
+    const row = await db
+      .selectFrom('outbox_jobs')
+      .selectAll()
+      .executeTakeFirstOrThrow()
+
+    expect(result).toMatchObject({ claimed: 1, succeeded: 1 })
+    expect(row.status).toEqual('succeeded')
+  })
+
+  it('retries failed jobs with exponential backoff', async () => {
+    const service = createOutboxService<TestJobs>(db)
+    const runAfter = new Date(Date.now() - 1000)
+    await promise(
+      service.enqueue({
+        type: 'test.work',
+        payload: { value: 'retry' },
+        maxAttempts: 3,
+        runAfter,
+      })
+    )
+    const worker = createOutboxWorker({
+      outboxService: service,
+      registry: { 'test.work': () => reject(new Error('temporary failure')) },
+      config: workerConfig(),
+    })
+
+    const result = await promise(worker.runOnce())
+    const row = await db
+      .selectFrom('outbox_jobs')
+      .selectAll()
+      .executeTakeFirstOrThrow()
+
+    expect(result.retried).toEqual(1)
+    expect(row.status).toEqual('pending')
+    expect(row.attempts).toEqual(1)
+    expect(row.runAfter.getTime()).toBeGreaterThan(runAfter.getTime())
+    expect(row.lastError?.message).toEqual('temporary failure')
+  })
+
+  it('records terminal failure and lastError after attempts are exhausted', async () => {
+    const service = createOutboxService<TestJobs>(db)
+    await promise(
+      service.enqueue({
+        type: 'test.work',
+        payload: { value: 'fail' },
+        maxAttempts: 1,
+      })
+    )
+    const worker = createOutboxWorker({
+      outboxService: service,
+      registry: { 'test.work': () => reject(new Error('terminal failure')) },
+      config: workerConfig(),
+    })
+
+    const result = await promise(worker.runOnce())
+    const row = await db
+      .selectFrom('outbox_jobs')
+      .selectAll()
+      .executeTakeFirstOrThrow()
+
+    expect(result.failed).toEqual(1)
+    expect(row.status).toEqual('failed')
+    expect(row.lastError).toMatchObject({ message: 'terminal failure' })
+  })
+
+  it('fails jobs with no registered handler as terminal failures', async () => {
+    const service = createOutboxService<TestJobs>(db)
+    await promise(
+      service.enqueue({
+        type: 'test.work',
+        payload: { value: 'missing' },
+        maxAttempts: 1,
+      })
+    )
+    const worker = createOutboxWorker({
+      outboxService: service,
+      registry: {},
+      config: workerConfig(),
+    })
+
+    await promise(worker.runOnce())
+    const row = await db
+      .selectFrom('outbox_jobs')
+      .selectAll()
+      .executeTakeFirstOrThrow()
+
+    expect(row.status).toEqual('failed')
+    expect(row.lastError?.message).toContain('No outbox handler registered')
+  })
+})
+
+function workerConfig() {
+  return {
+    workerId: 'worker-test',
+    batchSize: 10,
+    pollIntervalMs: 1000,
+    baseDelayMs: 1000,
+    maxDelayMs: 60000,
+  }
+}
