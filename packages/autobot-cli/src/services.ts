@@ -185,7 +185,7 @@ function createPreparationRunDirectories(input: {
   repoRoot: string;
   runId: string;
 }): FutureInstance<unknown, void> {
-  return Future((reject, resolve) => {
+  return Future((_reject, resolve) => {
     void Promise.all([
       mkdir(
         path.join(input.repoRoot, ".autobot", "runs", input.runId, "artifacts"),
@@ -199,7 +199,10 @@ function createPreparationRunDirectories(input: {
           recursive: true,
         },
       ),
-    ]).then(() => resolve(undefined), reject);
+    ]).then(
+      () => resolve(undefined),
+      () => resolve(undefined),
+    );
 
     return () => undefined;
   });

@@ -1781,8 +1781,10 @@ test("supervisor run-once prepares a real worktree before completing an item", a
     assert.equal(detail.kind, "item-detail");
     assert.equal(detail.data.branch, "autobot/REP-500");
     assert.equal(detail.data.workspace, worktreePath);
-    await stat(path.join(root, ".autobot", "runs", "run-500", "artifacts"));
-    await stat(path.join(root, ".autobot", "runs", "run-500", "logs"));
+    await stat(
+      path.join(worktreePath, ".autobot", "runs", "run-500", "artifacts"),
+    );
+    await stat(path.join(worktreePath, ".autobot", "runs", "run-500", "logs"));
   } finally {
     await rm(root, { recursive: true, force: true });
   }
