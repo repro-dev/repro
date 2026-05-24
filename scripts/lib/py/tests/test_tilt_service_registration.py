@@ -122,6 +122,24 @@ class TestTiltServiceRegistration:
         assert env["REPRO_APP_URL"] == "https://app.wt-rep-397.repro.localhost:1355"
         assert env["REPRO_API_URL"] == "https://api.wt-rep-397.repro.localhost:1355"
 
+    def test_worktree_db_backed_local_services_use_worktree_db_after_migrations(self):
+        tilt_result = _render_tilt(
+            [
+                {
+                    "name": "outbox-worker",
+                    "source": str(REPO_ROOT),
+                    "slug": "rep-397",
+                }
+            ]
+        )
+
+        worker = _manifest(tilt_result, "outbox-worker-wt-rep-397")
+        _manifest(tilt_result, "api-server-wt-rep-397-migrations")
+
+        env = _serve_env(worker)
+        assert env["DB_NAME"] == "repro_wt_rep_397"
+        assert "api-server-wt-rep-397-migrations" in worker["ResourceDependencies"]
+
     def test_worktree_dependencies_do_not_get_suppressed_by_main_checkout_services(self):
         tilt_result = _render_tilt(
             [

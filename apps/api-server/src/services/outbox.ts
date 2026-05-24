@@ -1,5 +1,5 @@
 import { FutureInstance, attemptP, promise } from 'fluture'
-import { Kysely, Transaction, sql } from 'kysely'
+import { Kysely, RawBuilder, Transaction, sql } from 'kysely'
 import {
   Database,
   OutboxJobRow,
@@ -66,6 +66,7 @@ export interface OutboxDiagnostics {
 export interface OutboxDiagnosticsParams {
   staleAfterMs: number
   now?: Date
+  countLimit?: number
 }
 
 type OutboxDatabase = Kysely<Schema> | Transaction<Schema>
@@ -185,24 +186,57 @@ export function createOutboxService<
 
     return attemptQuery(() =>
       database.transaction().execute(async trx => {
-        const claimable = await sql<{ id: number }>`
+        if (staleBefore) {
+          await sql`
+            WITH exhausted_stale AS (
+              SELECT "id"
+              FROM "outbox_jobs"
+              WHERE "status" = 'running'
+                AND "lockedAt" <= ${staleBefore}
+                AND "attempts" >= "maxAttempts"
+              ORDER BY "lockedAt" ASC, "id" ASC
+              LIMIT ${batchSize}
+              FOR UPDATE SKIP LOCKED
+            )
+            UPDATE "outbox_jobs" AS jobs
+            SET
+              "status" = 'failed',
+              "lockedAt" = NULL,
+              "lockedBy" = NULL,
+              "lastError" = jsonb_build_object(
+                'message',
+                'stale running job exhausted max attempts after worker lock expired'
+              )
+            FROM exhausted_stale
+            WHERE jobs."id" = exhausted_stale."id"
+          `.execute(trx)
+        }
+
+        const pending = await sql<{ id: number }>`
           SELECT "id"
           FROM "outbox_jobs"
-          WHERE (
-            "status" = 'pending'
+          WHERE "status" = 'pending'
             AND "runAfter" <= ${now}
-          ) OR (
-            ${staleBefore}::timestamptz IS NOT NULL
-            AND "status" = 'running'
-            AND "lockedAt" <= ${staleBefore}
-            AND "attempts" < "maxAttempts"
-          )
           ORDER BY "runAfter" ASC, "id" ASC
           LIMIT ${batchSize}
           FOR UPDATE SKIP LOCKED
         `.execute(trx)
 
-        const ids = claimable.rows.map(row => row.id)
+        const ids = pending.rows.map(row => row.id)
+
+        if (staleBefore && ids.length < batchSize) {
+          const stale = await sql<{ id: number }>`
+            SELECT "id"
+            FROM "outbox_jobs"
+            WHERE "status" = 'running'
+              AND "lockedAt" <= ${staleBefore}
+              AND "attempts" < "maxAttempts"
+            ORDER BY "lockedAt" ASC, "id" ASC
+            LIMIT ${batchSize - ids.length}
+            FOR UPDATE SKIP LOCKED
+          `.execute(trx)
+          ids.push(...stale.rows.map(row => row.id))
+        }
 
         if (ids.length === 0) {
           return []
@@ -234,6 +268,10 @@ export function createOutboxService<
           lockedBy: null,
         })
         .where('id', '=', job.id)
+        .where('status', '=', 'running')
+        .where('attempts', '=', job.attempts)
+        .where('lockedBy', '=', job.lockedBy)
+        .where('lockedAt', '=', job.lockedAt)
         .execute()
     })
   }
@@ -251,8 +289,8 @@ export function createOutboxService<
       ? calculateRetryRunAfter(job.attempts, retryConfig, now)
       : job.runAfter
 
-    return attemptQuery(() =>
-      database
+    return attemptQuery(async () => {
+      const updated = await database
         .updateTable('outbox_jobs')
         .set({
           status: nextStatus,
@@ -262,47 +300,62 @@ export function createOutboxService<
           lastError,
         })
         .where('id', '=', job.id)
+        .where('status', '=', 'running')
+        .where('attempts', '=', job.attempts)
+        .where('lockedBy', '=', job.lockedBy)
+        .where('lockedAt', '=', job.lockedAt)
         .returningAll()
+        .executeTakeFirst()
+
+      if (updated) {
+        return updated
+      }
+
+      return database
+        .selectFrom('outbox_jobs')
+        .selectAll()
+        .where('id', '=', job.id)
         .executeTakeFirstOrThrow()
-    )
+    })
   }
 
   function getDiagnostics({
     staleAfterMs,
     now = new Date(),
+    countLimit = 100,
   }: OutboxDiagnosticsParams): FutureInstance<Error, OutboxDiagnostics> {
     const staleBefore = new Date(now.getTime() - staleAfterMs)
 
-    async function countStatus(
-      status: OutboxJobRow['status']
-    ): Promise<number> {
-      const row = await database
-        .selectFrom('outbox_jobs')
-        .select(({ fn }) => fn.count<number>('id').as('count'))
-        .where('status', '=', status)
-        .executeTakeFirstOrThrow()
+    async function cappedCount(sqlText: RawBuilder<unknown>): Promise<number> {
+      const row = await sql<{ count: number }>`
+        SELECT count(*)::int AS "count"
+        FROM (${sqlText}) AS capped
+      `.execute(database)
 
-      return Number(row.count)
+      return Number(row.rows[0]?.count ?? 0)
     }
 
     return attemptQuery(async () => {
-      const [pending, running, failed, staleRunningRow] = await Promise.all([
-        countStatus('pending'),
-        countStatus('running'),
-        countStatus('failed'),
-        database
-          .selectFrom('outbox_jobs')
-          .select(({ fn }) => fn.count<number>('id').as('count'))
-          .where('status', '=', 'running')
-          .where('lockedAt', '<=', staleBefore)
-          .executeTakeFirstOrThrow(),
+      const [pending, running, failed, staleRunning] = await Promise.all([
+        cappedCount(
+          sql`SELECT 1 FROM "outbox_jobs" WHERE "status" = 'pending' LIMIT ${countLimit}`
+        ),
+        cappedCount(
+          sql`SELECT 1 FROM "outbox_jobs" WHERE "status" = 'running' LIMIT ${countLimit}`
+        ),
+        cappedCount(
+          sql`SELECT 1 FROM "outbox_jobs" WHERE "status" = 'failed' LIMIT ${countLimit}`
+        ),
+        cappedCount(
+          sql`SELECT 1 FROM "outbox_jobs" WHERE "status" = 'running' AND "lockedAt" <= ${staleBefore} LIMIT ${countLimit}`
+        ),
       ])
 
       return {
         pending,
         running,
         failed,
-        staleRunning: Number(staleRunningRow.count),
+        staleRunning,
       }
     })
   }

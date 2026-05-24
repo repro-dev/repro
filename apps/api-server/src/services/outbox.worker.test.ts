@@ -84,6 +84,40 @@ describe('Services > Outbox worker', () => {
     )
   })
 
+  it('terminally fails stale running jobs whose final attempt crashed', async () => {
+    const service = createOutboxService<TestJobs>(db)
+    await db
+      .insertInto('outbox_jobs')
+      .values({
+        type: 'test.work',
+        payload: { value: 'final-stale' },
+        status: 'running',
+        attempts: 1,
+        maxAttempts: 1,
+        lockedAt: new Date(Date.now() - 10_000),
+        lockedBy: 'crashed-worker',
+      })
+      .execute()
+
+    const claimed = await promise(
+      service.claimPendingJobs({
+        workerId: 'worker-reclaimer',
+        batchSize: 10,
+        staleAfterMs: 1000,
+        now: new Date(),
+      })
+    )
+    const row = await db
+      .selectFrom('outbox_jobs')
+      .selectAll()
+      .executeTakeFirstOrThrow()
+
+    expect(claimed).toHaveLength(0)
+    expect(row.status).toEqual('failed')
+    expect(row.lockedBy).toEqual(null)
+    expect(row.lastError?.message).toContain('stale running job exhausted')
+  })
+
   it('does not reclaim fresh running jobs', async () => {
     const service = createOutboxService<TestJobs>(db)
     await db
@@ -130,6 +164,85 @@ describe('Services > Outbox worker', () => {
 
     expect(result).toMatchObject({ claimed: 1, succeeded: 1 })
     expect(row.status).toEqual('succeeded')
+  })
+
+  it('does not let a stale worker success overwrite a reclaimed worker result', async () => {
+    const service = createOutboxService<TestJobs>(db)
+    const inserted = await db
+      .insertInto('outbox_jobs')
+      .values({
+        type: 'test.work',
+        payload: { value: 'fenced-success' },
+        status: 'running',
+        attempts: 1,
+        maxAttempts: 3,
+        lockedAt: new Date(Date.now() - 10_000),
+        lockedBy: 'stale-worker',
+      })
+      .returningAll()
+      .executeTakeFirstOrThrow()
+    const [reclaimed] = await promise(
+      service.claimPendingJobs({
+        workerId: 'new-worker',
+        batchSize: 1,
+        staleAfterMs: 1000,
+        now: new Date(),
+      })
+    )
+
+    await promise(
+      service.markJobFailed(reclaimed!, new Error('new result'), workerConfig())
+    )
+    await promise(service.markJobSucceeded(inserted))
+    const row = await db
+      .selectFrom('outbox_jobs')
+      .selectAll()
+      .executeTakeFirstOrThrow()
+
+    expect(row.status).toEqual('pending')
+    expect(row.lockedBy).toEqual(null)
+    expect(row.lastError?.message).toEqual('new result')
+  })
+
+  it('does not let a stale worker failure overwrite a reclaimed worker result', async () => {
+    const service = createOutboxService<TestJobs>(db)
+    const inserted = await db
+      .insertInto('outbox_jobs')
+      .values({
+        type: 'test.work',
+        payload: { value: 'fenced-failure' },
+        status: 'running',
+        attempts: 1,
+        maxAttempts: 3,
+        lockedAt: new Date(Date.now() - 10_000),
+        lockedBy: 'stale-worker',
+      })
+      .returningAll()
+      .executeTakeFirstOrThrow()
+    const [reclaimed] = await promise(
+      service.claimPendingJobs({
+        workerId: 'new-worker',
+        batchSize: 1,
+        staleAfterMs: 1000,
+        now: new Date(),
+      })
+    )
+
+    await promise(service.markJobSucceeded(reclaimed!))
+    await promise(
+      service.markJobFailed(
+        inserted,
+        new Error('stale failure'),
+        workerConfig()
+      )
+    )
+    const row = await db
+      .selectFrom('outbox_jobs')
+      .selectAll()
+      .executeTakeFirstOrThrow()
+
+    expect(row.status).toEqual('succeeded')
+    expect(row.lastError).toEqual(null)
   })
 
   it('retries failed jobs with exponential backoff', async () => {

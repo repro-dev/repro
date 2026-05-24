@@ -113,6 +113,48 @@ describe('Services > Outbox enqueue', () => {
     expect(result.job.maxAttempts).toEqual(5)
   })
 
+  it('caps health diagnostics while still surfacing failed and stale jobs', async () => {
+    const service = createOutboxService<TestJobs>(db)
+    await db
+      .insertInto('outbox_jobs')
+      .values([
+        {
+          type: 'test.email',
+          payload: { to: 'failed' },
+          status: 'failed',
+          lastError: { message: 'failed' },
+        },
+        {
+          type: 'test.email',
+          payload: { to: 'stale' },
+          status: 'running',
+          attempts: 1,
+          lockedAt: new Date(Date.now() - 10_000),
+          lockedBy: 'worker-a',
+        },
+        {
+          type: 'test.email',
+          payload: { to: 'pending-a' },
+        },
+        {
+          type: 'test.email',
+          payload: { to: 'pending-b' },
+        },
+      ])
+      .execute()
+
+    const diagnostics = await promise(
+      service.getDiagnostics({ staleAfterMs: 1000, countLimit: 1 })
+    )
+
+    expect(diagnostics).toEqual({
+      pending: 1,
+      running: 1,
+      failed: 1,
+      staleRunning: 1,
+    })
+  })
+
   it('rolls back enqueueWithTransaction with the outer transaction', async () => {
     const service = createOutboxService<TestJobs>(db)
 

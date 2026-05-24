@@ -22,6 +22,7 @@
       "RATE_LIMIT_REDIS_URL": "redis://localhost:6379",
       "AGENTIC_RATE_LIMIT_PER_HOUR": "60",
       "AGENTIC_MAX_MESSAGES_PER_RECORDING": "200",
+      "OUTBOX_WORKER_DEFAULT_MAX_ATTEMPTS": "3",
       "OUTBOX_WORKER_STALE_AFTER_MS": "300000"
     },
     "env_passthrough": [
@@ -51,6 +52,7 @@
     "moon_project": "repro/api-server",
     "app_dir": "apps/api-server",
     "serve_cmd": "moon run repro/api-server:worker-outbox",
+    "db_backed_by": "api-server",
     "serve_env": {
       "DB_HOST": "localhost",
       "DB_PORT": "15432",
