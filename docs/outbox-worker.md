@@ -22,10 +22,10 @@ Configuration comes from `infra/services.json` plus
 | ------------------------------------ | -------: | -------------------------------------------- |
 | `OUTBOX_WORKER_POLL_INTERVAL_MS`     |   `1000` | Delay between polling loops.                 |
 | `OUTBOX_WORKER_BATCH_SIZE`           |     `10` | Maximum jobs claimed per poll.               |
-| `OUTBOX_WORKER_DEFAULT_MAX_ATTEMPTS` |      `3` | Recommended default for enqueue callers.     |
+| `OUTBOX_WORKER_DEFAULT_MAX_ATTEMPTS` |      `3` | Default for enqueue calls without override.  |
 | `OUTBOX_WORKER_RETRY_BASE_MS`        |   `1000` | First retry delay before exponential growth. |
 | `OUTBOX_WORKER_RETRY_MAX_MS`         |  `60000` | Maximum retry delay.                         |
-| `OUTBOX_WORKER_STALE_AFTER_MS`       | `300000` | Health threshold for stuck running jobs.     |
+| `OUTBOX_WORKER_STALE_AFTER_MS`       | `300000` | Reclaim/health threshold for stuck jobs.     |
 
 ## Adding a handler
 
@@ -41,6 +41,9 @@ export const outboxRegistry = createOutboxRegistry({
 
 The handler must be idempotent. A job can be retried after a worker crash or a
 handler failure.
+Running jobs whose lock is older than `OUTBOX_WORKER_STALE_AFTER_MS` are
+eligible to be reclaimed by another worker; fresh running jobs remain locked so
+multiple workers do not process the same active claim.
 
 ## Enqueueing jobs and transactions
 

@@ -13,7 +13,9 @@ const database = createPostgresDatabaseClient({
   ssl: env.DB_SSL,
 })
 
-const outboxService = createOutboxService(database)
+const outboxService = createOutboxService(database, {
+  defaultMaxAttempts: env.OUTBOX_WORKER_DEFAULT_MAX_ATTEMPTS,
+})
 const workerId = `${process.pid}-${Date.now()}`
 
 const worker = createOutboxWorker({
@@ -25,6 +27,7 @@ const worker = createOutboxWorker({
     pollIntervalMs: env.OUTBOX_WORKER_POLL_INTERVAL_MS,
     baseDelayMs: env.OUTBOX_WORKER_RETRY_BASE_MS,
     maxDelayMs: env.OUTBOX_WORKER_RETRY_MAX_MS,
+    staleAfterMs: env.OUTBOX_WORKER_STALE_AFTER_MS,
   },
   logger: console,
 })

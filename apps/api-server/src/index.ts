@@ -96,7 +96,9 @@ const agenticService = createAgenticService(database, httpClient)
 const oauthService = createOAuthService(database)
 const apiKeyService = createApiKeyService(database)
 const featureGateService = createFeatureGateService(database)
-const outboxService = createOutboxService(database)
+const outboxService = createOutboxService(database, {
+  defaultMaxAttempts: env.OUTBOX_WORKER_DEFAULT_MAX_ATTEMPTS,
+})
 const healthService = createHealthService(
   database,
   storage,

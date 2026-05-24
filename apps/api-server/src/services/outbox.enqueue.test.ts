@@ -56,6 +56,7 @@ describe('Services > Outbox enqueue', () => {
     )
     expect(indexes.rows.map(row => row.indexname)).toEqual(
       expect.arrayContaining([
+        'outbox_jobs_idempotency_key_unique_idx',
         'outbox_jobs_pending_poll_idx',
         'outbox_jobs_failed_inspection_idx',
         'outbox_jobs_stale_running_idx',
@@ -100,6 +101,16 @@ describe('Services > Outbox enqueue', () => {
       .executeTakeFirstOrThrow()
 
     expect(Number(count.count)).toEqual(2)
+  })
+
+  it('uses the configured default max attempts when enqueue omits an override', async () => {
+    const service = createOutboxService<TestJobs>(db, { defaultMaxAttempts: 5 })
+
+    const result = await promise(
+      service.enqueue({ type: 'test.email', payload: { to: 'a' } })
+    )
+
+    expect(result.job.maxAttempts).toEqual(5)
   })
 
   it('rolls back enqueueWithTransaction with the outer transaction', async () => {

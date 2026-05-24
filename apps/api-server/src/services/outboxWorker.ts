@@ -6,6 +6,7 @@ export interface OutboxWorkerConfig extends RetryConfig {
   workerId: string
   batchSize: number
   pollIntervalMs: number
+  staleAfterMs: number
 }
 
 export interface OutboxWorkerRunResult {
@@ -118,6 +119,7 @@ export function createOutboxWorker({
         outboxService.claimPendingJobs({
           workerId: config.workerId,
           batchSize: config.batchSize,
+          staleAfterMs: config.staleAfterMs,
         })
       )
 

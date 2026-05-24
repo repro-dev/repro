@@ -1,4 +1,4 @@
-import { FutureInstance, attemptP, map, promise } from 'fluture'
+import { FutureInstance, attemptP, promise } from 'fluture'
 import { Kysely, Transaction, sql } from 'kysely'
 import {
   Database,
@@ -47,6 +47,7 @@ export interface EnqueueResult {
 export interface ClaimPendingJobsParams {
   workerId: string
   batchSize: number
+  staleAfterMs?: number
   now?: Date
 }
 
@@ -69,7 +70,13 @@ export interface OutboxDiagnosticsParams {
 
 type OutboxDatabase = Kysely<Schema> | Transaction<Schema>
 
+export interface OutboxServiceConfig {
+  defaultMaxAttempts?: number
+}
+
 function serializeLastError(error: unknown): OutboxLastError {
+  // @repro/api-server does not currently depend on serialize-error; keep this
+  // narrow JSON-safe shape local until the package owns that dependency.
   if (error instanceof Error) {
     return {
       name: error.name,
@@ -96,7 +103,9 @@ export function calculateRetryRunAfter(
 
 export function createOutboxService<
   Jobs extends OutboxPayloadMap = Record<string, OutboxJson>,
->(database: Database) {
+>(database: Database, config: OutboxServiceConfig = {}) {
+  const defaultMaxAttempts = config.defaultMaxAttempts ?? 3
+
   async function insertJob<Type extends keyof Jobs & string>(
     db: OutboxDatabase,
     params: EnqueueParams<Jobs, Type>
@@ -105,7 +114,7 @@ export function createOutboxService<
       type: params.type,
       payload: params.payload,
       idempotencyKey: params.idempotencyKey ?? null,
-      maxAttempts: params.maxAttempts ?? 3,
+      maxAttempts: params.maxAttempts ?? defaultMaxAttempts,
       runAfter: params.runAfter ?? new Date(),
     }
 
@@ -121,7 +130,12 @@ export function createOutboxService<
     const inserted = await db
       .insertInto('outbox_jobs')
       .values(values)
-      .onConflict(oc => oc.column('idempotencyKey').doNothing())
+      .onConflict(oc =>
+        oc
+          .column('idempotencyKey')
+          .where('idempotencyKey', 'is not', null)
+          .doNothing()
+      )
       .returningAll()
       .executeTakeFirst()
 
@@ -162,14 +176,27 @@ export function createOutboxService<
   function claimPendingJobs({
     workerId,
     batchSize,
+    staleAfterMs,
     now = new Date(),
   }: ClaimPendingJobsParams): FutureInstance<Error, Array<OutboxJobRow>> {
+    const staleBefore = staleAfterMs
+      ? new Date(now.getTime() - staleAfterMs)
+      : null
+
     return attemptQuery(() =>
       database.transaction().execute(async trx => {
         const claimable = await sql<{ id: number }>`
           SELECT "id"
           FROM "outbox_jobs"
-          WHERE "status" = 'pending' AND "runAfter" <= ${now}
+          WHERE (
+            "status" = 'pending'
+            AND "runAfter" <= ${now}
+          ) OR (
+            ${staleBefore}::timestamptz IS NOT NULL
+            AND "status" = 'running'
+            AND "lockedAt" <= ${staleBefore}
+            AND "attempts" < "maxAttempts"
+          )
           ORDER BY "runAfter" ASC, "id" ASC
           LIMIT ${batchSize}
           FOR UPDATE SKIP LOCKED
@@ -246,37 +273,38 @@ export function createOutboxService<
   }: OutboxDiagnosticsParams): FutureInstance<Error, OutboxDiagnostics> {
     const staleBefore = new Date(now.getTime() - staleAfterMs)
 
-    return attemptQuery(() =>
-      database
+    async function countStatus(
+      status: OutboxJobRow['status']
+    ): Promise<number> {
+      const row = await database
         .selectFrom('outbox_jobs')
-        .select(({ fn }) => [
-          fn
-            .count<number>('id')
-            .filterWhere('status', '=', 'pending')
-            .as('pending'),
-          fn
-            .count<number>('id')
-            .filterWhere('status', '=', 'running')
-            .as('running'),
-          fn
-            .count<number>('id')
-            .filterWhere('status', '=', 'failed')
-            .as('failed'),
-          fn
-            .count<number>('id')
-            .filterWhere('status', '=', 'running')
-            .filterWhere('lockedAt', '<=', staleBefore)
-            .as('staleRunning'),
-        ])
+        .select(({ fn }) => fn.count<number>('id').as('count'))
+        .where('status', '=', status)
         .executeTakeFirstOrThrow()
-    ).pipe(
-      map(row => ({
-        pending: Number(row.pending),
-        running: Number(row.running),
-        failed: Number(row.failed),
-        staleRunning: Number(row.staleRunning),
-      }))
-    )
+
+      return Number(row.count)
+    }
+
+    return attemptQuery(async () => {
+      const [pending, running, failed, staleRunningRow] = await Promise.all([
+        countStatus('pending'),
+        countStatus('running'),
+        countStatus('failed'),
+        database
+          .selectFrom('outbox_jobs')
+          .select(({ fn }) => fn.count<number>('id').as('count'))
+          .where('status', '=', 'running')
+          .where('lockedAt', '<=', staleBefore)
+          .executeTakeFirstOrThrow(),
+      ])
+
+      return {
+        pending,
+        running,
+        failed,
+        staleRunning: Number(staleRunningRow.count),
+      }
+    })
   }
 
   return {

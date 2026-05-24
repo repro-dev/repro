@@ -13,10 +13,14 @@ CREATE TABLE "outbox_jobs" (
   "lockedAt" TIMESTAMPTZ,
   "lockedBy" TEXT,
   "lastError" JSONB,
-  "idempotencyKey" TEXT UNIQUE,
+  "idempotencyKey" TEXT,
   "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE UNIQUE INDEX "outbox_jobs_idempotency_key_unique_idx"
+  ON "outbox_jobs" ("idempotencyKey")
+  WHERE "idempotencyKey" IS NOT NULL;
 
 CREATE INDEX "outbox_jobs_pending_poll_idx"
   ON "outbox_jobs" ("status", "runAfter", "id")
@@ -52,4 +56,5 @@ DROP FUNCTION IF EXISTS "set_outbox_jobs_updatedAt"();
 DROP INDEX IF EXISTS "outbox_jobs_stale_running_idx";
 DROP INDEX IF EXISTS "outbox_jobs_failed_inspection_idx";
 DROP INDEX IF EXISTS "outbox_jobs_pending_poll_idx";
+DROP INDEX IF EXISTS "outbox_jobs_idempotency_key_unique_idx";
 DROP TABLE IF EXISTS "outbox_jobs";

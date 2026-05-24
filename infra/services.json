@@ -65,7 +65,7 @@
       "OUTBOX_WORKER_STALE_AFTER_MS": "300000"
     },
     "resource_deps": ["dependencies", "database-ready"],
-    "deps": ["api-server"]
+    "deps": []
   },
   "workspace": {
     "type": "local",

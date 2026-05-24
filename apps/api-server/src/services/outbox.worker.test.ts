@@ -50,6 +50,67 @@ describe('Services > Outbox worker', () => {
     expect(claimed?.attempts).toEqual(1)
   })
 
+  it('reclaims stale running jobs after the worker crash threshold', async () => {
+    const service = createOutboxService<TestJobs>(db)
+    const originalLockTime = new Date(Date.now() - 10_000)
+    await db
+      .insertInto('outbox_jobs')
+      .values({
+        type: 'test.work',
+        payload: { value: 'stale' },
+        status: 'running',
+        attempts: 1,
+        maxAttempts: 3,
+        lockedAt: originalLockTime,
+        lockedBy: 'crashed-worker',
+      })
+      .execute()
+
+    const claimed = await promise(
+      service.claimPendingJobs({
+        workerId: 'worker-reclaimer',
+        batchSize: 10,
+        staleAfterMs: 1000,
+        now: new Date(),
+      })
+    )
+
+    expect(claimed).toHaveLength(1)
+    expect(claimed[0]?.status).toEqual('running')
+    expect(claimed[0]?.attempts).toEqual(2)
+    expect(claimed[0]?.lockedBy).toEqual('worker-reclaimer')
+    expect(claimed[0]?.lockedAt?.getTime()).toBeGreaterThan(
+      originalLockTime.getTime()
+    )
+  })
+
+  it('does not reclaim fresh running jobs', async () => {
+    const service = createOutboxService<TestJobs>(db)
+    await db
+      .insertInto('outbox_jobs')
+      .values({
+        type: 'test.work',
+        payload: { value: 'fresh' },
+        status: 'running',
+        attempts: 1,
+        maxAttempts: 3,
+        lockedAt: new Date(),
+        lockedBy: 'active-worker',
+      })
+      .execute()
+
+    const claimed = await promise(
+      service.claimPendingJobs({
+        workerId: 'worker-reclaimer',
+        batchSize: 10,
+        staleAfterMs: 60_000,
+        now: new Date(),
+      })
+    )
+
+    expect(claimed).toHaveLength(0)
+  })
+
   it('marks successful handler execution as succeeded', async () => {
     const service = createOutboxService<TestJobs>(db)
     await promise(
@@ -160,5 +221,6 @@ function workerConfig() {
     pollIntervalMs: 1000,
     baseDelayMs: 1000,
     maxDelayMs: 60000,
+    staleAfterMs: 300000,
   }
 }
