@@ -1,7 +1,7 @@
 import expect from 'expect'
 import { reject, resolve } from 'fluture'
 import { describe, it } from 'node:test'
-import { sendEmailInBackground } from './email'
+import { createEmailModule } from './email'
 import { ApiLogger } from './logger'
 
 function createLoggerSpy() {
@@ -29,7 +29,12 @@ describe('Modules > email', () => {
     const { logger, calls } = createLoggerSpy()
     const error = new Error('provider unavailable')
 
-    sendEmailInBackground(
+    const emailModule = createEmailModule({
+      logger,
+      sendEmail: () => reject(error),
+    })
+
+    emailModule.sendEmailInBackground(
       {
         to: 'person@example.com',
         from: 'hello@repro.dev',
@@ -37,9 +42,7 @@ describe('Modules > email', () => {
         text: 'Secret body',
         html: '<p>Secret body</p>',
       },
-      () => reject(error),
       {
-        logger,
         emailKind: 'invitation',
         context: {
           requestId: 'req-123',
@@ -70,15 +73,19 @@ describe('Modules > email', () => {
   it('does not log successful background sends', async () => {
     const { logger, calls } = createLoggerSpy()
 
-    sendEmailInBackground(
+    const emailModule = createEmailModule({
+      logger,
+      sendEmail: () => resolve(undefined),
+    })
+
+    emailModule.sendEmailInBackground(
       {
         to: 'person@example.com',
         from: 'hello@repro.dev',
         subject: 'Hi',
         html: '<p>Hi</p>',
       },
-      () => resolve(undefined),
-      { logger, emailKind: 'verification' }
+      { emailKind: 'verification' }
     )
 
     await waitForBackgroundFork()
@@ -87,15 +94,16 @@ describe('Modules > email', () => {
   })
 
   it('keeps omitted logger local-safe when background send fails', async () => {
-    sendEmailInBackground(
-      {
-        to: 'person@example.com',
-        from: 'hello@repro.dev',
-        subject: 'Hi',
-        html: '<p>Hi</p>',
-      },
-      () => reject(new Error('provider unavailable'))
-    )
+    const emailModule = createEmailModule({
+      sendEmail: () => reject(new Error('provider unavailable')),
+    })
+
+    emailModule.sendEmailInBackground({
+      to: 'person@example.com',
+      from: 'hello@repro.dev',
+      subject: 'Hi',
+      html: '<p>Hi</p>',
+    })
 
     await waitForBackgroundFork()
   })

@@ -37,12 +37,7 @@ import {
   encodeId,
   withEncodedId,
 } from '~/modules/database'
-import {
-  emailFromAddress,
-  sendEmailInBackground,
-  sendEmail as sendEmailMessage,
-} from '~/modules/email'
-import { ApiLogger, noopLogger } from '~/modules/logger'
+import { EmailModule } from '~/modules/email'
 import { BillingService } from '~/services/billing'
 import { getSessionPolicy } from '~/services/sessionPolicy'
 import {
@@ -60,7 +55,6 @@ const DUMMY_HASH =
   '$argon2id$v=19$m=4096,t=3,p=1$YWJjZDEyMzQ$MFRSPmdxZVyBvGi95RcZlo5PqmfJhLXYj8JZm8atFdY'
 
 type SendVerificationEmailOptions = {
-  logger?: ApiLogger
   context?: Record<string, unknown>
 }
 
@@ -76,10 +70,9 @@ function hashToken(token: string): string {
 
 export function createAccountService(
   database: Database,
-  sendEmail: typeof sendEmailMessage,
+  emailModule: EmailModule,
   billingService?: BillingService,
-  _config: SystemConfig = defaultSystemConfig,
-  logger: ApiLogger = noopLogger
+  _config: SystemConfig = defaultSystemConfig
 ) {
   function ensureStaffUser(
     user: User | StaffUser | null
@@ -967,18 +960,16 @@ export function createAccountService(
         verificationUrl.searchParams.set('verificationToken', verificationToken)
         verificationUrl.searchParams.set('email', email)
 
-        sendEmailInBackground(
+        emailModule.sendEmailInBackground(
           {
             to: email,
-            from: emailFromAddress,
+            from: emailModule.emailFromAddress,
             ...emailVerificationEmail({
               verificationUrl: verificationUrl.toString(),
               userName: name,
             }),
           },
-          sendEmail,
           {
-            logger: options.logger ?? logger,
             emailKind: 'verification',
             context: {
               targetUserId: userId,

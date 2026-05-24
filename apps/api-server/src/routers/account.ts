@@ -17,11 +17,7 @@ import {
 import z from 'zod'
 import { defaultEnv as env } from '~/config/env'
 import { defaultSystemConfig } from '~/config/system'
-import {
-  emailFromAddress,
-  sendEmailInBackground,
-  sendEmail as sendEmailMessage,
-} from '~/modules/email'
+import { EmailModule } from '~/modules/email'
 import { createRequestLogContext } from '~/modules/logger'
 import { AccountService } from '~/services/account'
 import { isNotFound, notAuthenticated, resourceConflict } from '~/utils/errors'
@@ -87,7 +83,7 @@ const updateNameSchema = {
 
 export function createAccountRouter(
   accountService: AccountService,
-  sendEmail: typeof sendEmailMessage,
+  emailModule: EmailModule,
   config = defaultSystemConfig
 ): FastifyPluginAsync {
   const { respondWith } = createResponseUtils(config)
@@ -151,7 +147,6 @@ export function createAccountRouter(
             )
 
             yield accountService.sendVerificationEmail(user.id, {
-              logger: req.log,
               context: {
                 ...createRequestLogContext(req),
                 accountId: account.id,
@@ -194,10 +189,10 @@ export function createAccountRouter(
                   .createInvitation(account.id, req.body.email)
                   .pipe(
                     map(invitation => {
-                      sendEmailInBackground(
+                      emailModule.sendEmailInBackground(
                         {
                           to: invitation.email,
-                          from: emailFromAddress,
+                          from: emailModule.emailFromAddress,
                           ...invitationEmail({
                             invitationUrl: createInvitationUrl(
                               env.REPRO_APP_URL,
@@ -208,9 +203,7 @@ export function createAccountRouter(
                             inviterName: user.name,
                           }),
                         },
-                        sendEmail,
                         {
-                          logger: req.log,
                           emailKind: 'invitation',
                           context: {
                             ...createRequestLogContext(req),
@@ -371,10 +364,10 @@ export function createAccountRouter(
             )(user =>
               accountService.createPasswordResetToken(user.id).pipe(
                 map(token => {
-                  sendEmailInBackground(
+                  emailModule.sendEmailInBackground(
                     {
                       to: user.email,
-                      from: emailFromAddress,
+                      from: emailModule.emailFromAddress,
                       ...passwordResetEmail({
                         resetUrl: createPasswordResetUrl(
                           env.REPRO_APP_URL,
@@ -383,9 +376,7 @@ export function createAccountRouter(
                         userName: user.name,
                       }),
                     },
-                    sendEmail,
                     {
-                      logger: req.log,
                       emailKind: 'password_reset',
                       context: {
                         ...createRequestLogContext(req),
@@ -522,7 +513,6 @@ export function createAccountRouter(
         req.getCurrentUser().pipe(
           chain(user =>
             accountService.sendVerificationEmail(user.id, {
-              logger: req.log,
               context: {
                 ...createRequestLogContext(req),
                 targetUserId: user.id,

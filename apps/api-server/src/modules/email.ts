@@ -14,35 +14,61 @@ function createEmailProviderTransport(provider: EmailProvider) {
 
 const emailProvider = createEmailProvider(env.RESEND_API_KEY)
 
-export const emailFromAddress = env.EMAIL_FROM_ADDRESS
-export const sendEmail = createEmailProviderTransport(emailProvider)
-
 export type SendEmail = (message: EmailMessage) => FutureInstance<Error, void>
 
 export type SendEmailInBackgroundOptions = {
-  logger?: ApiLogger
   emailKind?: string
   context?: Record<string, unknown>
 }
 
-export function sendEmailInBackground(
-  message: EmailMessage,
-  send: SendEmail = sendEmail,
-  options: SendEmailInBackgroundOptions = {}
-): void {
+export type EmailModule = {
+  emailFromAddress: string
+  sendEmail: SendEmail
+  sendEmailInBackground: (
+    message: EmailMessage,
+    options?: SendEmailInBackgroundOptions
+  ) => void
+}
+
+export type CreateEmailModuleOptions = {
+  provider?: EmailProvider
+  sendEmail?: SendEmail
+  logger?: ApiLogger
+}
+
+export function createEmailModule(
+  options: CreateEmailModuleOptions = {}
+): EmailModule {
+  const sendEmail =
+    options.sendEmail ??
+    createEmailProviderTransport(options.provider ?? emailProvider)
   const logger = options.logger ?? noopLogger
 
-  send(message).pipe(
-    fork(error => {
-      logger.error(
-        {
-          err: error,
-          event: 'transactional_email.send_failed',
-          ...(options.emailKind ? { emailKind: options.emailKind } : {}),
-          ...options.context,
-        },
-        'Transactional email send failed'
+  return {
+    emailFromAddress: env.EMAIL_FROM_ADDRESS,
+    sendEmail,
+    sendEmailInBackground(message, backgroundOptions = {}) {
+      sendEmail(message).pipe(
+        fork(error => {
+          logger.error(
+            {
+              err: error,
+              event: 'transactional_email.send_failed',
+              ...(backgroundOptions.emailKind
+                ? { emailKind: backgroundOptions.emailKind }
+                : {}),
+              ...backgroundOptions.context,
+            },
+            'Transactional email send failed'
+          )
+        })(() => {})
       )
-    })(() => {})
-  )
+    },
+  }
 }
+
+const defaultEmailModule = createEmailModule()
+
+export const emailFromAddress = defaultEmailModule.emailFromAddress
+export const sendEmail = defaultEmailModule.sendEmail
+export const sendEmailInBackground = defaultEmailModule.sendEmailInBackground

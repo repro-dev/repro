@@ -14,7 +14,7 @@ import { defaultEnv as env } from '~/config/env'
 import { createSessionDecorator } from '~/decorators/session'
 import { createPaddleClient } from '~/modules/billing'
 import { createPostgresDatabaseClient } from '~/modules/database/database-postgres'
-import { sendEmail } from '~/modules/email'
+import { createEmailModule } from '~/modules/email'
 import {
   createFastifyLoggerOptions,
   registerRequestLoggingHooks,
@@ -158,13 +158,13 @@ async function bootstrap() {
   app.setValidatorCompiler(validatorCompiler)
   app.setSerializerCompiler(serializerCompiler)
 
+  const emailModule = createEmailModule({ logger: app.log })
   const billingService = createBillingService(database, env, undefined, app.log)
   const accountService = createAccountService(
     database,
-    sendEmail,
+    emailModule,
     billingService,
-    undefined,
-    app.log
+    undefined
   )
   const agenticService = createAgenticService(database, httpClient)
   const oauthService = createOAuthService(database)
@@ -187,7 +187,7 @@ async function bootstrap() {
     googleProvider ? { google: googleProvider } : {}
   )
 
-  const accountRouter = createAccountRouter(accountService, sendEmail)
+  const accountRouter = createAccountRouter(accountService, emailModule)
   const agenticRouter = createAgenticRouter(
     agenticService,
     accountService,

@@ -23,13 +23,18 @@ export async function createAccountTestContext({
   const accountService = harness.services.accountService
   const app = harness.bootstrap(async app => {
     if (prefix == null) {
-      await app.register(createAccountRouter(accountService, harness.sendEmail))
+      await app.register(
+        createAccountRouter(accountService, harness.emailModule)
+      )
       return
     }
 
-    await app.register(createAccountRouter(accountService, harness.sendEmail), {
-      prefix,
-    })
+    await app.register(
+      createAccountRouter(accountService, harness.emailModule),
+      {
+        prefix,
+      }
+    )
   })
 
   await app.ready()

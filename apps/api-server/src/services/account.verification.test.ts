@@ -88,6 +88,7 @@ describe('Services > Account', () => {
       const { logger, calls } = createLoggerSpy()
       const failingHarness = await createTestHarness({
         sendEmail: () => reject(new Error('unexpected send')),
+        logger,
       })
 
       try {
@@ -109,7 +110,6 @@ describe('Services > Account', () => {
         await expect(
           promise(
             failingAccountService.sendVerificationEmail(user.id, {
-              logger,
               context: {
                 requestId: 'req-123',
                 route: '/account/me/send-verification',

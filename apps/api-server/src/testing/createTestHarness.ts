@@ -8,7 +8,12 @@ import { createSessionDecorator } from '~/decorators/session'
 import { createStubPaddleClient } from '~/modules/billing'
 import type { UpdateSubscriptionParams } from '~/modules/billing/stubPaddleClient'
 import { Database } from '~/modules/database'
-import { sendEmail as defaultSendEmail } from '~/modules/email'
+import {
+  EmailModule,
+  createEmailModule,
+  sendEmail as defaultSendEmail,
+} from '~/modules/email'
+import { ApiLogger } from '~/modules/logger'
 import { Storage } from '~/modules/storage'
 import { createAccountService } from '~/services/account'
 import { createBillingService } from '~/services/billing'
@@ -28,6 +33,7 @@ export interface Harness {
   storage: Storage
   env: Env
   sendEmail: typeof defaultSendEmail
+  emailModule: EmailModule
   services: Services
   getLastUpdateSubscriptionParams(): UpdateSubscriptionParams | null
   getSentEmails(): Array<EmailMessage>
@@ -45,6 +51,7 @@ export interface Harness {
 export async function createTestHarness(
   options: {
     sendEmail?: typeof defaultSendEmail
+    logger?: ApiLogger
   } = {}
 ): Promise<Harness> {
   const env = createEnv()
@@ -57,6 +64,10 @@ export async function createTestHarness(
     emailLog.push(message)
     return options.sendEmail ? options.sendEmail(message) : resolve(undefined)
   }
+  const emailModule = createEmailModule({
+    sendEmail,
+    logger: options.logger,
+  })
 
   function generateRandomEmailAddress() {
     return randomString(10).toLowerCase() + '@repro.test'
@@ -64,7 +75,7 @@ export async function createTestHarness(
 
   const stubPaddleClient = createStubPaddleClient(db)
   const billingService = createBillingService(db, env, stubPaddleClient)
-  const accountService = createAccountService(db, sendEmail, billingService)
+  const accountService = createAccountService(db, emailModule, billingService)
   const featureGateService = createFeatureGateService(db)
   const oauthService = createOAuthService(db)
   const projectService = createProjectService(db)
@@ -123,6 +134,7 @@ export async function createTestHarness(
     env,
     db,
     sendEmail,
+    emailModule,
     services,
     storage,
 
