@@ -103,7 +103,7 @@ When a tool is installed elsewhere (e.g. in a Dockerfile, CI config, or setup sc
 
 Keep `ctlptl` on the legacy top-level `"asdf:ctlptl"` pin. The Moonrepo asdf backend first-class tool wiring is not viable for ctlptl because a fresh proto install fails with `Script list-all not found`.
 
-The E2E CI job installs `portless@0.7` directly before starting workspace services because Tilt-managed app services require the portless CLI, and `scripts/lib/setup.sh` expects the 0.7.x major line.
+The E2E CI job installs `portless@0.7` repo-locally with `npm install --prefix tmp/portless portless@0.7`, links the binary into `tmp/ci-bin`, and starts workspace services with `tmp/ci-bin` first in `PATH`. Do not use `npm install --global portless@0.7` in GitHub Actions: proto-managed Node may leave npm's global bin outside `PATH`, and Tilt child processes need to find `portless` through the inherited PATH.
 
 When upgrading a tool version, update **all** pinning locations together.
 

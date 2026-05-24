@@ -197,14 +197,16 @@ jobs:
 
       - name: Install portless
         run: |
-          npm install --global portless@0.7
-          portless --version
+          npm install --prefix tmp/portless portless@0.7
+          mkdir -p tmp/ci-bin
+          ln -sf "$PWD/tmp/portless/node_modules/.bin/portless" tmp/ci-bin/portless
+          tmp/ci-bin/portless --version
 
       - name: Start local cluster
         run: PATH="$PWD/tmp/ci-bin:$PATH" ./bin/reproctl cluster up
 
       - name: Start workspace services
-        run: ./bin/reproctl start --wait --timeout 300s workspace
+        run: PATH="$PWD/tmp/ci-bin:$PATH" ./bin/reproctl start --wait --timeout 300s workspace
 
       - name: Seed the test database
         run: ./bin/reproctl db seed
