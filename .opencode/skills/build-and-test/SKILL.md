@@ -13,12 +13,12 @@ Moon v2 project IDs use the source-path format: `repro/<name>` (e.g. `repro/doma
 
 **Moon v2 glob restriction**: Brace expansion (`{,x}`) is not supported in glob patterns. Use separate entries instead (e.g. two globs `*.ts` and `*.tsx` rather than `*.ts{,x}`).
 
-| Task        | Command                                                                                                          |
-| ----------- | ---------------------------------------------------------------------------------------------------------------- |
-| Build       | `moon run repro/<name>:build` (builds dependencies first via `^:build`)                                          |
-| Test        | `moon run repro/<name>:test` (default)                                                                            |
+| Task        | Command                                                                                                              |
+| ----------- | -------------------------------------------------------------------------------------------------------------------- |
+| Build       | `moon run repro/<name>:build` (builds dependencies first via `^:build`)                                              |
+| Test        | `moon run repro/<name>:test` (default)                                                                               |
 | Single test | `moon run repro/<name>:test` if possible; direct `tsx --test` only as a package-local fallback when no target exists |
-| Typecheck   | `moon run repro/<name>:typecheck` (default)                                                                       |
+| Typecheck   | `moon run repro/<name>:typecheck` (default)                                                                          |
 
 General form: `moon run repro/<name>:build|test|typecheck`.
 
@@ -102,6 +102,8 @@ When a tool is installed elsewhere (e.g. in a Dockerfile, CI config, or setup sc
 `.prototools` also pins a **moon_tool plugin override** (`[plugins.tools] moon = "...moon_tool-v0.4.1/moon_tool.wasm"`) required for Moon v2's archive distribution format. The built-in proto plugin doesn't support v2 yet.
 
 Keep `ctlptl` on the legacy top-level `"asdf:ctlptl"` pin. The Moonrepo asdf backend first-class tool wiring is not viable for ctlptl because a fresh proto install fails with `Script list-all not found`.
+
+The E2E CI job installs `portless@0.7` directly before starting workspace services because Tilt-managed app services require the portless CLI, and `scripts/lib/setup.sh` expects the 0.7.x major line.
 
 When upgrading a tool version, update **all** pinning locations together.
 

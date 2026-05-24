@@ -195,6 +195,11 @@ jobs:
           tar -xzf tmp/ctlptl.0.8.43.linux.x86_64.tar.gz -C tmp/ci-bin ctlptl
           tmp/ci-bin/ctlptl version
 
+      - name: Install portless
+        run: |
+          npm install --global portless@0.7
+          portless --version
+
       - name: Start local cluster
         run: PATH="$PWD/tmp/ci-bin:$PATH" ./bin/reproctl cluster up
 
