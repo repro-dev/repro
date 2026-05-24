@@ -11,7 +11,7 @@ import { afterEach, describe, it } from 'node:test'
 import React from 'react'
 import { Button } from '../Button'
 import { PortalRootProvider } from '../Portal'
-import { Popover } from './index'
+import { Popover, PopoverArrow, PopoverContent, PopoverTrigger } from './index'
 
 afterEach(cleanup)
 
@@ -29,7 +29,7 @@ function renderPopover(props: React.ComponentProps<typeof Popover> = {}) {
         <Popover.Trigger>
           <button type="button">Trigger</button>
         </Popover.Trigger>
-        <Popover.Content>
+        <Popover.Content aria-label="Example popover">
           <div>Popover content</div>
         </Popover.Content>
       </Popover>
@@ -60,6 +60,58 @@ describe('Popover', () => {
         .getByRole('button', { name: 'Trigger' })
         .getAttribute('aria-haspopup')
     ).toBeNull()
+  })
+
+  it('exports compound parts as named runtime values', () => {
+    expect(PopoverTrigger).toBe(Popover.Trigger)
+    expect(PopoverContent).toBe(Popover.Content)
+    expect(PopoverArrow).toBe(Popover.Arrow)
+  })
+
+  it('defaults opened content to dialog semantics', () => {
+    renderPopover()
+
+    openPopover(screen.getByRole('button', { name: 'Trigger' }))
+
+    const content = screen.getByRole('dialog', { name: 'Example popover' })
+    expect(content.getAttribute('aria-modal')).toBeNull()
+  })
+
+  it('renders non-element trigger children as a semantic button', () => {
+    render(
+      <PortalRootProvider>
+        <Popover>
+          <Popover.Trigger>Open text popover</Popover.Trigger>
+          <Popover.Content aria-label="Text trigger popover">
+            <div>Popover content</div>
+          </Popover.Content>
+        </Popover>
+      </PortalRootProvider>
+    )
+
+    const trigger = screen.getByRole('button', { name: 'Open text popover' })
+    expect(trigger.getAttribute('type')).toBe('button')
+    expect(trigger.getAttribute('aria-expanded')).toBe('false')
+
+    openPopover(trigger)
+
+    expect(
+      screen.getByRole('dialog', { name: 'Text trigger popover' })
+    ).toBeDefined()
+    expect(trigger.getAttribute('aria-expanded')).toBe('true')
+  })
+
+  it('keeps floating positioning transform separate from surface animation transform', () => {
+    renderPopover()
+
+    openPopover(screen.getByRole('button', { name: 'Trigger' }))
+
+    const positioned = screen.getByRole('dialog', { name: 'Example popover' })
+    const surface = positioned.firstElementChild as HTMLElement | null
+    expect(surface).toBeDefined()
+    expect(positioned.style.position).toBe('fixed')
+    expect(positioned.style.transform).toContain('translate')
+    expect(surface?.style.transform).toContain('scale')
   })
 
   it('moves focus into the popover surface on open', async () => {
@@ -181,7 +233,7 @@ describe('Popover', () => {
           <Popover.Trigger>
             <button type="button">Trigger</button>
           </Popover.Trigger>
-          <Popover.Content>
+          <Popover.Content aria-label="Controlled popover">
             <div>Popover content</div>
           </Popover.Content>
         </Popover>
@@ -198,7 +250,7 @@ describe('Popover', () => {
           <Popover.Trigger>
             <button type="button">Trigger</button>
           </Popover.Trigger>
-          <Popover.Content>
+          <Popover.Content aria-label="Controlled popover">
             <div>Popover content</div>
           </Popover.Content>
         </Popover>

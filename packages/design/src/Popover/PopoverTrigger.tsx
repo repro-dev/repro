@@ -84,12 +84,13 @@ export const PopoverTrigger = forwardRef<HTMLElement, PopoverTriggerProps>(
       ...(ariaHasPopup != null ? { 'aria-haspopup': ariaHasPopup } : {}),
       'aria-expanded': open,
     })
-
     return (
       <InlineBlock
+        component="button"
         props={{
           ...referenceProps,
           ref: mergeRefs([ref, refs.setReference]),
+          type: 'button',
         }}
       >
         {children}

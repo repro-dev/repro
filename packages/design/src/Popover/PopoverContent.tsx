@@ -13,12 +13,37 @@ import {
   type PopoverSide,
 } from './PopoverContext'
 
-export interface PopoverContentProps
-  extends React.ComponentPropsWithoutRef<'div'> {
-  children: React.ReactNode
-  side?: PopoverSide
-  align?: PopoverAlign
-}
+type PopoverContentDivProps = React.ComponentPropsWithoutRef<'div'>
+
+type PopoverContentAccessibleName =
+  | {
+      /** Accessible name for the default dialog surface. */
+      'aria-label': NonNullable<PopoverContentDivProps['aria-label']>
+      'aria-labelledby'?: PopoverContentDivProps['aria-labelledby']
+    }
+  | {
+      'aria-label'?: PopoverContentDivProps['aria-label']
+      /** ID reference that names the default dialog surface. */
+      'aria-labelledby': NonNullable<PopoverContentDivProps['aria-labelledby']>
+    }
+
+/**
+ * Props for `PopoverContent`.
+ *
+ * `PopoverContent` defaults to `role="dialog"`, so callers must provide an
+ * accessible name with either `aria-label` or `aria-labelledby`. The `role`
+ * prop remains overridable for menu, listbox, or other popup semantics, and the
+ * component does not add `aria-modal` because popovers are non-modal by default.
+ */
+export type PopoverContentProps = Omit<
+  PopoverContentDivProps,
+  'aria-label' | 'aria-labelledby' | 'children'
+> &
+  PopoverContentAccessibleName & {
+    children: React.ReactNode
+    side?: PopoverSide
+    align?: PopoverAlign
+  }
 
 function buildPlacement(side: PopoverSide, align: PopoverAlign) {
   return (align === 'center' ? side : `${side}-${align}`) as Placement
@@ -28,10 +53,22 @@ function buildPlacement(side: PopoverSide, align: PopoverAlign) {
  * Floating popover surface rendered in a portal.
  *
  * Use with `PopoverTrigger` and optional `PopoverArrow` to position compact
- * contextual panels that dismiss on Escape or outside click.
+ * contextual panels that dismiss on Escape or outside click. Provide either
+ * `aria-label` or `aria-labelledby` for the default dialog role. Override
+ * `role` when the popup uses more specific semantics; this remains non-modal
+ * and does not set `aria-modal`.
  */
 export const PopoverContent = forwardRef<HTMLDivElement, PopoverContentProps>(
-  ({ children, side = 'bottom', align = 'start', ...contentProps }, ref) => {
+  (
+    {
+      children,
+      side = 'bottom',
+      align = 'start',
+      role = 'dialog',
+      ...contentProps
+    },
+    ref
+  ) => {
     const {
       refs,
       setPlacement,
@@ -60,16 +97,17 @@ export const PopoverContent = forwardRef<HTMLDivElement, PopoverContentProps>(
 
     const floatingProps = getFloatingProps({
       ...contentProps,
+      role,
       onKeyDown: handleKeyDown,
     }) as React.HTMLProps<HTMLDivElement>
     const { style: floatingStyle, ...restFloatingProps } = floatingProps
 
-    const mergedStyles = useMemo(
+    const positionedStyles = useMemo(
       () => ({
         ...floatingStyles,
-        ...transitionStyles,
+        ...floatingStyle,
       }),
-      [floatingStyles, transitionStyles]
+      [floatingStyles, floatingStyle]
     )
 
     if (!isMounted) {
@@ -87,24 +125,28 @@ export const PopoverContent = forwardRef<HTMLDivElement, PopoverContentProps>(
         >
           <Col
             zIndex={zIndex.portal}
-            minWidth={160}
-            padding={spacing.sm}
-            gap={spacing.sm}
-            backgroundColor={color.bg.surface}
-            color={color.text.default}
-            borderWidth={1}
-            borderStyle="solid"
-            borderColor={color.border.strong}
-            borderRadius={radius.md}
-            boxShadow={shadow.md}
             props={{
-              ref: mergeRefs([ref, refs.setFloating]),
-              style: { ...floatingStyle, ...mergedStyles },
               ...restFloatingProps,
+              ref: mergeRefs([ref, refs.setFloating]),
+              style: positionedStyles,
               tabIndex: contentProps.tabIndex ?? -1,
             }}
           >
-            {children}
+            <Col
+              minWidth={160}
+              padding={spacing.lg}
+              gap={spacing.sm}
+              backgroundColor={color.bg.surface}
+              color={color.text.default}
+              borderWidth={1}
+              borderStyle="solid"
+              borderColor={color.border.strong}
+              borderRadius={radius.md}
+              boxShadow={shadow.md}
+              props={{ style: transitionStyles }}
+            >
+              {children}
+            </Col>
           </Col>
         </FloatingFocusManager>
       </Portal>
