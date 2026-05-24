@@ -24,6 +24,41 @@ describe('Services > Account', () => {
   })
 
   describe('Verification', () => {
+    it('should send a verification email for a user', async () => {
+      const account = await promise(accountService.createAccount('New Account'))
+      const email = harness.generateRandomEmailAddress()
+
+      const user = await promise(
+        accountService.createUser(account.id, 'John Smith', email, 'hunter2!')
+      )
+
+      await promise(accountService.sendVerificationEmail(user.id))
+
+      const verificationToken = await harness.db
+        .selectFrom('users')
+        .select('verificationToken')
+        .where('id', '=', decodeId(user.id))
+        .executeTakeFirstOrThrow()
+        .then(row => row.verificationToken)
+
+      const verificationUrl = new URL(
+        '/account/verify',
+        harness.env.REPRO_APP_URL
+      )
+      verificationUrl.searchParams.set('verificationToken', verificationToken)
+      verificationUrl.searchParams.set('email', email)
+
+      const [message] = harness.getSentEmails()
+
+      expect(harness.getSentEmails()).toHaveLength(1)
+      expect(message).toMatchObject({
+        to: email,
+        from: 'noreply@repro.dev',
+        subject: 'Verify your Repro email address',
+      })
+      expect(message?.html).toContain(verificationUrl.toString())
+    })
+
     it('should verify a user', async () => {
       const account = await promise(accountService.createAccount('New Account'))
       const email = harness.generateRandomEmailAddress()

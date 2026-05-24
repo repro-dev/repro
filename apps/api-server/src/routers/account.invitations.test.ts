@@ -24,7 +24,9 @@ describe('Routers > Account > Invitations', () => {
   })
 
   it('should create an invitation for a user without an account', async () => {
-    const [session] = await context.harness.loadFixtures([
+    const [account, adminUser, session] = await context.harness.loadFixtures([
+      fixtures.account.AccountA,
+      fixtures.account.AdminUserA,
       fixtures.account.AdminUserA_Session,
     ])
 
@@ -42,6 +44,30 @@ describe('Routers > Account > Invitations', () => {
     })
 
     expect(res.statusCode).toEqual(201)
+
+    const invitation = await context.harness.db
+      .selectFrom('invitations')
+      .select(['email', 'token'])
+      .where('email', '=', 'hello@example.com')
+      .executeTakeFirstOrThrow()
+
+    const invitationUrl = new URL(
+      '/account/accept-invitation',
+      context.harness.env.REPRO_APP_URL
+    )
+    invitationUrl.searchParams.set('invitationToken', invitation.token)
+    invitationUrl.searchParams.set('email', invitation.email)
+
+    const [message] = context.harness.getSentEmails()
+
+    expect(context.harness.getSentEmails()).toHaveLength(1)
+    expect(message).toMatchObject({
+      to: 'hello@example.com',
+      from: 'noreply@repro.dev',
+      subject: `You're invited to join ${account.name} on Repro`,
+    })
+    expect(message?.text).toContain(`${adminUser.name} has invited you`)
+    expect(message?.html).toContain(invitationUrl.toString())
   })
 
   it.todo(

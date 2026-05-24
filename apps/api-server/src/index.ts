@@ -14,7 +14,7 @@ import { defaultEnv as env } from '~/config/env'
 import { createSessionDecorator } from '~/decorators/session'
 import { createPaddleClient } from '~/modules/billing'
 import { createPostgresDatabaseClient } from '~/modules/database/database-postgres'
-import { createSMTPEmailUtils } from '~/modules/email-utils'
+import { transactionalEmailService } from '~/modules/email'
 import { createRedisClient, RedisClient } from '~/modules/redis'
 import { createS3StorageClient } from '~/modules/storage-s3'
 import { createAccountRouter } from '~/routers/account'
@@ -64,21 +64,6 @@ const storage = createS3StorageClient({
   secretAccessKey: env.STORAGE_SECRET_ACCESS_KEY,
 })
 
-const emailUtils = createSMTPEmailUtils({
-  smtpOptions: {
-    host: env.EMAIL_SMTP_HOST,
-    port: env.EMAIL_SMTP_PORT,
-    secure: env.EMAIL_SMTP_SECURE,
-    auth: {
-      user: env.EMAIL_SMTP_USER,
-      pass: env.EMAIL_SMTP_PASS,
-    },
-  },
-  addresses: {
-    'no-reply': 'no-reply@repro.dev',
-  },
-})
-
 // Initialize Redis client at module level when a URL is configured.
 // Falls back to null when RATE_LIMIT_REDIS_URL is not set.
 const redisClient: RedisClient | null = env.RATE_LIMIT_REDIS_URL
@@ -88,7 +73,7 @@ const redisClient: RedisClient | null = env.RATE_LIMIT_REDIS_URL
 const billingService = createBillingService(database, env)
 const accountService = createAccountService(
   database,
-  emailUtils,
+  transactionalEmailService,
   billingService
 )
 const agenticService = createAgenticService(database, httpClient)
@@ -147,7 +132,10 @@ const socialAuthRouter = createSocialAuthRouter(
   googleProvider ? { google: googleProvider } : {}
 )
 
-const accountRouter = createAccountRouter(accountService)
+const accountRouter = createAccountRouter(
+  accountService,
+  transactionalEmailService
+)
 const agenticRouter = createAgenticRouter(
   agenticService,
   accountService,

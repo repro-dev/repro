@@ -42,6 +42,16 @@ describe('Routers > Account > Verification', () => {
         verified: false,
       },
     })
+
+    const [message] = context.harness.getSentEmails()
+
+    expect(context.harness.getSentEmails()).toHaveLength(1)
+    expect(message).toMatchObject({
+      to: 'jsmith@example.com',
+      from: 'noreply@repro.dev',
+      subject: 'Verify your Repro email address',
+    })
+    expect(message?.html).toContain('/account/verify')
   })
 
   it('should return not-authenticated when verifying without an active session', async () => {

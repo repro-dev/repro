@@ -35,7 +35,7 @@ import {
   encodeId,
   withEncodedId,
 } from '~/modules/database'
-import { EmailUtils } from '~/modules/email-utils'
+import { TransactionalEmailService } from '~/modules/email'
 import { BillingService } from '~/services/billing'
 import { getSessionPolicy } from '~/services/sessionPolicy'
 import {
@@ -64,7 +64,7 @@ function hashToken(token: string): string {
 
 export function createAccountService(
   database: Database,
-  emailUtils: EmailUtils,
+  emailService: TransactionalEmailService,
   billingService?: BillingService,
   _config: SystemConfig = defaultSystemConfig
 ) {
@@ -940,21 +940,17 @@ export function createAccountService(
     const result = attemptQuery(async () => {
       return database
         .selectFrom('users')
-        .select(['email', 'verificationToken'])
+        .select(['email', 'name', 'verificationToken'])
         .where('id', '=', decodeId(userId))
         .executeTakeFirstOrThrow(() => notFound())
     })
 
     return result.pipe(
-      chain(({ email, verificationToken }) =>
-        emailUtils.send({
-          to: email,
-          from: emailUtils.getAddress('no-reply'),
-          subject: 'Verify email for your Repro account',
-          template: 'send-verification',
-          params: {
-            verificationToken,
-          },
+      chain(({ email, name, verificationToken }) =>
+        emailService.sendVerificationEmail({
+          email,
+          userName: name,
+          verificationToken,
         })
       )
     )

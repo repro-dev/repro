@@ -1,6 +1,7 @@
 import expect from 'expect'
 import { promise } from 'fluture'
 import { after, before, beforeEach, describe, it } from 'node:test'
+import { decodeId } from '~/modules/database'
 import { fixtures } from '~/testing'
 import { notFound } from '~/utils/errors'
 import {
@@ -28,7 +29,7 @@ describe('Routers > Account > Password reset', () => {
       fixtures.account.AccountA,
     ])
 
-    await promise(
+    const user = await promise(
       context.accountService.createUser(
         account.id,
         'John Smith',
@@ -44,6 +45,28 @@ describe('Routers > Account > Password reset', () => {
     })
 
     expect(res.statusCode).toEqual(204)
+
+    const token = await context.harness.db
+      .selectFrom('password_reset_tokens')
+      .select('token')
+      .where('userId', '=', decodeId(user.id))
+      .executeTakeFirstOrThrow()
+      .then(row => row.token)
+
+    const resetUrl = new URL(
+      `/account/reset-password/${token}`,
+      context.harness.env.REPRO_APP_URL
+    )
+
+    const [message] = context.harness.getSentEmails()
+
+    expect(context.harness.getSentEmails()).toHaveLength(1)
+    expect(message).toMatchObject({
+      to: 'jsmith@example.com',
+      from: 'noreply@repro.dev',
+      subject: 'Reset your Repro password',
+    })
+    expect(message?.html).toContain(resetUrl.toString())
   })
 
   it('should return 204 even when the email does not exist (prevent enumeration)', async () => {
@@ -54,6 +77,7 @@ describe('Routers > Account > Password reset', () => {
     })
 
     expect(res.statusCode).toEqual(204)
+    expect(context.harness.getSentEmails()).toHaveLength(0)
   })
 
   it('should confirm a valid token and update the password', async () => {

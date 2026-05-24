@@ -15,6 +15,7 @@ import {
 } from 'fluture'
 import z from 'zod'
 import { defaultSystemConfig } from '~/config/system'
+import { TransactionalEmailService } from '~/modules/email'
 import { AccountService } from '~/services/account'
 import { isNotFound, notAuthenticated, resourceConflict } from '~/utils/errors'
 import { getCurrentUserAccount } from '~/utils/request'
@@ -79,6 +80,7 @@ const updateNameSchema = {
 
 export function createAccountRouter(
   accountService: AccountService,
+  emailService: TransactionalEmailService,
   config = defaultSystemConfig
 ): FastifyPluginAsync {
   const { respondWith } = createResponseUtils(config)
@@ -126,6 +128,8 @@ export function createAccountRouter(
               req.body.password
             )
 
+            yield accountService.sendVerificationEmail(user.id)
+
             yield req.createSession(user)
 
             return { account, user }
@@ -155,29 +159,24 @@ export function createAccountRouter(
 
         const invitation = both(currentUser)(account).pipe(
           chain(([user, account]) =>
-            accountService
-              .ensureCanModifyAccount(user, account.id)
-              .pipe(
-                chain(() =>
-                  accountService.createInvitation(account.id, req.body.email)
-                )
+            accountService.ensureCanModifyAccount(user, account.id).pipe(
+              chain(() =>
+                accountService
+                  .createInvitation(account.id, req.body.email)
+                  .pipe(
+                    tapF(invitation =>
+                      emailService.sendInvitationEmail({
+                        email: invitation.email,
+                        inviterName: user.name,
+                        invitationToken: invitation.token,
+                        workspaceName: account.name,
+                      })
+                    )
+                  )
               )
+            )
           )
         )
-
-        // TODO: enqueue email to invitee
-        //
-        // respondWith(
-        //   res,
-        //   invitation.pipe(
-        //     tapF(payload =>
-        //       queueService.enqueue({
-        //         task: 'send-invitation',
-        //         invitationId: payload.id
-        //       })
-        //     )
-        //   )
-        // )
 
         respondWith(
           res,
@@ -319,19 +318,18 @@ export function createAccountRouter(
             .getUserByEmail(req.body.email)
             .pipe(
               chain(user =>
-                accountService.createPasswordResetToken(user.id).pipe(
-                  chain(token =>
-                    // Stub: log the reset link in development; in production this
-                    // will be replaced by a transactional email once email
-                    // infrastructure is available (blocked by Platform work).
-                    resolve(
-                      req.log.info(
-                        { resetToken: token },
-                        'Password reset token created'
-                      )
+                accountService
+                  .createPasswordResetToken(user.id)
+                  .pipe(
+                    tapF(token =>
+                      emailService.sendPasswordResetEmail({
+                        email: user.email,
+                        resetToken: token,
+                        userName: user.name,
+                      })
                     )
                   )
-                )
+                  .pipe(map(() => null))
               )
             )
             // Swallow not-found so we don't leak account existence
