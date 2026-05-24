@@ -93,7 +93,9 @@ export const Popover: React.FC<PopoverProps> = ({
     }
 
     shouldRestoreFocusRef.current = false
-    returnFocusRef.current?.isConnected && returnFocusRef.current.focus()
+    if (returnFocusRef.current?.isConnected) {
+      returnFocusRef.current.focus()
+    }
   }, [open])
 
   const { refs, floatingStyles, context } = useFloating({
