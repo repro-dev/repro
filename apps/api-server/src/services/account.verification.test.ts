@@ -1,5 +1,5 @@
 import expect from 'expect'
-import { promise } from 'fluture'
+import { promise, reject } from 'fluture'
 import { after, before, beforeEach, describe, it } from 'node:test'
 import { decodeId } from '~/modules/database'
 import { Harness, createTestHarness } from '~/testing'
@@ -63,6 +63,35 @@ describe('Services > Account', () => {
       )
     })
 
+    it('should still resolve if verification email delivery fails', async () => {
+      const failingHarness = await createTestHarness({
+        sendEmail: () => reject(new Error('unexpected send')),
+      })
+
+      try {
+        const failingAccountService = failingHarness.services.accountService
+        const account = await promise(
+          failingAccountService.createAccount('New Account')
+        )
+        const email = failingHarness.generateRandomEmailAddress()
+
+        const user = await promise(
+          failingAccountService.createUser(
+            account.id,
+            'John Smith',
+            email,
+            'hunter2!'
+          )
+        )
+
+        await expect(
+          promise(failingAccountService.sendVerificationEmail(user.id))
+        ).resolves.toBeUndefined()
+      } finally {
+        await failingHarness.close()
+      }
+    })
+
     it('should verify a user', async () => {
       const account = await promise(accountService.createAccount('New Account'))
       const email = harness.generateRandomEmailAddress()
@@ -81,6 +110,19 @@ describe('Services > Account', () => {
       await expect(
         promise(accountService.verifyUser(verificationToken, email))
       ).resolves.toBeUndefined()
+    })
+
+    it('should throw not-found when verifying with an invalid token', async () => {
+      const account = await promise(accountService.createAccount('New Account'))
+      const email = harness.generateRandomEmailAddress()
+
+      await promise(
+        accountService.createUser(account.id, 'John Smith', email, 'hunter2!')
+      )
+
+      await expect(
+        promise(accountService.verifyUser('invalid-token', email))
+      ).rejects.toThrow(notFound())
     })
 
     it('should throw not-found when verifying a user that does not exist', async () => {

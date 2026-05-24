@@ -111,6 +111,44 @@ describe('Routers > Account > Password reset', () => {
     }
   })
 
+  it('should surface database failures when creating the reset token', async () => {
+    const failingContext = await createAccountTestContext()
+
+    try {
+      const [account] = await failingContext.harness.loadFixtures([
+        fixtures.account.AccountA,
+      ])
+
+      await promise(
+        failingContext.accountService.createUser(
+          account.id,
+          'John Smith',
+          'jsmith@example.com',
+          'hunter2!'
+        )
+      )
+
+      const originalCreatePasswordResetToken =
+        failingContext.accountService.createPasswordResetToken
+
+      failingContext.accountService.createPasswordResetToken = () =>
+        reject(new Error('unexpected token failure'))
+
+      const res = await failingContext.app.inject({
+        method: 'POST',
+        url: '/reset-password',
+        body: { email: 'jsmith@example.com' },
+      })
+
+      expect(res.statusCode).toEqual(500)
+
+      failingContext.accountService.createPasswordResetToken =
+        originalCreatePasswordResetToken
+    } finally {
+      await failingContext.harness.close()
+    }
+  })
+
   it('should confirm a valid token and update the password', async () => {
     const [account] = await context.harness.loadFixtures([
       fixtures.account.AccountA,

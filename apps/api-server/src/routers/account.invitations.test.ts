@@ -1,5 +1,5 @@
 import expect from 'expect'
-import { promise } from 'fluture'
+import { promise, reject } from 'fluture'
 import { after, before, beforeEach, describe, it } from 'node:test'
 import { fixtures } from '~/testing'
 import {
@@ -70,6 +70,45 @@ describe('Routers > Account > Invitations', () => {
     expect(message?.html).toContain(
       invitationUrl.toString().replaceAll('&', '&amp;')
     )
+  })
+
+  it('should still return 201 if invitation email delivery fails', async () => {
+    const failingContext = await createAccountTestContext({
+      sendEmail: () => reject(new Error('unexpected send')),
+    })
+
+    try {
+      const [, , session] = await failingContext.harness.loadFixtures([
+        fixtures.account.AccountA,
+        fixtures.account.AdminUserA,
+        fixtures.account.AdminUserA_Session,
+      ])
+
+      const res = await failingContext.app.inject({
+        method: 'POST',
+        url: '/invite',
+        body: {
+          email: 'failed@example.com',
+        },
+        cookies: {
+          [failingContext.harness.env.SESSION_COOKIE]:
+            failingContext.app.signCookie(session.sessionToken),
+        },
+      })
+
+      expect(res.statusCode).toEqual(201)
+
+      const invitation = await failingContext.harness.db
+        .selectFrom('invitations')
+        .select(['email', 'token'])
+        .where('email', '=', 'failed@example.com')
+        .executeTakeFirstOrThrow()
+
+      expect(invitation).toMatchObject({ email: 'failed@example.com' })
+      expect(failingContext.harness.getSentEmails()).toHaveLength(1)
+    } finally {
+      await failingContext.harness.close()
+    }
   })
 
   it.todo(

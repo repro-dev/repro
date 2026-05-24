@@ -39,6 +39,7 @@ import {
 } from '~/modules/database'
 import {
   emailFromAddress,
+  sendEmailInBackground,
   sendEmail as sendEmailMessage,
 } from '~/modules/email'
 import { BillingService } from '~/services/billing'
@@ -951,25 +952,25 @@ export function createAccountService(
     })
 
     return result.pipe(
-      chain(({ email, name, verificationToken }) =>
-        (() => {
-          const verificationUrl = new URL('/account/verify', env.REPRO_APP_URL)
-          verificationUrl.searchParams.set(
-            'verificationToken',
-            verificationToken
-          )
-          verificationUrl.searchParams.set('email', email)
+      chain(({ email, name, verificationToken }) => {
+        const verificationUrl = new URL('/account/verify', env.REPRO_APP_URL)
+        verificationUrl.searchParams.set('verificationToken', verificationToken)
+        verificationUrl.searchParams.set('email', email)
 
-          return sendEmail({
+        sendEmailInBackground(
+          {
             to: email,
             from: emailFromAddress,
             ...emailVerificationEmail({
               verificationUrl: verificationUrl.toString(),
               userName: name,
             }),
-          })
-        })()
-      )
+          },
+          sendEmail
+        )
+
+        return resolve(undefined)
+      })
     )
   }
 
@@ -980,12 +981,16 @@ export function createAccountService(
     return getUserByEmail(email).pipe(
       chain(() =>
         attemptQuery(async () => {
-          await database
+          const result = await database
             .updateTable('users')
             .set('verified', true)
             .where('email', '=', email)
             .where('verificationToken', '=', verificationToken)
             .executeTakeFirst()
+
+          if ((result?.numUpdatedRows ?? 0n) === 0n) {
+            throw notFound()
+          }
         })
       )
     )

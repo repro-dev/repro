@@ -1,6 +1,7 @@
 import { EmailMessage } from '@repro/email'
 import { randomString } from '@repro/random-string'
 import { FastifyInstance, FastifyPluginAsync } from 'fastify'
+import { resolve } from 'fluture'
 import { sql } from 'kysely'
 import { Env, createEnv } from '~/config/createEnv'
 import { createSessionDecorator } from '~/decorators/session'
@@ -17,7 +18,6 @@ import { createProjectService } from '~/services/project'
 import { createRecordingService } from '~/services/recording'
 import { createSocialAuthService } from '~/services/socialAuth'
 import { setUpTestDatabase } from './database'
-import { createCapturedSendEmail } from './email'
 import { loadFixtures } from './loadFixtures'
 import { setUpTestFileSystemStorage } from './storage'
 import { Fixture, FixtureArrayToValues, Services } from './types'
@@ -53,7 +53,10 @@ export async function createTestHarness(
   const { storage, close: closeStorage } = await setUpTestFileSystemStorage()
 
   const emailLog: Array<EmailMessage> = []
-  const sendEmail = options.sendEmail ?? createCapturedSendEmail(emailLog)
+  const sendEmail = (message: EmailMessage) => {
+    emailLog.push(message)
+    return options.sendEmail ? options.sendEmail(message) : resolve(undefined)
+  }
 
   function generateRandomEmailAddress() {
     return randomString(10).toLowerCase() + '@repro.test'

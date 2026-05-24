@@ -19,6 +19,7 @@ import { defaultEnv as env } from '~/config/env'
 import { defaultSystemConfig } from '~/config/system'
 import {
   emailFromAddress,
+  sendEmailInBackground,
   sendEmail as sendEmailMessage,
 } from '~/modules/email'
 import { AccountService } from '~/services/account'
@@ -184,21 +185,26 @@ export function createAccountRouter(
                 accountService
                   .createInvitation(account.id, req.body.email)
                   .pipe(
-                    chain(invitation =>
-                      sendEmail({
-                        to: invitation.email,
-                        from: emailFromAddress,
-                        ...invitationEmail({
-                          invitationUrl: createInvitationUrl(
-                            env.REPRO_APP_URL,
-                            invitation.email,
-                            invitation.token
-                          ),
-                          workspaceName: account.name,
-                          inviterName: user.name,
-                        }),
-                      }).pipe(map(() => invitation))
-                    )
+                    map(invitation => {
+                      sendEmailInBackground(
+                        {
+                          to: invitation.email,
+                          from: emailFromAddress,
+                          ...invitationEmail({
+                            invitationUrl: createInvitationUrl(
+                              env.REPRO_APP_URL,
+                              invitation.email,
+                              invitation.token
+                            ),
+                            workspaceName: account.name,
+                            inviterName: user.name,
+                          }),
+                        },
+                        sendEmail
+                      )
+
+                      return invitation
+                    })
                   )
               )
             )
@@ -341,13 +347,14 @@ export function createAccountRouter(
         // to prevent account enumeration attacks.
         respondWith(
           res,
-          accountService
-            .getUserByEmail(req.body.email)
-            .pipe(
-              chain(user =>
-                accountService.createPasswordResetToken(user.id).pipe(
-                  chain(token =>
-                    sendEmail({
+          accountService.getUserByEmail(req.body.email).pipe(
+            bichain<Error, Error, null>(error =>
+              isNotFound(error) ? resolve(null) : reject(error)
+            )(user =>
+              accountService.createPasswordResetToken(user.id).pipe(
+                map(token => {
+                  sendEmailInBackground(
+                    {
                       to: user.email,
                       from: emailFromAddress,
                       ...passwordResetEmail({
@@ -357,14 +364,15 @@ export function createAccountRouter(
                         ),
                         userName: user.name,
                       }),
-                    }).pipe(map(() => null))
+                    },
+                    sendEmail
                   )
-                )
+
+                  return null
+                })
               )
             )
-            // Always collapse to 204 so password-reset remains non-enumerable,
-            // even when email delivery fails.
-            .pipe(chainRej(() => resolve(null)))
+          )
         )
       }
     )
