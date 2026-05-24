@@ -37,6 +37,9 @@ const positiveIntegerStringTransform = z.preprocess(val => {
 }, z.number().int().min(1))
 
 const envSchema = z.object({
+  NODE_ENV: z
+    .enum(['development', 'test', 'production'])
+    .default('development'),
   HOST: z.string().default('localhost'),
   PORT: numericStringTransform.default(8080),
   DB_HOST: z.string().default('localhost'),

@@ -30,9 +30,13 @@ export const noopLogger: ApiLogger = {
   child: () => noopLogger,
 }
 
-export function createFastifyLoggerOptions() {
+export function createFastifyLoggerOptions({
+  nodeEnv = 'development',
+}: {
+  nodeEnv?: 'development' | 'test' | 'production'
+} = {}) {
   return {
-    level: process.env.NODE_ENV === 'test' ? 'silent' : 'info',
+    level: nodeEnv === 'test' ? 'silent' : 'info',
     redact: [
       'req.headers.authorization',
       'req.headers.cookie',

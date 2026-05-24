@@ -150,7 +150,14 @@ export function createAccountRouter(
               req.body.password
             )
 
-            yield accountService.sendVerificationEmail(user.id)
+            yield accountService.sendVerificationEmail(user.id, {
+              logger: req.log,
+              context: {
+                ...createRequestLogContext(req),
+                accountId: account.id,
+                targetUserId: user.id,
+              },
+            })
 
             yield req.createSession(user)
 
@@ -512,9 +519,17 @@ export function createAccountRouter(
     app.post('/me/send-verification', (req, res) => {
       respondWith(
         res,
-        req
-          .getCurrentUser()
-          .pipe(chain(user => accountService.sendVerificationEmail(user.id)))
+        req.getCurrentUser().pipe(
+          chain(user =>
+            accountService.sendVerificationEmail(user.id, {
+              logger: req.log,
+              context: {
+                ...createRequestLogContext(req),
+                targetUserId: user.id,
+              },
+            })
+          )
+        )
       )
     })
   }

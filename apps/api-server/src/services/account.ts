@@ -59,6 +59,11 @@ import {
 const DUMMY_HASH =
   '$argon2id$v=19$m=4096,t=3,p=1$YWJjZDEyMzQ$MFRSPmdxZVyBvGi95RcZlo5PqmfJhLXYj8JZm8atFdY'
 
+type SendVerificationEmailOptions = {
+  logger?: ApiLogger
+  context?: Record<string, unknown>
+}
+
 function createToken(): string {
   return randomBytes(32).toString('base64url')
 }
@@ -944,7 +949,10 @@ export function createAccountService(
     })
   }
 
-  function sendVerificationEmail(userId: string): FutureInstance<Error, void> {
+  function sendVerificationEmail(
+    userId: string,
+    options: SendVerificationEmailOptions = {}
+  ): FutureInstance<Error, void> {
     const result = attemptQuery(async () => {
       return database
         .selectFrom('users')
@@ -970,10 +978,11 @@ export function createAccountService(
           },
           sendEmail,
           {
-            logger,
+            logger: options.logger ?? logger,
             emailKind: 'verification',
             context: {
               targetUserId: userId,
+              ...options.context,
             },
           }
         )

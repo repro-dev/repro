@@ -111,7 +111,7 @@ function createGoogleProvider(callbackPath: string) {
 async function bootstrap() {
   const app = fastify({
     bodyLimit: 16777216, // 16MiB
-    logger: createFastifyLoggerOptions(),
+    logger: createFastifyLoggerOptions({ nodeEnv: env.NODE_ENV }),
     disableRequestLogging: true,
     // Trust the portless reverse proxy so that secure:'auto' on the session
     // cookie evaluates to true (portless terminates TLS and forwards over HTTP).
@@ -123,8 +123,7 @@ async function bootstrap() {
   app.addContentTypeParser('*', async () => {})
 
   app.register(cors, {
-    origin:
-      process.env.NODE_ENV === 'production' ? 'https://app.repro.dev' : true,
+    origin: env.NODE_ENV === 'production' ? 'https://app.repro.dev' : true,
     credentials: true,
   })
 
@@ -132,7 +131,7 @@ async function bootstrap() {
 
   app.register(
     helmet,
-    buildHelmetOptions({ isProduction: process.env.NODE_ENV === 'production' })
+    buildHelmetOptions({ isProduction: env.NODE_ENV === 'production' })
   )
 
   // Wire up the module-level Redis client for distributed rate limiting.

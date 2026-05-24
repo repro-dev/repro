@@ -8,7 +8,7 @@ import {
 
 describe('Modules > logger', () => {
   it('creates JSON logger options with sensitive request fields redacted', () => {
-    const options = createFastifyLoggerOptions()
+    const options = createFastifyLoggerOptions({ nodeEnv: 'production' })
 
     expect(options).toMatchObject({
       level: 'info',
@@ -23,6 +23,12 @@ describe('Modules > logger', () => {
         'req.body.secret',
       ]),
     })
+  })
+
+  it('derives test-mode logger silence from validated config input', () => {
+    const options = createFastifyLoggerOptions({ nodeEnv: 'test' })
+
+    expect(options.level).toEqual('silent')
   })
 
   it('extracts safe request correlation metadata without unsafe fields', () => {
