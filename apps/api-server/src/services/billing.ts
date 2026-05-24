@@ -8,6 +8,7 @@ import {
   createStubPaddleClient,
 } from '~/modules/billing'
 import { Database, attemptQuery, decodeId, encodeId } from '~/modules/database'
+import { ApiLogger, noopLogger } from '~/modules/logger'
 import {
   BillingEntitlementService,
   createBillingEntitlementService,
@@ -149,7 +150,8 @@ function asBillingSubscription(row: {
 export function createBillingService(
   database: Database,
   env: Env,
-  injectedPaddleClient?: PaddleClient
+  injectedPaddleClient?: PaddleClient,
+  logger: ApiLogger = noopLogger
 ) {
   let paddleClient: PaddleClient | null = injectedPaddleClient ?? null
 
@@ -414,9 +416,13 @@ export function createBillingService(
         // Graceful degradation: if the free plan hasn't been seeded yet, log a
         // warning and continue rather than failing account creation.
         chainRej(err => {
-          console.warn(
-            '[billing] provisionFreeSubscription: could not provision free subscription',
-            err
+          logger.warn(
+            {
+              err,
+              event: 'billing.free_subscription_provision_failed',
+              accountId,
+            },
+            'Free subscription provisioning failed'
           )
           return resolve(undefined)
         })

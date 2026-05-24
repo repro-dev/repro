@@ -22,6 +22,7 @@ import {
   sendEmailInBackground,
   sendEmail as sendEmailMessage,
 } from '~/modules/email'
+import { createRequestLogContext } from '~/modules/logger'
 import { AccountService } from '~/services/account'
 import { isNotFound, notAuthenticated, resourceConflict } from '~/utils/errors'
 import { getCurrentUserAccount } from '~/utils/request'
@@ -200,7 +201,17 @@ export function createAccountRouter(
                             inviterName: user.name,
                           }),
                         },
-                        sendEmail
+                        sendEmail,
+                        {
+                          logger: req.log,
+                          emailKind: 'invitation',
+                          context: {
+                            ...createRequestLogContext(req),
+                            accountId: account.id,
+                            actorUserId: user.id,
+                            invitationId: invitation.id,
+                          },
+                        }
                       )
 
                       return invitation
@@ -365,7 +376,15 @@ export function createAccountRouter(
                         userName: user.name,
                       }),
                     },
-                    sendEmail
+                    sendEmail,
+                    {
+                      logger: req.log,
+                      emailKind: 'password_reset',
+                      context: {
+                        ...createRequestLogContext(req),
+                        targetUserId: user.id,
+                      },
+                    }
                   )
 
                   return null

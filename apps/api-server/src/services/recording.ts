@@ -17,6 +17,7 @@ import {
   decodeId,
   withEncodedId,
 } from '~/modules/database'
+import { ApiLogger, noopLogger } from '~/modules/logger'
 import { Storage } from '~/modules/storage'
 import {
   badRequest,
@@ -26,7 +27,11 @@ import {
   resourceConflict,
 } from '~/utils/errors'
 
-export function createRecordingService(database: Database, storage: Storage) {
+export function createRecordingService(
+  database: Database,
+  storage: Storage,
+  logger: ApiLogger = noopLogger
+) {
   function ensureIsPublicRecording(
     recordingId: string
   ): FutureInstance<Error, void> {
@@ -355,22 +360,34 @@ export function createRecordingService(database: Database, storage: Storage) {
       // Best-effort storage cleanup — absorb errors per-blob so a single
       // failure does not cancel sibling deletes or reject the outer Future.
       const bestEffort = (
-        fut: FutureInstance<Error, void>
+        fut: FutureInstance<Error, void>,
+        blobKey: string
       ): FutureInstance<never, void> =>
         fut.pipe(
           bichain<Error, never, void>(error => {
-            console.error(
-              `[deleteRecording] Failed to delete storage blob for recording ${recordingId}:`,
-              error
+            logger.warn(
+              {
+                err: error,
+                event: 'recording.storage_cleanup_failed',
+                recordingId,
+                blobKey,
+              },
+              'Recording storage cleanup failed'
             )
             return resolve(undefined)
           })(resolve)
         )
 
       const storageFutures: Array<FutureInstance<never, void>> = [
-        bestEffort(storage.delete(`${recordingId}/data`)),
+        bestEffort(
+          storage.delete(`${recordingId}/data`),
+          `${recordingId}/data`
+        ),
         ...resourceRows.map(row =>
-          bestEffort(storage.delete(`${recordingId}/resources/${row.value}`))
+          bestEffort(
+            storage.delete(`${recordingId}/resources/${row.value}`),
+            `${recordingId}/resources/${row.value}`
+          )
         ),
       ]
 

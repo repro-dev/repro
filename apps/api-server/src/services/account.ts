@@ -42,6 +42,7 @@ import {
   sendEmailInBackground,
   sendEmail as sendEmailMessage,
 } from '~/modules/email'
+import { ApiLogger, noopLogger } from '~/modules/logger'
 import { BillingService } from '~/services/billing'
 import { getSessionPolicy } from '~/services/sessionPolicy'
 import {
@@ -72,7 +73,8 @@ export function createAccountService(
   database: Database,
   sendEmail: typeof sendEmailMessage,
   billingService?: BillingService,
-  _config: SystemConfig = defaultSystemConfig
+  _config: SystemConfig = defaultSystemConfig,
+  logger: ApiLogger = noopLogger
 ) {
   function ensureStaffUser(
     user: User | StaffUser | null
@@ -966,7 +968,14 @@ export function createAccountService(
               userName: name,
             }),
           },
-          sendEmail
+          sendEmail,
+          {
+            logger,
+            emailKind: 'verification',
+            context: {
+              targetUserId: userId,
+            },
+          }
         )
 
         return resolve(undefined)

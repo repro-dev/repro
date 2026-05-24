@@ -15,6 +15,10 @@ import { createSessionDecorator } from '~/decorators/session'
 import { createPaddleClient } from '~/modules/billing'
 import { createPostgresDatabaseClient } from '~/modules/database/database-postgres'
 import { sendEmail } from '~/modules/email'
+import {
+  createFastifyLoggerOptions,
+  registerRequestLoggingHooks,
+} from '~/modules/logger'
 import { createRedisClient, RedisClient } from '~/modules/redis'
 import { createS3StorageClient } from '~/modules/storage-s3'
 import { createAccountRouter } from '~/routers/account'
@@ -70,173 +74,45 @@ const redisClient: RedisClient | null = env.RATE_LIMIT_REDIS_URL
   ? createRedisClient({ url: env.RATE_LIMIT_REDIS_URL })
   : null
 
-const billingService = createBillingService(database, env)
-const accountService = createAccountService(database, sendEmail, billingService)
-const agenticService = createAgenticService(database, httpClient)
-const oauthService = createOAuthService(database)
-const apiKeyService = createApiKeyService(database)
-const featureGateService = createFeatureGateService(database)
-const healthService = createHealthService(
-  database,
-  storage,
-  redisClient ?? undefined
-)
-const projectService = createProjectService(database)
-const recordingService = createRecordingService(database, storage)
-const socialAuthService = createSocialAuthService(database)
-
-// Build the Google OAuth provider only when credentials are configured.
-// Falls back to undefined so the router can omit the google provider entry
-// in environments without credentials (e.g. local dev without .env).
-const googleProvider =
-  env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
-    ? (() => {
-        const arctic = new Google(
-          env.GOOGLE_CLIENT_ID,
-          env.GOOGLE_CLIENT_SECRET,
-          `${env.REPRO_API_URL}/account/oauth/google/callback`
-        )
-        return {
-          createAuthorizationURL: (state: string, codeVerifier: string) =>
-            arctic.createAuthorizationURL(state, codeVerifier, [
-              'openid',
-              'email',
-              'profile',
-            ]),
-          validateAuthorizationCode: (code: string, codeVerifier: string) =>
-            arctic.validateAuthorizationCode(code, codeVerifier),
-          fetchUserInfo: async (accessToken: string) => {
-            const resp = await fetch(
-              'https://openidconnect.googleapis.com/v1/userinfo',
-              { headers: { Authorization: `Bearer ${accessToken}` } }
-            )
-            return resp.json() as Promise<{
-              sub: string
-              email: string
-              name: string
-            }>
-          },
-        }
-      })()
-    : null
-
-const socialAuthRouter = createSocialAuthRouter(
-  accountService,
-  socialAuthService,
-  env,
-  // Only include google when credentials are available
-  googleProvider ? { google: googleProvider } : {}
-)
-
-const accountRouter = createAccountRouter(accountService, sendEmail)
-const agenticRouter = createAgenticRouter(
-  agenticService,
-  accountService,
-  undefined,
-  {
-    agenticRateLimitPerHour: env.AGENTIC_RATE_LIMIT_PER_HOUR,
-    agenticMaxMessagesPerRecording: env.AGENTIC_MAX_MESSAGES_PER_RECORDING,
+function createGoogleProvider(callbackPath: string) {
+  if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
+    return null
   }
-)
-const apiKeysRouter = createApiKeysRouter(apiKeyService, accountService)
-const billingRouter = createBillingRouter(billingService, accountService, env)
-const billingWebhookRouter =
-  !env.BILLING_STUBBED && env.PADDLE_API_KEY && env.PADDLE_WEBHOOK_SECRET
-    ? createBillingWebhookRouter(
-        createBillingWebhookService(
-          database,
-          billingService,
-          createPaddleClient({
-            apiKey: env.PADDLE_API_KEY,
-            environment: env.PADDLE_ENVIRONMENT,
-            webhookSecret: env.PADDLE_WEBHOOK_SECRET,
-          })
-        )
+
+  const arctic = new Google(
+    env.GOOGLE_CLIENT_ID,
+    env.GOOGLE_CLIENT_SECRET,
+    `${env.REPRO_API_URL}${callbackPath}`
+  )
+
+  return {
+    createAuthorizationURL: (state: string, codeVerifier: string) =>
+      arctic.createAuthorizationURL(state, codeVerifier, [
+        'openid',
+        'email',
+        'profile',
+      ]),
+    validateAuthorizationCode: (code: string, codeVerifier: string) =>
+      arctic.validateAuthorizationCode(code, codeVerifier),
+    fetchUserInfo: async (accessToken: string) => {
+      const resp = await fetch(
+        'https://openidconnect.googleapis.com/v1/userinfo',
+        { headers: { Authorization: `Bearer ${accessToken}` } }
       )
-    : null
-const featureGateRouter = createFeatureGateRouter(
-  featureGateService,
-  accountService,
-  billingService,
-  env
-)
-const healthRouter = createHealthRouter(healthService)
-const oauthRouter = createOAuthRouter(oauthService, accountService)
-const projectRouter = createProjectRouter(
-  projectService,
-  recordingService,
-  accountService
-)
-const staffRouter = createStaffRouter(accountService, projectService)
-
-// Build the Google OAuth provider for staff login (same credentials, different callback URL).
-const staffGoogleProvider =
-  env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
-    ? (() => {
-        const arctic = new Google(
-          env.GOOGLE_CLIENT_ID,
-          env.GOOGLE_CLIENT_SECRET,
-          `${env.REPRO_API_URL}/staff/oauth/google/callback`
-        )
-        return {
-          createAuthorizationURL: (state: string, codeVerifier: string) =>
-            arctic.createAuthorizationURL(state, codeVerifier, [
-              'openid',
-              'email',
-              'profile',
-            ]),
-          validateAuthorizationCode: (code: string, codeVerifier: string) =>
-            arctic.validateAuthorizationCode(code, codeVerifier),
-          fetchUserInfo: async (accessToken: string) => {
-            const resp = await fetch(
-              'https://openidconnect.googleapis.com/v1/userinfo',
-              { headers: { Authorization: `Bearer ${accessToken}` } }
-            )
-            return resp.json() as Promise<{
-              sub: string
-              email: string
-              name: string
-            }>
-          },
-        }
-      })()
-    : null
-
-const staffOAuthRouter = createStaffOAuthRouter(
-  accountService,
-  env,
-  staffGoogleProvider ? { google: staffGoogleProvider } : {}
-)
-
-const registerSessionDecorator = createSessionDecorator(
-  accountService,
-  env,
-  apiKeyService
-)
-
-// Combine accountRouter, socialAuthRouter, and apiKeysRouter under the same
-// /account prefix. All are registered as sub-plugins so Fastify handles the
-// same-prefix registration correctly — an object literal cannot have duplicate keys.
-const accountPlugins: FastifyPluginAsync = async app => {
-  await app.register(accountRouter)
-  // Social auth routes (/oauth/:provider, /oauth/:provider/callback) are
-  // co-located under /account so the full paths become
-  // /account/oauth/:provider and /account/oauth/:provider/callback
-  await app.register(socialAuthRouter)
-  await app.register(apiKeysRouter)
+      return resp.json() as Promise<{
+        sub: string
+        email: string
+        name: string
+      }>
+    },
+  }
 }
 
-// Combine staffRouter and staffOAuthRouter under /staff so routes are
-// /staff/login, /staff/me, /staff/oauth/:provider, etc.
-const staffPlugins: FastifyPluginAsync = async app => {
-  await app.register(staffRouter)
-  await app.register(staffOAuthRouter)
-}
-
-async function bootstrap(routers: Record<string, FastifyPluginAsync>) {
+async function bootstrap() {
   const app = fastify({
     bodyLimit: 16777216, // 16MiB
-    logger: true,
+    logger: createFastifyLoggerOptions(),
+    disableRequestLogging: true,
     // Trust the portless reverse proxy so that secure:'auto' on the session
     // cookie evaluates to true (portless terminates TLS and forwards over HTTP).
     // Without this, SameSite=None cookies are sent without the Secure flag and
@@ -283,7 +159,118 @@ async function bootstrap(routers: Record<string, FastifyPluginAsync>) {
   app.setValidatorCompiler(validatorCompiler)
   app.setSerializerCompiler(serializerCompiler)
 
+  const billingService = createBillingService(database, env, undefined, app.log)
+  const accountService = createAccountService(
+    database,
+    sendEmail,
+    billingService,
+    undefined,
+    app.log
+  )
+  const agenticService = createAgenticService(database, httpClient)
+  const oauthService = createOAuthService(database)
+  const apiKeyService = createApiKeyService(database)
+  const featureGateService = createFeatureGateService(database)
+  const healthService = createHealthService(
+    database,
+    storage,
+    redisClient ?? undefined
+  )
+  const projectService = createProjectService(database)
+  const recordingService = createRecordingService(database, storage, app.log)
+  const socialAuthService = createSocialAuthService(database)
+
+  const googleProvider = createGoogleProvider('/account/oauth/google/callback')
+  const socialAuthRouter = createSocialAuthRouter(
+    accountService,
+    socialAuthService,
+    env,
+    googleProvider ? { google: googleProvider } : {}
+  )
+
+  const accountRouter = createAccountRouter(accountService, sendEmail)
+  const agenticRouter = createAgenticRouter(
+    agenticService,
+    accountService,
+    undefined,
+    {
+      agenticRateLimitPerHour: env.AGENTIC_RATE_LIMIT_PER_HOUR,
+      agenticMaxMessagesPerRecording: env.AGENTIC_MAX_MESSAGES_PER_RECORDING,
+    }
+  )
+  const apiKeysRouter = createApiKeysRouter(apiKeyService, accountService)
+  const billingRouter = createBillingRouter(billingService, accountService, env)
+  const billingWebhookRouter =
+    !env.BILLING_STUBBED && env.PADDLE_API_KEY && env.PADDLE_WEBHOOK_SECRET
+      ? createBillingWebhookRouter(
+          createBillingWebhookService(
+            database,
+            billingService,
+            createPaddleClient({
+              apiKey: env.PADDLE_API_KEY,
+              environment: env.PADDLE_ENVIRONMENT,
+              webhookSecret: env.PADDLE_WEBHOOK_SECRET,
+            })
+          )
+        )
+      : null
+  const featureGateRouter = createFeatureGateRouter(
+    featureGateService,
+    accountService,
+    billingService,
+    env
+  )
+  const healthRouter = createHealthRouter(healthService)
+  const oauthRouter = createOAuthRouter(oauthService, accountService)
+  const projectRouter = createProjectRouter(
+    projectService,
+    recordingService,
+    accountService
+  )
+  const staffRouter = createStaffRouter(accountService, projectService)
+
+  const staffGoogleProvider = createGoogleProvider(
+    '/staff/oauth/google/callback'
+  )
+  const staffOAuthRouter = createStaffOAuthRouter(
+    accountService,
+    env,
+    staffGoogleProvider ? { google: staffGoogleProvider } : {}
+  )
+
+  const registerSessionDecorator = createSessionDecorator(
+    accountService,
+    env,
+    apiKeyService
+  )
+
+  const accountPlugins: FastifyPluginAsync = async app => {
+    await app.register(accountRouter)
+    await app.register(socialAuthRouter)
+    await app.register(apiKeysRouter)
+  }
+
+  const staffPlugins: FastifyPluginAsync = async app => {
+    await app.register(staffRouter)
+    await app.register(staffOAuthRouter)
+  }
+
+  const routers: Record<string, FastifyPluginAsync> = {
+    '/account': accountPlugins,
+    '/agentic': agenticRouter,
+    '/billing': billingRouter,
+    ...(billingWebhookRouter
+      ? { '/billing/webhooks': billingWebhookRouter }
+      : {}),
+    '/feature-gates': featureGateRouter,
+    '/health': healthRouter,
+    '/oauth': oauthRouter,
+    '/projects': projectRouter,
+    '/staff': staffPlugins,
+  }
+
   registerSessionDecorator(app)
+  registerRequestLoggingHooks(app)
 
   for (const [path, callback] of Object.entries(routers)) {
     app.register(callback, { prefix: path })
@@ -322,16 +309,4 @@ async function bootstrap(routers: Record<string, FastifyPluginAsync>) {
   })
 }
 
-bootstrap({
-  '/account': accountPlugins,
-  '/agentic': agenticRouter,
-  '/billing': billingRouter,
-  ...(billingWebhookRouter
-    ? { '/billing/webhooks': billingWebhookRouter }
-    : {}),
-  '/feature-gates': featureGateRouter,
-  '/health': healthRouter,
-  '/oauth': oauthRouter,
-  '/projects': projectRouter,
-  '/staff': staffPlugins,
-})
+bootstrap()
