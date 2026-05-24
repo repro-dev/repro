@@ -172,9 +172,99 @@ describe('REP-642 tooling wiring', () => {
       ci,
       /e2e:[\s\S]*needs: \[build\][\s\S]*timeout-minutes: 10[\s\S]*if: \$\{\{ github\.event_name == 'pull_request' \|\| github\.ref == 'refs\/heads\/main' \}\}/
     )
+    const clusterStep = ci.indexOf('- name: Start local cluster', e2eJob)
+    const clusterStart = ci.indexOf('./bin/reproctl cluster up', e2eJob)
+    const workspaceStart = ci.indexOf(
+      './bin/reproctl start --wait --timeout 300s workspace',
+      e2eJob
+    )
+
     assert.match(ci, /Install Playwright Chromium/)
+
+    const ctlptlInstall = ci.indexOf('Install ctlptl', e2eJob)
+    assert.ok(clusterStart >= 0, 'expected e2e job to start the cluster')
+    assert.ok(clusterStep >= 0, 'expected e2e job cluster step to exist')
+    assert.ok(ctlptlInstall >= 0, 'expected e2e job to install ctlptl')
+    assert.ok(
+      ctlptlInstall < clusterStep,
+      'expected ctlptl install before cluster startup'
+    )
+    assert.match(ci.slice(ctlptlInstall, clusterStep), /mkdir -p tmp\/ci-bin/)
     assert.match(
-      ci,
+      ci.slice(ctlptlInstall, clusterStep),
+      /https:\/\/github\.com\/tilt-dev\/ctlptl\/releases\/download\/v0\.8\.43\/ctlptl\.0\.8\.43\.linux\.x86_64\.tar\.gz/
+    )
+    assert.match(
+      ci.slice(ctlptlInstall, clusterStep),
+      /46c7b0c53213a141ef0bae8838d50ad35461406b0e884a8b1387ed12a9e5da95/
+    )
+    assert.match(
+      ci.slice(ctlptlInstall, clusterStep),
+      /tmp\/ci-bin\/ctlptl version/
+    )
+    assert.match(
+      ci.slice(clusterStep, workspaceStart),
+      /PATH="\$PWD\/tmp\/ci-bin:\$PATH" \.\/bin\/reproctl cluster up/
+    )
+    const portlessInstall = ci.indexOf('Install portless', e2eJob)
+    assert.ok(portlessInstall >= 0, 'expected e2e job to install portless')
+    assert.ok(
+      portlessInstall < workspaceStart,
+      'expected portless install before workspace startup'
+    )
+    assert.match(
+      ci.slice(portlessInstall, workspaceStart),
+      /npm install --prefix tmp\/portless portless@0\.7/
+    )
+    assert.match(
+      ci.slice(portlessInstall, workspaceStart),
+      /tmp\/ci-bin\/portless --version/
+    )
+    assert.match(
+      ci.slice(portlessInstall, workspaceStart),
+      /tmp\/portless\/node_modules\/\.bin\/portless/
+    )
+    assert.ok(
+      workspaceStart >= 0,
+      'expected e2e job to start workspace services'
+    )
+    const diagnosticsStep = ci.indexOf(
+      '- name: Dump service diagnostics on failure',
+      e2eJob
+    )
+    const seedDatabase = ci.indexOf('- name: Seed the test database', e2eJob)
+
+    assert.ok(
+      diagnosticsStep >= 0,
+      'expected e2e job to dump service diagnostics on failure'
+    )
+    assert.ok(
+      workspaceStart < diagnosticsStep,
+      'expected diagnostics after workspace startup'
+    )
+    assert.ok(
+      diagnosticsStep < seedDatabase,
+      'expected diagnostics before database seeding'
+    )
+    assert.match(ci.slice(diagnosticsStep, seedDatabase), /if: failure\(\)/)
+    assert.match(
+      ci.slice(diagnosticsStep, seedDatabase),
+      /PATH="\$PWD\/tmp\/ci-bin:\$PATH" \.\/bin\/reproctl status/
+    )
+    assert.match(
+      ci.slice(diagnosticsStep, seedDatabase),
+      /PATH="\$PWD\/tmp\/ci-bin:\$PATH" \.\/bin\/reproctl logs -n 200/
+    )
+    assert.match(
+      ci.slice(diagnosticsStep, seedDatabase),
+      /kubectl get pods,svc,endpoints -A -o wide/
+    )
+    assert.ok(
+      clusterStart < workspaceStart,
+      'expected cluster startup before workspace services'
+    )
+    assert.match(
+      ci.slice(workspaceStart),
       /PATH="\$PWD\/tmp\/ci-bin:\$PATH" \.\/bin\/reproctl start --wait --timeout 300s workspace/
     )
     assert.match(ci, /\.\/bin\/reproctl db seed/)
@@ -183,6 +273,19 @@ describe('REP-642 tooling wiring', () => {
       /xvfb-run --auto-servernum pnpm exec playwright test --project chromium/
     )
     assert.match(ci, /Upload Playwright artifacts on failure/)
+  })
+
+  it('keeps ctlptl on the proto asdf tool pin', () => {
+    const prototools = readText('.prototools')
+
+    assert.match(prototools, /^"asdf:ctlptl" = "0\.8\.43"$/m)
+    assert.doesNotMatch(prototools, /^ctlptl = "0\.8\.43"$/m)
+    assert.doesNotMatch(prototools, /^\[tools\.ctlptl\]$/m)
+    assert.doesNotMatch(
+      prototools,
+      /^ctlptl = "https:\/\/github\.com\/moonrepo\/plugins\/releases\/download\/asdf_backend-v0\.3\.3\/asdf_backend\.wasm"$/m
+    )
+    assert.doesNotMatch(prototools, /asdf-ctlptl/)
   })
 
   it('guards pre-commit against direct commits on main', () => {

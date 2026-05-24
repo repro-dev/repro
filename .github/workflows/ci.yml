@@ -187,8 +187,16 @@ jobs:
       - name: Install Playwright Chromium
         run: pnpm exec playwright install chromium
 
+      - name: Install ctlptl
+        run: |
+          mkdir -p tmp/ci-bin
+          curl -fsSL "https://github.com/tilt-dev/ctlptl/releases/download/v0.8.43/ctlptl.0.8.43.linux.x86_64.tar.gz" -o tmp/ctlptl.0.8.43.linux.x86_64.tar.gz
+          echo "46c7b0c53213a141ef0bae8838d50ad35461406b0e884a8b1387ed12a9e5da95  tmp/ctlptl.0.8.43.linux.x86_64.tar.gz" | sha256sum -c -
+          tar -xzf tmp/ctlptl.0.8.43.linux.x86_64.tar.gz -C tmp/ci-bin ctlptl
+          tmp/ci-bin/ctlptl version
+
       - name: Start local cluster
-        run: ./bin/reproctl cluster up
+        run: PATH="$PWD/tmp/ci-bin:$PATH" ./bin/reproctl cluster up
 
       - name: Start workspace services
         run: ./bin/reproctl start --wait --timeout 300s workspace

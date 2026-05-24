@@ -91,14 +91,17 @@ When a tool is installed elsewhere (e.g. in a Dockerfile, CI config, or setup sc
 
 **Current pinning locations:**
 
-| Tool    | `.prototools`      | Also installed in                                |
-| ------- | ------------------ | ------------------------------------------------ |
-| `moon`  | `moon = "2.2.5"`   | `infra/Dockerfile` (`@moonrepo/cli@2.2.5`)       |
-| `proto` | `proto = "0.57.2"` | `.moon/toolchains.yml` (`proto.version: 0.57.2`) |
-| `node`  | `node = "26.4.0"` | `infra/Dockerfile` (base image `node:26-slim`)   |
-| `pnpm`  | `pnpm = "10.17.0"` | —                                                |
+| Tool     | `.prototools`              | Also installed in                                                                                |
+| -------- | -------------------------- | ------------------------------------------------------------------------------------------------ |
+| `ctlptl` | `"asdf:ctlptl" = "0.8.43"` | `.github/workflows/ci.yml` E2E job downloads the official Linux x86_64 tarball into `tmp/ci-bin` |
+| `moon`   | `moon = "2.2.5"`           | `infra/Dockerfile` (`@moonrepo/cli@2.2.5`)                                                       |
+| `proto`  | `proto = "0.57.2"`         | `.moon/toolchains.yml` (`proto.version: 0.57.2`)                                                 |
+| `node`   | `node = "26.4.0"`          | `infra/Dockerfile` (base image `node:26-slim`)                                                   |
+| `pnpm`   | `pnpm = "10.17.0"`         | —                                                                                                |
 
 `.prototools` also pins a **moon_tool plugin override** (`[plugins.tools] moon = "...moon_tool-v0.4.1/moon_tool.wasm"`) required for Moon v2's archive distribution format. The built-in proto plugin doesn't support v2 yet.
+
+Keep `ctlptl` on the legacy top-level `"asdf:ctlptl"` pin. The Moonrepo asdf backend first-class tool wiring is not viable for ctlptl because a fresh proto install fails with `Script list-all not found`.
 
 When upgrading a tool version, update **all** pinning locations together.
 
