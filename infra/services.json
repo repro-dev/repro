@@ -25,6 +25,7 @@
     },
     "env_passthrough": [
       "OPENROUTER_API_KEY",
+      "RESEND_API_KEY",
       "GOOGLE_CLIENT_ID",
       "GOOGLE_CLIENT_SECRET"
     ],
@@ -56,9 +57,7 @@
       "REPRO_APP_URL": "https://app.repro.localhost:1355",
       "REPRO_API_URL": "https://api.repro.localhost:1355"
     },
-    "env_passthrough": [
-      "PADDLE_CLIENT_TOKEN"
-    ],
+    "env_passthrough": ["PADDLE_CLIENT_TOKEN"],
     "resource_deps": ["dependencies", "portless-proxy"],
     "labels": ["app"],
     "portless_name": "app.repro",

@@ -1,12 +1,14 @@
+import { EmailMessage } from '@repro/email'
 import { randomString } from '@repro/random-string'
 import { FastifyInstance, FastifyPluginAsync } from 'fastify'
+import { resolve } from 'fluture'
 import { sql } from 'kysely'
 import { Env, createEnv } from '~/config/createEnv'
 import { createSessionDecorator } from '~/decorators/session'
 import { createStubPaddleClient } from '~/modules/billing'
 import type { UpdateSubscriptionParams } from '~/modules/billing/stubPaddleClient'
 import { Database } from '~/modules/database'
-import { SendParams, createStubEmailUtils } from '~/modules/email-utils'
+import { sendEmail as defaultSendEmail } from '~/modules/email'
 import { Storage } from '~/modules/storage'
 import { createAccountService } from '~/services/account'
 import { createBillingService } from '~/services/billing'
@@ -25,12 +27,13 @@ export interface Harness {
   db: Database
   storage: Storage
   env: Env
+  sendEmail: typeof defaultSendEmail
   services: Services
   getLastUpdateSubscriptionParams(): UpdateSubscriptionParams | null
+  getSentEmails(): Array<EmailMessage>
 
   bootstrap(router: FastifyPluginAsync): FastifyInstance
   generateRandomEmailAddress(): string
-  // expectEmailToHaveBeenSent(params: SendParams): void
   loadFixtures<T extends Array<Fixture<unknown>>>(
     fixtures: [...T]
   ): Promise<FixtureArrayToValues<T>>
@@ -39,14 +42,21 @@ export interface Harness {
   close(): Promise<void>
 }
 
-export async function createTestHarness(): Promise<Harness> {
+export async function createTestHarness(
+  options: {
+    sendEmail?: typeof defaultSendEmail
+  } = {}
+): Promise<Harness> {
   const env = createEnv()
 
   const { db, close: closeDb } = await setUpTestDatabase()
   const { storage, close: closeStorage } = await setUpTestFileSystemStorage()
 
-  const emailLog: Array<SendParams> = []
-  const emailUtils = createStubEmailUtils(emailLog)
+  const emailLog: Array<EmailMessage> = []
+  const sendEmail = (message: EmailMessage) => {
+    emailLog.push(message)
+    return options.sendEmail ? options.sendEmail(message) : resolve(undefined)
+  }
 
   function generateRandomEmailAddress() {
     return randomString(10).toLowerCase() + '@repro.test'
@@ -54,7 +64,7 @@ export async function createTestHarness(): Promise<Harness> {
 
   const stubPaddleClient = createStubPaddleClient(db)
   const billingService = createBillingService(db, env, stubPaddleClient)
-  const accountService = createAccountService(db, emailUtils, billingService)
+  const accountService = createAccountService(db, sendEmail, billingService)
   const featureGateService = createFeatureGateService(db)
   const oauthService = createOAuthService(db)
   const projectService = createProjectService(db)
@@ -84,9 +94,9 @@ export async function createTestHarness(): Promise<Harness> {
     fixtures: [...T]
   ) => Promise<FixtureArrayToValues<T>>
 
-  // function expectEmailToHaveBeenSent(params: SendParams) {
-  //   return
-  // }
+  function getSentEmails() {
+    return [...emailLog]
+  }
 
   async function reset() {
     // Truncate all tables in the current schema
@@ -112,14 +122,15 @@ export async function createTestHarness(): Promise<Harness> {
   return {
     env,
     db,
+    sendEmail,
     services,
     storage,
 
     bootstrap,
-    // expectEmailToHaveBeenSent,
     generateRandomEmailAddress,
     getLastUpdateSubscriptionParams:
       stubPaddleClient.getLastUpdateSubscriptionParams,
+    getSentEmails,
     loadFixtures: curriedLoadFixtures,
 
     reset,

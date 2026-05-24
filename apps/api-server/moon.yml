@@ -10,10 +10,6 @@ tasks:
     command: pnpm run start
     deps:
       - ^:build
-  start-mailpit:
-    command: mailpit
-    toolchain: system
-    preset: server
   dev:
     command: pnpm run dev-watch
     deps:
