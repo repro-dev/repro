@@ -41,6 +41,8 @@ describe('Services > Account', () => {
         .executeTakeFirstOrThrow()
         .then(row => row.verificationToken)
 
+      expect(verificationToken).not.toEqual('')
+
       const verificationUrl = new URL(
         '/account/verify',
         harness.env.REPRO_APP_URL
@@ -56,7 +58,9 @@ describe('Services > Account', () => {
         from: 'noreply@repro.dev',
         subject: 'Verify your Repro email address',
       })
-      expect(message?.html).toContain(verificationUrl.toString())
+      expect(message?.html).toContain(
+        verificationUrl.toString().replaceAll('&', '&amp;')
+      )
     })
 
     it('should verify a user', async () => {

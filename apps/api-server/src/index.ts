@@ -14,7 +14,7 @@ import { defaultEnv as env } from '~/config/env'
 import { createSessionDecorator } from '~/decorators/session'
 import { createPaddleClient } from '~/modules/billing'
 import { createPostgresDatabaseClient } from '~/modules/database/database-postgres'
-import { transactionalEmailService } from '~/modules/email'
+import { sendEmail } from '~/modules/email'
 import { createRedisClient, RedisClient } from '~/modules/redis'
 import { createS3StorageClient } from '~/modules/storage-s3'
 import { createAccountRouter } from '~/routers/account'
@@ -71,11 +71,7 @@ const redisClient: RedisClient | null = env.RATE_LIMIT_REDIS_URL
   : null
 
 const billingService = createBillingService(database, env)
-const accountService = createAccountService(
-  database,
-  transactionalEmailService,
-  billingService
-)
+const accountService = createAccountService(database, sendEmail, billingService)
 const agenticService = createAgenticService(database, httpClient)
 const oauthService = createOAuthService(database)
 const apiKeyService = createApiKeyService(database)
@@ -132,10 +128,7 @@ const socialAuthRouter = createSocialAuthRouter(
   googleProvider ? { google: googleProvider } : {}
 )
 
-const accountRouter = createAccountRouter(
-  accountService,
-  transactionalEmailService
-)
+const accountRouter = createAccountRouter(accountService, sendEmail)
 const agenticRouter = createAgenticRouter(
   agenticService,
   accountService,

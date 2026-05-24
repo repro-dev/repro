@@ -149,4 +149,33 @@ describe('Routers > Account > Verification', () => {
       promise(context.accountService.getUserById(user.id))
     ).resolves.not.toMatchObject({ verified: true })
   })
+
+  it('should reject an empty verification token at the schema boundary', async () => {
+    const [user, session] = await context.harness.loadFixtures([
+      fixtures.account.UserA,
+      fixtures.account.UserA_Session,
+    ])
+
+    const res = await context.app.inject({
+      method: 'POST',
+      url: '/verify',
+      body: {
+        verificationToken: '',
+        email: 'user-a@example.com',
+      },
+      cookies: {
+        [context.harness.env.SESSION_COOKIE]: context.app.signCookie(
+          session.sessionToken
+        ),
+      },
+    })
+
+    expect(res.statusCode).toEqual(400)
+
+    await expect(
+      promise(context.accountService.getUserById(user.id))
+    ).resolves.toMatchObject({
+      verified: false,
+    })
+  })
 })

@@ -9,6 +9,7 @@ import {
   User,
   UserProfile,
 } from '@repro/domain'
+import { emailVerificationEmail } from '@repro/email'
 import { addMinutes } from 'date-fns'
 import {
   FutureInstance,
@@ -24,6 +25,7 @@ import {
 } from 'fluture'
 import { sql } from 'kysely'
 import { createHash, randomBytes } from 'node:crypto'
+import { defaultEnv as env } from '~/config/env'
 import { SystemConfig, defaultSystemConfig } from '~/config/system'
 import {
   Database,
@@ -35,7 +37,10 @@ import {
   encodeId,
   withEncodedId,
 } from '~/modules/database'
-import { TransactionalEmailService } from '~/modules/email'
+import {
+  emailFromAddress,
+  sendEmail as sendEmailMessage,
+} from '~/modules/email'
 import { BillingService } from '~/services/billing'
 import { getSessionPolicy } from '~/services/sessionPolicy'
 import {
@@ -64,7 +69,7 @@ function hashToken(token: string): string {
 
 export function createAccountService(
   database: Database,
-  emailService: TransactionalEmailService,
+  sendEmail: typeof sendEmailMessage,
   billingService?: BillingService,
   _config: SystemConfig = defaultSystemConfig
 ) {
@@ -773,7 +778,7 @@ export function createAccountService(
               email,
               password: await argon2.hash(password),
               accountId: decodedAccountId,
-              verificationToken: '',
+              verificationToken: createToken(),
             })
             .returning(['id', 'name', 'email', 'verified', 'admin'])
             .executeTakeFirstOrThrow()
@@ -947,11 +952,23 @@ export function createAccountService(
 
     return result.pipe(
       chain(({ email, name, verificationToken }) =>
-        emailService.sendVerificationEmail({
-          email,
-          userName: name,
-          verificationToken,
-        })
+        (() => {
+          const verificationUrl = new URL('/account/verify', env.REPRO_APP_URL)
+          verificationUrl.searchParams.set(
+            'verificationToken',
+            verificationToken
+          )
+          verificationUrl.searchParams.set('email', email)
+
+          return sendEmail({
+            to: email,
+            from: emailFromAddress,
+            ...emailVerificationEmail({
+              verificationUrl: verificationUrl.toString(),
+              userName: name,
+            }),
+          })
+        })()
       )
     )
   }

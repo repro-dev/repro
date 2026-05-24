@@ -1,5 +1,5 @@
 import expect from 'expect'
-import { promise } from 'fluture'
+import { promise, reject } from 'fluture'
 import { after, before, beforeEach, describe, it } from 'node:test'
 import { decodeId } from '~/modules/database'
 import { fixtures } from '~/testing'
@@ -78,6 +78,37 @@ describe('Routers > Account > Password reset', () => {
 
     expect(res.statusCode).toEqual(204)
     expect(context.harness.getSentEmails()).toHaveLength(0)
+  })
+
+  it('should still return 204 when sending the reset email fails', async () => {
+    const failingContext = await createAccountTestContext({
+      sendEmail: () => reject(new Error('unexpected send')),
+    })
+
+    try {
+      const [account] = await failingContext.harness.loadFixtures([
+        fixtures.account.AccountA,
+      ])
+
+      await promise(
+        failingContext.accountService.createUser(
+          account.id,
+          'John Smith',
+          'jsmith@example.com',
+          'hunter2!'
+        )
+      )
+
+      const res = await failingContext.app.inject({
+        method: 'POST',
+        url: '/reset-password',
+        body: { email: 'jsmith@example.com' },
+      })
+
+      expect(res.statusCode).toEqual(204)
+    } finally {
+      await failingContext.harness.close()
+    }
   })
 
   it('should confirm a valid token and update the password', async () => {

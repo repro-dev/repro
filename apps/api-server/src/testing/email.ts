@@ -1,9 +1,5 @@
 import { EmailMessage, EmailProvider } from '@repro/email'
 import { resolve } from 'fluture'
-import {
-  TransactionalEmailService,
-  createTransactionalEmailService,
-} from '~/modules/email'
 
 export function createCapturedEmailProvider(
   log: Array<EmailMessage>
@@ -16,14 +12,10 @@ export function createCapturedEmailProvider(
   }
 }
 
-export function createCapturedTransactionalEmailService(
-  log: Array<EmailMessage>,
-  baseUrl: string,
-  fromAddress: string
-): TransactionalEmailService {
-  return createTransactionalEmailService(
-    createCapturedEmailProvider(log),
-    baseUrl,
-    fromAddress
-  )
+export function createCapturedSendEmail(log: Array<EmailMessage>) {
+  return createCapturedEmailProvider(log).send
+}
+
+export function getCapturedEmailLog(log: Array<EmailMessage>) {
+  return [...log]
 }

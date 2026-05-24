@@ -1,6 +1,7 @@
 import { unsign } from '@fastify/cookie'
 import { FastifyInstance } from 'fastify'
 import { promise } from 'fluture'
+import { sendEmail as defaultSendEmail } from '~/modules/email'
 import { AccountService } from '~/services/account'
 import { Harness, createTestHarness } from '~/testing'
 import { createAccountRouter } from './account'
@@ -13,25 +14,22 @@ export type AccountTestContext = {
 
 export async function createAccountTestContext({
   prefix,
+  sendEmail,
 }: {
   prefix?: string
+  sendEmail?: typeof defaultSendEmail
 } = {}): Promise<AccountTestContext> {
-  const harness = await createTestHarness()
+  const harness = await createTestHarness({ sendEmail })
   const accountService = harness.services.accountService
   const app = harness.bootstrap(async app => {
     if (prefix == null) {
-      await app.register(
-        createAccountRouter(accountService, harness.emailService)
-      )
+      await app.register(createAccountRouter(accountService, harness.sendEmail))
       return
     }
 
-    await app.register(
-      createAccountRouter(accountService, harness.emailService),
-      {
-        prefix,
-      }
-    )
+    await app.register(createAccountRouter(accountService, harness.sendEmail), {
+      prefix,
+    })
   })
 
   await app.ready()

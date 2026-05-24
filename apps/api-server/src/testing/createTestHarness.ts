@@ -7,7 +7,7 @@ import { createSessionDecorator } from '~/decorators/session'
 import { createStubPaddleClient } from '~/modules/billing'
 import type { UpdateSubscriptionParams } from '~/modules/billing/stubPaddleClient'
 import { Database } from '~/modules/database'
-import { TransactionalEmailService } from '~/modules/email'
+import { sendEmail as defaultSendEmail } from '~/modules/email'
 import { Storage } from '~/modules/storage'
 import { createAccountService } from '~/services/account'
 import { createBillingService } from '~/services/billing'
@@ -17,7 +17,7 @@ import { createProjectService } from '~/services/project'
 import { createRecordingService } from '~/services/recording'
 import { createSocialAuthService } from '~/services/socialAuth'
 import { setUpTestDatabase } from './database'
-import { createCapturedTransactionalEmailService } from './email'
+import { createCapturedSendEmail } from './email'
 import { loadFixtures } from './loadFixtures'
 import { setUpTestFileSystemStorage } from './storage'
 import { Fixture, FixtureArrayToValues, Services } from './types'
@@ -27,7 +27,7 @@ export interface Harness {
   db: Database
   storage: Storage
   env: Env
-  emailService: TransactionalEmailService
+  sendEmail: typeof defaultSendEmail
   services: Services
   getLastUpdateSubscriptionParams(): UpdateSubscriptionParams | null
   getSentEmails(): Array<EmailMessage>
@@ -42,18 +42,18 @@ export interface Harness {
   close(): Promise<void>
 }
 
-export async function createTestHarness(): Promise<Harness> {
+export async function createTestHarness(
+  options: {
+    sendEmail?: typeof defaultSendEmail
+  } = {}
+): Promise<Harness> {
   const env = createEnv()
 
   const { db, close: closeDb } = await setUpTestDatabase()
   const { storage, close: closeStorage } = await setUpTestFileSystemStorage()
 
   const emailLog: Array<EmailMessage> = []
-  const emailService = createCapturedTransactionalEmailService(
-    emailLog,
-    env.REPRO_APP_URL,
-    env.EMAIL_FROM_ADDRESS
-  )
+  const sendEmail = options.sendEmail ?? createCapturedSendEmail(emailLog)
 
   function generateRandomEmailAddress() {
     return randomString(10).toLowerCase() + '@repro.test'
@@ -61,7 +61,7 @@ export async function createTestHarness(): Promise<Harness> {
 
   const stubPaddleClient = createStubPaddleClient(db)
   const billingService = createBillingService(db, env, stubPaddleClient)
-  const accountService = createAccountService(db, emailService, billingService)
+  const accountService = createAccountService(db, sendEmail, billingService)
   const featureGateService = createFeatureGateService(db)
   const oauthService = createOAuthService(db)
   const projectService = createProjectService(db)
@@ -119,7 +119,7 @@ export async function createTestHarness(): Promise<Harness> {
   return {
     env,
     db,
-    emailService,
+    sendEmail,
     services,
     storage,
 

@@ -67,7 +67,9 @@ describe('Routers > Account > Invitations', () => {
       subject: `You're invited to join ${account.name} on Repro`,
     })
     expect(message?.text).toContain(`${adminUser.name} has invited you`)
-    expect(message?.html).toContain(invitationUrl.toString())
+    expect(message?.html).toContain(
+      invitationUrl.toString().replaceAll('&', '&amp;')
+    )
   })
 
   it.todo(

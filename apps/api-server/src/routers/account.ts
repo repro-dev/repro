@@ -1,4 +1,5 @@
 import { Account, User } from '@repro/domain'
+import { invitationEmail, passwordResetEmail } from '@repro/email'
 import { tapF } from '@repro/future-utils'
 import { FastifyPluginAsync } from 'fastify'
 import { ZodTypeProvider } from 'fastify-type-provider-zod'
@@ -14,8 +15,12 @@ import {
   resolve,
 } from 'fluture'
 import z from 'zod'
+import { defaultEnv as env } from '~/config/env'
 import { defaultSystemConfig } from '~/config/system'
-import { TransactionalEmailService } from '~/modules/email'
+import {
+  emailFromAddress,
+  sendEmail as sendEmailMessage,
+} from '~/modules/email'
 import { AccountService } from '~/services/account'
 import { isNotFound, notAuthenticated, resourceConflict } from '~/utils/errors'
 import { getCurrentUserAccount } from '~/utils/request'
@@ -54,7 +59,7 @@ const loginSchema = {
 
 const verifySchema = {
   body: z.object({
-    verificationToken: z.string(),
+    verificationToken: z.string().min(1),
     email: z.string().email(),
   }),
 } as const
@@ -80,10 +85,25 @@ const updateNameSchema = {
 
 export function createAccountRouter(
   accountService: AccountService,
-  emailService: TransactionalEmailService,
+  sendEmail: typeof sendEmailMessage,
   config = defaultSystemConfig
 ): FastifyPluginAsync {
   const { respondWith } = createResponseUtils(config)
+
+  function createPasswordResetUrl(baseUrl: string, resetToken: string) {
+    return new URL(`/account/reset-password/${resetToken}`, baseUrl).toString()
+  }
+
+  function createInvitationUrl(
+    baseUrl: string,
+    email: string,
+    invitationToken: string
+  ) {
+    const url = new URL('/account/accept-invitation', baseUrl)
+    url.searchParams.set('invitationToken', invitationToken)
+    url.searchParams.set('email', email)
+    return url.toString()
+  }
 
   function ensureUserDoesNotExist(email: string): FutureInstance<Error, void> {
     return accountService
@@ -164,13 +184,20 @@ export function createAccountRouter(
                 accountService
                   .createInvitation(account.id, req.body.email)
                   .pipe(
-                    tapF(invitation =>
-                      emailService.sendInvitationEmail({
-                        email: invitation.email,
-                        inviterName: user.name,
-                        invitationToken: invitation.token,
-                        workspaceName: account.name,
-                      })
+                    chain(invitation =>
+                      sendEmail({
+                        to: invitation.email,
+                        from: emailFromAddress,
+                        ...invitationEmail({
+                          invitationUrl: createInvitationUrl(
+                            env.REPRO_APP_URL,
+                            invitation.email,
+                            invitation.token
+                          ),
+                          workspaceName: account.name,
+                          inviterName: user.name,
+                        }),
+                      }).pipe(map(() => invitation))
                     )
                   )
               )
@@ -318,26 +345,26 @@ export function createAccountRouter(
             .getUserByEmail(req.body.email)
             .pipe(
               chain(user =>
-                accountService
-                  .createPasswordResetToken(user.id)
-                  .pipe(
-                    tapF(token =>
-                      emailService.sendPasswordResetEmail({
-                        email: user.email,
-                        resetToken: token,
+                accountService.createPasswordResetToken(user.id).pipe(
+                  chain(token =>
+                    sendEmail({
+                      to: user.email,
+                      from: emailFromAddress,
+                      ...passwordResetEmail({
+                        resetUrl: createPasswordResetUrl(
+                          env.REPRO_APP_URL,
+                          token
+                        ),
                         userName: user.name,
-                      })
-                    )
+                      }),
+                    }).pipe(map(() => null))
                   )
-                  .pipe(map(() => null))
+                )
               )
             )
-            // Swallow not-found so we don't leak account existence
-            .pipe(
-              chainRej(error =>
-                isNotFound(error) ? resolve(null) : reject(error)
-              )
-            )
+            // Always collapse to 204 so password-reset remains non-enumerable,
+            // even when email delivery fails.
+            .pipe(chainRej(() => resolve(null)))
         )
       }
     )
