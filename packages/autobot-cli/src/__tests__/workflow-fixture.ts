@@ -100,6 +100,8 @@ type WorkflowStoreOptions = {
   currentRuns?: Partial<Record<string, WorkflowRunRecord | null>>;
   workers?: WorkflowWorkerRecord[];
   artifacts?: Partial<Record<string, ArtifactRecord[]>>;
+  flowcraftEvents?: Array<Record<string, unknown>>;
+  domainEvents?: Array<Record<string, unknown>>;
 };
 
 function createItemRecord(input: WorkflowItemRecord): WorkflowItemRecord {
@@ -183,8 +185,12 @@ function createDefaultWorkflowItems(): WorkflowItemRecord[] {
 export function makeWorkflowStore(options: WorkflowStoreOptions = {}) {
   const runUpserts: Array<Record<string, unknown>> = [];
   const executionRecords: Array<Record<string, unknown>> = [];
-  const flowcraftEvents: Array<Record<string, unknown>> = [];
-  const domainEvents: Array<Record<string, unknown>> = [];
+  const flowcraftEvents: Array<Record<string, unknown>> = [
+    ...(options.flowcraftEvents ?? []),
+  ];
+  const domainEvents: Array<Record<string, unknown>> = [
+    ...(options.domainEvents ?? []),
+  ];
   const artifactRecords: Array<Record<string, unknown>> = [];
   const artifactLookups: string[] = [];
   const itemUpserts: Array<Record<string, unknown>> = [];
@@ -407,6 +413,20 @@ export function makeWorkflowStore(options: WorkflowStoreOptions = {}) {
       },
       list(issueId?: string, options?: Record<string, unknown>) {
         domainEventLookups.push({ issueId, options });
+        const recordedEvents = domainEvents.filter(
+          (event) =>
+            (issueId === undefined || event.issue_id === issueId) &&
+            (typeof options?.runId !== "string" ||
+              event.run_id === options.runId) &&
+            (typeof options?.typePrefix !== "string" ||
+              (typeof event.type === "string" &&
+                event.type.startsWith(options.typePrefix))),
+        );
+
+        if (recordedEvents.length > 0) {
+          return resolve([...recordedEvents]);
+        }
+
         return resolve([
           issueId === "REP-1156"
             ? {
@@ -647,6 +667,13 @@ export function makeWorkflowStore(options: WorkflowStoreOptions = {}) {
       },
       getExecution(executionId: string) {
         flowcraftGetLookups.push(executionId);
+        const recordedExecution = [...executionRecords]
+          .reverse()
+          .find((execution) => execution.execution_id === executionId);
+        if (recordedExecution !== undefined) {
+          return resolve({ ...recordedExecution });
+        }
+
         return resolve(
           executionId === "exec-1154"
             ? {
@@ -887,13 +914,29 @@ export function makeWorkflowStore(options: WorkflowStoreOptions = {}) {
         );
       },
       listExecutions() {
-        return resolve([]);
+        return resolve([...executionRecords]);
       },
       recordEvent(input: Record<string, unknown>) {
+        if (
+          flowcraftEvents.some(
+            (event) => event.flowcraft_event_id === input.flowcraft_event_id,
+          )
+        ) {
+          throw new Error(
+            `duplicate flowcraft event ${String(input.flowcraft_event_id)}`,
+          );
+        }
         flowcraftEvents.push(input);
         return resolve(input);
       },
       listEvents(executionId: string) {
+        const recordedEvents = flowcraftEvents.filter(
+          (event) => event.execution_id === executionId,
+        );
+        if (recordedEvents.length > 0) {
+          return resolve([...recordedEvents]);
+        }
+
         return resolve(
           executionId === "exec-1154"
             ? [

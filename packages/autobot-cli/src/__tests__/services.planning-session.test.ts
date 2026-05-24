@@ -221,9 +221,9 @@ test("supervisor run-once passes durable planning artifact paths into opencode",
     )?.occurred_at,
     "2026-05-15T12:00:00.003Z",
   );
-  assert.equal(fixture.executionRecords.length, 1);
+  assert.equal(fixture.executionRecords.length, 3);
   assert.equal(
-    fixture.executionRecords[0]?.finished_at,
+    fixture.executionRecords.at(-1)?.finished_at,
     "2026-05-15T12:00:02.001Z",
   );
   assert.equal(fixture.flowcraftEvents.length > 0, true);
@@ -300,7 +300,7 @@ test("supervisor run-once rejects empty required run-plan sections before flowcr
     writes.some((write) => write.path.endsWith("/run-plan.md")),
     false,
   );
-  assert.equal(fixture.executionRecords.length, 1);
+  assert.equal(fixture.executionRecords.length, 3);
   assert.ok(fixture.flowcraftEvents.length > 0);
   assert.equal(fixture.itemUpserts.at(-1)?.state, "failed");
   assert.equal(
@@ -377,7 +377,7 @@ test("supervisor run-once preserves non-ready run plans without flowcraft comple
     writes.some((write) => write.path.endsWith("/run-plan.md")),
     false,
   );
-  assert.equal(fixture.executionRecords.length, 1);
+  assert.equal(fixture.executionRecords.length, 3);
   assert.ok(fixture.flowcraftEvents.length > 0);
   assert.equal(
     fixture.itemUpserts.some((item) => item.state === "preparing"),
@@ -452,7 +452,7 @@ test("supervisor run-once records planner failure without flowcraft completion",
   )) as AutobotCommandResult;
 
   assert.equal(result.kind, "supervisor-status");
-  assert.equal(fixture.executionRecords.length, 1);
+  assert.equal(fixture.executionRecords.length, 3);
   assert.ok(fixture.flowcraftEvents.length > 0);
   assert.ok(
     fixture.flowcraftEvents.some(
