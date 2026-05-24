@@ -221,7 +221,7 @@ jobs:
         run: ./bin/reproctl db seed
 
       - name: Run Playwright E2E tests
-        run: pnpm exec playwright test --project chromium
+        run: xvfb-run --auto-servernum pnpm exec playwright test --project chromium
 
       - name: Upload Playwright artifacts on failure
         if: failure()
