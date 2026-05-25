@@ -203,6 +203,13 @@ function commandOutputFromError(error: unknown): RunCommandOutput {
   };
 }
 
+function isDirenvStatusAllowed(stdout: string): boolean {
+  const status = JSON.parse(stdout) as {
+    state?: { foundRC?: { allowed?: unknown } };
+  };
+  return status.state?.foundRC?.allowed === 0;
+}
+
 export function setupAutobotWorkspace(
   input: WorkspaceSetupInput,
   dependencies: WorkspaceSetupDependencies = {},
@@ -236,10 +243,10 @@ export function setupAutobotWorkspace(
           runCommand({
             cwd: input.repoRoot,
             command: "direnv",
-            args: ["status"],
+            args: ["status", "--json"],
           }),
         )
-          .then(() => true)
+          .then((output) => isDirenvStatusAllowed(output.stdout))
           .catch(() => false);
       }));
   const attemptRoot = path.join(

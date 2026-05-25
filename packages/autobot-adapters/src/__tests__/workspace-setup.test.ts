@@ -90,6 +90,35 @@ test("setupAutobotWorkspace skips direnv when prerequisites are unavailable", as
   assert.ok(!commands.includes("direnv allow"));
 });
 
+test("setupAutobotWorkspace skips direnv when the main checkout is not trusted", async () => {
+  const commands: string[] = [];
+
+  const result = await runFuture(
+    setupAutobotWorkspace(input, {
+      pathExists: () => resolve(true),
+      copyFile: () => resolve(undefined),
+      mkdir: () => resolve(undefined),
+      writeFile: () => resolve(undefined),
+      runCommand(command) {
+        commands.push([command.command, ...command.args].join(" "));
+        if (command.cwd === input.repoRoot && command.command === "direnv") {
+          return resolve({
+            stdout: JSON.stringify({ state: { foundRC: { allowed: 1 } } }),
+            stderr: "",
+          });
+        }
+
+        return resolve({ stdout: "ok", stderr: "" });
+      },
+    }),
+  );
+
+  const direnvStep = result.steps.find((step) => step.name === "direnv");
+  assert.equal(direnvStep?.status, "skipped");
+  assert.ok(commands.includes("direnv status --json"));
+  assert.ok(!commands.includes("direnv allow"));
+});
+
 test("setupAutobotWorkspace surfaces bootstrap recovery commands and partial results", async () => {
   await assert.rejects(
     runFuture(
