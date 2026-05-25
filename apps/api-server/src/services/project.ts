@@ -3,6 +3,7 @@ import {
   Project,
   ProjectRole,
   RecordingInfo,
+  StaffAccountProject,
   UserProjectMembership,
 } from '@repro/domain'
 import {
@@ -14,6 +15,7 @@ import {
   reject,
   resolve,
 } from 'fluture'
+import { sql } from 'kysely'
 import { SystemConfig, defaultSystemConfig } from '~/config/system'
 import {
   Database,
@@ -183,6 +185,46 @@ export function createProjectService(
     )
   }
 
+  function listProjectsForAccount(
+    accountId: string
+  ): FutureInstance<Error, Array<StaffAccountProject>> {
+    const decodedAccountId = decodeId(accountId)
+
+    if (decodedAccountId == null) {
+      return reject(badRequest('Invalid account ID'))
+    }
+
+    return attemptQuery(() =>
+      database
+        .selectFrom('projects as p')
+        .leftJoin('project_recordings as pr', 'pr.projectId', 'p.id')
+        .select([
+          'p.id as id',
+          'p.name as name',
+          'p.active as active',
+          'p.createdAt as createdAt',
+          sql<number>`count(distinct pr."recordingId")::int`.as(
+            'recordingCount'
+          ),
+        ])
+        .where('p.accountId', '=', decodedAccountId)
+        .groupBy(['p.id', 'p.name', 'p.active', 'p.createdAt'])
+        .orderBy('p.createdAt desc')
+        .orderBy('p.id desc')
+        .execute()
+    ).pipe(
+      map(rows =>
+        rows.map(row => ({
+          id: encodeId(row.id),
+          name: row.name,
+          active: row.active,
+          createdAt: row.createdAt.toISOString(),
+          recordingCount: row.recordingCount,
+        }))
+      )
+    )
+  }
+
   function getProjectMembers(
     projectId: string
   ): FutureInstance<Error, Array<{ userId: string; role: ProjectRole }>> {
@@ -322,6 +364,7 @@ export function createProjectService(
     getUserProjects,
     getUserProjectsWithRoles,
     getRecordingsForProject,
+    listProjectsForAccount,
     getAccountForProject,
     getProjectMembers,
 

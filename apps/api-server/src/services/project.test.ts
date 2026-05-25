@@ -182,6 +182,39 @@ describe('Services > Project', () => {
     expect(recordings).toEqual(expect.arrayContaining([recordingA, recordingB]))
   })
 
+  it('should list account projects with active status and recording counts', async () => {
+    const [account, projectWithRecordings] = await harness.loadFixtures([
+      fixtures.account.AccountA,
+      fixtures.project.ProjectA_Multiple_Recordings,
+    ])
+    const inactiveProject = await promise(
+      projectService.createProject(account.id, 'Archived Project')
+    )
+    await promise(projectService.deactivateProject(inactiveProject.id))
+
+    const projects = await promise(
+      projectService.listProjectsForAccount(account.id)
+    )
+
+    expect(projects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: projectWithRecordings.id,
+          name: 'Project A',
+          active: true,
+          createdAt: expect.any(String),
+          recordingCount: 2,
+        }),
+        expect.objectContaining({
+          id: inactiveProject.id,
+          name: 'Archived Project',
+          active: false,
+          recordingCount: 0,
+        }),
+      ])
+    )
+  })
+
   it('should throw not-found when getting a project that does not exist', async () => {
     await expect(
       promise(projectService.getProjectById(encodeId(999)))

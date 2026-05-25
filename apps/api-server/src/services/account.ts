@@ -1,9 +1,13 @@
 import * as argon2 from '@node-rs/argon2'
 import {
   Account,
+  AccountPlanTier,
   AccountSettingsSummary,
   Invitation,
   Session,
+  StaffAccountDetail,
+  StaffAccountListItem,
+  StaffAccountPrimaryUser,
   StaffUser,
   StaffUserDetail,
   User,
@@ -570,22 +574,181 @@ export function createAccountService(
   type AccountListQueryOptions = {
     cursor?: string
     limit?: number
-    order?: 'asc' | 'desc'
+    search?: string
+    planTier?: AccountPlanTier
+  }
+
+  type AccountListRow = {
+    id: number
+    name: string
+    active: boolean
+    createdAt: Date
+  }
+
+  async function getPrimaryUserForAccount(
+    accountId: number
+  ): Promise<StaffAccountPrimaryUser | null> {
+    const user = await database
+      .selectFrom('users')
+      .select(['id', 'name', 'email', 'verified', 'admin', 'active'])
+      .where('accountId', '=', accountId)
+      .orderBy('createdAt asc')
+      .orderBy('id asc')
+      .executeTakeFirst()
+
+    return user == null
+      ? null
+      : {
+          id: encodeId(user.id),
+          name: user.name,
+          email: user.email,
+          verified: user.verified,
+          admin: user.admin,
+          active: user.active,
+        }
+  }
+
+  async function getLatestSubscriptionForAccount(accountId: number) {
+    return database
+      .selectFrom('billing_subscriptions as bs')
+      .innerJoin('billing_plans as bp', 'bp.id', 'bs.planId')
+      .select(['bp.name as planName', 'bs.status as subscriptionStatus'])
+      .where('bs.accountId', '=', accountId)
+      .orderBy('bs.createdAt desc')
+      .orderBy('bs.id desc')
+      .executeTakeFirst()
+  }
+
+  async function getAccountCounts(accountId: number) {
+    const [users, projects, recordings] = await Promise.all([
+      database
+        .selectFrom('users')
+        .select(sql<number>`count(*)::int`.as('count'))
+        .where('accountId', '=', accountId)
+        .executeTakeFirstOrThrow(),
+      database
+        .selectFrom('projects')
+        .select(sql<number>`count(*)::int`.as('count'))
+        .where('accountId', '=', accountId)
+        .executeTakeFirstOrThrow(),
+      database
+        .selectFrom('projects as p')
+        .innerJoin('project_recordings as pr', 'pr.projectId', 'p.id')
+        .select(sql<number>`count(distinct pr."recordingId")::int`.as('count'))
+        .where('p.accountId', '=', accountId)
+        .executeTakeFirstOrThrow(),
+    ])
+
+    return {
+      userCount: users.count,
+      projectCount: projects.count,
+      recordingCount: recordings.count,
+    }
+  }
+
+  async function toStaffAccountListItem(
+    account: AccountListRow
+  ): Promise<StaffAccountListItem> {
+    const [primaryUser, subscription, counts] = await Promise.all([
+      getPrimaryUserForAccount(account.id),
+      getLatestSubscriptionForAccount(account.id),
+      getAccountCounts(account.id),
+    ])
+
+    return {
+      id: encodeId(account.id),
+      name: account.name,
+      active: account.active,
+      createdAt: account.createdAt.toISOString(),
+      primaryEmail: primaryUser?.email ?? null,
+      planName: subscription?.planName ?? null,
+      subscriptionStatus: subscription?.subscriptionStatus ?? null,
+      recordingCount: counts.recordingCount,
+      userCount: counts.userCount,
+      projectCount: counts.projectCount,
+      lastActiveAt: null,
+    }
   }
 
   function buildAccountListQuery({
     cursor,
     limit = 50,
-    order = 'asc',
+    search,
+    planTier,
   }: AccountListQueryOptions = {}) {
+    const decodedCursor = cursor == null ? null : decodeId(cursor)
+
+    if (cursor != null && decodedCursor == null) {
+      throw badRequest('Invalid account cursor')
+    }
+
+    const decodedSearchAccountId = search == null ? null : decodeId(search)
+    const normalizedSearch = search?.trim().toLowerCase()
+
     let query = database
       .selectFrom('accounts')
-      .select(['id', 'name'])
-      .orderBy(`id ${order}`)
+      .select(['id', 'name', 'active', 'createdAt'])
+      .orderBy('createdAt desc')
+      .orderBy('id desc')
       .limit(limit + 1)
 
-    if (cursor != null) {
-      query = query.where('id', order === 'asc' ? '>' : '<', decodeId(cursor))
+    if (decodedCursor != null) {
+      query = query.where(eb =>
+        eb.or([
+          eb(
+            'createdAt',
+            '<',
+            eb
+              .selectFrom('accounts as cursorAccount')
+              .select('cursorAccount.createdAt')
+              .where('cursorAccount.id', '=', decodedCursor)
+          ),
+          eb.and([
+            eb(
+              'createdAt',
+              '=',
+              eb
+                .selectFrom('accounts as cursorAccount')
+                .select('cursorAccount.createdAt')
+                .where('cursorAccount.id', '=', decodedCursor)
+            ),
+            eb('id', '<', decodedCursor),
+          ]),
+        ])
+      )
+    }
+
+    if (normalizedSearch) {
+      query = query.where(eb => {
+        const emailMatches = eb.exists(
+          eb
+            .selectFrom('users as searchUsers')
+            .select('searchUsers.id')
+            .whereRef('searchUsers.accountId', '=', 'accounts.id')
+            .where('searchUsers.email', 'ilike', `%${normalizedSearch}%`)
+        )
+
+        return decodedSearchAccountId == null
+          ? emailMatches
+          : eb.or([eb('id', '=', decodedSearchAccountId), emailMatches])
+      })
+    }
+
+    if (planTier != null) {
+      query = query.where(eb =>
+        eb.exists(
+          eb
+            .selectFrom('billing_subscriptions as filterSubscriptions')
+            .innerJoin(
+              'billing_plans as filterPlans',
+              'filterPlans.id',
+              'filterSubscriptions.planId'
+            )
+            .select('filterSubscriptions.id')
+            .whereRef('filterSubscriptions.accountId', '=', 'accounts.id')
+            .where('filterPlans.name', '=', planTier)
+        )
+      )
     }
 
     return query
@@ -594,22 +757,53 @@ export function createAccountService(
   function listAccounts({
     cursor,
     limit = 50,
-    order = 'asc',
+    search,
+    planTier,
   }: AccountListQueryOptions = {}): FutureInstance<
     Error,
-    { items: Array<Account>; nextCursor?: string }
+    { items: Array<StaffAccountListItem>; nextCursor?: string }
   > {
-    return attemptQuery(() =>
-      buildAccountListQuery({ cursor, limit, order }).execute()
-    ).pipe(
-      map(rows => {
-        const hasMore = rows.length > limit
-        const pageRows = hasMore ? rows.slice(0, limit) : rows
-        const items = pageRows.map(withEncodedId)
-        const nextCursor = hasMore ? items[items.length - 1]?.id : undefined
-        return { items, nextCursor }
-      })
-    )
+    return attemptQuery(async () => {
+      const rows = await buildAccountListQuery({
+        cursor,
+        limit,
+        search,
+        planTier,
+      }).execute()
+      const hasMore = rows.length > limit
+      const pageRows = hasMore ? rows.slice(0, limit) : rows
+      const items = await Promise.all(pageRows.map(toStaffAccountListItem))
+      const nextCursor = hasMore ? items[items.length - 1]?.id : undefined
+      return { items, nextCursor }
+    })
+  }
+
+  function getStaffAccountDetail(
+    accountId: string
+  ): FutureInstance<Error, StaffAccountDetail> {
+    const decodedAccountId = decodeId(accountId)
+
+    if (decodedAccountId == null) {
+      return reject(badRequest('Invalid account ID'))
+    }
+
+    return attemptQuery(async () => {
+      const account = await database
+        .selectFrom('accounts')
+        .select(['id', 'name', 'active', 'createdAt'])
+        .where('id', '=', decodedAccountId)
+        .executeTakeFirstOrThrow(() => notFound())
+
+      const [listItem, primaryUser] = await Promise.all([
+        toStaffAccountListItem(account),
+        getPrimaryUserForAccount(decodedAccountId),
+      ])
+
+      return {
+        ...listItem,
+        primaryUser,
+      }
+    })
   }
 
   function listUsersForAccount(
@@ -639,7 +833,6 @@ export function createAccountService(
           'createdAt',
         ])
         .where('accountId', '=', decodeId(accountId))
-        .where('active', '=', true)
         .orderBy('id asc')
         .limit(limit + 1)
 
@@ -1401,6 +1594,7 @@ export function createAccountService(
     getAccountForInvitation,
     getAccountSettingsSummary,
     listAccounts,
+    getStaffAccountDetail,
     listUsersForAccount,
 
     // Invitations

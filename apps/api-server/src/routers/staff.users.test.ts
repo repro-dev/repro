@@ -88,7 +88,7 @@ describe('Routers > Staff', () => {
           'password1'
         )
       )
-      await promise(
+      const inactiveUser = await promise(
         accountService.createUser(
           (account as Account).id,
           'User Two',
@@ -96,6 +96,7 @@ describe('Routers > Staff', () => {
           'password2'
         )
       )
+      await promise(accountService.deactivateUser(inactiveUser.id))
 
       const res = await app.inject({
         method: 'GET',
@@ -115,6 +116,15 @@ describe('Routers > Staff', () => {
         name: expect.any(String),
         email: expect.any(String),
       })
+      expect(body.items).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: inactiveUser.id,
+            name: 'User Two',
+            active: false,
+          }),
+        ])
+      )
     })
 
     it('should respect limit and return nextCursor when more users exist', async () => {

@@ -38,6 +38,43 @@ export interface AccountSettingsSummary {
   additionalProjectCount: number
 }
 
+export type AccountPlanTier = 'Free' | 'Repro+' | 'Repro++'
+
+export interface StaffAccountPrimaryUser {
+  id: string
+  name: string
+  email: string
+  verified: boolean
+  admin: boolean
+  active: boolean
+}
+
+export interface StaffAccountListItem {
+  id: string
+  name: string
+  createdAt: string
+  active: boolean
+  primaryEmail: string | null
+  planName: string | null
+  subscriptionStatus: string | null
+  recordingCount: number
+  userCount: number
+  projectCount: number
+  lastActiveAt: string | null
+}
+
+export interface StaffAccountDetail extends StaffAccountListItem {
+  primaryUser: StaffAccountPrimaryUser | null
+}
+
+export interface StaffAccountProject {
+  id: string
+  name: string
+  active: boolean
+  createdAt: string
+  recordingCount: number
+}
+
 // Staff-facing view of a user — includes email for administrative purposes
 export interface StaffUserDetail {
   type: 'user'

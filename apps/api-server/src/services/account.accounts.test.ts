@@ -111,7 +111,7 @@ describe('Services > Account', () => {
       ).rejects.toThrow(notFound())
     })
 
-    it('should list accounts in 50-item pages with stable cursor boundaries', async () => {
+    it('should list accounts newest first in 50-item pages with stable cursor boundaries', async () => {
       // Accounts are not deleted between tests in this suite, so we need to
       // prefix the names to ensure we assert over the correct set of accounts.
       const prefix = randomString()
@@ -127,14 +127,14 @@ describe('Services > Account', () => {
 
       expect(firstPage.items).toHaveLength(50)
       expect(firstPage.items[0]).toMatchObject({
-        id: createdAccounts[0]?.id,
-        name: `${prefix} 0`,
+        id: createdAccounts[50]?.id,
+        name: `${prefix} 50`,
       })
       expect(firstPage.items[49]).toMatchObject({
-        id: createdAccounts[49]?.id,
-        name: `${prefix} 49`,
+        id: createdAccounts[1]?.id,
+        name: `${prefix} 1`,
       })
-      expect(firstPage.nextCursor).toEqual(createdAccounts[49]?.id)
+      expect(firstPage.nextCursor).toEqual(createdAccounts[1]?.id)
 
       const secondPage = await promise(
         accountService.listAccounts({ cursor: firstPage.nextCursor })
@@ -142,10 +142,121 @@ describe('Services > Account', () => {
 
       expect(secondPage.items).toHaveLength(1)
       expect(secondPage.items[0]).toMatchObject({
-        id: createdAccounts[50]?.id,
-        name: `${prefix} 50`,
+        id: createdAccounts[0]?.id,
+        name: `${prefix} 0`,
       })
       expect(secondPage.nextCursor).toBeUndefined()
+    })
+
+    it('should filter enriched account rows by email, account ID, and plan tier', async () => {
+      const [freePlan, proPlan] = await harness.loadFixtures([
+        fixtures.billing.FreePlan,
+        fixtures.billing.ProPlan,
+      ])
+      const freeAccount = await promise(
+        accountService.createAccount('Free Ops')
+      )
+      const proAccount = await promise(accountService.createAccount('Pro Ops'))
+
+      await promise(
+        billingService.createCheckoutSession(
+          freeAccount.id,
+          'owner-free@example.com',
+          freePlan.id
+        )
+      )
+      await promise(
+        billingService.createCheckoutSession(
+          proAccount.id,
+          'owner-pro@example.com',
+          proPlan.id
+        )
+      )
+      await promise(
+        accountService.createUser(
+          freeAccount.id,
+          'Free Owner',
+          'owner-free@example.com',
+          'password1'
+        )
+      )
+      await promise(
+        accountService.createUser(
+          proAccount.id,
+          'Pro Owner',
+          'owner-pro@example.com',
+          'password1'
+        )
+      )
+
+      const byEmail = await promise(
+        accountService.listAccounts({ search: 'OWNER-PRO@example.com' })
+      )
+      expect(byEmail.items).toHaveLength(1)
+      expect(byEmail.items[0]).toMatchObject({
+        id: proAccount.id,
+        primaryEmail: 'owner-pro@example.com',
+        planName: 'Repro+',
+        subscriptionStatus: 'active',
+        lastActiveAt: null,
+        recordingCount: 0,
+        userCount: 1,
+        projectCount: 0,
+      })
+
+      const byId = await promise(
+        accountService.listAccounts({ search: freeAccount.id })
+      )
+      expect(byId.items).toHaveLength(1)
+      expect(byId.items[0]?.id).toEqual(freeAccount.id)
+
+      const byPlan = await promise(
+        accountService.listAccounts({ planTier: 'Repro+' })
+      )
+      expect(byPlan.items.map(item => item.id)).toEqual([proAccount.id])
+    })
+
+    it('should return staff account detail with primary user and counts', async () => {
+      const [proPlan] = await harness.loadFixtures([fixtures.billing.ProPlan])
+      const account = await promise(accountService.createAccount('Detail Ops'))
+      await promise(
+        billingService.createCheckoutSession(
+          account.id,
+          'detail-owner@example.com',
+          proPlan.id
+        )
+      )
+      const user = await promise(
+        accountService.createUser(
+          account.id,
+          'Detail Owner',
+          'detail-owner@example.com',
+          'password1'
+        )
+      )
+      await promise(projectService.createProject(account.id, 'Detail Project'))
+
+      await expect(
+        promise(accountService.getStaffAccountDetail(account.id))
+      ).resolves.toMatchObject({
+        id: account.id,
+        name: 'Detail Ops',
+        active: true,
+        createdAt: expect.any(String),
+        primaryEmail: 'detail-owner@example.com',
+        planName: 'Repro+',
+        subscriptionStatus: 'active',
+        userCount: 1,
+        projectCount: 1,
+        recordingCount: 0,
+        lastActiveAt: null,
+        primaryUser: {
+          id: user.id,
+          name: 'Detail Owner',
+          email: 'detail-owner@example.com',
+          active: true,
+        },
+      })
     })
 
     it('should update an account name', async () => {
