@@ -39,15 +39,35 @@ interface Tool {
   }
 }
 
+interface AgenticServiceOptions {
+  modelId?: string
+}
+
+function getReasoningOptionsForModel(modelId: string) {
+  if (!modelId.startsWith('openai/')) {
+    return {}
+  }
+
+  return {
+    reasoning: {
+      effort: 'medium' as const,
+      exclude: true as const,
+    },
+  }
+}
+
 export function createAgenticService(
   database: Database,
-  httpClient: HttpClient
+  httpClient: HttpClient,
+  options: AgenticServiceOptions = {}
 ) {
   function getStreamingResponse(
     messages: Array<ChatContextMessage>,
     tools: Array<Tool>,
     toolChoice?: string
   ) {
+    const modelId = options.modelId ?? AGENTIC_DEFAULT_MODEL
+
     return httpClient.request({
       method: 'POST',
       origin: 'https://openrouter.ai',
@@ -59,17 +79,12 @@ export function createAgenticService(
       },
 
       body: JSON.stringify({
-        model: AGENTIC_DEFAULT_MODEL,
+        model: modelId,
         stream: true,
         tool_choice: toolChoice ?? 'auto',
         tools,
         messages,
-        // `reasoning.effort` is only supported by OpenAI models (o1/o3/GPT-5
-        // series). When the model is configurable this guard must be preserved.
-        reasoning: {
-          effort: 'medium',
-          exclude: true,
-        },
+        ...getReasoningOptionsForModel(modelId),
       }),
     })
   }
