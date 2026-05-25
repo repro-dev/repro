@@ -479,6 +479,104 @@ _wt_change_state() {
   # through to clean — they are always safe to purge without acknowledgement.
   echo "clean"
 }
+
+_wt_branch_issue_identifier() {
+  local branch="$1"
+  local issue
+  issue="$(printf '%s\n' "$branch" | sed -n 's/.*\([Rr][Ee][Pp]-[0-9][0-9]*\).*/\1/p' | sed -n '1p')"
+  if [ -z "$issue" ]; then
+    return 1
+  fi
+  printf '%s\n' "$issue" | tr '[:lower:]' '[:upper:]'
+}
+
+_wt_has_orchestration_artifacts() {
+  local wt_path="$1"
+  local artifact
+  for artifact in \
+    "$wt_path"/tmp/context-* \
+    "$wt_path"/tmp/test-plan-* \
+    "$wt_path"/tmp/plan-* \
+    "$wt_path"/tmp/ledger-* \
+    "$wt_path"/tmp/debug-* \
+    "$wt_path"/tmp/friction.md; do
+    if [ -e "$artifact" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+_wt_has_active_service_record() {
+  local wt_path="$1"
+  local basename slug active_services svc_names
+  basename="$(basename "$wt_path")"
+  slug="${basename#repro-wt-}"
+
+  if [ -z "$slug" ] || [ ! -f "$CONFIG_FILE" ] || ! command -v python3 >/dev/null 2>&1; then
+    return 1
+  fi
+
+  active_services="$(cat "$CONFIG_FILE")"
+  svc_names="$(python3 "$SCRIPTS_DIR/lib/py/worktree_services.py" "$active_services" "$slug" 2>/dev/null || true)"
+  [ -n "$svc_names" ]
+}
+
+_wt_issue_branch_is_active_or_unknown() {
+  local branch="$1"
+  local issue status_json status_type
+
+  issue="$(_wt_branch_issue_identifier "$branch")" || return 1
+
+  if ! command -v linear >/dev/null 2>&1; then
+    return 0
+  fi
+
+  status_json="$(linear issue show "$issue" --json 2>/dev/null)" || return 0
+  status_type="$(printf '%s' "$status_json" | python3 -c 'import json,sys
+try:
+    data=json.load(sys.stdin)
+    item=data.get("item", data)
+    status=(item.get("status") or {})
+    print(status.get("type", ""))
+except Exception:
+    sys.exit(1)
+' 2>/dev/null)" || return 0
+
+  case "$status_type" in
+    completed|canceled) return 1 ;;
+    *) return 0 ;;
+  esac
+}
+
+_wt_prune_protection_reason() {
+  local wt_path="$1"
+  local wt_branch="$2"
+  local issue
+
+  if _wt_issue_branch_is_active_or_unknown "$wt_branch"; then
+    issue="$(_wt_branch_issue_identifier "$wt_branch" 2>/dev/null || true)"
+    if [ -n "$issue" ]; then
+      printf 'issue %s is active or status is unknown\n' "$issue"
+    else
+      printf 'issue status is unknown\n'
+    fi
+    return 0
+  fi
+
+  if _wt_has_orchestration_artifacts "$wt_path"; then
+    printf 'worktree has /deliver orchestration artifacts under tmp/\n'
+    return 0
+  fi
+
+  if _wt_has_active_service_record "$wt_path"; then
+    printf 'worktree has active services\n'
+    return 0
+  fi
+
+  return 1
+}
+
 cmd_wt_remove() {
   local input="$1"
   local wt_path
@@ -587,7 +685,7 @@ cmd_wt_remove() {
   _cleanup_worktree_services "$wt_path"
 
   _step 1 2 "Removing git worktree..."
-  if [ "${WT_FORCE:-false}" = true ]; then
+  if [ "$_force_remove" = true ]; then
     git worktree remove --force "$wt_path" || return $?
   else
     git worktree remove "$wt_path" || return $?
@@ -616,6 +714,7 @@ cmd_wt_prune() {
   _step 2 2 "Scanning worktrees for merged branches..."
 
   local candidates=()
+  local protected=()
   local wt_path="" wt_branch="" wt_bare=false wt_detached=false
 
   _prune_flush() {
@@ -661,7 +760,13 @@ cmd_wt_prune() {
     fi
 
     if [ "$merged" = true ]; then
-      candidates+=("$wt_branch")
+      local protection_reason
+      protection_reason="$(_wt_prune_protection_reason "$wt_path" "$wt_branch")" || protection_reason=""
+      if [ -n "$protection_reason" ]; then
+        protected+=("$wt_branch — $protection_reason")
+      else
+        candidates+=("$wt_branch")
+      fi
     fi
 
     wt_path="" wt_branch="" wt_bare=false wt_detached=false
@@ -677,6 +782,14 @@ cmd_wt_prune() {
     esac
   done < <(git worktree list --porcelain)
   _prune_flush
+
+  if [ ${#protected[@]} -gt 0 ]; then
+    echo ""
+    echo "${CLR_BOLD}Worktrees protected from pruning:${CLR_RESET}"
+    for branch in "${protected[@]}"; do
+      echo "  ${CLR_DIM}•${CLR_RESET} $branch"
+    done
+  fi
 
   if [ ${#candidates[@]} -eq 0 ]; then
     echo ""
