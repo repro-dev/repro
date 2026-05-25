@@ -536,12 +536,6 @@ export function setupAutobotWorkspace(
         await runStep("dependencies", "pnpm", ["install", "--frozen-lockfile"]);
         await runStep("build", "moon", ["run", ":build"]);
 
-        const direnvStartedAt = now();
-        emit({
-          event: "step_started",
-          step: "direnv",
-          occurred_at: direnvStartedAt,
-        });
         const shouldRunDirenv =
           (await runFuture(
             pathExists(path.join(input.workspacePath, ".envrc")),
@@ -549,6 +543,12 @@ export function setupAutobotWorkspace(
         if (shouldRunDirenv) {
           await runStep("direnv", "direnv", ["allow"]);
         } else {
+          const direnvStartedAt = now();
+          emit({
+            event: "step_started",
+            step: "direnv",
+            occurred_at: direnvStartedAt,
+          });
           markSkipped(
             "direnv",
             "direnv prerequisites not met",

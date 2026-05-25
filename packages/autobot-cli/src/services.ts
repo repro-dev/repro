@@ -1670,7 +1670,7 @@ function reconcileCompletedPlanningWorker(input: {
         issue_id: input.item.issue_id,
         run_id: input.currentRun.run_id,
         execution_id: input.currentRun.flowcraft_execution_id!,
-        started_at: input.tickAt,
+        started_at: input.currentRun.started_at,
         finished_at: workflowFinishedAt,
         transport: null,
         dependencies: {

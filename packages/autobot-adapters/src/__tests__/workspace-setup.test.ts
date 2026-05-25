@@ -62,6 +62,10 @@ test("setupAutobotWorkspace runs setup commands in contract order without pnpm b
     ],
   );
   assert.ok(progress.includes("step_started:dependencies"));
+  assert.equal(
+    progress.filter((record) => record === "step_started:direnv").length,
+    1,
+  );
   assert.ok(progress.includes("succeeded:workspace-setup"));
 });
 
