@@ -6,6 +6,7 @@ import {
   type SelectionMode,
   type SortDirection,
 } from './TableContext'
+import type { TableDensity } from './tableDensity'
 
 export interface TableProps {
   children?: React.ReactNode
@@ -18,6 +19,7 @@ export interface TableProps {
   onSelectAll?: (selected: boolean) => void
   allRowIds?: readonly string[]
   stickyHeader?: boolean
+  density?: TableDensity
   'aria-label'?: string
   'aria-labelledby'?: string
 }
@@ -27,6 +29,8 @@ export interface TableProps {
  *
  * Supports controlled column sorting, row selection (single and multi-select),
  * empty and loading states, and horizontal scrolling on narrow viewports.
+ * Use `density="compact"` to tighten cell and header spacing for constrained
+ * surfaces while preserving the default spacing when density is omitted.
  *
  * Use `Table.Header`, `Table.Body`, `Table.Row`, `Table.Cell`, and
  * `Table.HeaderCell` to compose the full table structure.
@@ -58,6 +62,7 @@ export const Table = forwardRef<HTMLDivElement, TableProps>(
       onSelectAll,
       allRowIds = [],
       stickyHeader = false,
+      density = 'default',
       'aria-label': ariaLabel,
       'aria-labelledby': ariaLabelledby,
     },
@@ -75,6 +80,7 @@ export const Table = forwardRef<HTMLDivElement, TableProps>(
           onSelectAll: onSelectAll ?? null,
           allRowIds,
           stickyHeader,
+          density,
           isHeaderRow: false,
         }}
       >

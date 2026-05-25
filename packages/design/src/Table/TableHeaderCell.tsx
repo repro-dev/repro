@@ -5,6 +5,7 @@ import { color } from '../tokens/colors'
 import { spacing } from '../tokens/spacing'
 import { textStyles } from '../tokens/typography'
 import { useTableContext } from './TableContext'
+import { tableDensityPadding } from './tableDensity'
 
 export interface TableHeaderCellProps {
   children?: React.ReactNode
@@ -26,7 +27,8 @@ export const TableHeaderCell = forwardRef<
   HTMLTableCellElement,
   TableHeaderCellProps
 >(({ children, columnId, sortable = false, width, align = 'left' }, ref) => {
-  const { sortColumn, sortDirection, onSort } = useTableContext()
+  const { sortColumn, sortDirection, onSort, density } = useTableContext()
+  const padding = tableDensityPadding[density]
   const isCurrentSort = sortable && columnId != null && sortColumn === columnId
 
   // Determine aria-sort value
@@ -75,10 +77,7 @@ export const TableHeaderCell = forwardRef<
       onKeyDown={sortable ? handleKeyDown : undefined}
       tabIndex={sortable ? 0 : undefined}
       style={{
-        paddingTop: spacing.lg,
-        paddingBottom: spacing.lg,
-        paddingLeft: spacing.xl,
-        paddingRight: spacing.xl,
+        ...padding,
         textAlign: align,
         boxShadow: `inset 0 -1px 0 ${color.border.strong}`,
         cursor: sortable ? 'pointer' : 'default',

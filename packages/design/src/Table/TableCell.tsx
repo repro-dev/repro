@@ -1,7 +1,8 @@
 import React, { forwardRef } from 'react'
 import { color } from '../tokens/colors'
-import { spacing } from '../tokens/spacing'
 import { textStyles } from '../tokens/typography'
+import { useTableContext } from './TableContext'
+import { tableDensityPadding } from './tableDensity'
 
 export interface TableCellProps {
   children?: React.ReactNode
@@ -17,14 +18,14 @@ export interface TableCellProps {
  */
 export const TableCell = forwardRef<HTMLTableCellElement, TableCellProps>(
   ({ children, align = 'left', colSpan }, ref) => {
+    const { density } = useTableContext()
+    const padding = tableDensityPadding[density]
+
     return (
       <td
         ref={ref}
         style={{
-          paddingTop: spacing.lg,
-          paddingBottom: spacing.lg,
-          paddingLeft: spacing.xl,
-          paddingRight: spacing.xl,
+          ...padding,
           textAlign: align,
           verticalAlign: 'middle',
           color: color.text.default,

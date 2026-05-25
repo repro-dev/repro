@@ -1,4 +1,5 @@
 import { createContext, useContext } from 'react'
+import type { TableDensity } from './tableDensity'
 
 export type SortDirection = 'asc' | 'desc' | null
 export type SelectionMode = 'none' | 'single' | 'multi'
@@ -13,6 +14,7 @@ export interface TableContextValue {
   onSelectAll: ((selected: boolean) => void) | null
   allRowIds: readonly string[]
   stickyHeader: boolean
+  density: TableDensity
   /** True when the row is rendered inside <TableHeader> (<thead>). */
   isHeaderRow: boolean
 }
@@ -27,6 +29,7 @@ const defaultContext: TableContextValue = {
   onSelectAll: null,
   allRowIds: [],
   stickyHeader: false,
+  density: 'default',
   isHeaderRow: false,
 }
 
