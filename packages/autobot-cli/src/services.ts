@@ -4411,10 +4411,19 @@ function markPlanningFailure(
   tickAt: string,
   error: unknown,
 ): FutureInstance<unknown, void> {
-  const message =
-    error instanceof Error && error.message.length > 0
-      ? error.message
-      : "planning artifact generation failed";
+  let message = "planning artifact generation failed";
+  if (error instanceof Error && error.message.length > 0) {
+    message = error.message;
+  } else if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error
+  ) {
+    const structuredMessage = (error as { message?: unknown }).message;
+    if (typeof structuredMessage === "string" && structuredMessage.length > 0) {
+      message = structuredMessage;
+    }
+  }
   const failureEvent = createDomainEvent({
     type: "workflow.phase.failed",
     severity: "error",

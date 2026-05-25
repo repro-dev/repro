@@ -243,3 +243,42 @@ test("first tick prepares issue attempt directory before planning artifact write
     false,
   );
 });
+
+test("planning failure records message from structured plain-object errors", async () => {
+  const issueId = "REP-517";
+  const fixture = makeWorkflowStore({
+    items: [firstTickQueuedItem(issueId, "2026-05-15T09:00:00Z")],
+  });
+  const services = createAutobotServices({
+    prepareWorktree: () =>
+      resolve({
+        issue_id: issueId,
+        branch: `autobot/${issueId}`,
+        slug: issueId,
+        worktree_path: `/worktrees/autobot/.autobot/worktrees/${issueId}`,
+        archived_worktree_path: null,
+      }),
+    openStore: () => resolve(fixture.store as unknown as AutobotStore),
+    now: () => "2026-05-15T12:00:00Z",
+    randomId: () => "run-plain-object-error",
+    loadLinearIssue: () =>
+      Future((reject) => {
+        reject({
+          code: "AUTOBOT-LINEAR-ISSUE-LOAD-FAILED",
+          message: "AUTOBOT-LINEAR-ISSUE-LOAD-FAILED",
+        });
+        return () => undefined;
+      }),
+  });
+
+  await runFuture(
+    services.handleInvocation(makeInvocation(["supervisor", "run-once"])),
+  );
+
+  const lastError = fixture.itemUpserts.at(-1)?.last_error as
+    | { message?: string }
+    | null
+    | undefined;
+
+  assert.equal(lastError?.message, "AUTOBOT-LINEAR-ISSUE-LOAD-FAILED");
+});
