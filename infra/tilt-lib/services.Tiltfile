@@ -358,6 +358,17 @@ def register_local_service(service_name, svc, infra_dir, wt_slug=None, source_pa
     idx = resource_deps.index('dependencies')
     resource_deps[idx] = 'dependencies-wt-' + wt_slug
 
+  db_backed_by = svc.get('db_backed_by', '')
+  if db_backed_by:
+    if wt_slug:
+      serve_env['DB_NAME'] = wt_db_name(wt_slug)
+      migration_dep = wt_name(db_backed_by, wt_slug) + '-migrations'
+    else:
+      migration_dep = db_backed_by + '-migrations'
+
+    if migration_dep not in resource_deps:
+      resource_deps.append(migration_dep)
+
   labels = list(svc.get('labels', []))
   if wt_slug:
     labels = [label]
@@ -419,7 +430,10 @@ def resolve_dependencies(service_config, services):
 
     name = entry.get('name', '')
     svc = services.get(name, {})
-    deps = svc.get('deps', [])
+    deps = list(svc.get('deps', []))
+    db_backed_by = svc.get('db_backed_by', '')
+    if db_backed_by and db_backed_by not in deps:
+      deps.append(db_backed_by)
 
     for dep_name in deps:
       dep_key = dep_name + ':' + entry.get('slug', '')

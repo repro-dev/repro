@@ -55,6 +55,8 @@ local_resource(
         'RATE_LIMIT_REDIS_URL': 'redis://localhost:6379',
         'AGENTIC_RATE_LIMIT_PER_HOUR': '60',
         'AGENTIC_MAX_MESSAGES_PER_RECORDING': '200',
+        'OUTBOX_WORKER_DEFAULT_MAX_ATTEMPTS': '3',
+        'OUTBOX_WORKER_STALE_AFTER_MS': '300000',
     },
     deps=[
         os.path.join(PROJECT_ROOT, 'apps/api-server/src'),

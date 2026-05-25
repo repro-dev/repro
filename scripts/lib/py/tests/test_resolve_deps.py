@@ -28,6 +28,12 @@ SERVICES = {
         "resource_deps": ["dependencies"],
         "deps": [],
     },
+    "outbox-worker": {
+        "type": "local",
+        "resource_deps": ["dependencies"],
+        "db_backed_by": "api-server",
+        "deps": [],
+    },
     "storybook-ui": {
         "type": "local",
         "resource_deps": ["dependencies"],
@@ -63,6 +69,19 @@ class TestResolveDeps:
             assert "storage-ready" in deps
             assert "api-server-migrations" in deps
             assert "storage-s3-forward" in deps
+        finally:
+            os.unlink(path)
+
+    def test_db_backed_local_service_depends_on_backing_migrations(self):
+        path = _write_services(SERVICES)
+        try:
+            data = run_script_json("resolve_deps.py", args=[path, "outbox-worker"])
+            assert data["targets"] == ["outbox-worker"]
+            deps = sorted(data["deps"])
+            assert "dependencies" in deps
+            assert "database-ready" in deps
+            assert "storage-ready" in deps
+            assert "api-server-migrations" in deps
         finally:
             os.unlink(path)
 

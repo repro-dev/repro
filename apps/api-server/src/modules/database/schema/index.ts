@@ -14,6 +14,7 @@ import { MembershipTable } from './MembershipTable'
 import { OAuthAuthorizationCodeTable } from './OAuthAuthorizationCodeTable'
 import { OAuthClientTable } from './OAuthClientTable'
 import { OAuthConnectionTable } from './OAuthConnectionTable'
+import { OutboxJobTable } from './OutboxJobTable'
 import { PasswordResetTokenTable } from './PasswordResetTokenTable'
 import { ProjectRecordingTable } from './ProjectRecordingTable'
 import { ProjectTable } from './ProjectTable'
@@ -41,6 +42,7 @@ export interface Schema {
   oauth_authorization_codes: OAuthAuthorizationCodeTable
   oauth_clients: OAuthClientTable
   oauth_connections: OAuthConnectionTable
+  outbox_jobs: OutboxJobTable
   password_reset_tokens: PasswordResetTokenTable
   recordings: RecordingTable
   recording_event_index: RecordingEventIndexTable
@@ -57,6 +59,7 @@ export {
   OAuthAuthorizationCodeTable,
   OAuthClientTable,
   OAuthConnectionTable,
+  OutboxJobTable,
   RecordingEventIndexTable,
   RecordingResourceTable,
   RecordingTable,
@@ -64,3 +67,9 @@ export {
   asStaffUserDetail,
   asUser,
 }
+
+export type {
+  OutboxJobRow,
+  OutboxJson,
+  OutboxLastError,
+} from './OutboxJobTable'

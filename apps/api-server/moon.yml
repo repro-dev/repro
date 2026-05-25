@@ -10,6 +10,15 @@ tasks:
     command: pnpm run start
     deps:
       - ^:build
+  worker-outbox:
+    command: pnpm run worker:outbox
+    deps:
+      - ^:build
+    preset: server
+  start-mailpit:
+    command: mailpit
+    toolchain: system
+    preset: server
   dev:
     command: pnpm run dev-watch
     deps:

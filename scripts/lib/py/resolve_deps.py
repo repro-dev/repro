@@ -60,6 +60,14 @@ def main():
         if svc_type == "local":
             for rd in cfg.get("resource_deps", []):
                 infra_deps.add(rd)
+            db_backed_by = cfg.get("db_backed_by")
+            if db_backed_by:
+                backing = services.get(db_backed_by, {})
+                mig = backing.get("migrations")
+                if mig:
+                    for rd in mig.get("resource_deps", []):
+                        infra_deps.add(rd)
+                    infra_deps.add(db_backed_by + "-migrations")
             continue
 
         mig = cfg.get("migrations")

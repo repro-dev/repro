@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "mkdir -p tmp && pnpm run migrate && pnpm run start",
     "start": "tsx src/index.ts",
+    "worker:outbox": "tsx src/workers/outbox.ts",
     "dev-watch": "node scripts/dev-watch.js",
     "fmt": "prettier --write src",
     "migrate": "tsx src/migrations/run.ts",

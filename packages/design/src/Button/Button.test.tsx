@@ -1,4 +1,5 @@
-import { cleanup, render } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import expect from 'expect'
 import { afterEach, describe, it } from 'node:test'
 import React from 'react'
@@ -141,5 +142,37 @@ describe('Button display and width — REP-314', () => {
 
     expect(activeRule).toBeDefined()
     expect(activeRule?.cssText).toContain('scale(0.96)')
+  })
+
+  it('forwards HTML props through the supported props bag', () => {
+    render(
+      <Button props={{ 'aria-haspopup': 'menu', 'aria-expanded': true }}>
+        Text
+      </Button>
+    )
+
+    const button = screen.getByRole('button', { name: 'Text' })
+    expect(button.getAttribute('aria-haspopup')).toBe('menu')
+    expect(button.getAttribute('aria-expanded')).toBe('true')
+  })
+
+  it('calls event handlers passed through the supported props bag', async () => {
+    const user = userEvent.setup()
+    let clicked = false
+
+    render(
+      <Button
+        props={{
+          onClick: () => {
+            clicked = true
+          },
+        }}
+      >
+        Text
+      </Button>
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Text' }))
+    expect(clicked).toBe(true)
   })
 })
