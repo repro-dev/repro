@@ -4,6 +4,7 @@
   "main": "src/index.ts",
   "scripts": {
     "fmt": "prettier --write src",
+    "test": "pnpm --dir ../autobot-cli exec tsx --experimental-test-module-mocks --test ../autobot-adapters/src/**/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "license": "UNLICENSED",

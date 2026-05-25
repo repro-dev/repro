@@ -418,19 +418,6 @@ test("completed planning worker reconciliation is idempotent after awaiting Flow
         transport: null,
         data: { phase: "preparing" },
       },
-      {
-        event_id: "flowcraft-run-311-planning-domain-1",
-        issue_id: "REP-311",
-        run_id: "run-311",
-        type: "workflow.phase.planned",
-        state: "planning",
-        message: "Issue planning complete",
-        severity: "info",
-        occurred_at: "2026-05-15T12:00:00.002Z",
-        actor: "autobot-flowcraft",
-        transport: null,
-        data: { phase: "planning" },
-      },
     ],
   });
   const services = createAutobotServices({
@@ -476,6 +463,21 @@ test("completed planning worker reconciliation is idempotent after awaiting Flow
         event.issue_id === "REP-311" && event.type === "workflow.phase.planned",
     ).length,
     1,
+  );
+  const plannedAt = fixture.domainEvents.find(
+    (event) =>
+      event.issue_id === "REP-311" && event.type === "workflow.phase.planned",
+  )?.occurred_at;
+  const completedAt = fixture.domainEvents.find(
+    (event) =>
+      event.issue_id === "REP-311" && event.type === "workflow.phase.completed",
+  )?.occurred_at;
+  if (typeof plannedAt !== "string" || typeof completedAt !== "string") {
+    assert.fail("expected planned and completed timestamps to be persisted");
+  }
+  assert.ok(
+    Date.parse(plannedAt) < Date.parse(completedAt),
+    `expected planned ${plannedAt} before completed ${completedAt}`,
   );
   assert.equal(fixture.runUpserts.at(-1)?.state, "completed");
 });

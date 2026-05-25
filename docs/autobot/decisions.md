@@ -89,6 +89,16 @@ Rules:
 - Unverifiable worktree: fail with recovery commands or archive through reconcile if safe.
 - Never silently delete retained worktrees.
 
+Post-worktree workspace setup (REP-1234):
+
+- Setup remains an observable sub-action inside public `preparing`; do not split MVP state into `preparing_worktree`, `bootstrapping_workspace`, or `validating_workspace`.
+- Setup runs after git worktree create/reuse/archive and before planning.
+- Ordered MVP actions: create run directories, copy local bootstrap config (`.linear` required and `.envrc.local` optional), run `pnpm install --frozen-lockfile`, run `moon run :build`, conditionally run `direnv allow`, then validate `node`, `pnpm`, `moon`, repo-local `linear`, and `opencode`.
+- MVP explicitly does **not** run `pnpm bootstrap`; no such package script exists and worktree dependency bootstrap is the frozen-lockfile install.
+- Setup runs on every preparation attempt and must be idempotent across retry from failed `preparing`.
+- Status/log/inspect output distinguishes `workflow.worktree.*` events from `workflow.workspace_setup.*` events and records `.autobot/runs/<issue-id>/attempt-<n>/workspace-setup.json` as a summary artifact.
+- Bootstrap, direnv, and validation failures preserve the prepared worktree path/branch on the item and return structured recovery commands for the failing step.
+
 Future operator controls may include `autobot worktree status|archive|remove|reset`.
 
 ## 9. Linear Integration
