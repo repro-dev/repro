@@ -22,20 +22,19 @@ If a module does not yet have a factory boundary, prefer adding a small `create*
 
 ## Service registry (src/index.ts)
 
-| Constant                       | Factory                                                          | Notes                                                                                  |
-| ------------------------------ | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `accountService`               | `createAccountService(db, email, billing)`                       | Receives billingService for free-plan provisioning at signup                           |
-| `billingService`               | `createBillingService(db, env)`                                  | Optional injected PaddleClient for testing                                             |
-| `agenticService`               | `createAgenticService(db, httpClient)`                           |                                                                                        |
-| `oauthService`                 | `createOAuthService(db)`                                         |                                                                                        |
-| `apiKeyService`                | `createApiKeyService(db)`                                        |                                                                                        |
-| `featureGateService`           | `createFeatureGateService(db)`                                   |                                                                                        |
-| `outboxService`                | `createOutboxService(db, config?)`                               | Optional default max-attempts config for enqueue calls                                 |
-| `recordingFinalizationService` | `createRecordingFinalizationService(db, outbox)`                 | Coordinates recording readiness and downstream outbox fan-out                          |
-| `socialAuthService`            | `createSocialAuthService(db)`                                    |                                                                                        |
-| `projectService`               | `createProjectService(db)`                                       |                                                                                        |
-| `recordingService`             | `createRecordingService(db, storage, logger?, finalization?)`    | Upload paths can mark derived-processing readiness when finalization is injected       |
-| `healthService`                | `createHealthService(db, storage, redis?, outbox?)`              | Optional Redis and outbox diagnostic checks                                            |
+| Constant             | Factory                                             | Notes                                                        |
+| -------------------- | --------------------------------------------------- | ------------------------------------------------------------ |
+| `accountService`     | `createAccountService(db, email, billing)`          | Receives billingService for free-plan provisioning at signup |
+| `billingService`     | `createBillingService(db, env)`                     | Optional injected PaddleClient for testing                   |
+| `agenticService`     | `createAgenticService(db, httpClient)`              |                                                              |
+| `oauthService`       | `createOAuthService(db)`                            |                                                              |
+| `apiKeyService`      | `createApiKeyService(db)`                           |                                                              |
+| `featureGateService` | `createFeatureGateService(db)`                      |                                                              |
+| `outboxService`      | `createOutboxService(db, config?)`                  | Optional default max-attempts config for enqueue calls       |
+| `socialAuthService`  | `createSocialAuthService(db)`                       |                                                              |
+| `projectService`     | `createProjectService(db)`                          |                                                              |
+| `recordingService`   | `createRecordingService(db, storage)`               |                                                              |
+| `healthService`      | `createHealthService(db, storage, redis?, outbox?)` | Optional Redis and outbox diagnostic checks                  |
 
 Social auth and API keys are co-registered under `/account` via `accountPlugins`.
 
