@@ -15,6 +15,7 @@ function createPlanningDependencies(input: {
   progressRecords: FlowcraftPhaseProgressRecord[];
   events: string[];
   useWorker?: boolean;
+  runPlanContent?: string;
 }): FlowcraftWorkflowDependencies {
   return {
     autobotPlanning: {
@@ -57,19 +58,20 @@ function createPlanningDependencies(input: {
       artifactWriter: () => resolve(undefined),
       artifactReader: () =>
         resolve(
-          [
-            "## Readiness",
-            "ready_to_proceed",
-            "",
-            "## Sequence Notes",
-            "- implement",
-            "",
-            "## Risk Notes",
-            "- none",
-            "",
-            "## Plan",
-            "- ship",
-          ].join("\n"),
+          input.runPlanContent ??
+            [
+              "## Readiness",
+              "ready_to_proceed",
+              "",
+              "## Sequence Notes",
+              "- implement",
+              "",
+              "## Risk Notes",
+              "- none",
+              "",
+              "## Plan",
+              "- ship",
+            ].join("\n"),
         ),
       planningSessionRunner: () => {
         input.events.push("runner");
@@ -100,7 +102,7 @@ function createPlanningDependencies(input: {
   };
 }
 
-test("Flowcraft persists preparing and planning progress before planning blocks", async () => {
+test("Flowcraft persists planning progress after run-plan validation", async () => {
   const progressRecords: FlowcraftPhaseProgressRecord[] = [];
   const events: string[] = [];
   const workflow = flowcraftWorkflows[0];
@@ -134,8 +136,8 @@ test("Flowcraft persists preparing and planning progress before planning blocks"
   );
   assert.deepEqual(events.slice(0, 3), [
     "progress:preparing",
-    "progress:planning",
     "runner",
+    "progress:planning",
   ]);
 
   const [preparing, planning] = progressRecords;
@@ -192,15 +194,56 @@ test("Flowcraft starts durable planning workers and leaves workflow awaiting", a
   const context = result.context as unknown as Record<string, unknown>;
 
   assert.equal(result.status, "awaiting");
-  assert.deepEqual(events, [
-    "progress:preparing",
-    "progress:planning",
-    "worker",
-  ]);
+  assert.deepEqual(events, ["progress:preparing", "worker"]);
   assert.deepEqual(context["_awaitingNodeIds"], ["planning"]);
   assert.deepEqual(context["_awaitingDetails"], {
     planning: { reason: "planning_worker_running" },
   });
   assert.equal(context["_outputs.developing"], undefined);
   assert.equal(context["_outputs.planning"] !== undefined, true);
+});
+
+test("Flowcraft does not persist planned progress for invalid run plans", async () => {
+  const progressRecords: FlowcraftPhaseProgressRecord[] = [];
+  const events: string[] = [];
+  const workflow = flowcraftWorkflows[0];
+  const runtime = new FlowRuntime<
+    FlowcraftWorkflowContext,
+    FlowcraftWorkflowDependencies
+  >({
+    eventBus: { emit() {} },
+    dependencies: createPlanningDependencies({
+      progressRecords,
+      events,
+      runPlanContent: [
+        "## Readiness",
+        "ready_to_proceed",
+        "",
+        "## Sequence Notes",
+        "- missing required sections",
+      ].join("\n"),
+    }),
+  });
+
+  await workflow.flow.run(runtime, {
+    issue_id: "REP-1225",
+    run_id: "run-1225",
+    execution_id: "exec-1225",
+    started_at: "2026-05-23T21:00:00Z",
+    finished_at: "2026-05-23T21:00:04Z",
+    review_attempts: 0,
+    review_max_attempts: 3,
+    review_requested: false,
+    review_continue: false,
+    review_should_reconcile: true,
+    review_should_escalate: false,
+    phase_history: [],
+    transport: null,
+  });
+
+  assert.deepEqual(
+    progressRecords.map((record) => record.phase),
+    ["preparing"],
+  );
+  assert.deepEqual(events, ["progress:preparing", "runner"]);
 });

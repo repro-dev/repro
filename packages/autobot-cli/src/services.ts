@@ -1574,8 +1574,12 @@ function reconcileCompletedPlanningWorker(input: {
   return input.store.projections.getItemDetail(input.item.issue_id).pipe(
     chain((itemDetail) => {
       const planningItem = itemDetail ?? fallbackItemDetail;
+      const planningRepo = resolvePlanningRepoForItem(
+        input.store.repo,
+        planningItem,
+      );
       const planningArtifactDrafts = buildPlanningArtifactDrafts({
-        repoPath: input.store.repo.path,
+        repoPath: planningRepo.path,
         item: planningItem,
         runId: input.currentRun.run_id,
         executionId: input.currentRun.flowcraft_execution_id!,
@@ -1583,7 +1587,7 @@ function reconcileCompletedPlanningWorker(input: {
       });
       const planningArtifactPaths = buildPlanningSessionArtifactPaths(
         planningArtifactDrafts,
-        input.store.repo.path,
+        planningRepo.path,
       );
       const workflowFinishedAt = createCurrentOrLaterTimestamp(
         input.tickAt,
@@ -1599,7 +1603,7 @@ function reconcileCompletedPlanningWorker(input: {
         transport: null,
         dependencies: {
           autobotPlanning: {
-            repo: input.store.repo,
+            repo: planningRepo,
             item: planningItem,
             artifactDrafts: planningArtifactDrafts,
             artifactPaths: planningArtifactPaths,
@@ -3866,6 +3870,18 @@ function buildPlanningArtifactDrafts(input: {
       persist: false,
     },
   ];
+}
+
+function resolvePlanningRepoForItem(
+  storeRepo: RepoRef,
+  item: ItemDetail,
+): RepoRef {
+  return typeof item.workspace === "string" && path.isAbsolute(item.workspace)
+    ? {
+        ...storeRepo,
+        path: item.workspace,
+      }
+    : storeRepo;
 }
 
 export function buildPlanningPhaseOutputPath(input: {

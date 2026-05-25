@@ -532,19 +532,6 @@ function createPlanningNode(): FlowcraftNodeImplementation {
     let planningArtifacts = artifactDrafts;
     let planningFailureReason: string | null = null;
 
-    const progressOutput = {
-      phase: phaseId,
-      state: phaseDefinitions[phaseId].state,
-      ...pickReviewControlFields(snapshot),
-    };
-
-    await persistPhaseProgress({
-      nodeContext,
-      snapshot,
-      phase: phaseId,
-      output: progressOutput,
-    });
-
     try {
       await Promise.all(
         artifactDrafts
@@ -740,32 +727,41 @@ function createPlanningNode(): FlowcraftNodeImplementation {
       );
     }
 
-    return {
-      output: {
-        phase: phaseId,
-        state: phaseDefinitions[phaseId].state,
-        planning_run_plan_valid: planningRunPlanValid,
-        planning_run_plan_ready: planningRunPlanReady,
-        planning_readiness: runPlanAssessment.readiness,
-        planning_artifacts: planningArtifacts,
-        planning_should_fail: planningFailureReason !== null,
-        planning_failure_reason: planningFailureReason,
-        planning_session_result:
-          planningSessionResult === null
-            ? null
-            : {
-                command: planningSessionResult.command,
-                args: planningSessionResult.args,
-                started_at: planningSessionResult.started_at,
-                finished_at: planningSessionResult.finished_at,
-                exit_code: planningSessionResult.exit_code,
-                signal: planningSessionResult.signal,
-                stdout: planningSessionResult.stdout,
-                stderr: planningSessionResult.stderr,
-              },
-        ...pickReviewControlFields(snapshot),
-      },
+    const output = {
+      phase: phaseId,
+      state: phaseDefinitions[phaseId].state,
+      planning_run_plan_valid: planningRunPlanValid,
+      planning_run_plan_ready: planningRunPlanReady,
+      planning_readiness: runPlanAssessment.readiness,
+      planning_artifacts: planningArtifacts,
+      planning_should_fail: planningFailureReason !== null,
+      planning_failure_reason: planningFailureReason,
+      planning_session_result:
+        planningSessionResult === null
+          ? null
+          : {
+              command: planningSessionResult.command,
+              args: planningSessionResult.args,
+              started_at: planningSessionResult.started_at,
+              finished_at: planningSessionResult.finished_at,
+              exit_code: planningSessionResult.exit_code,
+              signal: planningSessionResult.signal,
+              stdout: planningSessionResult.stdout,
+              stderr: planningSessionResult.stderr,
+            },
+      ...pickReviewControlFields(snapshot),
     };
+
+    if (planningRunPlanValid) {
+      await persistPhaseProgress({
+        nodeContext,
+        snapshot,
+        phase: phaseId,
+        output,
+      });
+    }
+
+    return { output };
   };
 }
 
