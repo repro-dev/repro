@@ -1,11 +1,13 @@
 import { CODEC_VERSION, RecordingInfo, RecordingMode } from '@repro/domain'
 import {
   FutureInstance,
+  attemptP,
   bichain,
   chain,
   go,
   map,
   parallel,
+  promise,
   reject,
   resolve,
 } from 'fluture'
@@ -26,12 +28,33 @@ import {
   permissionDenied,
   resourceConflict,
 } from '~/utils/errors'
+import { RecordingFinalizationService } from './recordingFinalization'
 
 export function createRecordingService(
   database: Database,
   storage: Storage,
-  logger: ApiLogger = noopLogger
+  logger: ApiLogger = noopLogger,
+  recordingFinalizationService?: RecordingFinalizationService
 ) {
+  function toRecordingInfo(row: {
+    id: number
+    title: string
+    url: string
+    description: string
+    mode: RecordingMode
+    duration: number
+    createdAt: Date
+    browserName: string | null
+    browserVersion: string | null
+    operatingSystem: string | null
+    codecVersion: string
+  }): RecordingInfo {
+    return {
+      ...withEncodedId(row),
+      createdAt: row.createdAt.toISOString(),
+    }
+  }
+
   function ensureIsPublicRecording(
     recordingId: string
   ): FutureInstance<Error, void> {
@@ -73,13 +96,28 @@ export function createRecordingService(
       chain(() => {
         return storage.exists(`${recordingId}/data`).pipe(
           chain(exists => {
-            return exists
-              ? reject(
-                  resourceConflict(
-                    `Data for recording "${recordingId}" already exists`
-                  )
+            if (exists) {
+              const conflict = resourceConflict(
+                `Data for recording "${recordingId}" already exists`
+              )
+              return recordingFinalizationService
+                ? recordingFinalizationService
+                    .recordDataUploaded(recordingId)
+                    .pipe(chain(() => reject(conflict)))
+                : reject(conflict)
+            }
+
+            return storage
+              .write(`${recordingId}/data`, data.pipe(createGunzip()))
+              .pipe(
+                chain(() =>
+                  recordingFinalizationService
+                    ? recordingFinalizationService.recordDataUploaded(
+                        recordingId
+                      )
+                    : resolve(undefined)
                 )
-              : storage.write(`${recordingId}/data`, data.pipe(createGunzip()))
+              )
           })
         )
       })
@@ -173,14 +211,7 @@ export function createRecordingService(
         .offset(offset)
         .limit(limit)
         .execute()
-    }).pipe(
-      map(rows =>
-        rows.map(row => ({
-          ...withEncodedId(row),
-          createdAt: row.createdAt.toISOString(),
-        }))
-      )
-    )
+    }).pipe(map(rows => rows.map(row => toRecordingInfo(row))))
   }
 
   function readInfo(recordingId: string): FutureInstance<Error, RecordingInfo> {
@@ -190,12 +221,7 @@ export function createRecordingService(
         .selectAll()
         .where('id', '=', decodeId(recordingId))
         .executeTakeFirstOrThrow(() => notFound())
-    }).pipe(
-      map(row => ({
-        ...withEncodedId(row),
-        createdAt: row.createdAt.toISOString(),
-      }))
-    )
+    }).pipe(map(row => toRecordingInfo(row)))
   }
 
   function readInfoMany(
@@ -211,14 +237,7 @@ export function createRecordingService(
         .offset(offset)
         .limit(limit)
         .execute()
-    }).pipe(
-      map(rows =>
-        rows.map(row => ({
-          ...withEncodedId(row),
-          createdAt: row.createdAt.toISOString(),
-        }))
-      )
-    )
+    }).pipe(map(rows => rows.map(row => toRecordingInfo(row))))
   }
 
   function writeInfo(
@@ -247,12 +266,7 @@ export function createRecordingService(
         })
         .returningAll()
         .executeTakeFirstOrThrow()
-    }).pipe(
-      map(row => ({
-        ...withEncodedId(row),
-        createdAt: row.createdAt.toISOString(),
-      }))
-    )
+    }).pipe(map(row => toRecordingInfo(row)))
   }
 
   function writeEventIndex(
@@ -274,16 +288,27 @@ export function createRecordingService(
     return go(function* () {
       yield readInfo(recordingId)
 
-      if (!entries.length) {
-        return yield resolve(undefined)
-      }
+      return yield attemptP(() =>
+        database.transaction().execute(async trx => {
+          if (entries.length) {
+            await trx
+              .insertInto('recording_event_index')
+              .values(
+                entries.map(e => ({ ...e, recordingId: decodedRecordingId }))
+              )
+              .execute()
+          }
 
-      return yield attemptQuery(() =>
-        database
-          .insertInto('recording_event_index')
-          .values(entries.map(e => ({ ...e, recordingId: decodedRecordingId })))
-          .execute()
-      ).pipe(map(() => undefined))
+          if (recordingFinalizationService) {
+            await promise(
+              recordingFinalizationService.recordEventIndexUploadedWithTransaction(
+                trx,
+                decodedRecordingId
+              )
+            )
+          }
+        })
+      )
     })
   }
 

@@ -11,8 +11,11 @@ import { promise } from 'fluture'
 import { Readable } from 'node:stream'
 import { after, before, beforeEach, describe, it } from 'node:test'
 import { gzipSync } from 'node:zlib'
+import { decodeId } from '~/modules/database'
 import { Harness, createTestHarness, fixtures } from '~/testing'
-import { RecordingService } from './recording'
+import { createOutboxService } from './outbox'
+import { RecordingService, createRecordingService } from './recording'
+import { createRecordingFinalizationService } from './recordingFinalization'
 
 describe('Services > Recording', () => {
   let harness: Harness
@@ -94,5 +97,68 @@ describe('Services > Recording', () => {
     ]
 
     await promise(recordingService.writeEventIndex(recording.id, entries))
+  })
+
+  it('should trigger finalization readiness from data and empty event-index uploads', async () => {
+    const [recording] = await harness.loadFixtures([
+      fixtures.recording.RecordingA,
+    ])
+    const outboxService = createOutboxService(harness.db)
+    const finalizationService = createRecordingFinalizationService(
+      harness.db,
+      outboxService
+    )
+    const service = createRecordingService(
+      harness.db,
+      harness.storage,
+      undefined,
+      finalizationService
+    )
+
+    const events: Array<SourceEvent> = [
+      SourceEventView.from(
+        new Box({
+          type: SourceEventType.Interaction,
+          time: 0,
+          data: new Box({
+            type: InteractionType.PointerMove,
+            from: [0, 0],
+            to: [1, 1],
+            duration: 1,
+          }),
+        })
+      ),
+    ]
+    const packed = toBinaryWireFormat(
+      events.map(e => SourceEventView.encode(e))
+    )
+    const gzipped = gzipSync(new Uint8Array(packed.buffer))
+
+    await promise(
+      service.writeDataFromStream(
+        recording.id,
+        Readable.from([Buffer.from(gzipped)])
+      )
+    )
+    await promise(service.writeEventIndex(recording.id, []))
+
+    const row = await harness.db
+      .selectFrom('recordings')
+      .select([
+        'dataUploadedAt',
+        'eventIndexUploadedAt',
+        'derivedProcessingReadyAt',
+      ])
+      .where('id', '=', decodeId(recording.id))
+      .executeTakeFirstOrThrow()
+    const jobs = await harness.db
+      .selectFrom('outbox_jobs')
+      .selectAll()
+      .execute()
+
+    expect(row.dataUploadedAt).toBeInstanceOf(Date)
+    expect(row.eventIndexUploadedAt).toBeInstanceOf(Date)
+    expect(row.derivedProcessingReadyAt).toBeInstanceOf(Date)
+    expect(jobs).toHaveLength(1)
   })
 })

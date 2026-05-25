@@ -2,7 +2,8 @@ import { defaultEnv as env } from '~/config/env'
 import { createPostgresDatabaseClient } from '~/modules/database'
 import { createOutboxService } from '~/services/outbox'
 import { createOutboxWorker } from '~/services/outboxWorker'
-import { outboxRegistry } from './outboxRegistry'
+import { createRecordingFinalizationService } from '~/services/recordingFinalization'
+import { createDefaultOutboxRegistry } from './outboxRegistry'
 
 const database = createPostgresDatabaseClient({
   host: env.DB_HOST,
@@ -15,6 +16,13 @@ const database = createPostgresDatabaseClient({
 
 const outboxService = createOutboxService(database, {
   defaultMaxAttempts: env.OUTBOX_WORKER_DEFAULT_MAX_ATTEMPTS,
+})
+const recordingFinalizationService = createRecordingFinalizationService(
+  database,
+  outboxService
+)
+const outboxRegistry = createDefaultOutboxRegistry({
+  recordingFinalizationService,
 })
 const workerId = `${process.pid}-${Date.now()}`
 
