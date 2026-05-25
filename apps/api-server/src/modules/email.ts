@@ -1,14 +1,30 @@
-import { EmailMessage, EmailProvider, createEmailProvider } from '@repro/email'
-import { FutureInstance } from 'fluture'
+import {
+  EmailMessage,
+  createEmailProvider,
+  type EmailProvider,
+} from '@repro/email'
+import { FutureInstance, fork } from 'fluture'
 import { defaultEnv as env } from '~/config/env'
 
-// Instantiate the email provider once at module load time.
-// Uses the Resend adapter when RESEND_API_KEY is set; falls back to
-// the console provider in local dev (no real sending).
-export const emailProvider: EmailProvider = createEmailProvider(
-  env.RESEND_API_KEY
-)
+function createEmailProviderTransport(provider: EmailProvider) {
+  return (message: EmailMessage): FutureInstance<Error, void> =>
+    provider.send(message)
+}
 
-export function sendEmail(message: EmailMessage): FutureInstance<Error, void> {
-  return emailProvider.send(message)
+const emailProvider = createEmailProvider(env.RESEND_API_KEY)
+
+export const emailFromAddress = env.EMAIL_FROM_ADDRESS
+export const sendEmail = createEmailProviderTransport(emailProvider)
+
+export type SendEmail = (message: EmailMessage) => FutureInstance<Error, void>
+
+export function sendEmailInBackground(
+  message: EmailMessage,
+  send: SendEmail = sendEmail
+): void {
+  send(message).pipe(
+    fork(error => {
+      console.error('Transactional email send failed', error)
+    })(() => {})
+  )
 }

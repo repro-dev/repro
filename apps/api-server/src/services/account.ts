@@ -9,6 +9,7 @@ import {
   User,
   UserProfile,
 } from '@repro/domain'
+import { emailVerificationEmail } from '@repro/email'
 import { addMinutes } from 'date-fns'
 import {
   FutureInstance,
@@ -24,6 +25,7 @@ import {
 } from 'fluture'
 import { sql } from 'kysely'
 import { createHash, randomBytes } from 'node:crypto'
+import { defaultEnv as env } from '~/config/env'
 import { SystemConfig, defaultSystemConfig } from '~/config/system'
 import {
   Database,
@@ -35,7 +37,11 @@ import {
   encodeId,
   withEncodedId,
 } from '~/modules/database'
-import { EmailUtils } from '~/modules/email-utils'
+import {
+  emailFromAddress,
+  sendEmailInBackground,
+  sendEmail as sendEmailMessage,
+} from '~/modules/email'
 import { BillingService } from '~/services/billing'
 import { getSessionPolicy } from '~/services/sessionPolicy'
 import {
@@ -64,7 +70,7 @@ function hashToken(token: string): string {
 
 export function createAccountService(
   database: Database,
-  emailUtils: EmailUtils,
+  sendEmail: typeof sendEmailMessage,
   billingService?: BillingService,
   _config: SystemConfig = defaultSystemConfig
 ) {
@@ -773,7 +779,7 @@ export function createAccountService(
               email,
               password: await argon2.hash(password),
               accountId: decodedAccountId,
-              verificationToken: '',
+              verificationToken: createToken(),
             })
             .returning(['id', 'name', 'email', 'verified', 'admin'])
             .executeTakeFirstOrThrow()
@@ -940,23 +946,31 @@ export function createAccountService(
     const result = attemptQuery(async () => {
       return database
         .selectFrom('users')
-        .select(['email', 'verificationToken'])
+        .select(['email', 'name', 'verificationToken'])
         .where('id', '=', decodeId(userId))
         .executeTakeFirstOrThrow(() => notFound())
     })
 
     return result.pipe(
-      chain(({ email, verificationToken }) =>
-        emailUtils.send({
-          to: email,
-          from: emailUtils.getAddress('no-reply'),
-          subject: 'Verify email for your Repro account',
-          template: 'send-verification',
-          params: {
-            verificationToken,
+      chain(({ email, name, verificationToken }) => {
+        const verificationUrl = new URL('/account/verify', env.REPRO_APP_URL)
+        verificationUrl.searchParams.set('verificationToken', verificationToken)
+        verificationUrl.searchParams.set('email', email)
+
+        sendEmailInBackground(
+          {
+            to: email,
+            from: emailFromAddress,
+            ...emailVerificationEmail({
+              verificationUrl: verificationUrl.toString(),
+              userName: name,
+            }),
           },
-        })
-      )
+          sendEmail
+        )
+
+        return resolve(undefined)
+      })
     )
   }
 
@@ -967,12 +981,16 @@ export function createAccountService(
     return getUserByEmail(email).pipe(
       chain(() =>
         attemptQuery(async () => {
-          await database
+          const result = await database
             .updateTable('users')
             .set('verified', true)
             .where('email', '=', email)
             .where('verificationToken', '=', verificationToken)
             .executeTakeFirst()
+
+          if ((result?.numUpdatedRows ?? 0n) === 0n) {
+            throw notFound()
+          }
         })
       )
     )

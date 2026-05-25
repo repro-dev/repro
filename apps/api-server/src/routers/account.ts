@@ -1,4 +1,5 @@
 import { Account, User } from '@repro/domain'
+import { invitationEmail, passwordResetEmail } from '@repro/email'
 import { tapF } from '@repro/future-utils'
 import { FastifyPluginAsync } from 'fastify'
 import { ZodTypeProvider } from 'fastify-type-provider-zod'
@@ -14,7 +15,13 @@ import {
   resolve,
 } from 'fluture'
 import z from 'zod'
+import { defaultEnv as env } from '~/config/env'
 import { defaultSystemConfig } from '~/config/system'
+import {
+  emailFromAddress,
+  sendEmailInBackground,
+  sendEmail as sendEmailMessage,
+} from '~/modules/email'
 import { AccountService } from '~/services/account'
 import { isNotFound, notAuthenticated, resourceConflict } from '~/utils/errors'
 import { getCurrentUserAccount } from '~/utils/request'
@@ -53,7 +60,7 @@ const loginSchema = {
 
 const verifySchema = {
   body: z.object({
-    verificationToken: z.string(),
+    verificationToken: z.string().min(1),
     email: z.string().email(),
   }),
 } as const
@@ -79,9 +86,25 @@ const updateNameSchema = {
 
 export function createAccountRouter(
   accountService: AccountService,
+  sendEmail: typeof sendEmailMessage,
   config = defaultSystemConfig
 ): FastifyPluginAsync {
   const { respondWith } = createResponseUtils(config)
+
+  function createPasswordResetUrl(baseUrl: string, resetToken: string) {
+    return new URL(`/account/reset-password/${resetToken}`, baseUrl).toString()
+  }
+
+  function createInvitationUrl(
+    baseUrl: string,
+    email: string,
+    invitationToken: string
+  ) {
+    const url = new URL('/account/accept-invitation', baseUrl)
+    url.searchParams.set('invitationToken', invitationToken)
+    url.searchParams.set('email', email)
+    return url.toString()
+  }
 
   function ensureUserDoesNotExist(email: string): FutureInstance<Error, void> {
     return accountService
@@ -126,6 +149,8 @@ export function createAccountRouter(
               req.body.password
             )
 
+            yield accountService.sendVerificationEmail(user.id)
+
             yield req.createSession(user)
 
             return { account, user }
@@ -155,29 +180,36 @@ export function createAccountRouter(
 
         const invitation = both(currentUser)(account).pipe(
           chain(([user, account]) =>
-            accountService
-              .ensureCanModifyAccount(user, account.id)
-              .pipe(
-                chain(() =>
-                  accountService.createInvitation(account.id, req.body.email)
-                )
+            accountService.ensureCanModifyAccount(user, account.id).pipe(
+              chain(() =>
+                accountService
+                  .createInvitation(account.id, req.body.email)
+                  .pipe(
+                    map(invitation => {
+                      sendEmailInBackground(
+                        {
+                          to: invitation.email,
+                          from: emailFromAddress,
+                          ...invitationEmail({
+                            invitationUrl: createInvitationUrl(
+                              env.REPRO_APP_URL,
+                              invitation.email,
+                              invitation.token
+                            ),
+                            workspaceName: account.name,
+                            inviterName: user.name,
+                          }),
+                        },
+                        sendEmail
+                      )
+
+                      return invitation
+                    })
+                  )
               )
+            )
           )
         )
-
-        // TODO: enqueue email to invitee
-        //
-        // respondWith(
-        //   res,
-        //   invitation.pipe(
-        //     tapF(payload =>
-        //       queueService.enqueue({
-        //         task: 'send-invitation',
-        //         invitationId: payload.id
-        //       })
-        //     )
-        //   )
-        // )
 
         respondWith(
           res,
@@ -315,31 +347,32 @@ export function createAccountRouter(
         // to prevent account enumeration attacks.
         respondWith(
           res,
-          accountService
-            .getUserByEmail(req.body.email)
-            .pipe(
-              chain(user =>
-                accountService.createPasswordResetToken(user.id).pipe(
-                  chain(token =>
-                    // Stub: log the reset link in development; in production this
-                    // will be replaced by a transactional email once email
-                    // infrastructure is available (blocked by Platform work).
-                    resolve(
-                      req.log.info(
-                        { resetToken: token },
-                        'Password reset token created'
-                      )
-                    )
+          accountService.getUserByEmail(req.body.email).pipe(
+            bichain<Error, Error, null>(error =>
+              isNotFound(error) ? resolve(null) : reject(error)
+            )(user =>
+              accountService.createPasswordResetToken(user.id).pipe(
+                map(token => {
+                  sendEmailInBackground(
+                    {
+                      to: user.email,
+                      from: emailFromAddress,
+                      ...passwordResetEmail({
+                        resetUrl: createPasswordResetUrl(
+                          env.REPRO_APP_URL,
+                          token
+                        ),
+                        userName: user.name,
+                      }),
+                    },
+                    sendEmail
                   )
-                )
+
+                  return null
+                })
               )
             )
-            // Swallow not-found so we don't leak account existence
-            .pipe(
-              chainRej(error =>
-                isNotFound(error) ? resolve(null) : reject(error)
-              )
-            )
+          )
         )
       }
     )

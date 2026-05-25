@@ -17,6 +17,7 @@ export type ButtonProps = PropsWithChildren<{
   /** Stretch button to fill its container width. Defaults to false (content width). */
   fullWidth?: boolean
   onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void
+  props?: Record<string, unknown>
 }>
 
 /**
@@ -134,20 +135,43 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       disabled = false,
       fullWidth = false,
       onClick,
+      props: buttonProps,
+      ...buttonHtmlProps
     },
     ref
   ) => {
+    const { onClick: propsOnClick, ...buttonPropsWithoutOnClick } =
+      buttonProps ?? {}
     const { base, fontSize } = sizes[size]
     const height = formControlHeight[size]
     const paddingH = base * 2
     const gap = base
     const ctx = contextColors[context]
 
+    const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+      onClick?.(event)
+
+      if (!event.defaultPrevented) {
+        ;(
+          propsOnClick as
+            | ((e: React.MouseEvent<HTMLButtonElement>) => void)
+            | undefined
+        )?.(event)
+      }
+    }
+
     return (
       <Row
         position="relative"
         component="button"
-        props={{ disabled, type, onClick, ref }}
+        onClick={handleClick}
+        props={{
+          ...buttonPropsWithoutOnClick,
+          ...buttonHtmlProps,
+          disabled,
+          type,
+          ref,
+        }}
         display={fullWidth ? 'flex' : 'inline-flex'}
         width={fullWidth ? '100%' : undefined}
         gap={gap}

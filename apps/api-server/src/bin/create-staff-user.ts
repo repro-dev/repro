@@ -3,7 +3,7 @@ import { fork } from 'fluture'
 
 import { defaultEnv as env } from '~/config/env'
 import { createPostgresDatabaseClient } from '~/modules/database/database-postgres'
-import { createStubEmailUtils } from '~/modules/email-utils'
+import { sendEmail } from '~/modules/email'
 import { createAccountService } from '~/services/account'
 
 const database = createPostgresDatabaseClient({
@@ -15,9 +15,7 @@ const database = createPostgresDatabaseClient({
   ssl: env.DB_SSL,
 })
 
-// FIXME: use real SMTP email utils?
-const emailUtils = createStubEmailUtils([])
-const accountService = createAccountService(database, emailUtils)
+const accountService = createAccountService(database, sendEmail)
 
 async function main() {
   const name = await input({ message: 'Name', required: true })

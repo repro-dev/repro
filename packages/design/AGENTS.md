@@ -8,12 +8,12 @@ For the full specification — component inventory, authoring checklists, token 
 
 | Task | Command |
 |------|---------|
-| Typecheck | `moon run design:typecheck` |
-| Run tests | `moon run design:test` |
+| Typecheck | `moon run repro/design:typecheck` |
+| Run tests | `moon run repro/design:test` |
 | Run single test | `tsx --experimental-test-module-mocks --import=global-jsdom/register --test src/path/to/file.test.tsx` |
 | Format | `pnpm -C packages/design fmt` |
-| Storybook dev | `moon run storybook-ui:dev` |
-| Storybook typecheck | `moon run storybook-ui:typecheck` |
+| Storybook dev | `moon run repro/storybook-ui:dev` |
+| Storybook typecheck | `moon run repro/storybook-ui:typecheck` |
 
 Default to the Moon commands above first. Use the direct single-test invocation only when you are intentionally running one file and need the package-local jsdom import wiring.
 

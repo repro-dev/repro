@@ -1,5 +1,5 @@
 import expect from 'expect'
-import { promise } from 'fluture'
+import { promise, reject } from 'fluture'
 import { after, before, beforeEach, describe, it } from 'node:test'
 import { fixtures } from '~/testing'
 import {
@@ -24,7 +24,9 @@ describe('Routers > Account > Invitations', () => {
   })
 
   it('should create an invitation for a user without an account', async () => {
-    const [session] = await context.harness.loadFixtures([
+    const [account, adminUser, session] = await context.harness.loadFixtures([
+      fixtures.account.AccountA,
+      fixtures.account.AdminUserA,
       fixtures.account.AdminUserA_Session,
     ])
 
@@ -42,6 +44,71 @@ describe('Routers > Account > Invitations', () => {
     })
 
     expect(res.statusCode).toEqual(201)
+
+    const invitation = await context.harness.db
+      .selectFrom('invitations')
+      .select(['email', 'token'])
+      .where('email', '=', 'hello@example.com')
+      .executeTakeFirstOrThrow()
+
+    const invitationUrl = new URL(
+      '/account/accept-invitation',
+      context.harness.env.REPRO_APP_URL
+    )
+    invitationUrl.searchParams.set('invitationToken', invitation.token)
+    invitationUrl.searchParams.set('email', invitation.email)
+
+    const [message] = context.harness.getSentEmails()
+
+    expect(context.harness.getSentEmails()).toHaveLength(1)
+    expect(message).toMatchObject({
+      to: 'hello@example.com',
+      from: 'noreply@repro.dev',
+      subject: `You're invited to join ${account.name} on Repro`,
+    })
+    expect(message?.text).toContain(`${adminUser.name} has invited you`)
+    expect(message?.html).toContain(
+      invitationUrl.toString().replaceAll('&', '&amp;')
+    )
+  })
+
+  it('should still return 201 if invitation email delivery fails', async () => {
+    const failingContext = await createAccountTestContext({
+      sendEmail: () => reject(new Error('unexpected send')),
+    })
+
+    try {
+      const [, , session] = await failingContext.harness.loadFixtures([
+        fixtures.account.AccountA,
+        fixtures.account.AdminUserA,
+        fixtures.account.AdminUserA_Session,
+      ])
+
+      const res = await failingContext.app.inject({
+        method: 'POST',
+        url: '/invite',
+        body: {
+          email: 'failed@example.com',
+        },
+        cookies: {
+          [failingContext.harness.env.SESSION_COOKIE]:
+            failingContext.app.signCookie(session.sessionToken),
+        },
+      })
+
+      expect(res.statusCode).toEqual(201)
+
+      const invitation = await failingContext.harness.db
+        .selectFrom('invitations')
+        .select(['email', 'token'])
+        .where('email', '=', 'failed@example.com')
+        .executeTakeFirstOrThrow()
+
+      expect(invitation).toMatchObject({ email: 'failed@example.com' })
+      expect(failingContext.harness.getSentEmails()).toHaveLength(1)
+    } finally {
+      await failingContext.harness.close()
+    }
   })
 
   it.todo(
