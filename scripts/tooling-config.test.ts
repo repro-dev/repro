@@ -108,3 +108,24 @@ describe("REP-642 tooling wiring", () => {
     );
   });
 });
+
+describe("REP-1245 tool version pinning", () => {
+  it("keeps Moon and Proto pins consistent across runtime and documentation", () => {
+    const prototools = readText(".prototools");
+    const toolchains = readText(".moon/toolchains.yml");
+    const dockerfile = readText("infra/Dockerfile");
+    const buildAndTestSkill = readText(
+      ".opencode/skills/build-and-test/SKILL.md",
+    );
+
+    assert.match(prototools, /^moon = "2\.2\.5"$/m);
+    assert.match(prototools, /^proto = "0\.57\.2"$/m);
+    assert.match(toolchains, /^  version: 0\.57\.2$/m);
+    assert.match(dockerfile, /npm add --global @moonrepo\/cli@2\.2\.5/);
+
+    assert.match(buildAndTestSkill, /@moonrepo\/cli@2\.2\.5/);
+    assert.match(buildAndTestSkill, /moon = "2\.2\.5"/);
+    assert.match(buildAndTestSkill, /proto = "0\.57\.2"/);
+    assert.match(buildAndTestSkill, /proto\.version: 0\.57\.2/);
+  });
+});

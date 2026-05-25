@@ -87,15 +87,16 @@ Requires `pytest` (`pip3 install pytest`). Uses system Python 3 — no version p
 
 All tool versions are pinned in `.prototools` at the repo root. This is the single source of truth for tool versions.
 
-When a tool is installed elsewhere (e.g. in a Dockerfile, CI config, or setup script), it **must reference the same version** pinned in `.prototools`. Never use unpinned installs like `npm add --global @moonrepo/cli` — always specify the version explicitly (e.g. `npm add --global @moonrepo/cli@2.0.4`).
+When a tool is installed elsewhere (e.g. in a Dockerfile, CI config, or setup script), it **must reference the same version** pinned in `.prototools`. Never use unpinned installs like `npm add --global @moonrepo/cli` — always specify the version explicitly (e.g. `npm add --global @moonrepo/cli@2.2.5`).
 
 **Current pinning locations:**
 
-| Tool   | `.prototools`      | Also installed in                              |
-| ------ | ------------------ | ---------------------------------------------- |
-| `moon` | `moon = "2.0.4"`   | `infra/Dockerfile` (`@moonrepo/cli@2.0.4`)     |
-| `node` | `node = "22.19.0"` | `infra/Dockerfile` (base image `node:22-slim`) |
-| `pnpm` | `pnpm = "10.17.0"` | —                                              |
+| Tool    | `.prototools`      | Also installed in                                |
+| ------- | ------------------ | ------------------------------------------------ |
+| `moon`  | `moon = "2.2.5"`   | `infra/Dockerfile` (`@moonrepo/cli@2.2.5`)       |
+| `proto` | `proto = "0.57.2"` | `.moon/toolchains.yml` (`proto.version: 0.57.2`) |
+| `node`  | `node = "22.19.0"` | `infra/Dockerfile` (base image `node:22-slim`)   |
+| `pnpm`  | `pnpm = "10.17.0"` | —                                                |
 
 `.prototools` also pins a **moon_tool plugin override** (`[plugins.tools] moon = "...moon_tool-v0.4.1/moon_tool.wasm"`) required for Moon v2's archive distribution format. The built-in proto plugin doesn't support v2 yet.
 
