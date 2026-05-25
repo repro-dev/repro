@@ -1,13 +1,12 @@
 import { fork } from 'fluture'
+import type { ApiLogger } from '~/modules/logger'
 import type { AccountService } from '~/services/account'
 
 type SessionCleanupService = {
   deleteExpiredSessions: AccountService['deleteExpiredSessions']
 }
 
-type SessionCleanupLogger = {
-  error(payload: { err: Error }, message: string): void
-}
+type SessionCleanupLogger = Pick<ApiLogger, 'error'>
 
 export function createExpiredSessionCleanupRunner(
   accountService: SessionCleanupService,

@@ -7,6 +7,7 @@ import { Env, createEnv } from '~/config/createEnv'
 import { createSessionDecorator } from '~/decorators/session'
 import { createStubPaddleClient } from '~/modules/billing'
 import { decodeId } from '~/modules/database'
+import { createEmailModule } from '~/modules/email'
 import { createAccountRouter } from '~/routers/account'
 import { createAccountService } from '~/services/account'
 import { ApiKeyService, createApiKeyService } from '~/services/apiKeys'
@@ -25,9 +26,10 @@ async function createApiKeyHarness() {
   const { close: closeStorage } = await setUpTestFileSystemStorage()
 
   const sendEmail = createCapturedSendEmail([])
+  const emailModule = createEmailModule({ sendEmail })
   const stubPaddleClient = createStubPaddleClient(db)
   const billingService = createBillingService(db, env, stubPaddleClient)
-  const accountService = createAccountService(db, sendEmail, billingService)
+  const accountService = createAccountService(db, emailModule, billingService)
   const apiKeyService: ApiKeyService = createApiKeyService(db)
 
   // Session decorator wired with apiKeyService — enables Bearer/API-key auth path
@@ -38,7 +40,7 @@ async function createApiKeyHarness() {
   )
 
   function bootstrap() {
-    return fromRouter(createAccountRouter(accountService, sendEmail), [
+    return fromRouter(createAccountRouter(accountService, emailModule), [
       sessionDecorator,
     ])
   }

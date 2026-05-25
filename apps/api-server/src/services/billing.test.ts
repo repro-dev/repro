@@ -1,6 +1,7 @@
 import expect from 'expect'
 import { promise } from 'fluture'
 import { after, before, beforeEach, describe, it } from 'node:test'
+import { ApiLogger, noopLogger } from '~/modules/logger'
 import { Harness, createTestHarness, fixtures } from '~/testing'
 import { notFound } from '~/utils/errors'
 import { BillingService, createBillingService } from './billing'
@@ -361,11 +362,34 @@ describe('Services > Billing (dev adapter)', () => {
 
     it('should fail gracefully when free plan does not exist', async () => {
       const [account] = await harness.loadFixtures([fixtures.account.AccountA])
+      const warnCalls: Array<{ payload: unknown; message?: string }> = []
+      const logger: ApiLogger = {
+        ...noopLogger,
+        warn: (payload, message) => {
+          warnCalls.push({ payload, message })
+        },
+      }
+      const billingServiceWithLogger = createBillingService(
+        harness.db,
+        harness.env,
+        undefined,
+        logger
+      )
 
       // Should not throw even if plan is not found
       await expect(
-        promise(billingService.provisionFreeSubscription(account.id))
+        promise(billingServiceWithLogger.provisionFreeSubscription(account.id))
       ).resolves.toBeUndefined()
+
+      expect(warnCalls).toHaveLength(1)
+      expect(warnCalls[0]).toMatchObject({
+        payload: {
+          event: 'billing.free_subscription_provision_failed',
+          accountId: account.id,
+          err: expect.any(Error),
+        },
+        message: 'Free subscription provisioning failed',
+      })
     })
   })
 

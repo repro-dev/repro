@@ -3,7 +3,7 @@ import { fork } from 'fluture'
 
 import { defaultEnv as env } from '~/config/env'
 import { createPostgresDatabaseClient } from '~/modules/database/database-postgres'
-import { sendEmail } from '~/modules/email'
+import { createEmailModule } from '~/modules/email'
 import { createAccountService } from '~/services/account'
 
 const database = createPostgresDatabaseClient({
@@ -15,7 +15,7 @@ const database = createPostgresDatabaseClient({
   ssl: env.DB_SSL,
 })
 
-const accountService = createAccountService(database, sendEmail)
+const accountService = createAccountService(database, createEmailModule())
 
 async function main() {
   const name = await input({ message: 'Name', required: true })

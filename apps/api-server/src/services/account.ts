@@ -37,11 +37,7 @@ import {
   encodeId,
   withEncodedId,
 } from '~/modules/database'
-import {
-  emailFromAddress,
-  sendEmailInBackground,
-  sendEmail as sendEmailMessage,
-} from '~/modules/email'
+import { EmailModule } from '~/modules/email'
 import { BillingService } from '~/services/billing'
 import { getSessionPolicy } from '~/services/sessionPolicy'
 import {
@@ -58,6 +54,10 @@ import {
 const DUMMY_HASH =
   '$argon2id$v=19$m=4096,t=3,p=1$YWJjZDEyMzQ$MFRSPmdxZVyBvGi95RcZlo5PqmfJhLXYj8JZm8atFdY'
 
+type SendVerificationEmailOptions = {
+  context?: Record<string, unknown>
+}
+
 function createToken(): string {
   return randomBytes(32).toString('base64url')
 }
@@ -70,7 +70,7 @@ function hashToken(token: string): string {
 
 export function createAccountService(
   database: Database,
-  sendEmail: typeof sendEmailMessage,
+  emailModule: EmailModule,
   billingService?: BillingService,
   _config: SystemConfig = defaultSystemConfig
 ) {
@@ -942,7 +942,10 @@ export function createAccountService(
     })
   }
 
-  function sendVerificationEmail(userId: string): FutureInstance<Error, void> {
+  function sendVerificationEmail(
+    userId: string,
+    options: SendVerificationEmailOptions = {}
+  ): FutureInstance<Error, void> {
     const result = attemptQuery(async () => {
       return database
         .selectFrom('users')
@@ -957,16 +960,22 @@ export function createAccountService(
         verificationUrl.searchParams.set('verificationToken', verificationToken)
         verificationUrl.searchParams.set('email', email)
 
-        sendEmailInBackground(
+        emailModule.sendEmailInBackground(
           {
             to: email,
-            from: emailFromAddress,
+            from: emailModule.emailFromAddress,
             ...emailVerificationEmail({
               verificationUrl: verificationUrl.toString(),
               userName: name,
             }),
           },
-          sendEmail
+          {
+            emailKind: 'verification',
+            context: {
+              targetUserId: userId,
+              ...options.context,
+            },
+          }
         )
 
         return resolve(undefined)

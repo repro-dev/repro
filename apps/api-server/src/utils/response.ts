@@ -75,10 +75,8 @@ export function createResponseUtils(config: SystemConfig) {
         value.subscribe({
           next: data => res.raw.write(data),
           complete: () => res.raw.end(),
-
-          // TODO
           error: error => {
-            console.error(error)
+            res.log.error({ err: error }, 'Response stream failed')
           },
         })
       } else if (isLens(value)) {

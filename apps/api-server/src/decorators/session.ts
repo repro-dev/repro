@@ -31,13 +31,14 @@ declare module 'fastify' {
 }
 
 type Request = FastifyRequest
+type AnyFastifyInstance = FastifyInstance<any, any, any, any, any>
 
 export function createSessionDecorator(
   accountService: AccountService,
   env: Env,
   apiKeyService?: ApiKeyService
 ) {
-  return function registerSessionDecorator(fastify: FastifyInstance) {
+  return function registerSessionDecorator(fastify: AnyFastifyInstance) {
     const app = fastify.withTypeProvider<ZodTypeProvider>()
 
     function getSessionToken<T extends Request>(req: T) {

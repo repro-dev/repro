@@ -17,11 +17,8 @@ import {
 import z from 'zod'
 import { defaultEnv as env } from '~/config/env'
 import { defaultSystemConfig } from '~/config/system'
-import {
-  emailFromAddress,
-  sendEmailInBackground,
-  sendEmail as sendEmailMessage,
-} from '~/modules/email'
+import { EmailModule } from '~/modules/email'
+import { createRequestLogContext } from '~/modules/logger'
 import { AccountService } from '~/services/account'
 import { isNotFound, notAuthenticated, resourceConflict } from '~/utils/errors'
 import { getCurrentUserAccount } from '~/utils/request'
@@ -86,7 +83,7 @@ const updateNameSchema = {
 
 export function createAccountRouter(
   accountService: AccountService,
-  sendEmail: typeof sendEmailMessage,
+  emailModule: EmailModule,
   config = defaultSystemConfig
 ): FastifyPluginAsync {
   const { respondWith } = createResponseUtils(config)
@@ -149,7 +146,13 @@ export function createAccountRouter(
               req.body.password
             )
 
-            yield accountService.sendVerificationEmail(user.id)
+            yield accountService.sendVerificationEmail(user.id, {
+              context: {
+                ...createRequestLogContext(req),
+                accountId: account.id,
+                targetUserId: user.id,
+              },
+            })
 
             yield req.createSession(user)
 
@@ -186,10 +189,10 @@ export function createAccountRouter(
                   .createInvitation(account.id, req.body.email)
                   .pipe(
                     map(invitation => {
-                      sendEmailInBackground(
+                      emailModule.sendEmailInBackground(
                         {
                           to: invitation.email,
-                          from: emailFromAddress,
+                          from: emailModule.emailFromAddress,
                           ...invitationEmail({
                             invitationUrl: createInvitationUrl(
                               env.REPRO_APP_URL,
@@ -200,7 +203,15 @@ export function createAccountRouter(
                             inviterName: user.name,
                           }),
                         },
-                        sendEmail
+                        {
+                          emailKind: 'invitation',
+                          context: {
+                            ...createRequestLogContext(req),
+                            accountId: account.id,
+                            actorUserId: user.id,
+                            invitationId: invitation.id,
+                          },
+                        }
                       )
 
                       return invitation
@@ -353,10 +364,10 @@ export function createAccountRouter(
             )(user =>
               accountService.createPasswordResetToken(user.id).pipe(
                 map(token => {
-                  sendEmailInBackground(
+                  emailModule.sendEmailInBackground(
                     {
                       to: user.email,
-                      from: emailFromAddress,
+                      from: emailModule.emailFromAddress,
                       ...passwordResetEmail({
                         resetUrl: createPasswordResetUrl(
                           env.REPRO_APP_URL,
@@ -365,7 +376,13 @@ export function createAccountRouter(
                         userName: user.name,
                       }),
                     },
-                    sendEmail
+                    {
+                      emailKind: 'password_reset',
+                      context: {
+                        ...createRequestLogContext(req),
+                        targetUserId: user.id,
+                      },
+                    }
                   )
 
                   return null
@@ -493,9 +510,16 @@ export function createAccountRouter(
     app.post('/me/send-verification', (req, res) => {
       respondWith(
         res,
-        req
-          .getCurrentUser()
-          .pipe(chain(user => accountService.sendVerificationEmail(user.id)))
+        req.getCurrentUser().pipe(
+          chain(user =>
+            accountService.sendVerificationEmail(user.id, {
+              context: {
+                ...createRequestLogContext(req),
+                targetUserId: user.id,
+              },
+            })
+          )
+        )
       )
     })
   }
