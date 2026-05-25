@@ -296,5 +296,33 @@ describe('Routers > Staff', () => {
         message: 'Invalid account ID',
       })
     })
+
+    it('should return 403 when not authenticated as staff', async () => {
+      const [userSession, account] = await harness.loadFixtures([
+        fixtures.account.UserA_Session,
+        fixtures.account.AccountA,
+      ])
+
+      const res = await app.inject({
+        method: 'GET',
+        url: `/accounts/${account.id}/projects`,
+        headers: {
+          authorization: `Bearer ${(userSession as Session).sessionToken}`,
+        },
+      })
+
+      expect(res.statusCode).toEqual(403)
+    })
+
+    it('should return 401 when not authenticated', async () => {
+      const [account] = await harness.loadFixtures([fixtures.account.AccountA])
+
+      const res = await app.inject({
+        method: 'GET',
+        url: `/accounts/${account.id}/projects`,
+      })
+
+      expect(res.statusCode).toEqual(401)
+    })
   })
 })

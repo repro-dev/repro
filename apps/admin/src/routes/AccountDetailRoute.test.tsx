@@ -4,7 +4,13 @@ import {
   StaffAccountProject,
   StaffUserDetail,
 } from '@repro/domain'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react'
 import { resolve } from 'fluture'
 import assert from 'node:assert/strict'
 import { afterEach, describe, it } from 'node:test'
@@ -135,6 +141,63 @@ describe('AccountDetailRoute', () => {
     assert.equal(
       screen.queryByRole('link', { name: /Owner User|Inactive User/ }),
       null
+    )
+  })
+
+  it('loads additional user pages so users beyond the first page become visible', async () => {
+    const requests: string[] = []
+    const firstPageUser = users[0]!
+    const secondPageUser: StaffUserDetail = {
+      type: 'user',
+      id: 'user-51',
+      name: 'Second Page User',
+      email: 'second-page@acme.test',
+      verified: true,
+      admin: false,
+      active: true,
+      accountId: 'account-1',
+      createdAt: '2026-04-04T10:30:00.000Z',
+    }
+    const connectedApiClient = {
+      ...apiClient,
+      fetch: (path: string) => {
+        requests.push(path)
+        if (path === '/staff/accounts/account-1') return resolve(detail)
+        if (path === '/staff/accounts/account-1/users?limit=50')
+          return resolve({ items: [firstPageUser], nextCursor: 'user-50' })
+        if (path === '/staff/accounts/account-1/users?limit=50&cursor=user-50')
+          return resolve({ items: [secondPageUser] })
+        if (path === '/staff/accounts/account-1/projects')
+          return resolve({ items: projects })
+        return resolve(undefined)
+      },
+    } as typeof apiClient
+
+    render(
+      <ApiProvider client={connectedApiClient}>
+        <MemoryRouter initialEntries={['/accounts/account-1']}>
+          <Routes>
+            <Route
+              path="/accounts/:accountId"
+              element={<AccountDetailRoute />}
+            />
+          </Routes>
+        </MemoryRouter>
+      </ApiProvider>
+    )
+
+    await waitFor(() => assert.ok(screen.getByText('Owner User')))
+    assert.equal(screen.queryByText('Second Page User'), null)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Load more users' }))
+
+    await waitFor(() => assert.ok(screen.getByText('Second Page User')))
+    assert.ok(screen.getByText('owner@acme.test'))
+    assert.ok(screen.getByText('second-page@acme.test'))
+    assert.ok(
+      requests.includes(
+        '/staff/accounts/account-1/users?limit=50&cursor=user-50'
+      )
     )
   })
 })

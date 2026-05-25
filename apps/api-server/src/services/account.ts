@@ -746,6 +746,17 @@ export function createAccountService(
             )
             .select('filterSubscriptions.id')
             .whereRef('filterSubscriptions.accountId', '=', 'accounts.id')
+            .where(
+              'filterSubscriptions.id',
+              '=',
+              eb
+                .selectFrom('billing_subscriptions as latestSubscriptions')
+                .select('latestSubscriptions.id')
+                .whereRef('latestSubscriptions.accountId', '=', 'accounts.id')
+                .orderBy('latestSubscriptions.createdAt desc')
+                .orderBy('latestSubscriptions.id desc')
+                .limit(1)
+            )
             .where('filterPlans.name', '=', planTier)
         )
       )

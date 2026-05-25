@@ -255,6 +255,48 @@ describe('Services > Account', () => {
       expect(byPlan.items.map(item => item.id)).toEqual([proAccount.id])
     })
 
+    it('should filter plan tier against the latest subscription displayed for the account', async () => {
+      const [freePlan, proPlan] = await harness.loadFixtures([
+        fixtures.billing.FreePlan,
+        fixtures.billing.ProPlan,
+      ])
+      const account = await promise(
+        accountService.createAccount('Changed Plan Ops')
+      )
+
+      await promise(
+        billingService.createCheckoutSession(
+          account.id,
+          'changed-plan@example.com',
+          freePlan.id
+        )
+      )
+      await promise(
+        billingService.createCheckoutSession(
+          account.id,
+          'changed-plan@example.com',
+          proPlan.id
+        )
+      )
+
+      const byOldPlan = await promise(
+        accountService.listAccounts({ planTier: 'Free' })
+      )
+      expect(byOldPlan.items.map(item => item.id)).not.toContain(account.id)
+
+      const byLatestPlan = await promise(
+        accountService.listAccounts({ planTier: 'Repro+' })
+      )
+      expect(byLatestPlan.items).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: account.id,
+            planName: 'Repro+',
+          }),
+        ])
+      )
+    })
+
     it('should return staff account detail with primary user and counts', async () => {
       const [proPlan] = await harness.loadFixtures([fixtures.billing.ProPlan])
       const account = await promise(accountService.createAccount('Detail Ops'))

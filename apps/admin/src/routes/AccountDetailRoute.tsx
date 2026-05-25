@@ -4,6 +4,7 @@ import {
   Alert,
   Badge,
   Breadcrumbs,
+  Button,
   Card,
   FullPageError,
   FullPageLoading,
@@ -37,16 +38,29 @@ function statusText(active: boolean, label: string) {
 export const AccountDetailRoute: React.FC = () => {
   const { accountId } = useParams<{ accountId: string }>()
   const apiClient = useApiClient()
+  const [usersCursor, setUsersCursor] = React.useState<string | undefined>()
+  const [users, setUsers] = React.useState<StaffUserDetail[]>([])
+  const [usersNextCursor, setUsersNextCursor] = React.useState<
+    string | undefined
+  >()
+  const appliedUsersPage = React.useRef<{
+    items: StaffUserDetail[]
+    nextCursor?: string
+  } | null>(null)
   const detailResult = useFuture(
     () => apiClient.fetch<StaffAccountDetail>(`/staff/accounts/${accountId}`),
     [accountId]
   )
   const usersResult = useFuture(
     () =>
-      apiClient.fetch<{ items: StaffUserDetail[] }>(
-        `/staff/accounts/${accountId}/users?limit=50`
+      apiClient.fetch<{ items: StaffUserDetail[]; nextCursor?: string }>(
+        `/staff/accounts/${accountId}/users?limit=50${
+          usersCursor == null
+            ? ''
+            : `&cursor=${encodeURIComponent(usersCursor)}`
+        }`
       ),
-    [accountId]
+    [accountId, usersCursor]
   )
   const projectsResult = useFuture(
     () =>
@@ -55,6 +69,27 @@ export const AccountDetailRoute: React.FC = () => {
       ),
     [accountId]
   )
+
+  React.useEffect(() => {
+    setUsers([])
+    setUsersCursor(undefined)
+    setUsersNextCursor(undefined)
+    appliedUsersPage.current = null
+  }, [accountId])
+
+  React.useEffect(() => {
+    if (usersResult.data == null) return
+    if (appliedUsersPage.current === usersResult.data) return
+
+    appliedUsersPage.current = usersResult.data
+
+    setUsers(current =>
+      usersCursor == null
+        ? usersResult.data.items
+        : [...current, ...usersResult.data.items]
+    )
+    setUsersNextCursor(usersResult.data.nextCursor)
+  }, [usersResult.data, usersCursor])
 
   const account = detailResult.data
 
@@ -155,7 +190,7 @@ export const AccountDetailRoute: React.FC = () => {
                 </Text>
               </Col>
               <Card fullBleed>
-                {usersResult.loading && usersResult.data == null ? (
+                {usersResult.loading && users.length === 0 ? (
                   <FullPageLoading />
                 ) : usersResult.error ? (
                   <Alert type="danger">
@@ -172,7 +207,7 @@ export const AccountDetailRoute: React.FC = () => {
                       </Table.Row>
                     </Table.Header>
                     <Table.Body>
-                      {(usersResult.data?.items ?? []).map(user => (
+                      {users.map(user => (
                         <Table.Row key={user.id}>
                           <Table.Cell>
                             <Col gap={spacing.xs}>
@@ -202,6 +237,17 @@ export const AccountDetailRoute: React.FC = () => {
                   </Table>
                 )}
               </Card>
+              {usersNextCursor != null ? (
+                <Row justifyContent="flex-end">
+                  <Button
+                    variant="outlined"
+                    disabled={usersResult.loading}
+                    onClick={() => setUsersCursor(usersNextCursor)}
+                  >
+                    Load more users
+                  </Button>
+                </Row>
+              ) : null}
             </Col>
 
             <Col component="section" gap={spacing.md}>
