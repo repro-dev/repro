@@ -46,7 +46,7 @@ test("setupAutobotWorkspace runs setup commands in contract order without pnpm b
     "node --version",
     "pnpm --version",
     "moon --version",
-    "linear --version",
+    "/repo/.autobot/worktrees/REP-1234/bin/linear --version",
     "opencode --version",
   ]);
   assert.ok(!commands.some((command) => command.includes("bootstrap")));
@@ -128,6 +128,132 @@ test("setupAutobotWorkspace surfaces bootstrap recovery commands and partial res
   );
 });
 
+test("setupAutobotWorkspace wraps bootstrap config copy failures in setup error payloads", async () => {
+  await assert.rejects(
+    runFuture(
+      setupAutobotWorkspace(input, {
+        pathExists: () => resolve(false),
+        mkdir: () => resolve(undefined),
+        writeFile: () => resolve(undefined),
+        copyFile(source) {
+          return reject(new Error(`cannot copy ${source}`));
+        },
+        runCommand() {
+          return resolve({ stdout: "ok", stderr: "" });
+        },
+      }),
+    ),
+    (error) => {
+      const payload = error as {
+        code?: string;
+        what_failed?: string;
+        likely_cause?: string;
+        recovery_commands?: string[];
+        details?: { step?: string; completed_steps?: string[] };
+      };
+      assert.equal(payload.code, "AUTOBOT-WORKSPACE-BOOTSTRAP-FAILED");
+      assert.equal(payload.what_failed, "workspace setup bootstrap-config");
+      assert.match(payload.likely_cause ?? "", /cannot copy/);
+      assert.ok(
+        payload.recovery_commands?.includes(
+          "cp .linear .autobot/worktrees/REP-1234/.linear",
+        ),
+      );
+      assert.equal(payload.details?.step, "bootstrap-config");
+      assert.deepEqual(payload.details?.completed_steps, ["run-directories"]);
+      return true;
+    },
+  );
+});
+
+test("setupAutobotWorkspace writes command logs before rejecting failed commands", async () => {
+  const writes = new Map<string, string>();
+
+  await assert.rejects(
+    runFuture(
+      setupAutobotWorkspace(input, {
+        pathExists: () => resolve(true),
+        isMainDirenvTrusted: () => resolve(true),
+        copyFile: () => resolve(undefined),
+        mkdir: () => resolve(undefined),
+        writeFile(target, content) {
+          writes.set(target, content);
+          return resolve(undefined);
+        },
+        runCommand(command) {
+          if (command.command === "pnpm") {
+            return reject({
+              message: "install failed",
+              stdout: "install stdout",
+              stderr: "install stderr",
+            });
+          }
+
+          return resolve({ stdout: "ok", stderr: "" });
+        },
+      }),
+    ),
+  );
+
+  assert.equal(
+    writes.get(
+      "/repo/.autobot/worktrees/REP-1234/.autobot/runs/REP-1234/attempt-2/logs/workspace-setup/dependencies.stdout.log",
+    ),
+    "install stdout",
+  );
+  assert.equal(
+    writes.get(
+      "/repo/.autobot/worktrees/REP-1234/.autobot/runs/REP-1234/attempt-2/logs/workspace-setup/dependencies.stderr.log",
+    ),
+    "install stderr",
+  );
+});
+
+test("setupAutobotWorkspace writes validation logs before rejecting validation failures", async () => {
+  const writes = new Map<string, string>();
+
+  await assert.rejects(
+    runFuture(
+      setupAutobotWorkspace(input, {
+        pathExists: () => resolve(false),
+        isMainDirenvTrusted: () => resolve(false),
+        copyFile: () => resolve(undefined),
+        mkdir: () => resolve(undefined),
+        writeFile(target, content) {
+          writes.set(target, content);
+          return resolve(undefined);
+        },
+        runCommand(command) {
+          if (
+            command.command === "/repo/.autobot/worktrees/REP-1234/bin/linear"
+          ) {
+            return reject({
+              message: "linear wrapper failed",
+              stdout: "linear stdout",
+              stderr: "linear stderr",
+            });
+          }
+
+          return resolve({ stdout: "ok", stderr: "" });
+        },
+      }),
+    ),
+  );
+
+  assert.equal(
+    writes.get(
+      "/repo/.autobot/worktrees/REP-1234/.autobot/runs/REP-1234/attempt-2/logs/workspace-setup/validation-linear.stdout.log",
+    ),
+    "linear stdout",
+  );
+  assert.equal(
+    writes.get(
+      "/repo/.autobot/worktrees/REP-1234/.autobot/runs/REP-1234/attempt-2/logs/workspace-setup/validation-linear.stderr.log",
+    ),
+    "linear stderr",
+  );
+});
+
 test("setupAutobotWorkspace surfaces direnv and validation recovery commands", async () => {
   await assert.rejects(
     runFuture(
@@ -163,7 +289,9 @@ test("setupAutobotWorkspace surfaces direnv and validation recovery commands", a
         mkdir: () => resolve(undefined),
         writeFile: () => resolve(undefined),
         runCommand(command) {
-          if (command.command === "linear") {
+          if (
+            command.command === "/repo/.autobot/worktrees/REP-1234/bin/linear"
+          ) {
             return reject(new Error("missing binary"));
           }
 
@@ -174,9 +302,32 @@ test("setupAutobotWorkspace surfaces direnv and validation recovery commands", a
     (error) => {
       const payload = error as { code?: string; recovery_commands?: string[] };
       assert.equal(payload.code, "AUTOBOT-WORKSPACE-VALIDATION-FAILED");
-      assert.ok(payload.recovery_commands?.includes("linear --version"));
+      assert.ok(payload.recovery_commands?.includes("bin/linear --version"));
       assert.ok(payload.recovery_commands?.includes("opencode --version"));
       return true;
     },
   );
+});
+
+test("setupAutobotWorkspace validates through the worktree-local linear wrapper", async () => {
+  const commands: string[] = [];
+
+  await runFuture(
+    setupAutobotWorkspace(input, {
+      pathExists: () => resolve(false),
+      isMainDirenvTrusted: () => resolve(false),
+      copyFile: () => resolve(undefined),
+      mkdir: () => resolve(undefined),
+      writeFile: () => resolve(undefined),
+      runCommand(command) {
+        commands.push([command.command, ...command.args].join(" "));
+        return resolve({ stdout: "ok", stderr: "" });
+      },
+    }),
+  );
+
+  assert.ok(
+    commands.includes("/repo/.autobot/worktrees/REP-1234/bin/linear --version"),
+  );
+  assert.ok(!commands.includes("linear --version"));
 });

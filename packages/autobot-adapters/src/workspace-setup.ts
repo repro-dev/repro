@@ -134,21 +134,30 @@ function createSetupError(input: {
   const cause = input.cause as { message?: unknown } | null;
   const message =
     typeof cause?.message === "string" ? cause.message : String(input.cause);
-  const isBootstrap = input.step === "dependencies" || input.step === "build";
+  const isBootstrap =
+    input.step === "bootstrap-config" ||
+    input.step === "dependencies" ||
+    input.step === "build";
   const code = isBootstrap
     ? "AUTOBOT-WORKSPACE-BOOTSTRAP-FAILED"
     : input.step === "direnv"
     ? "AUTOBOT-WORKSPACE-DIRENV-FAILED"
     : "AUTOBOT-WORKSPACE-VALIDATION-FAILED";
+  const worktreeName = path.basename(input.workspacePath);
   const recoveryCommands = isBootstrap
-    ? ["pnpm install --frozen-lockfile", "moon run :build"]
+    ? [
+        `cp .linear .autobot/worktrees/${worktreeName}/.linear`,
+        `cp .envrc.local .autobot/worktrees/${worktreeName}/.envrc.local`,
+        "pnpm install --frozen-lockfile",
+        "moon run :build",
+      ]
     : input.step === "direnv"
     ? ["direnv allow", "direnv status"]
     : [
         "node --version",
         "pnpm --version",
         "moon --version",
-        "linear --version",
+        "bin/linear --version",
         "opencode --version",
       ];
 
@@ -170,6 +179,27 @@ function createSetupError(input: {
       skipped_steps: input.skippedSteps.map((step) => step.name),
       error: message,
     },
+  };
+}
+
+function commandOutputFromError(error: unknown): RunCommandOutput {
+  const commandError = error as
+    | { stdout?: unknown; stderr?: unknown }
+    | null
+    | undefined;
+  return {
+    stdout:
+      typeof commandError?.stdout === "string"
+        ? commandError.stdout
+        : Buffer.isBuffer(commandError?.stdout)
+        ? commandError.stdout.toString("utf8")
+        : "",
+    stderr:
+      typeof commandError?.stderr === "string"
+        ? commandError.stderr
+        : Buffer.isBuffer(commandError?.stderr)
+        ? commandError.stderr.toString("utf8")
+        : "",
   };
 }
 
@@ -232,6 +262,25 @@ export function setupAutobotWorkspace(
         steps.filter((step) => step.status === "succeeded");
       const skippedSteps = () =>
         steps.filter((step) => step.status === "skipped");
+      const writeCommandLogs = async (
+        stdoutLogPath: string,
+        stderrLogPath: string,
+        output: RunCommandOutput,
+      ) => {
+        await runFuture(writeFileDependency(stdoutLogPath, output.stdout));
+        await runFuture(writeFileDependency(stderrLogPath, output.stderr));
+      };
+      const tryWriteCommandLogs = async (
+        stdoutLogPath: string,
+        stderrLogPath: string,
+        output: RunCommandOutput,
+      ) => {
+        try {
+          await writeCommandLogs(stdoutLogPath, stderrLogPath, output);
+        } catch {
+          // Preserve the structured command failure; log-write failures are secondary.
+        }
+      };
       const runStep = async (
         step: WorkspaceSetupStepName,
         command: string,
@@ -250,8 +299,7 @@ export function setupAutobotWorkspace(
           const output = await runFuture(
             runCommand({ cwd: input.workspacePath, command, args }),
           );
-          await runFuture(writeFileDependency(stdoutLogPath, output.stdout));
-          await runFuture(writeFileDependency(stderrLogPath, output.stderr));
+          await writeCommandLogs(stdoutLogPath, stderrLogPath, output);
           const result: WorkspaceSetupStepResult = {
             name: step,
             status: "succeeded",
@@ -271,6 +319,11 @@ export function setupAutobotWorkspace(
           });
         } catch (error) {
           const failedAt = now();
+          await tryWriteCommandLogs(
+            stdoutLogPath,
+            stderrLogPath,
+            commandOutputFromError(error),
+          );
           const failure = createSetupError({
             step,
             workspacePath: input.workspacePath,
@@ -305,22 +358,30 @@ export function setupAutobotWorkspace(
         const stepStartedAt = now();
         const step = "validation";
         emit({ event: "step_started", step, occurred_at: stepStartedAt });
+        let failedCommand: string | undefined;
+        let failedArgs: string[] | undefined;
+        let failedStdoutLogPath: string | undefined;
+        let failedStderrLogPath: string | undefined;
         try {
           for (const [command, args] of [
             ["node", ["--version"]],
             ["pnpm", ["--version"]],
             ["moon", ["--version"]],
-            ["linear", ["--version"]],
+            [path.join(input.workspacePath, "bin", "linear"), ["--version"]],
             ["opencode", ["--version"]],
           ] as const) {
             const stdoutLogPath = path.join(
               logsRoot,
-              `${step}-${command}.stdout.log`,
+              `${step}-${path.basename(command)}.stdout.log`,
             );
             const stderrLogPath = path.join(
               logsRoot,
-              `${step}-${command}.stderr.log`,
+              `${step}-${path.basename(command)}.stderr.log`,
             );
+            failedCommand = command;
+            failedArgs = [...args];
+            failedStdoutLogPath = stdoutLogPath;
+            failedStderrLogPath = stderrLogPath;
             const output = await runFuture(
               runCommand({
                 cwd: input.workspacePath,
@@ -328,15 +389,25 @@ export function setupAutobotWorkspace(
                 args: [...args],
               }),
             );
-            await runFuture(writeFileDependency(stdoutLogPath, output.stdout));
-            await runFuture(writeFileDependency(stderrLogPath, output.stderr));
+            await writeCommandLogs(stdoutLogPath, stderrLogPath, output);
           }
           markSucceeded(step, stepStartedAt);
         } catch (error) {
           const failedAt = now();
+          if (failedStdoutLogPath && failedStderrLogPath) {
+            await tryWriteCommandLogs(
+              failedStdoutLogPath,
+              failedStderrLogPath,
+              commandOutputFromError(error),
+            );
+          }
           const failure = createSetupError({
             step,
             workspacePath: input.workspacePath,
+            command: failedCommand,
+            args: failedArgs,
+            stdoutLogPath: failedStdoutLogPath,
+            stderrLogPath: failedStderrLogPath,
             completedSteps: completedSteps(),
             skippedSteps: skippedSteps(),
             cause: error,
@@ -411,21 +482,47 @@ export function setupAutobotWorkspace(
           step: "bootstrap-config",
           occurred_at: configStartedAt,
         });
-        await runFuture(
-          copyFileDependency(
-            path.join(input.repoRoot, ".linear"),
-            path.join(input.workspacePath, ".linear"),
-          ),
-        );
-        if (
-          await runFuture(pathExists(path.join(input.repoRoot, ".envrc.local")))
-        ) {
+        try {
           await runFuture(
             copyFileDependency(
-              path.join(input.repoRoot, ".envrc.local"),
-              path.join(input.workspacePath, ".envrc.local"),
+              path.join(input.repoRoot, ".linear"),
+              path.join(input.workspacePath, ".linear"),
             ),
           );
+          if (
+            await runFuture(
+              pathExists(path.join(input.repoRoot, ".envrc.local")),
+            )
+          ) {
+            await runFuture(
+              copyFileDependency(
+                path.join(input.repoRoot, ".envrc.local"),
+                path.join(input.workspacePath, ".envrc.local"),
+              ),
+            );
+          }
+        } catch (error) {
+          const failedAt = now();
+          const failure = createSetupError({
+            step: "bootstrap-config",
+            workspacePath: input.workspacePath,
+            completedSteps: completedSteps(),
+            skippedSteps: skippedSteps(),
+            cause: error,
+          });
+          steps.push({
+            name: "bootstrap-config",
+            status: "failed",
+            started_at: configStartedAt,
+            finished_at: failedAt,
+          });
+          emit({
+            event: "step_failed",
+            step: "bootstrap-config",
+            occurred_at: failedAt,
+            data: failure,
+          });
+          throw failure;
         }
         markSucceeded("bootstrap-config", configStartedAt);
 
