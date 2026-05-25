@@ -1,5 +1,5 @@
 import { Block, Grid, Row } from '@jsxstyle/react'
-import { color, DropdownMenu, spacing } from '@repro/design'
+import { Button, color, DropdownMenu, spacing } from '@repro/design'
 import { ChevronDownIcon, FolderIcon, PlusIcon } from 'lucide-react'
 import React, { useState } from 'react'
 import { useProjectContext } from '~/ProjectContext'
@@ -14,8 +14,30 @@ export const ProjectSwitcher: React.FC<ProjectSwitcherProps> = () => {
   const [menuOpen, setMenuOpen] = useState(false)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
 
-  if (loading || !selectedProject) {
+  if (loading) {
     return null
+  }
+
+  if (!selectedProject) {
+    return (
+      <>
+        <Block padding={spacing.sm}>
+          <Button
+            variant="outlined"
+            context="neutral"
+            size="small"
+            onClick={() => setShowCreateDialog(true)}
+          >
+            Create project
+          </Button>
+        </Block>
+
+        <CreateProjectDialog
+          open={showCreateDialog}
+          onClose={() => setShowCreateDialog(false)}
+        />
+      </>
+    )
   }
 
   return (

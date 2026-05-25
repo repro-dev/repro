@@ -1,6 +1,14 @@
 import { ApiClient, ApiProvider, createApiClient } from '@repro/api-client'
+import { PortalRootProvider } from '@repro/design'
 import { RecordingInfo, RecordingMode } from '@repro/domain'
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react'
 import { FutureInstance, never, resolve } from 'fluture'
 import assert from 'node:assert/strict'
 import { afterEach, describe, it } from 'node:test'
@@ -99,6 +107,22 @@ function makeWrapper(initialProjectId = 'proj-1') {
   }
 }
 
+function makeNoProjectWrapper() {
+  return function Wrapper({ children }: { children: React.ReactNode }) {
+    return (
+      <MemoryRouter>
+        <ApiProvider client={mockApiClient}>
+          <PortalRootProvider>
+            <ProjectProvider getProjects={() => resolve([])}>
+              {children}
+            </ProjectProvider>
+          </PortalRootProvider>
+        </ApiProvider>
+      </MemoryRouter>
+    )
+  }
+}
+
 // Wrapper that provides two projects and exposes a button to switch between them.
 function makeTwoProjectWrapper() {
   const twoProjects = [
@@ -156,6 +180,43 @@ describe('HomeRoute', () => {
   })
 
   describe('empty state', () => {
+    it('should show first-project onboarding when no project exists', async () => {
+      let recordingsFetchCount = 0
+      const getProjectRecordings = (
+        _apiClient: ApiClient,
+        _projectId: string
+      ): FutureInstance<unknown, RecordingInfo[]> => {
+        recordingsFetchCount += 1
+        return resolve([])
+      }
+      const wrapper = makeNoProjectWrapper()
+
+      render(<HomeRoute getProjectRecordings={getProjectRecordings} />, {
+        wrapper,
+      })
+
+      assert.ok(await screen.findByText('Create your first project'))
+      assert.ok(screen.getByRole('button', { name: /create project/i }))
+      assert.equal(screen.queryByText('Install the Repro extension'), null)
+      assert.equal(recordingsFetchCount, 0)
+    })
+
+    it('should open the create project dialog from first-project onboarding', async () => {
+      const wrapper = makeNoProjectWrapper()
+
+      render(<HomeRoute getProjectRecordings={() => resolve([])} />, {
+        wrapper,
+      })
+
+      fireEvent.click(
+        await screen.findByRole('button', { name: /create project/i })
+      )
+
+      await waitFor(() => {
+        assert.ok(screen.getByRole('dialog', { name: /create project/i }))
+      })
+    })
+
     it('should show empty state when no recordings', async () => {
       const getProjectRecordings = (
         _apiClient: ApiClient,
