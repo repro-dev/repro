@@ -215,6 +215,12 @@ test("supervisor run-once fails from preparing when workspace setup fails", asyn
         occurred_at: "2026-05-15T12:00:00Z",
         data: setupError,
       });
+      dependencies?.onProgress?.({
+        event: "failed",
+        step: "workspace-setup",
+        occurred_at: "2026-05-15T12:00:00Z",
+        data: setupError,
+      });
       return reject(setupError);
     },
     artifactWriter: () => resolve(undefined),
@@ -240,10 +246,21 @@ test("supervisor run-once fails from preparing when workspace setup fails", asyn
   );
 
   assert.equal(planningCalls, 0);
-  assert.ok(
-    fixture.domainEvents.some(
-      (event) => event.type === "workflow.workspace_setup.step_failed",
-    ),
+  const setupStepFailedEvent = fixture.domainEvents.find(
+    (event) => event.type === "workflow.workspace_setup.step_failed",
+  );
+  assert.ok(setupStepFailedEvent);
+  assert.deepEqual(
+    (setupStepFailedEvent.data as { error?: unknown }).error,
+    setupError,
+  );
+  const setupFailedEvent = fixture.domainEvents.find(
+    (event) => event.type === "workflow.workspace_setup.failed",
+  );
+  assert.ok(setupFailedEvent);
+  assert.deepEqual(
+    (setupFailedEvent.data as { error?: unknown }).error,
+    setupError,
   );
   assert.ok(
     fixture.domainEvents.some(

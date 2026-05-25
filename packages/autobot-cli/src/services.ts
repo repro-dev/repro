@@ -4050,6 +4050,10 @@ function createWorkspaceSetupProgressEvent(input: {
     input.record.event === "failed" || input.record.event === "step_failed"
       ? "error"
       : "info";
+  const progressData =
+    severity === "error"
+      ? { error: input.record.data }
+      : { ...input.record.data };
 
   return createDomainEvent({
     type,
@@ -4064,7 +4068,7 @@ function createWorkspaceSetupProgressEvent(input: {
       run_id: input.runId,
       execution_id: input.executionId,
       step: input.record.step,
-      ...input.record.data,
+      ...progressData,
     },
   });
 }
