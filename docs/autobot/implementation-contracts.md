@@ -49,6 +49,13 @@ This document refines `cli-design.md` into implementation-ready contracts. It re
 - Running supervisors reload config on the next tick where practical.
 - MVP includes delivery policy config keys even if some are inert until later delivery phases.
 
+### 2026-05-25 Workspace Setup Contract
+
+- REP-1234 keeps workspace setup inside the public `preparing` phase. Git worktree preparation and workspace setup are observable sub-actions; no new `ItemState` or FlowCraft phase is introduced for MVP.
+- Setup runs after git worktree creation/reuse/archive and before planning artifacts are generated.
+- MVP setup does **not** run `pnpm bootstrap`; dependency bootstrap is `pnpm install --frozen-lockfile`, matching repo worktree setup behavior.
+- Setup runs on every preparation attempt, including retries from failed `preparing`. Each step must be idempotent: directories are created with recursive semantics, local config copies overwrite, install/build are repeatable, `direnv allow` is safe to rerun, and validation is read-only.
+
 ### 2026-05-13 Discovery And Selection Policy
 
 - Manual MVP discovery accepts repeatable `--project` flags; if none are provided, `discovery.projects` config is used, and if that is also empty the command scans all projects by omitting project flags.
@@ -593,6 +600,38 @@ Required fields for every event are defined by `DomainEvent`.
 | `phase.failed`    | `error`  | `issue_id`, `run_id`, `state`, `error_code`, `message` | workflow   |
 | `phase.skipped`   | `info`   | `issue_id`, `run_id`, `state`, `reason`                | workflow   |
 
+### Worktree And Workspace Setup Events
+
+Git worktree preparation and workspace setup are distinguishable sub-actions within `preparing`:
+
+| Event                                     | Severity | Required Data                                                                 | Emitted By |
+| ----------------------------------------- | -------- | ----------------------------------------------------------------------------- | ---------- |
+| `workflow.worktree.started`               | `info`   | `issue_id`, `run_id`, `execution_id`, `branch`, `worktree_path`               | workflow   |
+| `workflow.worktree.succeeded`             | `info`   | `issue_id`, `run_id`, `execution_id`, `branch`, `worktree_path`, archive path | workflow   |
+| `workflow.worktree.failed`                | `error`  | `issue_id`, `run_id`, `execution_id`, `branch`, `worktree_path`, `error`      | workflow   |
+| `workflow.workspace_setup.started`        | `info`   | `issue_id`, `run_id`, `execution_id`, `step`                                  | workflow   |
+| `workflow.workspace_setup.step_started`   | `info`   | `issue_id`, `run_id`, `execution_id`, `step`, optional command data           | workflow   |
+| `workflow.workspace_setup.step_succeeded` | `info`   | `issue_id`, `run_id`, `execution_id`, `step`, log paths where applicable      | workflow   |
+| `workflow.workspace_setup.step_skipped`   | `info`   | `issue_id`, `run_id`, `execution_id`, `step`, `skip_reason`                   | workflow   |
+| `workflow.workspace_setup.step_failed`    | `error`  | `issue_id`, `run_id`, `execution_id`, `step`, structured `error`              | workflow   |
+| `workflow.workspace_setup.succeeded`      | `info`   | `issue_id`, `run_id`, `execution_id`, setup summary data                      | workflow   |
+| `workflow.workspace_setup.failed`         | `error`  | `issue_id`, `run_id`, `execution_id`, structured `error`                      | workflow   |
+
+The final `workflow.phase.succeeded` for `preparing` is emitted only after workspace setup succeeds. On setup failure, `workflow.phase.failed` is emitted from `preparing` and planning is not invoked.
+
+### Workspace Setup Contract
+
+The ordered setup pipeline after git worktree preparation is:
+
+1. Create per-run directories under `.autobot/runs/<issue-id>/attempt-<n>/` and workspace setup logs under `logs/workspace-setup/`.
+2. Copy local bootstrap config from the main checkout into the issue worktree: `.linear` is required; `.envrc.local` is optional when present.
+3. Run `pnpm install --frozen-lockfile` in the issue worktree.
+4. Run `moon run :build` in the issue worktree.
+5. Run `direnv allow` only when the issue worktree has `.envrc` and the main checkout direnv state is already trusted; otherwise record `workflow.workspace_setup.step_skipped` for `direnv`.
+6. Validate required binaries/environment with `node --version`, `pnpm --version`, `moon --version`, repo-local `linear --version`, and `opencode --version`.
+
+Each command writes stdout/stderr logs under `.autobot/runs/<issue-id>/attempt-<n>/logs/workspace-setup/`. The setup summary artifact is `.autobot/runs/<issue-id>/attempt-<n>/workspace-setup.json`, recorded as artifact kind `summary` and visible through status/inspect artifact projections.
+
 ### Supervisor Events
 
 | Event                      | Severity  | Required Data                                   | Emitted By                             |
@@ -688,14 +727,17 @@ Error codes are stable within an implementation release but are not yet a long-t
 
 ### External Dependency Errors
 
-| Code                     | Exit | Meaning                                               | Typical Recovery Commands                                                 |
-| ------------------------ | ---- | ----------------------------------------------------- | ------------------------------------------------------------------------- |
-| `LINEAR_UNAVAILABLE`     | `3`  | Linear CLI/API failed.                                | `autobot discover --dry-run`, `autobot status --verbose`                  |
-| `LINEAR_ISSUE_NOT_FOUND` | `3`  | Linear issue lookup failed.                           | `autobot discover --limit 10`, `autobot add <issue> --dry-run`            |
-| `GIT_UNAVAILABLE`        | `3`  | Git command failed or repo state invalid.             | `autobot status <issue> --verbose`, `autobot reconcile <issue> --dry-run` |
-| `WORKTREE_PREP_FAILED`   | `3`  | Worktree setup failed.                                | `autobot status <issue>`, `autobot retry <issue> --dry-run`               |
-| `OPENCODE_UNAVAILABLE`   | `3`  | OpenCode executable/session failed before work began. | `autobot status <issue>`, `autobot retry <issue> --dry-run`               |
-| `GITHUB_UNAVAILABLE`     | `3`  | GitHub/PR/CI inspection failed.                       | `autobot reconcile <issue> --dry-run`, `autobot status <issue>`           |
+| Code                                  | Exit | Meaning                                                    | Typical Recovery Commands                                                                      |
+| ------------------------------------- | ---- | ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `LINEAR_UNAVAILABLE`                  | `3`  | Linear CLI/API failed.                                     | `autobot discover --dry-run`, `autobot status --verbose`                                       |
+| `LINEAR_ISSUE_NOT_FOUND`              | `3`  | Linear issue lookup failed.                                | `autobot discover --limit 10`, `autobot add <issue> --dry-run`                                 |
+| `GIT_UNAVAILABLE`                     | `3`  | Git command failed or repo state invalid.                  | `autobot status <issue> --verbose`, `autobot reconcile <issue> --dry-run`                      |
+| `WORKTREE_PREP_FAILED`                | `3`  | Worktree setup failed.                                     | `autobot status <issue>`, `autobot retry <issue> --dry-run`                                    |
+| `AUTOBOT-WORKSPACE-BOOTSTRAP-FAILED`  | `3`  | Dependency install or build failed during workspace setup. | `pnpm install --frozen-lockfile`, `moon run :build`                                            |
+| `AUTOBOT-WORKSPACE-DIRENV-FAILED`     | `3`  | `direnv allow` failed during workspace setup.              | `direnv allow`, `direnv status`                                                                |
+| `AUTOBOT-WORKSPACE-VALIDATION-FAILED` | `3`  | Required binary/environment validation failed.             | `node --version`, `pnpm --version`, `moon --version`, `linear --version`, `opencode --version` |
+| `OPENCODE_UNAVAILABLE`                | `3`  | OpenCode executable/session failed before work began.      | `autobot status <issue>`, `autobot retry <issue> --dry-run`                                    |
+| `GITHUB_UNAVAILABLE`                  | `3`  | GitHub/PR/CI inspection failed.                            | `autobot reconcile <issue> --dry-run`, `autobot status <issue>`                                |
 
 ### Workflow Errors
 
