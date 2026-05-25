@@ -311,7 +311,7 @@ test("supervisor run-once rejects empty required run-plan sections before flowcr
     writes.some((write) => write.path.endsWith("/run-plan.md")),
     false,
   );
-  assert.equal(fixture.executionRecords.length, 3);
+  assert.equal(fixture.executionRecords.length, 2);
   assert.ok(fixture.flowcraftEvents.length > 0);
   assert.equal(fixture.itemUpserts.at(-1)?.state, "failed");
   assert.equal(
@@ -337,8 +337,8 @@ test("supervisor run-once preserves non-ready run plans without flowcraft comple
       return resolve(notReadyRunPlan);
     },
     planningSessionRunner(input) {
-      assert.equal(fixture.itemUpserts.at(-1)?.state, "planning");
-      assert.equal(fixture.runUpserts.at(-1)?.state, "planning");
+      assert.equal(fixture.itemUpserts.at(-1)?.state, "preparing");
+      assert.equal(fixture.runUpserts.at(-1)?.state, "preparing");
       void input;
       return resolve({
         command: "opencode",
@@ -465,7 +465,7 @@ test("supervisor run-once records planner failure without flowcraft completion",
   )) as AutobotCommandResult;
 
   assert.equal(result.kind, "supervisor-status");
-  assert.equal(fixture.executionRecords.length, 3);
+  assert.equal(fixture.executionRecords.length, 2);
   assert.ok(fixture.flowcraftEvents.length > 0);
   assert.ok(
     fixture.flowcraftEvents.some(

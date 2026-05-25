@@ -184,6 +184,8 @@ type PlanningPhaseName = SingleTrackPhaseContractName;
 function createPreparationRunDirectories(input: {
   repoRoot: string;
   runId: string;
+  issueId: string;
+  attempt: number;
 }): FutureInstance<unknown, void> {
   return Future((_reject, resolve) => {
     void Promise.all([
@@ -195,6 +197,18 @@ function createPreparationRunDirectories(input: {
       ),
       mkdir(
         path.join(input.repoRoot, ".autobot", "runs", input.runId, "logs"),
+        {
+          recursive: true,
+        },
+      ),
+      mkdir(
+        path.join(
+          input.repoRoot,
+          ".autobot",
+          "runs",
+          input.issueId,
+          `attempt-${input.attempt}`,
+        ),
         {
           recursive: true,
         },
@@ -1574,8 +1588,12 @@ function reconcileCompletedPlanningWorker(input: {
   return input.store.projections.getItemDetail(input.item.issue_id).pipe(
     chain((itemDetail) => {
       const planningItem = itemDetail ?? fallbackItemDetail;
+      const planningRepo = resolvePlanningRepoForItem(
+        input.store.repo,
+        planningItem,
+      );
       const planningArtifactDrafts = buildPlanningArtifactDrafts({
-        repoPath: input.store.repo.path,
+        repoPath: planningRepo.path,
         item: planningItem,
         runId: input.currentRun.run_id,
         executionId: input.currentRun.flowcraft_execution_id!,
@@ -1583,7 +1601,7 @@ function reconcileCompletedPlanningWorker(input: {
       });
       const planningArtifactPaths = buildPlanningSessionArtifactPaths(
         planningArtifactDrafts,
-        input.store.repo.path,
+        planningRepo.path,
       );
       const workflowFinishedAt = createCurrentOrLaterTimestamp(
         input.tickAt,
@@ -1599,7 +1617,7 @@ function reconcileCompletedPlanningWorker(input: {
         transport: null,
         dependencies: {
           autobotPlanning: {
-            repo: input.store.repo,
+            repo: planningRepo,
             item: planningItem,
             artifactDrafts: planningArtifactDrafts,
             artifactPaths: planningArtifactPaths,
@@ -3868,6 +3886,18 @@ function buildPlanningArtifactDrafts(input: {
   ];
 }
 
+function resolvePlanningRepoForItem(
+  storeRepo: RepoRef,
+  item: ItemDetail,
+): RepoRef {
+  return typeof item.workspace === "string" && path.isAbsolute(item.workspace)
+    ? {
+        ...storeRepo,
+        path: item.workspace,
+      }
+    : storeRepo;
+}
+
 export function buildPlanningPhaseOutputPath(input: {
   contextPath: string;
   phase: PlanningPhaseName;
@@ -4381,10 +4411,19 @@ function markPlanningFailure(
   tickAt: string,
   error: unknown,
 ): FutureInstance<unknown, void> {
-  const message =
-    error instanceof Error && error.message.length > 0
-      ? error.message
-      : "planning artifact generation failed";
+  let message = "planning artifact generation failed";
+  if (error instanceof Error && error.message.length > 0) {
+    message = error.message;
+  } else if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error
+  ) {
+    const structuredMessage = (error as { message?: unknown }).message;
+    if (typeof structuredMessage === "string" && structuredMessage.length > 0) {
+      message = structuredMessage;
+    }
+  }
   const failureEvent = createDomainEvent({
     type: "workflow.phase.failed",
     severity: "error",
@@ -4575,6 +4614,8 @@ function runBoundedWorkflowTickForItem(
               createPreparationRunDirectories({
                 repoRoot: preparedRepo.path,
                 runId,
+                issueId: target.issue_id,
+                attempt: target.attempt,
               }),
               store.items
                 .upsert({

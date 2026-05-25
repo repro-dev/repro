@@ -61,9 +61,18 @@ function assertContainedPath(basePath: string, candidatePath: string): string {
 function parseGitWorktreeList(output: string): Array<{
   path: string;
   branch: string | null;
+  prunable: boolean;
 }> {
-  const entries: Array<{ path: string; branch: string | null }> = [];
-  let current: { path: string; branch: string | null } | null = null;
+  const entries: Array<{
+    path: string;
+    branch: string | null;
+    prunable: boolean;
+  }> = [];
+  let current: {
+    path: string;
+    branch: string | null;
+    prunable: boolean;
+  } | null = null;
 
   for (const line of output.split(/\r?\n/)) {
     if (line.length === 0) {
@@ -79,7 +88,11 @@ function parseGitWorktreeList(output: string): Array<{
         entries.push(current);
       }
 
-      current = { path: line.slice("worktree ".length), branch: null };
+      current = {
+        path: line.slice("worktree ".length),
+        branch: null,
+        prunable: false,
+      };
       continue;
     }
 
@@ -89,6 +102,11 @@ function parseGitWorktreeList(output: string): Array<{
 
     if (line.startsWith("branch ")) {
       current.branch = line.slice("branch ".length);
+      continue;
+    }
+
+    if (line.startsWith("prunable")) {
+      current.prunable = true;
     }
   }
 
@@ -107,6 +125,17 @@ function isAutobotBranch(
     branch === `refs/heads/${desiredBranch}` ||
     branch === `refs/remotes/origin/${desiredBranch}`
   );
+}
+
+async function isGitWorktreeCheckoutUsable(entry: {
+  path: string;
+  prunable: boolean;
+}): Promise<boolean> {
+  if (entry.prunable) {
+    return false;
+  }
+
+  return (await stat(path.join(entry.path, ".git")).catch(() => null)) !== null;
 }
 
 export function resolveAutobotWorktreePaths(input: {
@@ -230,11 +259,16 @@ export function prepareAutobotWorktree(
             path.resolve(entry.path) === path.resolve(paths.worktree_path),
         );
 
-        if (
+        const activeWorktreeIsCanonical =
           activeWorktree !== undefined &&
           path.resolve(activeWorktree.path) ===
-            path.resolve(paths.worktree_path)
-        ) {
+            path.resolve(paths.worktree_path);
+        const activeWorktreeIsUsable =
+          activeWorktree !== undefined
+            ? await isGitWorktreeCheckoutUsable(activeWorktree)
+            : false;
+
+        if (activeWorktreeIsCanonical && activeWorktreeIsUsable) {
           resolve({
             ...paths,
             archived_worktree_path: null,
@@ -242,8 +276,16 @@ export function prepareAutobotWorktree(
           return;
         }
 
+        if (activeWorktree !== undefined && !activeWorktreeIsUsable) {
+          await runCommandAsPromise(runCommand, {
+            cwd: input.repoRoot,
+            command: "git",
+            args: ["worktree", "prune"],
+          });
+        }
+
         let archivedWorktreePath: string | null = null;
-        if (canonicalWorktree !== undefined) {
+        if (canonicalWorktree !== undefined && !canonicalWorktree.prunable) {
           archivedWorktreePath = path.join(
             archiveRoot,
             `${paths.slug}-${dependencies.now?.() ?? new Date().toISOString()}`,
@@ -272,7 +314,7 @@ export function prepareAutobotWorktree(
           }
         }
 
-        if (activeWorktree !== undefined) {
+        if (activeWorktree !== undefined && activeWorktreeIsUsable) {
           await runCommandAsPromise(runCommand, {
             cwd: input.repoRoot,
             command: "git",

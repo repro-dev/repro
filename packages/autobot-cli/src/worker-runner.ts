@@ -42,6 +42,7 @@ export interface WorkerRunnerHooks {
     args: string[],
     options: SpawnOptions,
   ) => ChildProcess;
+  openLogStreams?: (paths: WorkerLogPaths) => Promise<WorkerLogStreams>;
   kill?: (pid: number, signal?: NodeJS.Signals | number) => boolean;
   now?: () => string;
   trapSignals?: boolean;
@@ -49,11 +50,16 @@ export interface WorkerRunnerHooks {
   heartbeatDeadlineMs?: number;
 }
 
-type WorkerLogPaths = {
+export type WorkerLogPaths = {
   stdout_path: string;
   stderr_path: string;
   stdout_log_path: string;
   stderr_log_path: string;
+};
+
+export type WorkerLogStreams = {
+  stdout: NodeJS.WritableStream;
+  stderr: NodeJS.WritableStream;
 };
 
 function futureToPromise<T>(future: FutureInstance<unknown, T>): Promise<T> {
@@ -191,7 +197,9 @@ function workerRecordFromInput(
   };
 }
 
-async function openLogStreams(paths: WorkerLogPaths) {
+async function openLogStreams(
+  paths: WorkerLogPaths,
+): Promise<WorkerLogStreams> {
   await Promise.all([
     mkdir(path.dirname(paths.stdout_path), { recursive: true }),
     mkdir(path.dirname(paths.stderr_path), { recursive: true }),
@@ -220,11 +228,38 @@ async function readLogFile(filePath: string) {
   }
 }
 
-function streamToPromise(stream: NodeJS.WritableStream) {
+function endWritableStream(stream: NodeJS.WritableStream) {
   return new Promise<void>((resolve, reject) => {
-    stream.once("finish", resolve);
-    stream.once("error", reject);
+    const cleanup = () => {
+      stream.removeListener("finish", handleFinish);
+      stream.removeListener("error", handleError);
+    };
+    const handleFinish = () => {
+      cleanup();
+      resolve();
+    };
+    const handleError = (error: Error) => {
+      cleanup();
+      reject(error);
+    };
+
+    stream.once("finish", handleFinish);
+    stream.once("error", handleError);
+
+    try {
+      stream.end();
+    } catch (error) {
+      cleanup();
+      reject(error);
+    }
   });
+}
+
+async function closeLogStreams(logStreams: WorkerLogStreams) {
+  await Promise.all([
+    endWritableStream(logStreams.stdout),
+    endWritableStream(logStreams.stderr),
+  ]);
 }
 
 function terminalStateForResult(
@@ -250,6 +285,7 @@ export function runWorkerCommand(
 ): FutureInstance<unknown, WorkerCommandResult> {
   return Future((reject, resolveFuture) => {
     const spawnCommand = hooks.spawn ?? spawn;
+    const openRunnerLogStreams = hooks.openLogStreams ?? openLogStreams;
     const killProcess = hooks.kill ?? process.kill;
     const now = hooks.now ?? (() => new Date().toISOString());
     const heartbeatIntervalMs = hooks.heartbeatIntervalMs ?? 5_000;
@@ -268,7 +304,7 @@ export function runWorkerCommand(
     let settled = false;
     let processGroupId: number | null = null;
     let child: ChildProcess | null = null;
-    let logStreams: Awaited<ReturnType<typeof openLogStreams>> | null = null;
+    let logStreams: WorkerLogStreams | null = null;
     let heartbeatTimer: NodeJS.Timeout | null = null;
     let signalHandlersInstalled = false;
     let workerRecord = workerRecordFromInput(input, {
@@ -373,12 +409,7 @@ export function runWorkerCommand(
       const state = terminalStateForResult(exitCode, signal, cancelled);
 
       if (logStreams !== null) {
-        logStreams.stdout.end();
-        logStreams.stderr.end();
-        await Promise.all([
-          streamToPromise(logStreams.stdout),
-          streamToPromise(logStreams.stderr),
-        ]);
+        await closeLogStreams(logStreams);
       }
 
       const [stdout, stderr] = await Promise.all([
@@ -426,12 +457,7 @@ export function runWorkerCommand(
       const failedAt = now();
 
       if (logStreams !== null) {
-        logStreams.stdout.end();
-        logStreams.stderr.end();
-        await Promise.all([
-          streamToPromise(logStreams.stdout),
-          streamToPromise(logStreams.stderr),
-        ]);
+        await closeLogStreams(logStreams);
       }
 
       await writeWorkerRecord({
@@ -540,7 +566,7 @@ export function runWorkerCommand(
     const run = async () => {
       await writeWorkerRecord(workerRecord);
 
-      logStreams = await openLogStreams(logPaths);
+      logStreams = await openRunnerLogStreams(logPaths);
       const childProcess = spawnCommand(input.command, input.args, {
         cwd: input.repo.path,
         env: process.env,

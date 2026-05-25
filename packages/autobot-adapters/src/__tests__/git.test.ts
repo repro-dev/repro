@@ -210,6 +210,143 @@ test("prepareAutobotWorktree archives a registered canonical worktree with git m
   }
 });
 
+test("prepareAutobotWorktree recreates a prunable active canonical worktree", async () => {
+  const root = await mkdtemp(
+    path.join(process.cwd(), "..", "..", "tmp", "autobot-adapters-git-"),
+  );
+  const worktreePath = path.join(root, ".autobot", "worktrees", "REP-1157");
+  await mkdir(path.join(worktreePath, ".autobot"), { recursive: true });
+  await writeFile(path.join(worktreePath, ".autobot", "stale.txt"), "stale");
+
+  const calls: Array<{ command: string; args: string[] }> = [];
+
+  try {
+    const result = await runFuture(
+      prepareAutobotWorktree(
+        {
+          repoRoot: root,
+          issueId: "REP-1157",
+        },
+        {
+          now() {
+            return "2026-05-15T12:00:00Z";
+          },
+          runCommand(input) {
+            calls.push({ command: input.command, args: [...input.args] });
+
+            if (input.args[0] === "worktree" && input.args[1] === "list") {
+              return resolve(
+                [
+                  `worktree ${worktreePath}`,
+                  "HEAD abcdef1234567890",
+                  "branch refs/heads/autobot/REP-1157",
+                  "prunable gitdir file points to non-existent location",
+                  "",
+                ].join("\n"),
+              );
+            }
+
+            if (input.args[0] === "worktree" && input.args[1] === "prune") {
+              return resolve("pruned");
+            }
+
+            if (input.args[0] === "rev-parse") {
+              return resolve("refs/heads/autobot/REP-1157");
+            }
+
+            if (input.args[0] === "worktree" && input.args[1] === "add") {
+              return resolve("created");
+            }
+
+            return resolve("");
+          },
+        },
+      ),
+    );
+
+    const archivePath = path.join(
+      root,
+      ".autobot",
+      "worktrees",
+      "archived",
+      "REP-1157-2026-05-15T12:00:00Z",
+    );
+
+    assert.equal(result.worktree_path, worktreePath);
+    assert.equal(result.archived_worktree_path, archivePath);
+    assert.deepEqual(
+      calls.map(({ args }) => args),
+      [
+        ["worktree", "list", "--porcelain"],
+        ["worktree", "prune"],
+        ["rev-parse", "--verify", "--quiet", "refs/heads/autobot/REP-1157"],
+        ["worktree", "add", worktreePath, "autobot/REP-1157"],
+      ],
+    );
+    await assert.rejects(
+      readFile(path.join(worktreePath, ".autobot", "stale.txt"), "utf8"),
+    );
+    assert.equal(
+      await readFile(path.join(archivePath, ".autobot", "stale.txt"), "utf8"),
+      "stale",
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("prepareAutobotWorktree reuses a usable active canonical worktree", async () => {
+  const root = await mkdtemp(
+    path.join(process.cwd(), "..", "..", "tmp", "autobot-adapters-git-"),
+  );
+  const worktreePath = path.join(root, ".autobot", "worktrees", "REP-1157");
+  await mkdir(worktreePath, { recursive: true });
+  await writeFile(
+    path.join(worktreePath, ".git"),
+    "gitdir: /repo/.git/worktrees/REP-1157",
+  );
+
+  const calls: Array<{ command: string; args: string[] }> = [];
+
+  try {
+    const result = await runFuture(
+      prepareAutobotWorktree(
+        {
+          repoRoot: root,
+          issueId: "REP-1157",
+        },
+        {
+          runCommand(input) {
+            calls.push({ command: input.command, args: [...input.args] });
+
+            if (input.args[0] === "worktree" && input.args[1] === "list") {
+              return resolve(
+                [
+                  `worktree ${worktreePath}`,
+                  "HEAD abcdef1234567890",
+                  "branch refs/heads/autobot/REP-1157",
+                  "",
+                ].join("\n"),
+              );
+            }
+
+            return resolve("");
+          },
+        },
+      ),
+    );
+
+    assert.equal(result.worktree_path, worktreePath);
+    assert.equal(result.archived_worktree_path, null);
+    assert.deepEqual(
+      calls.map(({ args }) => args),
+      [["worktree", "list", "--porcelain"]],
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("prepareAutobotWorktree reuses the active worktree and archives stale targets", async () => {
   const root = await mkdtemp(
     path.join(process.cwd(), "..", "..", "tmp", "autobot-adapters-git-"),
@@ -224,6 +361,10 @@ test("prepareAutobotWorktree reuses the active worktree and archives stale targe
   await mkdir(worktreePath, { recursive: true });
   await writeFile(path.join(worktreePath, "stale.txt"), "stale");
   await mkdir(activeWorktreePath, { recursive: true });
+  await writeFile(
+    path.join(activeWorktreePath, ".git"),
+    "gitdir: /repo/.git/worktrees/active-rep-1157",
+  );
   await writeFile(path.join(activeWorktreePath, "alive.txt"), "alive");
 
   const calls: Array<{ command: string; args: string[] }> = [];
