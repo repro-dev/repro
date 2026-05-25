@@ -1349,7 +1349,7 @@ test("engine runtime release ignores tick interval changes for the same owner", 
 });
 
 test("supervisor start cancellation releases runtime ownership", async () => {
-  const { root, fixture } = await createEngineWorktreeFixture();
+  const { root, fixture } = await createEngineWorktreeFixture({ items: [] });
   const services = createAutobotServices({
     artifactWriter: noOpArtifactWriter,
     loadLinearIssue: noOpLinearIssue,
@@ -1390,7 +1390,7 @@ test("supervisor start cancellation releases runtime ownership", async () => {
 });
 
 test("supervisor start cancellation prevents an in-flight tick from rewriting status", async () => {
-  const { root, fixture } = await createEngineWorktreeFixture();
+  const { root, fixture } = await createEngineWorktreeFixture({ items: [] });
   const originalListItems = fixture.store.projections.listItems;
   let releaseListItems: (() => void) | null = null;
 
