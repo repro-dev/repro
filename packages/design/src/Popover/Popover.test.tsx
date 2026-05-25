@@ -6,6 +6,7 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import expect from 'expect'
 import { afterEach, describe, it } from 'node:test'
 import React from 'react'
@@ -36,6 +37,20 @@ function renderPopover(props: React.ComponentProps<typeof Popover> = {}) {
       <button type="button">Outside</button>
     </PortalRootProvider>
   )
+}
+
+function mockElementRect(element: HTMLElement, rect: DOMRectInit) {
+  const domRect = DOMRect.fromRect(rect)
+  element.getBoundingClientRect = () => domRect
+  element.getClientRects = () =>
+    ({
+      0: domRect,
+      length: 1,
+      item: index => (index === 0 ? domRect : null),
+      [Symbol.iterator]: function* () {
+        yield domRect
+      },
+    }) as DOMRectList
 }
 
 describe('Popover', () => {
@@ -201,6 +216,37 @@ describe('Popover', () => {
   })
 
   it('preserves popup semantics when the trigger is a Button', () => {
+    const clicks: string[] = []
+
+    render(
+      <PortalRootProvider>
+        <Popover>
+          <Popover.Trigger aria-haspopup="menu">
+            <Button onClick={() => clicks.push('child')}>Trigger</Button>
+          </Popover.Trigger>
+          <Popover.Content role="menu" aria-label="Actions">
+            <div>Popover content</div>
+          </Popover.Content>
+        </Popover>
+      </PortalRootProvider>
+    )
+
+    const trigger = screen.getByRole('button', { name: 'Trigger' })
+    expect(trigger.getAttribute('aria-haspopup')).toBe('menu')
+    expect(trigger.getAttribute('aria-expanded')).toBe('false')
+    trigger.focus()
+    expect(document.activeElement).toBe(trigger)
+
+    openPopover(trigger)
+
+    expect(screen.getByRole('menu', { name: 'Actions' })).toBeDefined()
+    expect(trigger.getAttribute('aria-expanded')).toBe('true')
+    expect(clicks).toEqual(['child'])
+  })
+
+  it('opens Button-triggered popovers from keyboard activation', async () => {
+    const user = userEvent.setup()
+
     render(
       <PortalRootProvider>
         <Popover>
@@ -215,13 +261,54 @@ describe('Popover', () => {
     )
 
     const trigger = screen.getByRole('button', { name: 'Trigger' })
-    expect(trigger.getAttribute('aria-haspopup')).toBe('menu')
     expect(trigger.getAttribute('aria-expanded')).toBe('false')
+    trigger.focus()
+
+    await user.keyboard('{Enter}')
+
+    await waitFor(() => {
+      expect(trigger.getAttribute('aria-expanded')).toBe('true')
+    })
+    expect(screen.getByRole('menu', { name: 'Actions' })).toBeDefined()
+  })
+
+  it('positions Button-triggered popovers from a stable wrapper while the Button is active', async () => {
+    render(
+      <PortalRootProvider>
+        <Popover>
+          <Popover.Trigger>
+            <Button>Trigger</Button>
+          </Popover.Trigger>
+          <Popover.Content aria-label="Stable popover">
+            <div>Popover content</div>
+          </Popover.Content>
+        </Popover>
+      </PortalRootProvider>
+    )
+
+    const trigger = screen.getByRole('button', { name: 'Trigger' })
+    const stableAnchor = trigger.parentElement as HTMLElement | null
+    expect(stableAnchor).toBeDefined()
+
+    mockElementRect(stableAnchor!, {
+      x: 20,
+      y: 30,
+      width: 80,
+      height: 24,
+    })
+    mockElementRect(trigger, {
+      x: 30,
+      y: 34,
+      width: 60,
+      height: 16,
+    })
 
     openPopover(trigger)
 
-    expect(screen.getByRole('menu', { name: 'Actions' })).toBeDefined()
-    expect(trigger.getAttribute('aria-expanded')).toBe('true')
+    const content = screen.getByRole('dialog', { name: 'Stable popover' })
+    await waitFor(() => {
+      expect(content.style.transform).toBe('translate(8px, 26px)')
+    })
   })
 
   it('emits onOpenChange in controlled mode without mutating parent state', () => {
