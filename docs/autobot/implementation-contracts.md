@@ -56,6 +56,13 @@ This document refines `cli-design.md` into implementation-ready contracts. It re
 - MVP setup does **not** run `pnpm bootstrap`; dependency bootstrap is `pnpm install --frozen-lockfile`, matching repo worktree setup behavior.
 - Setup runs on every preparation attempt, including retries from failed `preparing`. Each step must be idempotent: directories are created with recursive semantics, local config copies overwrite, install/build are repeatable, `direnv allow` is safe to rerun, and validation is read-only.
 
+### 2026-05-25 Agent Session Safety Policy
+
+- Autobot-managed agent sessions must obey `docs/autobot/safety-policy.md` for write roots, command/tool boundaries, environment propagation, credential handling, git protections, and external side-effect limits.
+- Safety stops use structured payloads and transition to `awaiting` or `escalated` when operator decision or human inspection is required. They are not generic `failed` outcomes.
+- Agent Relay is a transport boundary only. Local and relay transports share the same allowlisted env/credential propagation and redaction requirements.
+- Publish authority remains gated; publish-prep may prepare evidence, but unattended push/PR/release/publish mutations require a later explicit policy.
+
 ### 2026-05-13 Discovery And Selection Policy
 
 - Manual MVP discovery accepts repeatable `--project` flags; if none are provided, `discovery.projects` config is used, and if that is also empty the command scans all projects by omitting project flags.
@@ -108,6 +115,7 @@ Public item states:
 - `reviewing`: review or security-review work is in progress.
 - `reconciling`: supervisor is comparing durable state against workers, git, Linear, GitHub, and FlowCraft history.
 - `awaiting`: item is paused for a future human/external gate. Deferred from MVP as an executable behavior, but reserved in the state model.
+- `escalated`: item stopped for human decision because continuing would violate safety policy or exceed agent authority.
 - `failed`: item stopped on an unrecovered failure.
 - `completed`: item finished successfully for MVP purposes.
 - `canceled`: item was explicitly canceled.
@@ -124,6 +132,7 @@ Default `autobot list` includes all non-terminal and attention states:
 - `reconciling`
 - `awaiting`
 - `failed`
+- `escalated`
 
 Default `autobot list` excludes terminal states:
 
@@ -160,20 +169,20 @@ Failure transitions:
 
 Operator-owned transitions:
 
-| Command     | From                                                                     | To                                                              | Notes                                                                           |
-| ----------- | ------------------------------------------------------------------------ | --------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| `add`       | none                                                                     | `queued`                                                        | MVP only queues items not already known locally. Terminal requeue is blocked.   |
-| `remove`    | `queued`                                                                 | `canceled`                                                      | Removes runnable queued work while preserving history.                          |
-| `cancel`    | `queued`                                                                 | `canceled`                                                      | Immediate cancel.                                                               |
-| `cancel`    | `failed`                                                                 | `canceled`                                                      | Immediate cancel.                                                               |
-| `cancel`    | `awaiting`                                                               | `canceled`                                                      | Reserved for post-MVP wait behavior.                                            |
-| `cancel`    | `claimed`, `preparing`, `planning`, `developing`, `testing`, `reviewing` | current state plus cancellation request                         | Worker receives cancellation; final state is set by reconciliation.             |
-| `retry`     | `failed`                                                                 | `queued`                                                        | New attempt from recorded failed phase; no arbitrary phase override in MVP.     |
-| `reconcile` | any                                                                      | same state, `reconciling`, `failed`, `completed`, or `canceled` | Depends on observed worker/external state. Dry-run reports proposed transition. |
+| Command     | From                                                                     | To                                                                                       | Notes                                                                           |
+| ----------- | ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `add`       | none                                                                     | `queued`                                                                                 | MVP only queues items not already known locally. Terminal requeue is blocked.   |
+| `remove`    | `queued`                                                                 | `canceled`                                                                               | Removes runnable queued work while preserving history.                          |
+| `cancel`    | `queued`                                                                 | `canceled`                                                                               | Immediate cancel.                                                               |
+| `cancel`    | `failed`                                                                 | `canceled`                                                                               | Immediate cancel.                                                               |
+| `cancel`    | `awaiting`, `escalated`                                                  | `canceled`                                                                               | Reserved for post-MVP wait behavior and safety stops.                           |
+| `cancel`    | `claimed`, `preparing`, `planning`, `developing`, `testing`, `reviewing` | current state plus cancellation request                                                  | Worker receives cancellation; final state is set by reconciliation.             |
+| `retry`     | `failed`, `awaiting`, `escalated`                                        | `queued`                                                                                 | New attempt from recorded failed or safety-stopped phase after operator review. |
+| `reconcile` | any                                                                      | same state, `reconciling`, `awaiting`, `escalated`, `failed`, `completed`, or `canceled` | Depends on observed worker/external state. Dry-run reports proposed transition. |
 
 Forbidden MVP transitions:
 
-- `retry` from `queued`, `claimed`, `preparing`, `planning`, `developing`, `testing`, `reviewing`, `reconciling`, `awaiting`, `completed`, or `canceled`.
+- `retry` from `queued`, `claimed`, `preparing`, `planning`, `developing`, `testing`, `reviewing`, `reconciling`, `completed`, or `canceled`.
 - `remove` from in-progress states without using `cancel`.
 - manual phase jumps such as retrying directly to `testing`.
 - manual `completed` marking by CLI command.
@@ -198,6 +207,7 @@ type ItemState =
   | "reviewing"
   | "reconciling"
   | "awaiting"
+  | "escalated"
   | "failed"
   | "completed"
   | "canceled";
@@ -250,6 +260,52 @@ interface ErrorPayload {
   details: Record<string, unknown> | null;
 }
 ```
+
+### Safety Stop Payload
+
+Safety stops are structured phase results that move an item to `awaiting` or `escalated` and preserve recovery guidance for status/logs/inspect/dashboard surfaces.
+
+```ts
+type SafetyStopDisposition = "awaiting" | "escalated";
+
+type SafetyViolationCode =
+  | "SAFETY_WRITE_ROOT_VIOLATION"
+  | "SAFETY_FORBIDDEN_COMMAND"
+  | "SAFETY_SECRET_EXPOSURE_RISK"
+  | "SAFETY_UNEXPECTED_DIRTY_STATE"
+  | "SAFETY_EXTERNAL_SIDE_EFFECT";
+
+interface SafetyViolation {
+  code: SafetyViolationCode;
+  message: string;
+  phase: ItemState;
+  severity: "error";
+  path: string | null;
+  command: string | null;
+  likely_cause: string;
+  evidence: Record<string, unknown>;
+}
+
+interface SafetyStopPayload {
+  disposition: SafetyStopDisposition;
+  issue_id: string;
+  run_id: string;
+  attempt: number;
+  phase: ItemState;
+  violations: SafetyViolation[];
+  recovery_commands: string[];
+  operator_message: string;
+}
+
+interface PhaseSafetyResult {
+  ok: false;
+  kind: "safety-stop";
+  next_state: SafetyStopDisposition;
+  safety: SafetyStopPayload;
+}
+```
+
+`status <issue>` includes `operator_message`, `violations`, and `recovery_commands` in item detail. `logs <issue>` includes `safety.stop`, `safety.violation.detected`, and `safety.recovery.suggested` domain events in timeline order. `inspect <run-id> --json` includes the complete `SafetyStopPayload`, related worker output references, and raw FlowCraft events when present. Future dashboard surfaces must render safety stops as operator-attention states with the same recovery commands and must not relabel them as generic failures.
 
 ### Item Summary
 
@@ -600,6 +656,14 @@ Required fields for every event are defined by `DomainEvent`.
 | `phase.failed`    | `error`  | `issue_id`, `run_id`, `state`, `error_code`, `message` | workflow   |
 | `phase.skipped`   | `info`   | `issue_id`, `run_id`, `state`, `reason`                | workflow   |
 
+### Safety Events
+
+| Event                       | Severity  | Required Data                                                                 | Emitted By                     |
+| --------------------------- | --------- | ----------------------------------------------------------------------------- | ------------------------------ |
+| `safety.violation.detected` | `error`   | `issue_id`, `run_id`, `state`, `violation_code`, `path`, `command`, `message` | workflow, worker, session shim |
+| `safety.stop`               | `error`   | `issue_id`, `run_id`, `state`, `disposition`, `violations`                    | workflow, worker, session shim |
+| `safety.recovery.suggested` | `warning` | `issue_id`, `run_id`, `state`, `recovery_commands`, `operator_message`        | workflow, reconcile            |
+
 ### Worktree And Workspace Setup Events
 
 Git worktree preparation and workspace setup are distinguishable sub-actions within `preparing`:
@@ -748,6 +812,18 @@ Error codes are stable within an implementation release but are not yet a long-t
 | `WORKFLOW_EXECUTION_FAILED`    | `1`  | FlowCraft execution failed.                     | `autobot inspect <run-id> --json`, `autobot status <issue>`                          |
 | `WORKFLOW_HISTORY_UNAVAILABLE` | `4`  | FlowCraft history cannot be read.               | `autobot inspect <run-id> --json`, `autobot status --verbose`                        |
 | `RECONCILE_FAILED`             | `1`  | Reconcile found a mismatch it could not repair. | `autobot reconcile <issue> --dry-run`, `autobot inspect <run-id> --json`             |
+
+### Safety Stop Errors
+
+Safety errors use the safety result shapes above and normally transition to `awaiting` or `escalated` instead of `failed`.
+
+| Code                            | Exit | Meaning                                                                                           | Typical Recovery Commands                                                                   |
+| ------------------------------- | ---- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `SAFETY_WRITE_ROOT_VIOLATION`   | `6`  | A phase attempted or requested a write outside approved roots.                                    | `autobot status <issue> --json`, `autobot inspect <run-id> --json`                          |
+| `SAFETY_FORBIDDEN_COMMAND`      | `6`  | A phase attempted or requested a forbidden command/tool class.                                    | `autobot status <issue>`, `autobot cancel <issue> --reason "safety stop"`                   |
+| `SAFETY_SECRET_EXPOSURE_RISK`   | `6`  | Command output, prompt material, artifact content, or env propagation may expose credentials.     | `autobot inspect <run-id> --json`, `autobot cancel <issue> --reason "secret exposure risk"` |
+| `SAFETY_UNEXPECTED_DIRTY_STATE` | `6`  | Worktree, branch, or diff state did not match the assigned issue/phase contract.                  | `git -C <worktree> status --short --branch`, `autobot reconcile <issue> --dry-run`          |
+| `SAFETY_EXTERNAL_SIDE_EFFECT`   | `6`  | A phase attempted or requested an external mutation outside approved adapters or phase authority. | `autobot status <issue> --json`, `autobot reconcile <issue> --dry-run`                      |
 
 ### Error Envelope Rules
 

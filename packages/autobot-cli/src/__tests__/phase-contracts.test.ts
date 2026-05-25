@@ -17,6 +17,8 @@ function assertContains(content: string, snippet: string): void {
   );
 }
 
+const safetyPreambleMarker = "# Autobot Agent Session Safety Preamble";
+
 test("Autobot phase contracts are tracked markdown files", () => {
   const repoPath = path.resolve(process.cwd(), "..", "..");
 
@@ -275,12 +277,22 @@ test("Autobot phase contracts declare exact inputs and outputs", () => {
   }
 });
 
+test("Autobot phase contracts include the shared safety preamble", () => {
+  for (const name of listSingleTrackPhaseContractNames()) {
+    const content = loadSingleTrackPhaseContract(name);
+
+    assertContains(content, safetyPreambleMarker);
+    assertContains(content, "docs/autobot/safety-policy.md");
+  }
+});
+
 test("Autobot phase contracts render placeholders before use", () => {
   const content = renderSingleTrackPhaseContract("plan", {
     issueId: "REP-1208",
     attempt: 2,
   });
 
+  assertContains(content, safetyPreambleMarker);
   assert.ok(content.includes("REP-1208"));
   assert.ok(content.includes("attempt-2"));
   assert.doesNotMatch(content, /<issue-id>/);

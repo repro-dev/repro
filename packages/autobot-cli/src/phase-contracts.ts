@@ -47,6 +47,11 @@ const singleTrackPhaseContractRelativeDir = path.join(
 
 const singleTrackPhaseContractDir = path.resolve(__dirname, "..", "contracts");
 
+const safetyPreamble = readFileSync(
+  path.join(singleTrackPhaseContractDir, "safety-preamble.md"),
+  "utf8",
+);
+
 export function listSingleTrackPhaseContractNames(): SingleTrackPhaseContractName[] {
   return Object.keys(
     singleTrackPhaseContractFileNames,
@@ -72,13 +77,15 @@ export function getSingleTrackPhaseContractPath(
 export function loadSingleTrackPhaseContract(
   name: SingleTrackPhaseContractName,
 ): string {
-  return readFileSync(
+  const phaseContract = readFileSync(
     path.join(
       singleTrackPhaseContractDir,
       singleTrackPhaseContractFileNames[name],
     ),
     "utf8",
   );
+
+  return `${safetyPreamble.trimEnd()}\n\n${phaseContract}`;
 }
 
 export function renderSingleTrackPhaseContract(
