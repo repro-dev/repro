@@ -41,9 +41,7 @@ export const PopoverTrigger = forwardRef<HTMLElement, PopoverTriggerProps>(
         }
       ).ref
       const mergedRef = mergeRefs(
-        [ref, refs.setReference, childRef].filter(
-          Boolean
-        ) as React.Ref<HTMLElement>[]
+        [ref, childRef].filter(Boolean) as React.Ref<HTMLElement>[]
       )
 
       const childAriaHasPopup = childPropsBag?.['aria-haspopup'] as
@@ -63,19 +61,27 @@ export const PopoverTrigger = forwardRef<HTMLElement, PopoverTriggerProps>(
       })
 
       if (childPropsBag) {
-        return React.cloneElement(triggerChild, {
-          props: {
-            ...childPropsBag,
-            ...referenceProps,
-            ref: mergedRef,
-          },
-        })
+        return (
+          <InlineBlock props={{ ref: refs.setReference }}>
+            {React.cloneElement(triggerChild, {
+              props: {
+                ...childPropsBag,
+                ...referenceProps,
+                ref: mergedRef,
+              },
+            })}
+          </InlineBlock>
+        )
       }
 
-      return React.cloneElement(triggerChild, {
-        ...referenceProps,
-        ref: mergedRef,
-      })
+      return (
+        <InlineBlock props={{ ref: refs.setReference }}>
+          {React.cloneElement(triggerChild, {
+            ...referenceProps,
+            ref: mergedRef,
+          })}
+        </InlineBlock>
+      )
     }
 
     const ariaHasPopup = triggerProps['aria-haspopup']
