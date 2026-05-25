@@ -332,6 +332,8 @@ const isError =
 
 Rate-limited (30 req/min per user or IP). Validates `messages`, `tools`, and optional `tool_choice` via Zod, then calls `agenticService.getStreamingResponse(...)` and streams the raw SSE body back to the client with `content-type: text/event-stream`.
 
+`apps/api-server/src/services/agentic.ts` uses `AGENTIC_DEFAULT_MODEL` in production and only includes OpenRouter `reasoning: { effort: 'medium', exclude: true }` when the selected model ID starts with `openai/`, matching the eval stream-provider guard.
+
 No server-side transformation of the stream — the raw OpenRouter SSE body is piped through unchanged.
 
 ### `POST /agentic/feedback`
@@ -405,7 +407,6 @@ Runs the full critique pipeline after evals:
 
 ## Known Issues / Gaps
 
-- **`reasoning.effort` guard missing in production**: `apps/api-server/src/services/agentic.ts` sends `reasoning: { effort: 'medium', exclude: true }` unconditionally. This is only valid for `openai/*` models. Must be guarded (e.g., `if (AGENTIC_DEFAULT_MODEL.startsWith('openai/'))`) before switching to a non-OpenAI model.
 - **`captureScreenshot` excluded from extension**: The tool is in `tools[]` but not `extensionTools[]`. It has not been tested in the browser extension context. Re-include it once validated.
 - **Resource map in extension accessor is always empty**: `playback.getResourceMap()` returns `{}` in the capture widget (resources are not fetched client-side). Tracked as REP-XXX.
 
