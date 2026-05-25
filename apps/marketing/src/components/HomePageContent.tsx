@@ -1,7 +1,7 @@
 import { HeroSection } from './HeroSection'
 import routeStyles from './HighIntentRoutePage.module.css'
 import homeStyles from './HomePageContent.module.css'
-import { homepageProofCards } from './marketingShell'
+import { homepageProofCards, signupHref } from './marketingShell'
 import sharedStyles from './MarketingShell.module.css'
 
 const cx = (...classes: Array<string | undefined>) =>
@@ -120,7 +120,7 @@ export function HomePageContent() {
           <div className={homeStyles.closingActions}>
             <a
               className={cx(sharedStyles.button, sharedStyles.primaryCta)}
-              href="/coming-soon"
+              href={signupHref}
             >
               Get started for free
             </a>

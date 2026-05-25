@@ -10,6 +10,8 @@ const { cleanup, render, screen } = require('@testing-library/react')
 
 globalThis.React = React
 
+const signupHref = 'https://app.repro.dev/account/register'
+
 afterEach(cleanup)
 
 describe('HeroSection', () => {
@@ -29,7 +31,7 @@ describe('HeroSection', () => {
       name: 'Get started for free',
     })
 
-    assert.equal(primaryCta.getAttribute('href'), '/coming-soon')
+    assert.equal(primaryCta.getAttribute('href'), signupHref)
     assert.ok(screen.getByRole('link', { name: 'See how it works' }))
     assert.equal(
       screen

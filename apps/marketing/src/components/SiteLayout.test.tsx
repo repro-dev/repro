@@ -16,6 +16,9 @@ const {
 
 globalThis.React = React
 
+const signupHref = 'https://app.repro.dev/account/register'
+const loginHref = 'https://app.repro.dev/account/login'
+
 afterEach(cleanup)
 
 async function renderLayout(t: any) {
@@ -66,13 +69,13 @@ describe('site layout', () => {
     assert.ok(headerLinks.getByRole('link', { name: 'Pricing' }))
     assert.equal(
       headerLinks.getByRole('link', { name: 'Log in' }).getAttribute('href'),
-      '/coming-soon'
+      loginHref
     )
     assert.equal(
       headerLinks
         .getByRole('link', { name: 'Get started for free' })
         .getAttribute('href'),
-      '/coming-soon'
+      signupHref
     )
   })
 
@@ -88,9 +91,20 @@ describe('site layout', () => {
 
     assert.ok(screen.getByRole('dialog'))
 
-    fireEvent.click(
-      within(screen.getByRole('dialog')).getByRole('link', { name: 'Log in' })
+    const mobileDialog = within(screen.getByRole('dialog'))
+
+    assert.equal(
+      mobileDialog.getByRole('link', { name: 'Log in' }).getAttribute('href'),
+      loginHref
     )
+    assert.equal(
+      mobileDialog
+        .getByRole('link', { name: 'Get started for free' })
+        .getAttribute('href'),
+      signupHref
+    )
+
+    fireEvent.click(mobileDialog.getByRole('link', { name: 'Log in' }))
 
     assert.equal(screen.queryByRole('dialog'), null)
   })
@@ -116,6 +130,10 @@ describe('site layout', () => {
         .getByRole('link', { name: 'How it works' })
         .getAttribute('href'),
       '/#how-it-works'
+    )
+    assert.equal(
+      footerLinks.getByRole('link', { name: 'Log in' }).getAttribute('href'),
+      loginHref
     )
     assert.equal(footerLinks.queryByRole('link', { name: 'GitHub' }), null)
     assert.equal(footerLinks.queryByRole('link', { name: 'X' }), null)

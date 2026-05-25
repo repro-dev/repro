@@ -1,9 +1,26 @@
-export const signupHref = '/coming-soon'
+import { createEnv } from '~/config/env'
+
+const env = createEnv({ REPRO_APP_URL: process.env.REPRO_APP_URL })
+
+function appHref(path: string) {
+  const appUrl = new URL(env.REPRO_APP_URL)
+  const basePath = appUrl.pathname.replace(/\/$/, '')
+  const authPath = path.startsWith('/') ? path : `/${path}`
+
+  appUrl.pathname = `${basePath}${authPath}`.replace(/\/+/g, '/')
+  appUrl.search = ''
+  appUrl.hash = ''
+
+  return appUrl.toString()
+}
+
+export const signupHref = appHref('/account/register')
+export const loginHref = appHref('/account/login')
 
 export const primaryNavLinks = [
   { href: '/#how-it-works', label: 'How it works' },
   { href: '/pricing', label: 'Pricing' },
-  { href: signupHref, label: 'Log in' },
+  { href: loginHref, label: 'Log in' },
 ] as const
 
 export const footerGroups = [
@@ -12,7 +29,7 @@ export const footerGroups = [
     links: [
       { href: '/#how-it-works', label: 'How it works' },
       { href: '/pricing', label: 'Pricing' },
-      { href: signupHref, label: 'Log in' },
+      { href: loginHref, label: 'Log in' },
     ],
   },
   {
