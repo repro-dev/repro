@@ -819,6 +819,18 @@ export function createAccountService(
     Error,
     { items: Array<StaffUserDetail>; nextCursor?: string }
   > {
+    const decodedAccountId = decodeId(accountId)
+
+    if (decodedAccountId == null) {
+      return reject(badRequest('Invalid account ID'))
+    }
+
+    const decodedCursor = cursor == null ? null : decodeId(cursor)
+
+    if (cursor != null && decodedCursor == null) {
+      return reject(badRequest('Invalid account cursor'))
+    }
+
     return attemptQuery(() => {
       let query = database
         .selectFrom('users')
@@ -832,12 +844,12 @@ export function createAccountService(
           'accountId',
           'createdAt',
         ])
-        .where('accountId', '=', decodeId(accountId))
+        .where('accountId', '=', decodedAccountId)
         .orderBy('id asc')
         .limit(limit + 1)
 
-      if (cursor != null) {
-        query = query.where('id', '>', decodeId(cursor))
+      if (decodedCursor != null) {
+        query = query.where('id', '>', decodedCursor)
       }
 
       return query.execute()

@@ -156,6 +156,26 @@ describe('Routers > Staff', () => {
       })
     })
 
+    it('should return 400 for an invalid account cursor', async () => {
+      const [staffSession] = await harness.loadFixtures([
+        fixtures.account.StaffUserA_Session,
+      ])
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/accounts?cursor=not-an-id',
+        headers: {
+          authorization: `Bearer ${(staffSession as Session).sessionToken}`,
+        },
+      })
+
+      expect(res.statusCode).toEqual(400)
+      expect(res.json()).toMatchObject({
+        name: 'BadRequestError',
+        message: 'Invalid account cursor',
+      })
+    })
+
     it('should return 403 when not authenticated as staff', async () => {
       const [userSession] = await harness.loadFixtures([
         fixtures.account.UserA_Session,
@@ -207,6 +227,26 @@ describe('Routers > Staff', () => {
         lastActiveAt: null,
       })
     })
+
+    it('should return 400 for an invalid account detail ID', async () => {
+      const [staffSession] = await harness.loadFixtures([
+        fixtures.account.StaffUserA_Session,
+      ])
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/accounts/not-an-id',
+        headers: {
+          authorization: `Bearer ${(staffSession as Session).sessionToken}`,
+        },
+      })
+
+      expect(res.statusCode).toEqual(400)
+      expect(res.json()).toMatchObject({
+        name: 'BadRequestError',
+        message: 'Invalid account ID',
+      })
+    })
   })
 
   describe('GET /accounts/:accountId/projects', () => {
@@ -234,6 +274,26 @@ describe('Routers > Staff', () => {
             recordingCount: 2,
           }),
         ],
+      })
+    })
+
+    it('should return 400 for an invalid account projects ID', async () => {
+      const [staffSession] = await harness.loadFixtures([
+        fixtures.account.StaffUserA_Session,
+      ])
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/accounts/not-an-id/projects',
+        headers: {
+          authorization: `Bearer ${(staffSession as Session).sessionToken}`,
+        },
+      })
+
+      expect(res.statusCode).toEqual(400)
+      expect(res.json()).toMatchObject({
+        name: 'BadRequestError',
+        message: 'Invalid account ID',
       })
     })
   })

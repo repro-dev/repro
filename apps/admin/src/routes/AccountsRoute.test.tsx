@@ -1,4 +1,5 @@
 import { ApiProvider, createApiClient } from '@repro/api-client'
+import { PortalRootProvider } from '@repro/design'
 import { StaffAccountListItem } from '@repro/domain'
 import {
   act,
@@ -48,15 +49,17 @@ function renderRoute({ items = [account], nextCursor = 'cursor-1' } = {}) {
 
   render(
     <ApiProvider client={connectedApiClient}>
-      <MemoryRouter initialEntries={['/accounts']}>
-        <Routes>
-          <Route path="/accounts" element={<AccountsRoute />} />
-          <Route
-            path="/accounts/:accountId"
-            element={<div>Account detail</div>}
-          />
-        </Routes>
-      </MemoryRouter>
+      <PortalRootProvider>
+        <MemoryRouter initialEntries={['/accounts']}>
+          <Routes>
+            <Route path="/accounts" element={<AccountsRoute />} />
+            <Route
+              path="/accounts/:accountId"
+              element={<div>Account detail</div>}
+            />
+          </Routes>
+        </MemoryRouter>
+      </PortalRootProvider>
     </ApiProvider>
   )
 
@@ -99,6 +102,21 @@ describe('AccountsRoute', () => {
     await waitFor(() =>
       assert.ok(
         requests.includes('/staff/accounts?limit=50&search=owner%40acme.test')
+      )
+    )
+
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText('Plan tier'))
+    })
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('option', { name: 'Repro++' }))
+    })
+
+    await waitFor(() =>
+      assert.ok(
+        requests.includes(
+          '/staff/accounts?limit=50&search=owner%40acme.test&planTier=Repro%2B%2B'
+        )
       )
     )
 

@@ -172,6 +172,47 @@ describe('Routers > Staff', () => {
       expect(body.nextCursor).toBeDefined()
     })
 
+    it('should return 400 when the account ID is invalid', async () => {
+      const [staffSession] = await harness.loadFixtures([
+        fixtures.account.StaffUserA_Session,
+      ])
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/accounts/not-an-id/users',
+        headers: {
+          authorization: `Bearer ${(staffSession as Session).sessionToken}`,
+        },
+      })
+
+      expect(res.statusCode).toEqual(400)
+      expect(res.json()).toMatchObject({
+        name: 'BadRequestError',
+        message: 'Invalid account ID',
+      })
+    })
+
+    it('should return 400 when the users cursor is invalid', async () => {
+      const [staffSession, account] = await harness.loadFixtures([
+        fixtures.account.StaffUserA_Session,
+        fixtures.account.AccountA,
+      ])
+
+      const res = await app.inject({
+        method: 'GET',
+        url: `/accounts/${(account as Account).id}/users?cursor=not-an-id`,
+        headers: {
+          authorization: `Bearer ${(staffSession as Session).sessionToken}`,
+        },
+      })
+
+      expect(res.statusCode).toEqual(400)
+      expect(res.json()).toMatchObject({
+        name: 'BadRequestError',
+        message: 'Invalid account cursor',
+      })
+    })
+
     it('should return 403 when not authenticated as staff', async () => {
       const [userSession, account] = await harness.loadFixtures([
         fixtures.account.UserA_Session,

@@ -1,10 +1,11 @@
 import { randomString } from '@repro/random-string'
 import expect from 'expect'
 import { chain, parallel, promise } from 'fluture'
+import { sql } from 'kysely'
 import { after, before, beforeEach, describe, it } from 'node:test'
-import { encodeId } from '~/modules/database'
+import { decodeId, encodeId } from '~/modules/database'
 import { Harness, createTestHarness, fixtures } from '~/testing'
-import { notFound } from '~/utils/errors'
+import { badRequest, notFound } from '~/utils/errors'
 import { AccountService } from './account'
 import { BillingService } from './billing'
 import { ProjectService } from './project'
@@ -148,6 +149,44 @@ describe('Services > Account', () => {
       expect(secondPage.nextCursor).toBeUndefined()
     })
 
+    it('should use encoded ID as the stable tie-breaker when account creation timestamps match', async () => {
+      const first = await promise(accountService.createAccount('Tie Account 1'))
+      const second = await promise(
+        accountService.createAccount('Tie Account 2')
+      )
+      const third = await promise(accountService.createAccount('Tie Account 3'))
+      const decodedIds = [first.id, second.id, third.id].map(
+        id => decodeId(id)!
+      )
+
+      await sql`
+        UPDATE accounts
+        SET "createdAt" = ${new Date('2026-01-01T00:00:00.000Z')}
+        WHERE id in (${sql.join(decodedIds)})
+      `.execute(harness.db)
+
+      const firstPage = await promise(accountService.listAccounts({ limit: 2 }))
+
+      expect(firstPage.items.map(item => item.id)).toEqual([
+        third.id,
+        second.id,
+      ])
+      expect(firstPage.nextCursor).toEqual(second.id)
+
+      const secondPage = await promise(
+        accountService.listAccounts({ limit: 2, cursor: firstPage.nextCursor })
+      )
+
+      expect(secondPage.items.map(item => item.id)).toEqual([first.id])
+      expect(secondPage.nextCursor).toBeUndefined()
+    })
+
+    it('should reject invalid staff account cursors with bad-request', async () => {
+      await expect(
+        promise(accountService.listAccounts({ cursor: 'not-an-id' }))
+      ).rejects.toThrow(badRequest('Invalid account cursor'))
+    })
+
     it('should filter enriched account rows by email, account ID, and plan tier', async () => {
       const [freePlan, proPlan] = await harness.loadFixtures([
         fixtures.billing.FreePlan,
@@ -257,6 +296,12 @@ describe('Services > Account', () => {
           active: true,
         },
       })
+    })
+
+    it('should reject invalid staff account detail IDs with bad-request', async () => {
+      await expect(
+        promise(accountService.getStaffAccountDetail('not-an-id'))
+      ).rejects.toThrow(badRequest('Invalid account ID'))
     })
 
     it('should update an account name', async () => {
