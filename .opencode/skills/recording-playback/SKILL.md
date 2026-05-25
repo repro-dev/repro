@@ -192,6 +192,8 @@ Runs a serial queue (one upload at a time):
 
 Progress is tracked in `progressMap` (keyed by upload `ref`). The widget polls every 250 ms via `upload:progress` intent to update `ProgressOverlay`.
 
+On the API server, derived-processing readiness is intentionally narrower than full upload completion: `createRecordingFinalizationService` marks a recording ready after the info row exists and both `data` and `event-index` uploads have been recorded. Resource blobs and resource maps are not part of that readiness gate.
+
 ---
 
 ## The Binary Codec

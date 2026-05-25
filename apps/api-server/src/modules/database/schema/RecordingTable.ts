@@ -1,5 +1,5 @@
 import { RecordingMode } from '@repro/domain'
-import { GeneratedAlways } from 'kysely'
+import { ColumnType, GeneratedAlways } from 'kysely'
 
 export interface RecordingTable {
   id: GeneratedAlways<number>
@@ -13,4 +13,16 @@ export interface RecordingTable {
   browserVersion: string | null
   operatingSystem: string | null
   codecVersion: string
+  dataUploadedAt: ColumnType<Date | null, Date | null | undefined, Date | null>
+  eventIndexUploadedAt: ColumnType<
+    Date | null,
+    Date | null | undefined,
+    Date | null
+  >
+  derivedProcessingReadyAt: ColumnType<
+    Date | null,
+    Date | null | undefined,
+    Date | null
+  >
+  finalizedAt: ColumnType<Date | null, Date | null | undefined, Date | null>
 }

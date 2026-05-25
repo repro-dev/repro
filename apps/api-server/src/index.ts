@@ -41,6 +41,7 @@ import { createOAuthService } from '~/services/oauth'
 import { createOutboxService } from '~/services/outbox'
 import { createProjectService } from '~/services/project'
 import { createRecordingService } from '~/services/recording'
+import { createRecordingFinalizationService } from '~/services/recordingFinalization'
 import { createSocialAuthService } from '~/services/socialAuth'
 import { serverError } from '~/utils/errors'
 import { createHttpClient } from './modules/http'
@@ -174,6 +175,10 @@ async function bootstrap() {
   const outboxService = createOutboxService(database, {
     defaultMaxAttempts: env.OUTBOX_WORKER_DEFAULT_MAX_ATTEMPTS,
   })
+  const recordingFinalizationService = createRecordingFinalizationService(
+    database,
+    outboxService
+  )
   const healthService = createHealthService(
     database,
     storage,
@@ -181,7 +186,12 @@ async function bootstrap() {
     { service: outboxService, staleAfterMs: env.OUTBOX_WORKER_STALE_AFTER_MS }
   )
   const projectService = createProjectService(database)
-  const recordingService = createRecordingService(database, storage, app.log)
+  const recordingService = createRecordingService(
+    database,
+    storage,
+    app.log,
+    recordingFinalizationService
+  )
   const socialAuthService = createSocialAuthService(database)
 
   const googleProvider = createGoogleProvider('/account/oauth/google/callback')
