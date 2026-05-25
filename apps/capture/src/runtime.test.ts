@@ -49,14 +49,15 @@ it('installs the runtime hook stub and stays idempotent', () => {
   assert.equal(window.__REPRO_RUNTIME_INSTALLED__, true)
 })
 
-it('registers console, network, and performance as installed types', () => {
+it('registers runtime-installed observer types', () => {
   const installedTypes = window.__REPRO_RUNTIME_INSTALLED_TYPES__
 
   assert.ok(installedTypes)
   assert.ok(installedTypes.has('console'))
   assert.ok(installedTypes.has('network'))
   assert.ok(installedTypes.has('performance'))
-  assert.equal(installedTypes.size, 3)
+  assert.ok(installedTypes.has('custom'))
+  assert.equal(installedTypes.size, 4)
 })
 
 it('does not re-wrap global patches on repeated installRuntime() calls', () => {
@@ -68,7 +69,7 @@ it('does not re-wrap global patches on repeated installRuntime() calls', () => {
   installRuntime()
 
   assert.equal(window.__REPRO_RUNTIME_INSTALLED_TYPES__, installedTypes)
-  assert.equal(installedTypes?.size, 3)
+  assert.equal(installedTypes?.size, 4)
   assert.equal(console.log, logBefore)
   assert.equal(globalThis.fetch, fetchBefore)
   assert.equal(globalThis.XMLHttpRequest, xhrBefore)
