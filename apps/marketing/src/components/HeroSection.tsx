@@ -1,5 +1,5 @@
 import heroStyles from './HeroSection.module.css'
-import { homepageHeroMock } from './marketingShell'
+import { homepageHeroMock, signupHref } from './marketingShell'
 import sharedStyles from './MarketingShell.module.css'
 
 const cx = (...classes: Array<string | undefined>) =>
@@ -33,7 +33,7 @@ export function HeroSection() {
         <div className={heroStyles.heroCtaRow}>
           <a
             className={cx(sharedStyles.button, sharedStyles.primaryCta)}
-            href="/coming-soon"
+            href={signupHref}
           >
             {homepageHeroMock.primaryCta}
           </a>

@@ -10,6 +10,8 @@ const { cleanup, render, screen } = require('@testing-library/react')
 
 globalThis.React = React
 
+const signupHref = 'https://app.repro.dev/account/register'
+
 afterEach(cleanup)
 
 async function renderRoute(t: any, pagePath: string) {
@@ -66,7 +68,7 @@ describe('high-intent marketing routes', () => {
       screen
         .getByRole('link', { name: 'Get started for free' })
         .getAttribute('href'),
-      '/coming-soon'
+      signupHref
     )
     assert.equal(screen.queryByText('Start free'), null)
   })
@@ -98,13 +100,11 @@ describe('high-intent marketing routes', () => {
     assert.ok(
       screen
         .getAllByRole('link', { name: 'Get started for free' })
-        .every(
-          (link: HTMLElement) => link.getAttribute('href') === '/coming-soon'
-        )
+        .every((link: HTMLElement) => link.getAttribute('href') === signupHref)
     )
     assert.equal(
       screen.getByRole('link', { name: 'Contact sales' }).getAttribute('href'),
-      '/coming-soon'
+      signupHref
     )
     assert.equal(
       screen.queryByText(/AI usage details are not expressed as fixed quotas/i),
@@ -120,9 +120,7 @@ describe('high-intent marketing routes', () => {
     assert.ok(
       screen
         .getAllByRole('link', { name: 'Get started for free' })
-        .every(
-          (link: HTMLElement) => link.getAttribute('href') === '/coming-soon'
-        )
+        .every((link: HTMLElement) => link.getAttribute('href') === signupHref)
     )
     assert.equal(screen.queryByText('Start free'), null)
   })

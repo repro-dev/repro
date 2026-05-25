@@ -10,6 +10,9 @@ const { cleanup, render, screen, within } = require('@testing-library/react')
 
 globalThis.React = React
 
+const signupHref = 'https://app.repro.dev/account/register'
+const loginHref = 'https://app.repro.dev/account/login'
+
 afterEach(cleanup)
 
 describe('marketing homepage route', () => {
@@ -70,9 +73,7 @@ describe('marketing homepage route', () => {
     assert.ok(
       screen
         .getAllByRole('link', { name: 'Get started for free' })
-        .every(
-          (link: HTMLElement) => link.getAttribute('href') === '/coming-soon'
-        )
+        .every((link: HTMLElement) => link.getAttribute('href') === signupHref)
     )
     assert.ok(
       screen
@@ -141,7 +142,10 @@ describe('marketing homepage route', () => {
         .getAttribute('href'),
       '/#how-it-works'
     )
-    assert.ok(footerLinks.getByRole('link', { name: 'Log in' }))
+    assert.equal(
+      footerLinks.getByRole('link', { name: 'Log in' }).getAttribute('href'),
+      loginHref
+    )
     assert.equal(footerLinks.queryByRole('link', { name: 'GitHub' }), null)
     assert.equal(footerLinks.queryByRole('link', { name: 'X' }), null)
     assert.ok(footerLinks.getByText(/Repro Software Ltd/))
