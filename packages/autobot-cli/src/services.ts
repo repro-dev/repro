@@ -184,6 +184,8 @@ type PlanningPhaseName = SingleTrackPhaseContractName;
 function createPreparationRunDirectories(input: {
   repoRoot: string;
   runId: string;
+  issueId: string;
+  attempt: number;
 }): FutureInstance<unknown, void> {
   return Future((_reject, resolve) => {
     void Promise.all([
@@ -195,6 +197,18 @@ function createPreparationRunDirectories(input: {
       ),
       mkdir(
         path.join(input.repoRoot, ".autobot", "runs", input.runId, "logs"),
+        {
+          recursive: true,
+        },
+      ),
+      mkdir(
+        path.join(
+          input.repoRoot,
+          ".autobot",
+          "runs",
+          input.issueId,
+          `attempt-${input.attempt}`,
+        ),
         {
           recursive: true,
         },
@@ -4591,6 +4605,8 @@ function runBoundedWorkflowTickForItem(
               createPreparationRunDirectories({
                 repoRoot: preparedRepo.path,
                 runId,
+                issueId: target.issue_id,
+                attempt: target.attempt,
               }),
               store.items
                 .upsert({

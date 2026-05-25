@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
+import { mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
+import path from "node:path";
 import test from "node:test";
 
 import type { AutobotStore } from "@repro/autobot-store";
-import { fork, resolve, type FutureInstance } from "fluture";
+import { fork, Future, resolve, type FutureInstance } from "fluture";
 
 import { createAutobotServices } from "../services";
 import type { AutobotGlobalOptions, AutobotInvocation } from "../types";
@@ -62,6 +64,16 @@ function queuedItem(issueId: string, queuedAt: string) {
     cancellation_requested_at: null,
     artifacts: [] as [],
     events: [] as [],
+  };
+}
+
+function firstTickQueuedItem(issueId: string, queuedAt: string) {
+  return {
+    ...queuedItem(issueId, queuedAt),
+    state: "queued" as const,
+    workspace: "autobot",
+    started_at: null,
+    updated_at: queuedAt,
   };
 }
 
@@ -151,4 +163,83 @@ test("completed async planning worker reads run-plan from prepared worktree", as
     true,
   );
   assert.equal(fixture.itemUpserts.at(-1)?.state, "completed");
+});
+
+test("first tick prepares issue attempt directory before planning artifact writes", async () => {
+  const issueId = "REP-417";
+  const repoRoot = path.resolve(__dirname, "../../../..");
+  const tempRoot = await mkdtemp(
+    path.join(repoRoot, "tmp", "autobot-planning-artifacts-"),
+  );
+  const preparedWorktree = path.join(
+    tempRoot,
+    ".autobot",
+    "worktrees",
+    issueId,
+  );
+
+  await mkdir(preparedWorktree, { recursive: true });
+
+  const fixture = makeWorkflowStore({
+    items: [firstTickQueuedItem(issueId, "2026-05-15T09:00:00Z")],
+  });
+  const writtenPaths: string[] = [];
+  const startedWorkers: string[] = [];
+  const services = createAutobotServices({
+    prepareWorktree: () =>
+      resolve({
+        issue_id: issueId,
+        branch: `autobot/${issueId}`,
+        slug: issueId,
+        worktree_path: preparedWorktree,
+        archived_worktree_path: null,
+      }),
+    openStore: () => resolve(fixture.store as unknown as AutobotStore),
+    now: () => "2026-05-15T12:00:00Z",
+    randomId: () => "run-first-tick",
+    loadLinearIssue: () => resolve(null),
+    artifactWriter: (input) =>
+      Future((rejectPromise, resolvePromise) => {
+        void stat(path.dirname(input.path))
+          .then(() => writeFile(input.path, input.content, "utf8"))
+          .then(() => {
+            writtenPaths.push(input.path);
+            resolvePromise();
+          }, rejectPromise);
+        return () => undefined;
+      }),
+    artifactReader: () => resolve(validRunPlan),
+    planningWorkerStarter: (input) => {
+      startedWorkers.push(input.issueId);
+      return resolve(undefined);
+    },
+  });
+
+  try {
+    await runFuture(
+      services.handleInvocation(makeInvocation(["supervisor", "run-once"])),
+    );
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+
+  const planningDir = path.join(
+    preparedWorktree,
+    ".autobot",
+    "runs",
+    issueId,
+    "attempt-1",
+  );
+
+  assert.deepEqual(startedWorkers, [issueId]);
+  assert.ok(writtenPaths.length > 0);
+  assert.ok(
+    writtenPaths.every(
+      (writtenPath) => path.dirname(writtenPath) === planningDir,
+    ),
+  );
+  assert.equal(
+    fixture.itemUpserts.some((upsert) => upsert.state === "failed"),
+    false,
+  );
 });
