@@ -250,9 +250,10 @@ test("Autobot phase contracts declare exact inputs and outputs", () => {
         "Read the completed run state, the final verification evidence",
         "deterministic pre-push rebase guard",
         "On rebase conflict, capture conflicting files, abort the rebase",
-        "Retry transient push failures up to three times",
-        "Create a PR body with `Closes <issue-id>`",
+        "Document transient push retry commands",
+        "Prepare a PR body with `Closes <issue-id>`",
         "Do not paste full AI review output into the PR or Linear comments",
+        "Do not push, create the PR, or move Linear to `In Review` without explicit operator approval",
         "Do not wait on CI, merge status, or post-publish monitoring",
         "bounded agent-fixable pre-push or check-failure recovery plan",
         ".autobot/runs/<issue-id>/attempt-<attempt>/release-recovery.md",
@@ -284,6 +285,29 @@ test("Autobot phase contracts include the shared safety preamble", () => {
     assertContains(content, safetyPreambleMarker);
     assertContains(content, "docs/autobot/safety-policy.md");
   }
+});
+
+test("Autobot safety policy maps every rendered phase contract", () => {
+  const repoPath = path.resolve(process.cwd(), "..", "..");
+  const safetyPolicy = readFileSync(
+    path.join(repoPath, "docs", "autobot", "safety-policy.md"),
+    "utf8",
+  );
+
+  for (const name of listSingleTrackPhaseContractNames()) {
+    assertContains(safetyPolicy, `| \`${name}\``);
+  }
+});
+
+test("Autobot release-publish contract prepares gated publish evidence only", () => {
+  const content = loadSingleTrackPhaseContract("release-publish");
+
+  assertContains(content, "Prepare deterministic publish evidence");
+  assertContains(content, "operator-approved publish path");
+  assert.doesNotMatch(
+    content,
+    /Push, create the PR, and move Linear to `In Review`/,
+  );
 });
 
 test("Autobot phase contracts render placeholders before use", () => {
