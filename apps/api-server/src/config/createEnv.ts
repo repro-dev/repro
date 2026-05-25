@@ -78,6 +78,12 @@ const envSchema = z.object({
   RATE_LIMIT_REDIS_URL: z.string().optional(),
   AGENTIC_RATE_LIMIT_PER_HOUR: z.coerce.number().default(60),
   AGENTIC_MAX_MESSAGES_PER_RECORDING: z.coerce.number().default(200),
+  OUTBOX_WORKER_POLL_INTERVAL_MS: positiveIntegerStringTransform.default(1000),
+  OUTBOX_WORKER_BATCH_SIZE: positiveIntegerStringTransform.default(10),
+  OUTBOX_WORKER_DEFAULT_MAX_ATTEMPTS: positiveIntegerStringTransform.default(3),
+  OUTBOX_WORKER_RETRY_BASE_MS: positiveIntegerStringTransform.default(1000),
+  OUTBOX_WORKER_RETRY_MAX_MS: positiveIntegerStringTransform.default(60000),
+  OUTBOX_WORKER_STALE_AFTER_MS: positiveIntegerStringTransform.default(300000),
 })
 
 export type Env = z.infer<typeof envSchema>

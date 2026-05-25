@@ -173,4 +173,51 @@ describe('Services > Health', () => {
       } as never)
     ).toEqual('unhealthy')
   })
+
+  it('should include outbox diagnostics and degrade on failed jobs', async () => {
+    const healthService = createHealthService(db, storage, undefined, {
+      service: {
+        getDiagnostics: () =>
+          resolve({
+            pending: 1,
+            running: 0,
+            failed: 1,
+            staleRunning: 0,
+          }),
+      },
+      staleAfterMs: 300000,
+    })
+
+    const result = await promise(healthService.checkDetailed())
+
+    expect(result.status).toEqual('degraded')
+    expect(result.checks.outbox?.status).toEqual('degraded')
+    expect(result.checks.outbox?.details).toEqual({
+      pending: 1,
+      running: 0,
+      failed: 1,
+      staleRunning: 0,
+    })
+  })
+
+  it('should degrade but not mark unhealthy when outbox has stale running jobs', async () => {
+    const healthService = createHealthService(db, storage, undefined, {
+      service: {
+        getDiagnostics: () =>
+          resolve({
+            pending: 0,
+            running: 1,
+            failed: 0,
+            staleRunning: 1,
+          }),
+      },
+      staleAfterMs: 300000,
+    })
+
+    const result = await promise(healthService.checkDetailed())
+
+    expect(result.status).toEqual('degraded')
+    expect(result.checks.database.status).toEqual('ok')
+    expect(result.checks.outbox?.status).toEqual('degraded')
+  })
 })

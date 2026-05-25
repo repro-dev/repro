@@ -23,6 +23,7 @@ description: PostgreSQL 17 conventions, Kysely ORM and migration tracking, versi
   - The migration runner (`SQLFileMigrationProvider`) sorts files lexicographically — timestamps sort correctly this way
   - CI will fail if two migration files share the same timestamp prefix (collision guard in `.github/workflows/ci.yml`)
 - **Adding a migration**: create a new `.sql` file with the current UTC timestamp as prefix; never use sequential integer prefixes
+- **Migration sections**: every SQL migration file must include properly delimited `-- Up` and `-- Down` sections; the `SQLFileMigrationProvider` rejects files without both section markers
 - **Migration tracking**: Kysely stores migration names (full basename including `.sql`) in `kysely_migration`. The `migrate()` function performs a one-time rename of any legacy numeric-prefix entries before running migrations.
 - **Limitation**: timestamp ordering reduces accidental collisions but does not enforce semantic dependencies between parallel PRs. PRs with implicit migration dependencies (e.g. one alters a table created by another) must be merged in the correct order.
 
