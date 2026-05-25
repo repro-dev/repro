@@ -1,9 +1,11 @@
-import { Block } from '@jsxstyle/react'
+import { Block, Col, Row } from '@jsxstyle/react'
 import type { Meta, StoryObj } from '@storybook/react'
 import React, { useState } from 'react'
 import { Badge } from '../Badge/Badge'
 import { EmptyState } from '../EmptyState/EmptyState'
+import { color } from '../tokens/colors'
 import { spacing } from '../tokens/spacing'
+import { textStyles } from '../tokens/typography'
 import { Table } from './index'
 
 const meta: Meta = {
@@ -57,6 +59,72 @@ export const Default: Story = {
         </Table.Row>
       </Table.Body>
     </Table>
+  ),
+}
+
+// ---------------------------------------------------------------------------
+// DensityComparison — default vs compact density
+// ---------------------------------------------------------------------------
+
+const densityRows = [
+  { label: 'Plan', value: 'Team' },
+  { label: 'Seats', value: '12 active' },
+  { label: 'Renewal', value: 'Mar 1' },
+]
+
+function DensityTable({ compact = false }: { compact?: boolean }) {
+  return (
+    <Table
+      aria-label={compact ? 'Compact account facts' : 'Default account facts'}
+      density={compact ? 'compact' : 'default'}
+    >
+      <Table.Header>
+        <Table.Row>
+          <Table.HeaderCell>Field</Table.HeaderCell>
+          <Table.HeaderCell>Value</Table.HeaderCell>
+        </Table.Row>
+      </Table.Header>
+      <Table.Body>
+        {densityRows.map(row => (
+          <Table.Row key={row.label}>
+            <Table.Cell>{row.label}</Table.Cell>
+            <Table.Cell>{row.value}</Table.Cell>
+          </Table.Row>
+        ))}
+      </Table.Body>
+    </Table>
+  )
+}
+
+/** Compare the default rhythm with compact density for constrained surfaces. */
+export const DensityComparison: Story = {
+  render: () => (
+    <Row gap={spacing.xl} alignItems="flex-start" flexWrap="wrap">
+      <Col gap={spacing.sm} width={360}>
+        <Block {...textStyles.label} color={color.text.secondary}>
+          Default density
+        </Block>
+        <Block
+          borderWidth={1}
+          borderStyle="solid"
+          borderColor={color.border.default}
+        >
+          <DensityTable />
+        </Block>
+      </Col>
+      <Col gap={spacing.sm} width={360}>
+        <Block {...textStyles.label} color={color.text.secondary}>
+          Compact density in a popover-like width
+        </Block>
+        <Block
+          borderWidth={1}
+          borderStyle="solid"
+          borderColor={color.border.default}
+        >
+          <DensityTable compact />
+        </Block>
+      </Col>
+    </Row>
   ),
 }
 
