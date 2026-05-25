@@ -6,6 +6,7 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import expect from 'expect'
 import { afterEach, describe, it } from 'node:test'
 import React from 'react'
@@ -241,6 +242,34 @@ describe('Popover', () => {
     expect(screen.getByRole('menu', { name: 'Actions' })).toBeDefined()
     expect(trigger.getAttribute('aria-expanded')).toBe('true')
     expect(clicks).toEqual(['child'])
+  })
+
+  it('opens Button-triggered popovers from keyboard activation', async () => {
+    const user = userEvent.setup()
+
+    render(
+      <PortalRootProvider>
+        <Popover>
+          <Popover.Trigger aria-haspopup="menu">
+            <Button>Trigger</Button>
+          </Popover.Trigger>
+          <Popover.Content role="menu" aria-label="Actions">
+            <div>Popover content</div>
+          </Popover.Content>
+        </Popover>
+      </PortalRootProvider>
+    )
+
+    const trigger = screen.getByRole('button', { name: 'Trigger' })
+    expect(trigger.getAttribute('aria-expanded')).toBe('false')
+    trigger.focus()
+
+    await user.keyboard('{Enter}')
+
+    await waitFor(() => {
+      expect(trigger.getAttribute('aria-expanded')).toBe('true')
+    })
+    expect(screen.getByRole('menu', { name: 'Actions' })).toBeDefined()
   })
 
   it('positions Button-triggered popovers from a stable wrapper while the Button is active', async () => {
