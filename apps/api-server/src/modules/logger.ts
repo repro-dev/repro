@@ -50,7 +50,7 @@ export function createFastifyLoggerOptions({
       'req.body.secret',
       'req.body.clientSecret',
       'req.body.webhookSecret',
-      'res.headers.set-cookie',
+      'res.headers["set-cookie"]',
     ],
   }
 }

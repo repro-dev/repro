@@ -1,4 +1,5 @@
 import expect from 'expect'
+import fastify from 'fastify'
 import { describe, it } from 'node:test'
 import {
   createFastifyLoggerOptions,
@@ -21,6 +22,7 @@ describe('Modules > logger', () => {
         'req.body.invitationToken',
         'req.body.resetToken',
         'req.body.secret',
+        'res.headers["set-cookie"]',
       ]),
     })
   })
@@ -29,6 +31,13 @@ describe('Modules > logger', () => {
     const options = createFastifyLoggerOptions({ nodeEnv: 'test' })
 
     expect(options.level).toEqual('silent')
+  })
+
+  it('creates development logger options Fastify can construct with', async () => {
+    const options = createFastifyLoggerOptions({ nodeEnv: 'development' })
+
+    const app = fastify({ logger: options })
+    await app.close()
   })
 
   it('extracts safe request correlation metadata without unsafe fields', () => {
