@@ -13,6 +13,7 @@ import {
   Text,
   color,
   spacing,
+  type BadgeProps,
 } from '@repro/design'
 import {
   StaffAccountDetail,
@@ -33,6 +34,26 @@ function formatDate(date: string) {
 
 function statusText(active: boolean, label: string) {
   return active ? `Active ${label}` : `Inactive ${label}`
+}
+
+function subscriptionStatusContext(
+  status: string | null | undefined
+): BadgeProps['context'] {
+  switch (status) {
+    case 'active':
+    case 'trialing':
+      return 'success'
+    case 'past_due':
+    case 'paused':
+      return 'warning'
+    case 'canceled':
+    case 'inactive':
+    case 'unpaid':
+    case 'incomplete_expired':
+      return 'danger'
+    default:
+      return 'neutral'
+  }
 }
 
 export const AccountDetailRoute: React.FC = () => {
@@ -129,7 +150,11 @@ export const AccountDetailRoute: React.FC = () => {
               </Col>
               <Row gap={spacing.sm} flexWrap="wrap">
                 <Badge context="info">{account.planName ?? 'No plan'}</Badge>
-                <Badge context="success">
+                <Badge
+                  context={subscriptionStatusContext(
+                    account.subscriptionStatus
+                  )}
+                >
                   Subscription {account.subscriptionStatus ?? 'unknown'}
                 </Badge>
                 <Badge context={account.active ? 'success' : 'warning'}>

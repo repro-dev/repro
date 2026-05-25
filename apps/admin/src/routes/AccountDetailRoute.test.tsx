@@ -1,4 +1,5 @@
 import { ApiProvider, createApiClient } from '@repro/api-client'
+import { color } from '@repro/design'
 import {
   StaffAccountDetail,
   StaffAccountProject,
@@ -82,13 +83,22 @@ const projects: StaffAccountProject[] = [
   },
 ]
 
-function renderRoute() {
+function normalizeCssColor(value: string) {
+  const element = document.createElement('span')
+  element.style.color = value
+  document.body.append(element)
+  const normalized = getComputedStyle(element).color
+  element.remove()
+  return normalized
+}
+
+function renderRoute(accountDetail: StaffAccountDetail = detail) {
   const requests: string[] = []
   const connectedApiClient = {
     ...apiClient,
     fetch: (path: string) => {
       requests.push(path)
-      if (path === '/staff/accounts/account-1') return resolve(detail)
+      if (path === '/staff/accounts/account-1') return resolve(accountDetail)
       if (path === '/staff/accounts/account-1/users?limit=50')
         return resolve({ items: users })
       if (path === '/staff/accounts/account-1/projects')
@@ -198,6 +208,20 @@ describe('AccountDetailRoute', () => {
       requests.includes(
         '/staff/accounts/account-1/users?limit=50&cursor=user-50'
       )
+    )
+  })
+
+  it('renders a canceled subscription with danger status styling', async () => {
+    renderRoute({
+      ...detail,
+      subscriptionStatus: 'canceled',
+    })
+
+    const subscriptionBadge = await screen.findByText('Subscription canceled')
+
+    assert.equal(
+      getComputedStyle(subscriptionBadge).color,
+      normalizeCssColor(color.dangerFg)
     )
   })
 })
