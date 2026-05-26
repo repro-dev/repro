@@ -3,6 +3,7 @@ import type { TableDensity } from './tableDensity'
 
 export type SortDirection = 'asc' | 'desc' | null
 export type SelectionMode = 'none' | 'single' | 'multi'
+export type TableSurface = 'default' | 'transparent'
 
 export interface TableContextValue {
   sortColumn: string | null
@@ -15,6 +16,7 @@ export interface TableContextValue {
   allRowIds: readonly string[]
   stickyHeader: boolean
   density: TableDensity
+  surface: TableSurface
   /** True when the row is rendered inside <TableHeader> (<thead>). */
   isHeaderRow: boolean
 }
@@ -30,6 +32,7 @@ const defaultContext: TableContextValue = {
   allRowIds: [],
   stickyHeader: false,
   density: 'default',
+  surface: 'default',
   isHeaderRow: false,
 }
 

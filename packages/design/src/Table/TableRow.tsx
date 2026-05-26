@@ -1,4 +1,4 @@
-import React, { forwardRef } from 'react'
+import React, { forwardRef, useState } from 'react'
 import { Checkbox } from '../Checkbox/Checkbox'
 import { color } from '../tokens/colors'
 import { spacing } from '../tokens/spacing'
@@ -29,10 +29,19 @@ export const TableRow = forwardRef<HTMLTableRowElement, TableRowProps>(
       onSelectAll,
       allRowIds,
       isHeaderRow,
+      surface,
     } = useTableContext()
+    const [isHovered, setIsHovered] = useState(false)
 
     const isSelectable = selectionMode !== 'none' && rowId != null
     const isSelected = isSelectable && selectedRows.has(rowId!)
+    const showTransparentHover =
+      surface === 'transparent' && !isHeaderRow && isSelectable && !disabled
+    const backgroundColor = isSelected
+      ? color.primarySubtle
+      : showTransparentHover && isHovered
+      ? color.bg.hover
+      : undefined
 
     const handleRowClick = () => {
       if (
@@ -65,12 +74,18 @@ export const TableRow = forwardRef<HTMLTableRowElement, TableRowProps>(
       <tr
         ref={ref}
         style={{
-          backgroundColor: isSelected ? color.primarySubtle : undefined,
+          backgroundColor,
           cursor:
             selectionMode === 'single' && !disabled ? 'pointer' : undefined,
           borderBottom: `1px solid ${color.border.default}`,
         }}
         onClick={selectionMode === 'single' ? handleRowClick : undefined}
+        onMouseEnter={
+          showTransparentHover ? () => setIsHovered(true) : undefined
+        }
+        onMouseLeave={
+          showTransparentHover ? () => setIsHovered(false) : undefined
+        }
         aria-selected={
           isSelectable ? (isSelected ? 'true' : 'false') : undefined
         }

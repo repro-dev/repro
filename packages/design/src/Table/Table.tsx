@@ -5,6 +5,7 @@ import {
   TableContext,
   type SelectionMode,
   type SortDirection,
+  type TableSurface,
 } from './TableContext'
 import type { TableDensity } from './tableDensity'
 
@@ -20,6 +21,7 @@ export interface TableProps {
   allRowIds?: readonly string[]
   stickyHeader?: boolean
   density?: TableDensity
+  surface?: TableSurface
   'aria-label'?: string
   'aria-labelledby'?: string
 }
@@ -31,6 +33,8 @@ export interface TableProps {
  * empty and loading states, and horizontal scrolling on narrow viewports.
  * Use `density="compact"` to tighten cell and header spacing for constrained
  * surfaces while preserving the default spacing when density is omitted.
+ * Use `surface="transparent"` when the table should sit directly on a page
+ * surface instead of drawing its own table background.
  *
  * Use `Table.Header`, `Table.Body`, `Table.Row`, `Table.Cell`, and
  * `Table.HeaderCell` to compose the full table structure.
@@ -63,6 +67,7 @@ export const Table = forwardRef<HTMLDivElement, TableProps>(
       allRowIds = [],
       stickyHeader = false,
       density = 'default',
+      surface = 'default',
       'aria-label': ariaLabel,
       'aria-labelledby': ariaLabelledby,
     },
@@ -81,6 +86,7 @@ export const Table = forwardRef<HTMLDivElement, TableProps>(
           allRowIds,
           stickyHeader,
           density,
+          surface,
           isHeaderRow: false,
         }}
       >
@@ -99,7 +105,8 @@ export const Table = forwardRef<HTMLDivElement, TableProps>(
             style={{
               width: '100%',
               borderCollapse: 'collapse',
-              backgroundColor: color.bg.surface,
+              backgroundColor:
+                surface === 'transparent' ? 'transparent' : color.bg.surface,
             }}
             aria-label={ariaLabel}
             aria-labelledby={ariaLabelledby}

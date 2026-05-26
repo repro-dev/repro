@@ -4,7 +4,6 @@ import {
   Alert,
   Badge,
   Button,
-  Card,
   FormField,
   FullPageError,
   FullPageLoading,
@@ -28,6 +27,8 @@ const PLAN_OPTIONS = [
   { value: 'Repro+', label: 'Repro+' },
   { value: 'Repro++', label: 'Repro++' },
 ]
+
+const CONTENT_BLEED_WIDTH = `calc(100% + ${spacing['2xl'] * 2}px)`
 
 function formatDate(date: string) {
   return new Date(date).toLocaleDateString('en-US', {
@@ -172,10 +173,11 @@ export const AccountsRoute: React.FC = () => {
                   : 'No accounts are available yet. New signups will appear here.'}
               </Alert>
             ) : (
-              <Card fullBleed>
+              <Block marginInline={-spacing['2xl']} width={CONTENT_BLEED_WIDTH}>
                 <Table
                   aria-label="Accounts ledger"
                   density="compact"
+                  surface="transparent"
                   selectionMode="single"
                   onSelectRow={accountId => navigate(`/accounts/${accountId}`)}
                   allRowIds={accounts.map(account => account.id)}
@@ -230,7 +232,7 @@ export const AccountsRoute: React.FC = () => {
                     ))}
                   </Table.Body>
                 </Table>
-              </Card>
+              </Block>
             )}
 
             <Row justifyContent="space-between" alignItems="center">
