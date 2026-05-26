@@ -1,5 +1,5 @@
 import { ApiProvider, createApiClient } from '@repro/api-client'
-import { ConfirmDialogProvider } from '@repro/design'
+import { ConfirmDialogProvider, PortalRootProvider } from '@repro/design'
 import {
   BillingPlanWithEntitlements,
   BillingSubscriptionResponse,
@@ -92,23 +92,25 @@ function renderRoute({
 }: TestProps = {}) {
   return render(
     <ApiProvider client={apiClient}>
-      <ConfirmDialogProvider>
-        <MemoryRouter initialEntries={['/settings/billing']}>
-          <Routes>
-            <Route
-              path="/settings/billing"
-              element={
-                <BillingSettingsRoute
-                  getSubscription={getSubscription as any}
-                  getPlans={getPlans as any}
-                  cancelSubscription={cancelSubscription as any}
-                  openPortal={openPortal as any}
-                />
-              }
-            />
-          </Routes>
-        </MemoryRouter>
-      </ConfirmDialogProvider>
+      <PortalRootProvider>
+        <ConfirmDialogProvider>
+          <MemoryRouter initialEntries={['/settings/billing']}>
+            <Routes>
+              <Route
+                path="/settings/billing"
+                element={
+                  <BillingSettingsRoute
+                    getSubscription={getSubscription as any}
+                    getPlans={getPlans as any}
+                    cancelSubscription={cancelSubscription as any}
+                    openPortal={openPortal as any}
+                  />
+                }
+              />
+            </Routes>
+          </MemoryRouter>
+        </ConfirmDialogProvider>
+      </PortalRootProvider>
     </ApiProvider>
   )
 }

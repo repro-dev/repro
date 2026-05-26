@@ -1,5 +1,5 @@
 import { ApiProvider, createApiClient } from '@repro/api-client'
-import { ConfirmDialogProvider } from '@repro/design'
+import { ConfirmDialogProvider, PortalRootProvider } from '@repro/design'
 import {
   act,
   cleanup,
@@ -109,13 +109,15 @@ function renderRoute({
 
   return render(
     <ApiProvider client={apiClient}>
-      <ConfirmDialogProvider>
-        <MemoryRouter initialEntries={['/settings/api-keys']}>
-          <Routes>
-            <Route path="/settings/api-keys" element={<ApiKeysRoute />} />
-          </Routes>
-        </MemoryRouter>
-      </ConfirmDialogProvider>
+      <PortalRootProvider>
+        <ConfirmDialogProvider>
+          <MemoryRouter initialEntries={['/settings/api-keys']}>
+            <Routes>
+              <Route path="/settings/api-keys" element={<ApiKeysRoute />} />
+            </Routes>
+          </MemoryRouter>
+        </ConfirmDialogProvider>
+      </PortalRootProvider>
     </ApiProvider>
   )
 }

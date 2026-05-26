@@ -1,5 +1,5 @@
 import { ApiProvider, createApiClient } from '@repro/api-client'
-import { ConfirmDialogProvider } from '@repro/design'
+import { ConfirmDialogProvider, PortalRootProvider } from '@repro/design'
 import {
   ProjectRole,
   StaffUserDetail,
@@ -146,21 +146,23 @@ function renderRoute({
   render(
     <ApiProvider client={connectedApiClient}>
       <AuthContext.Provider value={authState}>
-        <ConfirmDialogProvider>
-          <MemoryRouter initialEntries={[initialEntry]}>
-            <Routes>
-              <Route element={<RequireAdminStaffSession />}>
-                <Route path="users/:userId" element={<UserDetailRoute />} />
-              </Route>
-              <Route
-                path="/accounts/:accountId"
-                element={<div>Account route</div>}
-              />
-              <Route path="/" element={<div>Home route</div>} />
-              <Route path="/login" element={<div>Login route</div>} />
-            </Routes>
-          </MemoryRouter>
-        </ConfirmDialogProvider>
+        <PortalRootProvider>
+          <ConfirmDialogProvider>
+            <MemoryRouter initialEntries={[initialEntry]}>
+              <Routes>
+                <Route element={<RequireAdminStaffSession />}>
+                  <Route path="users/:userId" element={<UserDetailRoute />} />
+                </Route>
+                <Route
+                  path="/accounts/:accountId"
+                  element={<div>Account route</div>}
+                />
+                <Route path="/" element={<div>Home route</div>} />
+                <Route path="/login" element={<div>Login route</div>} />
+              </Routes>
+            </MemoryRouter>
+          </ConfirmDialogProvider>
+        </PortalRootProvider>
       </AuthContext.Provider>
     </ApiProvider>
   )
