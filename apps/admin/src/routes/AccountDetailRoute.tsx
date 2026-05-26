@@ -132,36 +132,43 @@ export const AccountDetailRoute: React.FC = () => {
       <PageFrame.Body>
         <Block width="100%" maxWidth={1440} margin="0 auto">
           <Col gap={spacing.xl} width="100%">
-            <Col gap={spacing.sm}>
-              <Breadcrumbs ariaLabel="Account breadcrumb">
-                <Breadcrumbs.Item
-                  component={RouterLink}
-                  props={{ to: '/accounts' }}
-                >
-                  Accounts
-                </Breadcrumbs.Item>
-                <Breadcrumbs.Item current>{account.name}</Breadcrumbs.Item>
-              </Breadcrumbs>
-              <Col gap={spacing.xs}>
-                <PageFrame.Title>{account.name}</PageFrame.Title>
-                <Text variant="body" color={color.text.secondary}>
-                  {account.primaryEmail ?? 'No primary email'} · {account.id}
-                </Text>
+            <Block
+              component="header"
+              width="100%"
+              paddingBottom={spacing.lg}
+              borderBottom={`1px solid ${color.border.default}`}
+            >
+              <Col gap={spacing.sm}>
+                <Breadcrumbs ariaLabel="Account breadcrumb">
+                  <Breadcrumbs.Item
+                    component={RouterLink}
+                    props={{ to: '/accounts' }}
+                  >
+                    Accounts
+                  </Breadcrumbs.Item>
+                  <Breadcrumbs.Item current>{account.name}</Breadcrumbs.Item>
+                </Breadcrumbs>
+                <Col gap={spacing.xs}>
+                  <PageFrame.Title>{account.name}</PageFrame.Title>
+                  <Text variant="body" color={color.text.secondary}>
+                    {account.primaryEmail ?? 'No primary email'} · {account.id}
+                  </Text>
+                </Col>
+                <Row gap={spacing.sm} flexWrap="wrap">
+                  <Badge context="info">{account.planName ?? 'No plan'}</Badge>
+                  <Badge
+                    context={subscriptionStatusContext(
+                      account.subscriptionStatus
+                    )}
+                  >
+                    Subscription {account.subscriptionStatus ?? 'unknown'}
+                  </Badge>
+                  <Badge context={account.active ? 'success' : 'warning'}>
+                    {statusText(account.active, 'account')}
+                  </Badge>
+                </Row>
               </Col>
-              <Row gap={spacing.sm} flexWrap="wrap">
-                <Badge context="info">{account.planName ?? 'No plan'}</Badge>
-                <Badge
-                  context={subscriptionStatusContext(
-                    account.subscriptionStatus
-                  )}
-                >
-                  Subscription {account.subscriptionStatus ?? 'unknown'}
-                </Badge>
-                <Badge context={account.active ? 'success' : 'warning'}>
-                  {statusText(account.active, 'account')}
-                </Badge>
-              </Row>
-            </Col>
+            </Block>
 
             <Card>
               <Row gap={spacing['2xl']} flexWrap="wrap">

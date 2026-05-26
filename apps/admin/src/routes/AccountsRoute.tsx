@@ -5,9 +5,11 @@ import {
   Badge,
   Button,
   Card,
+  FormField,
   FullPageError,
   FullPageLoading,
   Input,
+  Label,
   PageFrame,
   Select,
   Table,
@@ -108,13 +110,14 @@ export const AccountsRoute: React.FC = () => {
       <PageFrame.Body>
         <Block width="100%" maxWidth={1440} margin="0 auto">
           <Col gap={spacing.xl} width="100%">
-            <Col gap={spacing.xs}>
+            <Block
+              component="header"
+              width="100%"
+              paddingBottom={spacing.lg}
+              borderBottom={`1px solid ${color.border.default}`}
+            >
               <PageFrame.Title>Accounts</PageFrame.Title>
-              <Text variant="body" color={color.text.secondary}>
-                Operational ledger for customer accounts, plans, users,
-                projects, and recording volume.
-              </Text>
-            </Col>
+            </Block>
 
             <Card>
               <Col gap={spacing.md}>
@@ -125,28 +128,30 @@ export const AccountsRoute: React.FC = () => {
                   flexWrap="wrap"
                   props={{ onSubmit: applySearch }}
                 >
-                  <Col gap={spacing.xs} minWidth={280} flex="1 1 320px">
-                    <Text variant="label" as="label" color={color.text.label}>
-                      Search accounts
-                    </Text>
-                    <Input
-                      aria-label="Search accounts"
-                      value={draftSearch}
-                      onChange={event => setDraftSearch(event.target.value)}
-                      placeholder="Email or account ID"
-                    />
-                  </Col>
-                  <Col gap={spacing.xs} width={180}>
-                    <Text variant="label" as="span" color={color.text.label}>
-                      Plan tier
-                    </Text>
-                    <Select
-                      aria-label="Plan tier"
-                      value={planTier}
-                      onChange={updatePlan}
-                      options={PLAN_OPTIONS}
-                    />
-                  </Col>
+                  <Block minWidth={280} flex="1 1 320px">
+                    <FormField>
+                      <Label htmlFor="accounts-search">Search accounts</Label>
+                      <Input
+                        id="accounts-search"
+                        aria-label="Search accounts"
+                        value={draftSearch}
+                        onChange={event => setDraftSearch(event.target.value)}
+                        placeholder="Email or account ID"
+                      />
+                    </FormField>
+                  </Block>
+                  <Block width={180}>
+                    <FormField>
+                      <Label htmlFor="accounts-plan-tier">Plan tier</Label>
+                      <Select
+                        id="accounts-plan-tier"
+                        aria-label="Plan tier"
+                        value={planTier}
+                        onChange={updatePlan}
+                        options={PLAN_OPTIONS}
+                      />
+                    </FormField>
+                  </Block>
                   <Button type="submit" variant="contained">
                     Search
                   </Button>
