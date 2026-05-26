@@ -7,6 +7,7 @@ import React, {
   useRef,
   useState,
 } from 'react'
+import { Portal } from '../Portal'
 import { color } from '../tokens/colors'
 import { radius, shadow } from '../tokens/elevation'
 import { duration, easing } from '../tokens/motion'
@@ -202,7 +203,7 @@ ModalBody.displayName = 'ModalBody'
  *
  * Use for focused tasks that block interaction with the page behind.
  * Traps focus while open and closes on Escape or backdrop click when
- * `onClose` is provided. Renders inline (not into a Portal, unlike Drawer).
+ * `onClose` is provided. Renders through the shared `PortalRootProvider` stack.
  * Requires explicit `width` and `height` props.
  *
  * Pass `open` to control visibility with enter/exit animations. The component
@@ -227,7 +228,70 @@ const _Modal: React.FC<Props> = ({
 
   const { isMounted, phase, handleAnimationEnd } = useModalAnimation(open)
 
-  const containerRef = useFocusTrap<HTMLDivElement>(isMounted)
+  if (!isMounted) {
+    return null
+  }
+
+  const backdropAnim = backdropAnimation(phase)
+  const panelAnim = panelAnimation(phase)
+
+  return (
+    <Portal>
+      <ModalContent
+        width={width}
+        height={height}
+        minWidth={minWidth}
+        minHeight={minHeight}
+        onClose={onClose}
+        ariaLabel={ariaLabel}
+        labelId={labelId}
+        backdropAnimationStyle={backdropAnim}
+        panelAnimationStyle={panelAnim}
+        onAnimationEnd={handleAnimationEnd}
+      >
+        {children}
+      </ModalContent>
+    </Portal>
+  )
+}
+
+_Modal.displayName = 'Modal'
+
+export const Modal = _Modal as typeof _Modal & {
+  Header: typeof ModalHeader
+  Body: typeof ModalBody
+}
+
+Modal.Header = ModalHeader
+Modal.Body = ModalBody
+
+interface ModalContentProps extends PropsWithChildren {
+  width: string | number
+  height: string | number
+  minWidth?: string | number
+  minHeight?: string | number
+  onClose?: () => void
+  ariaLabel?: string
+  labelId?: string
+  backdropAnimationStyle?: string
+  panelAnimationStyle?: string
+  onAnimationEnd: () => void
+}
+
+const ModalContent: React.FC<ModalContentProps> = ({
+  children,
+  width,
+  height,
+  minWidth,
+  minHeight,
+  onClose,
+  ariaLabel,
+  labelId,
+  backdropAnimationStyle,
+  panelAnimationStyle,
+  onAnimationEnd,
+}) => {
+  const containerRef = useFocusTrap<HTMLDivElement>(true)
 
   const handleEscape = useCallback(
     (evt: KeyboardEvent) => {
@@ -240,23 +304,15 @@ const _Modal: React.FC<Props> = ({
   )
 
   useEffect(() => {
-    if (!isMounted) return
     document.addEventListener('keydown', handleEscape)
     return () => document.removeEventListener('keydown', handleEscape)
-  }, [handleEscape, isMounted])
-
-  if (!isMounted) {
-    return null
-  }
-
-  const backdropAnim = backdropAnimation(phase)
-  const panelAnim = panelAnimation(phase)
+  }, [handleEscape])
 
   return (
     <Backdrop
       onClose={onClose}
-      animationStyle={backdropAnim}
-      onAnimationEnd={handleAnimationEnd}
+      animationStyle={backdropAnimationStyle}
+      onAnimationEnd={onAnimationEnd}
     >
       <Block
         position="relative"
@@ -272,7 +328,9 @@ const _Modal: React.FC<Props> = ({
           ref: containerRef,
           role: 'dialog',
           'aria-modal': 'true',
-          style: panelAnim ? { animation: panelAnim } : undefined,
+          style: panelAnimationStyle
+            ? { animation: panelAnimationStyle }
+            : undefined,
           ...(ariaLabel
             ? { 'aria-label': ariaLabel }
             : labelId
@@ -285,16 +343,6 @@ const _Modal: React.FC<Props> = ({
     </Backdrop>
   )
 }
-
-_Modal.displayName = 'Modal'
-
-export const Modal = _Modal as typeof _Modal & {
-  Header: typeof ModalHeader
-  Body: typeof ModalBody
-}
-
-Modal.Header = ModalHeader
-Modal.Body = ModalBody
 
 // ---------------------------------------------------------------------------
 // Backdrop component

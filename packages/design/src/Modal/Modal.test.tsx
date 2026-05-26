@@ -1,16 +1,45 @@
 import { dispatchAnimationEnd } from '@repro/testing-utils'
-import { cleanup, render } from '@testing-library/react'
+import { cleanup, render, waitFor } from '@testing-library/react'
 import expect from 'expect'
 import { afterEach, describe, it } from 'node:test'
 import React, { act } from 'react'
+import { PortalRootProvider } from '../Portal'
 import { spacing } from '../tokens/spacing'
 import { Modal } from './Modal'
 
 afterEach(cleanup)
 
+function renderModal(ui: React.ReactElement) {
+  const result = render(<PortalRootProvider>{ui}</PortalRootProvider>)
+
+  return {
+    ...result,
+    rerender: (nextUi: React.ReactElement) =>
+      result.rerender(<PortalRootProvider>{nextUi}</PortalRootProvider>),
+  }
+}
+
 describe('Modal', () => {
+  it('renders dialog content through the portal root instead of inline under its React parent', () => {
+    const { getByTestId } = render(
+      <PortalRootProvider>
+        <div data-testid="modal-react-parent">
+          <Modal width={400} height={300} aria-label="Portaled modal">
+            <p>Portaled content</p>
+          </Modal>
+        </div>
+      </PortalRootProvider>
+    )
+
+    const dialog = document.querySelector('[role="dialog"]')
+    const reactParent = getByTestId('modal-react-parent')
+
+    expect(dialog).not.toBeNull()
+    expect(reactParent.contains(dialog)).toBe(false)
+  })
+
   it('renders with role="dialog"', () => {
-    render(
+    renderModal(
       <Modal width={400} height={300} aria-label="Test modal">
         <p>Content</p>
       </Modal>
@@ -21,7 +50,7 @@ describe('Modal', () => {
   })
 
   it('sets aria-modal="true"', () => {
-    render(
+    renderModal(
       <Modal width={400} height={300} aria-label="Test modal">
         <p>Content</p>
       </Modal>
@@ -32,7 +61,7 @@ describe('Modal', () => {
   })
 
   it('applies aria-label when provided', () => {
-    render(
+    renderModal(
       <Modal width={400} height={300} aria-label="Confirm action">
         <p>Content</p>
       </Modal>
@@ -43,7 +72,7 @@ describe('Modal', () => {
   })
 
   it('applies aria-labelledby when labelId is provided', () => {
-    render(
+    renderModal(
       <Modal width={400} height={300} labelId="modal-title">
         <h2 id="modal-title">Title</h2>
       </Modal>
@@ -54,7 +83,7 @@ describe('Modal', () => {
   })
 
   it('renders a modal header as a proper heading with description text', () => {
-    render(
+    renderModal(
       <Modal width={400} height={300} aria-label="Header test">
         <Modal.Header
           title="Deactivate user?"
@@ -74,7 +103,7 @@ describe('Modal', () => {
   })
 
   it('renders a modal body with standard padding and spacing', () => {
-    render(
+    renderModal(
       <Modal width={400} height={300} aria-label="Body test">
         <Modal.Body>
           <p>First line</p>
@@ -94,7 +123,7 @@ describe('Modal', () => {
   })
 
   it('prefers aria-label over labelId when both provided', () => {
-    render(
+    renderModal(
       <Modal
         width={400}
         height={300}
@@ -110,21 +139,23 @@ describe('Modal', () => {
     expect(dialog?.getAttribute('aria-labelledby')).toBeNull()
   })
 
-  it('traps focus inside the dialog', () => {
+  it('traps focus inside the dialog', async () => {
     const outer = document.createElement('button')
     outer.id = 'outer'
     document.body.appendChild(outer)
     outer.focus()
     expect(document.activeElement).toBe(outer)
 
-    render(
+    renderModal(
       <Modal width={400} height={300} aria-label="Focus test">
         <button id="inside-1">First</button>
         <button id="inside-2">Second</button>
       </Modal>
     )
 
-    expect(document.activeElement?.id).toBe('inside-1')
+    await waitFor(() => {
+      expect(document.activeElement?.id).toBe('inside-1')
+    })
 
     document.body.removeChild(outer)
   })
@@ -132,7 +163,7 @@ describe('Modal', () => {
   it('calls onClose when Escape is pressed', async () => {
     let closed = false
 
-    render(
+    renderModal(
       <Modal
         width={400}
         height={300}
@@ -159,7 +190,7 @@ describe('Modal', () => {
   })
 
   it('does not call onClose on Escape when onClose is not provided', () => {
-    render(
+    renderModal(
       <Modal width={400} height={300} aria-label="No close">
         <p>Content</p>
       </Modal>
@@ -177,7 +208,7 @@ describe('Modal', () => {
   it('calls onClose when the backdrop is clicked', async () => {
     let closed = false
 
-    render(
+    renderModal(
       <Modal
         width={400}
         height={300}
@@ -210,7 +241,7 @@ describe('Modal', () => {
   it('does not close when clicking inside the dialog', async () => {
     let closed = false
 
-    render(
+    renderModal(
       <Modal
         width={400}
         height={300}
@@ -234,7 +265,7 @@ describe('Modal', () => {
 
 describe('Modal open prop and animation', () => {
   it('renders dialog when open is true (default)', () => {
-    render(
+    renderModal(
       <Modal width={400} height={300} aria-label="Test modal" open>
         <p>Content</p>
       </Modal>
@@ -245,7 +276,7 @@ describe('Modal open prop and animation', () => {
   })
 
   it('does not render dialog when open is false (after animationend)', async () => {
-    const { rerender } = render(
+    const { rerender } = renderModal(
       <Modal width={400} height={300} aria-label="Test modal" open={true}>
         <p>Content</p>
       </Modal>
@@ -270,7 +301,7 @@ describe('Modal open prop and animation', () => {
   })
 
   it('renders dialog when open defaults to true (backward compat)', () => {
-    render(
+    renderModal(
       <Modal width={400} height={300} aria-label="Test modal">
         <p>Content</p>
       </Modal>
@@ -281,7 +312,7 @@ describe('Modal open prop and animation', () => {
   })
 
   it('applies entering animation class on mount when open', () => {
-    render(
+    renderModal(
       <Modal width={400} height={300} aria-label="Test modal" open={true}>
         <p>Content</p>
       </Modal>
@@ -295,7 +326,7 @@ describe('Modal open prop and animation', () => {
   })
 
   it('applies exiting animation when open transitions to false', async () => {
-    const { rerender } = render(
+    const { rerender } = renderModal(
       <Modal width={400} height={300} aria-label="Test modal" open={true}>
         <p>Content</p>
       </Modal>
@@ -334,7 +365,7 @@ describe('Modal open prop and animation', () => {
       )
     }
 
-    render(<ToggleModal />)
+    renderModal(<ToggleModal />)
 
     // Close the modal
     await act(async () => {

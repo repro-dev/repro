@@ -66,21 +66,25 @@ const baseApiClient = createApiClient({
   authStorage: 'memory',
 })
 
-const apiClient: ReturnType<typeof createApiClient> = {
-  ...baseApiClient,
-  fetch: ((url: string) => {
-    if (url === '/projects') {
-      return resolve({ items: projects })
-    }
+function createTestApiClient(
+  projectItems: Project[] = projects
+): ReturnType<typeof createApiClient> {
+  return {
+    ...baseApiClient,
+    fetch: ((url: string) => {
+      if (url === '/projects') {
+        return resolve({ items: projectItems })
+      }
 
-    if (url === '/projects/project-1/members') {
-      return resolve({
-        items: [{ role: ProjectRole.Admin, user: currentUser }],
-      })
-    }
+      if (url === '/projects/project-1/members') {
+        return resolve({
+          items: [{ role: ProjectRole.Admin, user: currentUser }],
+        })
+      }
 
-    throw new Error(`unexpected fetch: ${url}`)
-  }) as ReturnType<typeof createApiClient>['fetch'],
+      throw new Error(`unexpected fetch: ${url}`)
+    }) as ReturnType<typeof createApiClient>['fetch'],
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -90,7 +94,11 @@ const apiClient: ReturnType<typeof createApiClient> = {
 function TestAuthProvider({
   children,
   sessionUser = currentUser,
-}: React.PropsWithChildren<{ sessionUser?: User | null }>) {
+  apiClient = createTestApiClient(),
+}: React.PropsWithChildren<{
+  sessionUser?: User | null
+  apiClient?: ReturnType<typeof createApiClient>
+}>) {
   const state = createState({ apiClient })
   const [$session] = createAtom(sessionUser) as unknown as [
     typeof state.$session,
@@ -141,12 +149,15 @@ function hasActiveClasses(
 
 function renderLayoutWithRefs(
   initialPath: string,
-  sessionUser: User | null = currentUser
+  sessionUser: User | null = currentUser,
+  projectItems: Project[] = projects
 ) {
+  const apiClient = createTestApiClient(projectItems)
+
   return render(
     <MemoryRouter initialEntries={[initialPath]}>
       <ApiProvider client={apiClient}>
-        <TestAuthProvider sessionUser={sessionUser}>
+        <TestAuthProvider sessionUser={sessionUser} apiClient={apiClient}>
           <Layout />
           {/* Reference items rendered off-screen to capture active/inactive
               jsxstyle class names without affecting visible test content. */}
@@ -316,6 +327,30 @@ describe('Layout nav active states', () => {
       false,
       'Project settings nav link should NOT be visually active at /'
     )
+  })
+
+  it('/ — Sessions is NOT active when there is no selected project', async () => {
+    localStorageMock.clear()
+    const { getByTestId } = renderLayoutWithRefs('/', currentUser, [])
+
+    await waitFor(() => {
+      assert.ok(screen.queryByRole('link', { name: /^sessions$/i }) !== null)
+      assert.ok(screen.queryByRole('button', { name: /^create project$/i }))
+    })
+
+    const activeRefClasses = getElementClasses(getByTestId('ref-active'))
+    const inactiveRefClasses = getElementClasses(getByTestId('ref-inactive'))
+    const sessionsLink = screen.getByRole('link', { name: /^sessions$/i })
+    const sessionsClasses = new Set(
+      sessionsLink.className.split(' ').filter(Boolean)
+    )
+
+    assert.equal(
+      hasActiveClasses(sessionsClasses, activeRefClasses, inactiveRefClasses),
+      false,
+      'Sessions link should NOT be visually active at / until a project exists'
+    )
+    assert.equal(sessionsLink.getAttribute('aria-current'), null)
   })
 
   it('/settings/account — account nav is active for admins', async () => {

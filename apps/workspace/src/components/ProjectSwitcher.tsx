@@ -1,5 +1,5 @@
 import { Block, Grid, Row } from '@jsxstyle/react'
-import { Button, color, DropdownMenu, spacing } from '@repro/design'
+import { color, DropdownMenu, spacing } from '@repro/design'
 import { ChevronDownIcon, FolderIcon, PlusIcon } from 'lucide-react'
 import React, { useState } from 'react'
 import { useProjectContext } from '~/ProjectContext'
@@ -21,16 +21,40 @@ export const ProjectSwitcher: React.FC<ProjectSwitcherProps> = () => {
   if (!selectedProject) {
     return (
       <>
-        <Block padding={spacing.sm}>
-          <Button
-            variant="outlined"
-            context="neutral"
-            size="small"
-            onClick={() => setShowCreateDialog(true)}
+        <Grid
+          padding={spacing.sm}
+          color={color.text.secondary}
+          fontSize={13}
+          fontWeight={500}
+          hoverBackgroundColor={color.bg.hover}
+        >
+          <Grid
+            gridTemplateColumns="auto 1fr"
+            inlineSize="100%"
+            component="button"
+            type="button"
+            alignItems="center"
+            gap={spacing.md}
+            padding={spacing.lg}
+            borderRadius={4}
+            cursor="pointer"
+            border="none"
+            background="none"
+            color={color.text.secondary}
+            fontSize={13}
+            fontWeight={500}
+            hoverBackgroundColor={color.bg.muted}
+            props={{
+              'aria-label': 'Create project',
+              onClick: () => setShowCreateDialog(true),
+            }}
           >
-            Create project
-          </Button>
-        </Block>
+            <FolderIcon size={14} />
+            <Block flexGrow={1} textAlign="left">
+              Create project
+            </Block>
+          </Grid>
+        </Grid>
 
         <CreateProjectDialog
           open={showCreateDialog}

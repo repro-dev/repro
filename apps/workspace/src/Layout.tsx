@@ -6,7 +6,7 @@ import { Outlet, NavLink as RouterNavLink, useMatch } from 'react-router-dom'
 import { ProjectSettingsNavItem } from '~/components/ProjectSettingsNavItem'
 import { ProjectSwitcher } from '~/components/ProjectSwitcher'
 import { WorkspaceHeader } from '~/components/WorkspaceHeader'
-import { ProjectProvider } from './ProjectContext'
+import { ProjectProvider, useProjectContext } from './ProjectContext'
 
 export const Layout: React.FC = () => {
   const sessionsActive = useMatch({ path: '/', end: true })
@@ -33,16 +33,7 @@ export const Layout: React.FC = () => {
         >
           <IfSession>
             <SideNav aria-label="Main navigation">
-              <ProjectSwitcher />
-
-              <SideNav.Item
-                icon={ListVideoIcon}
-                label="Sessions"
-                active={!!sessionsActive}
-                component={RouterNavLink}
-                props={{ to: '/' }}
-              />
-              <ProjectSettingsNavItem />
+              <ProjectScopedNavItems sessionsActive={!!sessionsActive} />
 
               <Divider />
 
@@ -92,5 +83,26 @@ export const Layout: React.FC = () => {
         </AppShell.Content>
       </AppShell>
     </ProjectProvider>
+  )
+}
+
+const ProjectScopedNavItems: React.FC<{ sessionsActive: boolean }> = ({
+  sessionsActive,
+}) => {
+  const { loading, selectedProject } = useProjectContext()
+
+  return (
+    <>
+      <ProjectSwitcher />
+
+      <SideNav.Item
+        icon={ListVideoIcon}
+        label="Sessions"
+        active={sessionsActive && (loading || selectedProject != null)}
+        component={RouterNavLink}
+        props={{ to: '/' }}
+      />
+      <ProjectSettingsNavItem />
+    </>
   )
 }
