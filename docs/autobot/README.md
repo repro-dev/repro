@@ -7,6 +7,7 @@ These documents are the tracked implementation specs for the greenfield Autobot 
 - `greenfield-plan.md` — product goals, architecture, FlowCraft fit, and phased delivery plan.
 - `cli-design.md` — target operator CLI semantics and command behavior.
 - `implementation-contracts.md` — implementation-ready state model, JSON schemas, event taxonomy, errors, config, selection policy, and renderer examples.
+- `safety-policy.md` — normative Autobot agent session safety policy covering write roots, command/tool boundaries, credentials, safety stops, and operator recovery.
 - `decisions.md` — frontloaded implementation decisions that constrain the child issues.
 
 ## Constraint
