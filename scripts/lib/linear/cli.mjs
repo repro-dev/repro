@@ -225,6 +225,9 @@ const ISSUE_LIST_JSON_FIELDS = [
 ];
 
 const ISSUE_LIST_JSON_FIELD_SET = new Set(ISSUE_LIST_JSON_FIELDS);
+const ISSUE_LIST_DEFAULT_JSON_PROJECTION = ISSUE_LIST_JSON_FIELDS.filter(
+  (field) => field !== "comments" && field !== "relations",
+);
 const ISSUE_LIST_GRAPHQL_PROJECTION_FIELDS = new Set([
   "project",
   "milestone",
@@ -1495,12 +1498,16 @@ async function issueListCommand(args, context) {
     defaultBacklogStateIds: defaultBacklogStates.map((state) => state.id),
   });
 
+  const jsonOutputProjection = context.json
+    ? jsonProjection ?? ISSUE_LIST_DEFAULT_JSON_PROJECTION
+    : null;
   const useGraphQLProjection = Boolean(
-    jsonProjection && issueListProjectionNeedsGraphQL(jsonProjection),
+    jsonOutputProjection &&
+      issueListProjectionNeedsGraphQL(jsonOutputProjection),
   );
   const listProjection = context.json
     ? useGraphQLProjection
-      ? jsonProjection
+      ? jsonOutputProjection
       : null
     : ISSUE_LIST_DISPLAY_FIELDS;
   const fetchIssuePage = listProjection
@@ -1517,7 +1524,7 @@ async function issueListCommand(args, context) {
   );
 
   const issueLabelsRequested =
-    context.json && (!jsonProjection || jsonProjection.includes("labels"));
+    context.json && jsonOutputProjection?.includes("labels");
   const issueLabelIds =
     !useGraphQLProjection && issueLabelsRequested
       ? collectLabelIds(responseIssues)
@@ -1533,7 +1540,7 @@ async function issueListCommand(args, context) {
 
   const items = await Promise.all(
     responseIssues.map((issue) =>
-      serializeIssueListItem(issue, issueLabels, jsonProjection),
+      serializeIssueListItem(issue, issueLabels, jsonOutputProjection),
     ),
   );
 

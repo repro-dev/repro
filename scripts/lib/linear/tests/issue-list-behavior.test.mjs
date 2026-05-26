@@ -56,17 +56,20 @@ test("issue list constructs server-side filters and forwards pagination", async 
   assert.equal(payload.items.length, 1);
   assert.equal(payload.pageInfo.hasNextPage, true);
   assert.equal(payload.pageInfo.endCursor, "abc123");
-  assert.equal(records.issues.length, 1);
-  assert.equal(records.issues[0].after, "cursor-1");
-  assert.equal(records.issues[0].first, 100);
-  assert.ok(records.issues[0].filter.and);
-  assert.equal(records.issues[0].filter.and[0].project.id.eq, "project-1");
-  assert.deepEqual(records.issues[0].filter.and[1].state.id.in, [
-    "state-backlog",
-    "state-todo",
-  ]);
+  assert.equal(records.graphqlRequests.length, 1);
+  assert.equal(records.graphqlRequests[0].variables.after, "cursor-1");
+  assert.equal(records.graphqlRequests[0].variables.first, 100);
+  assert.ok(records.graphqlRequests[0].variables.filter.and);
+  assert.equal(
+    records.graphqlRequests[0].variables.filter.and[0].project.id.eq,
+    "project-1",
+  );
+  assert.deepEqual(
+    records.graphqlRequests[0].variables.filter.and[1].state.id.in,
+    ["state-backlog", "state-todo"],
+  );
   assert.equal(records.viewerCalls.length, 0);
-  assert.equal(records.labels.length, 1);
+  assert.equal(records.labels.length, 0);
   assert.deepEqual(records.issueLabels, []);
 });
 
@@ -134,6 +137,24 @@ test("issue list paginates large limits with safe page sizes", async () => {
   };
 
   const client = {
+    client: {
+      request: async (query, variables) => {
+        records.issues.push(variables);
+        if (variables.first > 100) {
+          throw new Error(`Unsafe page size: ${variables.first}`);
+        }
+
+        const page = pages[records.issues.length - 1];
+        return {
+          team: {
+            issues: {
+              nodes: page.nodes.slice(0, variables.first),
+              pageInfo: page.pageInfo,
+            },
+          },
+        };
+      },
+    },
     teams: async () => ({ nodes: [team] }),
   };
 
@@ -192,14 +213,23 @@ test("issue list forwards leaf and unblocked filters together", async () => {
   );
 
   assert.equal(result.code, 0);
-  assert.equal(records.issues.length, 1);
-  assert.deepEqual(records.issues[0].filter.and[0].project.id.eq, "project-1");
-  assert.deepEqual(records.issues[0].filter.and[1].state.id.in, ["state-todo"]);
+  assert.equal(records.graphqlRequests.length, 1);
   assert.deepEqual(
-    records.issues[0].filter.and[2].hasBlockedByRelations.eq,
+    records.graphqlRequests[0].variables.filter.and[0].project.id.eq,
+    "project-1",
+  );
+  assert.deepEqual(
+    records.graphqlRequests[0].variables.filter.and[1].state.id.in,
+    ["state-todo"],
+  );
+  assert.deepEqual(
+    records.graphqlRequests[0].variables.filter.and[2].hasBlockedByRelations.eq,
     false,
   );
-  assert.deepEqual(records.issues[0].filter.and[3].children.length.eq, 0);
+  assert.deepEqual(
+    records.graphqlRequests[0].variables.filter.and[3].children.length.eq,
+    0,
+  );
 });
 
 test("issue list keeps SDK-style methods bound when invoking queries", async () => {
@@ -217,7 +247,7 @@ test("issue list keeps SDK-style methods bound when invoking queries", async () 
     inverseRelations: [],
   };
 
-  const result = await execute(["issue", "list", "--json"], {
+  const result = await execute(["issue", "list", "--json", "id,title"], {
     env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
     clientFactory: async () => makeBoundMethodClient(records),
   });
@@ -271,6 +301,7 @@ test("issue list defaults to backlog and todo when no filters are supplied", asy
     comments: [],
     relations: [],
     inverseRelations: [],
+    graphqlRequests: [],
   };
 
   await execute(["issue", "list", "--json"], {
@@ -278,13 +309,13 @@ test("issue list defaults to backlog and todo when no filters are supplied", asy
     clientFactory: async () => makeClient(records),
   });
 
-  assert.equal(records.issues.length, 1);
-  assert.deepEqual(records.issues[0].filter.state.id.in, [
+  assert.equal(records.graphqlRequests.length, 1);
+  assert.deepEqual(records.graphqlRequests[0].variables.filter.state.id.in, [
     "state-backlog",
     "state-todo",
   ]);
   assert.equal(records.viewerCalls.length, 0);
-  assert.equal(records.labels.length, 1);
+  assert.equal(records.labels.length, 0);
   assert.deepEqual(records.issueLabels, []);
 });
 
@@ -301,6 +332,7 @@ test("issue list preserves summary relations without expanding labels", async ()
     comments: [],
     relations: [],
     inverseRelations: [],
+    graphqlRequests: [],
     resolutions: {
       project: 0,
       milestone: 0,
@@ -389,6 +421,19 @@ test("issue list preserves summary relations without expanding labels", async ()
   };
 
   const client = {
+    client: {
+      request: async (query, variables) => {
+        records.graphqlRequests.push({ query, variables });
+        return {
+          team: {
+            issues: {
+              nodes: [issue],
+              pageInfo: { hasNextPage: false, endCursor: null },
+            },
+          },
+        };
+      },
+    },
     viewer: async () => ({
       id: "viewer-1",
       name: "Test User",
@@ -430,7 +475,8 @@ test("issue list preserves summary relations without expanding labels", async ()
     state: 1,
     milestoneProject: 0,
   });
-  assert.equal(records.labels.length, 1);
+  assert.equal(records.graphqlRequests.length, 1);
+  assert.equal(records.labels.length, 0);
 });
 
 test("issue list can project comments and relations for autobot workflows", async () => {
