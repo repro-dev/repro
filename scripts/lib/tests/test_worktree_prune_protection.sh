@@ -67,6 +67,20 @@ EOF
   export PATH="$_TDIR/bin:$PATH"
 }
 
+_install_fake_setup_tools() {
+  mkdir -p "$_TDIR/bin"
+  cat >"$_TDIR/bin/pnpm" <<'EOF'
+#!/bin/bash
+exit 0
+EOF
+  cat >"$_TDIR/bin/moon" <<'EOF'
+#!/bin/bash
+exit 0
+EOF
+  chmod +x "$_TDIR/bin/pnpm" "$_TDIR/bin/moon"
+  export PATH="$_TDIR/bin:$PATH"
+}
+
 _src_wt() {
   cd "$_main"
   export REPO_ROOT="$_main"
@@ -87,6 +101,11 @@ _src_wt() {
   worktree_path() { echo "$PARENT_DIR/repro-wt-$1"; }
   # shellcheck source=../worktree.sh
   source '"$WORKTREE_SH"'
+  remove_services() { printf '{"services":[]}\n'; }
+  service_count() { printf '0\n'; }
+  stop_tilt_daemon() { printf 'STOP_TILT_DAEMON\n' >>"$_TDIR/cleanup.log"; }
+  write_config() { printf 'WRITE_CONFIG:%s\n' "$1" >>"$_TDIR/cleanup.log"; }
+  _drop_worktree_db() { printf 'DROP_DB:%s:%s\n' "$1" "$2" >>"$_TDIR/cleanup.log"; }
 }
 
 _cleanup() { rm -rf "$_TDIR"; }
@@ -94,6 +113,22 @@ trap _cleanup EXIT
 '
 
 printf '\nworktree.sh — wt prune protections (REP-1302)\n\n'
+
+run_git_test "cmd_wt_create writes durable repro lock for issue branch" "
+$COMMON_SETUP
+printf 'linear-config\n' >\"\$_main/.linear\"
+_install_fake_setup_tools
+_src_wt
+WT_DRY_RUN=false WT_FORCE=false WT_YES=true
+rc=0
+output=\"\$(cmd_wt_create gary/rep-1302-lock rep-1302-lock refs/heads/main 2>&1)\" || rc=\$?
+lock_path=\"\$_TDIR/repro-wt-rep-1302-lock/tmp/repro.lock\"
+if [[ \"\$rc\" -eq 0 && -f \"\$lock_path\" ]] && grep -q 'branch=gary/rep-1302-lock' \"\$lock_path\" && grep -q 'created_at=' \"\$lock_path\"; then
+  echo PASS
+else
+  echo \"FAIL:rc=\$rc lock_exists=\$(test -f \"\$lock_path\" && echo yes || echo no) output=\$output\"
+fi
+"
 
 run_git_test "cmd_wt_prune preserves in-progress issue worktree" "
 $COMMON_SETUP
@@ -107,6 +142,73 @@ if [[ \"\$rc\" -eq 0 && -d \"\$wt_dir\" && \"\$output\" == *'Worktrees protected
   echo PASS
 else
   echo \"FAIL:rc=\$rc wt_exists=\$(test -d \"\$wt_dir\" && echo yes || echo no) output=\$output\"
+fi
+"
+
+run_git_test "cmd_wt_prune removes unstarted issue worktree without live signals" "
+$COMMON_SETUP
+wt_dir=\"\$(_add_worktree rep-1302-unstarted gary/rep-1302-unstarted)\"
+_install_fake_linear unstarted
+_src_wt
+WT_DRY_RUN=false WT_FORCE=false WT_YES=true
+rc=0
+output=\"\$(cmd_wt_prune 2>&1)\" || rc=\$?
+if [[ \"\$rc\" -eq 0 && ! -d \"\$wt_dir\" && \"\$output\" == *'eligible for pruning'* && \"\$output\" != *'protected from pruning'* ]]; then
+  echo PASS
+else
+  echo \"FAIL:rc=\$rc wt_exists=\$(test -d \"\$wt_dir\" && echo yes || echo no) output=\$output\"
+fi
+"
+
+run_git_test "cmd_wt_prune protects unstarted issue worktree with repro lock via tmp artifacts" "
+$COMMON_SETUP
+wt_dir=\"\$(_add_worktree rep-1302-unstarted-lock gary/rep-1302-unstarted-lock)\"
+mkdir -p \"\$wt_dir/tmp\"
+printf 'branch=gary/rep-1302-unstarted-lock\ncreated_at=2026-05-25T00:00:00Z\n' >\"\$wt_dir/tmp/repro.lock\"
+_install_fake_linear unstarted
+_src_wt
+WT_DRY_RUN=false WT_FORCE=false WT_YES=true
+rc=0
+output=\"\$(cmd_wt_prune 2>&1)\" || rc=\$?
+if [[ \"\$rc\" -eq 0 && -d \"\$wt_dir\" && \"\$output\" == *'orchestration artifacts'* && \"\$output\" != *'issue REP-1302 is'* ]]; then
+  echo PASS
+else
+  echo \"FAIL:rc=\$rc wt_exists=\$(test -d \"\$wt_dir\" && echo yes || echo no) output=\$output\"
+fi
+"
+
+run_git_test "cmd_wt_prune removes terminal issue worktree with tmp artifacts and lock" "
+$COMMON_SETUP
+wt_dir=\"\$(_add_worktree rep-1302-terminal-artifacts gary/rep-1302-terminal-artifacts)\"
+mkdir -p \"\$wt_dir/tmp\"
+printf 'context\n' >\"\$wt_dir/tmp/context-REP-1302.md\"
+printf 'branch=gary/rep-1302-terminal-artifacts\ncreated_at=2026-05-25T00:00:00Z\n' >\"\$wt_dir/tmp/repro.lock\"
+_install_fake_linear completed
+_src_wt
+WT_DRY_RUN=false WT_FORCE=false WT_YES=true
+rc=0
+output=\"\$(cmd_wt_prune 2>&1)\" || rc=\$?
+if [[ \"\$rc\" -eq 0 && ! -d \"\$wt_dir\" && \"\$output\" == *'eligible for pruning'* ]]; then
+  echo PASS
+else
+  echo \"FAIL:rc=\$rc wt_exists=\$(test -d \"\$wt_dir\" && echo yes || echo no) output=\$output\"
+fi
+"
+
+run_git_test "cmd_wt_prune removes terminal issue worktree with active service record" "
+$COMMON_SETUP
+wt_dir=\"\$(_add_worktree rep-1302-terminal-service gary/rep-1302-terminal-service)\"
+mkdir -p \"\$_main/tmp\"
+printf '{\"services\":[{\"name\":\"api-server\",\"slug\":\"rep-1302-terminal-service\"}]}\n' >\"\$_main/tmp/reproctl_services.json\"
+_install_fake_linear completed
+_src_wt
+WT_DRY_RUN=false WT_FORCE=false WT_YES=true
+rc=0
+output=\"\$(cmd_wt_prune 2>&1)\" || rc=\$?
+if [[ \"\$rc\" -eq 0 && ! -d \"\$wt_dir\" && -f \"\$_TDIR/cleanup.log\" ]] && grep -q 'DROP_DB:rep-1302-terminal-service:api-server' \"\$_TDIR/cleanup.log\" && { grep -q 'STOP_TILT_DAEMON' \"\$_TDIR/cleanup.log\" || grep -q 'WRITE_CONFIG:' \"\$_TDIR/cleanup.log\"; }; then
+  echo PASS
+else
+  echo \"FAIL:rc=\$rc wt_exists=\$(test -d \"\$wt_dir\" && echo yes || echo no) cleanup=\$(test -f \"\$_TDIR/cleanup.log\" && cat \"\$_TDIR/cleanup.log\" || true) output=\$output\"
 fi
 "
 

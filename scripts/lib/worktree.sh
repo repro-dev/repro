@@ -270,6 +270,9 @@ cmd_wt_create() {
   if [ "$WT_DRY_RUN" = true ]; then
     echo ""
     echo "${CLR_DIM}[dry-run]${CLR_RESET} Would run: git worktree add ... \"$wt_path\" \"$branch\""
+    if _wt_should_write_repro_lock "$branch"; then
+      echo "${CLR_DIM}[dry-run]${CLR_RESET} Would write: $wt_path/tmp/repro.lock"
+    fi
     echo "${CLR_DIM}[dry-run]${CLR_RESET} Would copy: $MAIN_CHECKOUT/.linear -> $wt_path/.linear"
     if [ -f "$MAIN_CHECKOUT/.envrc.local" ]; then
       echo "${CLR_DIM}[dry-run]${CLR_RESET} Would copy: $MAIN_CHECKOUT/.envrc.local -> $wt_path/.envrc.local"
@@ -304,15 +307,19 @@ cmd_wt_create() {
   local step=1
   _step "$step" "$total_steps" "Creating git worktree..."
   if git rev-parse --verify --quiet "refs/heads/$branch" >/dev/null 2>&1; then
-    git worktree add "$wt_path" "$branch"
+    git worktree add "$wt_path" "$branch" || return $?
   elif git rev-parse --verify --quiet "refs/remotes/origin/$branch" >/dev/null 2>&1; then
-    git worktree add "$wt_path" "$branch"
+    git worktree add "$wt_path" "$branch" || return $?
   elif [ -n "$start_ref" ]; then
     echo "  Branch '$branch' does not exist locally or on remote, creating from $start_ref..."
-    git worktree add -b "$branch" "$wt_path" "$start_ref"
+    git worktree add -b "$branch" "$wt_path" "$start_ref" || return $?
   else
     echo "  Branch '$branch' does not exist locally or on remote, creating from HEAD..."
-    git worktree add -b "$branch" "$wt_path"
+    git worktree add -b "$branch" "$wt_path" || return $?
+  fi
+
+  if _wt_should_write_repro_lock "$branch"; then
+    _wt_write_repro_lock "$wt_path" "$branch" || return $?
   fi
 
   step=$((step + 1))
@@ -490,10 +497,52 @@ _wt_branch_issue_identifier() {
   printf '%s\n' "$issue" | tr '[:lower:]' '[:upper:]'
 }
 
+_wt_should_write_repro_lock() {
+  local branch="$1"
+  _wt_branch_issue_identifier "$branch" >/dev/null 2>&1
+}
+
+_wt_write_repro_lock() {
+  local wt_path="$1"
+  local branch="$2"
+  local lock_dir lock_path lock_tmp issue created_at
+
+  lock_dir="$wt_path/tmp"
+  lock_path="$lock_dir/repro.lock"
+  lock_tmp="$lock_path.$$"
+  issue="$(_wt_branch_issue_identifier "$branch" 2>/dev/null || true)"
+  created_at="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+
+  if ! mkdir -p "$lock_dir"; then
+    die "Failed to create $lock_dir for worktree safety lock"
+    return 1
+  fi
+
+  if ! {
+    printf 'branch=%s\n' "$branch"
+    if [ -n "$issue" ]; then
+      printf 'issue=%s\n' "$issue"
+    fi
+    printf 'created_at=%s\n' "$created_at"
+    printf 'worktree_path=%s\n' "$wt_path"
+  } >"$lock_tmp"; then
+    rm -f "$lock_tmp"
+    die "Failed to write worktree safety lock at $lock_path"
+    return 1
+  fi
+
+  if ! mv "$lock_tmp" "$lock_path"; then
+    rm -f "$lock_tmp"
+    die "Failed to install worktree safety lock at $lock_path"
+    return 1
+  fi
+}
+
 _wt_has_orchestration_artifacts() {
   local wt_path="$1"
   local artifact
   for artifact in \
+    "$wt_path"/tmp/repro.lock \
     "$wt_path"/tmp/context-* \
     "$wt_path"/tmp/test-plan-* \
     "$wt_path"/tmp/plan-* \
@@ -522,7 +571,7 @@ _wt_has_active_service_record() {
   [ -n "$svc_names" ]
 }
 
-_wt_issue_branch_is_active_or_unknown() {
+_wt_issue_branch_is_started_or_unknown() {
   local branch="$1"
   local issue status_json status_type
 
@@ -544,8 +593,36 @@ except Exception:
 ' 2>/dev/null)" || return 0
 
   case "$status_type" in
-    completed|canceled) return 1 ;;
+    started) return 0 ;;
+    completed|canceled|unstarted|backlog) return 1 ;;
     *) return 0 ;;
+  esac
+}
+
+_wt_issue_branch_is_terminal() {
+  local branch="$1"
+  local issue status_json status_type
+
+  issue="$(_wt_branch_issue_identifier "$branch")" || return 1
+
+  if ! command -v linear >/dev/null 2>&1; then
+    return 1
+  fi
+
+  status_json="$(linear issue show "$issue" --json 2>/dev/null)" || return 1
+  status_type="$(printf '%s' "$status_json" | python3 -c 'import json,sys
+try:
+    data=json.load(sys.stdin)
+    item=data.get("item", data)
+    status=(item.get("status") or {})
+    print(status.get("type", ""))
+except Exception:
+    sys.exit(1)
+' 2>/dev/null)" || return 1
+
+  case "$status_type" in
+    completed|canceled) return 0 ;;
+    *) return 1 ;;
   esac
 }
 
@@ -554,14 +631,18 @@ _wt_prune_protection_reason() {
   local wt_branch="$2"
   local issue
 
-  if _wt_issue_branch_is_active_or_unknown "$wt_branch"; then
+  if _wt_issue_branch_is_started_or_unknown "$wt_branch"; then
     issue="$(_wt_branch_issue_identifier "$wt_branch" 2>/dev/null || true)"
     if [ -n "$issue" ]; then
-      printf 'issue %s is active or status is unknown\n' "$issue"
+      printf 'issue %s is In Progress or status is unknown\n' "$issue"
     else
       printf 'issue status is unknown\n'
     fi
     return 0
+  fi
+
+  if _wt_issue_branch_is_terminal "$wt_branch"; then
+    return 1
   fi
 
   if _wt_has_orchestration_artifacts "$wt_path"; then
