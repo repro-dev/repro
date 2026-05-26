@@ -181,6 +181,71 @@ describe('Services > Account', () => {
       expect(secondPage.nextCursor).toBeUndefined()
     })
 
+    it('should sort accounts by name with stable cursor boundaries', async () => {
+      const prefix = randomString()
+      const charlie = await promise(
+        accountService.createAccount(`000 ${prefix} Charlie`)
+      )
+      const alpha = await promise(
+        accountService.createAccount(`000 ${prefix} Alpha`)
+      )
+      const bravo = await promise(
+        accountService.createAccount(`000 ${prefix} Bravo`)
+      )
+
+      const ascendingFirstPage = await promise(
+        accountService.listAccounts({
+          sortBy: 'name',
+          sortDirection: 'asc',
+          limit: 2,
+        })
+      )
+
+      expect(ascendingFirstPage.items.map(item => item.id)).toEqual([
+        alpha.id,
+        bravo.id,
+      ])
+      expect(ascendingFirstPage.nextCursor).toEqual(bravo.id)
+
+      const ascendingSecondPage = await promise(
+        accountService.listAccounts({
+          sortBy: 'name',
+          sortDirection: 'asc',
+          cursor: ascendingFirstPage.nextCursor,
+          limit: 2,
+        })
+      )
+
+      expect(ascendingSecondPage.items.map(item => item.id)).toEqual([
+        charlie.id,
+      ])
+      expect(ascendingSecondPage.nextCursor).toBeUndefined()
+
+      const zebra = await promise(
+        accountService.createAccount(`zzz ${prefix} Zebra`)
+      )
+      const yak = await promise(
+        accountService.createAccount(`zzz ${prefix} Yak`)
+      )
+      const xray = await promise(
+        accountService.createAccount(`zzz ${prefix} Xray`)
+      )
+
+      const descending = await promise(
+        accountService.listAccounts({
+          sortBy: 'name',
+          sortDirection: 'desc',
+          limit: 3,
+        })
+      )
+
+      expect(descending.items.map(item => item.id)).toEqual([
+        zebra.id,
+        yak.id,
+        xray.id,
+      ])
+    })
+
     it('should reject invalid staff account cursors with bad-request', async () => {
       await expect(
         promise(accountService.listAccounts({ cursor: 'not-an-id' }))

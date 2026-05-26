@@ -71,8 +71,10 @@ describe('AccountsRoute', () => {
     renderRoute()
 
     await waitFor(() => assert.ok(screen.getByText('Acme Workspace')))
-    assert.ok(screen.getByText(/owner@acme.test/))
+    assert.equal(screen.queryByText(/owner@acme.test/), null)
+    assert.ok(screen.getByText('ID account-1'))
     assert.ok(screen.getByText('Repro+'))
+    assert.ok(screen.getByText('active'))
     assert.ok(screen.getByText('12 recordings'))
     assert.ok(screen.getByText('Pending definition'))
     assert.equal(
@@ -126,6 +128,63 @@ describe('AccountsRoute', () => {
 
     await waitFor(() =>
       assert.ok(requests.some(path => path.includes('cursor=cursor-1')))
+    )
+  })
+
+  it('sends server-backed sort requests and resets pagination when sort changes', async () => {
+    const { requests } = renderRoute()
+
+    await waitFor(() => assert.equal(requests[0], '/staff/accounts?limit=50'))
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
+    })
+
+    await waitFor(() =>
+      assert.ok(requests.some(path => path.includes('cursor=cursor-1')))
+    )
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('columnheader', { name: /Account/ }))
+    })
+
+    await waitFor(() =>
+      assert.ok(
+        requests.includes(
+          '/staff/accounts?limit=50&sortBy=name&sortDirection=asc'
+        )
+      )
+    )
+
+    assert.equal(
+      requests.some(
+        path => path.includes('sortBy=name') && path.includes('cursor=cursor-1')
+      ),
+      false
+    )
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('columnheader', { name: /Account/ }))
+    })
+
+    await waitFor(() =>
+      assert.ok(
+        requests.includes(
+          '/staff/accounts?limit=50&sortBy=name&sortDirection=desc'
+        )
+      )
+    )
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('columnheader', { name: /Created/ }))
+    })
+
+    await waitFor(() =>
+      assert.ok(
+        requests.includes(
+          '/staff/accounts?limit=50&sortBy=createdAt&sortDirection=desc'
+        )
+      )
     )
   })
 })

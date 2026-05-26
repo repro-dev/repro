@@ -576,6 +576,8 @@ export function createAccountService(
     limit?: number
     search?: string
     planTier?: AccountPlanTier
+    sortBy?: 'name' | 'createdAt'
+    sortDirection?: 'asc' | 'desc'
   }
 
   type AccountListRow = {
@@ -675,6 +677,8 @@ export function createAccountService(
     limit = 50,
     search,
     planTier,
+    sortBy = 'createdAt',
+    sortDirection = 'desc',
   }: AccountListQueryOptions = {}) {
     const decodedCursor = cursor == null ? null : decodeId(cursor)
 
@@ -685,34 +689,38 @@ export function createAccountService(
     const decodedSearchAccountId = search == null ? null : decodeId(search)
     const normalizedSearch = search?.trim().toLowerCase()
 
+    const sortColumn = sortBy === 'name' ? 'name' : 'createdAt'
+    const sortOrder = sortDirection === 'asc' ? 'asc' : 'desc'
+    const cursorComparison = sortOrder === 'asc' ? '>' : '<'
+
     let query = database
       .selectFrom('accounts')
       .select(['id', 'name', 'active', 'createdAt'])
-      .orderBy('createdAt desc')
-      .orderBy('id desc')
+      .orderBy(`${sortColumn} ${sortOrder}`)
+      .orderBy(`id ${sortOrder}`)
       .limit(limit + 1)
 
     if (decodedCursor != null) {
       query = query.where(eb =>
         eb.or([
           eb(
-            'createdAt',
-            '<',
+            sortColumn,
+            cursorComparison,
             eb
               .selectFrom('accounts as cursorAccount')
-              .select('cursorAccount.createdAt')
+              .select(`cursorAccount.${sortColumn}`)
               .where('cursorAccount.id', '=', decodedCursor)
           ),
           eb.and([
             eb(
-              'createdAt',
+              sortColumn,
               '=',
               eb
                 .selectFrom('accounts as cursorAccount')
-                .select('cursorAccount.createdAt')
+                .select(`cursorAccount.${sortColumn}`)
                 .where('cursorAccount.id', '=', decodedCursor)
             ),
-            eb('id', '<', decodedCursor),
+            eb('id', cursorComparison, decodedCursor),
           ]),
         ])
       )
@@ -770,6 +778,8 @@ export function createAccountService(
     limit = 50,
     search,
     planTier,
+    sortBy,
+    sortDirection,
   }: AccountListQueryOptions = {}): FutureInstance<
     Error,
     { items: Array<StaffAccountListItem>; nextCursor?: string }
@@ -780,6 +790,8 @@ export function createAccountService(
         limit,
         search,
         planTier,
+        sortBy,
+        sortDirection,
       }).execute()
       const hasMore = rows.length > limit
       const pageRows = hasMore ? rows.slice(0, limit) : rows

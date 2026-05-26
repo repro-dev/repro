@@ -156,6 +156,31 @@ describe('Routers > Staff', () => {
       })
     })
 
+    it('should accept staff account sort parameters backed by account fields', async () => {
+      const [staffSession] = await harness.loadFixtures([
+        fixtures.account.StaffUserA_Session,
+      ])
+      const zulu = await promise(accountService.createAccount('000 Zulu Sort'))
+      const alpha = await promise(
+        accountService.createAccount('000 Alpha Sort')
+      )
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/accounts?sortBy=name&sortDirection=asc&limit=2',
+        headers: {
+          authorization: `Bearer ${(staffSession as Session).sessionToken}`,
+        },
+      })
+
+      expect(res.statusCode).toEqual(200)
+      const body = res.json()
+      expect(body.items.map((item: { id: string }) => item.id)).toEqual([
+        alpha.id,
+        zulu.id,
+      ])
+    })
+
     it('should return 400 for an invalid account cursor', async () => {
       const [staffSession] = await harness.loadFixtures([
         fixtures.account.StaffUserA_Session,

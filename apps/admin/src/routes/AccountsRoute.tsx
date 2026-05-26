@@ -2,7 +2,6 @@ import { Block, Col, Row } from '@jsxstyle/react'
 import { useApiClient } from '@repro/api-client'
 import {
   Alert,
-  Badge,
   Button,
   FormField,
   FullPageError,
@@ -30,6 +29,9 @@ const PLAN_OPTIONS = [
 
 const CONTENT_BLEED_WIDTH = `calc(100% + ${spacing['2xl'] * 2}px)`
 
+type AccountSortBy = 'name' | 'createdAt'
+type AccountSortDirection = 'asc' | 'desc'
+
 function formatDate(date: string) {
   return new Date(date).toLocaleDateString('en-US', {
     year: 'numeric',
@@ -42,24 +44,25 @@ function accountListPath({
   search,
   planTier,
   cursor,
+  sortBy,
+  sortDirection,
 }: {
   search: string
   planTier: string
   cursor?: string
+  sortBy?: AccountSortBy
+  sortDirection?: AccountSortDirection
 }) {
   const params = new URLSearchParams({ limit: '50' })
   const trimmedSearch = search.trim()
 
   if (trimmedSearch) params.set('search', trimmedSearch)
   if (planTier !== 'all') params.set('planTier', planTier)
+  if (sortBy != null) params.set('sortBy', sortBy)
+  if (sortDirection != null) params.set('sortDirection', sortDirection)
   if (cursor) params.set('cursor', cursor)
 
   return `/staff/accounts?${params.toString()}`
-}
-
-function planContext(planName: string | null) {
-  if (planName === 'Repro+' || planName === 'Repro++') return 'info'
-  return 'neutral'
 }
 
 export const AccountsRoute: React.FC = () => {
@@ -69,10 +72,21 @@ export const AccountsRoute: React.FC = () => {
   const [appliedSearch, setAppliedSearch] = useState('')
   const [planTier, setPlanTier] = useState<string>('all')
   const [cursorStack, setCursorStack] = useState<string[]>([])
+  const [sortBy, setSortBy] = useState<AccountSortBy | null>(null)
+  const [sortDirection, setSortDirection] =
+    useState<AccountSortDirection>('desc')
   const cursor = cursorStack[cursorStack.length - 1]
+  const activeSortBy = sortBy ?? 'createdAt'
   const path = useMemo(
-    () => accountListPath({ search: appliedSearch, planTier, cursor }),
-    [appliedSearch, planTier, cursor]
+    () =>
+      accountListPath({
+        search: appliedSearch,
+        planTier,
+        cursor,
+        sortBy: sortBy ?? undefined,
+        sortDirection: sortBy == null ? undefined : sortDirection,
+      }),
+    [appliedSearch, planTier, cursor, sortBy, sortDirection]
   )
   const result = useFuture(
     () =>
@@ -92,6 +106,23 @@ export const AccountsRoute: React.FC = () => {
   const updatePlan = (value: string) => {
     setCursorStack([])
     setPlanTier(value)
+  }
+
+  const updateSort = (column: string) => {
+    if (column !== 'name' && column !== 'createdAt') return
+
+    setCursorStack([])
+    setSortBy(currentSortBy => {
+      const activeColumn = currentSortBy ?? 'createdAt'
+
+      if (activeColumn === column) {
+        setSortDirection(direction => (direction === 'asc' ? 'desc' : 'asc'))
+        return column
+      }
+
+      setSortDirection(column === 'createdAt' ? 'desc' : 'asc')
+      return column
+    })
   }
 
   const accounts = result.data?.items ?? []
@@ -179,15 +210,22 @@ export const AccountsRoute: React.FC = () => {
                   density="compact"
                   edgePadding={spacing['2xl']}
                   surface="transparent"
+                  sortColumn={activeSortBy}
+                  sortDirection={sortDirection}
+                  onSort={updateSort}
                   selectionMode="single"
                   onSelectRow={accountId => navigate(`/accounts/${accountId}`)}
                   allRowIds={accounts.map(account => account.id)}
                 >
                   <Table.Header>
                     <Table.Row>
-                      <Table.HeaderCell>Account</Table.HeaderCell>
+                      <Table.HeaderCell columnId="name" sortable>
+                        Account
+                      </Table.HeaderCell>
                       <Table.HeaderCell>Plan</Table.HeaderCell>
-                      <Table.HeaderCell>Created</Table.HeaderCell>
+                      <Table.HeaderCell columnId="createdAt" sortable>
+                        Created
+                      </Table.HeaderCell>
                       <Table.HeaderCell>Last active</Table.HeaderCell>
                       <Table.HeaderCell>Usage</Table.HeaderCell>
                     </Table.Row>
@@ -201,16 +239,15 @@ export const AccountsRoute: React.FC = () => {
                               {account.name}
                             </Text>
                             <Text variant="bodySmall" color={color.text.muted}>
-                              {account.primaryEmail ?? 'No primary email'} ·{' '}
-                              {account.id}
+                              ID {account.id}
                             </Text>
                           </Col>
                         </Table.Cell>
                         <Table.Cell>
                           <Col gap={spacing.xs}>
-                            <Badge context={planContext(account.planName)}>
+                            <Text variant="label" as="span">
                               {account.planName ?? 'No plan'}
-                            </Badge>
+                            </Text>
                             <Text variant="bodySmall" color={color.text.muted}>
                               {account.subscriptionStatus ?? 'No subscription'}
                             </Text>

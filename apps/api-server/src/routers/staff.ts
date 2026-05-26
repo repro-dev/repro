@@ -94,6 +94,8 @@ export function createStaffRouter(
         limit: z.coerce.number().int().min(1).max(250).default(50),
         search: z.string().min(1).optional(),
         planTier: z.enum(['Free', 'Repro+', 'Repro++']).optional(),
+        sortBy: z.enum(['name', 'createdAt']).optional(),
+        sortDirection: z.enum(['asc', 'desc']).optional(),
       }),
     } as const
 
