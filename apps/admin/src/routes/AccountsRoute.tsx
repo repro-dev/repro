@@ -13,11 +13,14 @@ import {
   Table,
   Text,
   color,
+  duration,
+  easing,
+  radius,
   spacing,
 } from '@repro/design'
 import { StaffAccountListItem } from '@repro/domain'
 import { useFuture } from '@repro/future-utils'
-import React, { useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 const PLAN_OPTIONS = [
@@ -31,6 +34,20 @@ const CONTENT_BLEED_WIDTH = `calc(100% + ${spacing['2xl'] * 2}px)`
 
 type AccountSortBy = 'name' | 'createdAt'
 type AccountSortDirection = 'asc' | 'desc'
+
+type AccountsResponse = {
+  items: StaffAccountListItem[]
+  nextCursor?: string
+}
+
+const refreshProgressAnimation = {
+  '0%': { transform: 'scaleX(0.35)' },
+  '100%': { transform: 'scaleX(0.82)' },
+}
+
+const REFRESH_PROGRESS_HIDE_DELAY_MS = 220
+const REFRESH_PROGRESS_SHOW_DELAY_MS = 150
+const SEARCH_DEBOUNCE_MS = 300
 
 function formatDate(date: string) {
   return new Date(date).toLocaleDateString('en-US', {
@@ -89,21 +106,79 @@ export const AccountsRoute: React.FC = () => {
     [appliedSearch, planTier, cursor, sortBy, sortDirection]
   )
   const result = useFuture(
-    () =>
-      apiClient.fetch<{
-        items: StaffAccountListItem[]
-        nextCursor?: string
-      }>(path),
+    () => apiClient.fetch<AccountsResponse>(path),
     [path]
   )
+  const [lastSuccessfulResponse, setLastSuccessfulResponse] =
+    useState<AccountsResponse | null>(null)
+  const [showRefreshProgress, setShowRefreshProgress] = useState(false)
+  const [completeRefreshProgress, setCompleteRefreshProgress] = useState(false)
+  const showRefreshProgressRef = useRef(false)
 
-  const applySearch = (event: React.FormEvent) => {
-    event.preventDefault()
-    setCursorStack([])
-    setAppliedSearch(draftSearch)
-  }
+  useEffect(() => {
+    showRefreshProgressRef.current = showRefreshProgress
+  }, [showRefreshProgress])
+
+  useEffect(() => {
+    if (result.data != null) {
+      setLastSuccessfulResponse(result.data)
+    }
+  }, [result.data])
+
+  const displayedResponse = result.data ?? lastSuccessfulResponse
+  const accounts = displayedResponse?.items ?? []
+  const isRefreshingAccounts =
+    result.loading && result.data == null && lastSuccessfulResponse != null
+  const hasFilters = appliedSearch.trim() !== '' || planTier !== 'all'
+
+  useEffect(() => {
+    if (isRefreshingAccounts) {
+      setCompleteRefreshProgress(false)
+
+      if (showRefreshProgressRef.current) return
+
+      const showTimeout = window.setTimeout(() => {
+        setShowRefreshProgress(true)
+      }, REFRESH_PROGRESS_SHOW_DELAY_MS)
+
+      return () => window.clearTimeout(showTimeout)
+    }
+
+    if (!showRefreshProgress) return
+
+    setCompleteRefreshProgress(true)
+    const hideTimeout = window.setTimeout(() => {
+      setShowRefreshProgress(false)
+      setCompleteRefreshProgress(false)
+    }, REFRESH_PROGRESS_HIDE_DELAY_MS)
+
+    return () => window.clearTimeout(hideTimeout)
+  }, [isRefreshingAccounts, path, showRefreshProgress])
+
+  const startRefreshProgress = useCallback(() => {
+    if (lastSuccessfulResponse == null) return
+
+    if (showRefreshProgressRef.current) {
+      setCompleteRefreshProgress(false)
+    }
+  }, [lastSuccessfulResponse])
+
+  useEffect(() => {
+    const nextSearch = draftSearch.trim()
+
+    if (nextSearch === appliedSearch.trim()) return
+
+    const debounceTimeout = window.setTimeout(() => {
+      startRefreshProgress()
+      setCursorStack([])
+      setAppliedSearch(nextSearch)
+    }, SEARCH_DEBOUNCE_MS)
+
+    return () => window.clearTimeout(debounceTimeout)
+  }, [appliedSearch, draftSearch, startRefreshProgress])
 
   const updatePlan = (value: string) => {
+    startRefreshProgress()
     setCursorStack([])
     setPlanTier(value)
   }
@@ -111,6 +186,7 @@ export const AccountsRoute: React.FC = () => {
   const updateSort = (column: string) => {
     if (column !== 'name' && column !== 'createdAt') return
 
+    startRefreshProgress()
     setCursorStack([])
     setSortBy(currentSortBy => {
       const activeColumn = currentSortBy ?? 'createdAt'
@@ -125,10 +201,7 @@ export const AccountsRoute: React.FC = () => {
     })
   }
 
-  const accounts = result.data?.items ?? []
-  const hasFilters = appliedSearch.trim() !== '' || planTier !== 'all'
-
-  if (result.error && result.data == null) {
+  if (result.error && displayedResponse == null) {
     return (
       <FullPageError
         title="Failed to load accounts"
@@ -153,13 +226,7 @@ export const AccountsRoute: React.FC = () => {
               backgroundColor={color.bg.hover}
             >
               <Col gap={spacing.md}>
-                <Row
-                  component="form"
-                  gap={spacing.md}
-                  alignItems="end"
-                  flexWrap="wrap"
-                  props={{ onSubmit: applySearch }}
-                >
+                <Row gap={spacing.md} alignItems="end" flexWrap="wrap">
                   <Block minWidth={280} flex="1 1 320px">
                     <FormField>
                       <Label htmlFor="accounts-search">Search accounts</Label>
@@ -184,9 +251,6 @@ export const AccountsRoute: React.FC = () => {
                       />
                     </FormField>
                   </Block>
-                  <Button type="submit" variant="contained">
-                    Search
-                  </Button>
                 </Row>
                 <Text variant="bodySmall" color={color.text.muted}>
                   Default page size is 50 accounts, sorted by newest creation
@@ -195,7 +259,7 @@ export const AccountsRoute: React.FC = () => {
               </Col>
             </Block>
 
-            {result.loading && result.data == null ? (
+            {result.loading && displayedResponse == null ? (
               <FullPageLoading />
             ) : accounts.length === 0 ? (
               <Alert type="info">
@@ -204,7 +268,52 @@ export const AccountsRoute: React.FC = () => {
                   : 'No accounts are available yet. New signups will appear here.'}
               </Alert>
             ) : (
-              <Block marginInline={-spacing['2xl']} width={CONTENT_BLEED_WIDTH}>
+              <Block
+                position="relative"
+                overflow="hidden"
+                marginTop={-spacing.xl}
+                marginInline={-spacing['2xl']}
+                width={CONTENT_BLEED_WIDTH}
+                borderTop={`1px solid ${color.border.default}`}
+              >
+                {showRefreshProgress ? (
+                  <Block
+                    position="absolute"
+                    top={0}
+                    left={0}
+                    right={0}
+                    height={spacing.xs}
+                    backgroundColor={color.border.default}
+                    zIndex={1}
+                    props={{
+                      role: 'progressbar',
+                      'aria-label': 'Refreshing accounts',
+                      'aria-valuenow': completeRefreshProgress ? 100 : 80,
+                      'aria-valuemin': 0,
+                      'aria-valuemax': 100,
+                    }}
+                  >
+                    <Block
+                      width="100%"
+                      height="100%"
+                      background={`linear-gradient(90deg, ${color.primary}, ${color.info})`}
+                      borderRadius={radius.full}
+                      transform={
+                        completeRefreshProgress ? 'scaleX(1)' : 'scaleX(0.35)'
+                      }
+                      transformOrigin="left center"
+                      transition={`transform ${duration[200]} ${easing.easeOut}`}
+                      animation={
+                        completeRefreshProgress
+                          ? undefined
+                          : refreshProgressAnimation
+                      }
+                      animationDuration={duration[1000]}
+                      animationFillMode="forwards"
+                      animationTimingFunction={easing.easeOut}
+                    />
+                  </Block>
+                ) : null}
                 <Table
                   aria-label="Accounts ledger"
                   density="compact"
@@ -277,7 +386,10 @@ export const AccountsRoute: React.FC = () => {
               <Button
                 variant="outlined"
                 disabled={cursorStack.length === 0}
-                onClick={() => setCursorStack(stack => stack.slice(0, -1))}
+                onClick={() => {
+                  startRefreshProgress()
+                  setCursorStack(stack => stack.slice(0, -1))
+                }}
               >
                 Previous page
               </Button>
@@ -288,6 +400,7 @@ export const AccountsRoute: React.FC = () => {
                 variant="outlined"
                 disabled={!result.data?.nextCursor}
                 onClick={() => {
+                  startRefreshProgress()
                   if (result.data?.nextCursor) {
                     setCursorStack(stack => [
                       ...stack,

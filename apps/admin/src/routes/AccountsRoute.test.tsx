@@ -9,7 +9,7 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react'
-import { resolve } from 'fluture'
+import { FutureInstance, never, resolve } from 'fluture'
 import assert from 'node:assert/strict'
 import { afterEach, describe, it } from 'node:test'
 import React from 'react'
@@ -37,13 +37,26 @@ const account: StaffAccountListItem = {
   lastActiveAt: null,
 }
 
-function renderRoute({ items = [account], nextCursor = 'cursor-1' } = {}) {
+type AccountsResponse = {
+  items: StaffAccountListItem[]
+  nextCursor?: string
+}
+
+function renderRoute({
+  fetch,
+  items = [account],
+  nextCursor = 'cursor-1',
+}: {
+  fetch?: (path: string) => FutureInstance<unknown, AccountsResponse>
+  items?: StaffAccountListItem[]
+  nextCursor?: string
+} = {}) {
   const requests: string[] = []
   const connectedApiClient = {
     ...apiClient,
     fetch: (path: string) => {
       requests.push(path)
-      return resolve({ items, nextCursor })
+      return fetch?.(path) ?? resolve({ items, nextCursor })
     },
   } as typeof apiClient
 
@@ -93,12 +106,12 @@ describe('AccountsRoute', () => {
     const { requests } = renderRoute()
 
     await waitFor(() => assert.equal(requests[0], '/staff/accounts?limit=50'))
+    assert.equal(screen.queryByRole('button', { name: 'Search' }), null)
 
     await act(async () => {
       fireEvent.change(screen.getByLabelText('Search accounts'), {
         target: { value: 'owner@acme.test' },
       })
-      fireEvent.click(screen.getByRole('button', { name: 'Search' }))
     })
 
     await waitFor(() =>
@@ -128,6 +141,27 @@ describe('AccountsRoute', () => {
 
     await waitFor(() =>
       assert.ok(requests.some(path => path.includes('cursor=cursor-1')))
+    )
+
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText('Search accounts'), {
+        target: { value: 'ops@acme.test' },
+      })
+    })
+
+    await waitFor(() =>
+      assert.ok(
+        requests.includes(
+          '/staff/accounts?limit=50&search=ops%40acme.test&planTier=Repro%2B%2B'
+        )
+      )
+    )
+    assert.equal(
+      requests.some(
+        path =>
+          path.includes('search=ops%40acme.test') && path.includes('cursor=')
+      ),
+      false
     )
   })
 
@@ -186,5 +220,65 @@ describe('AccountsRoute', () => {
         )
       )
     )
+  })
+
+  it('keeps the account ledger mounted with inline loading during pending sort refetch', async () => {
+    let requestCount = 0
+    const { requests } = renderRoute({
+      fetch: () => {
+        requestCount += 1
+
+        if (requestCount === 1) return resolve({ items: [account] })
+
+        return never as FutureInstance<unknown, AccountsResponse>
+      },
+    })
+
+    await waitFor(() => assert.ok(screen.getByText('Acme Workspace')))
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('columnheader', { name: /Account/ }))
+    })
+
+    await waitFor(() =>
+      assert.ok(
+        requests.includes(
+          '/staff/accounts?limit=50&sortBy=name&sortDirection=asc'
+        )
+      )
+    )
+
+    assert.ok(screen.getByRole('grid', { name: 'Accounts ledger' }))
+    assert.equal(screen.queryByLabelText('Refreshing accounts'), null)
+    await waitFor(() =>
+      assert.equal(
+        screen
+          .getByLabelText('Refreshing accounts')
+          .getAttribute('aria-valuenow'),
+        '80'
+      )
+    )
+    assert.ok(screen.getByText('Acme Workspace'))
+  })
+
+  it('keeps fast sort refetches from flashing refresh progress', async () => {
+    const { requests } = renderRoute()
+
+    await waitFor(() => assert.ok(screen.getByText('Acme Workspace')))
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('columnheader', { name: /Account/ }))
+    })
+
+    await waitFor(() =>
+      assert.ok(
+        requests.includes(
+          '/staff/accounts?limit=50&sortBy=name&sortDirection=asc'
+        )
+      )
+    )
+
+    assert.equal(screen.queryByLabelText('Refreshing accounts'), null)
+    assert.ok(screen.getByText('Acme Workspace'))
   })
 })
