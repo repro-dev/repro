@@ -2,7 +2,12 @@ import { IfSession, UnlessSession, UserMenu, useSession } from '@repro/auth'
 import { AppShell, Divider, Link, SideNav } from '@repro/design'
 import { CreditCardIcon, ListVideoIcon, SettingsIcon } from 'lucide-react'
 import React from 'react'
-import { Outlet, NavLink as RouterNavLink, useMatch } from 'react-router-dom'
+import {
+  Outlet,
+  Link as RouterLink,
+  NavLink as RouterNavLink,
+  useMatch,
+} from 'react-router-dom'
 import { ProjectSettingsNavItem } from '~/components/ProjectSettingsNavItem'
 import { ProjectSwitcher } from '~/components/ProjectSwitcher'
 import { WorkspaceHeader } from '~/components/WorkspaceHeader'
@@ -90,6 +95,8 @@ const ProjectScopedNavItems: React.FC<{ sessionsActive: boolean }> = ({
   sessionsActive,
 }) => {
   const { loading, selectedProject } = useProjectContext()
+  const hasSelectedProject = selectedProject != null
+  const sessionsHasProjectContext = loading || hasSelectedProject
 
   return (
     <>
@@ -98,8 +105,8 @@ const ProjectScopedNavItems: React.FC<{ sessionsActive: boolean }> = ({
       <SideNav.Item
         icon={ListVideoIcon}
         label="Sessions"
-        active={sessionsActive && (loading || selectedProject != null)}
-        component={RouterNavLink}
+        active={sessionsActive && sessionsHasProjectContext}
+        component={sessionsHasProjectContext ? RouterNavLink : RouterLink}
         props={{ to: '/' }}
       />
       <ProjectSettingsNavItem />

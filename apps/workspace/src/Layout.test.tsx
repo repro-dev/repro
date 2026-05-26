@@ -319,6 +319,11 @@ describe('Layout nav active states', () => {
       'Sessions link SHOULD be visually active at /'
     )
     assert.equal(
+      sessionsLink.getAttribute('aria-current'),
+      'page',
+      'Sessions link should expose semantic current-state at / when a project is selected'
+    )
+    assert.equal(
       hasActiveClasses(
         projectSettingsClasses,
         activeRefClasses,
