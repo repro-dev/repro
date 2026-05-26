@@ -113,49 +113,47 @@ export const AccountsRoute: React.FC = () => {
       <PageFrame.Body>
         <Block width="100%" maxWidth={1440} margin="0 auto">
           <Col gap={spacing.xl} width="100%">
-            <Card>
-              <Col gap={spacing.md}>
-                <Row
-                  component="form"
-                  gap={spacing.md}
-                  alignItems="end"
-                  flexWrap="wrap"
-                  props={{ onSubmit: applySearch }}
-                >
-                  <Block minWidth={280} flex="1 1 320px">
-                    <FormField>
-                      <Label htmlFor="accounts-search">Search accounts</Label>
-                      <Input
-                        id="accounts-search"
-                        aria-label="Search accounts"
-                        value={draftSearch}
-                        onChange={event => setDraftSearch(event.target.value)}
-                        placeholder="Email or account ID"
-                      />
-                    </FormField>
-                  </Block>
-                  <Block width={180}>
-                    <FormField>
-                      <Label htmlFor="accounts-plan-tier">Plan tier</Label>
-                      <Select
-                        id="accounts-plan-tier"
-                        aria-label="Plan tier"
-                        value={planTier}
-                        onChange={updatePlan}
-                        options={PLAN_OPTIONS}
-                      />
-                    </FormField>
-                  </Block>
-                  <Button type="submit" variant="contained">
-                    Search
-                  </Button>
-                </Row>
-                <Text variant="bodySmall" color={color.text.muted}>
-                  Default page size is 50 accounts, sorted by newest creation
-                  date. Last active is pending REP-934 definition.
-                </Text>
-              </Col>
-            </Card>
+            <Col gap={spacing.md}>
+              <Row
+                component="form"
+                gap={spacing.md}
+                alignItems="end"
+                flexWrap="wrap"
+                props={{ onSubmit: applySearch }}
+              >
+                <Block minWidth={280} flex="1 1 320px">
+                  <FormField>
+                    <Label htmlFor="accounts-search">Search accounts</Label>
+                    <Input
+                      id="accounts-search"
+                      aria-label="Search accounts"
+                      value={draftSearch}
+                      onChange={event => setDraftSearch(event.target.value)}
+                      placeholder="Email or account ID"
+                    />
+                  </FormField>
+                </Block>
+                <Block width={180}>
+                  <FormField>
+                    <Label htmlFor="accounts-plan-tier">Plan tier</Label>
+                    <Select
+                      id="accounts-plan-tier"
+                      aria-label="Plan tier"
+                      value={planTier}
+                      onChange={updatePlan}
+                      options={PLAN_OPTIONS}
+                    />
+                  </FormField>
+                </Block>
+                <Button type="submit" variant="contained">
+                  Search
+                </Button>
+              </Row>
+              <Text variant="bodySmall" color={color.text.muted}>
+                Default page size is 50 accounts, sorted by newest creation
+                date. Last active is pending REP-934 definition.
+              </Text>
+            </Col>
 
             {result.loading && result.data == null ? (
               <FullPageLoading />
