@@ -177,6 +177,7 @@ export const AccountsRoute: React.FC = () => {
                 <Table
                   aria-label="Accounts ledger"
                   density="compact"
+                  edgePadding={spacing['2xl']}
                   surface="transparent"
                   selectionMode="single"
                   onSelectRow={accountId => navigate(`/accounts/${accountId}`)}

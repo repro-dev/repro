@@ -2,12 +2,24 @@ import React, { forwardRef, useState } from 'react'
 import { Checkbox } from '../Checkbox/Checkbox'
 import { color } from '../tokens/colors'
 import { spacing } from '../tokens/spacing'
-import { useTableContext } from './TableContext'
+import { TableCellEdgeContext, useTableContext } from './TableContext'
 
 export interface TableRowProps {
   children?: React.ReactNode
   rowId?: string
   disabled?: boolean
+}
+
+function flattenRowChildren(children: React.ReactNode): React.ReactNode[] {
+  return React.Children.toArray(children).flatMap(child => {
+    if (React.isValidElement<{ children?: React.ReactNode }>(child)) {
+      if (child.type === React.Fragment) {
+        return flattenRowChildren(child.props.children)
+      }
+    }
+
+    return [child]
+  })
 }
 
 /**
@@ -32,6 +44,16 @@ export const TableRow = forwardRef<HTMLTableRowElement, TableRowProps>(
       surface,
     } = useTableContext()
     const [isHovered, setIsHovered] = useState(false)
+    const rowChildren = flattenRowChildren(children)
+    const cellChildIndexes = rowChildren.reduce<number[]>(
+      (indexes, child, index) => {
+        if (React.isValidElement(child)) indexes.push(index)
+        return indexes
+      },
+      []
+    )
+    const firstCellIndex = cellChildIndexes[0]
+    const lastCellIndex = cellChildIndexes[cellChildIndexes.length - 1]
 
     const isSelectable = selectionMode !== 'none' && rowId != null
     const isSelected = isSelectable && selectedRows.has(rowId!)
@@ -133,7 +155,24 @@ export const TableRow = forwardRef<HTMLTableRowElement, TableRowProps>(
             />
           </td>
         )}
-        {children}
+        {rowChildren.map((child, index) => {
+          if (!React.isValidElement(child)) return child
+
+          const edgePosition =
+            index === firstCellIndex && index === lastCellIndex
+              ? 'both'
+              : index === firstCellIndex
+              ? 'first'
+              : index === lastCellIndex
+              ? 'last'
+              : undefined
+
+          return (
+            <TableCellEdgeContext.Provider value={edgePosition} key={index}>
+              {child}
+            </TableCellEdgeContext.Provider>
+          )
+        })}
       </tr>
     )
   }

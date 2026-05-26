@@ -1,4 +1,5 @@
 import { Block } from '@jsxstyle/react'
+import type { CSSProperties } from 'react'
 import React, { forwardRef } from 'react'
 import { color } from '../tokens/colors'
 import {
@@ -21,6 +22,7 @@ export interface TableProps {
   allRowIds?: readonly string[]
   stickyHeader?: boolean
   density?: TableDensity
+  edgePadding?: CSSProperties['paddingLeft']
   surface?: TableSurface
   'aria-label'?: string
   'aria-labelledby'?: string
@@ -33,6 +35,8 @@ export interface TableProps {
  * empty and loading states, and horizontal scrolling on narrow viewports.
  * Use `density="compact"` to tighten cell and header spacing for constrained
  * surfaces while preserving the default spacing when density is omitted.
+ * Use `edgePadding` to override only the outer inline padding on the first
+ * and last rendered cells while leaving middle-cell density spacing intact.
  * Use `surface="transparent"` when the table should sit directly on a page
  * surface instead of drawing its own table background.
  *
@@ -67,6 +71,7 @@ export const Table = forwardRef<HTMLDivElement, TableProps>(
       allRowIds = [],
       stickyHeader = false,
       density = 'default',
+      edgePadding,
       surface = 'default',
       'aria-label': ariaLabel,
       'aria-labelledby': ariaLabelledby,
@@ -86,6 +91,7 @@ export const Table = forwardRef<HTMLDivElement, TableProps>(
           allRowIds,
           stickyHeader,
           density,
+          edgePadding,
           surface,
           isHeaderRow: false,
         }}
