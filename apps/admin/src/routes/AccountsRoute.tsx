@@ -115,9 +115,10 @@ export const AccountsRoute: React.FC = () => {
           <Col gap={spacing.xl} width="100%">
             <Block
               marginTop={-spacing.xl}
-              paddingV={spacing.xl}
+              marginInline={-spacing['2xl']}
+              paddingV={spacing['2xl']}
               paddingH={spacing['2xl']}
-              backgroundColor={color.bg.subtle}
+              backgroundColor={color.bg.hover}
             >
               <Col gap={spacing.md}>
                 <Row
