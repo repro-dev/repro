@@ -107,18 +107,12 @@ export const AccountsRoute: React.FC = () => {
 
   return (
     <PageFrame>
+      <PageFrame.Header>
+        <PageFrame.Title>Accounts</PageFrame.Title>
+      </PageFrame.Header>
       <PageFrame.Body>
         <Block width="100%" maxWidth={1440} margin="0 auto">
           <Col gap={spacing.xl} width="100%">
-            <Block
-              component="header"
-              width="100%"
-              paddingBottom={spacing.lg}
-              borderBottom={`1px solid ${color.border.default}`}
-            >
-              <PageFrame.Title>Accounts</PageFrame.Title>
-            </Block>
-
             <Card>
               <Col gap={spacing.md}>
                 <Row
