@@ -77,7 +77,7 @@ export type LineHeightValue = (typeof lineHeight)[LineHeightToken]
 // ---------------------------------------------------------------------------
 
 export const fontFamily = {
-  sans: 'sans-serif',
+  sans: "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   mono: 'monospace',
 } as const
 

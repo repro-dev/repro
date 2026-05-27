@@ -1,10 +1,11 @@
 import { randomString } from '@repro/random-string'
 import expect from 'expect'
 import { chain, parallel, promise } from 'fluture'
+import { sql } from 'kysely'
 import { after, before, beforeEach, describe, it } from 'node:test'
-import { encodeId } from '~/modules/database'
+import { decodeId, encodeId } from '~/modules/database'
 import { Harness, createTestHarness, fixtures } from '~/testing'
-import { notFound } from '~/utils/errors'
+import { badRequest, notFound } from '~/utils/errors'
 import { AccountService } from './account'
 import { BillingService } from './billing'
 import { ProjectService } from './project'
@@ -111,7 +112,7 @@ describe('Services > Account', () => {
       ).rejects.toThrow(notFound())
     })
 
-    it('should list accounts in 50-item pages with stable cursor boundaries', async () => {
+    it('should list accounts newest first in 50-item pages with stable cursor boundaries', async () => {
       // Accounts are not deleted between tests in this suite, so we need to
       // prefix the names to ensure we assert over the correct set of accounts.
       const prefix = randomString()
@@ -127,14 +128,14 @@ describe('Services > Account', () => {
 
       expect(firstPage.items).toHaveLength(50)
       expect(firstPage.items[0]).toMatchObject({
-        id: createdAccounts[0]?.id,
-        name: `${prefix} 0`,
+        id: createdAccounts[50]?.id,
+        name: `${prefix} 50`,
       })
       expect(firstPage.items[49]).toMatchObject({
-        id: createdAccounts[49]?.id,
-        name: `${prefix} 49`,
+        id: createdAccounts[1]?.id,
+        name: `${prefix} 1`,
       })
-      expect(firstPage.nextCursor).toEqual(createdAccounts[49]?.id)
+      expect(firstPage.nextCursor).toEqual(createdAccounts[1]?.id)
 
       const secondPage = await promise(
         accountService.listAccounts({ cursor: firstPage.nextCursor })
@@ -142,10 +143,272 @@ describe('Services > Account', () => {
 
       expect(secondPage.items).toHaveLength(1)
       expect(secondPage.items[0]).toMatchObject({
-        id: createdAccounts[50]?.id,
-        name: `${prefix} 50`,
+        id: createdAccounts[0]?.id,
+        name: `${prefix} 0`,
       })
       expect(secondPage.nextCursor).toBeUndefined()
+    })
+
+    it('should use encoded ID as the stable tie-breaker when account creation timestamps match', async () => {
+      const first = await promise(accountService.createAccount('Tie Account 1'))
+      const second = await promise(
+        accountService.createAccount('Tie Account 2')
+      )
+      const third = await promise(accountService.createAccount('Tie Account 3'))
+      const decodedIds = [first.id, second.id, third.id].map(
+        id => decodeId(id)!
+      )
+
+      await sql`
+        UPDATE accounts
+        SET "createdAt" = ${new Date('2026-01-01T00:00:00.000Z')}
+        WHERE id in (${sql.join(decodedIds)})
+      `.execute(harness.db)
+
+      const firstPage = await promise(accountService.listAccounts({ limit: 2 }))
+
+      expect(firstPage.items.map(item => item.id)).toEqual([
+        third.id,
+        second.id,
+      ])
+      expect(firstPage.nextCursor).toEqual(second.id)
+
+      const secondPage = await promise(
+        accountService.listAccounts({ limit: 2, cursor: firstPage.nextCursor })
+      )
+
+      expect(secondPage.items.map(item => item.id)).toEqual([first.id])
+      expect(secondPage.nextCursor).toBeUndefined()
+    })
+
+    it('should sort accounts by name with stable cursor boundaries', async () => {
+      const prefix = randomString()
+      const charlie = await promise(
+        accountService.createAccount(`000 ${prefix} Charlie`)
+      )
+      const alpha = await promise(
+        accountService.createAccount(`000 ${prefix} Alpha`)
+      )
+      const bravo = await promise(
+        accountService.createAccount(`000 ${prefix} Bravo`)
+      )
+
+      const ascendingFirstPage = await promise(
+        accountService.listAccounts({
+          sortBy: 'name',
+          sortDirection: 'asc',
+          limit: 2,
+        })
+      )
+
+      expect(ascendingFirstPage.items.map(item => item.id)).toEqual([
+        alpha.id,
+        bravo.id,
+      ])
+      expect(ascendingFirstPage.nextCursor).toEqual(bravo.id)
+
+      const ascendingSecondPage = await promise(
+        accountService.listAccounts({
+          sortBy: 'name',
+          sortDirection: 'asc',
+          cursor: ascendingFirstPage.nextCursor,
+          limit: 2,
+        })
+      )
+
+      expect(ascendingSecondPage.items.map(item => item.id)).toEqual([
+        charlie.id,
+      ])
+      expect(ascendingSecondPage.nextCursor).toBeUndefined()
+
+      const zebra = await promise(
+        accountService.createAccount(`zzz ${prefix} Zebra`)
+      )
+      const yak = await promise(
+        accountService.createAccount(`zzz ${prefix} Yak`)
+      )
+      const xray = await promise(
+        accountService.createAccount(`zzz ${prefix} Xray`)
+      )
+
+      const descending = await promise(
+        accountService.listAccounts({
+          sortBy: 'name',
+          sortDirection: 'desc',
+          limit: 3,
+        })
+      )
+
+      expect(descending.items.map(item => item.id)).toEqual([
+        zebra.id,
+        yak.id,
+        xray.id,
+      ])
+    })
+
+    it('should reject invalid staff account cursors with bad-request', async () => {
+      await expect(
+        promise(accountService.listAccounts({ cursor: 'not-an-id' }))
+      ).rejects.toThrow(badRequest('Invalid account cursor'))
+    })
+
+    it('should filter enriched account rows by email, account ID, and plan tier', async () => {
+      const [freePlan, proPlan] = await harness.loadFixtures([
+        fixtures.billing.FreePlan,
+        fixtures.billing.ProPlan,
+      ])
+      const freeAccount = await promise(
+        accountService.createAccount('Free Ops')
+      )
+      const proAccount = await promise(accountService.createAccount('Pro Ops'))
+
+      await promise(
+        billingService.createCheckoutSession(
+          freeAccount.id,
+          'owner-free@example.com',
+          freePlan.id
+        )
+      )
+      await promise(
+        billingService.createCheckoutSession(
+          proAccount.id,
+          'owner-pro@example.com',
+          proPlan.id
+        )
+      )
+      await promise(
+        accountService.createUser(
+          freeAccount.id,
+          'Free Owner',
+          'owner-free@example.com',
+          'password1'
+        )
+      )
+      await promise(
+        accountService.createUser(
+          proAccount.id,
+          'Pro Owner',
+          'owner-pro@example.com',
+          'password1'
+        )
+      )
+
+      const byEmail = await promise(
+        accountService.listAccounts({ search: 'OWNER-PRO@example.com' })
+      )
+      expect(byEmail.items).toHaveLength(1)
+      expect(byEmail.items[0]).toMatchObject({
+        id: proAccount.id,
+        primaryEmail: 'owner-pro@example.com',
+        planName: 'Repro+',
+        subscriptionStatus: 'active',
+        lastActiveAt: null,
+        recordingCount: 0,
+        userCount: 1,
+        projectCount: 0,
+      })
+
+      const byId = await promise(
+        accountService.listAccounts({ search: freeAccount.id })
+      )
+      expect(byId.items).toHaveLength(1)
+      expect(byId.items[0]?.id).toEqual(freeAccount.id)
+
+      const byPlan = await promise(
+        accountService.listAccounts({ planTier: 'Repro+' })
+      )
+      expect(byPlan.items.map(item => item.id)).toEqual([proAccount.id])
+    })
+
+    it('should filter plan tier against the latest subscription displayed for the account', async () => {
+      const [freePlan, proPlan] = await harness.loadFixtures([
+        fixtures.billing.FreePlan,
+        fixtures.billing.ProPlan,
+      ])
+      const account = await promise(
+        accountService.createAccount('Changed Plan Ops')
+      )
+
+      await promise(
+        billingService.createCheckoutSession(
+          account.id,
+          'changed-plan@example.com',
+          freePlan.id
+        )
+      )
+      await promise(
+        billingService.createCheckoutSession(
+          account.id,
+          'changed-plan@example.com',
+          proPlan.id
+        )
+      )
+
+      const byOldPlan = await promise(
+        accountService.listAccounts({ planTier: 'Free' })
+      )
+      expect(byOldPlan.items.map(item => item.id)).not.toContain(account.id)
+
+      const byLatestPlan = await promise(
+        accountService.listAccounts({ planTier: 'Repro+' })
+      )
+      expect(byLatestPlan.items).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: account.id,
+            planName: 'Repro+',
+          }),
+        ])
+      )
+    })
+
+    it('should return staff account detail with primary user and counts', async () => {
+      const [proPlan] = await harness.loadFixtures([fixtures.billing.ProPlan])
+      const account = await promise(accountService.createAccount('Detail Ops'))
+      await promise(
+        billingService.createCheckoutSession(
+          account.id,
+          'detail-owner@example.com',
+          proPlan.id
+        )
+      )
+      const user = await promise(
+        accountService.createUser(
+          account.id,
+          'Detail Owner',
+          'detail-owner@example.com',
+          'password1'
+        )
+      )
+      await promise(projectService.createProject(account.id, 'Detail Project'))
+
+      await expect(
+        promise(accountService.getStaffAccountDetail(account.id))
+      ).resolves.toMatchObject({
+        id: account.id,
+        name: 'Detail Ops',
+        active: true,
+        createdAt: expect.any(String),
+        primaryEmail: 'detail-owner@example.com',
+        planName: 'Repro+',
+        subscriptionStatus: 'active',
+        userCount: 1,
+        projectCount: 1,
+        recordingCount: 0,
+        lastActiveAt: null,
+        primaryUser: {
+          id: user.id,
+          name: 'Detail Owner',
+          email: 'detail-owner@example.com',
+          active: true,
+        },
+      })
+    })
+
+    it('should reject invalid staff account detail IDs with bad-request', async () => {
+      await expect(
+        promise(accountService.getStaffAccountDetail('not-an-id'))
+      ).rejects.toThrow(badRequest('Invalid account ID'))
     })
 
     it('should update an account name', async () => {

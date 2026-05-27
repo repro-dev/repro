@@ -88,7 +88,7 @@ describe('Routers > Staff', () => {
           'password1'
         )
       )
-      await promise(
+      const inactiveUser = await promise(
         accountService.createUser(
           (account as Account).id,
           'User Two',
@@ -96,6 +96,7 @@ describe('Routers > Staff', () => {
           'password2'
         )
       )
+      await promise(accountService.deactivateUser(inactiveUser.id))
 
       const res = await app.inject({
         method: 'GET',
@@ -115,6 +116,15 @@ describe('Routers > Staff', () => {
         name: expect.any(String),
         email: expect.any(String),
       })
+      expect(body.items).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: inactiveUser.id,
+            name: 'User Two',
+            active: false,
+          }),
+        ])
+      )
     })
 
     it('should respect limit and return nextCursor when more users exist', async () => {
@@ -160,6 +170,47 @@ describe('Routers > Staff', () => {
       const body = res.json()
       expect(body.items).toHaveLength(2)
       expect(body.nextCursor).toBeDefined()
+    })
+
+    it('should return 400 when the account ID is invalid', async () => {
+      const [staffSession] = await harness.loadFixtures([
+        fixtures.account.StaffUserA_Session,
+      ])
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/accounts/not-an-id/users',
+        headers: {
+          authorization: `Bearer ${(staffSession as Session).sessionToken}`,
+        },
+      })
+
+      expect(res.statusCode).toEqual(400)
+      expect(res.json()).toMatchObject({
+        name: 'BadRequestError',
+        message: 'Invalid account ID',
+      })
+    })
+
+    it('should return 400 when the users cursor is invalid', async () => {
+      const [staffSession, account] = await harness.loadFixtures([
+        fixtures.account.StaffUserA_Session,
+        fixtures.account.AccountA,
+      ])
+
+      const res = await app.inject({
+        method: 'GET',
+        url: `/accounts/${(account as Account).id}/users?cursor=not-an-id`,
+        headers: {
+          authorization: `Bearer ${(staffSession as Session).sessionToken}`,
+        },
+      })
+
+      expect(res.statusCode).toEqual(400)
+      expect(res.json()).toMatchObject({
+        name: 'BadRequestError',
+        message: 'Invalid account cursor',
+      })
     })
 
     it('should return 403 when not authenticated as staff', async () => {

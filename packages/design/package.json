@@ -36,6 +36,7 @@
     "@storybook/addon-docs": "^10.2.13",
     "@storybook/react": "^10.2.13",
     "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/expect": "overridden",
     "@types/md5": "^2.3.2",
     "@types/node": "22.14.0",

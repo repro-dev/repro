@@ -1,8 +1,11 @@
+import type { CSSProperties } from 'react'
 import { createContext, useContext } from 'react'
 import type { TableDensity } from './tableDensity'
 
 export type SortDirection = 'asc' | 'desc' | null
 export type SelectionMode = 'none' | 'single' | 'multi'
+export type TableSurface = 'default' | 'transparent'
+export type TableCellEdgePosition = 'first' | 'last' | 'both' | undefined
 
 export interface TableContextValue {
   sortColumn: string | null
@@ -15,6 +18,8 @@ export interface TableContextValue {
   allRowIds: readonly string[]
   stickyHeader: boolean
   density: TableDensity
+  edgePadding: CSSProperties['paddingLeft'] | undefined
+  surface: TableSurface
   /** True when the row is rendered inside <TableHeader> (<thead>). */
   isHeaderRow: boolean
 }
@@ -30,11 +35,20 @@ const defaultContext: TableContextValue = {
   allRowIds: [],
   stickyHeader: false,
   density: 'default',
+  edgePadding: undefined,
+  surface: 'default',
   isHeaderRow: false,
 }
 
 export const TableContext = createContext<TableContextValue>(defaultContext)
 
+export const TableCellEdgeContext =
+  createContext<TableCellEdgePosition>(undefined)
+
 export function useTableContext(): TableContextValue {
   return useContext(TableContext)
+}
+
+export function useTableCellEdgeContext(): TableCellEdgePosition {
+  return useContext(TableCellEdgeContext)
 }

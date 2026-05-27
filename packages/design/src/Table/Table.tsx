@@ -1,10 +1,12 @@
 import { Block } from '@jsxstyle/react'
+import type { CSSProperties } from 'react'
 import React, { forwardRef } from 'react'
 import { color } from '../tokens/colors'
 import {
   TableContext,
   type SelectionMode,
   type SortDirection,
+  type TableSurface,
 } from './TableContext'
 import type { TableDensity } from './tableDensity'
 
@@ -20,6 +22,8 @@ export interface TableProps {
   allRowIds?: readonly string[]
   stickyHeader?: boolean
   density?: TableDensity
+  edgePadding?: CSSProperties['paddingLeft']
+  surface?: TableSurface
   'aria-label'?: string
   'aria-labelledby'?: string
 }
@@ -31,6 +35,10 @@ export interface TableProps {
  * empty and loading states, and horizontal scrolling on narrow viewports.
  * Use `density="compact"` to tighten cell and header spacing for constrained
  * surfaces while preserving the default spacing when density is omitted.
+ * Use `edgePadding` to override only the outer inline padding on the first
+ * and last rendered cells while leaving middle-cell density spacing intact.
+ * Use `surface="transparent"` when the table should sit directly on a page
+ * surface instead of drawing its own table background.
  *
  * Use `Table.Header`, `Table.Body`, `Table.Row`, `Table.Cell`, and
  * `Table.HeaderCell` to compose the full table structure.
@@ -63,6 +71,8 @@ export const Table = forwardRef<HTMLDivElement, TableProps>(
       allRowIds = [],
       stickyHeader = false,
       density = 'default',
+      edgePadding,
+      surface = 'default',
       'aria-label': ariaLabel,
       'aria-labelledby': ariaLabelledby,
     },
@@ -81,6 +91,8 @@ export const Table = forwardRef<HTMLDivElement, TableProps>(
           allRowIds,
           stickyHeader,
           density,
+          edgePadding,
+          surface,
           isHeaderRow: false,
         }}
       >
@@ -99,7 +111,8 @@ export const Table = forwardRef<HTMLDivElement, TableProps>(
             style={{
               width: '100%',
               borderCollapse: 'collapse',
-              backgroundColor: color.bg.surface,
+              backgroundColor:
+                surface === 'transparent' ? 'transparent' : color.bg.surface,
             }}
             aria-label={ariaLabel}
             aria-labelledby={ariaLabelledby}

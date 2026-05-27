@@ -17,6 +17,7 @@ import { RequireAdminSession } from './components/RequireAdminSession'
 import { RequireAdminStaffSession } from './components/RequireAdminStaffSession'
 import { defaultEnv as env } from './config/env'
 import { Layout } from './Layout'
+import { AccountDetailRoute } from './routes/AccountDetailRoute'
 import { AccountsRoute } from './routes/AccountsRoute'
 import { FeatureGatesRoute } from './routes/FeatureGatesRoute'
 import { HealthRoute } from './routes/HealthRoute'
@@ -135,6 +136,7 @@ export const AppRoutes: React.FC = () => (
         <Route path="recordings" element={<RecordingsRoute />} />
         <Route path="feature-gates" element={<FeatureGatesRoute />} />
         <Route path="accounts" element={<AccountsRoute />} />
+        <Route path="accounts/:accountId" element={<AccountDetailRoute />} />
         <Route path="health" element={<HealthRoute />} />
         <Route element={<RequireAdminStaffSession />}>
           <Route path="staff-users" element={<StaffUsersRoute />} />
