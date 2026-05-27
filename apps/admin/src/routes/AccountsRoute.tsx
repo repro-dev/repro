@@ -30,8 +30,6 @@ const PLAN_OPTIONS = [
   { value: 'Repro++', label: 'Repro++' },
 ]
 
-const CONTENT_BLEED_WIDTH = `calc(100% + ${spacing['2xl'] * 2}px)`
-
 type AccountSortBy = 'name' | 'createdAt'
 type AccountSortDirection = 'asc' | 'desc'
 
@@ -106,6 +104,7 @@ export const AccountsRoute: React.FC = () => {
     useState<AccountSortDirection>('desc')
   const cursor = cursorStack[cursorStack.length - 1]
   const activeSortBy = sortBy ?? 'createdAt'
+  const contentBleedWidth = `calc(100% + ${spacing['2xl'] * 2}px)`
   const path = useMemo(
     () =>
       accountListPath({
@@ -285,7 +284,7 @@ export const AccountsRoute: React.FC = () => {
                 overflow="hidden"
                 marginTop={-spacing.xl}
                 marginInline={-spacing['2xl']}
-                width={CONTENT_BLEED_WIDTH}
+                width={contentBleedWidth}
                 borderTop={`1px solid ${color.border.default}`}
               >
                 {showRefreshProgress ? (

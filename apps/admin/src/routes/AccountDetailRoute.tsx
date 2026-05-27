@@ -23,8 +23,6 @@ import { useFuture } from '@repro/future-utils'
 import React from 'react'
 import { Link as RouterLink, useParams } from 'react-router-dom'
 
-const CONTENT_BLEED_WIDTH = `calc(100% + ${spacing['2xl'] * 2}px)`
-
 function formatDate(date: string) {
   return new Date(date).toLocaleDateString('en-US', {
     year: 'numeric',
@@ -103,6 +101,7 @@ export const AccountDetailRoute: React.FC = () => {
 
   const account = detailResult.data
   const projects = projectsResult.data?.items ?? []
+  const contentBleedWidth = `calc(100% + ${spacing['2xl'] * 2}px)`
 
   if (account == null) {
     if (detailResult.error) {
@@ -193,7 +192,7 @@ export const AccountDetailRoute: React.FC = () => {
               </Row>
             </Block>
 
-            <Block marginInline={-spacing['2xl']} width={CONTENT_BLEED_WIDTH}>
+            <Block marginInline={-spacing['2xl']} width={contentBleedWidth}>
               <Tabs defaultValue="users">
                 <Tabs.List aria-label="Account detail sections">
                   <Tabs.Tab value="users">Users</Tabs.Tab>
