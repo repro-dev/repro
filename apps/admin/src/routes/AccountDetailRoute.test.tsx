@@ -135,7 +135,7 @@ describe('AccountDetailRoute', () => {
     assert.ok(screen.getByText('active'))
     assert.equal(screen.queryByText('Subscription active'), null)
     assert.equal(screen.queryByText('Active account'), null)
-    assert.ok(screen.getByText('Pending definition'))
+    assert.ok(screen.getByText('No activity recorded'))
     assert.ok(screen.getByText('Owner User'))
     assert.ok(screen.getByText('inactive@acme.test'))
     assert.ok(screen.getAllByText('Verified').length >= 2)
@@ -163,6 +163,23 @@ describe('AccountDetailRoute', () => {
       screen.queryByRole('link', { name: /Owner User|Inactive User/ }),
       null
     )
+  })
+
+  it('renders the account last active date when activity exists', async () => {
+    renderRoute({
+      accountDetail: {
+        ...detail,
+        lastActiveAt: '2026-04-04T09:15:00.000Z',
+      },
+    })
+
+    await waitFor(() =>
+      assert.ok(screen.getByRole('heading', { name: 'Acme Workspace' }))
+    )
+
+    assert.ok(screen.getByText('April 4, 2026'))
+    assert.equal(screen.queryByText('No activity recorded'), null)
+    assert.equal(screen.queryByText('Pending definition'), null)
   })
 
   it('renders empty states for loaded users and projects without blank tables', async () => {

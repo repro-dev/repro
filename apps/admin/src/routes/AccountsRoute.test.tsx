@@ -90,7 +90,7 @@ describe('AccountsRoute', () => {
     assert.ok(screen.getByText('cancelled'))
     assert.equal(screen.queryByText('canceled'), null)
     assert.ok(screen.getByText('12 recordings'))
-    assert.ok(screen.getByText('Pending definition'))
+    assert.ok(screen.getByText('No activity recorded'))
     assert.ok(
       screen.getByText(
         'Default page size is 50 accounts, sorted by newest creation date.'
@@ -107,6 +107,23 @@ describe('AccountsRoute', () => {
     })
 
     await waitFor(() => assert.ok(screen.getByText('Account detail')))
+  })
+
+  it('renders the account last active date when activity exists', async () => {
+    renderRoute({
+      items: [
+        {
+          ...account,
+          lastActiveAt: '2026-04-04T09:15:00.000Z',
+        },
+      ],
+    })
+
+    await waitFor(() => assert.ok(screen.getByText('Acme Workspace')))
+
+    assert.ok(screen.getByText('Apr 4, 2026'))
+    assert.equal(screen.queryByText('No activity recorded'), null)
+    assert.equal(screen.queryByText('Pending definition'), null)
   })
 
   it('sends search, plan filter, and cursor through server-side queries', async () => {
