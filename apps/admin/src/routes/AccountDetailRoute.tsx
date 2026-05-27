@@ -3,11 +3,11 @@ import { useApiClient } from '@repro/api-client'
 import {
   Alert,
   Breadcrumbs,
-  Button,
   EmptyState,
   FullPageError,
   FullPageLoading,
   PageFrame,
+  Pagination,
   Table,
   Tabs,
   Text,
@@ -22,6 +22,8 @@ import {
 import { useFuture } from '@repro/future-utils'
 import React from 'react'
 import { Link as RouterLink, useParams } from 'react-router-dom'
+
+const ACCOUNT_DETAIL_PAGE_SIZE = 50
 
 function formatDate(date: string) {
   return new Date(date).toLocaleDateString('en-US', {
@@ -52,15 +54,10 @@ function formatSubscriptionStatus(status: string | null | undefined) {
 export const AccountDetailRoute: React.FC = () => {
   const { accountId } = useParams<{ accountId: string }>()
   const apiClient = useApiClient()
-  const [usersCursor, setUsersCursor] = React.useState<string | undefined>()
-  const [users, setUsers] = React.useState<StaffUserDetail[]>([])
-  const [usersNextCursor, setUsersNextCursor] = React.useState<
-    string | undefined
-  >()
-  const appliedUsersPage = React.useRef<{
-    items: StaffUserDetail[]
-    nextCursor?: string
-  } | null>(null)
+  const [usersCursorStack, setUsersCursorStack] = React.useState<string[]>([])
+  const [projectsPage, setProjectsPage] = React.useState(1)
+  const usersCursor = usersCursorStack[usersCursorStack.length - 1]
+  const usersCurrentPage = usersCursorStack.length + 1
   const detailResult = useFuture(
     () => apiClient.fetch<StaffAccountDetail>(`/staff/accounts/${accountId}`),
     [accountId]
@@ -68,7 +65,7 @@ export const AccountDetailRoute: React.FC = () => {
   const usersResult = useFuture(
     () =>
       apiClient.fetch<{ items: StaffUserDetail[]; nextCursor?: string }>(
-        `/staff/accounts/${accountId}/users?limit=50${
+        `/staff/accounts/${accountId}/users?limit=${ACCOUNT_DETAIL_PAGE_SIZE}${
           usersCursor == null
             ? ''
             : `&cursor=${encodeURIComponent(usersCursor)}`
@@ -85,29 +82,40 @@ export const AccountDetailRoute: React.FC = () => {
   )
 
   React.useEffect(() => {
-    setUsers([])
-    setUsersCursor(undefined)
-    setUsersNextCursor(undefined)
-    appliedUsersPage.current = null
+    setUsersCursorStack([])
+    setProjectsPage(1)
   }, [accountId])
 
-  React.useEffect(() => {
-    if (usersResult.data == null) return
-    if (appliedUsersPage.current === usersResult.data) return
-
-    appliedUsersPage.current = usersResult.data
-
-    setUsers(current =>
-      usersCursor == null
-        ? usersResult.data.items
-        : [...current, ...usersResult.data.items]
-    )
-    setUsersNextCursor(usersResult.data.nextCursor)
-  }, [usersResult.data, usersCursor])
-
   const account = detailResult.data
+  const users = usersResult.data?.items ?? []
   const projects = projectsResult.data?.items ?? []
+  const projectsTotalPages = Math.max(
+    1,
+    Math.ceil(projects.length / ACCOUNT_DETAIL_PAGE_SIZE)
+  )
+  const safeProjectsPage = Math.min(projectsPage, projectsTotalPages)
+  const visibleProjects = projects.slice(
+    (safeProjectsPage - 1) * ACCOUNT_DETAIL_PAGE_SIZE,
+    safeProjectsPage * ACCOUNT_DETAIL_PAGE_SIZE
+  )
   const contentBleedWidth = `calc(100% + ${spacing['2xl'] * 2}px)`
+
+  React.useEffect(() => {
+    setProjectsPage(currentPage => Math.min(currentPage, projectsTotalPages))
+  }, [projectsTotalPages])
+
+  const updateUsersPage = (page: number) => {
+    if (page === usersCurrentPage - 1 && usersCursorStack.length > 0) {
+      setUsersCursorStack(stack => stack.slice(0, -1))
+      return
+    }
+
+    const nextCursor = usersResult.data?.nextCursor
+
+    if (page === usersCurrentPage + 1 && nextCursor) {
+      setUsersCursorStack(stack => [...stack, nextCursor])
+    }
+  }
 
   if (account == null) {
     if (detailResult.error) {
@@ -290,15 +298,16 @@ export const AccountDetailRoute: React.FC = () => {
                         </Table>
                       )}
                     </Block>
-                    {usersNextCursor != null ? (
+                    {users.length > 0 ? (
                       <Row justifyContent="flex-end">
-                        <Button
-                          variant="outlined"
-                          disabled={usersResult.loading}
-                          onClick={() => setUsersCursor(usersNextCursor)}
-                        >
-                          Load more users
-                        </Button>
+                        <Pagination
+                          currentPage={usersCurrentPage}
+                          hasPreviousPage={usersCursorStack.length > 0}
+                          hasNextPage={Boolean(usersResult.data?.nextCursor)}
+                          pending={usersResult.loading}
+                          ariaLabel="Account users pagination"
+                          onPageChange={updateUsersPage}
+                        />
                       </Row>
                     ) : null}
                   </Col>
@@ -360,7 +369,7 @@ export const AccountDetailRoute: React.FC = () => {
                             </Table.Row>
                           </Table.Header>
                           <Table.Body>
-                            {projects.map(project => (
+                            {visibleProjects.map(project => (
                               <Table.Row key={project.id}>
                                 <Table.Cell>{project.name}</Table.Cell>
                                 <Table.Cell>
@@ -378,6 +387,16 @@ export const AccountDetailRoute: React.FC = () => {
                         </Table>
                       )}
                     </Block>
+                    {projects.length > 0 ? (
+                      <Row justifyContent="flex-end">
+                        <Pagination
+                          currentPage={safeProjectsPage}
+                          totalPages={projectsTotalPages}
+                          ariaLabel="Account projects pagination"
+                          onPageChange={setProjectsPage}
+                        />
+                      </Row>
+                    ) : null}
                   </Col>
                 </Tabs.Panel>
               </Tabs>
