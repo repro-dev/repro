@@ -1,5 +1,4 @@
 import { ApiProvider, createApiClient } from '@repro/api-client'
-import { color } from '@repro/design'
 import {
   StaffAccountDetail,
   StaffAccountProject,
@@ -83,16 +82,15 @@ const projects: StaffAccountProject[] = [
   },
 ]
 
-function normalizeCssColor(value: string) {
-  const element = document.createElement('span')
-  element.style.color = value
-  document.body.append(element)
-  const normalized = getComputedStyle(element).color
-  element.remove()
-  return normalized
-}
-
-function renderRoute(accountDetail: StaffAccountDetail = detail) {
+function renderRoute({
+  accountDetail = detail,
+  userItems = users,
+  projectItems = projects,
+}: {
+  accountDetail?: StaffAccountDetail
+  userItems?: StaffUserDetail[]
+  projectItems?: StaffAccountProject[]
+} = {}) {
   const requests: string[] = []
   const connectedApiClient = {
     ...apiClient,
@@ -100,9 +98,9 @@ function renderRoute(accountDetail: StaffAccountDetail = detail) {
       requests.push(path)
       if (path === '/staff/accounts/account-1') return resolve(accountDetail)
       if (path === '/staff/accounts/account-1/users?limit=50')
-        return resolve({ items: users })
+        return resolve({ items: userItems })
       if (path === '/staff/accounts/account-1/projects')
-        return resolve({ items: projects })
+        return resolve({ items: projectItems })
       return resolve(undefined)
     },
   } as typeof apiClient
@@ -121,7 +119,7 @@ function renderRoute(accountDetail: StaffAccountDetail = detail) {
 }
 
 describe('AccountDetailRoute', () => {
-  it('renders a read-only account dossier with users, projects, and recordings deferred copy', async () => {
+  it('renders a read-only account dossier with users and projects', async () => {
     const { requests } = renderRoute()
 
     await waitFor(() =>
@@ -131,8 +129,12 @@ describe('AccountDetailRoute', () => {
     assert.ok(requests.includes('/staff/accounts/account-1'))
     assert.ok(requests.includes('/staff/accounts/account-1/users?limit=50'))
     assert.ok(requests.includes('/staff/accounts/account-1/projects'))
-    assert.ok(screen.getByText('Subscription active'))
-    assert.ok(screen.getByText('Active account'))
+    assert.ok(screen.getByText('Plan'))
+    assert.ok(screen.getByText('Repro+'))
+    assert.ok(screen.getByText('Subscription status'))
+    assert.ok(screen.getByText('active'))
+    assert.equal(screen.queryByText('Subscription active'), null)
+    assert.equal(screen.queryByText('Active account'), null)
     assert.ok(screen.getByText('Pending definition'))
     assert.ok(screen.getByText('Owner User'))
     assert.ok(screen.getByText('inactive@acme.test'))
@@ -141,15 +143,60 @@ describe('AccountDetailRoute', () => {
     assert.ok(screen.getAllByText('Admin').length >= 2)
     assert.ok(screen.getByText('Member'))
     assert.ok(screen.getByText('Inactive'))
+    assert.ok(screen.getByRole('tab', { name: 'Users' }))
+    assert.ok(screen.getByRole('tab', { name: 'Projects' }))
+    assert.equal(
+      screen.queryByRole('table', { name: 'Account projects' }),
+      null
+    )
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Projects' }))
+
     assert.ok(screen.getByText('Checkout Flow'))
     assert.ok(screen.getByText('4 recordings'))
-    assert.ok(screen.getByText(/Recordings navigation is deferred/))
+    assert.equal(screen.queryByText(/Recordings navigation is deferred/), null)
     assert.equal(
       screen.queryByRole('button', { name: /edit|delete|deactivate/i }),
       null
     )
     assert.equal(
       screen.queryByRole('link', { name: /Owner User|Inactive User/ }),
+      null
+    )
+  })
+
+  it('renders empty states for loaded users and projects without blank tables', async () => {
+    renderRoute({
+      userItems: [],
+      projectItems: [],
+    })
+
+    await waitFor(() =>
+      assert.ok(screen.getByRole('heading', { name: 'Acme Workspace' }))
+    )
+
+    assert.ok(screen.getByText('No users in this account'))
+    assert.ok(
+      screen.getByText(
+        'Users will appear here when they are associated with this account.'
+      )
+    )
+
+    assert.equal(
+      screen.queryByRole('heading', { name: 'No projects in this account' }),
+      null
+    )
+    fireEvent.click(screen.getByRole('tab', { name: 'Projects' }))
+
+    assert.ok(screen.getByText('No projects in this account'))
+    assert.ok(
+      screen.getByText(
+        'Projects will appear here when this account creates one.'
+      )
+    )
+    assert.equal(screen.queryByRole('table', { name: 'Account users' }), null)
+    assert.equal(
+      screen.queryByRole('table', { name: 'Account projects' }),
       null
     )
   })
@@ -211,17 +258,18 @@ describe('AccountDetailRoute', () => {
     )
   })
 
-  it('renders a canceled subscription with danger status styling', async () => {
+  it('renders cancelled subscription status in British English without badge styling dependency', async () => {
     renderRoute({
-      ...detail,
-      subscriptionStatus: 'canceled',
+      accountDetail: {
+        ...detail,
+        subscriptionStatus: 'canceled',
+      },
     })
 
-    const subscriptionBadge = await screen.findByText('Subscription canceled')
+    await waitFor(() => assert.ok(screen.getByText('Subscription status')))
 
-    assert.equal(
-      getComputedStyle(subscriptionBadge).color,
-      normalizeCssColor(color.dangerFg)
-    )
+    assert.ok(screen.getByText('cancelled'))
+    assert.equal(screen.queryByText('Subscription canceled'), null)
+    assert.equal(screen.queryByText('canceled'), null)
   })
 })

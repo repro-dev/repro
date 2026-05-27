@@ -2,18 +2,17 @@ import { Block, Col, Row } from '@jsxstyle/react'
 import { useApiClient } from '@repro/api-client'
 import {
   Alert,
-  Badge,
   Breadcrumbs,
   Button,
-  Card,
+  EmptyState,
   FullPageError,
   FullPageLoading,
   PageFrame,
   Table,
+  Tabs,
   Text,
   color,
   spacing,
-  type BadgeProps,
 } from '@repro/design'
 import {
   StaffAccountDetail,
@@ -24,6 +23,8 @@ import { useFuture } from '@repro/future-utils'
 import React from 'react'
 import { Link as RouterLink, useParams } from 'react-router-dom'
 
+const CONTENT_BLEED_WIDTH = `calc(100% + ${spacing['2xl'] * 2}px)`
+
 function formatDate(date: string) {
   return new Date(date).toLocaleDateString('en-US', {
     year: 'numeric',
@@ -32,27 +33,15 @@ function formatDate(date: string) {
   })
 }
 
-function statusText(active: boolean, label: string) {
-  return active ? `Active ${label}` : `Inactive ${label}`
-}
-
-function subscriptionStatusContext(
-  status: string | null | undefined
-): BadgeProps['context'] {
+function formatSubscriptionStatus(status: string | null | undefined) {
   switch (status) {
-    case 'active':
-    case 'trialing':
-      return 'success'
-    case 'past_due':
-    case 'paused':
-      return 'warning'
     case 'canceled':
-    case 'inactive':
-    case 'unpaid':
-    case 'incomplete_expired':
-      return 'danger'
+      return 'cancelled'
+    case null:
+    case undefined:
+      return 'unknown'
     default:
-      return 'neutral'
+      return status.replaceAll('_', ' ')
   }
 }
 
@@ -113,6 +102,7 @@ export const AccountDetailRoute: React.FC = () => {
   }, [usersResult.data, usersCursor])
 
   const account = detailResult.data
+  const projects = projectsResult.data?.items ?? []
 
   if (account == null) {
     if (detailResult.error) {
@@ -146,23 +136,18 @@ export const AccountDetailRoute: React.FC = () => {
               {account.primaryEmail ?? 'No primary email'} · {account.id}
             </Text>
           </Col>
-          <Row gap={spacing.sm} flexWrap="wrap">
-            <Badge context="info">{account.planName ?? 'No plan'}</Badge>
-            <Badge
-              context={subscriptionStatusContext(account.subscriptionStatus)}
-            >
-              Subscription {account.subscriptionStatus ?? 'unknown'}
-            </Badge>
-            <Badge context={account.active ? 'success' : 'warning'}>
-              {statusText(account.active, 'account')}
-            </Badge>
-          </Row>
         </Col>
       </PageFrame.Header>
       <PageFrame.Body>
         <Block width="100%" maxWidth={1440} margin="0 auto">
-          <Col gap={spacing.xl} width="100%">
-            <Card>
+          <Col gap={spacing['2xl']} width="100%">
+            <Block
+              marginTop={-spacing.xl}
+              marginInline={-spacing['2xl']}
+              paddingV={spacing['2xl']}
+              paddingH={spacing['2xl']}
+              backgroundColor={color.bg.hover}
+            >
               <Row gap={spacing['2xl']} flexWrap="wrap">
                 <Col gap={spacing.xs} minWidth={160}>
                   <Text variant="label" as="span">
@@ -182,143 +167,216 @@ export const AccountDetailRoute: React.FC = () => {
                 </Col>
                 <Col gap={spacing.xs} minWidth={160}>
                   <Text variant="label" as="span">
-                    Recording volume
+                    Plan
                   </Text>
                   <Text variant="bodySmall" color={color.text.secondary}>
-                    {account.recordingCount} recordings
+                    {account.planName ?? 'No plan'}
                   </Text>
                 </Col>
                 <Col gap={spacing.xs} minWidth={160}>
                   <Text variant="label" as="span">
-                    Account shape
+                    Subscription status
                   </Text>
                   <Text variant="bodySmall" color={color.text.secondary}>
-                    {account.userCount} users · {account.projectCount} projects
+                    {formatSubscriptionStatus(account.subscriptionStatus)}
+                  </Text>
+                </Col>
+                <Col gap={spacing.xs} minWidth={160}>
+                  <Text variant="label" as="span">
+                    Usage
+                  </Text>
+                  <Text variant="bodySmall" color={color.text.secondary}>
+                    {account.recordingCount} recordings · {account.userCount}{' '}
+                    users · {account.projectCount} projects
                   </Text>
                 </Col>
               </Row>
-            </Card>
+            </Block>
 
-            <Alert type="info">
-              Recordings navigation is deferred to a follow-up until the
-              account-level recordings route/query is available. This dossier is
-              read-only.
-            </Alert>
+            <Block marginInline={-spacing['2xl']} width={CONTENT_BLEED_WIDTH}>
+              <Tabs defaultValue="users">
+                <Tabs.List aria-label="Account detail sections">
+                  <Tabs.Tab value="users">Users</Tabs.Tab>
+                  <Tabs.Tab value="projects">Projects</Tabs.Tab>
+                </Tabs.List>
 
-            <Col component="section" gap={spacing.md}>
-              <Col gap={spacing.xs}>
-                <Text variant="heading2">Users</Text>
-                <Text variant="bodySmall" color={color.text.muted}>
-                  All account users, including inactive users, shown without
-                  mutation controls.
-                </Text>
-              </Col>
-              <Card fullBleed>
-                {usersResult.loading && users.length === 0 ? (
-                  <FullPageLoading />
-                ) : usersResult.error ? (
-                  <Alert type="danger">
-                    Failed to load users: {usersResult.error.message}
-                  </Alert>
-                ) : (
-                  <Table aria-label="Account users" density="compact">
-                    <Table.Header>
-                      <Table.Row>
-                        <Table.HeaderCell>User</Table.HeaderCell>
-                        <Table.HeaderCell>Verified</Table.HeaderCell>
-                        <Table.HeaderCell>Admin</Table.HeaderCell>
-                        <Table.HeaderCell>Status</Table.HeaderCell>
-                      </Table.Row>
-                    </Table.Header>
-                    <Table.Body>
-                      {users.map(user => (
-                        <Table.Row key={user.id}>
-                          <Table.Cell>
-                            <Col gap={spacing.xs}>
-                              <Text variant="label" as="span">
-                                {user.name}
-                              </Text>
-                              <Text
-                                variant="bodySmall"
-                                color={color.text.muted}
-                              >
-                                {user.email}
-                              </Text>
-                            </Col>
-                          </Table.Cell>
-                          <Table.Cell>
-                            {user.verified ? 'Verified' : 'Unverified'}
-                          </Table.Cell>
-                          <Table.Cell>
-                            {user.admin ? 'Admin' : 'Member'}
-                          </Table.Cell>
-                          <Table.Cell>
-                            {user.active ? 'Active' : 'Inactive'}
-                          </Table.Cell>
-                        </Table.Row>
-                      ))}
-                    </Table.Body>
-                  </Table>
-                )}
-              </Card>
-              {usersNextCursor != null ? (
-                <Row justifyContent="flex-end">
-                  <Button
-                    variant="outlined"
-                    disabled={usersResult.loading}
-                    onClick={() => setUsersCursor(usersNextCursor)}
-                  >
-                    Load more users
-                  </Button>
-                </Row>
-              ) : null}
-            </Col>
+                <Tabs.Panel value="users">
+                  <Col component="section" gap={spacing.md}>
+                    <Col gap={spacing.xs} paddingH={spacing.md}>
+                      <Text variant="heading2">Users</Text>
+                      <Text variant="bodySmall" color={color.text.muted}>
+                        All account users, including inactive users, shown
+                        without mutation controls.
+                      </Text>
+                    </Col>
+                    <Block
+                      overflow="hidden"
+                      marginInline={-spacing.xl}
+                      width={`calc(100% + ${spacing.xl * 2}px)`}
+                      borderTop={`1px solid ${color.border.default}`}
+                    >
+                      {usersResult.loading && users.length === 0 ? (
+                        <Block padding={spacing['2xl']}>
+                          <FullPageLoading />
+                        </Block>
+                      ) : usersResult.error ? (
+                        <Block padding={spacing['2xl']}>
+                          <Alert type="danger">
+                            Failed to load users: {usersResult.error.message}
+                          </Alert>
+                        </Block>
+                      ) : users.length === 0 ? (
+                        <Block
+                          borderBottom={`1px solid ${color.border.default}`}
+                        >
+                          <EmptyState>
+                            <EmptyState.Title>
+                              No users in this account
+                            </EmptyState.Title>
+                            <EmptyState.Description>
+                              Users will appear here when they are associated
+                              with this account.
+                            </EmptyState.Description>
+                          </EmptyState>
+                        </Block>
+                      ) : (
+                        <Table
+                          aria-label="Account users"
+                          density="compact"
+                          edgePadding={spacing['2xl']}
+                          surface="transparent"
+                        >
+                          <Table.Header>
+                            <Table.Row>
+                              <Table.HeaderCell>User</Table.HeaderCell>
+                              <Table.HeaderCell>Verified</Table.HeaderCell>
+                              <Table.HeaderCell>Admin</Table.HeaderCell>
+                              <Table.HeaderCell>Status</Table.HeaderCell>
+                            </Table.Row>
+                          </Table.Header>
+                          <Table.Body>
+                            {users.map(user => (
+                              <Table.Row key={user.id}>
+                                <Table.Cell>
+                                  <Col gap={spacing.xs}>
+                                    <Text variant="label" as="span">
+                                      {user.name}
+                                    </Text>
+                                    <Text
+                                      variant="bodySmall"
+                                      color={color.text.muted}
+                                    >
+                                      {user.email}
+                                    </Text>
+                                  </Col>
+                                </Table.Cell>
+                                <Table.Cell>
+                                  {user.verified ? 'Verified' : 'Unverified'}
+                                </Table.Cell>
+                                <Table.Cell>
+                                  {user.admin ? 'Admin' : 'Member'}
+                                </Table.Cell>
+                                <Table.Cell>
+                                  {user.active ? 'Active' : 'Inactive'}
+                                </Table.Cell>
+                              </Table.Row>
+                            ))}
+                          </Table.Body>
+                        </Table>
+                      )}
+                    </Block>
+                    {usersNextCursor != null ? (
+                      <Row justifyContent="flex-end">
+                        <Button
+                          variant="outlined"
+                          disabled={usersResult.loading}
+                          onClick={() => setUsersCursor(usersNextCursor)}
+                        >
+                          Load more users
+                        </Button>
+                      </Row>
+                    ) : null}
+                  </Col>
+                </Tabs.Panel>
 
-            <Col component="section" gap={spacing.md}>
-              <Col gap={spacing.xs}>
-                <Text variant="heading2">Projects</Text>
-                <Text variant="bodySmall" color={color.text.muted}>
-                  Account projects and recording counts. Project links remain
-                  separate from this read-only account view.
-                </Text>
-              </Col>
-              <Card fullBleed>
-                {projectsResult.loading && projectsResult.data == null ? (
-                  <FullPageLoading />
-                ) : projectsResult.error ? (
-                  <Alert type="danger">
-                    Failed to load projects: {projectsResult.error.message}
-                  </Alert>
-                ) : (
-                  <Table aria-label="Account projects" density="compact">
-                    <Table.Header>
-                      <Table.Row>
-                        <Table.HeaderCell>Project</Table.HeaderCell>
-                        <Table.HeaderCell>Created</Table.HeaderCell>
-                        <Table.HeaderCell>Status</Table.HeaderCell>
-                        <Table.HeaderCell>Recordings</Table.HeaderCell>
-                      </Table.Row>
-                    </Table.Header>
-                    <Table.Body>
-                      {(projectsResult.data?.items ?? []).map(project => (
-                        <Table.Row key={project.id}>
-                          <Table.Cell>{project.name}</Table.Cell>
-                          <Table.Cell>
-                            {formatDate(project.createdAt)}
-                          </Table.Cell>
-                          <Table.Cell>
-                            {project.active ? 'Active' : 'Inactive'}
-                          </Table.Cell>
-                          <Table.Cell>
-                            {project.recordingCount} recordings
-                          </Table.Cell>
-                        </Table.Row>
-                      ))}
-                    </Table.Body>
-                  </Table>
-                )}
-              </Card>
-            </Col>
+                <Tabs.Panel value="projects">
+                  <Col component="section" gap={spacing.md}>
+                    <Col gap={spacing.xs} paddingH={spacing.md}>
+                      <Text variant="heading2">Projects</Text>
+                      <Text variant="bodySmall" color={color.text.muted}>
+                        Account projects and recording counts. Project links
+                        remain separate from this read-only account view.
+                      </Text>
+                    </Col>
+                    <Block
+                      overflow="hidden"
+                      marginInline={-spacing.xl}
+                      width={`calc(100% + ${spacing.xl * 2}px)`}
+                      borderTop={`1px solid ${color.border.default}`}
+                    >
+                      {projectsResult.loading && projectsResult.data == null ? (
+                        <Block padding={spacing['2xl']}>
+                          <FullPageLoading />
+                        </Block>
+                      ) : projectsResult.error ? (
+                        <Block padding={spacing['2xl']}>
+                          <Alert type="danger">
+                            Failed to load projects:{' '}
+                            {projectsResult.error.message}
+                          </Alert>
+                        </Block>
+                      ) : projects.length === 0 ? (
+                        <Block
+                          borderBottom={`1px solid ${color.border.default}`}
+                        >
+                          <EmptyState>
+                            <EmptyState.Title>
+                              No projects in this account
+                            </EmptyState.Title>
+                            <EmptyState.Description>
+                              Projects will appear here when this account
+                              creates one.
+                            </EmptyState.Description>
+                          </EmptyState>
+                        </Block>
+                      ) : (
+                        <Table
+                          aria-label="Account projects"
+                          density="compact"
+                          edgePadding={spacing['2xl']}
+                          surface="transparent"
+                        >
+                          <Table.Header>
+                            <Table.Row>
+                              <Table.HeaderCell>Project</Table.HeaderCell>
+                              <Table.HeaderCell>Created</Table.HeaderCell>
+                              <Table.HeaderCell>Status</Table.HeaderCell>
+                              <Table.HeaderCell>Recordings</Table.HeaderCell>
+                            </Table.Row>
+                          </Table.Header>
+                          <Table.Body>
+                            {projects.map(project => (
+                              <Table.Row key={project.id}>
+                                <Table.Cell>{project.name}</Table.Cell>
+                                <Table.Cell>
+                                  {formatDate(project.createdAt)}
+                                </Table.Cell>
+                                <Table.Cell>
+                                  {project.active ? 'Active' : 'Inactive'}
+                                </Table.Cell>
+                                <Table.Cell>
+                                  {project.recordingCount} recordings
+                                </Table.Cell>
+                              </Table.Row>
+                            ))}
+                          </Table.Body>
+                        </Table>
+                      )}
+                    </Block>
+                  </Col>
+                </Tabs.Panel>
+              </Tabs>
+            </Block>
           </Col>
         </Block>
       </PageFrame.Body>

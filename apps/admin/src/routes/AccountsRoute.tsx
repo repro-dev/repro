@@ -254,7 +254,7 @@ export const AccountsRoute: React.FC = () => {
                 </Row>
                 <Text variant="bodySmall" color={color.text.muted}>
                   Default page size is 50 accounts, sorted by newest creation
-                  date. Last active is pending REP-934 definition.
+                  date.
                 </Text>
               </Col>
             </Block>
@@ -343,14 +343,9 @@ export const AccountsRoute: React.FC = () => {
                     {accounts.map(account => (
                       <Table.Row key={account.id} rowId={account.id}>
                         <Table.Cell>
-                          <Col gap={spacing.xs}>
-                            <Text variant="label" as="span">
-                              {account.name}
-                            </Text>
-                            <Text variant="bodySmall" color={color.text.muted}>
-                              ID {account.id}
-                            </Text>
-                          </Col>
+                          <Text variant="label" as="span">
+                            {account.name}
+                          </Text>
                         </Table.Cell>
                         <Table.Cell>
                           <Col gap={spacing.xs}>

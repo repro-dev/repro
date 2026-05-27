@@ -85,11 +85,17 @@ describe('AccountsRoute', () => {
 
     await waitFor(() => assert.ok(screen.getByText('Acme Workspace')))
     assert.equal(screen.queryByText(/owner@acme.test/), null)
-    assert.ok(screen.getByText('ID account-1'))
+    assert.equal(screen.queryByText('ID account-1'), null)
     assert.ok(screen.getByText('Repro+'))
     assert.ok(screen.getByText('active'))
     assert.ok(screen.getByText('12 recordings'))
     assert.ok(screen.getByText('Pending definition'))
+    assert.ok(
+      screen.getByText(
+        'Default page size is 50 accounts, sorted by newest creation date.'
+      )
+    )
+    assert.equal(screen.queryByText(/Last active is pending REP-934/), null)
     assert.equal(
       screen.queryByRole('button', { name: /delete|edit|deactivate/i }),
       null
