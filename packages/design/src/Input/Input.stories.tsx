@@ -22,6 +22,7 @@ type Story = StoryObj<typeof Input>
 
 const onChangeSpy = fn()
 const onBlurSpy = fn()
+const trailingActionSpy = fn()
 
 const reg = {
   name: 'field',
@@ -197,5 +198,78 @@ export const WithAriaLabel: Story = {
     'aria-label': 'Search',
     size: 'small',
     placeholder: 'Search...',
+  },
+}
+
+export const WithTrailingClearAction: Story = {
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'Use inset trailing actions for reversible, field-local helpers such as clear, reveal, copy, or cancel draft edit. Icon-only actions must provide explicit labels and remain keyboard reachable after the input.',
+      },
+    },
+  },
+  render: () => {
+    const [value, setValue] = React.useState('Workspace search')
+
+    return (
+      <Block maxWidth={360} padding={spacing.lg}>
+        <FormField>
+          <Label htmlFor="search-clear">Search</Label>
+          <Input
+            id="search-clear"
+            value={value}
+            onChange={event => setValue(event.currentTarget.value)}
+            trailingAction={{
+              label: 'Clear search',
+              icon: <span aria-hidden="true">×</span>,
+              onClick: () => {
+                setValue('')
+                trailingActionSpy()
+              },
+              disabled: value.length === 0,
+            }}
+          />
+        </FormField>
+      </Block>
+    )
+  },
+}
+
+export const WithTrailingCancelAction: Story = {
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'Use trailing cancel only for a local draft reset inside the current field. Destructive, persistence, or broader revert/cancel actions should be adjacent text or Button actions instead of inset controls.',
+      },
+    },
+  },
+  render: () => {
+    const persistedValue = 'Acme workspace'
+    const [value, setValue] = React.useState('Acme workspace draft')
+
+    return (
+      <Block maxWidth={360} padding={spacing.lg}>
+        <FormField>
+          <Label htmlFor="name-cancel">Workspace name</Label>
+          <Input
+            id="name-cancel"
+            value={value}
+            onChange={event => setValue(event.currentTarget.value)}
+            trailingAction={{
+              label: 'Cancel draft edit',
+              icon: <span aria-hidden="true">↺</span>,
+              onClick: () => {
+                setValue(persistedValue)
+                trailingActionSpy()
+              },
+              disabled: value === persistedValue,
+            }}
+          />
+        </FormField>
+      </Block>
+    )
   },
 }

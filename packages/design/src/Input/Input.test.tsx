@@ -1,7 +1,11 @@
-import { cleanup, render } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import expect from 'expect'
 import { afterEach, describe, it } from 'node:test'
 import React from 'react'
+import { FormField } from '../FormField'
+import { FormFieldError } from '../FormFieldError'
+import { Label } from '../Label'
 import { formControlHeight } from '../tokens/formControl'
 import { Input } from './Input'
 
@@ -119,5 +123,68 @@ describe('Input vertical centering — flexbox (REP-659)', () => {
     const css = getElementCSSText(innerTextarea)
     // textarea should have the "padding: Xpx Ypx" shorthand
     expect(css).toMatch(/padding:\s*\d+px \d+px/)
+  })
+})
+
+describe('Input trailing actions (REP-1176)', () => {
+  it('renders an accessible trailing action after the textbox in tab order', async () => {
+    const user = userEvent.setup()
+    let clearCount = 0
+
+    render(
+      <Input
+        aria-label="Search"
+        trailingAction={{
+          label: 'Clear search',
+          icon: <span aria-hidden="true">×</span>,
+          onClick: () => {
+            clearCount += 1
+          },
+        }}
+      />
+    )
+
+    const input = screen.getByRole('textbox', { name: 'Search' })
+    const action = screen.getByRole<HTMLButtonElement>('button', {
+      name: 'Clear search',
+    })
+
+    await user.tab()
+    expect(document.activeElement).toBe(input)
+
+    await user.tab()
+    expect(document.activeElement).toBe(action)
+
+    await user.click(action)
+    expect(clearCount).toBe(1)
+  })
+
+  it('preserves FormField wiring and disables related trailing actions', () => {
+    render(
+      <FormField id="account-name" invalid disabled>
+        <Label>Name</Label>
+        <Input
+          trailingAction={{
+            label: 'Cancel name edit',
+            icon: <span aria-hidden="true">×</span>,
+            onClick: () => undefined,
+          }}
+        />
+        <FormFieldError error={{ message: 'Name is required' }} />
+      </FormField>
+    )
+
+    const input = screen.getByRole<HTMLInputElement>('textbox', {
+      name: 'Name',
+    })
+    const action = screen.getByRole<HTMLButtonElement>('button', {
+      name: 'Cancel name edit',
+    })
+
+    expect(input.getAttribute('id')).toBe('account-name')
+    expect(input.getAttribute('aria-describedby')).toBe('account-name-error')
+    expect(input.getAttribute('aria-invalid')).toBe('true')
+    expect(input.disabled).toBe(true)
+    expect(action.disabled).toBe(true)
   })
 })
