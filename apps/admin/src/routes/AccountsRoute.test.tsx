@@ -96,6 +96,8 @@ describe('AccountsRoute', () => {
         'Default page size is 50 accounts, sorted by newest creation date.'
       )
     )
+    assert.ok(screen.getByRole('navigation', { name: 'Accounts pagination' }))
+    assert.ok(screen.getByText('Page 1'))
     assert.equal(screen.queryByText(/Last active is pending REP-934/), null)
     assert.equal(
       screen.queryByRole('button', { name: /delete|edit|deactivate/i }),
@@ -166,6 +168,7 @@ describe('AccountsRoute', () => {
     await waitFor(() =>
       assert.ok(requests.some(path => path.includes('cursor=cursor-1')))
     )
+    assert.ok(screen.getByText('Page 2'))
 
     await act(async () => {
       fireEvent.change(screen.getByLabelText('Search accounts'), {
@@ -187,6 +190,7 @@ describe('AccountsRoute', () => {
       ),
       false
     )
+    assert.ok(screen.getByText('Page 1'))
   })
 
   it('sends server-backed sort requests and resets pagination when sort changes', async () => {
@@ -213,6 +217,7 @@ describe('AccountsRoute', () => {
         )
       )
     )
+    assert.ok(screen.getByText('Page 1'))
 
     assert.equal(
       requests.some(
@@ -304,5 +309,18 @@ describe('AccountsRoute', () => {
 
     assert.equal(screen.queryByLabelText('Refreshing accounts'), null)
     assert.ok(screen.getByText('Acme Workspace'))
+  })
+
+  it('disables next-page navigation when the cursor API has no next cursor', async () => {
+    renderRoute({ fetch: () => resolve({ items: [account] }) })
+
+    await waitFor(() => assert.ok(screen.getByText('Acme Workspace')))
+
+    assert.equal(
+      screen
+        .getByRole('button', { name: 'Next page' })
+        .hasAttribute('disabled'),
+      true
+    )
   })
 })
