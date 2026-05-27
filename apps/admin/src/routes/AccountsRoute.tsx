@@ -55,6 +55,12 @@ function formatDate(date: string) {
   })
 }
 
+function formatLastActiveAt(lastActiveAt: string | null) {
+  return lastActiveAt == null
+    ? 'No activity recorded'
+    : formatDate(lastActiveAt)
+}
+
 function formatSubscriptionStatus(status: string | null | undefined) {
   switch (status) {
     case 'canceled':
@@ -371,7 +377,9 @@ export const AccountsRoute: React.FC = () => {
                           </Col>
                         </Table.Cell>
                         <Table.Cell>{formatDate(account.createdAt)}</Table.Cell>
-                        <Table.Cell>Pending definition</Table.Cell>
+                        <Table.Cell>
+                          {formatLastActiveAt(account.lastActiveAt)}
+                        </Table.Cell>
                         <Table.Cell>
                           <Col gap={spacing.xs}>
                             <Text variant="label" as="span">

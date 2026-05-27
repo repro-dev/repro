@@ -2,7 +2,9 @@ import { Session } from '@repro/domain'
 import expect from 'expect'
 import { FastifyInstance } from 'fastify'
 import { promise } from 'fluture'
+import { sql } from 'kysely'
 import { after, before, beforeEach, describe, it } from 'node:test'
+import { decodeId } from '~/modules/database'
 import { AccountService } from '~/services/account'
 import { ProjectService } from '~/services/project'
 import { Harness, createTestHarness, fixtures } from '~/testing'
@@ -35,8 +37,26 @@ describe('Routers > Staff', () => {
         fixtures.account.StaffUserA_Session,
       ])
 
-      // Create some accounts
-      await promise(accountService.createAccount('Account A'))
+      const account = await promise(accountService.createAccount('Account A'))
+      const user = await promise(
+        accountService.createUser(
+          account.id,
+          'Account User',
+          harness.generateRandomEmailAddress(),
+          'hunter2!'
+        )
+      )
+      const session = await promise(
+        accountService.createSession(user.id, 'user')
+      )
+
+      await sql`
+        UPDATE sessions
+        SET "createdAt" = ${new Date('2026-03-01T00:00:00.000Z')}
+        WHERE id = ${decodeId(session.id) as number}
+      `.execute(harness.db)
+
+      // Create a second account so pagination/listing still exercises multiple rows.
       await promise(accountService.createAccount('Account B'))
 
       const res = await app.inject({
@@ -52,6 +72,14 @@ describe('Routers > Staff', () => {
       expect(body).toHaveProperty('items')
       expect(Array.isArray(body.items)).toBe(true)
       expect(body.items.length).toBeGreaterThanOrEqual(2)
+      expect(body.items).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: account.id,
+            lastActiveAt: '2026-03-01T00:00:00.000Z',
+          }),
+        ])
+      )
     })
 
     it('should page account results at 50 items with a stable nextCursor', async () => {
