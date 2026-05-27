@@ -179,7 +179,7 @@ describe('Services > Account', () => {
         })
         .execute()
 
-      const recordingAt = new Date('2026-01-01T00:00:00.000Z')
+      const recordingAt = new Date('2026-01-04T00:00:00.000Z')
       const sessionAt = new Date('2026-01-02T00:00:00.000Z')
       const apiKeyAt = new Date('2026-01-03T00:00:00.000Z')
 
@@ -205,7 +205,7 @@ describe('Services > Account', () => {
         promise(accountService.getAccountById(account.id))
       ).resolves.toMatchObject({
         id: account.id,
-        lastActiveAt: apiKeyAt.toISOString(),
+        lastActiveAt: recordingAt.toISOString(),
         name: 'Active Account',
       })
 
@@ -215,7 +215,7 @@ describe('Services > Account', () => {
         items: [
           expect.objectContaining({
             id: account.id,
-            lastActiveAt: apiKeyAt.toISOString(),
+            lastActiveAt: recordingAt.toISOString(),
             name: 'Active Account',
           }),
         ],
