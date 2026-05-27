@@ -57,6 +57,18 @@ function formatDate(date: string) {
   })
 }
 
+function formatSubscriptionStatus(status: string | null | undefined) {
+  switch (status) {
+    case 'canceled':
+      return 'cancelled'
+    case null:
+    case undefined:
+      return 'No subscription'
+    default:
+      return status.replaceAll('_', ' ')
+  }
+}
+
 function accountListPath({
   search,
   planTier,
@@ -353,7 +365,9 @@ export const AccountsRoute: React.FC = () => {
                               {account.planName ?? 'No plan'}
                             </Text>
                             <Text variant="bodySmall" color={color.text.muted}>
-                              {account.subscriptionStatus ?? 'No subscription'}
+                              {formatSubscriptionStatus(
+                                account.subscriptionStatus
+                              )}
                             </Text>
                           </Col>
                         </Table.Cell>

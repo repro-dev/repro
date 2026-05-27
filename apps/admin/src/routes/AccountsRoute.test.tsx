@@ -30,7 +30,7 @@ const account: StaffAccountListItem = {
   active: true,
   primaryEmail: 'owner@acme.test',
   planName: 'Repro+',
-  subscriptionStatus: 'active',
+  subscriptionStatus: 'canceled',
   recordingCount: 12,
   userCount: 3,
   projectCount: 2,
@@ -87,7 +87,8 @@ describe('AccountsRoute', () => {
     assert.equal(screen.queryByText(/owner@acme.test/), null)
     assert.equal(screen.queryByText('ID account-1'), null)
     assert.ok(screen.getByText('Repro+'))
-    assert.ok(screen.getByText('active'))
+    assert.ok(screen.getByText('cancelled'))
+    assert.equal(screen.queryByText('canceled'), null)
     assert.ok(screen.getByText('12 recordings'))
     assert.ok(screen.getByText('Pending definition'))
     assert.ok(
