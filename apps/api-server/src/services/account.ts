@@ -5,6 +5,7 @@ import {
   AccountSettingsSummary,
   Invitation,
   Session,
+  StaffAccount,
   StaffAccountDetail,
   StaffAccountListItem,
   StaffAccountPrimaryUser,
@@ -613,6 +614,17 @@ export function createAccountService(
         ) as account_activity
       )
     `
+  }
+
+  function asStaffAccount<
+    T extends { id: number; name: string; lastActiveAt: Date | null },
+  >(row: T): StaffAccount {
+    const account = withEncodedId(row)
+
+    return {
+      ...account,
+      lastActiveAt: row.lastActiveAt?.toISOString() ?? null,
+    }
   }
 
   type AccountListQueryOptions = {
