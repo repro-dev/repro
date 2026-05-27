@@ -4,7 +4,6 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import React, { forwardRef } from 'react'
 import { Button } from '../Button'
 import { color } from '../tokens/colors'
-import { radius } from '../tokens/elevation'
 import { spacing } from '../tokens/spacing'
 import { textStyles } from '../tokens/typography'
 
@@ -170,53 +169,43 @@ export const Pagination = forwardRef<HTMLElement, PaginationProps>(
           <ChevronLeft size={16} aria-hidden="true" />
         </Button>
 
-        {safeTotalPages == null ? (
-          <Block
-            {...textStyles.bodySmall}
-            color={color.text.secondary}
-            backgroundColor={color.bg.surface}
-            borderColor={color.border.default}
-            borderStyle="solid"
-            borderWidth={1}
-            borderRadius={radius.md}
-            paddingH={spacing.md}
-            paddingV={spacing.xs}
-          >
-            Page {safeCurrentPage}
-          </Block>
-        ) : (
-          createPageRange(safeCurrentPage, safeTotalPages).map((item, index) =>
-            item === 'ellipsis' ? (
-              <Block
-                key={`ellipsis-${index}`}
-                {...textStyles.bodySmall}
-                color={color.text.muted}
-                paddingH={spacing.xs}
-              >
-                <span aria-hidden="true">…</span>
-                <span style={visuallyHidden}>{ellipsisLabel}</span>
-              </Block>
-            ) : (
-              <Button
-                key={item}
-                variant={item === safeCurrentPage ? 'contained' : 'outlined'}
-                context={item === safeCurrentPage ? 'info' : 'neutral'}
-                size="small"
-                disabled={controlsDisabled}
-                props={{
-                  'aria-label':
-                    item === safeCurrentPage
-                      ? getCurrentPageLabel(item)
-                      : getPageLabel(item),
-                  'aria-current': item === safeCurrentPage ? 'page' : undefined,
-                }}
-                onClick={() => requestPageChange(item)}
-              >
-                {item}
-              </Button>
-            )
-          )
-        )}
+        {safeTotalPages == null
+          ? null
+          : createPageRange(safeCurrentPage, safeTotalPages).map(
+              (item, index) =>
+                item === 'ellipsis' ? (
+                  <Block
+                    key={`ellipsis-${index}`}
+                    {...textStyles.bodySmall}
+                    color={color.text.muted}
+                    paddingH={spacing.xs}
+                  >
+                    <span aria-hidden="true">…</span>
+                    <span style={visuallyHidden}>{ellipsisLabel}</span>
+                  </Block>
+                ) : (
+                  <Button
+                    key={item}
+                    variant={
+                      item === safeCurrentPage ? 'contained' : 'outlined'
+                    }
+                    context={item === safeCurrentPage ? 'info' : 'neutral'}
+                    size="small"
+                    disabled={controlsDisabled}
+                    props={{
+                      'aria-label':
+                        item === safeCurrentPage
+                          ? getCurrentPageLabel(item)
+                          : getPageLabel(item),
+                      'aria-current':
+                        item === safeCurrentPage ? 'page' : undefined,
+                    }}
+                    onClick={() => requestPageChange(item)}
+                  >
+                    {item}
+                  </Button>
+                )
+            )}
 
         <Button
           variant="outlined"

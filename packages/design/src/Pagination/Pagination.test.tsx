@@ -130,8 +130,11 @@ describe('Pagination', () => {
     )
 
     expect(screen.getByRole('navigation', { name: 'Pagination' })).toBeDefined()
-    expect(screen.getByText('Page 2')).toBeDefined()
+    expect(screen.queryByText('Page 2')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Go to page 2' })).toBeNull()
+    expect(
+      screen.queryByRole('button', { name: 'Page 2, current page' })
+    ).toBeNull()
     expect(
       screen.getByRole('button', { name: 'Next page' }).hasAttribute('disabled')
     ).toBe(true)

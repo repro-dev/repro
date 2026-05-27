@@ -97,7 +97,6 @@ describe('AccountsRoute', () => {
       )
     )
     assert.ok(screen.getByRole('navigation', { name: 'Accounts pagination' }))
-    assert.ok(screen.getByText('Page 1'))
     assert.equal(screen.queryByText(/Last active is pending REP-934/), null)
     assert.equal(
       screen.queryByRole('button', { name: /delete|edit|deactivate/i }),
@@ -168,7 +167,6 @@ describe('AccountsRoute', () => {
     await waitFor(() =>
       assert.ok(requests.some(path => path.includes('cursor=cursor-1')))
     )
-    assert.ok(screen.getByText('Page 2'))
 
     await act(async () => {
       fireEvent.change(screen.getByLabelText('Search accounts'), {
@@ -190,7 +188,6 @@ describe('AccountsRoute', () => {
       ),
       false
     )
-    assert.ok(screen.getByText('Page 1'))
   })
 
   it('sends server-backed sort requests and resets pagination when sort changes', async () => {
@@ -217,7 +214,6 @@ describe('AccountsRoute', () => {
         )
       )
     )
-    assert.ok(screen.getByText('Page 1'))
 
     assert.equal(
       requests.some(
