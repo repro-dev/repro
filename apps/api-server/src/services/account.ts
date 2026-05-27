@@ -3,6 +3,7 @@ import {
   Account,
   AccountSettingsSummary,
   Invitation,
+  ProjectRole,
   Session,
   StaffUser,
   StaffUserDetail,
@@ -435,6 +436,83 @@ export function createAccountService(
             .pipe(map(() => account))
         })
       )
+  }
+
+  function createRegisteredAccount(
+    accountName: string,
+    userName: string,
+    email: string,
+    password: string
+  ): FutureInstance<Error, { account: Account; user: User }> {
+    const normalizedEmail = email.toLowerCase()
+
+    const existingUser = attemptQuery(async () => {
+      return database
+        .selectFrom('users')
+        .select('id')
+        .where('email', '=', normalizedEmail)
+        .executeTakeFirstOrThrow()
+    })
+      .pipe(map(() => resourceConflict()))
+      .pipe(swap)
+
+    return existingUser.pipe(
+      chain(() =>
+        attemptQuery(async () => {
+          const passwordHash = await argon2.hash(password)
+
+          return database.transaction().execute(async trx => {
+            const account = await trx
+              .insertInto('accounts')
+              .values({ name: accountName, active: true })
+              .returning(['id', 'name'])
+              .executeTakeFirstOrThrow()
+
+            const user = await trx
+              .insertInto('users')
+              .values({
+                name: userName,
+                email: normalizedEmail,
+                password: passwordHash,
+                accountId: account.id,
+                verificationToken: createToken(),
+              })
+              .returning(['id', 'name', 'email', 'verified', 'admin'])
+              .executeTakeFirstOrThrow()
+
+            const project = await trx
+              .insertInto('projects')
+              .values({ accountId: account.id, name: 'My Project' })
+              .returning(['id', 'name'])
+              .executeTakeFirstOrThrow()
+
+            await trx
+              .insertInto('memberships')
+              .values({
+                userId: user.id,
+                projectId: project.id,
+                role: ProjectRole.Admin,
+              })
+              .execute()
+
+            return {
+              account: withEncodedId(account),
+              user: asUser(user),
+            }
+          })
+        }).pipe(
+          chain(result => {
+            if (!billingService) {
+              return resolve(result)
+            }
+
+            return billingService
+              .provisionFreeSubscription(result.account.id)
+              .pipe(map(() => result))
+          })
+        )
+      )
+    )
   }
 
   function getAccountById(accountId: string): FutureInstance<Error, Account> {
@@ -1394,6 +1472,7 @@ export function createAccountService(
 
     // Accounts
     createAccount,
+    createRegisteredAccount,
     updateAccountName,
     deactivateAccount,
     getAccountById,

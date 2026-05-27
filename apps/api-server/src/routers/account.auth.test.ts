@@ -1,3 +1,4 @@
+import { ProjectRole } from '@repro/domain'
 import expect from 'expect'
 import { promise } from 'fluture'
 import { after, before, beforeEach, describe, it } from 'node:test'
@@ -94,6 +95,29 @@ describe('Routers > Account > Auth', () => {
           name: 'John Smith',
         },
       })
+
+      const { user } = res.json()
+      const projects = await promise(
+        context.projectService.getUserProjects(user.id)
+      )
+
+      expect(projects).toEqual([
+        {
+          id: expect.any(String),
+          name: 'My Project',
+        },
+      ])
+      const defaultProject = projects[0]
+
+      if (defaultProject == null) {
+        throw new Error('Expected registration to create a default project')
+      }
+
+      await expect(
+        promise(
+          context.projectService.getUserProjectRole(user.id, defaultProject.id)
+        )
+      ).resolves.toEqual(ProjectRole.Admin)
     })
 
     it('should create a session on registration', async () => {
@@ -125,12 +149,12 @@ describe('Routers > Account > Auth', () => {
       })
     })
 
-    it('should return resource-conflict and not create a new account or user for a duplicate email', async () => {
+    it('should return resource-conflict and not create a new account, user, project, or membership for a duplicate email', async () => {
       const [account] = await context.harness.loadFixtures([
         fixtures.account.AccountA,
       ])
 
-      await promise(
+      const user = await promise(
         context.accountService.createUser(
           account.id,
           'John Smith',
@@ -138,6 +162,22 @@ describe('Routers > Account > Auth', () => {
           'hunter2!'
         )
       )
+
+      const accountsBefore = (
+        await promise(context.accountService.listAccounts())
+      ).items
+      const usersBefore = await context.harness.db
+        .selectFrom('users')
+        .select('id')
+        .execute()
+      const projectsBefore = await context.harness.db
+        .selectFrom('projects')
+        .select('id')
+        .execute()
+      const membershipsBefore = await context.harness.db
+        .selectFrom('memberships')
+        .select('userId')
+        .execute()
 
       const res = await context.app.inject({
         method: 'POST',
@@ -153,9 +193,29 @@ describe('Routers > Account > Auth', () => {
       const allAccountNames = (
         await promise(context.accountService.listAccounts())
       ).items.map(account => account.name)
+      const usersAfter = await context.harness.db
+        .selectFrom('users')
+        .select('id')
+        .execute()
+      const projectsAfter = await context.harness.db
+        .selectFrom('projects')
+        .select('id')
+        .execute()
+      const membershipsAfter = await context.harness.db
+        .selectFrom('memberships')
+        .select('userId')
+        .execute()
+      const duplicateUserProjects = await promise(
+        context.projectService.getUserProjects(user.id)
+      )
 
       expect(res.statusCode).toEqual(409)
+      expect(allAccountNames).toHaveLength(accountsBefore.length)
       expect(allAccountNames).not.toContain('Account for duplicate user')
+      expect(usersAfter).toHaveLength(usersBefore.length)
+      expect(projectsAfter).toHaveLength(projectsBefore.length)
+      expect(membershipsAfter).toHaveLength(membershipsBefore.length)
+      expect(duplicateUserProjects).toHaveLength(0)
     })
   })
 
