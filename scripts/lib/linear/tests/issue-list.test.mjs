@@ -538,7 +538,7 @@ export function makeClient(records) {
           team: {
             issues: {
               nodes: [hydratedIssue],
-              pageInfo: { hasNextPage: false, endCursor: null },
+              pageInfo: { hasNextPage: true, endCursor: "abc123" },
             },
           },
         };

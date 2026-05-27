@@ -92,6 +92,10 @@ export function createStaffRouter(
       querystring: z.object({
         cursor: z.string().optional(),
         limit: z.coerce.number().int().min(1).max(250).default(50),
+        search: z.string().min(1).optional(),
+        planTier: z.enum(['Free', 'Repro+', 'Repro++']).optional(),
+        sortBy: z.enum(['name', 'createdAt']).optional(),
+        sortDirection: z.enum(['asc', 'desc']).optional(),
       }),
     } as const
 
@@ -130,7 +134,33 @@ export function createStaffRouter(
           go(function* () {
             const user = yield req.getCurrentUser()
             yield accountService.ensureStaffUser(user)
-            return yield accountService.getAccountById(accountId)
+            return yield accountService.getStaffAccountDetail(accountId)
+          })
+        )
+      }
+    )
+
+    // List projects in account
+    app.get<{
+      Params: z.infer<typeof accountIdSchema.params>
+    }>(
+      '/accounts/:accountId/projects',
+      {
+        schema: accountIdSchema,
+      },
+      (req, res) => {
+        const { accountId } = req.params
+        respondWith(
+          res,
+          go(function* () {
+            const user = yield req.getCurrentUser()
+            yield accountService.ensureStaffUser(user)
+            const projects = yield projectService.listProjectsForAccount(
+              accountId
+            )
+            return { items: projects } as ListResponse<
+              (typeof projects)[number]
+            >
           })
         )
       }

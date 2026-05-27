@@ -165,3 +165,12 @@ Expose the greenfield implementation as `autobot-next` until cutover.
 - Tests and early Linear acceptance criteria should use `autobot-next`.
 - No public `autobot` entrypoint is exposed during the rewrite.
 - `REP-1165` owns any future rename, redirect, or replacement decision.
+
+## 15. Agent Session Safety Policy
+
+Autobot-managed agent sessions must follow `docs/autobot/safety-policy.md`.
+
+- Safety stops are represented as `awaiting` or `escalated`, not collapsed into generic `failed`, when the stop needs human decision, policy clarification, or recovery before continuing.
+- Publish authority remains gated. No unattended push, PR, release, deploy, package publish, or Linear completion mutation is allowed unless a later policy explicitly grants that authority for a low-risk class.
+- Agent Relay is transport-only. It may broker execution but must not become policy authority, expand write roots, downgrade safety stops, or grant publish authority.
+- Local process and Agent Relay transports must use allowlisted environment and credential propagation with redaction before prompts, logs, artifacts, status, inspect, or dashboard output.

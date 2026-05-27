@@ -32,6 +32,43 @@ function renderDensityTable(density?: 'default' | 'compact') {
   return { th, td }
 }
 
+function renderEdgePaddingTable() {
+  render(
+    <Table
+      aria-label="Edge padding table"
+      density="compact"
+      edgePadding={spacing['2xl']}
+    >
+      <Table.Header>
+        <Table.Row>
+          <>
+            <Table.HeaderCell>Name</Table.HeaderCell>
+            <Table.HeaderCell>Status</Table.HeaderCell>
+            <Table.HeaderCell>Date</Table.HeaderCell>
+          </>
+        </Table.Row>
+      </Table.Header>
+      <Table.Body>
+        <Table.Row>
+          <>
+            <Table.Cell>Alice</Table.Cell>
+            <Table.Cell>Active</Table.Cell>
+            <Table.Cell>Today</Table.Cell>
+          </>
+        </Table.Row>
+      </Table.Body>
+    </Table>
+  )
+
+  const headerCells = Array.from(document.querySelectorAll('th'))
+  const bodyCells = Array.from(document.querySelectorAll('td'))
+
+  expect(headerCells).toHaveLength(3)
+  expect(bodyCells).toHaveLength(3)
+
+  return { headerCells, bodyCells }
+}
+
 describe('Table — density spacing', () => {
   it('preserves default body and header cell spacing', () => {
     const { th, td } = renderDensityTable()
@@ -57,5 +94,23 @@ describe('Table — density spacing', () => {
     expect(td.style.paddingBottom).toBe(`${spacing.md}px`)
     expect(td.style.paddingLeft).toBe(`${spacing.lg}px`)
     expect(td.style.paddingRight).toBe(`${spacing.lg}px`)
+  })
+
+  it('overrides only outer inline padding when edge padding is provided', () => {
+    const { headerCells, bodyCells } = renderEdgePaddingTable()
+
+    expect(headerCells[0]!.style.paddingLeft).toBe(`${spacing['2xl']}px`)
+    expect(headerCells[0]!.style.paddingRight).toBe(`${spacing.lg}px`)
+    expect(headerCells[1]!.style.paddingLeft).toBe(`${spacing.lg}px`)
+    expect(headerCells[1]!.style.paddingRight).toBe(`${spacing.lg}px`)
+    expect(headerCells[2]!.style.paddingLeft).toBe(`${spacing.lg}px`)
+    expect(headerCells[2]!.style.paddingRight).toBe(`${spacing['2xl']}px`)
+
+    expect(bodyCells[0]!.style.paddingLeft).toBe(`${spacing['2xl']}px`)
+    expect(bodyCells[0]!.style.paddingRight).toBe(`${spacing.lg}px`)
+    expect(bodyCells[1]!.style.paddingLeft).toBe(`${spacing.lg}px`)
+    expect(bodyCells[1]!.style.paddingRight).toBe(`${spacing.lg}px`)
+    expect(bodyCells[2]!.style.paddingLeft).toBe(`${spacing.lg}px`)
+    expect(bodyCells[2]!.style.paddingRight).toBe(`${spacing['2xl']}px`)
   })
 })

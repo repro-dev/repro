@@ -1,4 +1,6 @@
+import type { CSSProperties } from 'react'
 import { spacing } from '../tokens/spacing'
+import type { TableCellEdgePosition } from './TableContext'
 
 export type TableDensity = 'default' | 'compact'
 
@@ -23,4 +25,24 @@ export const tableDensityPadding: Record<
     paddingLeft: spacing.lg,
     paddingRight: spacing.lg,
   },
+}
+
+export function applyTableEdgePadding(
+  padding: CSSProperties,
+  edgePadding: CSSProperties['paddingLeft'] | undefined,
+  edgePosition: TableCellEdgePosition
+): CSSProperties {
+  if (edgePadding == null || edgePosition == null) return padding
+
+  return {
+    ...padding,
+    paddingLeft:
+      edgePosition === 'first' || edgePosition === 'both'
+        ? edgePadding
+        : padding.paddingLeft,
+    paddingRight:
+      edgePosition === 'last' || edgePosition === 'both'
+        ? edgePadding
+        : padding.paddingRight,
+  }
 }

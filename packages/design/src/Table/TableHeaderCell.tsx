@@ -4,8 +4,8 @@ import React, { forwardRef } from 'react'
 import { color } from '../tokens/colors'
 import { spacing } from '../tokens/spacing'
 import { textStyles } from '../tokens/typography'
-import { useTableContext } from './TableContext'
-import { tableDensityPadding } from './tableDensity'
+import { useTableCellEdgeContext, useTableContext } from './TableContext'
+import { applyTableEdgePadding, tableDensityPadding } from './tableDensity'
 
 export interface TableHeaderCellProps {
   children?: React.ReactNode
@@ -27,7 +27,9 @@ export const TableHeaderCell = forwardRef<
   HTMLTableCellElement,
   TableHeaderCellProps
 >(({ children, columnId, sortable = false, width, align = 'left' }, ref) => {
-  const { sortColumn, sortDirection, onSort, density } = useTableContext()
+  const { sortColumn, sortDirection, onSort, density, edgePadding } =
+    useTableContext()
+  const edgePosition = useTableCellEdgeContext()
   const padding = tableDensityPadding[density]
   const isCurrentSort = sortable && columnId != null && sortColumn === columnId
 
@@ -77,7 +79,7 @@ export const TableHeaderCell = forwardRef<
       onKeyDown={sortable ? handleKeyDown : undefined}
       tabIndex={sortable ? 0 : undefined}
       style={{
-        ...padding,
+        ...applyTableEdgePadding(padding, edgePadding, edgePosition),
         textAlign: align,
         boxShadow: `inset 0 -1px 0 ${color.border.strong}`,
         cursor: sortable ? 'pointer' : 'default',

@@ -117,6 +117,7 @@ export const TabList = forwardRef<HTMLDivElement, TabListProps>(
       <Row
         borderBottom={`1px solid ${color.border.default}`}
         gap={spacing.xs}
+        paddingH={spacing.xl}
         {...sharedProps}
       >
         {children}

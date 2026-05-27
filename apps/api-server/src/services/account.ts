@@ -1,10 +1,15 @@
 import * as argon2 from '@node-rs/argon2'
 import {
   Account,
+  AccountPlanTier,
   AccountSettingsSummary,
   Invitation,
   ProjectRole,
   Session,
+  StaffAccount,
+  StaffAccountDetail,
+  StaffAccountListItem,
+  StaffAccountPrimaryUser,
   StaffUser,
   StaffUserDetail,
   User,
@@ -515,14 +520,20 @@ export function createAccountService(
     )
   }
 
-  function getAccountById(accountId: string): FutureInstance<Error, Account> {
+  function getAccountById(
+    accountId: string
+  ): FutureInstance<Error, StaffAccount> {
     return attemptQuery(() => {
       return database
         .selectFrom('accounts')
-        .select(['id', 'name'])
+        .select([
+          'id',
+          'name',
+          buildAccountLastActiveAtSelect().as('lastActiveAt'),
+        ])
         .where('id', '=', decodeId(accountId))
         .executeTakeFirstOrThrow(() => notFound())
-    }).pipe(map(withEncodedId))
+    }).pipe(map(asStaffAccount))
   }
 
   function getAccountForUser(userId: string): FutureInstance<Error, Account> {
@@ -645,25 +656,259 @@ export function createAccountService(
     )
   }
 
+  // Canonical account activity: the newest persisted recording, session, or API-key use.
+  function buildAccountLastActiveAtSelect() {
+    return sql<Date | null>`
+      (
+        select max(activity_at)
+        from (
+          select ${sql.ref('r.createdAt')} as activity_at
+          from recordings as r
+          inner join project_recordings as pr on ${sql.ref(
+            'pr.recordingId'
+          )} = ${sql.ref('r.id')}
+          inner join projects as p on ${sql.ref('p.id')} = ${sql.ref(
+            'pr.projectId'
+          )}
+          where ${sql.ref('p.accountId')} = ${sql.ref('accounts.id')}
+
+          union all
+
+          select ${sql.ref('s.createdAt')} as activity_at
+          from sessions as s
+          inner join users as u on ${sql.ref('u.id')} = ${sql.ref(
+            's.subjectId'
+          )}
+          where ${sql.ref('s.subjectType')} = 'user'
+            and ${sql.ref('u.accountId')} = ${sql.ref('accounts.id')}
+
+          union all
+
+          select ${sql.ref('ak.lastUsedAt')} as activity_at
+          from api_keys as ak
+          inner join users as u on ${sql.ref('u.id')} = ${sql.ref('ak.userId')}
+          where ${sql.ref('u.accountId')} = ${sql.ref('accounts.id')}
+            and ${sql.ref('ak.lastUsedAt')} is not null
+        ) as account_activity
+      )
+    `
+  }
+
+  function asStaffAccount<
+    T extends { id: number; name: string; lastActiveAt: Date | null },
+  >(row: T): StaffAccount {
+    const account = withEncodedId(row)
+
+    return {
+      ...account,
+      lastActiveAt: row.lastActiveAt?.toISOString() ?? null,
+    }
+  }
+
   type AccountListQueryOptions = {
     cursor?: string
     limit?: number
-    order?: 'asc' | 'desc'
+    search?: string
+    planTier?: AccountPlanTier
+    sortBy?: 'name' | 'createdAt'
+    sortDirection?: 'asc' | 'desc'
+  }
+
+  type AccountListRow = {
+    id: number
+    name: string
+    active: boolean
+    createdAt: Date
+    lastActiveAt: Date | null
+  }
+
+  async function getPrimaryUserForAccount(
+    accountId: number
+  ): Promise<StaffAccountPrimaryUser | null> {
+    const user = await database
+      .selectFrom('users')
+      .select(['id', 'name', 'email', 'verified', 'admin', 'active'])
+      .where('accountId', '=', accountId)
+      .orderBy('createdAt asc')
+      .orderBy('id asc')
+      .executeTakeFirst()
+
+    return user == null
+      ? null
+      : {
+          id: encodeId(user.id),
+          name: user.name,
+          email: user.email,
+          verified: user.verified,
+          admin: user.admin,
+          active: user.active,
+        }
+  }
+
+  async function getLatestSubscriptionForAccount(accountId: number) {
+    return database
+      .selectFrom('billing_subscriptions as bs')
+      .innerJoin('billing_plans as bp', 'bp.id', 'bs.planId')
+      .select(['bp.name as planName', 'bs.status as subscriptionStatus'])
+      .where('bs.accountId', '=', accountId)
+      .orderBy('bs.createdAt desc')
+      .orderBy('bs.id desc')
+      .executeTakeFirst()
+  }
+
+  async function getAccountCounts(accountId: number) {
+    const [users, projects, recordings] = await Promise.all([
+      database
+        .selectFrom('users')
+        .select(sql<number>`count(*)::int`.as('count'))
+        .where('accountId', '=', accountId)
+        .executeTakeFirstOrThrow(),
+      database
+        .selectFrom('projects')
+        .select(sql<number>`count(*)::int`.as('count'))
+        .where('accountId', '=', accountId)
+        .executeTakeFirstOrThrow(),
+      database
+        .selectFrom('projects as p')
+        .innerJoin('project_recordings as pr', 'pr.projectId', 'p.id')
+        .select(sql<number>`count(distinct pr."recordingId")::int`.as('count'))
+        .where('p.accountId', '=', accountId)
+        .executeTakeFirstOrThrow(),
+    ])
+
+    return {
+      userCount: users.count,
+      projectCount: projects.count,
+      recordingCount: recordings.count,
+    }
+  }
+
+  async function toStaffAccountListItem(
+    account: AccountListRow
+  ): Promise<StaffAccountListItem> {
+    const [primaryUser, subscription, counts] = await Promise.all([
+      getPrimaryUserForAccount(account.id),
+      getLatestSubscriptionForAccount(account.id),
+      getAccountCounts(account.id),
+    ])
+
+    return {
+      id: encodeId(account.id),
+      name: account.name,
+      active: account.active,
+      createdAt: account.createdAt.toISOString(),
+      primaryEmail: primaryUser?.email ?? null,
+      planName: subscription?.planName ?? null,
+      subscriptionStatus: subscription?.subscriptionStatus ?? null,
+      recordingCount: counts.recordingCount,
+      userCount: counts.userCount,
+      projectCount: counts.projectCount,
+      lastActiveAt: account.lastActiveAt?.toISOString() ?? null,
+    }
   }
 
   function buildAccountListQuery({
     cursor,
     limit = 50,
-    order = 'asc',
+    search,
+    planTier,
+    sortBy = 'createdAt',
+    sortDirection = 'desc',
   }: AccountListQueryOptions = {}) {
+    const decodedCursor = cursor == null ? null : decodeId(cursor)
+
+    if (cursor != null && decodedCursor == null) {
+      throw badRequest('Invalid account cursor')
+    }
+
+    const decodedSearchAccountId = search == null ? null : decodeId(search)
+    const normalizedSearch = search?.trim().toLowerCase()
+
+    const sortColumn = sortBy === 'name' ? 'name' : 'createdAt'
+    const sortOrder = sortDirection === 'asc' ? 'asc' : 'desc'
+    const cursorComparison = sortOrder === 'asc' ? '>' : '<'
+
     let query = database
       .selectFrom('accounts')
-      .select(['id', 'name'])
-      .orderBy(`id ${order}`)
+      .select([
+        'id',
+        'name',
+        'active',
+        'createdAt',
+        buildAccountLastActiveAtSelect().as('lastActiveAt'),
+      ])
+      .orderBy(`${sortColumn} ${sortOrder}`)
+      .orderBy(`id ${sortOrder}`)
       .limit(limit + 1)
 
-    if (cursor != null) {
-      query = query.where('id', order === 'asc' ? '>' : '<', decodeId(cursor))
+    if (decodedCursor != null) {
+      query = query.where(eb =>
+        eb.or([
+          eb(
+            sortColumn,
+            cursorComparison,
+            eb
+              .selectFrom('accounts as cursorAccount')
+              .select(`cursorAccount.${sortColumn}`)
+              .where('cursorAccount.id', '=', decodedCursor)
+          ),
+          eb.and([
+            eb(
+              sortColumn,
+              '=',
+              eb
+                .selectFrom('accounts as cursorAccount')
+                .select(`cursorAccount.${sortColumn}`)
+                .where('cursorAccount.id', '=', decodedCursor)
+            ),
+            eb('id', cursorComparison, decodedCursor),
+          ]),
+        ])
+      )
+    }
+
+    if (normalizedSearch) {
+      query = query.where(eb => {
+        const emailMatches = eb.exists(
+          eb
+            .selectFrom('users as searchUsers')
+            .select('searchUsers.id')
+            .whereRef('searchUsers.accountId', '=', 'accounts.id')
+            .where('searchUsers.email', 'ilike', `%${normalizedSearch}%`)
+        )
+
+        return decodedSearchAccountId == null
+          ? emailMatches
+          : eb.or([eb('id', '=', decodedSearchAccountId), emailMatches])
+      })
+    }
+
+    if (planTier != null) {
+      query = query.where(eb =>
+        eb.exists(
+          eb
+            .selectFrom('billing_subscriptions as filterSubscriptions')
+            .innerJoin(
+              'billing_plans as filterPlans',
+              'filterPlans.id',
+              'filterSubscriptions.planId'
+            )
+            .select('filterSubscriptions.id')
+            .whereRef('filterSubscriptions.accountId', '=', 'accounts.id')
+            .where(
+              'filterSubscriptions.id',
+              '=',
+              eb
+                .selectFrom('billing_subscriptions as latestSubscriptions')
+                .select('latestSubscriptions.id')
+                .whereRef('latestSubscriptions.accountId', '=', 'accounts.id')
+                .orderBy('latestSubscriptions.createdAt desc')
+                .orderBy('latestSubscriptions.id desc')
+                .limit(1)
+            )
+            .where('filterPlans.name', '=', planTier)
+        )
+      )
     }
 
     return query
@@ -672,22 +917,63 @@ export function createAccountService(
   function listAccounts({
     cursor,
     limit = 50,
-    order = 'asc',
+    search,
+    planTier,
+    sortBy,
+    sortDirection,
   }: AccountListQueryOptions = {}): FutureInstance<
     Error,
-    { items: Array<Account>; nextCursor?: string }
+    { items: Array<StaffAccountListItem>; nextCursor?: string }
   > {
-    return attemptQuery(() =>
-      buildAccountListQuery({ cursor, limit, order }).execute()
-    ).pipe(
-      map(rows => {
-        const hasMore = rows.length > limit
-        const pageRows = hasMore ? rows.slice(0, limit) : rows
-        const items = pageRows.map(withEncodedId)
-        const nextCursor = hasMore ? items[items.length - 1]?.id : undefined
-        return { items, nextCursor }
-      })
-    )
+    return attemptQuery(async () => {
+      const rows = await buildAccountListQuery({
+        cursor,
+        limit,
+        search,
+        planTier,
+        sortBy,
+        sortDirection,
+      }).execute()
+      const hasMore = rows.length > limit
+      const pageRows = hasMore ? rows.slice(0, limit) : rows
+      const items = await Promise.all(pageRows.map(toStaffAccountListItem))
+      const nextCursor = hasMore ? items[items.length - 1]?.id : undefined
+      return { items, nextCursor }
+    })
+  }
+
+  function getStaffAccountDetail(
+    accountId: string
+  ): FutureInstance<Error, StaffAccountDetail> {
+    const decodedAccountId = decodeId(accountId)
+
+    if (decodedAccountId == null) {
+      return reject(badRequest('Invalid account ID'))
+    }
+
+    return attemptQuery(async () => {
+      const account = await database
+        .selectFrom('accounts')
+        .select([
+          'id',
+          'name',
+          'active',
+          'createdAt',
+          buildAccountLastActiveAtSelect().as('lastActiveAt'),
+        ])
+        .where('id', '=', decodedAccountId)
+        .executeTakeFirstOrThrow(() => notFound())
+
+      const [listItem, primaryUser] = await Promise.all([
+        toStaffAccountListItem(account),
+        getPrimaryUserForAccount(decodedAccountId),
+      ])
+
+      return {
+        ...listItem,
+        primaryUser,
+      }
+    })
   }
 
   function listUsersForAccount(
@@ -703,6 +989,18 @@ export function createAccountService(
     Error,
     { items: Array<StaffUserDetail>; nextCursor?: string }
   > {
+    const decodedAccountId = decodeId(accountId)
+
+    if (decodedAccountId == null) {
+      return reject(badRequest('Invalid account ID'))
+    }
+
+    const decodedCursor = cursor == null ? null : decodeId(cursor)
+
+    if (cursor != null && decodedCursor == null) {
+      return reject(badRequest('Invalid account cursor'))
+    }
+
     return attemptQuery(() => {
       let query = database
         .selectFrom('users')
@@ -716,13 +1014,12 @@ export function createAccountService(
           'accountId',
           'createdAt',
         ])
-        .where('accountId', '=', decodeId(accountId))
-        .where('active', '=', true)
+        .where('accountId', '=', decodedAccountId)
         .orderBy('id asc')
         .limit(limit + 1)
 
-      if (cursor != null) {
-        query = query.where('id', '>', decodeId(cursor))
+      if (decodedCursor != null) {
+        query = query.where('id', '>', decodedCursor)
       }
 
       return query.execute()
@@ -1480,6 +1777,7 @@ export function createAccountService(
     getAccountForInvitation,
     getAccountSettingsSummary,
     listAccounts,
+    getStaffAccountDetail,
     listUsersForAccount,
 
     // Invitations
