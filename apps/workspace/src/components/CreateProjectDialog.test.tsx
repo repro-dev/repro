@@ -1,4 +1,5 @@
 import { ApiProvider, createApiClient } from '@repro/api-client'
+import { PortalRootProvider } from '@repro/design'
 import { Project } from '@repro/domain'
 import {
   act,
@@ -54,9 +55,11 @@ describe('CreateProjectDialog', () => {
       render(
         <MemoryRouter>
           <ApiProvider client={apiClient}>
-            <ProjectProvider getProjects={() => resolve([])}>
-              <CreateProjectDialog open={true} onClose={() => void 0} />
-            </ProjectProvider>
+            <PortalRootProvider>
+              <ProjectProvider getProjects={() => resolve([])}>
+                <CreateProjectDialog open={true} onClose={() => void 0} />
+              </ProjectProvider>
+            </PortalRootProvider>
           </ApiProvider>
         </MemoryRouter>
       )
@@ -70,9 +73,11 @@ describe('CreateProjectDialog', () => {
       render(
         <MemoryRouter>
           <ApiProvider client={apiClient}>
-            <ProjectProvider getProjects={() => resolve([])}>
-              <CreateProjectDialog open={false} onClose={() => void 0} />
-            </ProjectProvider>
+            <PortalRootProvider>
+              <ProjectProvider getProjects={() => resolve([])}>
+                <CreateProjectDialog open={false} onClose={() => void 0} />
+              </ProjectProvider>
+            </PortalRootProvider>
           </ApiProvider>
         </MemoryRouter>
       )
@@ -89,13 +94,15 @@ describe('CreateProjectDialog', () => {
       render(
         <MemoryRouter>
           <ApiProvider client={apiClient}>
-            <ProjectProvider getProjects={() => resolve([])}>
-              <CreateProjectDialog
-                open={true}
-                onClose={() => void 0}
-                createProjectFn={createProjectMock}
-              />
-            </ProjectProvider>
+            <PortalRootProvider>
+              <ProjectProvider getProjects={() => resolve([])}>
+                <CreateProjectDialog
+                  open={true}
+                  onClose={() => void 0}
+                  createProjectFn={createProjectMock}
+                />
+              </ProjectProvider>
+            </PortalRootProvider>
           </ApiProvider>
         </MemoryRouter>
       )
@@ -125,13 +132,15 @@ describe('CreateProjectDialog', () => {
       render(
         <MemoryRouter>
           <ApiProvider client={apiClient}>
-            <ProjectProvider getProjects={() => resolve([])}>
-              <CreateProjectDialog
-                open={true}
-                onClose={() => void 0}
-                createProjectFn={createProjectMock}
-              />
-            </ProjectProvider>
+            <PortalRootProvider>
+              <ProjectProvider getProjects={() => resolve([])}>
+                <CreateProjectDialog
+                  open={true}
+                  onClose={() => void 0}
+                  createProjectFn={createProjectMock}
+                />
+              </ProjectProvider>
+            </PortalRootProvider>
           </ApiProvider>
         </MemoryRouter>
       )
@@ -162,13 +171,15 @@ describe('CreateProjectDialog', () => {
       render(
         <MemoryRouter>
           <ApiProvider client={apiClient}>
-            <ProjectProvider getProjects={() => resolve([])}>
-              <CreateProjectDialog
-                open={true}
-                onClose={() => void 0}
-                createProjectFn={createProjectMock}
-              />
-            </ProjectProvider>
+            <PortalRootProvider>
+              <ProjectProvider getProjects={() => resolve([])}>
+                <CreateProjectDialog
+                  open={true}
+                  onClose={() => void 0}
+                  createProjectFn={createProjectMock}
+                />
+              </ProjectProvider>
+            </PortalRootProvider>
           </ApiProvider>
         </MemoryRouter>
       )
@@ -196,13 +207,15 @@ describe('CreateProjectDialog', () => {
       render(
         <MemoryRouter>
           <ApiProvider client={apiClient}>
-            <ProjectProvider getProjects={() => resolve([])}>
-              <CreateProjectDialog
-                open={true}
-                onClose={() => void 0}
-                createProjectFn={createProjectMock}
-              />
-            </ProjectProvider>
+            <PortalRootProvider>
+              <ProjectProvider getProjects={() => resolve([])}>
+                <CreateProjectDialog
+                  open={true}
+                  onClose={() => void 0}
+                  createProjectFn={createProjectMock}
+                />
+              </ProjectProvider>
+            </PortalRootProvider>
           </ApiProvider>
         </MemoryRouter>
       )
@@ -234,15 +247,17 @@ describe('CreateProjectDialog', () => {
       render(
         <MemoryRouter>
           <ApiProvider client={apiClient}>
-            <ProjectProvider getProjects={() => resolve([])}>
-              <CreateProjectDialog
-                open={true}
-                onClose={onClose}
-                createProjectFn={createProjectMock}
-                addProjectFn={addProjectSpy}
-                navigateFn={navigateSpy}
-              />
-            </ProjectProvider>
+            <PortalRootProvider>
+              <ProjectProvider getProjects={() => resolve([])}>
+                <CreateProjectDialog
+                  open={true}
+                  onClose={onClose}
+                  createProjectFn={createProjectMock}
+                  addProjectFn={addProjectSpy}
+                  navigateFn={navigateSpy}
+                />
+              </ProjectProvider>
+            </PortalRootProvider>
           </ApiProvider>
         </MemoryRouter>
       )
@@ -271,13 +286,15 @@ describe('CreateProjectDialog', () => {
       render(
         <MemoryRouter>
           <ApiProvider client={apiClient}>
-            <ProjectProvider getProjects={() => resolve([])}>
-              <CreateProjectDialog
-                open={true}
-                onClose={() => void 0}
-                createProjectFn={createProjectMock}
-              />
-            </ProjectProvider>
+            <PortalRootProvider>
+              <ProjectProvider getProjects={() => resolve([])}>
+                <CreateProjectDialog
+                  open={true}
+                  onClose={() => void 0}
+                  createProjectFn={createProjectMock}
+                />
+              </ProjectProvider>
+            </PortalRootProvider>
           </ApiProvider>
         </MemoryRouter>
       )
@@ -304,13 +321,15 @@ describe('CreateProjectDialog', () => {
       render(
         <MemoryRouter>
           <ApiProvider client={apiClient}>
-            <ProjectProvider getProjects={() => resolve([])}>
-              <CreateProjectDialog
-                open={true}
-                onClose={() => void 0}
-                createProjectFn={createProjectMock}
-              />
-            </ProjectProvider>
+            <PortalRootProvider>
+              <ProjectProvider getProjects={() => resolve([])}>
+                <CreateProjectDialog
+                  open={true}
+                  onClose={() => void 0}
+                  createProjectFn={createProjectMock}
+                />
+              </ProjectProvider>
+            </PortalRootProvider>
           </ApiProvider>
         </MemoryRouter>
       )
@@ -339,9 +358,11 @@ describe('CreateProjectDialog', () => {
       render(
         <MemoryRouter>
           <ApiProvider client={apiClient}>
-            <ProjectProvider getProjects={() => resolve([])}>
-              <CreateProjectDialog open={true} onClose={onClose} />
-            </ProjectProvider>
+            <PortalRootProvider>
+              <ProjectProvider getProjects={() => resolve([])}>
+                <CreateProjectDialog open={true} onClose={onClose} />
+              </ProjectProvider>
+            </PortalRootProvider>
           </ApiProvider>
         </MemoryRouter>
       )

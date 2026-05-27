@@ -1,6 +1,6 @@
 import { ApiProvider, createApiClient } from '@repro/api-client'
 import { createAtom } from '@repro/atom'
-import { ConfirmDialogProvider } from '@repro/design'
+import { ConfirmDialogProvider, PortalRootProvider } from '@repro/design'
 import { User } from '@repro/domain'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import { resolve } from 'fluture'
@@ -78,15 +78,17 @@ function TestAuthProvider({ children }: React.PropsWithChildren) {
 function renderSettingsRoute() {
   return render(
     <ApiProvider client={apiClient}>
-      <ConfirmDialogProvider>
-        <TestAuthProvider>
-          <MemoryRouter initialEntries={['/settings/api-keys']}>
-            <Routes>
-              <Route path="/settings/*" element={<SettingsRoute />} />
-            </Routes>
-          </MemoryRouter>
-        </TestAuthProvider>
-      </ConfirmDialogProvider>
+      <PortalRootProvider>
+        <ConfirmDialogProvider>
+          <TestAuthProvider>
+            <MemoryRouter initialEntries={['/settings/api-keys']}>
+              <Routes>
+                <Route path="/settings/*" element={<SettingsRoute />} />
+              </Routes>
+            </MemoryRouter>
+          </TestAuthProvider>
+        </ConfirmDialogProvider>
+      </PortalRootProvider>
     </ApiProvider>
   )
 }
@@ -106,15 +108,17 @@ describe('SettingsRoute', () => {
   it('renders the account settings page at /settings/account', async () => {
     render(
       <ApiProvider client={apiClient}>
-        <ConfirmDialogProvider>
-          <TestAuthProvider>
-            <MemoryRouter initialEntries={['/settings/account']}>
-              <Routes>
-                <Route path="/settings/*" element={<SettingsRoute />} />
-              </Routes>
-            </MemoryRouter>
-          </TestAuthProvider>
-        </ConfirmDialogProvider>
+        <PortalRootProvider>
+          <ConfirmDialogProvider>
+            <TestAuthProvider>
+              <MemoryRouter initialEntries={['/settings/account']}>
+                <Routes>
+                  <Route path="/settings/*" element={<SettingsRoute />} />
+                </Routes>
+              </MemoryRouter>
+            </TestAuthProvider>
+          </ConfirmDialogProvider>
+        </PortalRootProvider>
       </ApiProvider>
     )
 

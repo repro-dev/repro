@@ -14,8 +14,54 @@ export const ProjectSwitcher: React.FC<ProjectSwitcherProps> = () => {
   const [menuOpen, setMenuOpen] = useState(false)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
 
-  if (loading || !selectedProject) {
+  if (loading) {
     return null
+  }
+
+  if (!selectedProject) {
+    return (
+      <>
+        <Grid
+          padding={spacing.sm}
+          color={color.text.secondary}
+          fontSize={13}
+          fontWeight={500}
+          hoverBackgroundColor={color.bg.hover}
+        >
+          <Grid
+            gridTemplateColumns="auto 1fr"
+            inlineSize="100%"
+            component="button"
+            type="button"
+            alignItems="center"
+            gap={spacing.md}
+            padding={spacing.lg}
+            borderRadius={4}
+            cursor="pointer"
+            border="none"
+            background="none"
+            color={color.text.secondary}
+            fontSize={13}
+            fontWeight={500}
+            hoverBackgroundColor={color.bg.muted}
+            props={{
+              'aria-label': 'Create project',
+              onClick: () => setShowCreateDialog(true),
+            }}
+          >
+            <FolderIcon size={14} />
+            <Block flexGrow={1} textAlign="left">
+              Create project
+            </Block>
+          </Grid>
+        </Grid>
+
+        <CreateProjectDialog
+          open={showCreateDialog}
+          onClose={() => setShowCreateDialog(false)}
+        />
+      </>
+    )
   }
 
   return (

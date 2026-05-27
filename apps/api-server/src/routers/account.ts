@@ -133,18 +133,13 @@ export function createAccountRouter(
         respondWith(
           res,
           go(function* () {
-            yield ensureUserDoesNotExist(req.body.email)
-
-            const account: Account = yield accountService.createAccount(
-              req.body.accountName
-            )
-
-            const user: User = yield accountService.createUser(
-              account.id,
-              req.body.userName,
-              req.body.email,
-              req.body.password
-            )
+            const { account, user }: { account: Account; user: User } =
+              yield accountService.createRegisteredAccount(
+                req.body.accountName,
+                req.body.userName,
+                req.body.email,
+                req.body.password
+              )
 
             yield accountService.sendVerificationEmail(user.id, {
               context: {

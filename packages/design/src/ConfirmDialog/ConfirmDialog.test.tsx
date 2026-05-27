@@ -2,15 +2,20 @@ import { cleanup, fireEvent, render } from '@testing-library/react'
 import expect from 'expect'
 import { afterEach, describe, it } from 'node:test'
 import React, { act } from 'react'
+import { PortalRootProvider } from '../Portal'
 import { ConfirmDialog } from './ConfirmDialog'
 import { ConfirmDialogProvider } from './ConfirmDialogProvider'
 import { useConfirm } from './useConfirm'
 
 afterEach(cleanup)
 
+function renderWithPortal(ui: React.ReactElement) {
+  return render(<PortalRootProvider>{ui}</PortalRootProvider>)
+}
+
 describe('ConfirmDialog', () => {
   it('renders dialog when open', () => {
-    render(
+    renderWithPortal(
       <ConfirmDialog
         open={true}
         onConfirm={() => {}}
@@ -24,7 +29,7 @@ describe('ConfirmDialog', () => {
   })
 
   it('does not render when not open', () => {
-    render(
+    renderWithPortal(
       <ConfirmDialog
         open={false}
         onConfirm={() => {}}
@@ -38,7 +43,7 @@ describe('ConfirmDialog', () => {
   })
 
   it('displays title', () => {
-    render(
+    renderWithPortal(
       <ConfirmDialog
         open={true}
         onConfirm={() => {}}
@@ -51,7 +56,7 @@ describe('ConfirmDialog', () => {
   })
 
   it('displays description when provided', () => {
-    render(
+    renderWithPortal(
       <ConfirmDialog
         open={true}
         onConfirm={() => {}}
@@ -67,7 +72,7 @@ describe('ConfirmDialog', () => {
   it('calls onConfirm when confirm button is clicked', async () => {
     let confirmed = false
 
-    render(
+    renderWithPortal(
       <ConfirmDialog
         open={true}
         onConfirm={() => {
@@ -94,7 +99,7 @@ describe('ConfirmDialog', () => {
   it('calls onCancel when cancel button is clicked', async () => {
     let cancelled = false
 
-    render(
+    renderWithPortal(
       <ConfirmDialog
         open={true}
         onConfirm={() => {}}
@@ -119,7 +124,7 @@ describe('ConfirmDialog', () => {
   })
 
   it('destructive variant applies danger context to confirm button', () => {
-    render(
+    renderWithPortal(
       <ConfirmDialog
         open={true}
         onConfirm={() => {}}
@@ -157,7 +162,7 @@ describe('useConfirm', () => {
       )
     }
 
-    render(
+    renderWithPortal(
       <ConfirmDialogProvider>
         <TestComponent />
       </ConfirmDialogProvider>
@@ -200,7 +205,7 @@ describe('useConfirm', () => {
       )
     }
 
-    render(
+    renderWithPortal(
       <ConfirmDialogProvider>
         <TestComponent />
       </ConfirmDialogProvider>

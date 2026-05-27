@@ -67,11 +67,37 @@ describe('ProjectSwitcher', () => {
     localStorageMock.clear()
   })
 
-  it('renders no switcher controls when there are no projects', async () => {
+  it('renders the zero-project create action as the project selector control', async () => {
     renderProjectSwitcher({ projects: [] })
 
+    const createProjectButton = await screen.findByRole('button', {
+      name: /^create project$/i,
+    })
+
+    assert.equal(createProjectButton.textContent, 'Create project')
+    assert.ok(
+      createProjectButton.querySelector('svg'),
+      'Expected the zero-project selector action to keep the project icon treatment'
+    )
+    assert.equal(
+      screen.getAllByRole('button', { name: /^create project$/i }).length,
+      1
+    )
+    assert.equal(
+      screen.queryByRole('button', { name: /switch project/i }),
+      null
+    )
+  })
+
+  it('opens the create project dialog from the zero-project action', async () => {
+    renderProjectSwitcher({ projects: [] })
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: /create project/i })
+    )
+
     await waitFor(() => {
-      assert.equal(screen.queryByRole('button'), null)
+      assert.ok(screen.getByRole('dialog', { name: /create project/i }))
     })
   })
 

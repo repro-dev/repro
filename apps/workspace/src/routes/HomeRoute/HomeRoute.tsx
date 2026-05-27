@@ -7,9 +7,8 @@ import { getProjectRecordings as defaultGetProjectRecordings } from '@repro/work
 import { FutureInstance, resolve } from 'fluture'
 import { PuzzleIcon } from 'lucide-react'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { CreateProjectDialog } from '~/components/CreateProjectDialog'
 import { useProjectContext } from '~/ProjectContext'
-import { SessionTable } from './SessionTable'
-import { SessionTableToolbar } from './SessionTableToolbar'
 import {
   deriveVisibleSessionRecordings,
   getDefaultSessionListFilters,
@@ -21,6 +20,8 @@ import {
   type SessionListFilters,
   type SessionListSortOrder,
 } from './sessionListControls'
+import { SessionTable } from './SessionTable'
+import { SessionTableToolbar } from './SessionTableToolbar'
 
 // The real Chrome Web Store listing for the Repro capture extension.
 const CHROME_WEB_STORE_URL =
@@ -43,9 +44,10 @@ export const HomeRoute = ({
   getProjectRecordings = defaultGetProjectRecordings,
 }: Props) => {
   const apiClient = useApiClient()
-  const { selectedProject } = useProjectContext()
+  const { selectedProject, loading: projectsLoading } = useProjectContext()
 
   const projectId = selectedProject?.id ?? null
+  const [showCreateDialog, setShowCreateDialog] = useState(false)
 
   const [sortOrder, setSortOrder] = useState<SessionListSortOrder>(() =>
     readSessionListSortOrder(globalThis.localStorage)
@@ -84,7 +86,7 @@ export const HomeRoute = ({
   }, [loading, projectId])
 
   const isDataCurrent = confirmedProjectId === projectId
-  const effectiveLoading = loading || !isDataCurrent
+  const effectiveLoading = projectsLoading || loading || !isDataCurrent
 
   const currentProjectId = isDataCurrent ? confirmedProjectId : null
   const items: RecordingInfo[] = isDataCurrent ? recordings ?? [] : []
@@ -216,7 +218,50 @@ export const HomeRoute = ({
     )
   }
 
-  if (!currentProjectId || items.length === 0) {
+  if (!currentProjectId) {
+    return (
+      <>
+        <PageFrame>
+          <PageFrame.Header>
+            <PageFrame.Title>Sessions</PageFrame.Title>
+          </PageFrame.Header>
+
+          <PageFrame.Body>
+            <EmptyState>
+              <EmptyState.Icon>
+                <PuzzleIcon size={48} />
+              </EmptyState.Icon>
+
+              <EmptyState.Title>Create your first project</EmptyState.Title>
+
+              <EmptyState.Description>
+                Projects organize recordings and uploads for your workspace.
+                Create one to start capturing sessions.
+              </EmptyState.Description>
+
+              <EmptyState.Action>
+                <Button
+                  variant="contained"
+                  context="info"
+                  size="large"
+                  onClick={() => setShowCreateDialog(true)}
+                >
+                  Create project
+                </Button>
+              </EmptyState.Action>
+            </EmptyState>
+          </PageFrame.Body>
+        </PageFrame>
+
+        <CreateProjectDialog
+          open={showCreateDialog}
+          onClose={() => setShowCreateDialog(false)}
+        />
+      </>
+    )
+  }
+
+  if (items.length === 0) {
     return (
       <PageFrame>
         <PageFrame.Header>

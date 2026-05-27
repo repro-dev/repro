@@ -3,12 +3,14 @@ import { FastifyInstance } from 'fastify'
 import { promise } from 'fluture'
 import { sendEmail as defaultSendEmail } from '~/modules/email'
 import { AccountService } from '~/services/account'
+import { ProjectService } from '~/services/project'
 import { Harness, createTestHarness } from '~/testing'
 import { createAccountRouter } from './account'
 
 export type AccountTestContext = {
   harness: Harness
   accountService: AccountService
+  projectService: ProjectService
   app: FastifyInstance
 }
 
@@ -21,6 +23,7 @@ export async function createAccountTestContext({
 } = {}): Promise<AccountTestContext> {
   const harness = await createTestHarness({ sendEmail })
   const accountService = harness.services.accountService
+  const projectService = harness.services.projectService
   const app = harness.bootstrap(async app => {
     if (prefix == null) {
       await app.register(
@@ -39,7 +42,7 @@ export async function createAccountTestContext({
 
   await app.ready()
 
-  return { harness, accountService, app }
+  return { harness, accountService, projectService, app }
 }
 
 export function getSessionTokenFromResponse(

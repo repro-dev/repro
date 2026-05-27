@@ -1,5 +1,6 @@
 import { ApiProvider, createApiClient } from '@repro/api-client'
 import { createAtom } from '@repro/atom'
+import { PortalRootProvider } from '@repro/design'
 import { AccountSettingsSummary, User } from '@repro/domain'
 import {
   act,
@@ -90,21 +91,23 @@ function renderRoute({
 }: TestProps = {}) {
   return render(
     <ApiProvider client={apiClient}>
-      <MemoryRouter initialEntries={['/settings/account']}>
-        <Routes>
-          <Route path="/login" element={<div>Login page</div>} />
-          <Route
-            path="/settings/account"
-            element={
-              <AccountSettingsRoute
-                getAccountSettings={getAccountSettings as any}
-                renameAccount={renameAccount as any}
-                deleteAccount={deleteAccount as any}
-              />
-            }
-          />
-        </Routes>
-      </MemoryRouter>
+      <PortalRootProvider>
+        <MemoryRouter initialEntries={['/settings/account']}>
+          <Routes>
+            <Route path="/login" element={<div>Login page</div>} />
+            <Route
+              path="/settings/account"
+              element={
+                <AccountSettingsRoute
+                  getAccountSettings={getAccountSettings as any}
+                  renameAccount={renameAccount as any}
+                  deleteAccount={deleteAccount as any}
+                />
+              }
+            />
+          </Routes>
+        </MemoryRouter>
+      </PortalRootProvider>
     </ApiProvider>
   )
 }
@@ -123,18 +126,20 @@ function renderConnectedRoute(session: User | null) {
       }}
     >
       <ApiProvider client={apiClient}>
-        <MemoryRouter initialEntries={['/settings/account']}>
-          <Routes>
-            <Route
-              path="/settings/profile"
-              element={<div>Profile settings</div>}
-            />
-            <Route
-              path="/settings/*"
-              element={<AccountSettingsRouteConnected />}
-            />
-          </Routes>
-        </MemoryRouter>
+        <PortalRootProvider>
+          <MemoryRouter initialEntries={['/settings/account']}>
+            <Routes>
+              <Route
+                path="/settings/profile"
+                element={<div>Profile settings</div>}
+              />
+              <Route
+                path="/settings/*"
+                element={<AccountSettingsRouteConnected />}
+              />
+            </Routes>
+          </MemoryRouter>
+        </PortalRootProvider>
       </ApiProvider>
     </AuthContext.Provider>
   )
