@@ -2,13 +2,13 @@ import { Block, Col, Row } from '@jsxstyle/react'
 import { useApiClient } from '@repro/api-client'
 import {
   Alert,
-  Button,
   FormField,
   FullPageError,
   FullPageLoading,
   Input,
   Label,
   PageFrame,
+  Pagination,
   Select,
   Table,
   Text,
@@ -109,6 +109,7 @@ export const AccountsRoute: React.FC = () => {
   const [sortDirection, setSortDirection] =
     useState<AccountSortDirection>('desc')
   const cursor = cursorStack[cursorStack.length - 1]
+  const currentPage = cursorStack.length + 1
   const activeSortBy = sortBy ?? 'createdAt'
   const contentBleedWidth = `calc(100% + ${spacing['2xl'] * 2}px)`
   const path = useMemo(
@@ -216,6 +217,21 @@ export const AccountsRoute: React.FC = () => {
       setSortDirection(column === 'createdAt' ? 'desc' : 'asc')
       return column
     })
+  }
+
+  const updatePage = (page: number) => {
+    if (page === currentPage - 1 && cursorStack.length > 0) {
+      startRefreshProgress()
+      setCursorStack(stack => stack.slice(0, -1))
+      return
+    }
+
+    const nextCursor = result.data?.nextCursor
+
+    if (page === currentPage + 1 && nextCursor) {
+      startRefreshProgress()
+      setCursorStack(stack => [...stack, nextCursor])
+    }
   }
 
   if (result.error && displayedResponse == null) {
@@ -398,35 +414,24 @@ export const AccountsRoute: React.FC = () => {
               </Block>
             )}
 
-            <Row justifyContent="space-between" alignItems="center">
-              <Button
-                variant="outlined"
-                disabled={cursorStack.length === 0}
-                onClick={() => {
-                  startRefreshProgress()
-                  setCursorStack(stack => stack.slice(0, -1))
-                }}
-              >
-                Previous page
-              </Button>
+            <Row
+              justifyContent="space-between"
+              alignItems="center"
+              gap={spacing.md}
+              flexWrap="wrap"
+            >
               <Text variant="bodySmall" color={color.text.muted}>
                 Showing up to 50 accounts per page
               </Text>
-              <Button
-                variant="outlined"
-                disabled={!result.data?.nextCursor}
-                onClick={() => {
-                  startRefreshProgress()
-                  if (result.data?.nextCursor) {
-                    setCursorStack(stack => [
-                      ...stack,
-                      result.data!.nextCursor!,
-                    ])
-                  }
-                }}
-              >
-                Next page
-              </Button>
+              {/* Accounts is cursor-backed, so direct numbered jumps are unavailable without a cursor map. */}
+              <Pagination
+                currentPage={currentPage}
+                hasPreviousPage={cursorStack.length > 0}
+                hasNextPage={Boolean(result.data?.nextCursor)}
+                pending={isRefreshingAccounts}
+                ariaLabel="Accounts pagination"
+                onPageChange={updatePage}
+              />
             </Row>
           </Col>
         </Block>

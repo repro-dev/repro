@@ -158,9 +158,9 @@ packages/design/
    ```
 
 6. **Verify**:
-   - Run `moon run design:typecheck`
-   - Run `moon run storybook-ui:typecheck`
-   - Run `moon run storybook-ui:dev` and visually check in Storybook
+   - Run `moon run repro/design:typecheck`
+   - Run `moon run repro/storybook-ui:typecheck`
+   - Run `moon run repro/storybook-ui:dev` and visually check in Storybook
 
 ## How to Modify an Existing Component
 
@@ -169,9 +169,9 @@ packages/design/
 3. **Make changes** — use tokens for all values, preserve the existing prop interface, add JSDoc if missing
 4. **Update stories** if the change adds new props, variants, or visual states
 5. **Verify**:
-   - `moon run design:typecheck`
-   - `moon run storybook-ui:typecheck`
-   - Visually check in Storybook (`moon run storybook-ui:dev`)
+   - `moon run repro/design:typecheck`
+   - `moon run repro/storybook-ui:typecheck`
+   - Visually check in Storybook (`moon run repro/storybook-ui:dev`)
 
 ## Key Dependencies
 
@@ -188,14 +188,14 @@ packages/design/
 
 | Task | Command |
 |------|---------|
-| Typecheck | `moon run design:typecheck` |
-| Run tests | `moon run design:test` |
+| Typecheck | `moon run repro/design:typecheck` |
+| Run tests | `moon run repro/design:test` |
 | Run single test | `tsx --experimental-test-module-mocks --import=global-jsdom/register --test src/path/to/file.test.tsx` |
 | Format | `pnpm fmt` (from `packages/design/`) |
 | Lint | `pnpm lint` (from `packages/design/`) |
-| Storybook dev | `moon run storybook-ui:dev` |
-| Storybook build | `moon run storybook-ui:build` |
-| Storybook typecheck | `moon run storybook-ui:typecheck` |
+| Storybook dev | `moon run repro/storybook-ui:dev` |
+| Storybook build | `moon run repro/storybook-ui:build` |
+| Storybook typecheck | `moon run repro/storybook-ui:typecheck` |
 
 ## Common Pitfalls
 

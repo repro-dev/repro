@@ -10,6 +10,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react'
 import { resolve } from 'fluture'
 import assert from 'node:assert/strict'
@@ -218,7 +219,7 @@ describe('AccountDetailRoute', () => {
     )
   })
 
-  it('loads additional user pages so users beyond the first page become visible', async () => {
+  it('navigates user pages with cursor-backed pagination', async () => {
     const requests: string[] = []
     const firstPageUser = users[0]!
     const secondPageUser: StaffUserDetail = {
@@ -262,17 +263,65 @@ describe('AccountDetailRoute', () => {
 
     await waitFor(() => assert.ok(screen.getByText('Owner User')))
     assert.equal(screen.queryByText('Second Page User'), null)
+    assert.ok(
+      screen.getByRole('navigation', { name: 'Account users pagination' })
+    )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Load more users' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
 
     await waitFor(() => assert.ok(screen.getByText('Second Page User')))
-    assert.ok(screen.getByText('owner@acme.test'))
+    assert.equal(screen.queryByText('owner@acme.test'), null)
     assert.ok(screen.getByText('second-page@acme.test'))
     assert.ok(
       requests.includes(
         '/staff/accounts/account-1/users?limit=50&cursor=user-50'
       )
     )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Previous page' }))
+
+    await waitFor(() => assert.ok(screen.getByText('Owner User')))
+    assert.equal(screen.queryByText('Second Page User'), null)
+    assert.equal(
+      requests.filter(
+        path => path === '/staff/accounts/account-1/users?limit=50'
+      ).length,
+      2
+    )
+  })
+
+  it('paginates loaded projects within the projects tab', async () => {
+    const manyProjects = Array.from({ length: 51 }, (_, index) => ({
+      id: `project-${index + 1}`,
+      name: `Project ${index + 1}`,
+      active: true,
+      createdAt: '2026-04-03T10:30:00.000Z',
+      recordingCount: index + 1,
+    })) satisfies StaffAccountProject[]
+
+    renderRoute({ projectItems: manyProjects })
+
+    await waitFor(() =>
+      assert.ok(screen.getByRole('heading', { name: 'Acme Workspace' }))
+    )
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Projects' }))
+
+    assert.ok(
+      screen.getByRole('navigation', { name: 'Account projects pagination' })
+    )
+    assert.ok(screen.getByText('Project 1'))
+    assert.equal(screen.queryByText('Project 51'), null)
+
+    const projectsPagination = screen.getByRole('navigation', {
+      name: 'Account projects pagination',
+    })
+    fireEvent.click(
+      within(projectsPagination).getByRole('button', { name: 'Next page' })
+    )
+
+    await waitFor(() => assert.ok(screen.getByText('Project 51')))
+    assert.equal(screen.queryByText('Project 1'), null)
   })
 
   it('renders cancelled subscription status in British English without badge styling dependency', async () => {
