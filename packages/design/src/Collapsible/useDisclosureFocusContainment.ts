@@ -41,7 +41,10 @@ export function useDisclosureFocusContainment(
     )
 
     if (isOpen) {
-      focusableElements.forEach(restoreTabIndex)
+      const elementsWithSuppressedFocus = Array.from(
+        panel.querySelectorAll<HTMLElement>(`[${previousTabIndexAttribute}]`)
+      )
+      elementsWithSuppressedFocus.forEach(restoreTabIndex)
       return
     }
 

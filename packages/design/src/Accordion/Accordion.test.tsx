@@ -248,6 +248,7 @@ describe('Accordion focus containment', () => {
           <Accordion.Trigger>Billing</Accordion.Trigger>
           <Accordion.Content>
             <a href="/billing">Billing link</a>
+            <div tabIndex={0}>Custom billing focus target</div>
             <input aria-label="Billing filter" tabIndex={2} />
           </Accordion.Content>
         </Accordion.Item>
@@ -257,11 +258,14 @@ describe('Accordion focus containment', () => {
     const trigger = document.querySelector<HTMLButtonElement>('button')!
     const region = document.querySelector<HTMLElement>('[role="region"]')!
     const link = document.querySelector<HTMLAnchorElement>('a')!
+    const customFocusTarget =
+      document.querySelector<HTMLDivElement>('div[tabindex]')!
     const input = document.querySelector<HTMLInputElement>('input')!
 
     expect(region.getAttribute('aria-hidden')).toBe('true')
     expect(region.hasAttribute('inert')).toBe(true)
     expect(link.tabIndex).toBe(-1)
+    expect(customFocusTarget.tabIndex).toBe(-1)
     expect(input.tabIndex).toBe(-1)
 
     act(() => {
@@ -271,6 +275,7 @@ describe('Accordion focus containment', () => {
     expect(region.getAttribute('aria-hidden')).toBe('false')
     expect(region.hasAttribute('inert')).toBe(false)
     expect(link.getAttribute('tabindex')).toBe(null)
+    expect(customFocusTarget.getAttribute('tabindex')).toBe('0')
     expect(input.getAttribute('tabindex')).toBe('2')
   })
 })
