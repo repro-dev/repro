@@ -42,6 +42,7 @@ export const Accordion = forwardRef<HTMLDivElement, AccordionProps>(
     const rootRef = useRef<HTMLDivElement>(null)
     const [internalValue, setInternalValue] =
       useState<AccordionValue>(defaultValue)
+    const [activeValue, setActiveValue] = useState<string | null>(null)
     const isControlled = value !== undefined
     const currentValue = isControlled ? value : internalValue
 
@@ -117,15 +118,27 @@ export const Accordion = forwardRef<HTMLDivElement, AccordionProps>(
         }
 
         if (nextIndex !== null) {
-          enabledTriggers[nextIndex]?.focus()
+          const nextTrigger = enabledTriggers[nextIndex]
+          const nextValue = nextTrigger?.dataset.reproAccordionValue
+          if (nextTrigger && nextValue) {
+            setActiveValue(nextValue)
+            nextTrigger.focus()
+          }
         }
       },
       [getEnabledTriggers]
     )
 
     const context = useMemo(
-      () => ({ mode, baseId, isItemOpen, toggleItem }),
-      [baseId, isItemOpen, mode, toggleItem]
+      () => ({
+        mode,
+        baseId,
+        activeValue,
+        setActiveValue,
+        isItemOpen,
+        toggleItem,
+      }),
+      [activeValue, baseId, isItemOpen, mode, toggleItem]
     )
 
     return (

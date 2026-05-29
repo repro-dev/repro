@@ -92,4 +92,32 @@ describe('Collapsible', () => {
     expect(trigger.getAttribute('aria-controls')).toBe(region.id)
     expect(region.getAttribute('aria-labelledby')).toBe(trigger.id)
   })
+
+  it('suppresses focusable descendants while closed', () => {
+    render(
+      <Collapsible trigger="Advanced settings">
+        <a href="/advanced">Advanced link</a>
+        <input aria-label="Advanced filter" tabIndex={3} />
+      </Collapsible>
+    )
+
+    const trigger = document.querySelector<HTMLButtonElement>('button')!
+    const region = document.querySelector<HTMLElement>('[role="region"]')!
+    const link = document.querySelector<HTMLAnchorElement>('a')!
+    const input = document.querySelector<HTMLInputElement>('input')!
+
+    expect(region.getAttribute('aria-hidden')).toBe('true')
+    expect(region.hasAttribute('inert')).toBe(true)
+    expect(link.tabIndex).toBe(-1)
+    expect(input.tabIndex).toBe(-1)
+
+    act(() => {
+      trigger.click()
+    })
+
+    expect(region.getAttribute('aria-hidden')).toBe('false')
+    expect(region.hasAttribute('inert')).toBe(false)
+    expect(link.getAttribute('tabindex')).toBe(null)
+    expect(input.getAttribute('tabindex')).toBe('3')
+  })
 })

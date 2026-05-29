@@ -2,6 +2,7 @@ import { Block } from '@jsxstyle/react'
 import React, { forwardRef } from 'react'
 import mergeRefs from 'react-merge-refs'
 import { useDisclosureAnimation } from '../Collapsible/useDisclosureAnimation'
+import { useDisclosureFocusContainment } from '../Collapsible/useDisclosureFocusContainment'
 import { color } from '../tokens/colors'
 import { spacing } from '../tokens/spacing'
 import { textStyles } from '../tokens/typography'
@@ -24,18 +25,25 @@ export const AccordionContent = forwardRef<
   const { value, triggerId, contentId } = useAccordionItemContext()
   const isOpen = isItemOpen(value)
   const { contentRef, contentStyle } = useDisclosureAnimation(isOpen)
+  useDisclosureFocusContainment(contentRef, isOpen)
 
   return (
     <Block
       overflow="hidden"
-      props={{
-        ref: mergeRefs([ref, contentRef]),
-        id: contentId,
-        role: 'region',
-        'aria-labelledby': triggerId,
-        'aria-hidden': !isOpen,
-        style: contentStyle,
-      }}
+      props={
+        {
+          ref: mergeRefs([ref, contentRef]),
+          id: contentId,
+          role: 'region',
+          inert: !isOpen ? '' : undefined,
+          'aria-labelledby': triggerId,
+          'aria-hidden': !isOpen,
+          style: contentStyle,
+        } as React.HTMLAttributes<HTMLDivElement> & {
+          ref: React.Ref<HTMLDivElement>
+          inert?: string
+        }
+      }
     >
       <Block
         paddingH={spacing.lg}

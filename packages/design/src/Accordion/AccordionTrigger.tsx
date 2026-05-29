@@ -1,6 +1,6 @@
 import { Block, Row } from '@jsxstyle/react'
 import { ChevronDown } from 'lucide-react'
-import React, { forwardRef } from 'react'
+import React, { forwardRef, useEffect } from 'react'
 import { color } from '../tokens/colors'
 import { focusRing } from '../tokens/interaction'
 import { transition } from '../tokens/motion'
@@ -21,11 +21,23 @@ export const AccordionTrigger = forwardRef<
   HTMLButtonElement,
   AccordionTriggerProps
 >(({ children }, ref) => {
-  const { isItemOpen, toggleItem } = useAccordionContext()
+  const { activeValue, isItemOpen, setActiveValue, toggleItem } =
+    useAccordionContext()
   const { value, disabled, triggerId, contentId } = useAccordionItemContext()
   const isOpen = isItemOpen(value)
+  const isActive = !disabled && (activeValue === null || activeValue === value)
+
+  useEffect(() => {
+    if (!disabled && activeValue === null) {
+      setActiveValue(currentValue => currentValue ?? value)
+    }
+  }, [activeValue, disabled, setActiveValue, value])
+
   const handleToggle = () => {
-    if (!disabled) toggleItem(value)
+    if (!disabled) {
+      setActiveValue(value)
+      toggleItem(value)
+    }
   }
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
@@ -56,14 +68,18 @@ export const AccordionTrigger = forwardRef<
           id: triggerId,
           type: 'button',
           disabled: disabled || undefined,
+          tabIndex: isActive ? 0 : -1,
           'aria-expanded': isOpen,
           'aria-controls': contentId,
           'data-repro-accordion-trigger': '',
+          'data-repro-accordion-value': value,
           onClick: handleToggle,
+          onFocus: disabled ? undefined : () => setActiveValue(value),
           onKeyDown: handleKeyDown,
         } as React.ButtonHTMLAttributes<HTMLButtonElement> & {
           ref: React.ForwardedRef<HTMLButtonElement>
           'data-repro-accordion-trigger': string
+          'data-repro-accordion-value': string
         }
       }
     >

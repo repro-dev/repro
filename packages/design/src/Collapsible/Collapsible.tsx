@@ -9,6 +9,7 @@ import { transition } from '../tokens/motion'
 import { spacing } from '../tokens/spacing'
 import { textStyles } from '../tokens/typography'
 import { useDisclosureAnimation } from './useDisclosureAnimation'
+import { useDisclosureFocusContainment } from './useDisclosureFocusContainment'
 
 export interface CollapsibleProps {
   trigger: React.ReactNode
@@ -45,6 +46,7 @@ export const Collapsible = forwardRef<HTMLDivElement, CollapsibleProps>(
     const triggerId = `${stableId}-trigger`
     const contentId = `${stableId}-content`
     const { contentRef, contentStyle } = useDisclosureAnimation(isOpen)
+    useDisclosureFocusContainment(contentRef, isOpen)
 
     const handleToggle = () => {
       if (disabled) return
@@ -100,14 +102,20 @@ export const Collapsible = forwardRef<HTMLDivElement, CollapsibleProps>(
         </Row>
         <Block
           overflow="hidden"
-          props={{
-            ref: mergeRefs([contentRef]),
-            id: contentId,
-            role: 'region',
-            'aria-labelledby': triggerId,
-            'aria-hidden': !isOpen,
-            style: contentStyle,
-          }}
+          props={
+            {
+              ref: mergeRefs([contentRef]),
+              id: contentId,
+              role: 'region',
+              inert: !isOpen ? '' : undefined,
+              'aria-labelledby': triggerId,
+              'aria-hidden': !isOpen,
+              style: contentStyle,
+            } as React.HTMLAttributes<HTMLDivElement> & {
+              ref: React.Ref<HTMLDivElement>
+              inert?: string
+            }
+          }
         >
           <Block
             paddingH={spacing.lg}

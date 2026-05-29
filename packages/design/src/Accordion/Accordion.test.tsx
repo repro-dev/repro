@@ -214,9 +214,64 @@ describe('Accordion keyboard navigation', () => {
 
     act(() => {
       pressKey('ArrowDown', input)
+      pressKey('Home', input)
+      pressKey('End', input)
     })
 
     expect(document.activeElement).toBe(input)
+  })
+
+  it('uses roving tabindex for enabled triggers', () => {
+    renderAccordion()
+
+    const triggers = document.querySelectorAll<HTMLButtonElement>('button')
+
+    expect(triggers[0]!.tabIndex).toBe(0)
+    expect(triggers[1]!.tabIndex).toBe(-1)
+    expect(triggers[2]!.tabIndex).toBe(-1)
+
+    act(() => {
+      triggers[0]!.focus()
+      pressKey('ArrowDown')
+    })
+
+    expect(triggers[0]!.tabIndex).toBe(-1)
+    expect(triggers[2]!.tabIndex).toBe(0)
+  })
+})
+
+describe('Accordion focus containment', () => {
+  it('suppresses focusable descendants while a panel is closed', () => {
+    render(
+      <Accordion defaultValue={null}>
+        <Accordion.Item value="billing">
+          <Accordion.Trigger>Billing</Accordion.Trigger>
+          <Accordion.Content>
+            <a href="/billing">Billing link</a>
+            <input aria-label="Billing filter" tabIndex={2} />
+          </Accordion.Content>
+        </Accordion.Item>
+      </Accordion>
+    )
+
+    const trigger = document.querySelector<HTMLButtonElement>('button')!
+    const region = document.querySelector<HTMLElement>('[role="region"]')!
+    const link = document.querySelector<HTMLAnchorElement>('a')!
+    const input = document.querySelector<HTMLInputElement>('input')!
+
+    expect(region.getAttribute('aria-hidden')).toBe('true')
+    expect(region.hasAttribute('inert')).toBe(true)
+    expect(link.tabIndex).toBe(-1)
+    expect(input.tabIndex).toBe(-1)
+
+    act(() => {
+      trigger.click()
+    })
+
+    expect(region.getAttribute('aria-hidden')).toBe('false')
+    expect(region.hasAttribute('inert')).toBe(false)
+    expect(link.getAttribute('tabindex')).toBe(null)
+    expect(input.getAttribute('tabindex')).toBe('2')
   })
 })
 
