@@ -258,6 +258,32 @@ else
 fi
 "
 
+run_git_test "cmd_wt_prune removes stale merged worktree with ignored Moon artifacts" "
+$COMMON_SETUP
+printf '.moon/\n' >\"\$_main/.gitignore\"
+git -C \"\$_main\" add .gitignore >/dev/null 2>&1
+git -C \"\$_main\" commit -m \"ignore moon cache\" >/dev/null 2>&1
+wt_dir=\"\$(_add_worktree stale-ignored-artifacts nonissue/stale-ignored-artifacts)\"
+mkdir -p \"\$wt_dir/.moon/cache\"
+printf '{}\n' >\"\$wt_dir/.moon/cache/runReport.json\"
+_src_wt
+WT_DRY_RUN=false WT_FORCE=false WT_YES=true
+git() {
+  if [[ \"\$1\" = worktree && \"\$2\" = remove && \"\$3\" != --force && -f \"\$3/.moon/cache/runReport.json\" ]]; then
+    printf 'fatal: %s contains ignored files; use --force to delete it\n' \"\$3\" >&2
+    return 1
+  fi
+  command git \"\$@\"
+}
+rc=0
+output=\"\$(cmd_wt_prune 2>&1)\" || rc=\$?
+if [[ \"\$rc\" -eq 0 && ! -d \"\$wt_dir\" ]]; then
+  echo PASS
+else
+  echo \"FAIL:rc=\$rc wt_exists=\$(test -d \"\$wt_dir\" && echo yes || echo no) output=\$output\"
+fi
+"
+
 run_git_test "cmd_wt_prune removes terminal issue worktree without other protections" "
 $COMMON_SETUP
 wt_dir=\"\$(_add_worktree rep-1302-done gary/rep-1302-done)\"
