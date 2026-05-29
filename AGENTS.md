@@ -22,6 +22,7 @@ This file is loaded automatically at session start. It covers cross-cutting rule
 - `database` — PostgreSQL, Kysely, migrations
 - `recording-playback` — capture/playback subsystem work
 - `agentic` — agentic debugger runtime, tools, UI, and API routes/services
+- `autobot` — Autobot phase agents, FlowCraft runtime, and session safety
 - `authentication`, `billing`, `dev-toolbar`, `api-server` — product/domain surfaces
 
 ### UI-specific skills
