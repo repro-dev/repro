@@ -1,27 +1,26 @@
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { describe, it, afterEach, mock } = require('node:test')
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const assert = require('node:assert/strict')
+import { SourceEventView } from '@repro/domain'
+import { List } from '@repro/tdl'
+import { act, render } from '@testing-library/react'
+import { resolve } from 'fluture'
+import assert from 'node:assert/strict'
+import { afterEach, before, describe, it, mock } from 'node:test'
+import React from 'react'
 
-// ----- Global tracking -----
+import type { RecordingActions } from './useRecordingActions'
+
 const trackedIntents: Array<{ type: string; payload: unknown }> = []
 let trackedAnalyticsEvent: string | null = null
 let trackedAnalyticsProps: Record<string, string> | null = null
 
-// ----- Mocks (registered once, top-level) -----
 mock.module('@repro/messaging', {
   namedExports: {
-    useMessaging: () => {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { resolve } = require('fluture')
-      return {
-        raiseIntent: (...args: Array<unknown>) => {
-          const intent = args[0] as { type: string; payload: unknown }
-          trackedIntents.push({ type: intent.type, payload: intent.payload })
-          return resolve('mock-upload-ref-123')
-        },
-      }
-    },
+    useMessaging: () => ({
+      raiseIntent: (...args: Array<unknown>) => {
+        const intent = args[0] as { type: string; payload: unknown }
+        trackedIntents.push({ type: intent.type, payload: intent.payload })
+        return resolve('mock-upload-ref-123')
+      },
+    }),
   },
 })
 
@@ -36,32 +35,26 @@ mock.module('@repro/analytics', {
   },
 })
 
-// Mock recording utils to avoid DataView parsing complexity
 mock.module('@repro/recording', {
   namedExports: {
     sliceEventsAtRange: (events: any) => events,
   },
 })
 
-// Now import the module under test and deps
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const React = require('react')
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { act, render } = require('@testing-library/react')
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { useRecordingActions } = require('./useRecordingActions')
+let useRecordingActions: ((
+  playback: any,
+  projectId: string | null,
+  recordingMode: any,
+  selectedDuration: number
+) => RecordingActions) & { mock?: any }
 
-// ----- Helpers -----
+before(async () => {
+  const mod = await import('./useRecordingActions')
+  useRecordingActions = mod.useRecordingActions
+})
 
 function createMockPlayback(overrides: Record<string, unknown> = {}) {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { SourceEventView } = require('@repro/domain')
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { List } = require('@repro/tdl')
-
-  // Use a minimal valid DataView so List.toSource() can return it
   const mockDataView = new DataView(new ArrayBuffer(8))
-  // Write a zero timestamp as float64 so SourceEventView.over doesn't throw
   mockDataView.setFloat64(0, 0, true)
 
   const mockEvents = new List(SourceEventView, [mockDataView])
@@ -108,28 +101,27 @@ const TestHarness: React.FC<{
 function renderHook(
   playback: ReturnType<typeof createMockPlayback>,
   projectId: string | null = 'proj-1',
-  recordingMode: number = 1, // RecordingMode.Replay
+  recordingMode: number = 1,
   selectedDuration: number = 60000
 ) {
   ;(globalThis as any).__testRecordingActions = null
 
   render(
-    React.createElement(TestHarness, {
-      playback,
-      projectId,
-      recordingMode,
-      selectedDuration,
-    })
+    <TestHarness
+      playback={playback}
+      projectId={projectId}
+      recordingMode={recordingMode}
+      selectedDuration={selectedDuration}
+    />
   )
 
-  const actions = (globalThis as any).__testRecordingActions
+  const actions = (globalThis as any)
+    .__testRecordingActions as RecordingActions | null
   if (!actions) {
     throw new Error('useRecordingActions did not set __testRecordingActions')
   }
   return actions
 }
-
-// ----- Tests -----
 
 describe('useRecordingActions', () => {
   afterEach(() => {
@@ -189,9 +181,8 @@ describe('useRecordingActions', () => {
 
     let appendedChild: HTMLElement | null = null
     const originalAppendChild = document.body.appendChild.bind(document.body)
-    document.body.appendChild = (child: HTMLElement) => {
-      appendedChild = child
-      // Actually append so removeChild works in the hook
+    document.body.appendChild = <T extends Node>(child: T) => {
+      appendedChild = child as unknown as HTMLElement
       return originalAppendChild(child)
     }
 
@@ -219,19 +210,23 @@ describe('useRecordingActions', () => {
     const playback = createMockPlayback()
     renderHook(playback, 'proj-1', 1, 60000)
 
-    const actions = (globalThis as any).__testRecordingActions
-    actions.enqueueUpload({ title: 'Test bug', description: 'Description' })
+    const actions = (globalThis as any)
+      .__testRecordingActions as RecordingActions | null
+    actions!.enqueueUpload({
+      title: 'Test bug',
+      description: 'Description',
+    })
 
     // Flush microtasks (fluture fork resolution) and React batch state updates
     await act(async () => {
       await new Promise(resolve => setTimeout(resolve, 0))
     })
 
-    // Re-read actions after React re-render
-    const updatedActions = (globalThis as any).__testRecordingActions
-    assert.equal(updatedActions.uploadState.isUploading, true)
-    assert.equal(updatedActions.uploadState.uploadRef, 'mock-upload-ref-123')
-    assert.equal(updatedActions.uploadState.error, null)
+    const updatedActions = (globalThis as any)
+      .__testRecordingActions as RecordingActions | null
+    assert.equal(updatedActions!.uploadState.isUploading, true)
+    assert.equal(updatedActions!.uploadState.uploadRef, 'mock-upload-ref-123')
+    assert.equal(updatedActions!.uploadState.error, null)
   })
 
   it('does not enqueue upload when projectId is null', () => {

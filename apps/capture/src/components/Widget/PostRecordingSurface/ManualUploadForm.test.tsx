@@ -1,9 +1,8 @@
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { describe, it, afterEach, mock } = require('node:test')
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const assert = require('node:assert/strict')
+import { cleanup, render, screen } from '@testing-library/react'
+import assert from 'node:assert/strict'
+import { afterEach, before, describe, it, mock } from 'node:test'
+import React from 'react'
 
-// Mock react-hook-form before imports
 mock.module('react-hook-form', {
   namedExports: {
     useForm: () => ({
@@ -17,12 +16,15 @@ mock.module('react-hook-form', {
   },
 })
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const React = require('react')
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { render, screen, cleanup } = require('@testing-library/react')
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { ManualUploadForm } = require('./ManualUploadForm')
+let ManualUploadForm: React.FC<{
+  onSubmit: (data: { title: string; description: string }) => void
+  isUploading: boolean
+}>
+
+before(async () => {
+  const mod = await import('./ManualUploadForm')
+  ManualUploadForm = mod.ManualUploadForm
+})
 
 describe('ManualUploadForm', () => {
   afterEach(() => {
@@ -30,12 +32,7 @@ describe('ManualUploadForm', () => {
   })
 
   it('renders form fields and submit button', () => {
-    render(
-      React.createElement(ManualUploadForm, {
-        onSubmit: () => undefined,
-        isUploading: false,
-      })
-    )
+    render(<ManualUploadForm onSubmit={() => undefined} isUploading={false} />)
 
     const titleField = screen.queryByPlaceholderText('What is the bug?')
     assert.ok(titleField, 'Title field should be rendered')
@@ -50,12 +47,7 @@ describe('ManualUploadForm', () => {
   })
 
   it('disables submit button when isUploading is true', () => {
-    render(
-      React.createElement(ManualUploadForm, {
-        onSubmit: () => undefined,
-        isUploading: true,
-      })
-    )
+    render(<ManualUploadForm onSubmit={() => undefined} isUploading={true} />)
 
     const submitButton = screen.getByText('Create Bug Report')
     assert.ok(submitButton.hasAttribute('disabled'))

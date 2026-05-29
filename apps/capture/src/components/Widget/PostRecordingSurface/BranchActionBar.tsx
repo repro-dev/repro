@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import React from 'react'
 
-interface BranchActionBarProps {
+export interface BranchActionBarProps {
   onUploadToWorkspace: () => void
   onDownloadLocally: () => void
   onToggleManualUpload: () => void

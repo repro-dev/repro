@@ -1,9 +1,10 @@
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { describe, it, mock } = require('node:test')
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const assert = require('node:assert/strict')
+import { render, screen } from '@testing-library/react'
+import assert from 'node:assert/strict'
+import { before, describe, it, mock } from 'node:test'
+import React from 'react'
 
-// Mock auth deps
+import type { BranchActionBarProps } from './BranchActionBar'
+
 mock.module('@repro/auth', {
   namedExports: {
     useSession: () => ({ user: { id: 'user-1' }, email: 'test@test.com' }),
@@ -12,26 +13,25 @@ mock.module('@repro/auth', {
   },
 })
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const React = require('react')
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { render, screen } = require('@testing-library/react')
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { BranchActionBar } = require('./BranchActionBar')
+let BranchActionBar: React.FC<BranchActionBarProps>
+
+before(async () => {
+  const mod = await import('./BranchActionBar')
+  BranchActionBar = mod.BranchActionBar
+})
 
 describe('BranchActionBar', () => {
   it('renders action buttons', () => {
     render(
-      React.createElement(BranchActionBar, {
-        onUploadToWorkspace: () => undefined,
-        onDownloadLocally: () => undefined,
-        onToggleManualUpload: () => undefined,
-        isManualUploadExpanded: false,
-        hasProjectId: true,
-      })
+      <BranchActionBar
+        onUploadToWorkspace={() => undefined}
+        onDownloadLocally={() => undefined}
+        onToggleManualUpload={() => undefined}
+        isManualUploadExpanded={false}
+        hasProjectId={true}
+      />
     )
 
-    // Check for action buttons by text content
     const uploadBtn = screen.queryByText('Upload to Workspace')
     assert.ok(uploadBtn, 'Upload to Workspace button should be rendered')
 
