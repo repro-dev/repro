@@ -65,6 +65,19 @@ describe('Checkbox', () => {
     expect(changedValue).toBe(false)
   })
 
+  it('links label htmlFor to input id for proper ARIA association', () => {
+    render(<Checkbox label="Accept" checked={false} onChange={() => {}} />)
+
+    const label = document.querySelector('label')
+    expect(label).not.toBeNull()
+
+    const input = document.querySelector('input[type="checkbox"]')
+    expect(input).not.toBeNull()
+
+    // label's htmlFor must match input's id for implicit/explicit association
+    expect(label!.getAttribute('for')).toBe(input!.id)
+  })
+
   it('does not use aria-checked (native checkbox handles this)', () => {
     render(<Checkbox label="Accept" checked={true} onChange={() => {}} />)
 
