@@ -166,7 +166,20 @@ Expose the greenfield implementation as `autobot-next` until cutover.
 - No public `autobot` entrypoint is exposed during the rewrite.
 - `REP-1165` owns any future rename, redirect, or replacement decision.
 
-## 15. Agent Session Safety Policy
+## 15. Phase Agent Permission Model
+
+Adopted **2026-05-29** as part of REP-1313.
+
+The greenfield Autobot model uses 5 phase-specific agents (`autobot-planner`, `autobot-developer`, `autobot-reviewer`, `autobot-review-fixer`, `autobot-publisher`) as the primary phase-authority boundary:
+
+- Each agent has an explicit permission profile covering read, write, edit, shell, patch, publish, GitHub, and Linear authority, defined in `packages/autobot-core/src/phase-agents.ts` and enforced at the OpenCode agent config level (`.opencode/agents/autobot-*.md`).
+- `cc-safety-net` remains a mandatory cross-cutting defense-in-depth guardrail for shell-capable sessions but is no longer the primary phase-policy mechanism.
+- Permissions are declared at the agent config level as tool/bash allow/deny rules, not enforced through command-output parsing.
+- Agent Relay sessions use the same phase-agent contract and permission profiles. Relay is transport-only.
+- Publish authority is gated in `autobot-publisher` and remains separated from all other phases.
+- REP-1304 will implement forbidden-command safety guards as a follow-up enforcement layer.
+
+## 16. Agent Session Safety Policy
 
 Autobot-managed agent sessions must follow `docs/autobot/safety-policy.md`.
 

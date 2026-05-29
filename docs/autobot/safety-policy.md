@@ -13,6 +13,28 @@ Core invariants:
 - Agent Relay is a transport boundary only. It must not become the source of safety policy, credential policy, or publish authority.
 - All safety stops must include concrete operator recovery commands that are safe to run, preferring `--dry-run` for mutating recovery checks.
 
+## Phase-Agent Model
+
+Phase-specific `autobot-*` agents are the primary enforcement boundary for phase authority, replacing the earlier approach of relying on command-output parsing or a single cross-cutting denylist. Each phase agent has an explicit permission profile covering read, write, edit, shell, patch, publish, GitHub, and Linear authority.
+
+The 5 Autobot phase agents are:
+
+| Agent                 | Role                                                                     | Edit | Publish |
+| --------------------- | ------------------------------------------------------------------------ | ---- | ------- |
+| `autobot-planner`     | Read-oriented planning; inspects issues and codebase, writes only plans. | No   | No      |
+| `autobot-developer`   | Implementation; writes source and tests, runs focused verification.      | Yes  | No      |
+| `autobot-reviewer`    | Read-only review; inspects diffs and reports findings.                   | No   | No      |
+| `autobot-review-fixer`| Applies only agent-fixable blocking fixes within reviewed scope.         | Yes  | No      |
+| `autobot-publisher`   | Commit, push, PR creation, Linear status update. No source edits.        | No   | Yes     |
+
+**Canonical profiles** are defined in `packages/autobot-core/src/phase-agents.ts`. OpenCode agent configs in `.opencode/agents/autobot-*.md` enforce the same permissions at the tool level.
+
+`cc-safety-net` remains a mandatory cross-cutting defense-in-depth guardrail for shell-capable sessions (`autobot-developer`, `autobot-review-fixer`). It is not the primary phase-policy mechanism.
+
+**Agent Relay parity**: Agent Relay-backed Autobot sessions use the same phase-agent contract and permission profiles. Relay is a transport boundary only — it does not expand write roots, grant publish authority, or downgrade safety stops.
+
+**REP-1304 follow-up**: REP-1304 will add Autobot forbidden-command safety guards to enforce the phase-agent permission model at the command-classification layer.
+
 ## Approved Write Roots
 
 Autobot-managed sessions may write only to the following roots:
