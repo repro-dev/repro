@@ -1,5 +1,5 @@
 import { Analytics } from '@repro/analytics'
-import { RecordingMode } from '@repro/domain'
+import { RecordingMode, SourceEventType, SourceEventView } from '@repro/domain'
 import { observeFuture } from '@repro/future-utils'
 import { useMessaging } from '@repro/messaging'
 import { Playback } from '@repro/playback'
@@ -21,6 +21,31 @@ function serializeEvents(events: ReturnType<Playback['getSourceEvents']>) {
         new Uint8Array(view.buffer, view.byteOffset, view.byteLength)
       )
     )
+}
+
+function getReplaySliceSourceOffset(
+  sourceEvents: ReturnType<Playback['getSourceEvents']>,
+  minTime: number
+) {
+  let offset: number | null = null
+
+  for (let i = 0, len = sourceEvents.size(); i < len; i++) {
+    const event = sourceEvents.at(i)
+
+    if (event) {
+      SourceEventView.over(event).apply(lens => {
+        const time = lens.time
+
+        if (time <= minTime) {
+          if (lens.type === SourceEventType.Snapshot || offset !== null) {
+            offset = time
+          }
+        }
+      })
+    }
+  }
+
+  return offset ?? minTime
 }
 
 export interface UploadState {
@@ -75,10 +100,11 @@ export function useRecordingActions(
     if (recordingMode === RecordingMode.Replay) {
       const maxTime = playbackDuration
       const minTime = Math.max(0, maxTime - selectedDuration)
+      const startTimeMs = getReplaySliceSourceOffset(sourceEvents, minTime)
       return {
         events: sliceEventsAtRange(sourceEvents, [minTime, maxTime]),
-        duration: Math.min(selectedDuration, playbackDuration),
-        startTimeMs: minTime,
+        duration: maxTime - startTimeMs,
+        startTimeMs,
         resourceMap: playback.getResourceMap(),
       }
     }

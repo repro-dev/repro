@@ -1,5 +1,10 @@
-import { RecordingMode, SourceEventView } from '@repro/domain'
-import { List } from '@repro/tdl'
+import {
+  LogLevel,
+  RecordingMode,
+  SourceEventType,
+  SourceEventView,
+} from '@repro/domain'
+import { Box, List } from '@repro/tdl'
 import { act, render } from '@testing-library/react'
 import { resolve } from 'fluture'
 import assert from 'node:assert/strict'
@@ -11,10 +16,6 @@ import type { RecordingActions } from './useRecordingActions'
 const trackedIntents: Array<{ type: string; payload: unknown }> = []
 let trackedAnalyticsEvent: string | null = null
 let trackedAnalyticsProps: Record<string, string> | null = null
-const trackedSliceRanges: Array<[number, number]> = []
-const slicedDataView = new DataView(new ArrayBuffer(8))
-slicedDataView.setFloat64(0, 42, true)
-const slicedEvents = new List(SourceEventView, [slicedDataView])
 
 mock.module('@repro/messaging', {
   namedExports: {
@@ -39,25 +40,41 @@ mock.module('@repro/analytics', {
   },
 })
 
-mock.module('@repro/recording', {
-  namedExports: {
-    sliceEventsAtRange: (_events: any, range: [number, number]) => {
-      trackedSliceRanges.push(range)
-      return slicedEvents
-    },
-  },
-})
-
 // Must require() after mock registration so the mocks take effect
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { useRecordingActions } =
   require('./useRecordingActions') as typeof import('./useRecordingActions')
 
-function createMockPlayback(overrides: Record<string, unknown> = {}) {
-  const mockDataView = new DataView(new ArrayBuffer(8))
-  mockDataView.setFloat64(0, 0, true)
+function createSnapshotEvent(time: number): DataView {
+  return SourceEventView.encode(
+    new Box({
+      type: SourceEventType.Snapshot,
+      time,
+      data: {
+        dom: null,
+        interaction: null,
+        frameworkState: null,
+      },
+    })
+  )
+}
 
-  const mockEvents = new List(SourceEventView, [mockDataView])
+function createConsoleEvent(time: number): DataView {
+  return SourceEventView.encode(
+    new Box({
+      type: SourceEventType.Console,
+      time,
+      data: {
+        level: LogLevel.Info,
+        parts: [],
+        stack: [],
+      },
+    })
+  )
+}
+
+function createMockPlayback(overrides: Record<string, unknown> = {}) {
+  const mockEvents = new List(SourceEventView, [createSnapshotEvent(0)])
 
   return {
     getSourceEvents: () => mockEvents,
@@ -127,23 +144,33 @@ describe('useRecordingActions', () => {
   afterEach(() => {
     ;(globalThis as any).__testRecordingActions = null
     trackedIntents.length = 0
-    trackedSliceRanges.length = 0
     trackedAnalyticsEvent = null
     trackedAnalyticsProps = null
   })
 
-  it('getSelectedRecording slices replay mode to the selected duration range once', () => {
+  it('getSelectedRecording exposes the actual replay slice source offset and span', () => {
+    const sourceEvents = new List(SourceEventView, [
+      createSnapshotEvent(10),
+      createConsoleEvent(25),
+      createConsoleEvent(75),
+      createConsoleEvent(100),
+    ])
     const playback = createMockPlayback({
-      getDuration: () => 100000,
+      getDuration: () => 100,
+      getSourceEvents: () => sourceEvents,
     })
-    const actions = renderHook(playback, 'proj-1', RecordingMode.Replay, 30000)
+    const actions = renderHook(playback, 'proj-1', RecordingMode.Replay, 50)
 
     const result = actions.getSelectedRecording()
+    const eventTimes = result.events.toSource().map(event =>
+      SourceEventView.decode(event)
+        .map(event => event.time)
+        .orElse(-1)
+    )
 
-    assert.equal(result.events, slicedEvents)
-    assert.equal(result.duration, 30000)
-    assert.equal(result.startTimeMs, 70000)
-    assert.deepEqual(trackedSliceRanges, [[70000, 100000]])
+    assert.deepEqual(eventTimes, [0, 50, 75])
+    assert.equal(result.duration, 75)
+    assert.equal(result.startTimeMs, 25)
   })
 
   it('getSelectedRecording caps replay selected duration at playback duration', () => {
@@ -154,10 +181,8 @@ describe('useRecordingActions', () => {
 
     const result = actions.getSelectedRecording()
 
-    assert.equal(result.events, slicedEvents)
     assert.equal(result.duration, 20000)
     assert.equal(result.startTimeMs, 0)
-    assert.deepEqual(trackedSliceRanges, [[0, 20000]])
   })
 
   it('getSelectedRecording keeps full source events outside replay mode', () => {
@@ -175,11 +200,14 @@ describe('useRecordingActions', () => {
 
     assert.equal(result.duration, 100000)
     assert.equal(result.startTimeMs, 0)
-    assert.equal(trackedSliceRanges.length, 0)
   })
 
   it('enqueueUpload raises upload:enqueue intent with shared selected recording payload', () => {
-    const playback = createMockPlayback({ getDuration: () => 100000 })
+    const playback = createMockPlayback({
+      getDuration: () => 100000,
+      getSourceEvents: () =>
+        new List(SourceEventView, [createSnapshotEvent(70000)]),
+    })
     const actions = renderHook(playback, 'proj-1', RecordingMode.Replay, 30000)
 
     actions.enqueueUpload({ title: 'Test bug', description: 'Description' })
@@ -191,7 +219,6 @@ describe('useRecordingActions', () => {
     assert.equal(payload.description, 'Description')
     assert.equal(payload.projectId, 'proj-1')
     assert.equal(payload.duration, 30000)
-    assert.deepEqual(trackedSliceRanges, [[70000, 100000]])
   })
 
   it('enqueueUpload tracks analytics event', () => {
