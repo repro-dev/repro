@@ -130,9 +130,9 @@ describe('Input vertical centering — flexbox (REP-659)', () => {
 describe('Input trailing actions (REP-1176)', () => {
   it('sizes the trailing action from each input size with a size-aware right inset only', () => {
     const expectedInsetBySize = {
-      small: spacing.xs,
-      medium: spacing.xs,
-      large: spacing.sm,
+      small: spacing.sm,
+      medium: spacing.sm,
+      large: spacing.md,
     } as const
 
     for (const size of ['small', 'medium', 'large'] as const) {
@@ -153,7 +153,7 @@ describe('Input trailing actions (REP-1176)', () => {
       })
       const css = getElementCSSText(action)
       const expectedInset = expectedInsetBySize[size]
-      const expectedSize = formControlHeight[size] - expectedInset * 2
+      const expectedSize = formControlHeight[size] - 2 - expectedInset * 2
 
       expect(css).toContain(`width: ${expectedSize}px`)
       expect(css).toContain(`height: ${expectedSize}px`)

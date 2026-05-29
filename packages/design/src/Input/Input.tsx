@@ -58,10 +58,12 @@ const sizes = {
   large: 10,
 }
 
+const INPUT_BORDER_WIDTH = 1
+
 const trailingActionInsets = {
-  small: spacing.xs,
-  medium: spacing.xs,
-  large: spacing.sm,
+  small: spacing.sm,
+  medium: spacing.sm,
+  large: spacing.md,
 } as const
 
 /**
@@ -127,6 +129,8 @@ export const Input = forwardRef<
     const base = sizes[size]
     const fontSize = Math.max(base * 1.5, MINIMUM_FONT_SIZE)
     const trailingActionInset = trailingActionInsets[size]
+    const trailingActionSize =
+      formControlHeight[size] - INPUT_BORDER_WIDTH * 2 - trailingActionInset * 2
     const shouldRenderTrailingAction = rows <= 1 && trailingAction
 
     if (process.env.NODE_ENV !== 'production') {
@@ -225,8 +229,8 @@ export const Input = forwardRef<
             display="inline-flex"
             alignItems="center"
             justifyContent="center"
-            width={formControlHeight[size] - trailingActionInset * 2}
-            height={formControlHeight[size] - trailingActionInset * 2}
+            width={trailingActionSize}
+            height={trailingActionSize}
             marginRight={trailingActionInset}
             border={0}
             borderRadius={radius.sm}
