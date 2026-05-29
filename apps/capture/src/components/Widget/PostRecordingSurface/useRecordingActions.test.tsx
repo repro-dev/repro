@@ -3,7 +3,7 @@ import { List } from '@repro/tdl'
 import { act, render } from '@testing-library/react'
 import { resolve } from 'fluture'
 import assert from 'node:assert/strict'
-import { afterEach, before, describe, it, mock } from 'node:test'
+import { afterEach, describe, it, mock } from 'node:test'
 import React from 'react'
 
 import type { RecordingActions } from './useRecordingActions'
@@ -41,17 +41,10 @@ mock.module('@repro/recording', {
   },
 })
 
-let useRecordingActions: ((
-  playback: any,
-  projectId: string | null,
-  recordingMode: any,
-  selectedDuration: number
-) => RecordingActions) & { mock?: any }
-
-before(async () => {
-  const mod = await import('./useRecordingActions')
-  useRecordingActions = mod.useRecordingActions
-})
+// Must require() after mock registration so the mocks take effect
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { useRecordingActions } =
+  require('./useRecordingActions') as typeof import('./useRecordingActions')
 
 function createMockPlayback(overrides: Record<string, unknown> = {}) {
   const mockDataView = new DataView(new ArrayBuffer(8))
@@ -217,7 +210,6 @@ describe('useRecordingActions', () => {
       description: 'Description',
     })
 
-    // Flush microtasks (fluture fork resolution) and React batch state updates
     await act(async () => {
       await new Promise(resolve => setTimeout(resolve, 0))
     })

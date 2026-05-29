@@ -1,6 +1,6 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import assert from 'node:assert/strict'
-import { afterEach, before, describe, it, mock } from 'node:test'
+import { afterEach, describe, it, mock } from 'node:test'
 import React from 'react'
 
 mock.module('react-hook-form', {
@@ -16,15 +16,10 @@ mock.module('react-hook-form', {
   },
 })
 
-let ManualUploadForm: React.FC<{
-  onSubmit: (data: { title: string; description: string }) => void
-  isUploading: boolean
-}>
-
-before(async () => {
-  const mod = await import('./ManualUploadForm')
-  ManualUploadForm = mod.ManualUploadForm
-})
+// Must require() after mock registration so the mock takes effect
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { ManualUploadForm } =
+  require('./ManualUploadForm') as typeof import('./ManualUploadForm')
 
 describe('ManualUploadForm', () => {
   afterEach(() => {

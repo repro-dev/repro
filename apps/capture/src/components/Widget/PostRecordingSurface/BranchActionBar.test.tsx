@@ -1,9 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import assert from 'node:assert/strict'
-import { before, describe, it, mock } from 'node:test'
+import { describe, it, mock } from 'node:test'
 import React from 'react'
-
-import type { BranchActionBarProps } from './BranchActionBar'
 
 mock.module('@repro/auth', {
   namedExports: {
@@ -13,12 +11,10 @@ mock.module('@repro/auth', {
   },
 })
 
-let BranchActionBar: React.FC<BranchActionBarProps>
-
-before(async () => {
-  const mod = await import('./BranchActionBar')
-  BranchActionBar = mod.BranchActionBar
-})
+// Must require() after mock registration so the mock takes effect
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { BranchActionBar } =
+  require('./BranchActionBar') as typeof import('./BranchActionBar')
 
 describe('BranchActionBar', () => {
   it('renders action buttons', () => {
