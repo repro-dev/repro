@@ -3,8 +3,15 @@ import { createApiClient } from '@repro/api-client'
 import { Fetch } from '@repro/api-client/src/types'
 import { logger } from '@repro/logger'
 import { createMessagingAgent } from '@repro/messaging'
+import { applyResetStyles } from '@repro/theme'
 import { FutureInstance, bichain, reject, resolve } from 'fluture'
 import { defaultEnv as env } from '~/config/env'
+
+const rootStyleSheet = document.querySelector<HTMLStyleElement>('#root-styles')
+
+if (rootStyleSheet) {
+  applyResetStyles('#root', rootStyleSheet)
+}
 
 const apiClient = createApiClient({
   baseUrl: env.REPRO_API_URL ?? '',
