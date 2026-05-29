@@ -177,6 +177,50 @@ export const Sizes: Story = {
   ),
 }
 
+export const SizesWithTrailingAction: Story = {
+  render: () => (
+    <Block
+      display="flex"
+      flexDirection="column"
+      gap={spacing.lg}
+      padding={spacing.lg}
+    >
+      {sizeVariants.map(s => (
+        <Row key={s} gap={spacing.md} alignItems="start">
+          <Block
+            width={80}
+            fontSize={fontSize.xs}
+            fontWeight={600}
+            color={color.text.muted}
+            paddingTop={spacing.lg}
+          >
+            {s}
+          </Block>
+          <Block flex={1} maxWidth={360}>
+            <FormField>
+              <Label htmlFor={`size-trailing-${s}`} size={s}>
+                Search ({s})
+              </Label>
+              <Input
+                {...reg}
+                id={`size-trailing-${s}`}
+                size={s}
+                value={`${s} workspace`}
+                placeholder="Filter workspaces"
+                trailingAction={{
+                  label: `Clear ${s} input`,
+                  icon: <span aria-hidden="true">×</span>,
+                  onClick: trailingActionSpy,
+                }}
+              />
+            </FormField>
+          </Block>
+        </Row>
+      ))}
+    </Block>
+  ),
+}
+
 export const Contexts: Story = {
   render: () => (
     <Grid gridTemplateColumns="1fr 1fr" gap={spacing.lg} padding={spacing.lg}>

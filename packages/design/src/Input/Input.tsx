@@ -58,6 +58,12 @@ const sizes = {
   large: 10,
 }
 
+const trailingActionInsets = {
+  small: spacing.xs,
+  medium: spacing.xs,
+  large: spacing.sm,
+} as const
+
 /**
  * Form text input with error styling and configurable validation attributes.
  *
@@ -120,6 +126,7 @@ export const Input = forwardRef<
 
     const base = sizes[size]
     const fontSize = Math.max(base * 1.5, MINIMUM_FONT_SIZE)
+    const trailingActionInset = trailingActionInsets[size]
     const shouldRenderTrailingAction = rows <= 1 && trailingAction
 
     if (process.env.NODE_ENV !== 'production') {
@@ -218,9 +225,9 @@ export const Input = forwardRef<
             display="inline-flex"
             alignItems="center"
             justifyContent="center"
-            width={formControlHeight[size] - spacing.xs * 2}
-            height={formControlHeight[size] - spacing.xs * 2}
-            margin={spacing.xs}
+            width={formControlHeight[size] - trailingActionInset * 2}
+            height={formControlHeight[size] - trailingActionInset * 2}
+            marginRight={trailingActionInset}
             border={0}
             borderRadius={radius.sm}
             backgroundColor="transparent"

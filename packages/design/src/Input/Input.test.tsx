@@ -7,6 +7,7 @@ import { FormField } from '../FormField'
 import { FormFieldError } from '../FormFieldError'
 import { Label } from '../Label'
 import { formControlHeight } from '../tokens/formControl'
+import { spacing } from '../tokens/spacing'
 import { Input } from './Input'
 
 afterEach(cleanup)
@@ -127,6 +128,42 @@ describe('Input vertical centering — flexbox (REP-659)', () => {
 })
 
 describe('Input trailing actions (REP-1176)', () => {
+  it('sizes the trailing action from each input size with a size-aware right inset only', () => {
+    const expectedInsetBySize = {
+      small: spacing.xs,
+      medium: spacing.xs,
+      large: spacing.sm,
+    } as const
+
+    for (const size of ['small', 'medium', 'large'] as const) {
+      const { unmount } = render(
+        <Input
+          aria-label={`${size} search`}
+          size={size}
+          trailingAction={{
+            label: `Clear ${size} search`,
+            icon: <span aria-hidden="true">×</span>,
+            onClick: () => undefined,
+          }}
+        />
+      )
+
+      const action = screen.getByRole('button', {
+        name: `Clear ${size} search`,
+      })
+      const css = getElementCSSText(action)
+      const expectedInset = expectedInsetBySize[size]
+      const expectedSize = formControlHeight[size] - expectedInset * 2
+
+      expect(css).toContain(`width: ${expectedSize}px`)
+      expect(css).toContain(`height: ${expectedSize}px`)
+      expect(css).toContain(`margin-right: ${expectedInset}px`)
+      expect(css).not.toContain(`margin: ${expectedInset}px`)
+
+      unmount()
+    }
+  })
+
   it('renders an accessible trailing action after the textbox in tab order', async () => {
     const user = userEvent.setup()
     let clearCount = 0
