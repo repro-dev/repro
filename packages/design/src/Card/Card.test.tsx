@@ -1,53 +1,13 @@
-import { cleanup, render } from '@testing-library/react'
+import { getElementCSSRules } from '@repro/testing-utils'
+import { cleanup, render, screen } from '@testing-library/react'
 import expect from 'expect'
 import { afterEach, describe, it } from 'node:test'
 import React from 'react'
 import { color } from '../tokens/colors'
+import { spacing } from '../tokens/spacing'
 import { Card } from './Card'
 
 afterEach(cleanup)
-
-type ElementCSSRule = {
-  selectorText: string
-  cssText: string
-}
-
-function getElementCSSRules(el: Element): ElementCSSRule[] {
-  const classNames = new Set(Array.from(el.classList))
-  const matchingRules: ElementCSSRule[] = []
-
-  for (let i = 0; i < document.styleSheets.length; i++) {
-    const sheet = document.styleSheets[i]
-    if (!sheet) continue
-
-    try {
-      for (const rule of Array.from(sheet.cssRules || [])) {
-        if (
-          !('selectorText' in rule) ||
-          typeof rule.selectorText !== 'string'
-        ) {
-          continue
-        }
-
-        const selectorClassNames = Array.from(
-          rule.selectorText.matchAll(/\.([\w-]+)/g),
-          ([, className]) => className
-        )
-
-        if (selectorClassNames.some(className => classNames.has(className))) {
-          matchingRules.push({
-            selectorText: rule.selectorText,
-            cssText: rule.cssText,
-          })
-        }
-      }
-    } catch {
-      // cross-origin sheets; ignore
-    }
-  }
-
-  return matchingRules
-}
 
 describe('Card', () => {
   it('keeps the neutral surface and adds a danger border treatment when requested', () => {
@@ -65,5 +25,56 @@ describe('Card', () => {
     expect(neutralCSS).not.toContain(color.dangerBorder)
     expect(dangerCSS).toContain('box-shadow')
     expect(dangerCSS).toContain(color.dangerBorder)
+  })
+
+  it('renders children inside the card', () => {
+    render(
+      <Card>
+        <span data-testid="child">Child content</span>
+      </Card>
+    )
+
+    expect(screen.getByTestId('child').textContent).toBe('Child content')
+  })
+
+  it('renders with default padding when fullBleed is not set', () => {
+    const { container } = render(<Card>With padding</Card>)
+    const css = getElementCSSRules(container.firstElementChild!)
+      .map(({ cssText }) => cssText)
+      .join('\n')
+
+    // Default padding should be spacing['2xl'] (32px)
+    expect(css).toContain(`padding: ${spacing['2xl']}px`)
+  })
+
+  it('renders without default padding when fullBleed is set', () => {
+    const { container } = render(<Card fullBleed>Full bleed</Card>)
+    const css = getElementCSSRules(container.firstElementChild!)
+      .map(({ cssText }) => cssText)
+      .join('\n')
+
+    // fullBleed sets padding to 0
+    expect(css).toContain('padding: 0')
+    // fullBleed sets background-color to transparent
+    expect(css).toContain('background-color: transparent')
+  })
+
+  it('applies custom height prop to the card', () => {
+    const { container } = render(<Card height={200}>Tall card</Card>)
+    const css = getElementCSSRules(container.firstElementChild!)
+      .map(({ cssText }) => cssText)
+      .join('\n')
+
+    expect(css).toContain('height: 200px')
+  })
+
+  it('applies custom padding prop overriding default padding', () => {
+    const { container } = render(<Card padding={4}>Custom pad</Card>)
+    const css = getElementCSSRules(container.firstElementChild!)
+      .map(({ cssText }) => cssText)
+      .join('\n')
+
+    // Custom padding of 4px
+    expect(css).toContain('padding: 4px')
   })
 })

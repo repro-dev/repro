@@ -1,3 +1,4 @@
+import { getCSSText, getElementCSSRules } from '@repro/testing-utils'
 import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import expect from 'expect'
@@ -7,70 +8,6 @@ import { formControlHeight } from '../tokens/formControl'
 import { Button } from './Button'
 
 afterEach(cleanup)
-
-/**
- * jsxstyle generates hashed CSS class names and injects rules into a <style>
- * element. There are no inline styles to inspect — we must verify height by
- * searching the stylesheet rules for the expected `height: <n>px` declaration.
- */
-function getCSSText(): string {
-  const rules: string[] = []
-  for (let i = 0; i < document.styleSheets.length; i++) {
-    const sheet = document.styleSheets[i]
-    if (!sheet) continue
-    try {
-      for (const rule of Array.from(sheet.cssRules || [])) {
-        rules.push(rule.cssText)
-      }
-    } catch {
-      // cross-origin sheets; ignore
-    }
-  }
-  return rules.join('\n')
-}
-
-type ElementCSSRule = {
-  selectorText: string
-  cssText: string
-}
-
-/**
- * Returns only the injected CSS rules whose selectors reference the element's
- * generated jsxstyle classes.
- */
-function getElementCSSRules(el: Element): ElementCSSRule[] {
-  const classNames = new Set(Array.from(el.classList))
-  const matchingRules: ElementCSSRule[] = []
-  for (let i = 0; i < document.styleSheets.length; i++) {
-    const sheet = document.styleSheets[i]
-    if (!sheet) continue
-    try {
-      for (const rule of Array.from(sheet.cssRules || [])) {
-        if (
-          !('selectorText' in rule) ||
-          typeof rule.selectorText !== 'string'
-        ) {
-          continue
-        }
-
-        const selectorClassNames = Array.from(
-          rule.selectorText.matchAll(/\.([\w-]+)/g),
-          ([, className]) => className
-        )
-
-        if (selectorClassNames.some(className => classNames.has(className))) {
-          matchingRules.push({
-            selectorText: rule.selectorText,
-            cssText: rule.cssText,
-          })
-        }
-      }
-    } catch {
-      // cross-origin sheets; ignore
-    }
-  }
-  return matchingRules
-}
 
 describe('Button height — formControlHeight tokens (REP-659)', () => {
   it('small Button renders a CSS rule with height=28px', () => {

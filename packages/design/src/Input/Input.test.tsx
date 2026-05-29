@@ -1,3 +1,4 @@
+import { getCSSText, getElementCSSText } from '@repro/testing-utils'
 import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import expect from 'expect'
@@ -11,52 +12,6 @@ import { spacing } from '../tokens/spacing'
 import { Input } from './Input'
 
 afterEach(cleanup)
-
-/**
- * jsxstyle generates hashed CSS class names and injects rules into a <style>
- * element. Height must be verified by searching the injected CSS rules.
- */
-function getCSSText(): string {
-  const rules: string[] = []
-  for (let i = 0; i < document.styleSheets.length; i++) {
-    const sheet = document.styleSheets[i]
-    if (!sheet) continue
-    try {
-      for (const rule of Array.from(sheet.cssRules || [])) {
-        rules.push(rule.cssText)
-      }
-    } catch {
-      // cross-origin sheets; ignore
-    }
-  }
-  return rules.join('\n')
-}
-
-/**
- * Returns the CSS rules that apply to the element's own class names, by
- * intersecting the element's classList with the injected stylesheet rules.
- */
-function getElementCSSText(el: Element): string {
-  const classNames = new Set(Array.from(el.classList))
-  const matchingRules: string[] = []
-  for (let i = 0; i < document.styleSheets.length; i++) {
-    const sheet = document.styleSheets[i]
-    if (!sheet) continue
-    try {
-      for (const rule of Array.from(sheet.cssRules || [])) {
-        const cssText = rule.cssText
-        // Match rules like ._abc123 { ... } — check if the selector class is on the element
-        const selectorMatch = cssText.match(/^\.([\w-]+)/)
-        if (selectorMatch && classNames.has(selectorMatch[1]!)) {
-          matchingRules.push(cssText)
-        }
-      }
-    } catch {
-      // cross-origin sheets; ignore
-    }
-  }
-  return matchingRules.join('\n')
-}
 
 describe('Input height — formControlHeight tokens (REP-659)', () => {
   it('small Input renders a CSS rule with height=28px', () => {
