@@ -7,6 +7,7 @@ import { sliceEventsAtRange } from '@repro/recording'
 import { UploadProgress } from '@repro/recording-api'
 import { toByteString } from '@repro/wire-formats'
 import { detect } from 'detect-browser'
+import { fork } from 'fluture'
 import { useCallback, useEffect, useState } from 'react'
 import { Subscription, switchMap, timer } from 'rxjs'
 
@@ -91,29 +92,42 @@ export function useRecordingActions(
           .toString(),
       })
 
-      agent.raiseIntent({
-        type: 'upload:enqueue',
-        payload: {
-          projectId,
-          title: values.title,
-          description: values.description,
-          url: typeof location !== 'undefined' ? location.href : '',
-          duration: selectedDuration,
-          mode: recordingMode,
-          events: events
-            .toSource()
-            .map(view =>
-              toByteString(
-                new Uint8Array(view.buffer, view.byteOffset, view.byteLength)
-              )
-            ),
-          browserName: browser && browser.name,
-          browserVersion: browser && browser.version,
-          operatingSystem: browser && browser.os,
-        },
-      })
+      fork((error: Error) => {
+        setUploadState({ error, isUploading: false })
+      })((ref: unknown) => {
+        setUploadState({ uploadRef: ref as string, isUploading: true })
+      })(
+        agent.raiseIntent({
+          type: 'upload:enqueue',
+          payload: {
+            projectId,
+            title: values.title,
+            description: values.description,
+            url: typeof location !== 'undefined' ? location.href : '',
+            duration: selectedDuration,
+            mode: recordingMode,
+            events: events
+              .toSource()
+              .map(view =>
+                toByteString(
+                  new Uint8Array(view.buffer, view.byteOffset, view.byteLength)
+                )
+              ),
+            browserName: browser && browser.name,
+            browserVersion: browser && browser.version,
+            operatingSystem: browser && browser.os,
+          },
+        })
+      )
     },
-    [playback, recordingMode, selectedDuration, agent, projectId]
+    [
+      playback,
+      recordingMode,
+      selectedDuration,
+      agent,
+      projectId,
+      setUploadState,
+    ]
   )
 
   const downloadLocally = useCallback(() => {

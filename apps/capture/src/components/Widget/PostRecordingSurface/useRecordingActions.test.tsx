@@ -11,13 +11,17 @@ let trackedAnalyticsProps: Record<string, string> | null = null
 // ----- Mocks (registered once, top-level) -----
 mock.module('@repro/messaging', {
   namedExports: {
-    useMessaging: () => ({
-      raiseIntent: (...args: Array<unknown>) => {
-        const intent = args[0] as { type: string; payload: unknown }
-        trackedIntents.push({ type: intent.type, payload: intent.payload })
-        return { pipe: () => ({}) }
-      },
-    }),
+    useMessaging: () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { resolve } = require('fluture')
+      return {
+        raiseIntent: (...args: Array<unknown>) => {
+          const intent = args[0] as { type: string; payload: unknown }
+          trackedIntents.push({ type: intent.type, payload: intent.payload })
+          return resolve('mock-upload-ref-123')
+        },
+      }
+    },
   },
 })
 
@@ -43,7 +47,7 @@ mock.module('@repro/recording', {
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const React = require('react')
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { render } = require('@testing-library/react')
+const { act, render } = require('@testing-library/react')
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { useRecordingActions } = require('./useRecordingActions')
 
@@ -209,5 +213,33 @@ describe('useRecordingActions', () => {
     assert.equal(actions.uploadState.progress, null)
     assert.equal(actions.uploadState.error, null)
     assert.equal(actions.uploadState.uploadRef, null)
+  })
+
+  it('sets uploadState on successful enqueueUpload fork resolution', async () => {
+    const playback = createMockPlayback()
+    renderHook(playback, 'proj-1', 1, 60000)
+
+    const actions = (globalThis as any).__testRecordingActions
+    actions.enqueueUpload({ title: 'Test bug', description: 'Description' })
+
+    // Flush microtasks (fluture fork resolution) and React batch state updates
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0))
+    })
+
+    // Re-read actions after React re-render
+    const updatedActions = (globalThis as any).__testRecordingActions
+    assert.equal(updatedActions.uploadState.isUploading, true)
+    assert.equal(updatedActions.uploadState.uploadRef, 'mock-upload-ref-123')
+    assert.equal(updatedActions.uploadState.error, null)
+  })
+
+  it('does not enqueue upload when projectId is null', () => {
+    const playback = createMockPlayback()
+    const actions = renderHook(playback, null, 1, 60000)
+
+    actions.enqueueUpload({ title: 'Test bug', description: 'Description' })
+
+    assert.equal(trackedIntents.length, 0)
   })
 })
