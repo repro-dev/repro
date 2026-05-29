@@ -85,6 +85,30 @@ export function createProjectRouter(
       })
     }
 
+    function ensureCanAccessProjectRecording(
+      user: User | StaffUser,
+      projectId: string,
+      recordingId: string
+    ): FutureInstance<Error, User> {
+      return ensureCanAccessProject(user, projectId).pipe(
+        chain(user =>
+          projectService
+            .ensureRecordingBelongsToProject(projectId, recordingId)
+            .pipe(map(() => user))
+        )
+      )
+    }
+
+    function ensureCanModifyProjectRecording(
+      user: User | StaffUser,
+      projectId: string,
+      recordingId: string
+    ): FutureInstance<Error, User> {
+      return ensureCanAccessProjectRecording(user, projectId, recordingId).pipe(
+        chain(user => ensureCanModifyProject(user, projectId))
+      )
+    }
+
     app.get('/', (req, res) => {
       respondWith(
         res,
@@ -511,7 +535,7 @@ export function createProjectRouter(
           res,
           go(function* () {
             const user: User | StaffUser = yield req.getCurrentUser()
-            yield ensureCanAccessProject(user, projectId)
+            yield ensureCanAccessProjectRecording(user, projectId, recordingId)
             return yield recordingService.readInfo(recordingId)
           })
         )
@@ -552,15 +576,10 @@ export function createProjectRouter(
           go(function* () {
             const user: User | StaffUser = yield req.getCurrentUser()
             yield ensureCanAccessProject(user, projectId)
-            return yield recordingService.writeInfo(
-              req.body.title,
-              req.body.url,
-              req.body.description,
-              req.body.mode,
-              req.body.duration,
-              req.body.browserName,
-              req.body.browserVersion,
-              req.body.operatingSystem
+            return yield projectService.createRecordingForProject(
+              projectId,
+              user.id,
+              req.body
             )
           }),
           201
@@ -592,7 +611,7 @@ export function createProjectRouter(
           res,
           go(function* () {
             const user: User | StaffUser = yield req.getCurrentUser()
-            yield ensureCanAccessProject(user, projectId)
+            yield ensureCanAccessProjectRecording(user, projectId, recordingId)
             return yield recordingService.readDataAsStream(recordingId)
           })
         )
@@ -625,7 +644,7 @@ export function createProjectRouter(
           res,
           go(function* () {
             const user: User | StaffUser = yield req.getCurrentUser()
-            yield ensureCanAccessProject(user, projectId)
+            yield ensureCanAccessProjectRecording(user, projectId, recordingId)
             return yield recordingService.writeDataFromStream(
               recordingId,
               req.raw
@@ -660,7 +679,7 @@ export function createProjectRouter(
           // TODO: check the performance cost of checking access controls
           go(function* () {
             const user: User | StaffUser = yield req.getCurrentUser()
-            yield ensureCanAccessProject(user, projectId)
+            yield ensureCanAccessProjectRecording(user, projectId, recordingId)
             return yield recordingService.readResourceAsStream(
               recordingId,
               resourceId
@@ -694,7 +713,7 @@ export function createProjectRouter(
           res,
           go(function* () {
             const user: User | StaffUser = yield req.getCurrentUser()
-            yield ensureCanAccessProject(user, projectId)
+            yield ensureCanAccessProjectRecording(user, projectId, recordingId)
             return yield recordingService.writeResourceFromStream(
               recordingId,
               resourceId,
@@ -728,7 +747,7 @@ export function createProjectRouter(
           res,
           go<Error, Record<string, string>>(function* () {
             const user: User | StaffUser = yield req.getCurrentUser()
-            yield ensureCanAccessProject(user, projectId)
+            yield ensureCanAccessProjectRecording(user, projectId, recordingId)
             return yield recordingService.readResourceMap(recordingId)
           })
         )
@@ -760,7 +779,7 @@ export function createProjectRouter(
           res,
           go<Error, Record<string, string>>(function* () {
             const user: User | StaffUser = yield req.getCurrentUser()
-            yield ensureCanAccessProject(user, projectId)
+            yield ensureCanAccessProjectRecording(user, projectId, recordingId)
             return yield recordingService.writeResourceMap(
               recordingId,
               req.body
@@ -805,7 +824,7 @@ export function createProjectRouter(
           res,
           go<Error, void>(function* () {
             const user: User | StaffUser = yield req.getCurrentUser()
-            yield ensureCanAccessProject(user, projectId)
+            yield ensureCanAccessProjectRecording(user, projectId, recordingId)
             return yield recordingService.writeEventIndex(
               recordingId,
               req.body.entries
@@ -837,7 +856,7 @@ export function createProjectRouter(
           res,
           go<Error, void>(function* () {
             const user: User | StaffUser = yield req.getCurrentUser()
-            yield ensureCanModifyProject(user, projectId)
+            yield ensureCanModifyProjectRecording(user, projectId, recordingId)
             return yield recordingService.deleteRecording(
               projectId,
               recordingId

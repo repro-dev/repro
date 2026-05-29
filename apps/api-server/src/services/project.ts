@@ -1,8 +1,10 @@
 import {
   Account,
+  CODEC_VERSION,
   Project,
   ProjectRole,
   RecordingInfo,
+  RecordingMode,
   StaffAccountProject,
   UserProjectMembership,
 } from '@repro/domain'
@@ -30,6 +32,25 @@ export function createProjectService(
   database: Database,
   _config: SystemConfig = defaultSystemConfig
 ) {
+  function toRecordingInfo(row: {
+    id: number
+    title: string
+    url: string
+    description: string
+    mode: RecordingMode
+    duration: number
+    createdAt: Date
+    browserName: string | null
+    browserVersion: string | null
+    operatingSystem: string | null
+    codecVersion: string
+  }): RecordingInfo {
+    return {
+      ...withEncodedId(row),
+      createdAt: row.createdAt.toISOString(),
+    }
+  }
+
   function createProject(
     accountId: string,
     name: string
@@ -294,14 +315,91 @@ export function createProjectService(
         .where('pr.projectId', '=', decodeId(projectId))
         .orderBy('r.createdAt desc')
         .execute()
-    }).pipe(
-      map(rows =>
-        rows.map(row => ({
-          ...withEncodedId(row),
-          createdAt: row.createdAt.toISOString(),
-        }))
-      )
-    )
+    }).pipe(map(rows => rows.map(row => toRecordingInfo(row))))
+  }
+
+  function ensureRecordingBelongsToProject(
+    projectId: string,
+    recordingId: string
+  ): FutureInstance<Error, void> {
+    const decodedProjectId = decodeId(projectId)
+
+    if (decodedProjectId == null) {
+      return reject(badRequest('Invalid project ID'))
+    }
+
+    const decodedRecordingId = decodeId(recordingId)
+
+    if (decodedRecordingId == null) {
+      return reject(badRequest('Invalid recording ID'))
+    }
+
+    return attemptQuery(() =>
+      database
+        .selectFrom('project_recordings')
+        .select('recordingId')
+        .where('projectId', '=', decodedProjectId)
+        .where('recordingId', '=', decodedRecordingId)
+        .executeTakeFirstOrThrow(() => notFound())
+    ).pipe(map(() => undefined))
+  }
+
+  function createRecordingForProject(
+    projectId: string,
+    authorId: string,
+    input: {
+      title: string
+      url: string
+      description: string
+      mode: RecordingMode
+      duration: number
+      browserName: string | null
+      browserVersion: string | null
+      operatingSystem: string | null
+    }
+  ): FutureInstance<Error, RecordingInfo> {
+    const decodedProjectId = decodeId(projectId)
+
+    if (decodedProjectId == null) {
+      return reject(badRequest('Invalid project ID'))
+    }
+
+    const decodedAuthorId = decodeId(authorId)
+
+    if (decodedAuthorId == null) {
+      return reject(badRequest('Invalid author ID'))
+    }
+
+    return attemptQuery(() =>
+      database.transaction().execute(async trx => {
+        const recording = await trx
+          .insertInto('recordings')
+          .values({
+            title: input.title,
+            url: input.url,
+            description: input.description,
+            mode: input.mode,
+            duration: input.duration,
+            browserName: input.browserName,
+            browserVersion: input.browserVersion,
+            operatingSystem: input.operatingSystem,
+            codecVersion: CODEC_VERSION,
+          })
+          .returningAll()
+          .executeTakeFirstOrThrow()
+
+        await trx
+          .insertInto('project_recordings')
+          .values({
+            recordingId: recording.id,
+            projectId: decodedProjectId,
+            authorId: decodedAuthorId,
+          })
+          .execute()
+
+        return recording
+      })
+    ).pipe(map(row => toRecordingInfo(row)))
   }
 
   function addRecordingToProject(
@@ -357,6 +455,7 @@ export function createProjectService(
     ensureUserCanAccessProject,
     ensureUserIsProjectContributor,
     ensureUserIsProjectAdmin,
+    ensureRecordingBelongsToProject,
 
     // Queries
     getProjectById,
@@ -375,6 +474,7 @@ export function createProjectService(
     updateUserProjectRole,
     removeUserFromProject,
     addRecordingToProject,
+    createRecordingForProject,
   }
 }
 
