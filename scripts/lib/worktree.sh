@@ -700,7 +700,9 @@ cmd_wt_remove() {
     _state="$(_wt_change_state "$wt_path")"
     case "$_state" in
       clean)
-        # Nothing extra needed; standard remove works
+        # clean includes ignored-only artifacts; Git still requires --force to
+        # remove those directories even though they are safe to purge.
+        _force_remove=true
         ;;
       has-untracked)
         # Untracked non-ignored files present, but no tracked changes.
