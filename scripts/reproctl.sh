@@ -77,7 +77,7 @@ ${CLR_BOLD}GENERAL${CLR_RESET}
   version                         Print the reproctl commit and date
   help [<command>|<topic>]        Show manpage for a command or topic
                                   Topics: environment, exit-codes, json
-  opencode [--profile <name>]     Launch OpenCode with optional model profile
+  opencode [--profile <name>|--pick]  Launch OpenCode with optional model profile
 
 Examples:
   reproctl setup                              # bootstrap entire environment
