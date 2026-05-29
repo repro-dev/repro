@@ -12,6 +12,10 @@ export interface AccordionContentProps {
   children: React.ReactNode
 }
 
+/**
+ * Renders the animated region associated with the parent accordion trigger.
+ * Place disclosure content here so ARIA labeling and visibility stay in sync.
+ */
 export const AccordionContent = forwardRef<
   HTMLDivElement,
   AccordionContentProps

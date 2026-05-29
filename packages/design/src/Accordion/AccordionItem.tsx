@@ -1,5 +1,5 @@
 import { Block } from '@jsxstyle/react'
-import React, { forwardRef } from 'react'
+import React, { forwardRef, useId } from 'react'
 import { color } from '../tokens/colors'
 import { useAccordionContext } from './AccordionContext'
 import { AccordionItemProvider } from './AccordionItemContext'
@@ -10,14 +10,19 @@ export interface AccordionItemProps {
   children: React.ReactNode
 }
 
+/**
+ * Groups one accordion trigger with its content panel.
+ * Provide a unique `value` for state management; IDs are generated safely for ARIA.
+ */
 export const AccordionItem = forwardRef<HTMLDivElement, AccordionItemProps>(
   ({ value, disabled = false, children }, ref) => {
     const { baseId } = useAccordionContext()
+    const itemId = useId()
     const context = {
       value,
       disabled,
-      triggerId: `${baseId}-trigger-${value}`,
-      contentId: `${baseId}-content-${value}`,
+      triggerId: `${baseId}-trigger-${itemId}`,
+      contentId: `${baseId}-content-${itemId}`,
     }
 
     return (

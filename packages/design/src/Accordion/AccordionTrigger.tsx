@@ -13,6 +13,10 @@ export interface AccordionTriggerProps {
   children: React.ReactNode
 }
 
+/**
+ * Renders the full-width button that toggles its parent accordion item.
+ * Use inside `Accordion.Item` before the matching `Accordion.Content`.
+ */
 export const AccordionTrigger = forwardRef<
   HTMLButtonElement,
   AccordionTriggerProps
@@ -20,6 +24,15 @@ export const AccordionTrigger = forwardRef<
   const { isItemOpen, toggleItem } = useAccordionContext()
   const { value, disabled, triggerId, contentId } = useAccordionItemContext()
   const isOpen = isItemOpen(value)
+  const handleToggle = () => {
+    if (!disabled) toggleItem(value)
+  }
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return
+    event.preventDefault()
+    handleToggle()
+  }
 
   return (
     <Row
@@ -46,7 +59,8 @@ export const AccordionTrigger = forwardRef<
           'aria-expanded': isOpen,
           'aria-controls': contentId,
           'data-repro-accordion-trigger': '',
-          onClick: disabled ? undefined : () => toggleItem(value),
+          onClick: handleToggle,
+          onKeyDown: handleKeyDown,
         } as React.ButtonHTMLAttributes<HTMLButtonElement> & {
           ref: React.ForwardedRef<HTMLButtonElement>
           'data-repro-accordion-trigger': string

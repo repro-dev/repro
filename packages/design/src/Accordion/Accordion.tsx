@@ -91,20 +91,23 @@ export const Accordion = forwardRef<HTMLDivElement, AccordionProps>(
         const enabledTriggers = getEnabledTriggers()
         if (enabledTriggers.length === 0) return
 
-        const activeElement = document.activeElement as HTMLButtonElement | null
-        const currentIndex = activeElement
-          ? enabledTriggers.indexOf(activeElement)
-          : -1
-        const safeIndex = currentIndex === -1 ? 0 : currentIndex
+        const activeElement = document.activeElement
+        const eventTarget = event.target
+        const currentIndex = enabledTriggers.findIndex(trigger => {
+          if (trigger === activeElement || trigger === eventTarget) return true
+          return eventTarget instanceof Node && trigger.contains(eventTarget)
+        })
+        if (currentIndex === -1) return
+
         let nextIndex: number | null = null
 
         if (event.key === 'ArrowDown') {
           event.preventDefault()
-          nextIndex = (safeIndex + 1) % enabledTriggers.length
+          nextIndex = (currentIndex + 1) % enabledTriggers.length
         } else if (event.key === 'ArrowUp') {
           event.preventDefault()
           nextIndex =
-            (safeIndex - 1 + enabledTriggers.length) % enabledTriggers.length
+            (currentIndex - 1 + enabledTriggers.length) % enabledTriggers.length
         } else if (event.key === 'Home') {
           event.preventDefault()
           nextIndex = 0

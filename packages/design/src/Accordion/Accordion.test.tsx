@@ -47,6 +47,26 @@ function renderAccordion(
   )
 }
 
+function renderAccordionWithFocusedContent() {
+  return render(
+    <Accordion defaultValue="billing">
+      <Accordion.Item value="billing">
+        <Accordion.Trigger>Billing</Accordion.Trigger>
+        <Accordion.Content>
+          <label>
+            Filter billing settings
+            <input aria-label="Filter billing settings" />
+          </label>
+        </Accordion.Content>
+      </Accordion.Item>
+      <Accordion.Item value="security">
+        <Accordion.Trigger>Security</Accordion.Trigger>
+        <Accordion.Content>Security content</Accordion.Content>
+      </Accordion.Item>
+    </Accordion>
+  )
+}
+
 describe('Accordion exports', () => {
   it('exposes compound parts and standalone Collapsible', () => {
     expect(Accordion).toBeDefined()
@@ -142,6 +162,26 @@ describe('Accordion behavior', () => {
 })
 
 describe('Accordion keyboard navigation', () => {
+  it('Enter and Space toggle the focused trigger', () => {
+    renderAccordion()
+
+    const trigger = document.querySelectorAll<HTMLButtonElement>('button')[0]!
+    const region = document.querySelectorAll<HTMLElement>('[role="region"]')[0]!
+    trigger.focus()
+
+    act(() => {
+      pressKey('Enter', trigger)
+    })
+    expect(trigger.getAttribute('aria-expanded')).toBe('true')
+    expect(region.getAttribute('aria-hidden')).toBe('false')
+
+    act(() => {
+      pressKey(' ', trigger)
+    })
+    expect(trigger.getAttribute('aria-expanded')).toBe('false')
+    expect(region.getAttribute('aria-hidden')).toBe('true')
+  })
+
   it('ArrowUp ArrowDown Home and End move focus among enabled triggers', () => {
     renderAccordion()
 
@@ -163,6 +203,21 @@ describe('Accordion keyboard navigation', () => {
     pressKey('ArrowUp')
     expect(document.activeElement).toBe(triggers[2])
   })
+
+  it('does not intercept arrow keys from focus inside expanded content', () => {
+    renderAccordionWithFocusedContent()
+
+    const input = document.querySelector<HTMLInputElement>(
+      'input[aria-label="Filter billing settings"]'
+    )!
+    input.focus()
+
+    act(() => {
+      pressKey('ArrowDown', input)
+    })
+
+    expect(document.activeElement).toBe(input)
+  })
 })
 
 describe('Accordion ARIA attributes', () => {
@@ -174,5 +229,24 @@ describe('Accordion ARIA attributes', () => {
 
     expect(triggers[0]!.getAttribute('aria-controls')).toBe(regions[0]!.id)
     expect(regions[0]!.getAttribute('aria-labelledby')).toBe(triggers[0]!.id)
+  })
+
+  it('uses value-independent IDs when values contain whitespace', () => {
+    render(
+      <Accordion defaultValue="advanced settings">
+        <Accordion.Item value="advanced settings">
+          <Accordion.Trigger>Advanced settings</Accordion.Trigger>
+          <Accordion.Content>Advanced settings content</Accordion.Content>
+        </Accordion.Item>
+      </Accordion>
+    )
+
+    const trigger = document.querySelector<HTMLButtonElement>('button')!
+    const region = document.querySelector<HTMLElement>('[role="region"]')!
+
+    expect(trigger.id).not.toMatch(/\s/)
+    expect(region.id).not.toMatch(/\s/)
+    expect(trigger.getAttribute('aria-controls')).toBe(region.id)
+    expect(region.getAttribute('aria-labelledby')).toBe(trigger.id)
   })
 })
