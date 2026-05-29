@@ -7,7 +7,7 @@
 
 _opencode_usage() {
   cat <<EOF
-Usage: reproctl opencode [--profile <name>] [opencode-args...]
+Usage: reproctl opencode [--profile <name> | --pick] [opencode-args...]
 
 Launch OpenCode, optionally with a model profile that layers on top of the
 tracked project config in .opencode/opencode.json and overrides agent model
@@ -22,12 +22,18 @@ ${CLR_BOLD}OPTIONS${CLR_RESET}
                       non-interactive default profile; otherwise an fzf picker
                       lets you choose from available profiles in
                       .opencode/profiles/.
+  --pick              Always show the fzf profile picker, ignoring any
+                      REPRO_OPENCODE_PROFILE set in the environment.
+                      Mutually exclusive with --profile.
   -h, --help          Show this help.
 
 ${CLR_BOLD}EXAMPLES${CLR_RESET}
   reproctl opencode
       OpenCode uses REPRO_OPENCODE_PROFILE when set; otherwise it opens an
       fzf picker to select a profile before launch.
+
+  reproctl opencode --pick
+      Always shows the fzf picker, even when REPRO_OPENCODE_PROFILE is set.
 
   reproctl opencode --profile openrouter-glm5-minimax
       Launch OpenCode remapped to GLM-5.1 and MiniMax M2.7 via OpenRouter.
@@ -43,6 +49,7 @@ EOF
 
 cmd_opencode() {
   local profile=""
+  local force_picker=0
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -50,6 +57,10 @@ cmd_opencode() {
         [[ -n "${2:-}" ]] || die "Missing value for --profile\nRun 'reproctl opencode --help' for usage."
         profile="$2"
         shift 2
+        ;;
+      --pick)
+        force_picker=1
+        shift
         ;;
       -h|--help)
         _opencode_usage
@@ -61,7 +72,11 @@ cmd_opencode() {
     esac
   done
 
-  # No --profile given: select one interactively via fzf.
+  if [[ -n "$profile" ]] && [[ $force_picker -eq 1 ]]; then
+    die "--pick and --profile are mutually exclusive.\nRun 'reproctl opencode --help' for usage."
+  fi
+
+  # No --profile given: select one interactively via fzf (or use env default).
   if [[ -z "$profile" ]]; then
     # Collect available profiles (Bash 3.2 safe: no mapfile/readarray).
     local profiles=()
@@ -75,7 +90,7 @@ cmd_opencode() {
       die "No profiles found in $REPO_ROOT/.opencode/profiles/\nCreate a .json profile file or pass --profile <name> to skip the picker."
     fi
 
-    if [[ -n "${REPRO_OPENCODE_PROFILE:-}" ]]; then
+    if [[ $force_picker -eq 0 ]] && [[ -n "${REPRO_OPENCODE_PROFILE:-}" ]]; then
       profile="$REPRO_OPENCODE_PROFILE"
     elif [[ ${#profiles[@]} -gt 1 ]] && ! command -v fzf > /dev/null 2>&1; then
       die "No --profile flag given and fzf is not installed.\nInstall fzf to enable the interactive profile picker: brew install fzf\nOr pass --profile <name> to skip the picker."

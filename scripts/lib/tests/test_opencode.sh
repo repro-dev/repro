@@ -66,6 +66,7 @@ _pick() {
 }
 REPO_ROOT="$tmpdir"
 PATH="$tmpdir/bin:/usr/bin:/bin"
+unset REPRO_OPENCODE_PROFILE
 source "$OPENCODE_SH"
 $extra
 cmd_opencode
@@ -269,7 +270,7 @@ test_no_profiles_exits_nonzero() {
   fi
 }
 
-# Test 11: no --profile + 2 profiles + fzf absent → die with install instructions
+# Test 9: no --profile + 2 profiles + no env default + fzf absent → die with install instructions
 test_multi_profile_no_fzf_exits_nonzero() {
   local tmpdir rc=0
   tmpdir="$(_make_tmpdir)"
@@ -287,6 +288,7 @@ die() { printf 'Error: %b\n' "\$*" >&2; exit 1; }
 _pick() { printf 'Error: _pick should not be reached\n' >&2; return 1; }
 REPO_ROOT="$tmpdir"
 PATH="/usr/bin:/bin"
+unset REPRO_OPENCODE_PROFILE
 source "$OPENCODE_SH"
 cmd_opencode
 RUNNER
@@ -359,6 +361,137 @@ RUNNER
   fi
 }
 
+# Test 12: --pick forces picker even when REPRO_OPENCODE_PROFILE is set
+test_pick_flag_forces_picker_over_env_default() {
+  local tmpdir rc=0
+  tmpdir="$(_make_tmpdir)"
+  mkdir -p "$tmpdir/.opencode/profiles"
+  echo '{}' > "$tmpdir/.opencode/profiles/alpha.json"
+  _write_stubs "$tmpdir"
+
+  cat > "$tmpdir/run_test.sh" << RUNNER
+#!/bin/bash
+CLR_BOLD='' CLR_DIM='' CLR_RED='' CLR_GREEN='' CLR_YELLOW='' CLR_RESET=''
+_err() { printf '✖ %s\n' "\$*" >&2; }
+die() { printf 'Error: %b\n' "\$*" >&2; exit 1; }
+_pick() { echo "alpha"; }
+REPO_ROOT="$tmpdir"
+PATH="$tmpdir/bin:/usr/bin:/bin"
+source "$OPENCODE_SH"
+REPRO_OPENCODE_PROFILE=gamma cmd_opencode --pick
+RUNNER
+  chmod +x "$tmpdir/run_test.sh"
+
+  local output
+  output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  rm -rf "$tmpdir"
+
+  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q "OPENCODE_CONFIG=.*alpha"; then
+    _pass "--pick forces picker, ignores REPRO_OPENCODE_PROFILE=gamma"
+  else
+    _fail "--pick forces picker, ignores REPRO_OPENCODE_PROFILE=gamma" \
+      "rc=$rc; output: $output"
+  fi
+}
+
+# Test 13: --pick and --profile are mutually exclusive
+test_pick_and_profile_are_mutually_exclusive() {
+  local tmpdir rc=0
+  tmpdir="$(_make_tmpdir)"
+  mkdir -p "$tmpdir/.opencode/profiles"
+  echo '{}' > "$tmpdir/.opencode/profiles/alpha.json"
+  _write_stubs "$tmpdir"
+
+  cat > "$tmpdir/run_test.sh" << RUNNER
+#!/bin/bash
+CLR_BOLD='' CLR_DIM='' CLR_RED='' CLR_GREEN='' CLR_YELLOW='' CLR_RESET=''
+_err() { printf '✖ %s\n' "\$*" >&2; }
+die() { printf 'Error: %b\n' "\$*" >&2; exit 1; }
+_pick() { echo "should not reach"; }
+REPO_ROOT="$tmpdir"
+PATH="$tmpdir/bin:/usr/bin:/bin"
+source "$OPENCODE_SH"
+cmd_opencode --pick --profile alpha
+RUNNER
+  chmod +x "$tmpdir/run_test.sh"
+
+  local output
+  output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  rm -rf "$tmpdir"
+
+  if [ $rc -ne 0 ] && printf '%s\n' "$output" | grep -qi "mutually exclusive"; then
+    _pass "--pick and --profile are mutually exclusive"
+  else
+    _fail "--pick and --profile are mutually exclusive" \
+      "rc=$rc; output: $output"
+  fi
+}
+
+# Test 14: --pick with single profile auto-selects and sets OPENCODE_CONFIG
+test_pick_single_profile_auto_selects() {
+  local tmpdir rc=0
+  tmpdir="$(_make_tmpdir)"
+  mkdir -p "$tmpdir/.opencode/profiles"
+  echo '{}' > "$tmpdir/.opencode/profiles/solo.json"
+  _write_stubs "$tmpdir"
+
+  cat > "$tmpdir/run_test.sh" << RUNNER
+#!/bin/bash
+CLR_BOLD='' CLR_DIM='' CLR_RED='' CLR_GREEN='' CLR_YELLOW='' CLR_RESET=''
+_err() { printf '✖ %s\n' "\$*" >&2; }
+die() { printf 'Error: %b\n' "\$*" >&2; exit 1; }
+_pick() { echo "solo"; }
+REPO_ROOT="$tmpdir"
+PATH="$tmpdir/bin:/usr/bin:/bin"
+source "$OPENCODE_SH"
+cmd_opencode --pick
+RUNNER
+  chmod +x "$tmpdir/run_test.sh"
+
+  local output
+  output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  rm -rf "$tmpdir"
+
+  if printf '%s\n' "$output" | grep -q "OPENCODE_CONFIG=.*solo"; then
+    _pass "--pick single profile auto-selects and sets OPENCODE_CONFIG"
+  else
+    _fail "--pick single profile auto-selects and sets OPENCODE_CONFIG" \
+      "rc=$rc; output: $output"
+  fi
+}
+
+# Test 15: --pick with no profiles dies with helpful message
+test_pick_no_profiles_dies() {
+  local tmpdir rc=0
+  tmpdir="$(_make_tmpdir)"
+  mkdir -p "$tmpdir/.opencode/profiles"
+  _write_stubs "$tmpdir"
+
+  cat > "$tmpdir/run_test.sh" << RUNNER
+#!/bin/bash
+CLR_BOLD='' CLR_DIM='' CLR_RED='' CLR_GREEN='' CLR_YELLOW='' CLR_RESET=''
+_err() { printf '✖ %s\n' "\$*" >&2; }
+die() { printf 'Error: %b\n' "\$*" >&2; exit 1; }
+_pick() { printf 'Error: _pick should not be reached\n' >&2; return 1; }
+REPO_ROOT="$tmpdir"
+PATH="$tmpdir/bin:/usr/bin:/bin"
+source "$OPENCODE_SH"
+cmd_opencode --pick
+RUNNER
+  chmod +x "$tmpdir/run_test.sh"
+
+  local output
+  output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  rm -rf "$tmpdir"
+
+  if [ $rc -ne 0 ] && printf '%s\n' "$output" | grep -qi "no profiles"; then
+    _pass "--pick with no profiles dies with message"
+  else
+    _fail "--pick with no profiles dies with message" \
+      "rc=$rc; output: $output"
+  fi
+}
+
 # ── Run all tests ─────────────────────────────────────────────────────
 
 test_file_exists
@@ -372,6 +505,10 @@ test_no_profiles_exits_nonzero
 test_multi_profile_no_fzf_exits_nonzero
 test_single_profile_auto_selects
 test_profile_flag_bypasses_picker
+test_pick_flag_forces_picker_over_env_default
+test_pick_and_profile_are_mutually_exclusive
+test_pick_single_profile_auto_selects
+test_pick_no_profiles_dies
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed out of $TESTS_RUN tests"
