@@ -1,4 +1,4 @@
-import { SourceEventView } from '@repro/domain'
+import { RecordingMode, SourceEventView } from '@repro/domain'
 import { List } from '@repro/tdl'
 import { act, render } from '@testing-library/react'
 import { resolve } from 'fluture'
@@ -11,6 +11,10 @@ import type { RecordingActions } from './useRecordingActions'
 const trackedIntents: Array<{ type: string; payload: unknown }> = []
 let trackedAnalyticsEvent: string | null = null
 let trackedAnalyticsProps: Record<string, string> | null = null
+const trackedSliceRanges: Array<[number, number]> = []
+const slicedDataView = new DataView(new ArrayBuffer(8))
+slicedDataView.setFloat64(0, 42, true)
+const slicedEvents = new List(SourceEventView, [slicedDataView])
 
 mock.module('@repro/messaging', {
   namedExports: {
@@ -37,7 +41,10 @@ mock.module('@repro/analytics', {
 
 mock.module('@repro/recording', {
   namedExports: {
-    sliceEventsAtRange: (events: any) => events,
+    sliceEventsAtRange: (_events: any, range: [number, number]) => {
+      trackedSliceRanges.push(range)
+      return slicedEvents
+    },
   },
 })
 
@@ -120,25 +127,57 @@ describe('useRecordingActions', () => {
   afterEach(() => {
     ;(globalThis as any).__testRecordingActions = null
     trackedIntents.length = 0
+    trackedSliceRanges.length = 0
     trackedAnalyticsEvent = null
     trackedAnalyticsProps = null
   })
 
-  it('getSerializedEvents returns events for given duration range', () => {
+  it('getSelectedRecording slices replay mode to the selected duration range once', () => {
     const playback = createMockPlayback({
       getDuration: () => 100000,
     })
-    const actions = renderHook(playback, 'proj-1', 1, 30000)
+    const actions = renderHook(playback, 'proj-1', RecordingMode.Replay, 30000)
 
-    const result = actions.getSerializedEvents()
+    const result = actions.getSelectedRecording()
 
-    assert.ok(result)
-    assert.ok(Array.isArray(result.byteStrings))
+    assert.equal(result.events, slicedEvents)
+    assert.equal(result.duration, 30000)
+    assert.deepEqual(trackedSliceRanges, [[70000, 100000]])
   })
 
-  it('enqueueUpload raises upload:enqueue intent with serialized payload', () => {
-    const playback = createMockPlayback()
-    const actions = renderHook(playback, 'proj-1', 1, 60000)
+  it('getSelectedRecording caps replay selected duration at playback duration', () => {
+    const playback = createMockPlayback({
+      getDuration: () => 20000,
+    })
+    const actions = renderHook(playback, 'proj-1', RecordingMode.Replay, 60000)
+
+    const result = actions.getSelectedRecording()
+
+    assert.equal(result.events, slicedEvents)
+    assert.equal(result.duration, 20000)
+    assert.deepEqual(trackedSliceRanges, [[0, 20000]])
+  })
+
+  it('getSelectedRecording keeps full source events outside replay mode', () => {
+    const playback = createMockPlayback({
+      getDuration: () => 100000,
+    })
+    const actions = renderHook(
+      playback,
+      'proj-1',
+      RecordingMode.Snapshot,
+      30000
+    )
+
+    const result = actions.getSelectedRecording()
+
+    assert.equal(result.duration, 100000)
+    assert.equal(trackedSliceRanges.length, 0)
+  })
+
+  it('enqueueUpload raises upload:enqueue intent with shared selected recording payload', () => {
+    const playback = createMockPlayback({ getDuration: () => 100000 })
+    const actions = renderHook(playback, 'proj-1', RecordingMode.Replay, 30000)
 
     actions.enqueueUpload({ title: 'Test bug', description: 'Description' })
 
@@ -148,6 +187,8 @@ describe('useRecordingActions', () => {
     assert.equal(payload.title, 'Test bug')
     assert.equal(payload.description, 'Description')
     assert.equal(payload.projectId, 'proj-1')
+    assert.equal(payload.duration, 30000)
+    assert.deepEqual(trackedSliceRanges, [[70000, 100000]])
   })
 
   it('enqueueUpload tracks analytics event', () => {

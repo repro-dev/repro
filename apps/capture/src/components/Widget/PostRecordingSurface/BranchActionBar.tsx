@@ -26,6 +26,9 @@ export const BranchActionBar: React.FC<BranchActionBarProps> = ({
 }) => {
   const session = useSession()
   const isAuthed = session !== null
+  const disabledUploadTitle = isAuthed
+    ? 'Choose or create a workspace project to upload'
+    : 'Sign in to upload'
 
   return (
     <Col gap={spacing.sm} padding={spacing.md}>
@@ -39,7 +42,7 @@ export const BranchActionBar: React.FC<BranchActionBarProps> = ({
           variant="outlined"
           size="small"
           disabled={true}
-          props={{ title: 'Sign in to upload' }}
+          props={{ title: disabledUploadTitle }}
         >
           <BugPlayIcon size={16} />
           Upload to Workspace

@@ -3,9 +3,16 @@ import { Button, EmptyState, FullPageLoading } from '@repro/design'
 import { forget } from '@repro/future-utils'
 import { LockIcon } from 'lucide-react'
 import React, { useEffect } from 'react'
+import type { RecordingActions } from '../../PostRecordingSurface/useRecordingActions'
 import { Agentic } from './Agentic.hoc'
 
-export const AgenticAuthGate: React.FC = () => {
+interface AgenticAuthGateProps {
+  getSelectedRecording: RecordingActions['getSelectedRecording']
+}
+
+export const AgenticAuthGate: React.FC<AgenticAuthGateProps> = ({
+  getSelectedRecording,
+}) => {
   const sessionLoading = useSessionLoading()
   const session = useSession()
   const context = useAuthContext()
@@ -57,5 +64,5 @@ export const AgenticAuthGate: React.FC = () => {
     )
   }
 
-  return <Agentic />
+  return <Agentic getSelectedRecording={getSelectedRecording} />
 }

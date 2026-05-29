@@ -13,6 +13,16 @@ import { Subscription, switchMap, timer } from 'rxjs'
 
 const browser = detect()
 
+function serializeEvents(events: ReturnType<Playback['getSourceEvents']>) {
+  return events
+    .toSource()
+    .map(view =>
+      toByteString(
+        new Uint8Array(view.buffer, view.byteOffset, view.byteLength)
+      )
+    )
+}
+
 export interface UploadState {
   isUploading: boolean
   progress: UploadProgress | null
@@ -20,7 +30,14 @@ export interface UploadState {
   uploadRef: string | null
 }
 
+export interface SelectedRecording {
+  events: ReturnType<Playback['getSourceEvents']>
+  duration: number
+  resourceMap: ReturnType<Playback['getResourceMap']>
+}
+
 export interface RecordingActions {
+  getSelectedRecording(): SelectedRecording
   getSerializedEvents(): { byteStrings: string[] }
   enqueueUpload(values: { title: string; description: string | null }): void
   downloadLocally(): void
@@ -50,25 +67,33 @@ export function useRecordingActions(
     [setUploadStateInner]
   )
 
-  const getSerializedEvents = useCallback(() => {
-    let events = playback.getSourceEvents()
+  const getSelectedRecording = useCallback((): SelectedRecording => {
+    const sourceEvents = playback.getSourceEvents()
+    const playbackDuration = playback.getDuration()
 
     if (recordingMode === RecordingMode.Replay) {
-      const maxTime = playback.getDuration()
+      const maxTime = playbackDuration
       const minTime = Math.max(0, maxTime - selectedDuration)
-      events = sliceEventsAtRange(events, [minTime, maxTime])
+      return {
+        events: sliceEventsAtRange(sourceEvents, [minTime, maxTime]),
+        duration: Math.min(selectedDuration, playbackDuration),
+        resourceMap: playback.getResourceMap(),
+      }
     }
 
-    const byteStrings = events
-      .toSource()
-      .map(view =>
-        toByteString(
-          new Uint8Array(view.buffer, view.byteOffset, view.byteLength)
-        )
-      )
+    return {
+      events: sourceEvents,
+      duration: playbackDuration,
+      resourceMap: playback.getResourceMap(),
+    }
+  }, [playback, recordingMode, selectedDuration])
+
+  const getSerializedEvents = useCallback(() => {
+    const { events } = getSelectedRecording()
+    const byteStrings = serializeEvents(events)
 
     return { byteStrings }
-  }, [playback, recordingMode, selectedDuration])
+  }, [getSelectedRecording])
 
   const enqueueUpload = useCallback(
     (values: { title: string; description: string | null }) => {
@@ -76,16 +101,11 @@ export function useRecordingActions(
         return
       }
 
-      let events = playback.getSourceEvents()
-      const maxTime = playback.getDuration()
-      const minTime = Math.max(0, maxTime - selectedDuration)
-
-      if (recordingMode === RecordingMode.Replay) {
-        events = sliceEventsAtRange(events, [minTime, maxTime])
-      }
+      const selected = getSelectedRecording()
+      const byteStrings = serializeEvents(selected.events)
 
       Analytics.track('capture:save-start', {
-        recordingSize: events
+        recordingSize: selected.events
           .toSource()
           .map(event => event.byteLength)
           .reduce((a, b) => a + b, 0)
@@ -104,15 +124,9 @@ export function useRecordingActions(
             title: values.title,
             description: values.description,
             url: typeof location !== 'undefined' ? location.href : '',
-            duration: selectedDuration,
+            duration: selected.duration,
             mode: recordingMode,
-            events: events
-              .toSource()
-              .map(view =>
-                toByteString(
-                  new Uint8Array(view.buffer, view.byteOffset, view.byteLength)
-                )
-              ),
+            events: byteStrings,
             browserName: browser && browser.name,
             browserVersion: browser && browser.version,
             operatingSystem: browser && browser.os,
@@ -120,14 +134,7 @@ export function useRecordingActions(
         })
       )
     },
-    [
-      playback,
-      recordingMode,
-      selectedDuration,
-      agent,
-      projectId,
-      setUploadState,
-    ]
+    [recordingMode, agent, projectId, setUploadState, getSelectedRecording]
   )
 
   const downloadLocally = useCallback(() => {
@@ -190,6 +197,7 @@ export function useRecordingActions(
   }, [setUploadState, uploadState.uploadRef, uploadState.isUploading, agent])
 
   return {
+    getSelectedRecording,
     getSerializedEvents,
     enqueueUpload,
     downloadLocally,

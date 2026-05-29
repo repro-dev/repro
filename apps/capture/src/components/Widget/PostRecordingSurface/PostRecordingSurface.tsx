@@ -1,4 +1,5 @@
 import { Block, Row } from '@jsxstyle/react'
+import { useSession } from '@repro/auth'
 import { formatTime } from '@repro/date-utils'
 import { color, shadow, ToggleGroup } from '@repro/design'
 import { DevTools } from '@repro/devtools'
@@ -24,6 +25,7 @@ export const PostRecordingSurface: React.FC<PostRecordingSurfaceProps> = ({
   onClose,
 }) => {
   const playback = usePlayback()
+  const session = useSession()
   const [recordingMode] = useRecordingMode()
   const [selectedDuration, setSelectedDuration] = useState(
     DEFAULT_SELECTED_DURATION
@@ -79,6 +81,21 @@ export const PostRecordingSurface: React.FC<PostRecordingSurfaceProps> = ({
     [actions]
   )
 
+  const uploadAvailability =
+    session === null
+      ? {
+          available: false,
+          reason:
+            'Sign in to Repro to upload/report this recording. You can still review playback or download locally.',
+        }
+      : projectId === null
+      ? {
+          available: false,
+          reason:
+            'Choose or create a workspace project to upload/report this recording. You can still review playback or download locally.',
+        }
+      : { available: true as const }
+
   return (
     <PlaybackProvider playback={playback}>
       <Layout>
@@ -124,12 +141,14 @@ export const PostRecordingSurface: React.FC<PostRecordingSurfaceProps> = ({
             onToggleManualUpload={onToggleManualUpload}
             isManualUploadExpanded={manualUploadExpanded}
             hasProjectId={projectId !== null}
+            getSelectedRecording={actions.getSelectedRecording}
           />
 
           {manualUploadExpanded && (
             <ManualUploadForm
               onSubmit={onManualUploadSubmit}
               isUploading={actions.uploadState.isUploading}
+              uploadAvailability={uploadAvailability}
             />
           )}
         </AsideRegion>

@@ -47,4 +47,38 @@ describe('ManualUploadForm', () => {
     const submitButton = screen.getByText('Create Bug Report')
     assert.ok(submitButton.hasAttribute('disabled'))
   })
+
+  it('shows sign-in copy and disables submit when upload is unavailable for anonymous users', () => {
+    render(
+      <ManualUploadForm
+        onSubmit={() => undefined}
+        isUploading={false}
+        uploadAvailability={{
+          available: false,
+          reason:
+            'Sign in to Repro to upload/report this recording. You can still review playback or download locally.',
+        }}
+      />
+    )
+
+    assert.ok(screen.getByText(/Sign in to Repro to upload\/report/))
+    assert.ok(screen.getByText('Create Bug Report').hasAttribute('disabled'))
+  })
+
+  it('shows project copy and disables submit when upload has no workspace project', () => {
+    render(
+      <ManualUploadForm
+        onSubmit={() => undefined}
+        isUploading={false}
+        uploadAvailability={{
+          available: false,
+          reason:
+            'Choose or create a workspace project to upload/report this recording. You can still review playback or download locally.',
+        }}
+      />
+    )
+
+    assert.ok(screen.getByText(/workspace project to upload\/report/))
+    assert.ok(screen.getByText('Create Bug Report').hasAttribute('disabled'))
+  })
 })

@@ -9,10 +9,11 @@ import {
 } from '@repro/agentic'
 import { AgenticStateContext, AgenticView } from '@repro/agentic-ui'
 import { useApiClient } from '@repro/api-client'
-import { usePlayback } from '@repro/playback'
+import { createSourcePlayback, usePlayback } from '@repro/playback'
 import { parse } from 'event-stream-parser'
 import { attemptP, chain, fork } from 'fluture'
 import React, { useMemo } from 'react'
+import type { RecordingActions } from '../../PostRecordingSurface/useRecordingActions'
 
 async function hashPromptVersion(prompt: string) {
   const encoder = new TextEncoder()
@@ -25,7 +26,11 @@ async function hashPromptVersion(prompt: string) {
     .slice(0, 16) // 16 hex chars (64 bits) is enough for version identification
 }
 
-export const Agentic: React.FC = () => {
+interface AgenticProps {
+  getSelectedRecording: RecordingActions['getSelectedRecording']
+}
+
+export const Agentic: React.FC<AgenticProps> = ({ getSelectedRecording }) => {
   const apiClient = useApiClient()
   const playback = usePlayback()
 
@@ -55,36 +60,37 @@ export const Agentic: React.FC = () => {
     [apiClient]
   )
 
-  const state = useMemo(
-    () =>
-      createAgenticState(
-        streamProvider,
-        {
-          getDuration: () => playback.getDuration(),
-          getSnapshotAtTime: (timestampMs: number) => {
-            const pb = playback.copy()
-            pb.seekToTime(timestampMs)
-            return pb.getSnapshot()
-          },
-          // Invert from Record<resourceId, absoluteURL> to
-          // Record<absoluteURL, resourceId>. In the capture widget the resource
-          // map is always empty (resources aren't fetched client-side), so this
-          // produces {} in practice — see REP-XXX for the follow-up.
-          getResourceMap: () =>
-            Object.fromEntries(
-              Object.entries(playback.getResourceMap()).map(([id, url]) => [
-                url,
-                id,
-              ])
-            ),
-          ...makeAccessorFromEventList(playback.getSourceEvents()),
+  const state = useMemo(() => {
+    const selected = getSelectedRecording()
+
+    return createAgenticState(
+      streamProvider,
+      {
+        getDuration: () => selected.duration,
+        getSnapshotAtTime: (timestampMs: number) => {
+          const pb = createSourcePlayback(
+            selected.events,
+            selected.duration,
+            selected.resourceMap
+          )
+          pb.seekToTime(timestampMs)
+          return pb.getSnapshot()
         },
-        // captureScreenshot is excluded from the extension agent until it has
-        // been tested and refined in this context.
-        { tools: extensionTools }
-      ),
-    [streamProvider, playback]
-  )
+        // Invert from Record<resourceId, absoluteURL> to
+        // Record<absoluteURL, resourceId>. In the capture widget the resource
+        // map is always empty (resources aren't fetched client-side), so this
+        // produces {} in practice — see REP-XXX for the follow-up.
+        getResourceMap: () =>
+          Object.fromEntries(
+            Object.entries(selected.resourceMap).map(([id, url]) => [url, id])
+          ),
+        ...makeAccessorFromEventList(selected.events),
+      },
+      // captureScreenshot is excluded from the extension agent until it has
+      // been tested and refined in this context.
+      { tools: extensionTools }
+    )
+  }, [streamProvider, getSelectedRecording])
 
   return (
     <AgenticStateContext.Provider value={state}>
