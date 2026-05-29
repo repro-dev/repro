@@ -1,4 +1,5 @@
 export * from './bench-utils'
 export * from './box'
+export * from './css'
 export * from './jsdom'
 export { MockNodeList } from './MockNodeList'

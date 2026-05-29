@@ -1,3 +1,4 @@
+import { getCSSText } from '@repro/testing-utils'
 import { cleanup, render } from '@testing-library/react'
 import expect from 'expect'
 import { afterEach, describe, it } from 'node:test'
@@ -11,26 +12,6 @@ const options = [
   { value: 'a', label: 'Option A' },
   { value: 'b', label: 'Option B' },
 ]
-
-/**
- * jsxstyle generates hashed CSS class names and injects rules into a <style>
- * element. Height must be verified by searching the injected CSS rules.
- */
-function getCSSText(): string {
-  const rules: string[] = []
-  for (let i = 0; i < document.styleSheets.length; i++) {
-    const sheet = document.styleSheets[i]
-    if (!sheet) continue
-    try {
-      for (const rule of Array.from(sheet.cssRules || [])) {
-        rules.push(rule.cssText)
-      }
-    } catch {
-      // cross-origin sheets; ignore
-    }
-  }
-  return rules.join('\n')
-}
 
 describe('Select height — formControlHeight tokens (REP-659)', () => {
   it('small Select trigger renders a CSS rule with height=28px', () => {
