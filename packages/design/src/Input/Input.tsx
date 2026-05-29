@@ -6,12 +6,22 @@ import { useFormFieldContext } from '../FormField/FormFieldContext'
 import { color } from '../tokens/colors'
 import { radius, shadow } from '../tokens/elevation'
 import { formControlHeight } from '../tokens/formControl'
-import { focusWithinRing } from '../tokens/interaction'
+import { focusRing, focusWithinRing } from '../tokens/interaction'
 import { transition } from '../tokens/motion'
+import { spacing } from '../tokens/spacing'
 import { MINIMUM_FONT_SIZE } from '../tokens/typography'
 
 type Context = 'normal' | 'error'
 type Size = 'small' | 'medium' | 'large'
+
+export interface InputTrailingAction {
+  /** Accessible name for the icon-only action. */
+  label: string
+  /** Icon or compact visual affordance shown inside the button. */
+  icon: React.ReactNode
+  onClick: React.MouseEventHandler<HTMLButtonElement>
+  disabled?: boolean
+}
 
 export interface InputProps {
   'aria-describedby'?: string
@@ -37,6 +47,7 @@ export interface InputProps {
   required?: boolean
   rows?: number
   size?: Size
+  trailingAction?: InputTrailingAction
   type?: string
   value?: string
 }
@@ -46,6 +57,14 @@ const sizes = {
   medium: 8,
   large: 10,
 }
+
+const INPUT_BORDER_WIDTH = 1
+
+const trailingActionInsets = {
+  small: spacing.sm,
+  medium: spacing.sm,
+  large: spacing.md,
+} as const
 
 /**
  * Form text input with error styling and configurable validation attributes.
@@ -58,6 +77,10 @@ const sizes = {
  * When used inside a `FormField`, `id`, `aria-describedby`,
  * `aria-invalid`, `context`, and `disabled` are automatically provided
  * via context. Explicit props always override context values.
+ *
+ * `trailingAction` is reserved for reversible, field-local single-line
+ * helpers such as clear, reveal, copy, or cancel draft edit. Use an adjacent
+ * action row for persistence, destructive, or broader revert actions.
  */
 export const Input = forwardRef<
   HTMLInputElement | HTMLTextAreaElement,
@@ -72,6 +95,7 @@ export const Input = forwardRef<
       readOnly,
       rows = 1,
       size = 'medium',
+      trailingAction,
       type = 'text',
       id: idProp,
       name,
@@ -104,11 +128,21 @@ export const Input = forwardRef<
 
     const base = sizes[size]
     const fontSize = Math.max(base * 1.5, MINIMUM_FONT_SIZE)
+    const trailingActionInset = trailingActionInsets[size]
+    const trailingActionSize =
+      formControlHeight[size] - INPUT_BORDER_WIDTH * 2 - trailingActionInset * 2
+    const shouldRenderTrailingAction = rows <= 1 && trailingAction
 
     if (process.env.NODE_ENV !== 'production') {
       if (!ariaLabel && !ariaLabelledBy && !id) {
         console.warn(
           'Input: No accessible label provided. Pass `aria-label`, `aria-labelledby`, or `id` (with a corresponding <Label htmlFor>) to ensure screen reader accessibility.'
+        )
+      }
+
+      if (rows > 1 && trailingAction) {
+        console.warn(
+          'Input: `trailingAction` is only supported for single-line inputs. Use InputActionRow for textarea actions.'
         )
       }
     }
@@ -188,6 +222,39 @@ export const Input = forwardRef<
             ...restProps,
           }}
         />
+        {shouldRenderTrailingAction ? (
+          <Block
+            component="button"
+            flexShrink={0}
+            display="inline-flex"
+            alignItems="center"
+            justifyContent="center"
+            width={trailingActionSize}
+            height={trailingActionSize}
+            marginRight={trailingActionInset}
+            border={0}
+            borderRadius={radius.sm}
+            backgroundColor="transparent"
+            color={color.text.muted}
+            hoverBackgroundColor={disabled ? undefined : color.bg.hover}
+            hoverColor={disabled ? undefined : color.text.default}
+            cursor={
+              disabled || trailingAction.disabled ? 'not-allowed' : 'pointer'
+            }
+            opacity={disabled || trailingAction.disabled ? 0.5 : 1}
+            transition={transition.fast}
+            {...focusRing(context === 'error' ? 'danger' : 'default')}
+            props={{
+              type: 'button',
+              'aria-label': trailingAction.label,
+              title: trailingAction.label,
+              disabled: disabled || trailingAction.disabled,
+              onClick: trailingAction.onClick,
+            }}
+          >
+            {trailingAction.icon}
+          </Block>
+        ) : null}
       </Block>
     )
   }

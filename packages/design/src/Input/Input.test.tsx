@@ -1,8 +1,13 @@
-import { cleanup, render } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import expect from 'expect'
 import { afterEach, describe, it } from 'node:test'
 import React from 'react'
+import { FormField } from '../FormField'
+import { FormFieldError } from '../FormFieldError'
+import { Label } from '../Label'
 import { formControlHeight } from '../tokens/formControl'
+import { spacing } from '../tokens/spacing'
 import { Input } from './Input'
 
 afterEach(cleanup)
@@ -119,5 +124,104 @@ describe('Input vertical centering — flexbox (REP-659)', () => {
     const css = getElementCSSText(innerTextarea)
     // textarea should have the "padding: Xpx Ypx" shorthand
     expect(css).toMatch(/padding:\s*\d+px \d+px/)
+  })
+})
+
+describe('Input trailing actions (REP-1176)', () => {
+  it('sizes the trailing action from each input size with a size-aware right inset only', () => {
+    const expectedInsetBySize = {
+      small: spacing.sm,
+      medium: spacing.sm,
+      large: spacing.md,
+    } as const
+
+    for (const size of ['small', 'medium', 'large'] as const) {
+      const { unmount } = render(
+        <Input
+          aria-label={`${size} search`}
+          size={size}
+          trailingAction={{
+            label: `Clear ${size} search`,
+            icon: <span aria-hidden="true">×</span>,
+            onClick: () => undefined,
+          }}
+        />
+      )
+
+      const action = screen.getByRole('button', {
+        name: `Clear ${size} search`,
+      })
+      const css = getElementCSSText(action)
+      const expectedInset = expectedInsetBySize[size]
+      const expectedSize = formControlHeight[size] - 2 - expectedInset * 2
+
+      expect(css).toContain(`width: ${expectedSize}px`)
+      expect(css).toContain(`height: ${expectedSize}px`)
+      expect(css).toContain(`margin-right: ${expectedInset}px`)
+      expect(css).not.toContain(`margin: ${expectedInset}px`)
+
+      unmount()
+    }
+  })
+
+  it('renders an accessible trailing action after the textbox in tab order', async () => {
+    const user = userEvent.setup()
+    let clearCount = 0
+
+    render(
+      <Input
+        aria-label="Search"
+        trailingAction={{
+          label: 'Clear search',
+          icon: <span aria-hidden="true">×</span>,
+          onClick: () => {
+            clearCount += 1
+          },
+        }}
+      />
+    )
+
+    const input = screen.getByRole('textbox', { name: 'Search' })
+    const action = screen.getByRole<HTMLButtonElement>('button', {
+      name: 'Clear search',
+    })
+
+    await user.tab()
+    expect(document.activeElement).toBe(input)
+
+    await user.tab()
+    expect(document.activeElement).toBe(action)
+
+    await user.click(action)
+    expect(clearCount).toBe(1)
+  })
+
+  it('preserves FormField wiring and disables related trailing actions', () => {
+    render(
+      <FormField id="account-name" invalid disabled>
+        <Label>Name</Label>
+        <Input
+          trailingAction={{
+            label: 'Cancel name edit',
+            icon: <span aria-hidden="true">×</span>,
+            onClick: () => undefined,
+          }}
+        />
+        <FormFieldError error={{ message: 'Name is required' }} />
+      </FormField>
+    )
+
+    const input = screen.getByRole<HTMLInputElement>('textbox', {
+      name: 'Name',
+    })
+    const action = screen.getByRole<HTMLButtonElement>('button', {
+      name: 'Cancel name edit',
+    })
+
+    expect(input.getAttribute('id')).toBe('account-name')
+    expect(input.getAttribute('aria-describedby')).toBe('account-name-error')
+    expect(input.getAttribute('aria-invalid')).toBe('true')
+    expect(input.disabled).toBe(true)
+    expect(action.disabled).toBe(true)
   })
 })
