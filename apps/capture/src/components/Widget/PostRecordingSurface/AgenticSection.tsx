@@ -17,7 +17,10 @@ interface AgenticSectionProps {
 export const AgenticSection: React.FC<AgenticSectionProps> = props => {
   return (
     <>
-      <AgenticAuthGate getSelectedRecording={props.getSelectedRecording} />
+      <AgenticAuthGate
+        getSelectedRecording={props.getSelectedRecording}
+        hasProjectId={props.hasProjectId}
+      />
       <BranchActionBar {...props} />
     </>
   )

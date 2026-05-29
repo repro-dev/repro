@@ -1,17 +1,19 @@
 import { useAuthContext, useSession, useSessionLoading } from '@repro/auth'
 import { Button, EmptyState, FullPageLoading } from '@repro/design'
 import { forget } from '@repro/future-utils'
-import { LockIcon } from 'lucide-react'
+import { FolderIcon, LockIcon } from 'lucide-react'
 import React, { useEffect } from 'react'
 import type { RecordingActions } from '../../PostRecordingSurface/useRecordingActions'
 import { Agentic } from './Agentic.hoc'
 
 interface AgenticAuthGateProps {
   getSelectedRecording: RecordingActions['getSelectedRecording']
+  hasProjectId: boolean
 }
 
 export const AgenticAuthGate: React.FC<AgenticAuthGateProps> = ({
   getSelectedRecording,
+  hasProjectId,
 }) => {
   const sessionLoading = useSessionLoading()
   const session = useSession()
@@ -60,6 +62,21 @@ export const AgenticAuthGate: React.FC<AgenticAuthGateProps> = ({
             Sign in
           </Button>
         </EmptyState.Action>
+      </EmptyState>
+    )
+  }
+
+  if (!hasProjectId) {
+    return (
+      <EmptyState>
+        <EmptyState.Icon>
+          <FolderIcon size={40} />
+        </EmptyState.Icon>
+        <EmptyState.Title>Choose a workspace project</EmptyState.Title>
+        <EmptyState.Description>
+          Agentic debugging needs a workspace project. You can still review
+          playback or download locally.
+        </EmptyState.Description>
       </EmptyState>
     )
   }

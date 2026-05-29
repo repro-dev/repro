@@ -142,6 +142,7 @@ describe('useRecordingActions', () => {
 
     assert.equal(result.events, slicedEvents)
     assert.equal(result.duration, 30000)
+    assert.equal(result.startTimeMs, 70000)
     assert.deepEqual(trackedSliceRanges, [[70000, 100000]])
   })
 
@@ -155,6 +156,7 @@ describe('useRecordingActions', () => {
 
     assert.equal(result.events, slicedEvents)
     assert.equal(result.duration, 20000)
+    assert.equal(result.startTimeMs, 0)
     assert.deepEqual(trackedSliceRanges, [[0, 20000]])
   })
 
@@ -172,6 +174,7 @@ describe('useRecordingActions', () => {
     const result = actions.getSelectedRecording()
 
     assert.equal(result.duration, 100000)
+    assert.equal(result.startTimeMs, 0)
     assert.equal(trackedSliceRanges.length, 0)
   })
 

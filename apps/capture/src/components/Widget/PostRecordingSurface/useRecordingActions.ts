@@ -33,6 +33,7 @@ export interface UploadState {
 export interface SelectedRecording {
   events: ReturnType<Playback['getSourceEvents']>
   duration: number
+  startTimeMs: number
   resourceMap: ReturnType<Playback['getResourceMap']>
 }
 
@@ -77,6 +78,7 @@ export function useRecordingActions(
       return {
         events: sliceEventsAtRange(sourceEvents, [minTime, maxTime]),
         duration: Math.min(selectedDuration, playbackDuration),
+        startTimeMs: minTime,
         resourceMap: playback.getResourceMap(),
       }
     }
@@ -84,6 +86,7 @@ export function useRecordingActions(
     return {
       events: sourceEvents,
       duration: playbackDuration,
+      startTimeMs: 0,
       resourceMap: playback.getResourceMap(),
     }
   }, [playback, recordingMode, selectedDuration])

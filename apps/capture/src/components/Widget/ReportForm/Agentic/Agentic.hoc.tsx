@@ -12,7 +12,7 @@ import { useApiClient } from '@repro/api-client'
 import { createSourcePlayback, usePlayback } from '@repro/playback'
 import { parse } from 'event-stream-parser'
 import { attemptP, chain, fork } from 'fluture'
-import React, { useMemo } from 'react'
+import React, { useEffect, useMemo } from 'react'
 import type { RecordingActions } from '../../PostRecordingSurface/useRecordingActions'
 
 async function hashPromptVersion(prompt: string) {
@@ -33,6 +33,7 @@ interface AgenticProps {
 export const Agentic: React.FC<AgenticProps> = ({ getSelectedRecording }) => {
   const apiClient = useApiClient()
   const playback = usePlayback()
+  const selected = useMemo(() => getSelectedRecording(), [getSelectedRecording])
 
   const streamProvider: StreamProvider = useMemo(
     () =>
@@ -61,8 +62,6 @@ export const Agentic: React.FC<AgenticProps> = ({ getSelectedRecording }) => {
   )
 
   const state = useMemo(() => {
-    const selected = getSelectedRecording()
-
     return createAgenticState(
       streamProvider,
       {
@@ -90,12 +89,16 @@ export const Agentic: React.FC<AgenticProps> = ({ getSelectedRecording }) => {
       // been tested and refined in this context.
       { tools: extensionTools }
     )
-  }, [streamProvider, getSelectedRecording])
+  }, [streamProvider, selected])
+
+  useEffect(() => () => state.destroy(), [state])
 
   return (
     <AgenticStateContext.Provider value={state}>
       <AgenticView
-        onGoToTime={timestampMs => playback.seekToTime(timestampMs)}
+        onGoToTime={timestampMs =>
+          playback.seekToTime(selected.startTimeMs + timestampMs)
+        }
         onFeedback={sentiment => {
           // Fire-and-forget — no error handling beyond a console.warn
           fork(() => console.warn('[Agentic] feedback submission failed'))(
