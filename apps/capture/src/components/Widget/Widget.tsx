@@ -1,9 +1,7 @@
 import { Block, InlineBlock } from '@jsxstyle/react'
-import { useApiClient } from '@repro/api-client'
 import { color, transition } from '@repro/design'
 import { RecordingMode } from '@repro/domain'
-import { useFuture } from '@repro/future-utils'
-import React, { Fragment, useCallback, useState } from 'react'
+import React, { useCallback } from 'react'
 import { ReadyState, useReadyState, useRecordingMode } from '~/state'
 import { CaptureModal } from './CaptureReview/CaptureModal'
 import { Launcher } from './Launcher'
@@ -12,17 +10,6 @@ import { LiveControls } from './LiveControls'
 export const Widget: React.FC = () => {
   const [recordingMode, setRecordingMode] = useRecordingMode()
   const [readyState, setReadyState] = useReadyState()
-  const apiClient = useApiClient()
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
-    null
-  )
-  const [refetchTrigger, setRefetchTrigger] = useState(0)
-
-  const projectsResult = useFuture(
-    () => apiClient.fetch('/projects'),
-    [apiClient, refetchTrigger]
-  )
-  const projects = projectsResult.success ? projectsResult.data.items : []
 
   const isReady = readyState === ReadyState.Ready
   const isPendingLiveRecording =
@@ -33,13 +20,8 @@ export const Widget: React.FC = () => {
     setRecordingMode(RecordingMode.None)
   }, [setReadyState, setRecordingMode])
 
-  const onProjectCreated = useCallback((projectId: string) => {
-    setSelectedProjectId(projectId)
-    setRefetchTrigger(t => t + 1)
-  }, [])
-
   return (
-    <Fragment>
+    <React.Fragment>
       <Block
         position="fixed"
         left={0}
@@ -71,16 +53,9 @@ export const Widget: React.FC = () => {
         {isPendingLiveRecording && <LiveControls />}
 
         <Block position="relative" translate="20px -90px">
-          <CaptureModal
-            open={isReady}
-            projects={projects}
-            selectedProjectId={selectedProjectId}
-            onProjectSelect={setSelectedProjectId}
-            onProjectCreated={onProjectCreated}
-            onClose={onReset}
-          />
+          <CaptureModal open={isReady} onClose={onReset} />
         </Block>
       </InlineBlock>
-    </Fragment>
+    </React.Fragment>
   )
 }
