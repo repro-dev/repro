@@ -262,7 +262,7 @@ After the Blocker loop clears (or if there were no Blockers to begin with) and t
    
    If any doubt exists about whether a finding qualifies, skip it.
 
-3. **Launch a single `develop` pass** with only the qualifying non-blockers. Pass the review findings as a focused fix prompt — do not pass the full original plan:
+3. **Launch a single `develop` (or `autobot-review-fixer`) pass** with only the qualifying non-blockers. Pass the review findings as a focused fix prompt — do not pass the full original plan:
    ```
    Apply non-blocker review fixes for REP-xxx in worktree <absolute-worktree-path>.
    

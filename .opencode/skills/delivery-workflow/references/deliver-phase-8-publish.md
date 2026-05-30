@@ -35,7 +35,7 @@ For each publishable issue:
    - A short summary of the change
    - Verification performed
    - Any notable risk or follow-up note worth human attention
-   - **Review remainder** — a concise, triage-ready list of every non-blocking review finding that was not fixed. Format as:
+   - **Review remainder** — a concise, triage-ready list of every non-blocking review finding (including those fixed in the sweep so a human reviewer can confirm the delta). Format as:
 
      ```
      ## Review remainder
