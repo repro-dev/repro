@@ -6,8 +6,9 @@ import { Box, List, copy as copyDataView } from '@repro/tdl'
 export function sliceEventsAtRange(
   sourceEvents: List<SourceEventView>,
   range: [number, number]
-): List<SourceEventView> {
+): { events: List<SourceEventView>; sourceOffset: number } {
   const eventBuffers: Array<DataView> = []
+  let sourceOffset = 0
 
   Stats.time(
     'libs/record ~ sliceEventsAtRange: create recording from range',
@@ -71,7 +72,7 @@ export function sliceEventsAtRange(
       eventBuffers.unshift(leadingSnapshotBuffer)
 
       const firstEvent = eventBuffers[0]
-      const timeOffset = firstEvent
+      sourceOffset = firstEvent
         ? SourceEventView.over(firstEvent)
             .map(firstEvent => firstEvent.time)
             .orElse(0)
@@ -79,11 +80,14 @@ export function sliceEventsAtRange(
 
       for (const event of eventBuffers) {
         SourceEventView.over(event).apply(event => {
-          event.time -= timeOffset
+          event.time -= sourceOffset
         })
       }
     }
   )
 
-  return new List(SourceEventView, eventBuffers)
+  return {
+    events: new List(SourceEventView, eventBuffers),
+    sourceOffset,
+  }
 }

@@ -7,6 +7,7 @@ import React from 'react'
 export interface ModalProps {
   size?: 'compact' | 'normal' | 'full-screen'
   title?: React.ReactNode
+  headerActions?: React.ReactNode
   open?: boolean
   onClose?: () => void
 }
@@ -21,6 +22,7 @@ const defaultStyles = {
 export const Modal: React.FC<React.PropsWithChildren<ModalProps>> = ({
   children,
   title,
+  headerActions,
   onClose,
   open = false,
   size = 'normal',
@@ -67,23 +69,26 @@ export const Modal: React.FC<React.PropsWithChildren<ModalProps>> = ({
                       </InlineBlock>
                     )}
 
-                    {onClose && (
-                      <Row
-                        alignItems="center"
-                        marginLeft="auto"
-                        padding={5}
-                        transform="translateX(10px)"
-                        color={color.infoTint}
-                        hoverBackgroundColor={color.infoFg}
-                        borderRadius={2}
-                        transition="all 100ms ease-in-out"
-                        lineHeight={1}
-                        cursor="pointer"
-                        props={{ onClick: onClose }}
-                      >
-                        <XIcon />
-                      </Row>
-                    )}
+                    <Row alignItems="center" gap={16} marginLeft="auto">
+                      {headerActions}
+
+                      {onClose && (
+                        <Row
+                          alignItems="center"
+                          padding={5}
+                          transform="translateX(10px)"
+                          color={color.infoTint}
+                          hoverBackgroundColor={color.infoFg}
+                          borderRadius={2}
+                          transition="all 100ms ease-in-out"
+                          lineHeight={1}
+                          cursor="pointer"
+                          props={{ onClick: onClose }}
+                        >
+                          <XIcon />
+                        </Row>
+                      )}
+                    </Row>
                   </Row>
                 </Block>
               )}
