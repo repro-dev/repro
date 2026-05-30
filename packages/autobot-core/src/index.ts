@@ -56,3 +56,10 @@ export type {
   ImmediateCancellationState,
   InProgressState,
 } from "./transitions";
+
+export type {
+  AutobotPhaseAgentId,
+  AutobotPhaseAgentPermission,
+} from "./phase-agents";
+
+export { autobotPhaseAgentProfiles } from "./phase-agents";

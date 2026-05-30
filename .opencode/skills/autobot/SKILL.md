@@ -17,11 +17,22 @@ Reference for Autobot delivery automation. Load this skill before implementing A
 
 ## Phase Agents
 
+Autobot defines 5 phase-specific agents as the primary authority boundary. Each has an explicit permission profile in `packages/autobot-core/src/phase-agents.ts` enforced at the OpenCode agent config level (`.opencode/agents/autobot-*.md`).
+
+| Agent                 | Role                                                                     | Edit | Publish |
+| --------------------- | ------------------------------------------------------------------------ | ---- | ------- |
+| `autobot-planner`     | Read-oriented planning; inspects issues and codebase, writes only plans. | No   | No      |
+| `autobot-developer`   | Implementation; writes source and tests, runs focused verification.      | Yes  | No      |
+| `autobot-reviewer`    | Read-only review; inspects diffs and reports findings.                   | No   | No      |
+| `autobot-review-fixer`| Applies only agent-fixable blocking fixes within reviewed scope.         | Yes  | No      |
+| `autobot-publisher`   | Commit, push, PR creation, Linear status update. No source edits.        | No   | Yes     |
+
 When adding or changing phase behavior, start from the intended phase agent contract.
 
 - Planning agents should be read-oriented and should not need write permissions or mutation-capable publish tools.
 - Develop agents may write source and run focused verification, but should not publish, push, merge, or inspect credentials.
 - Review agents should inspect diffs and report findings without mutating the branch.
+- Review-fix agents apply only agent-fixable blocking fixes within the reviewed change set, with a 3-attempt hard limit.
 - Publish/release agents require explicit gating and should be separated from planning/develop/review authority.
 
 ## Command Safety
