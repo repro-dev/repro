@@ -12,7 +12,7 @@ import {
   spacing,
 } from '@repro/design'
 import { usePlayback } from '@repro/playback'
-import { CloudUploadIcon, DownloadIcon } from 'lucide-react'
+import { CloudUploadIcon, DownloadIcon, LockIcon } from 'lucide-react'
 import React, { useCallback, useState } from 'react'
 import { useRecordingMode } from '~/state'
 import { Modal } from '../Modal'
@@ -49,12 +49,6 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
   )
 
   const canSave = session !== null && projectId !== null
-
-  const saveTooltipText = canSave
-    ? 'Save recording to project'
-    : session === null
-    ? 'Sign in to Repro to upload recordings'
-    : 'Select or create a project to upload. You can still download locally.'
 
   const onDownloadLocally = useCallback(() => {
     actions.downloadLocally()
@@ -116,7 +110,17 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
             }
             opacity={!canSave || actions.uploadState.isUploading ? 0.4 : 1}
           >
-            <Tooltip>{saveTooltipText}</Tooltip>
+            <Tooltip>
+              {canSave ? (
+                'Save recording to project'
+              ) : session === null ? (
+                <>
+                  <LockIcon size={16} /> Sign in to save
+                </>
+              ) : (
+                'Select or create a project to upload. You can still download locally.'
+              )}
+            </Tooltip>
             <CloudUploadIcon size={16} />
             Save
           </Row>

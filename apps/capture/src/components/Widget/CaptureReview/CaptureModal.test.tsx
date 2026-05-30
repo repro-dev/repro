@@ -163,12 +163,18 @@ describe('CaptureModal', () => {
 
   it('renders tooltip with sign-in prompt when session is null (not signed in)', () => {
     currentSession = null
-    renderModal('proj-1')
+    const { container } = renderModal('proj-1')
 
-    const tooltip = screen.getByText('Sign in to Repro to upload recordings')
+    const tooltip = screen.getByText('Sign in to save')
     assert.ok(
       tooltip,
-      'Tooltip should show sign-in prompt when save is disabled (session is null)'
+      'Tooltip should show "Sign in to save" when session is null'
+    )
+
+    const lockIcon = container.querySelector('svg.lucide-lock')
+    assert.ok(
+      lockIcon,
+      'Lock icon should be present in the tooltip when session is null'
     )
   })
 
