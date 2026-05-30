@@ -50,6 +50,12 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
 
   const canSave = session !== null && projectId !== null
 
+  const saveTooltipText = canSave
+    ? 'Save recording to project'
+    : session === null
+    ? 'Sign in to Repro to upload recordings'
+    : 'Select or create a project to upload. You can still download locally.'
+
   const onDownloadLocally = useCallback(() => {
     actions.downloadLocally()
   }, [actions])
@@ -106,6 +112,7 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
             }
             opacity={!canSave || actions.uploadState.isUploading ? 0.4 : 1}
           >
+            <Tooltip>{saveTooltipText}</Tooltip>
             <CloudUploadIcon size={16} />
             Save
           </Row>
