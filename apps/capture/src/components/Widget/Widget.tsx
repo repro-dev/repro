@@ -5,9 +5,9 @@ import { RecordingMode } from '@repro/domain'
 import { useFuture } from '@repro/future-utils'
 import React, { Fragment, useCallback } from 'react'
 import { ReadyState, useReadyState, useRecordingMode } from '~/state'
+import { CaptureModal } from './CaptureReview/CaptureModal'
 import { Launcher } from './Launcher'
 import { LiveControls } from './LiveControls'
-import { PostRecordingSurfaceModal } from './PostRecordingSurface/PostRecordingSurfaceModal'
 
 export const Widget: React.FC = () => {
   const [recordingMode, setRecordingMode] = useRecordingMode()
@@ -63,7 +63,7 @@ export const Widget: React.FC = () => {
         {isPendingLiveRecording && <LiveControls />}
 
         <Block position="relative" translate="20px -90px">
-          <PostRecordingSurfaceModal
+          <CaptureModal
             open={isReady}
             projectId={projectId}
             onClose={onReset}

@@ -12,7 +12,7 @@ import { RecordingActions } from './useRecordingActions'
 
 const DEFAULT_SELECTED_DURATION = 60_000
 
-interface PostRecordingSurfaceProps {
+interface CaptureReviewProps {
   projectId: string | null
   onClose: () => void
   actions: RecordingActions
@@ -22,7 +22,7 @@ interface PostRecordingSurfaceProps {
   setSelectedDuration: (duration: number) => void
 }
 
-export const PostRecordingSurface: React.FC<PostRecordingSurfaceProps> = ({
+export const CaptureReview: React.FC<CaptureReviewProps> = ({
   projectId,
   onClose,
   actions,

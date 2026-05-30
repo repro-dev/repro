@@ -16,20 +16,22 @@ import { CloudUploadIcon, DownloadIcon } from 'lucide-react'
 import React, { useCallback, useState } from 'react'
 import { useRecordingMode } from '~/state'
 import { Modal } from '../Modal'
-import { PostRecordingSurface } from './PostRecordingSurface'
+import { CaptureReview } from './CaptureReview'
 import { useRecordingActions } from './useRecordingActions'
 
 const DEFAULT_SELECTED_DURATION = 60_000
 
-interface PostRecordingSurfaceModalProps {
+interface CaptureModalProps {
   open: boolean
   projectId: string | null
   onClose: () => void
 }
 
-export const PostRecordingSurfaceModal: React.FC<
-  PostRecordingSurfaceModalProps
-> = ({ open, projectId, onClose }) => {
+export const CaptureModal: React.FC<CaptureModalProps> = ({
+  open,
+  projectId,
+  onClose,
+}) => {
   const playback = usePlayback()
   const session = useSession()
   const [recordingMode] = useRecordingMode()
@@ -158,7 +160,7 @@ export const PostRecordingSurfaceModal: React.FC<
       onClose={onClose}
       headerActions={headerActions}
     >
-      <PostRecordingSurface
+      <CaptureReview
         projectId={projectId}
         onClose={onClose}
         actions={actions}
