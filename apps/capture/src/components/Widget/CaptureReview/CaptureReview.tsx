@@ -13,7 +13,6 @@ import { RecordingActions } from './useRecordingActions'
 const DEFAULT_SELECTED_DURATION = 60_000
 
 interface CaptureReviewProps {
-  projectId: string | null
   onClose: () => void
   actions: RecordingActions
   playback: Playback
@@ -23,7 +22,6 @@ interface CaptureReviewProps {
 }
 
 export const CaptureReview: React.FC<CaptureReviewProps> = ({
-  projectId,
   onClose,
   actions,
   playback,
@@ -89,10 +87,7 @@ export const CaptureReview: React.FC<CaptureReviewProps> = ({
         </PlaybackRegion>
 
         <AsideRegion>
-          <AgenticSection
-            getSelectedRecording={actions.getSelectedRecording}
-            hasProjectId={projectId !== null}
-          />
+          <AgenticSection getSelectedRecording={actions.getSelectedRecording} />
         </AsideRegion>
 
         {actions.uploadState.progress && (

@@ -33,30 +33,8 @@ describe('AgenticAuthGate', () => {
     sessionLoading = false
   })
 
-  it('renders a project-required prompt when signed in without a project', () => {
-    render(
-      <AgenticAuthGate
-        getSelectedRecording={() => ({}) as any}
-        hasProjectId={false}
-      />
-    )
-
-    assert.ok(screen.getByText('Choose a workspace project'))
-    assert.ok(
-      screen.getByText(
-        'Saving a recording requires a workspace project. You can still use agentic debugging, review playback, or download locally.'
-      )
-    )
-    assert.equal(screen.queryByText('Agentic ready'), null)
-  })
-
-  it('renders Agentic when signed in with a project', () => {
-    render(
-      <AgenticAuthGate
-        getSelectedRecording={() => ({}) as any}
-        hasProjectId={true}
-      />
-    )
+  it('renders Agentic when signed in', () => {
+    render(<AgenticAuthGate getSelectedRecording={() => ({}) as any} />)
 
     assert.ok(screen.getByText('Agentic ready'))
   })

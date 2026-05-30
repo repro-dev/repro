@@ -176,7 +176,6 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
       headerActions={headerActions}
     >
       <CaptureReview
-        projectId={projectId}
         onClose={onClose}
         actions={actions}
         playback={playback}
