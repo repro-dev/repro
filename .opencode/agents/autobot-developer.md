@@ -74,7 +74,17 @@ After all requirements are implemented and tests pass:
 3. If the work was UI-bearing, include the `audit-ui-quality` self-critique result in the handoff summary: separate authored-polish judgment, named anti-patterns (if any), concrete fixes, browser evidence paths, viewport/state/interaction notes, artifact-lint status, and whether ship-as-is is blocked.
 4. **Skill freshness check**: For each domain skill loaded during this task, ask: did you encounter any file paths, function names, API shapes, or patterns that the skill described incorrectly or that were missing? If yes, note it for the outer conversation.
 
-Note: Actual committing is handled separately by `autobot-publisher`. Do not commit — leave changes staged.
+## Commit
+
+After all verification passes:
+
+1. Stage the implementation files with `git add <specific-files>` — never use `git add -A` or `git add .`.
+2. Commit locally with a Conventional Commit message:
+   ```
+   feat(scope): description of change (REP-xxx)
+   ```
+3. If a pre-commit hook modifies files, check `git status` again, stage hook-generated modifications, and amend the commit with `git commit --amend --no-edit`. Only do this if the initial commit succeeded and HEAD was created in this session.
+4. Do **not** push. Do **not** create a PR. The commit chain is consumed by `autobot-reviewer` and ultimately pushed by `autobot-publisher`.
 
 ## Output format
 
