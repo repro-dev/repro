@@ -63,16 +63,49 @@ Then push: `git push -u origin <branch-name>`.
 
 ## Create PR
 
+The PR body is synthesized from the commit chain, plan artifact, and review findings. Before creating the PR, gather context:
+
+1. Read the commit chain: `git log main..HEAD --oneline`
+2. Read the changed file list: `git diff main..HEAD --stat`
+3. If a plan artifact exists at `.autobot/runs/<issue-id>/attempt-<n>/plan-*.md`, read it for acceptance criteria and change strategy.
+4. If review findings exist at `.autobot/runs/<issue-id>/attempt-<n>/review-*.md`, read them for resolved and outstanding issues.
+
+Then create the PR with this body template:
+
 ```sh
 gh pr create \
   --title "<type(scope): description> (REP-xxx)" \
   --body "Closes REP-xxx
 
 ## Summary
-<1-3 bullet points describing the change>
+<1-3 bullet points describing the change, synthesized from the commit chain and plan>
+
+## Manual verification
+<3-5 concrete steps a reviewer can follow to manually verify the change works as expected. Derive from the changed file list and acceptance criteria. Each step should be a specific, executable action — not abstract guidance.
+Example format:
+1. Run \`pnpm --filter @repro/<package> test\` — confirm all tests pass
+2. Open <page/route> in browser — verify <behavior>
+3. Inspect <file> — confirm <property>>
+
+## Reviewer playbook
+<step-by-step review guide, derived from the plan's acceptance criteria and affected packages:
+
+### Files to review
+- List the 3-5 most important files with a 1-line note on what to look for
+- Skip trivial or auto-generated files
+
+### Acceptance criteria walkthrough
+- For each acceptance criterion from the plan, state where in the diff it is addressed (file path + line range or commit message)
+
+### Risk areas
+- Highlight any changes that could have unintended side effects
+- Note any follow-up work that was deferred
+
+### Smoke test commands
+- List the exact \`pnpm --filter\` commands a reviewer should run>
 
 ## Verification
-<what was run to verify the implementation — tests, typecheck, format>
+<what was run — tests, typecheck, format. Include pass/fail counts.>
 
 ## Notes
 <any notable risk or follow-up worth human attention, or omit if none>"
