@@ -112,7 +112,7 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
             }
             opacity={!canSave || actions.uploadState.isUploading ? 0.4 : 1}
           >
-            <Tooltip>{saveTooltipText}</Tooltip>
+            {canSave ? <Tooltip>{saveTooltipText}</Tooltip> : null}
             <CloudUploadIcon size={16} />
             Save
           </Row>

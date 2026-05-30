@@ -46,7 +46,7 @@ export const AgenticAuthGate: React.FC<AgenticAuthGateProps> = ({
         </EmptyState.Icon>
         <EmptyState.Title>Sign in to Repro</EmptyState.Title>
         <EmptyState.Description>
-          Sign in to use AI-powered debugging.
+          Sign in to save recordings and use agentic debugging.
         </EmptyState.Description>
         <EmptyState.Action>
           <Button
