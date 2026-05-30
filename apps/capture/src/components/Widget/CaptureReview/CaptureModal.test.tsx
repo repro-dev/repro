@@ -3,12 +3,19 @@ import { PortalRootProvider as DesignPortalRootProvider } from '@repro/design'
 import * as DevToolsModule from '@repro/devtools'
 import { PlaybackProvider } from '@repro/playback'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { resolve } from 'fluture'
+import { type FutureInstance, reject, resolve } from 'fluture'
 import assert from 'node:assert/strict'
 import { after, afterEach, describe, it, mock } from 'node:test'
 import React from 'react'
 
 const noop = () => {}
+
+/**
+ * Controlled apiClient.fetch function that tests can mutate.
+ * Default behavior returns a resolved Future with a project object.
+ */
+let mockFetch: () => FutureInstance<any, any> = () =>
+  resolve({ id: 'new-proj-1', name: 'My New Project' })
 
 /**
  * jsdom's postMessage throws SyntaxError when receiving invalid target
@@ -124,7 +131,7 @@ mock.module('~/state', {
 mock.module('@repro/api-client', {
   namedExports: {
     useApiClient: () => ({
-      fetch: () => resolve({ id: 'new-proj-1', name: 'My New Project' }),
+      fetch: mockFetch,
     }),
   },
 })
@@ -146,6 +153,12 @@ describe('CaptureModal', () => {
     cleanup()
     // Reset session to default
     currentSession = mockSession
+    // Reset apiClient mock to default success behavior
+    mockFetch = () =>
+      resolve({ id: 'new-proj-1', name: 'My New Project' }) as FutureInstance<
+        any,
+        any
+      >
   })
 
   after(() => {
@@ -402,6 +415,92 @@ describe('CaptureModal', () => {
       onProjectCreated.mock.calls[0]?.arguments[0],
       'new-proj-1',
       'onProjectCreated should be called with the new project ID'
+    )
+  })
+
+  it('shows error text and re-enables create button on project creation failure', () => {
+    currentSession = mockSession
+
+    // Override mockFetch to return a rejected Future
+    mockFetch = () => reject(new Error('API error'))
+
+    const onProjectCreated = mock.fn<(projectId: string) => void>()
+
+    render(
+      <DesignPortalRootProvider>
+        <PlaybackProvider playback={testPlayback}>
+          <CaptureModal
+            open={true}
+            projects={[]}
+            selectedProjectId={null}
+            onProjectSelect={noop}
+            onProjectCreated={onProjectCreated}
+            onClose={noop}
+          />
+        </PlaybackProvider>
+      </DesignPortalRootProvider>
+    )
+
+    const input = screen.getByPlaceholderText(
+      'Project name'
+    ) as HTMLInputElement
+    fireEvent.input(input, { target: { value: 'New Project' } })
+
+    const createButton = screen.getByText('Create') as HTMLButtonElement
+    fireEvent.click(createButton)
+
+    // The fork rejection callback runs synchronously (same as resolve),
+    // so state updates are flushed by the time we assert.
+    const errorText = screen.getByText(
+      'Failed to create project. Please try again.'
+    )
+    assert.ok(
+      errorText,
+      'Error text should be rendered on project creation failure'
+    )
+
+    assert.ok(
+      !createButton.disabled,
+      'Create button should be re-enabled after error so user can retry'
+    )
+  })
+
+  it('cancel button returns to selector view from create mode', () => {
+    currentSession = mockSession
+    renderModal(testProjects, null)
+
+    // Click the plus button to enter create mode
+    const plusButton = screen.getByLabelText('Create new project')
+    fireEvent.click(plusButton)
+
+    // Assert create form (input + Create button) is rendered
+    const input = screen.getByPlaceholderText('Project name')
+    assert.ok(
+      input,
+      'Project name input should appear after clicking plus button'
+    )
+
+    const createButton = screen.getByText('Create')
+    assert.ok(createButton, 'Create button should be visible in create mode')
+
+    // Click Cancel
+    const cancelButton = screen.getByText('Cancel')
+    assert.ok(cancelButton, 'Cancel button should be visible in create mode')
+    fireEvent.click(cancelButton)
+
+    // Assert Select component reappears
+    const selectPlaceholder = screen.getByText('Select a project…')
+    assert.ok(
+      selectPlaceholder,
+      'Project selector placeholder should reappear after cancel'
+    )
+
+    // Assert input is no longer rendered
+    const inputAfterCancel = screen.queryByPlaceholderText('Project name')
+    assert.equal(
+      inputAfterCancel,
+      null,
+      'Project name input should not render after cancel'
     )
   })
 })
