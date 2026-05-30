@@ -1,5 +1,29 @@
 # Forms & State Management
 
+## Label + Input Composition (Required Pattern)
+
+Every label + input pair must be wrapped in `<FormField>`. This standardizes spacing (`gap: spacing.md`), auto-wires `id`/`htmlFor` via context, and provides `aria-describedby` linking to error/help text.
+
+```tsx
+import { FormField, FormFieldError, Input, Label } from '@repro/design'
+
+<FormField invalid={!!error}>
+  <Label>Recording title</Label>
+  <Input
+    value={title}
+    onChange={e => setTitle(e.currentTarget.value)}
+    placeholder="What did you record?"
+  />
+  {error && <FormFieldError error={error} />}
+</FormField>
+```
+
+**Do not** compose a bare `<label>` + `<Input>` without `FormField` — it loses spacing, context wiring, and accessibility plumbing.
+
+When `Input` is used within `react-hook-form`, the `FormField` + `Label` + `Input` pattern still applies. `Input` also accepts a `label` prop for simple standalone fields without a separate `<Label>` element.
+
+---
+
 ## Form Composition Pattern
 
 Forms use `react-hook-form` + `zod` for validation.

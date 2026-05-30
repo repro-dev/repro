@@ -1,11 +1,11 @@
 import { Analytics } from '@repro/analytics'
-import { RecordingMode, SourceEventType, SourceEventView } from '@repro/domain'
+import { RecordingMode } from '@repro/domain'
 import { observeFuture } from '@repro/future-utils'
 import { useMessaging } from '@repro/messaging'
 import { Playback } from '@repro/playback'
 import { sliceEventsAtRange } from '@repro/recording'
 import { UploadProgress } from '@repro/recording-api'
-import { toByteString } from '@repro/wire-formats'
+import { toBinaryWireFormat, toByteString } from '@repro/wire-formats'
 import { detect } from 'detect-browser'
 import { fork } from 'fluture'
 import { useCallback, useEffect, useState } from 'react'
@@ -21,31 +21,6 @@ function serializeEvents(events: ReturnType<Playback['getSourceEvents']>) {
         new Uint8Array(view.buffer, view.byteOffset, view.byteLength)
       )
     )
-}
-
-function getReplaySliceSourceOffset(
-  sourceEvents: ReturnType<Playback['getSourceEvents']>,
-  minTime: number
-) {
-  let offset: number | null = null
-
-  for (let i = 0, len = sourceEvents.size(); i < len; i++) {
-    const event = sourceEvents.at(i)
-
-    if (event) {
-      SourceEventView.over(event).apply(lens => {
-        const time = lens.time
-
-        if (time <= minTime) {
-          if (lens.type === SourceEventType.Snapshot || offset !== null) {
-            offset = time
-          }
-        }
-      })
-    }
-  }
-
-  return offset ?? minTime
 }
 
 export interface UploadState {
@@ -100,12 +75,22 @@ export function useRecordingActions(
     if (recordingMode === RecordingMode.Replay) {
       const maxTime = playbackDuration
       const minTime = Math.max(0, maxTime - selectedDuration)
-      const startTimeMs = getReplaySliceSourceOffset(sourceEvents, minTime)
-      return {
-        events: sliceEventsAtRange(sourceEvents, [minTime, maxTime]),
-        duration: maxTime - startTimeMs,
-        startTimeMs,
-        resourceMap: playback.getResourceMap(),
+
+      try {
+        const { events, sourceOffset: startTimeMs } = sliceEventsAtRange(
+          sourceEvents,
+          [minTime, maxTime]
+        )
+
+        return {
+          events,
+          duration: maxTime - startTimeMs,
+          startTimeMs,
+          resourceMap: playback.getResourceMap(),
+        }
+      } catch {
+        // sliceEventsAtRange throws when no leading snapshot exists — fall
+        // back to full source events so Agentic/upload/download still work.
       }
     }
 
@@ -167,21 +152,20 @@ export function useRecordingActions(
   )
 
   const downloadLocally = useCallback(() => {
-    const { byteStrings } = getSerializedEvents()
+    const selected = getSelectedRecording()
+    const views = selected.events.toSource()
+    const buffer = toBinaryWireFormat(views)
 
-    const blob = new Blob(
-      [JSON.stringify({ events: byteStrings, format: 'json-placeholder' })],
-      { type: 'application/json' }
-    )
+    const blob = new Blob([buffer], { type: 'application/octet-stream' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = 'recording.json'
+    a.download = 'recording.repro'
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
-  }, [getSerializedEvents])
+  }, [getSelectedRecording])
 
   const pollUploadProgress = useCallback(
     (ref: string) => {

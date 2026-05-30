@@ -1,6 +1,5 @@
 import type { Placement } from '@floating-ui/react'
-import { FloatingFocusManager } from '@floating-ui/react'
-import { Col } from '@jsxstyle/react'
+import { Col, InlineBlock } from '@jsxstyle/react'
 import React, { forwardRef, useCallback, useEffect, useMemo } from 'react'
 import mergeRefs from 'react-merge-refs'
 import { Portal } from '../Portal'
@@ -77,7 +76,6 @@ export const PopoverContent = forwardRef<HTMLDivElement, PopoverContentProps>(
       getFloatingProps,
       isMounted,
       transitionStyles,
-      context,
     } = usePopoverContext()
 
     useEffect(() => {
@@ -110,45 +108,47 @@ export const PopoverContent = forwardRef<HTMLDivElement, PopoverContentProps>(
       [floatingStyles, floatingStyle]
     )
 
+    useEffect(() => {
+      if (isMounted && refs.floating.current) {
+        if (!refs.floating.current.contains(document.activeElement)) {
+          refs.floating.current.focus()
+        }
+      }
+    }, [isMounted, refs.floating])
+
     if (!isMounted) {
       return null
     }
 
     return (
       <Portal>
-        <FloatingFocusManager
-          context={context}
-          modal={false}
-          // Non-modal popovers should land keyboard focus on the surface.
-          initialFocus={refs.floating}
-          returnFocus={false}
+        <Col
+          zIndex={zIndex.portal}
+          props={{
+            ...restFloatingProps,
+            ref: mergeRefs([ref, refs.setFloating]),
+            style: positionedStyles,
+            tabIndex: contentProps.tabIndex ?? -1,
+          }}
         >
-          <Col
-            zIndex={zIndex.portal}
-            props={{
-              ...restFloatingProps,
-              ref: mergeRefs([ref, refs.setFloating]),
-              style: positionedStyles,
-              tabIndex: contentProps.tabIndex ?? -1,
-            }}
-          >
+          <InlineBlock props={{ style: transitionStyles }}>
             <Col
               minWidth={160}
               padding={spacing.lg}
               gap={spacing.sm}
               backgroundColor={color.bg.surface}
               color={color.text.default}
-              borderWidth={1}
-              borderStyle="solid"
-              borderColor={color.border.strong}
+              outlineWidth={1}
+              outlineStyle="solid"
+              outlineColor={color.border.strong}
+              outlineOffset={0}
               borderRadius={radius.md}
               boxShadow={shadow.md}
-              props={{ style: transitionStyles }}
             >
               {children}
             </Col>
-          </Col>
-        </FloatingFocusManager>
+          </InlineBlock>
+        </Col>
       </Portal>
     )
   }

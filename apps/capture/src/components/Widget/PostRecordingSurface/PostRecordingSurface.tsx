@@ -1,44 +1,36 @@
 import { Block, Row } from '@jsxstyle/react'
-import { useSession } from '@repro/auth'
 import { formatTime } from '@repro/date-utils'
 import { color, shadow, ToggleGroup } from '@repro/design'
 import { DevTools } from '@repro/devtools'
 import { RecordingMode } from '@repro/domain'
-import { PlaybackProvider, SimpleTimeline, usePlayback } from '@repro/playback'
-import React, { useCallback, useState } from 'react'
-import { useRecordingMode } from '~/state'
+import { Playback, PlaybackProvider, SimpleTimeline } from '@repro/playback'
+import React from 'react'
 import { AsideRegion, Layout, PlaybackRegion } from '../ReportForm/Layout'
 import { ProgressOverlay } from '../ReportForm/ProgressOverlay'
 import { AgenticSection } from './AgenticSection'
-import { ManualUploadForm } from './ManualUploadForm'
-import { useRecordingActions } from './useRecordingActions'
+import { RecordingActions } from './useRecordingActions'
 
 const DEFAULT_SELECTED_DURATION = 60_000
 
 interface PostRecordingSurfaceProps {
   projectId: string | null
   onClose: () => void
+  actions: RecordingActions
+  playback: Playback
+  recordingMode: RecordingMode
+  selectedDuration: number
+  setSelectedDuration: (duration: number) => void
 }
 
 export const PostRecordingSurface: React.FC<PostRecordingSurfaceProps> = ({
   projectId,
   onClose,
+  actions,
+  playback,
+  recordingMode,
+  selectedDuration,
+  setSelectedDuration,
 }) => {
-  const playback = usePlayback()
-  const session = useSession()
-  const [recordingMode] = useRecordingMode()
-  const [selectedDuration, setSelectedDuration] = useState(
-    DEFAULT_SELECTED_DURATION
-  )
-  const [manualUploadExpanded, setManualUploadExpanded] = useState(false)
-
-  const actions = useRecordingActions(
-    playback,
-    projectId,
-    recordingMode,
-    selectedDuration
-  )
-
   const maxTime = playback.getDuration()
   const minTime = Math.max(0, maxTime - selectedDuration)
 
@@ -50,7 +42,6 @@ export const PostRecordingSurface: React.FC<PostRecordingSurfaceProps> = ({
     { value: 10_000, label: 'Last 10s' },
   ].filter(option => option.value <= maxTime)
 
-  // Seek playback to the selected range
   React.useEffect(() => {
     playback.seekToTime(minTime)
   }, [playback, minTime])
@@ -58,43 +49,6 @@ export const PostRecordingSurface: React.FC<PostRecordingSurfaceProps> = ({
   React.useEffect(() => {
     setSelectedDuration(Math.min(DEFAULT_SELECTED_DURATION, maxTime))
   }, [maxTime, setSelectedDuration])
-
-  const onUploadToWorkspace = useCallback(() => {
-    actions.enqueueUpload({ title: 'Bug Report', description: null })
-  }, [actions])
-
-  const onDownloadLocally = useCallback(() => {
-    actions.downloadLocally()
-  }, [actions])
-
-  const onToggleManualUpload = useCallback(() => {
-    setManualUploadExpanded(prev => !prev)
-  }, [setManualUploadExpanded])
-
-  const onManualUploadSubmit = useCallback(
-    (values: { title: string; description: string }) => {
-      actions.enqueueUpload({
-        title: values.title,
-        description: values.description || null,
-      })
-    },
-    [actions]
-  )
-
-  const uploadAvailability =
-    session === null
-      ? {
-          available: false,
-          reason:
-            'Sign in to Repro to upload/report this recording. You can still review playback or download locally.',
-        }
-      : projectId === null
-      ? {
-          available: false,
-          reason:
-            'Choose or create a workspace project to upload/report this recording. You can still review playback or download locally.',
-        }
-      : { available: true as const }
 
   return (
     <PlaybackProvider playback={playback}>
@@ -136,21 +90,9 @@ export const PostRecordingSurface: React.FC<PostRecordingSurfaceProps> = ({
 
         <AsideRegion>
           <AgenticSection
-            onUploadToWorkspace={onUploadToWorkspace}
-            onDownloadLocally={onDownloadLocally}
-            onToggleManualUpload={onToggleManualUpload}
-            isManualUploadExpanded={manualUploadExpanded}
-            hasProjectId={projectId !== null}
             getSelectedRecording={actions.getSelectedRecording}
+            hasProjectId={projectId !== null}
           />
-
-          {manualUploadExpanded && (
-            <ManualUploadForm
-              onSubmit={onManualUploadSubmit}
-              isUploading={actions.uploadState.isUploading}
-              uploadAvailability={uploadAvailability}
-            />
-          )}
         </AsideRegion>
 
         {actions.uploadState.progress && (

@@ -202,6 +202,23 @@ describe('useRecordingActions', () => {
     assert.equal(result.startTimeMs, 0)
   })
 
+  it('getSelectedRecording falls back to full source events in replay mode when no snapshot is found', () => {
+    const sourceEvents = new List(SourceEventView, [
+      createConsoleEvent(10),
+      createConsoleEvent(50),
+    ])
+    const playback = createMockPlayback({
+      getDuration: () => 100,
+      getSourceEvents: () => sourceEvents,
+    })
+    const actions = renderHook(playback, 'proj-1', RecordingMode.Replay, 50)
+
+    const result = actions.getSelectedRecording()
+
+    assert.equal(result.duration, 100)
+    assert.equal(result.startTimeMs, 0)
+  })
+
   it('enqueueUpload raises upload:enqueue intent with shared selected recording payload', () => {
     const playback = createMockPlayback({
       getDuration: () => 100000,
@@ -232,15 +249,15 @@ describe('useRecordingActions', () => {
     assert.ok(trackedAnalyticsProps!.recordingSize)
   })
 
-  it('downloadLocally creates a download link and triggers download', () => {
+  it('downloadLocally creates a binary .repro download', () => {
     const playback = createMockPlayback()
     const actions = renderHook(playback, 'proj-1', 1, 60000)
 
-    let createdBlobUrl: string | null = null
+    let capturedBlob: Blob | null = null
     const originalCreateObjectURL = URL.createObjectURL
-    URL.createObjectURL = (_blob: Blob) => {
-      createdBlobUrl = 'blob:test-url'
-      return createdBlobUrl
+    URL.createObjectURL = (blob: Blob) => {
+      capturedBlob = blob
+      return 'blob:test-url'
     }
 
     let appendedChild: HTMLElement | null = null
@@ -252,8 +269,14 @@ describe('useRecordingActions', () => {
 
     try {
       actions.downloadLocally()
-      assert.ok(createdBlobUrl)
+
+      assert.ok(capturedBlob)
+      assert.equal((capturedBlob as Blob).type, 'application/octet-stream')
       assert.ok(appendedChild)
+      assert.equal(
+        (appendedChild as HTMLAnchorElement).download,
+        'recording.repro'
+      )
     } finally {
       URL.createObjectURL = originalCreateObjectURL
       document.body.appendChild = originalAppendChild
