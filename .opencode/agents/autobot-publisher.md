@@ -1,6 +1,6 @@
 ---
 description: Autobot publish/release agent — commits, pushes, creates PRs, and updates Linear status. Never writes or modifies source files.
-mode: subagent
+mode: primary
 reasoningEffort: medium
 tools:
   write: false

@@ -1,6 +1,6 @@
 ---
 description: Autobot review-fix agent — applies only agent-fixable blocking fixes within the reviewed change set. Bounded to 3 attempts.
-mode: subagent
+mode: primary
 reasoningEffort: medium
 tools:
   write: true

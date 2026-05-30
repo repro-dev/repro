@@ -1,6 +1,6 @@
 ---
 description: Autobot review agent — inspects diffs, tests, and artifacts. Reports findings against Linear requirements and conventions. Never modifies source code or branch state.
-mode: subagent
+mode: primary
 reasoningEffort: high
 tools:
   write: false

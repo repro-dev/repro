@@ -1,6 +1,6 @@
 ---
 description: Autobot implementation agent — writes source code, tests, and documentation in the issue worktree using strict TDD. Never pushes or publishes.
-mode: subagent
+mode: primary
 reasoningEffort: medium
 tools:
   write: true

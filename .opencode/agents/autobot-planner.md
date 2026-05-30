@@ -1,6 +1,6 @@
 ---
 description: Autobot planning agent — reads issues, explores the codebase, and produces structured plan documents. Never writes source code.
-mode: subagent
+mode: primary
 reasoningEffort: high
 tools:
   write: false
