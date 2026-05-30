@@ -246,6 +246,50 @@ For each issue, apply this iterative loop:
 
 This is the entire loop: **review → fix while agent-fixable → review again → stop cleanly at zero Blockers or pause at the 3-attempt safety gate**.
 
+### Non-blocker sweep
+
+After the Blocker loop clears (or if there were no Blockers to begin with) and the issue is marked publishable, inspect the review output for non-blocking findings:
+
+1. **Collect actionable non-blockers**: scan the review output's Major, Minor, and Nit sections for findings where `fixable_by_agent: true` is present.
+
+2. **Quality gate**: only act on findings that are clearly mechanical and low-risk. Apply this checklist:
+   - Typo/misspelling fix (including doc comments and identifiers)
+   - Import ordering / import sorting violation
+   - Missing or incorrect design token reference
+   - Copy/text inconsistency (label, message, or ARIA text mismatch)
+   - Trivial prop addition (optional prop already in the component's interface)
+   - Any finding with an explicit concrete fix hint that matches one of the above categories
+   
+   If any doubt exists about whether a finding qualifies, skip it.
+
+3. **Launch a single `develop` pass** with only the qualifying non-blockers. Pass the review findings as a focused fix prompt — do not pass the full original plan:
+   ```
+   Apply non-blocker review fixes for REP-xxx in worktree <absolute-worktree-path>.
+   
+   The following non-blocking review findings have been identified as mechanical and
+   agent-fixable. Apply each fix, then run verification.
+   
+   <list of qualifying findings with file path, line, description, and fix hint>
+   
+   This is a single-pass sweep — do not loop. If any fix introduces a new issue,
+   revert that fix and stop.
+   
+   Commit locally with: fix(scope): apply non-blocker review fixes (REP-xxx)
+   ```
+
+4. **Re-run verification**: after the sweep completes, run the same verification commands that the Phase 6 develop batch used:
+   - For each affected package `<name>`: `pnpm --filter @repro/<name> test`
+   - Typecheck and format check as appropriate
+
+5. **If the non-blocker fix pass introduces new failures**: stop the sweep. Add those failures to the review summary (they will appear in the PR body remainder). Do not start a second fix loop.
+
+6. **Record sweep outcome**: track which findings were fixed and which were skipped (either by quality gate or not `fixable_by_agent: true`). This drives the PR body remainder in Phase 8.
+
+7. **Bounding**: the full review→fix cycle is now:
+   Blocker loop (up to 3 attempts) → optional non-blocker sweep (1 attempt) → publish per the existing gate.
+
+The non-blocker sweep runs after the Blocker loop clears entirely. If the Blocker loop hit the 3-attempt safety stop, still run the non-blocker sweep — the branch already has the blocker fixes, and the remaining blockers will be surfaced in the PR body per the existing escalation path.
+
 Do not create a PR or set `In Review` until an issue has cleared review or hit the explicit 3-attempt pause path.
 
 Do **not** paste full AI review output back into Linear comments. Use Linear comments only for short phase-local blocker summaries when an issue is being kicked back.

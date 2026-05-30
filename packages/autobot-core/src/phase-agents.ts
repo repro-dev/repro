@@ -99,7 +99,7 @@ export const autobotPhaseAgentProfiles: Record<
   "autobot-review-fixer": {
     agentId: "autobot-review-fixer",
     description:
-      "Review fix agent. Applies only agent-fixable blocking fixes within the reviewed change set. Bounded to reviewed scope and 3-attempt limit.",
+      "Review fix agent. Applies agent-fixable blocking fixes within the reviewed change set (bounded to 3 attempts) and handles the single-pass non-blocker sweep for mechanical fixes. Bounded to reviewed scope.",
     read: true,
     write: true,
     edit: true,
