@@ -4,10 +4,7 @@ import { readFile } from "node:fs/promises";
 
 import { Future, chain, fork, resolve, type FutureInstance } from "fluture";
 
-import {
-  checkCcSafetyNetPreflight,
-  type AutobotPhaseAgentId,
-} from "@repro/autobot-core";
+import { checkCcSafetyNetPreflight } from "@repro/autobot-core";
 import type {
   ArtifactKind,
   DomainEvent,
@@ -28,7 +25,10 @@ import {
 } from "./worker-runner";
 
 import type { SingleTrackPhaseContractName } from "./phase-contracts";
-import { renderSingleTrackPhaseContract } from "./phase-contracts";
+import {
+  renderSingleTrackPhaseContract,
+  resolvePhaseAgentForContract,
+} from "./phase-contracts";
 
 type PlanningArtifactDraft = {
   kind: ArtifactKind;
@@ -172,35 +172,6 @@ export function runPlanningSessionPreflight(input: {
   return { ok: true };
 }
 
-/** Maps single-track phase contract names to the their primary Autobot phase agent. */
-function resolvePhaseAgentForContract(
-  phase: SingleTrackPhaseContractName,
-): AutobotPhaseAgentId {
-  switch (phase) {
-    case "prepare":
-    case "classify":
-    case "research-refine":
-    case "plan":
-    case "risk-assess":
-      return "autobot-planner";
-    case "develop":
-      return "autobot-developer";
-    case "test-verify":
-      return "autobot-developer";
-    case "review-standard":
-    case "review-correctness-security":
-    case "review-architecture-conventions":
-    case "review-performance":
-    case "review-ui-quality":
-      return "autobot-reviewer";
-    case "review-fix":
-      return "autobot-review-fixer";
-    case "reconcile":
-    case "release-publish":
-      return "autobot-publisher";
-  }
-}
-
 function buildPlanningSessionResult(
   command: PlanningSessionCommand,
   startedAt: string,
@@ -269,6 +240,15 @@ function buildPlanningSessionWorkerCommand(input: PlanningSessionInput): {
   logPaths: ReturnType<typeof buildWorkerLogPaths>;
   workerCommand: WorkerCommandInput;
 } {
+  // Preflight: verify cc-safety-net is active before starting the session.
+  const preflight = runPlanningSessionPreflight({
+    repoPath: input.repo.path,
+    issueId: input.issueId,
+  });
+  if (!preflight.ok && preflight.error) {
+    throw preflight.error;
+  }
+
   const command = buildOpenCodePlanningCommand(input);
   const workerId = `worker-${input.runId}`;
   const startedAt = new Date().toISOString();

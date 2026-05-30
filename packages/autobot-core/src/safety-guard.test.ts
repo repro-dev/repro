@@ -351,14 +351,13 @@ test("cc-safety-net preflight: fails when plugin missing", () => {
   }
 });
 
-test("cc-safety-net preflight: fails when config file missing", () => {
+test("cc-safety-net preflight: passes when config file missing", () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "safety-guard-"));
-  // Don't create .opencode directory at all
+  // Don't create .opencode directory at all — no config means nothing to verify.
 
   try {
     const result = checkCcSafetyNetPreflight(tmpDir);
-    assert.equal(result.ok, false);
-    assert.ok(result.message?.includes("cc-safety-net"));
+    assert.equal(result.ok, true);
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }

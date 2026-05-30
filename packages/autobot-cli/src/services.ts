@@ -1544,8 +1544,9 @@ function filterPersistedPhaseDomainEvents(
   );
 }
 
-function extractSafetySignals(
+export function extractSafetySignals(
   plan: FlowcraftExecutionPlan,
+  attempt: number,
 ): SafetyStopPayload | null {
   const sessionResult = plan.metadata.planning_session_result;
 
@@ -1565,7 +1566,7 @@ function extractSafetySignals(
       disposition: "escalated",
       issue_id: plan.issue_id,
       run_id: plan.run_id,
-      attempt: 1,
+      attempt,
       phase: plan.metadata.item_state,
       violations: [
         {
@@ -1740,7 +1741,7 @@ function reconcileCompletedPlanningWorker(input: {
         },
       }).pipe(
         chain((plan: FlowcraftExecutionPlan) => {
-          const safetyStop = extractSafetySignals(plan);
+          const safetyStop = extractSafetySignals(plan, input.item.attempt);
 
           // -- Safety stop detected → escalate ----------------------------------
           if (safetyStop !== null) {

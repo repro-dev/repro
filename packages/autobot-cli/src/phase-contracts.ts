@@ -93,7 +93,7 @@ export function loadSingleTrackPhaseContract(
   return `${safetyPreamble.trimEnd()}\n\n${phaseContract}`;
 }
 
-function resolvePhaseAgentForContract(
+export function resolvePhaseAgentForContract(
   name: SingleTrackPhaseContractName,
 ): AutobotPhaseAgentId {
   switch (name) {

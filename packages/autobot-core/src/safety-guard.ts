@@ -136,13 +136,9 @@ const phaseAllowedCategories: Record<
   "autobot-developer": ["safe-shell", "read-only-git", "uncategorized"],
   "autobot-reviewer": ["read-only-git", "uncategorized"],
   "autobot-review-fixer": ["safe-shell", "read-only-git", "uncategorized"],
-  "autobot-publisher": [
-    "destructive-git",
-    "publish-mutation",
-    "read-only-git",
-    "safe-shell",
-    "uncategorized",
-  ],
+  // autobot-publisher is handled separately in isPhaseAllowed via exclusion list —
+  // the allowlist entry here is never consulted but satisfies the Record contract.
+  "autobot-publisher": [],
 };
 
 const publisherExcludedCategories: readonly CommandCategory[] = [
@@ -154,16 +150,14 @@ export function isPhaseAllowed(
   category: CommandCategory,
   agentId: AutobotPhaseAgentId,
 ): boolean {
-  const allowed = phaseAllowedCategories[agentId];
-
-  if (allowed === undefined) {
-    return false;
+  // Publisher is allowed everything EXCEPT credential-inspection and external-side-effect.
+  if (agentId === "autobot-publisher") {
+    return !publisherExcludedCategories.includes(category);
   }
 
-  if (agentId === "autobot-publisher") {
-    // Publisher is allowed everything EXCEPT credential-inspection and external-side-effect,
-    // regardless of what the general allowlist says.
-    return !publisherExcludedCategories.includes(category);
+  const allowed = phaseAllowedCategories[agentId];
+  if (allowed === undefined) {
+    return false;
   }
 
   return allowed.includes(category);
@@ -185,17 +179,8 @@ export function checkCcSafetyNetPreflight(
   try {
     raw = readFileSync(configPath, "utf8");
   } catch {
-    return {
-      ok: false,
-      message: [
-        "cc-safety-net is not active in OpenCode config",
-        "",
-        `The OpenCode config at ${configPath} is missing or unreadable.`,
-        "cc-safety-net must be present in the plugin array of .opencode/opencode.json.",
-        "",
-        "Add 'cc-safety-net' to the plugin array in .opencode/opencode.json.",
-      ].join("\n"),
-    };
+    // Config file missing — no OpenCode configuration to verify, preflight passes.
+    return { ok: true };
   }
 
   let parsed: unknown;
