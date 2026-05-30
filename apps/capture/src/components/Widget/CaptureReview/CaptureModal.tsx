@@ -12,7 +12,7 @@ import {
   spacing,
 } from '@repro/design'
 import { usePlayback } from '@repro/playback'
-import { CloudUploadIcon, DownloadIcon } from 'lucide-react'
+import { CloudUploadIcon, DownloadIcon, LockIcon } from 'lucide-react'
 import React, { useCallback, useState } from 'react'
 import { useRecordingMode } from '~/state'
 import { Modal } from '../Modal'
@@ -94,7 +94,11 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
             paddingV={8}
             backgroundColor="rgba(255, 255, 255, 0.1)"
             color={color.infoTint}
-            hoverBackgroundColor={color.infoFg}
+            hoverBackgroundColor={
+              canSave && !actions.uploadState.isUploading
+                ? color.infoFg
+                : undefined
+            }
             borderRadius={2}
             transition="all 100ms ease-in-out"
             lineHeight={1}
@@ -106,6 +110,17 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
             }
             opacity={!canSave || actions.uploadState.isUploading ? 0.4 : 1}
           >
+            <Tooltip>
+              {canSave ? (
+                'Save recording to project'
+              ) : session === null ? (
+                <Row alignItems="center" gap={4} display="inline-flex">
+                  <LockIcon size={12} /> Sign in to save
+                </Row>
+              ) : (
+                'Select or create a project to upload. You can still download locally.'
+              )}
+            </Tooltip>
             <CloudUploadIcon size={16} />
             Save
           </Row>
@@ -161,7 +176,6 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
       headerActions={headerActions}
     >
       <CaptureReview
-        projectId={projectId}
         onClose={onClose}
         actions={actions}
         playback={playback}
