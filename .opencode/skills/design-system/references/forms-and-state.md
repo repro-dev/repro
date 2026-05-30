@@ -32,7 +32,7 @@ import { FormField, FormFieldError, Input, Label } from '@repro/design'
     onChange={e => setTitle(e.currentTarget.value)}
     placeholder="What did you record?"
   />
-  <block>Optional helper content</block>
+  <Block>Optional helper content</Block>
   {error && <FormFieldError error={error} />}
 </FormField>
 ```
