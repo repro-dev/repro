@@ -1,6 +1,11 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
+import {
+  autobotPhaseAgentProfiles,
+  type AutobotPhaseAgentId,
+} from "@repro/autobot-core";
+
 export type SingleTrackPhaseContractName =
   | "prepare"
   | "classify"
@@ -88,6 +93,33 @@ export function loadSingleTrackPhaseContract(
   return `${safetyPreamble.trimEnd()}\n\n${phaseContract}`;
 }
 
+function resolvePhaseAgentForContract(
+  name: SingleTrackPhaseContractName,
+): AutobotPhaseAgentId {
+  switch (name) {
+    case "prepare":
+    case "classify":
+    case "research-refine":
+    case "plan":
+    case "risk-assess":
+      return "autobot-planner";
+    case "develop":
+    case "test-verify":
+      return "autobot-developer";
+    case "review-standard":
+    case "review-correctness-security":
+    case "review-architecture-conventions":
+    case "review-performance":
+    case "review-ui-quality":
+      return "autobot-reviewer";
+    case "review-fix":
+      return "autobot-review-fixer";
+    case "reconcile":
+    case "release-publish":
+      return "autobot-publisher";
+  }
+}
+
 export function renderSingleTrackPhaseContract(
   name: SingleTrackPhaseContractName,
   input: {
@@ -95,7 +127,27 @@ export function renderSingleTrackPhaseContract(
     attempt: number;
   },
 ): string {
-  return loadSingleTrackPhaseContract(name)
+  const phaseAgent = resolvePhaseAgentForContract(name);
+  const profile = autobotPhaseAgentProfiles[phaseAgent];
+
+  const authorityBlock = profile
+    ? [
+        "## Phase Agent Authority",
+        "",
+        `- Agent: ${profile.agentId}`,
+        `- Description: ${profile.description}`,
+        `- Shell permissions: ${profile.shell}`,
+        `- Write permissions: ${profile.write ? "yes" : "no"}`,
+        `- Edit permissions: ${profile.edit ? "yes" : "no"}`,
+        `- Publish permissions: ${profile.publish ? "yes" : "no"}`,
+        `- Patch tool: ${profile.patch ? "yes" : "no"}`,
+        `- GitHub operations: ${profile.github}`,
+        `- Linear operations: ${profile.linear}`,
+        "",
+      ].join("\n")
+    : "";
+
+  return `${loadSingleTrackPhaseContract(name)
     .replaceAll("<issue-id>", input.issueId)
-    .replaceAll("<attempt>", String(input.attempt));
+    .replaceAll("<attempt>", String(input.attempt))}\n${authorityBlock}`;
 }

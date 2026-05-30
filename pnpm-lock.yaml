@@ -1527,6 +1527,9 @@ importers:
 
   packages/autobot-adapters:
     dependencies:
+      '@repro/autobot-core':
+        specifier: workspace:*
+        version: link:../autobot-core
       fluture:
         specifier: ^14.0.0
         version: 14.0.0

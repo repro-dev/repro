@@ -1231,6 +1231,7 @@ function createFlowcraftExecutionMetadata(input: {
       workflowStatus,
       input.runtimeResult.context.issue_id,
     ),
+    safety_stop: null,
     terminal_state: {
       state: itemState,
       reason:

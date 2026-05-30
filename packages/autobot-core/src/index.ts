@@ -63,3 +63,21 @@ export type {
 } from "./phase-agents";
 
 export { autobotPhaseAgentProfiles } from "./phase-agents";
+
+export type {
+  CommandCategory,
+  PhaseSafetyResult,
+  SafetyStopDisposition,
+  SafetyStopPayload,
+  SafetyViolation,
+  SafetyViolationCode,
+} from "./contracts";
+
+export {
+  checkCcSafetyNetPreflight,
+  classifyCommand,
+  createForbiddenCommandSafetyStop,
+  isPhaseAllowed,
+  type CommandClassificationInput,
+  type SafetyGuardPreflightResult,
+} from "./safety-guard";

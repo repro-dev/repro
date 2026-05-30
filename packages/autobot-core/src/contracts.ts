@@ -297,3 +297,52 @@ export interface JsonErrorEnvelope {
   error: ErrorPayload;
   warnings: Warning[];
 }
+
+// -- Safety guard types --------------------------------------------------
+
+export type SafetyViolationCode =
+  | "SAFETY_WRITE_ROOT_VIOLATION"
+  | "SAFETY_FORBIDDEN_COMMAND"
+  | "SAFETY_SECRET_EXPOSURE_RISK"
+  | "SAFETY_UNEXPECTED_DIRTY_STATE"
+  | "SAFETY_EXTERNAL_SIDE_EFFECT";
+
+export type SafetyStopDisposition = "awaiting" | "escalated";
+
+export interface SafetyViolation {
+  code: SafetyViolationCode;
+  message: string;
+  phase: ItemState;
+  severity: "error";
+  path: string | null;
+  command: string | null;
+  likely_cause: string;
+  evidence: Record<string, unknown>;
+}
+
+export interface SafetyStopPayload {
+  disposition: SafetyStopDisposition;
+  issue_id: string;
+  run_id: string;
+  attempt: number;
+  phase: ItemState;
+  violations: SafetyViolation[];
+  recovery_commands: string[];
+  operator_message: string;
+}
+
+export interface PhaseSafetyResult {
+  ok: false;
+  kind: "safety-stop";
+  next_state: SafetyStopDisposition;
+  safety: SafetyStopPayload;
+}
+
+export type CommandCategory =
+  | "destructive-git"
+  | "publish-mutation"
+  | "credential-inspection"
+  | "external-side-effect"
+  | "read-only-git"
+  | "safe-shell"
+  | "uncategorized";

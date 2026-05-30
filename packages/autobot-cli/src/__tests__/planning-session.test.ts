@@ -42,7 +42,7 @@ test("buildOpenCodePlanningCommand wires durable planning artifacts", () => {
   assert.deepEqual(command.args.slice(0, 8), [
     "run",
     "--agent",
-    "planner",
+    "autobot-planner",
     "--dir",
     "/worktrees/autobot",
     "--title",

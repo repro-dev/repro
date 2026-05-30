@@ -4,6 +4,10 @@ import { readFile } from "node:fs/promises";
 
 import { Future, chain, fork, resolve, type FutureInstance } from "fluture";
 
+import {
+  checkCcSafetyNetPreflight,
+  type AutobotPhaseAgentId,
+} from "@repro/autobot-core";
 import type {
   ArtifactKind,
   DomainEvent,
@@ -16,6 +20,7 @@ import {
   type WorkerRecord,
 } from "@repro/autobot-store";
 
+import { AutobotCliError } from "./errors";
 import {
   buildWorkerLogPaths,
   buildWorkerRunnerInvocation,
@@ -100,12 +105,14 @@ function buildPlanningSessionPrompt(input: PlanningSessionInput): string {
 export function buildOpenCodePlanningCommand(
   input: PlanningSessionInput,
 ): PlanningSessionCommand {
+  const phaseAgent = resolvePhaseAgentForContract(input.phase ?? "plan");
+
   return {
     command: "opencode",
     args: [
       "run",
       "--agent",
-      "planner",
+      phaseAgent,
       "--dir",
       input.repo.path,
       "--title",
@@ -121,6 +128,77 @@ export function buildOpenCodePlanningCommand(
       input.artifactPaths.prompt,
     ],
   };
+}
+
+export interface SafetyGuardPreflightResponse {
+  ok: boolean;
+  error?: AutobotCliError;
+}
+
+/**
+ * Performs the cc-safety-net preflight check for an Autobot-managed OpenCode session.
+ * Returns a result with `ok: true` if the plugin is active.
+ * Returns `ok: false` with a structured error if the plugin is missing or the config is unavailable.
+ * The caller should decide whether to throw, warn, or escalate based on the result.
+ */
+export function runPlanningSessionPreflight(input: {
+  repoPath: string;
+  issueId: string;
+}): SafetyGuardPreflightResponse {
+  const preflight = checkCcSafetyNetPreflight(input.repoPath);
+
+  if (!preflight.ok) {
+    return {
+      ok: false,
+      error: new AutobotCliError({
+        code: "SAFETY_FORBIDDEN_COMMAND",
+        message: "cc-safety-net is not active in OpenCode config",
+        what_failed: "Autobot session safety preflight",
+        likely_cause: `The OpenCode config at ${input.repoPath}/.opencode/opencode.json does not include cc-safety-net in its plugin list.`,
+        recovery_commands: [
+          "Add 'cc-safety-net' to the plugin array in .opencode/opencode.json",
+          `autobot-next status ${input.issueId} --json`,
+        ],
+        details: {
+          repo_path: input.repoPath,
+          issue_id: input.issueId,
+          preflight_message: preflight.message ?? null,
+        },
+        exit_code: 6,
+      }),
+    };
+  }
+
+  return { ok: true };
+}
+
+/** Maps single-track phase contract names to the their primary Autobot phase agent. */
+function resolvePhaseAgentForContract(
+  phase: SingleTrackPhaseContractName,
+): AutobotPhaseAgentId {
+  switch (phase) {
+    case "prepare":
+    case "classify":
+    case "research-refine":
+    case "plan":
+    case "risk-assess":
+      return "autobot-planner";
+    case "develop":
+      return "autobot-developer";
+    case "test-verify":
+      return "autobot-developer";
+    case "review-standard":
+    case "review-correctness-security":
+    case "review-architecture-conventions":
+    case "review-performance":
+    case "review-ui-quality":
+      return "autobot-reviewer";
+    case "review-fix":
+      return "autobot-review-fixer";
+    case "reconcile":
+    case "release-publish":
+      return "autobot-publisher";
+  }
 }
 
 function buildPlanningSessionResult(

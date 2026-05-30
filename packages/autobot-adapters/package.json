@@ -9,6 +9,7 @@
   },
   "license": "UNLICENSED",
   "dependencies": {
+    "@repro/autobot-core": "workspace:*",
     "fluture": "^14.0.0"
   },
   "devDependencies": {

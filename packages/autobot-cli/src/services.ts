@@ -19,6 +19,7 @@ import type {
   ItemSummary,
   RepoRef,
   RunSummary,
+  SafetyStopPayload,
   WorkerSummary,
 } from "@repro/autobot-core";
 import {
@@ -1543,6 +1544,59 @@ function filterPersistedPhaseDomainEvents(
   );
 }
 
+function extractSafetySignals(
+  plan: FlowcraftExecutionPlan,
+): SafetyStopPayload | null {
+  const sessionResult = plan.metadata.planning_session_result;
+
+  if (sessionResult === null) {
+    return null;
+  }
+
+  const combinedOutput = `${sessionResult.stdout}\n${sessionResult.stderr}`;
+
+  // Check for structured safety stop marker in output
+  const safetyStopMatch = combinedOutput.match(
+    /safety.stop["\s:]*\{[^}]*"kind"\s*:\s*"safety-stop"/,
+  );
+
+  if (safetyStopMatch !== null) {
+    return {
+      disposition: "escalated",
+      issue_id: plan.issue_id,
+      run_id: plan.run_id,
+      attempt: 1,
+      phase: plan.metadata.item_state,
+      violations: [
+        {
+          code: "SAFETY_FORBIDDEN_COMMAND",
+          message: "Safety stop detected in planning worker output",
+          phase: plan.metadata.item_state,
+          severity: "error",
+          path: null,
+          command: `${sessionResult.command} ${sessionResult.args.join(" ")}`,
+          likely_cause:
+            "The planning worker output contains a safety stop marker indicating a forbidden command was blocked",
+          evidence: {
+            exit_code: sessionResult.exit_code,
+            signal: sessionResult.signal,
+            stdout_snippet: sessionResult.stdout.slice(0, 500),
+            stderr_snippet: sessionResult.stderr.slice(0, 500),
+          },
+        },
+      ],
+      recovery_commands: [
+        `autobot-next status ${plan.issue_id} --json`,
+        `autobot-next cancel ${plan.issue_id} --reason "safety stop"`,
+      ],
+      operator_message:
+        "A safety stop was detected in the planning worker output. Inspect the worker logs and violation evidence before retrying.",
+    };
+  }
+
+  return null;
+}
+
 function reconcileCompletedPlanningWorker(input: {
   store: AutobotStore;
   item: ItemSummary;
@@ -1686,6 +1740,106 @@ function reconcileCompletedPlanningWorker(input: {
         },
       }).pipe(
         chain((plan: FlowcraftExecutionPlan) => {
+          const safetyStop = extractSafetySignals(plan);
+
+          // -- Safety stop detected → escalate ----------------------------------
+          if (safetyStop !== null) {
+            const flowcraftFinishedAt = createMonotonicLaterTimestamp(
+              plan.metadata.planning_session_result?.finished_at ??
+                workflowFinishedAt,
+            );
+            const nextItem = buildItemSummaryFromExisting(
+              input.item,
+              "escalated",
+              flowcraftFinishedAt,
+            );
+            const safetyEvent = createDomainEvent({
+              type: "safety.violation.detected",
+              severity: "error",
+              state: "escalated",
+              message: "Safety violation detected in planning worker output",
+              issue_id: input.item.issue_id,
+              run_id: input.currentRun.run_id,
+              occurred_at: flowcraftFinishedAt,
+              data: {
+                issue_id: input.item.issue_id,
+                run_id: input.currentRun.run_id,
+                violation_code: safetyStop.violations[0]?.code ?? null,
+                message: safetyStop.violations[0]?.message ?? null,
+              },
+            });
+            const stopEvent = createDomainEvent({
+              type: "safety.stop",
+              severity: "error",
+              state: "escalated",
+              message: "Safety stop: item escalated for operator review",
+              issue_id: input.item.issue_id,
+              run_id: input.currentRun.run_id,
+              occurred_at: flowcraftFinishedAt,
+              data: {
+                issue_id: input.item.issue_id,
+                run_id: input.currentRun.run_id,
+                disposition: safetyStop.disposition,
+                violations: safetyStop.violations,
+              },
+            });
+
+            if (input.dryRun) {
+              return resolve({
+                item: nextItem,
+                reconciled_issue_id: input.item.issue_id,
+                skipped: [],
+              });
+            }
+
+            const lastError: ErrorSummary = {
+              code: "SAFETY_FORBIDDEN_COMMAND",
+              message:
+                safetyStop.violations[0]?.message ??
+                "Safety stop: forbidden command detected",
+              occurred_at: flowcraftFinishedAt,
+            };
+
+            return input.store.runs
+              .upsert({
+                ...input.currentRun,
+                state: "escalated",
+                finished_at: flowcraftFinishedAt,
+                worker_id: null,
+                last_heartbeat_at: null,
+              })
+              .pipe(
+                chain(() =>
+                  input.store.items
+                    .upsert(
+                      createReconciledItemRecord({
+                        item: input.item,
+                        state: "escalated",
+                        updatedAt: flowcraftFinishedAt,
+                        lastError,
+                        recoveryCommands: safetyStop.recovery_commands,
+                      }),
+                    )
+                    .pipe(
+                      chain(() =>
+                        input.store.events.append(safetyEvent).pipe(
+                          chain(() =>
+                            input.store.events.append(stopEvent).pipe(
+                              map(() => ({
+                                item: nextItem,
+                                reconciled_issue_id: input.item.issue_id,
+                                skipped: [],
+                              })),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ),
+              );
+          }
+
+          // -- Normal flowcraft status mapping ----------------------------------
           const runState = mapFlowcraftStatusToItemState(
             plan.metadata.workflow_status,
           );

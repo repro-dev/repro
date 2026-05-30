@@ -13,6 +13,7 @@ import type {
   ItemDetail,
   ItemState,
   RepoRef,
+  SafetyStopPayload,
   TransportCorrelation,
 } from "@repro/autobot-core";
 import type { FutureInstance } from "fluture";
@@ -192,6 +193,7 @@ export interface FlowcraftExecutionMetadata {
   planning_should_fail: boolean;
   planning_failure_reason: string | null;
   recovery_commands: string[];
+  safety_stop: SafetyStopPayload | null;
   terminal_state: {
     state: ItemState;
     reason: string;
