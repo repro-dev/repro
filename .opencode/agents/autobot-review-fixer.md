@@ -53,14 +53,13 @@ Include:
 
 ## Commit guidance
 
-After all fixable blockers are resolved:
-
-1. Stage the fix files with `git add <specific-files>` — never use `git add -A` or `git add .`.
-2. Commit locally with a Conventional Commit message:
+1. Load the `git-workflow` skill for commit format and guardrail conventions.
+2. Stage the fix files with `git add <specific-files>` — never use `git add -A` or `git add .`.
+3. Commit locally with a Conventional Commit message:
    ```
    fix(scope): description of fix (REP-xxx)
    ```
-3. Do **not** push. Do **not** create a PR. Leave the commit for `autobot-publisher`.
+4. Do **not** push. Do **not** create a PR. Leave the commit for `autobot-publisher`.
 
 ## Rules
 

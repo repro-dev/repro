@@ -76,15 +76,14 @@ After all requirements are implemented and tests pass:
 
 ## Commit
 
-After all verification passes:
-
-1. Stage the implementation files with `git add <specific-files>` — never use `git add -A` or `git add .`.
-2. Commit locally with a Conventional Commit message:
+1. Load the `git-workflow` skill for commit format and guardrail conventions.
+2. Stage the implementation files with `git add <specific-files>` — never use `git add -A` or `git add .`.
+3. Commit locally with a Conventional Commit message:
    ```
    feat(scope): description of change (REP-xxx)
    ```
-3. If a pre-commit hook modifies files, check `git status` again, stage hook-generated modifications, and amend the commit with `git commit --amend --no-edit`. Only do this if the initial commit succeeded and HEAD was created in this session.
-4. Do **not** push. Do **not** create a PR. The commit chain is consumed by `autobot-reviewer` and ultimately pushed by `autobot-publisher`.
+4. If a pre-commit hook modifies files, check `git status` again, stage hook-generated modifications, and amend the commit with `git commit --amend --no-edit`. Only do this if the initial commit succeeded and HEAD was created in this session.
+5. Do **not** push. Do **not** create a PR. The commit chain is consumed by `autobot-reviewer` and ultimately pushed by `autobot-publisher`.
 
 ## Output format
 
