@@ -66,12 +66,15 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
   const [refetchTrigger, setRefetchTrigger] = useState(0)
   const fetchCancelRef = useRef<Cancel | null>(null)
 
-  // Fetch projects on mount and on refetchTrigger change
-  // Use a ref for apiClient to avoid re-triggering when the reference
-  // changes (e.g. in test environments where useApiClient returns a new
-  // object each render).
-  // refetchTrigger starts at 0 so this runs on mount as well.
   useEffect(() => {
+    if (!session) {
+      setProjectsLoading(false)
+      setProjects([])
+      return
+    }
+
+    setProjectsLoading(true)
+
     fetchCancelRef.current = fork((_error: Error) => {
       setProjectsLoading(false)
       setProjects([])
@@ -83,8 +86,7 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
     return () => {
       fetchCancelRef.current?.()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refetchTrigger])
+  }, [refetchTrigger, session])
 
   // Create form state
   const [createMode, setCreateMode] = useState(false)
