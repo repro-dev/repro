@@ -3,7 +3,7 @@ import { useApiClient } from '@repro/api-client'
 import { color, transition } from '@repro/design'
 import { RecordingMode } from '@repro/domain'
 import { useFuture } from '@repro/future-utils'
-import React, { Fragment, useCallback } from 'react'
+import React, { Fragment, useCallback, useState } from 'react'
 import { ReadyState, useReadyState, useRecordingMode } from '~/state'
 import { CaptureModal } from './CaptureReview/CaptureModal'
 import { Launcher } from './Launcher'
@@ -13,13 +13,16 @@ export const Widget: React.FC = () => {
   const [recordingMode, setRecordingMode] = useRecordingMode()
   const [readyState, setReadyState] = useReadyState()
   const apiClient = useApiClient()
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
+    null
+  )
+  const [refetchTrigger, setRefetchTrigger] = useState(0)
+
   const projectsResult = useFuture(
     () => apiClient.fetch('/projects'),
-    [apiClient]
+    [apiClient, refetchTrigger]
   )
-  const projectId = projectsResult.success
-    ? projectsResult.data.items[0]?.id ?? null
-    : null
+  const projects = projectsResult.success ? projectsResult.data.items : []
 
   const isReady = readyState === ReadyState.Ready
   const isPendingLiveRecording =
@@ -29,6 +32,11 @@ export const Widget: React.FC = () => {
     setReadyState(ReadyState.Idle)
     setRecordingMode(RecordingMode.None)
   }, [setReadyState, setRecordingMode])
+
+  const onProjectCreated = useCallback((projectId: string) => {
+    setSelectedProjectId(projectId)
+    setRefetchTrigger(t => t + 1)
+  }, [])
 
   return (
     <Fragment>
@@ -65,7 +73,10 @@ export const Widget: React.FC = () => {
         <Block position="relative" translate="20px -90px">
           <CaptureModal
             open={isReady}
-            projectId={projectId}
+            projects={projects}
+            selectedProjectId={selectedProjectId}
+            onProjectSelect={setSelectedProjectId}
+            onProjectCreated={onProjectCreated}
             onClose={onReset}
           />
         </Block>

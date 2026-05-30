@@ -1,4 +1,5 @@
 import { Col, Row } from '@jsxstyle/react'
+import { useApiClient } from '@repro/api-client'
 import { useSession } from '@repro/auth'
 import {
   Button,
@@ -6,13 +7,15 @@ import {
   Input,
   Label,
   Popover,
+  Select,
   Text,
   Tooltip,
   color,
   spacing,
 } from '@repro/design'
 import { usePlayback } from '@repro/playback'
-import { CloudUploadIcon, DownloadIcon, LockIcon } from 'lucide-react'
+import { fork } from 'fluture'
+import { CloudUploadIcon, DownloadIcon, LockIcon, PlusIcon } from 'lucide-react'
 import React, { useCallback, useState } from 'react'
 import { useRecordingMode } from '~/state'
 import { Modal } from '../Modal'
@@ -23,17 +26,24 @@ const DEFAULT_SELECTED_DURATION = 60_000
 
 interface CaptureModalProps {
   open: boolean
-  projectId: string | null
+  projects: Array<{ id: string; name: string }>
+  selectedProjectId: string | null
+  onProjectSelect: (projectId: string | null) => void
+  onProjectCreated: (projectId: string) => void
   onClose: () => void
 }
 
 export const CaptureModal: React.FC<CaptureModalProps> = ({
   open,
-  projectId,
+  projects,
+  selectedProjectId,
+  onProjectSelect,
+  onProjectCreated,
   onClose,
 }) => {
   const playback = usePlayback()
   const session = useSession()
+  const apiClient = useApiClient()
   const [recordingMode] = useRecordingMode()
   const [selectedDuration, setSelectedDuration] = useState(
     DEFAULT_SELECTED_DURATION
@@ -41,14 +51,19 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
   const [savePopoverOpen, setSavePopoverOpen] = useState(false)
   const [saveTitle, setSaveTitle] = useState('')
 
+  const [createMode, setCreateMode] = useState(false)
+  const [newProjectName, setNewProjectName] = useState('')
+  const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
+
   const actions = useRecordingActions(
     playback,
-    projectId,
+    selectedProjectId,
     recordingMode,
     selectedDuration
   )
 
-  const canSave = session !== null && projectId !== null
+  const canSave = session !== null && selectedProjectId !== null
 
   const onDownloadLocally = useCallback(() => {
     actions.downloadLocally()
@@ -59,8 +74,105 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
     setSavePopoverOpen(false)
   }, [actions, saveTitle])
 
+  const onCreateProject = useCallback(() => {
+    const name = newProjectName.trim()
+    if (!name) return
+
+    setCreating(true)
+    setCreateError(null)
+
+    fork((_error: Error) => {
+      setCreating(false)
+      setCreateError('Failed to create project. Please try again.')
+    })((data: any) => {
+      setCreating(false)
+      setNewProjectName('')
+      setCreateMode(false)
+      onProjectCreated(data.id)
+    })(
+      apiClient.fetch('/projects', {
+        method: 'POST',
+        body: JSON.stringify({ name }),
+      })
+    )
+  }, [apiClient, newProjectName, onProjectCreated])
+
+  const projectSelector =
+    session !== null ? (
+      <Row alignItems="center" gap={spacing.sm}>
+        {projects.length > 0 && !createMode && (
+          <>
+            <Select
+              size="small"
+              value={selectedProjectId ?? ''}
+              onChange={value => onProjectSelect(value)}
+              options={projects.map(p => ({
+                value: p.id,
+                label: p.name,
+              }))}
+              placeholder="Select a project…"
+              aria-label="Select project"
+            />
+            <Tooltip>Create new project</Tooltip>
+            <Row
+              component="button"
+              alignItems="center"
+              justifyContent="center"
+              width={24}
+              height={24}
+              backgroundColor="rgba(255, 255, 255, 0.1)"
+              color={color.infoTint}
+              hoverBackgroundColor={color.infoFg}
+              borderRadius={2}
+              cursor="pointer"
+              lineHeight={1}
+              transition="all 100ms ease-in-out"
+              flexShrink={0}
+              props={{
+                onClick: () => setCreateMode(true),
+                type: 'button',
+                'aria-label': 'Create new project',
+              }}
+            >
+              <PlusIcon size={14} />
+            </Row>
+          </>
+        )}
+
+        {projects.length === 0 || createMode ? (
+          <Col gap={spacing.xs}>
+            <Row alignItems="center" gap={spacing.sm}>
+              <Input
+                size="small"
+                value={newProjectName}
+                onChange={e =>
+                  setNewProjectName((e.target as HTMLInputElement).value)
+                }
+                placeholder="Project name"
+              />
+              <Button
+                size="small"
+                variant="contained"
+                disabled={creating || !newProjectName.trim()}
+                onClick={onCreateProject}
+              >
+                Create
+              </Button>
+            </Row>
+            {createError && (
+              <Text variant="caption" color={color.danger}>
+                {createError}
+              </Text>
+            )}
+          </Col>
+        ) : null}
+      </Row>
+    ) : null
+
   const headerActions = (
     <>
+      {projectSelector}
+
       <Row
         alignItems="center"
         paddingH={12}
