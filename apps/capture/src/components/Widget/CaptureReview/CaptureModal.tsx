@@ -114,9 +114,9 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
               {canSave ? (
                 'Save recording to project'
               ) : session === null ? (
-                <>
+                <Row alignItems="center" gap={4} display="inline-flex">
                   <LockIcon size={16} /> Sign in to save
-                </>
+                </Row>
               ) : (
                 'Select or create a project to upload. You can still download locally.'
               )}
