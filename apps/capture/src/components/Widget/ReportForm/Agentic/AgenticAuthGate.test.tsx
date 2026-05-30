@@ -44,7 +44,7 @@ describe('AgenticAuthGate', () => {
     assert.ok(screen.getByText('Choose a workspace project'))
     assert.ok(
       screen.getByText(
-        'Agentic debugging needs a workspace project. You can still review playback or download locally.'
+        'Saving a recording requires a workspace project. You can still use agentic debugging, review playback, or download locally.'
       )
     )
     assert.equal(screen.queryByText('Agentic ready'), null)
