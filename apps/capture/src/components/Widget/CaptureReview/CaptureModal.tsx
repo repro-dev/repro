@@ -100,7 +100,11 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
             paddingV={8}
             backgroundColor="rgba(255, 255, 255, 0.1)"
             color={color.infoTint}
-            hoverBackgroundColor={color.infoFg}
+            hoverBackgroundColor={
+              canSave && !actions.uploadState.isUploading
+                ? color.infoFg
+                : undefined
+            }
             borderRadius={2}
             transition="all 100ms ease-in-out"
             lineHeight={1}
@@ -112,7 +116,7 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
             }
             opacity={!canSave || actions.uploadState.isUploading ? 0.4 : 1}
           >
-            {canSave ? <Tooltip>{saveTooltipText}</Tooltip> : null}
+            <Tooltip>{saveTooltipText}</Tooltip>
             <CloudUploadIcon size={16} />
             Save
           </Row>

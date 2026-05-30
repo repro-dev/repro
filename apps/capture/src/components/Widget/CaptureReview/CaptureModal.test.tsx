@@ -161,25 +161,27 @@ describe('CaptureModal', () => {
     )
   })
 
-  it('does not render tooltip when session is null (not signed in)', () => {
+  it('renders tooltip with sign-in prompt when session is null (not signed in)', () => {
     currentSession = null
     renderModal('proj-1')
 
+    const tooltip = screen.getByText('Sign in to Repro to upload recordings')
     assert.ok(
-      screen.queryByText('Sign in to Repro to upload recordings') === null,
-      'Tooltip should not render when save is disabled (session is null)'
+      tooltip,
+      'Tooltip should show sign-in prompt when save is disabled (session is null)'
     )
   })
 
-  it('does not render tooltip when signed in but no project', () => {
+  it('renders tooltip with project prompt when signed in but no project', () => {
     currentSession = mockSession
     renderModal(null)
 
+    const tooltip = screen.getByText(
+      'Select or create a project to upload. You can still download locally.'
+    )
     assert.ok(
-      screen.queryByText(
-        'Select or create a project to upload. You can still download locally.'
-      ) === null,
-      'Tooltip should not render when save is disabled (no project)'
+      tooltip,
+      'Tooltip should show project prompt when save is disabled (no project)'
     )
   })
 })
