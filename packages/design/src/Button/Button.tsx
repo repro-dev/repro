@@ -199,6 +199,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         opacity={disabled ? 0.5 : 1}
         cursor={disabled ? 'default' : 'pointer'}
         fontSize={fontSize}
+        fontFamily="inherit"
         lineHeight="1em"
         transition={transition.fast}
         {...focusRing(context)}
