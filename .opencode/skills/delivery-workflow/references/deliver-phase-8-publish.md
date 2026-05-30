@@ -43,7 +43,7 @@ For each publishable issue:
      The following non-blocking review findings were not auto-fixed:
      
      ### Major
-     - **[file:line]** (category) Description. _Skipped-by-gate_ | _Not-agent-fixable_
+     - **[file:line]** (category) Description. _Skipped-by-gate_ | _Not-agent-fixable_ (Major findings are not mechanically fixable — Fixed in sweep does not apply)
      
      ### Minor  
      - **[file:line]** (category) Description. _Fixed in sweep_ | _Skipped-by-gate_ | _Not-agent-fixable_
