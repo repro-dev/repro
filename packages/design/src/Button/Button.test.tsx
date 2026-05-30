@@ -113,3 +113,14 @@ describe('Button display and width — REP-314', () => {
     expect(clicked).toBe(true)
   })
 })
+
+describe('Button font-family override — REP-1317', () => {
+  it('renders with font-family: inherit to adopt the design system font stack', () => {
+    const { getByRole } = render(<Button>Text</Button>)
+    const cssRules = getElementCSSRules(getByRole('button'))
+
+    expect(
+      cssRules.some(({ cssText }) => cssText.includes('font-family: inherit'))
+    ).toBe(true)
+  })
+})
