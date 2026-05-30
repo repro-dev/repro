@@ -1,61 +1,61 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "model": "deepseek-ai/deepseek-v4-pro",
+  "model": "deepseek/deepseek-v4-pro",
   "command": {
     "deliver": {
-      "model": "deepseek-ai/deepseek-v4-flash",
+      "model": "deepseek/deepseek-v4-pro",
       "template": ""
     },
     "groom": {
-      "model": "deepseek-ai/deepseek-v4-flash",
+      "model": "deepseek/deepseek-v4-pro",
       "template": ""
     },
     "enrich-issues": {
-      "model": "deepseek-ai/deepseek-v4-pro",
+      "model": "deepseek/deepseek-v4-pro",
       "template": ""
     },
     "review": {
-      "model": "deepseek-ai/deepseek-v4-pro",
+      "model": "deepseek/deepseek-v4-pro",
       "template": ""
     },
     "ledger": {
-      "model": "deepseek-ai/deepseek-v4-flash",
+      "model": "deepseek/deepseek-v4-flash",
       "template": ""
     },
     "handoff": {
-      "model": "deepseek-ai/deepseek-v4-flash",
+      "model": "deepseek/deepseek-v4-flash",
       "template": ""
     },
     "audit-skills": {
-      "model": "deepseek-ai/deepseek-v4-pro",
+      "model": "deepseek/deepseek-v4-pro",
       "template": ""
     },
     "update-visual-baselines": {
-      "model": "deepseek-ai/deepseek-v4-pro",
+      "model": "deepseek/deepseek-v4-pro",
       "template": ""
     }
   },
   "agent": {
     "develop": {
-      "model": "deepseek-ai/deepseek-v4-flash"
+      "model": "deepseek/deepseek-v4-pro"
     },
     "librarian": {
-      "model": "deepseek-ai/deepseek-v4-flash"
+      "model": "deepseek/deepseek-v4-flash"
     },
     "planner": {
-      "model": "deepseek-ai/deepseek-v4-pro"
+      "model": "deepseek/deepseek-v4-pro"
     },
     "review": {
-      "model": "deepseek-ai/deepseek-v4-pro"
+      "model": "deepseek/deepseek-v4-pro"
     },
     "test": {
-      "model": "deepseek-ai/deepseek-v4-flash"
+      "model": "deepseek/deepseek-v4-flash"
     },
     "sequencer": {
-      "model": "deepseek-ai/deepseek-v4-flash"
+      "model": "deepseek/deepseek-v4-flash"
     },
     "release": {
-      "model": "deepseek-ai/deepseek-v4-flash"
+      "model": "deepseek/deepseek-v4-flash"
     }
   }
 }
