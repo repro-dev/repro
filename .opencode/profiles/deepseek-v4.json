@@ -37,7 +37,7 @@
   },
   "agent": {
     "develop": {
-      "model": "deepseek/deepseek-v4-pro"
+      "model": "deepseek/deepseek-v4-flash"
     },
     "librarian": {
       "model": "deepseek/deepseek-v4-flash"
