@@ -14,15 +14,20 @@ import {
   spacing,
 } from '@repro/design'
 import { usePlayback } from '@repro/playback'
-import { fork } from 'fluture'
+import { type Cancel, fork } from 'fluture'
 import { CloudUploadIcon, DownloadIcon, LockIcon, PlusIcon } from 'lucide-react'
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useRecordingMode } from '~/state'
 import { Modal } from '../Modal'
 import { CaptureReview } from './CaptureReview'
 import { useRecordingActions } from './useRecordingActions'
 
 const DEFAULT_SELECTED_DURATION = 60_000
+
+interface ProjectCreateResponse {
+  id: string
+  name: string
+}
 
 interface CaptureModalProps {
   open: boolean
@@ -55,6 +60,13 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
   const [newProjectName, setNewProjectName] = useState('')
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
+  const createCancelRef = useRef<Cancel | null>(null)
+
+  useEffect(() => {
+    return () => {
+      createCancelRef.current?.()
+    }
+  }, [])
 
   const actions = useRecordingActions(
     playback,
@@ -81,14 +93,16 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
     setCreating(true)
     setCreateError(null)
 
-    fork((_error: Error) => {
+    createCancelRef.current = fork((_error: Error) => {
       setCreating(false)
       setCreateError('Failed to create project. Please try again.')
-    })((data: any) => {
+    })((data: ProjectCreateResponse) => {
       setCreating(false)
       setNewProjectName('')
       setCreateMode(false)
-      onProjectCreated(data.id)
+      if (data && data.id) {
+        onProjectCreated(data.id)
+      }
     })(
       apiClient.fetch('/projects', {
         method: 'POST',
@@ -113,7 +127,6 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
               placeholder="Select a project…"
               aria-label="Select project"
             />
-            <Tooltip>Create new project</Tooltip>
             <Row
               component="button"
               alignItems="center"
@@ -134,6 +147,7 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
                 'aria-label': 'Create new project',
               }}
             >
+              <Tooltip>Create new project</Tooltip>
               <PlusIcon size={14} />
             </Row>
           </>
@@ -150,6 +164,19 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
                 }
                 placeholder="Project name"
               />
+              {createMode && projects.length > 0 && (
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={() => {
+                    setCreateMode(false)
+                    setNewProjectName('')
+                    setCreateError(null)
+                  }}
+                >
+                  Cancel
+                </Button>
+              )}
               <Button
                 size="small"
                 variant="contained"

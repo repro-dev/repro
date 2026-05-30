@@ -3,6 +3,7 @@ import { PortalRootProvider as DesignPortalRootProvider } from '@repro/design'
 import * as DevToolsModule from '@repro/devtools'
 import { PlaybackProvider } from '@repro/playback'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { resolve } from 'fluture'
 import assert from 'node:assert/strict'
 import { after, afterEach, describe, it, mock } from 'node:test'
 import React from 'react'
@@ -112,6 +113,19 @@ mock.module('@repro/devtools', {
 mock.module('~/state', {
   namedExports: {
     useRecordingMode: () => [1, noop],
+  },
+})
+
+/**
+ * Mock @repro/api-client so useApiClient returns a controlled client.
+ * The mock client's fetch returns a resolved Future with a project object,
+ * allowing the create-project flow to complete synchronously in tests.
+ */
+mock.module('@repro/api-client', {
+  namedExports: {
+    useApiClient: () => ({
+      fetch: () => resolve({ id: 'new-proj-1', name: 'My New Project' }),
+    }),
   },
 })
 
@@ -253,6 +267,32 @@ describe('CaptureModal', () => {
     )
   })
 
+  it('Save button is active when session is available and project is selected', () => {
+    currentSession = mockSession
+    renderModal(testProjects, 'proj-1')
+
+    // The tooltip content reflects the canSave state
+    const tooltip = screen.getByText('Save recording to project')
+    assert.ok(
+      tooltip,
+      'Tooltip should show save-active message when project is selected'
+    )
+
+    // Clicking the Save trigger should open the popover when canSave is true.
+    // Find the Save trigger by looking for text "Save" inside the header.
+    // The trigger Row contains both a tooltip portal and "Save" text.
+    const saveTrigger = screen.getByText('Save')
+    assert.ok(saveTrigger, 'Save trigger text should exist')
+    fireEvent.click(saveTrigger)
+
+    // The popover should now be open — verify the popover content is rendered
+    const popoverTitle = screen.getByText('Save recording')
+    assert.ok(
+      popoverTitle,
+      'Popover title should appear after clicking Save trigger'
+    )
+  })
+
   it('shows create mode when plus button is clicked', () => {
     currentSession = mockSession
     renderModal(testProjects, null)
@@ -272,12 +312,55 @@ describe('CaptureModal', () => {
     )
   })
 
+  it('onProjectSelect callback fires when a project option is selected', async () => {
+    currentSession = mockSession
+
+    const onProjectSelect = mock.fn<(projectId: string | null) => void>()
+
+    render(
+      <DesignPortalRootProvider>
+        <PlaybackProvider playback={testPlayback}>
+          <CaptureModal
+            open={true}
+            projects={testProjects}
+            selectedProjectId={null}
+            onProjectSelect={onProjectSelect}
+            onProjectCreated={noop}
+            onClose={noop}
+          />
+        </PlaybackProvider>
+      </DesignPortalRootProvider>
+    )
+
+    const selectTrigger = screen.getByLabelText('Select project')
+    assert.ok(selectTrigger, 'Select trigger should be rendered')
+
+    fireEvent.click(selectTrigger)
+
+    // Wait for the floating dropdown options to appear
+    const option = await screen.findByText('Test Project', undefined, {
+      timeout: 200,
+    })
+    assert.ok(option, 'Project option should be rendered in the dropdown')
+
+    fireEvent.click(option)
+
+    assert.equal(
+      onProjectSelect.mock.callCount(),
+      1,
+      'onProjectSelect should be called once'
+    )
+    assert.equal(
+      onProjectSelect.mock.calls[0]?.arguments[0],
+      'proj-1',
+      'onProjectSelect should be called with the selected project ID'
+    )
+  })
+
   it('Project creation API integration - calls onProjectCreated on success', () => {
     currentSession = mockSession
 
-    const handleProjectCreated = (_projectId: string) => {
-      // Callback fired on project creation
-    }
+    const onProjectCreated = mock.fn<(projectId: string) => void>()
 
     render(
       <DesignPortalRootProvider>
@@ -287,7 +370,7 @@ describe('CaptureModal', () => {
             projects={[]}
             selectedProjectId={null}
             onProjectSelect={noop}
-            onProjectCreated={handleProjectCreated}
+            onProjectCreated={onProjectCreated}
             onClose={noop}
           />
         </PlaybackProvider>
@@ -301,17 +384,24 @@ describe('CaptureModal', () => {
 
     const createButton = screen.getByText('Create')
     assert.ok(createButton, 'Create button should be rendered')
-
-    // Note: The actual API call is triggered via useApiClient().fetch()
-    // which returns a Future. In the test environment, useApiClient
-    // is not mocked by default. The create flow calls fork() on the
-    // future, which runs asynchronously. For a complete integration
-    // test, useApiClient would need to be mocked.
-    // This test validates the UI renders correctly; the API integration
-    // is covered by the component logic itself.
     assert.ok(
-      input.value === 'My New Project' || input.value === '',
-      'Input should accept text'
+      !(createButton as HTMLButtonElement).disabled,
+      'Create button should not be disabled when input has text'
+    )
+
+    fireEvent.click(createButton)
+
+    // The mocked apiClient.fetch returns a resolved Future,
+    // so fork calls the success callback synchronously.
+    assert.equal(
+      onProjectCreated.mock.callCount(),
+      1,
+      'onProjectCreated should be called once'
+    )
+    assert.equal(
+      onProjectCreated.mock.calls[0]?.arguments[0],
+      'new-proj-1',
+      'onProjectCreated should be called with the new project ID'
     )
   })
 })
