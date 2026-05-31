@@ -61,12 +61,25 @@ export const FileLoader: React.FC<Props> = ({ onLoad }) => {
           onDragOver: handleDragOver,
           onDragLeave: handleDragLeave,
           onDrop: handleDrop,
-          onClick: handleBrowseClick,
+          onClick: (e: React.MouseEvent) => {
+            e.stopPropagation()
+            // Only fire when the Col itself is clicked (not a child button)
+            if (e.target === e.currentTarget) {
+              handleBrowseClick()
+            }
+          },
         }}
       >
         <Text variant="body">Drop your .repro file here</Text>
 
-        <Button variant="outlined" size="small">
+        <Button
+          variant="outlined"
+          size="small"
+          onClick={(e: React.MouseEvent) => {
+            e.stopPropagation()
+            handleBrowseClick()
+          }}
+        >
           Browse files
         </Button>
 

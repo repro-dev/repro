@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import assert from 'node:assert/strict'
-import { afterEach, describe, it } from 'node:test'
+import { afterEach, describe, it, mock } from 'node:test'
 import React from 'react'
 import { FileLoader } from './FileLoader'
 
@@ -70,19 +70,15 @@ describe('FileLoader', () => {
     const input = document.querySelector('input[type="file"]')
     assert.ok(input)
 
-    let clickCalled = false
-    const originalClick = HTMLInputElement.prototype.click
-    HTMLInputElement.prototype.click = () => {
-      clickCalled = true
-    }
+    const clickSpy = mock.method(HTMLInputElement.prototype, 'click')
 
     try {
       const button = screen.getByText('Browse files')
       button.click()
 
-      assert.equal(clickCalled, true)
+      assert.equal(clickSpy.mock.callCount(), 1)
     } finally {
-      HTMLInputElement.prototype.click = originalClick
+      clickSpy.mock.restore()
     }
   })
 })

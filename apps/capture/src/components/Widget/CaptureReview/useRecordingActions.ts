@@ -45,6 +45,7 @@ export interface RecordingActions {
     projectIdOverride?: string
   ): void
   downloadLocally(): void
+  isEmpty: boolean
   uploadState: UploadState
   pollUploadProgress(ref: string): void
   setUploadState(state: Partial<UploadState>): void
@@ -234,6 +235,8 @@ export function useRecordingActions(
     }
   }, [setUploadState, uploadState.uploadRef, uploadState.isUploading, agent])
 
+  const isEmpty = playback.getSourceEvents().size() === 0
+
   return {
     getSelectedRecording,
     getSerializedEvents,
@@ -242,5 +245,6 @@ export function useRecordingActions(
     uploadState,
     pollUploadProgress,
     setUploadState,
+    isEmpty,
   }
 }

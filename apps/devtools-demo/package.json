@@ -8,7 +8,7 @@
     "dev-serve": "vite",
     "serve": "serve -s dist",
     "fmt": "prettier --write src",
-    "test": "tsx --experimental-test-module-mocks --test --test-timeout=30000 --test-force-exit src/**/*.test.ts{,x}",
+    "test": "tsx --experimental-test-module-mocks --import=global-jsdom/register --test --test-timeout=30000 --test-force-exit src/**/*.test.ts{,x}",
     "typecheck": "tsc --noEmit"
   },
   "license": "UNLICENSED",
@@ -39,6 +39,7 @@
     "@types/react": "^18.0.14",
     "@types/react-dom": "^18.0.5",
     "@types/repro-shared-types": "workspace:*",
+    "global-jsdom": "overridden",
     "@vitejs/plugin-react": "overridden",
     "prettier": "^3.0.0",
     "prettier-plugin-organize-imports": "^3.2.3",

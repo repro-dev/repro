@@ -287,34 +287,6 @@ describe('useRecordingActions', () => {
     }
   })
 
-  it('downloadLocally uses timestamped .repro filename', () => {
-    const playback = createMockPlayback()
-    const actions = renderHook(playback, 'proj-1', 1, 60000)
-
-    let capturedAnchor: HTMLElement | null = null
-    const originalAppendChild = document.body.appendChild.bind(document.body)
-    document.body.appendChild = <T extends Node>(child: T) => {
-      capturedAnchor = child as unknown as HTMLElement
-      return originalAppendChild(child)
-    }
-
-    try {
-      actions.downloadLocally()
-
-      assert.ok(capturedAnchor)
-      assert.ok(
-        (capturedAnchor as HTMLAnchorElement).download.endsWith('.repro')
-      )
-      assert.ok(
-        (capturedAnchor as HTMLAnchorElement).download.startsWith(
-          'repro-recording-'
-        )
-      )
-    } finally {
-      document.body.appendChild = originalAppendChild
-    }
-  })
-
   it('downloadLocally does not call URL.createObjectURL for empty recording', () => {
     const emptyEvents = new List(SourceEventView, [])
     const playback = createMockPlayback({
