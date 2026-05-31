@@ -1544,6 +1544,49 @@ function filterPersistedPhaseDomainEvents(
   );
 }
 
+// Search combined stdout/stderr for a structured safety.stop JSON marker.
+// Returns the parsed JSON object if found, null otherwise.
+// Uses JSON.parse instead of regex to correctly handle nested objects.
+function detectSafetyStop(output: string): Record<string, unknown> | null {
+  const prefixIndex = output.indexOf("safety.stop ");
+  if (prefixIndex === -1) return null;
+
+  const jsonStart = prefixIndex + "safety.stop ".length;
+  const candidate = output.slice(jsonStart);
+
+  try {
+    const parsed = JSON.parse(candidate);
+    if (
+      parsed !== null &&
+      typeof parsed === "object" &&
+      !Array.isArray(parsed) &&
+      parsed.kind === "safety-stop"
+    ) {
+      return parsed as Record<string, unknown>;
+    }
+  } catch {
+    // Not valid JSON — try the next line as a bounded fallback
+    const nextNewline = candidate.indexOf("\n");
+    const bounded =
+      nextNewline === -1 ? candidate : candidate.slice(0, nextNewline);
+    try {
+      const parsed = JSON.parse(bounded);
+      if (
+        parsed !== null &&
+        typeof parsed === "object" &&
+        !Array.isArray(parsed) &&
+        parsed.kind === "safety-stop"
+      ) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      // Could not parse as JSON
+    }
+  }
+
+  return null;
+}
+
 export function extractSafetySignals(
   plan: FlowcraftExecutionPlan,
   attempt: number,
@@ -1556,10 +1599,7 @@ export function extractSafetySignals(
 
   const combinedOutput = `${sessionResult.stdout}\n${sessionResult.stderr}`;
 
-  // Check for structured safety stop marker in output
-  const safetyStopMatch = combinedOutput.match(
-    /safety.stop["\s:]*\{[^}]*"kind"\s*:\s*"safety-stop"/,
-  );
+  const safetyStopMatch = detectSafetyStop(combinedOutput);
 
   if (safetyStopMatch !== null) {
     return {

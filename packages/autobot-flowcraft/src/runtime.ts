@@ -1231,6 +1231,8 @@ function createFlowcraftExecutionMetadata(input: {
       workflowStatus,
       input.runtimeResult.context.issue_id,
     ),
+    // Forward-looking placeholder — actual safety stop detection happens
+    // downstream in extractSafetySignals (autobot-cli services.ts).
     safety_stop: null,
     terminal_state: {
       state: itemState,
