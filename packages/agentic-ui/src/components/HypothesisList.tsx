@@ -1,6 +1,16 @@
 import { Block, Col, Row } from "@jsxstyle/react";
 import { sortHypothesesByConfidence, type Hypothesis } from "@repro/agentic";
-import { color, focusRing, radius, spacing, textStyles } from "@repro/design";
+import {
+  Alert,
+  color,
+  focusRing,
+  fontSize,
+  fontWeight,
+  lineHeight,
+  radius,
+  spacing,
+  textStyles,
+} from "@repro/design";
 import {
   AlertTriangleIcon,
   ChevronDownIcon,
@@ -68,11 +78,11 @@ const HypothesisCard: React.FC<HypothesisCardProps> = ({
                 backgroundColor={color.primary}
                 borderRadius={radius.sm}
                 color={color.text.inverse}
-                fontSize={11}
-                fontWeight={600}
-                lineHeight={1}
+                fontSize={fontSize.xs}
+                fontWeight={fontWeight.semibold}
+                lineHeight={lineHeight.tight}
                 paddingH={spacing.xs}
-                paddingV={2}
+                paddingV={spacing.xs}
               >
                 Top
               </Block>
@@ -84,11 +94,11 @@ const HypothesisCard: React.FC<HypothesisCardProps> = ({
           backgroundColor={confColor.bg}
           borderRadius={radius.sm}
           color={confColor.text}
-          fontSize={11}
-          fontWeight={600}
-          lineHeight={1}
+          fontSize={fontSize.xs}
+          fontWeight={fontWeight.semibold}
+          lineHeight={lineHeight.tight}
           paddingH={spacing.xs}
-          paddingV={2}
+          paddingV={spacing.xs}
         >
           {confColor.label}
         </Block>
@@ -100,21 +110,24 @@ const HypothesisCard: React.FC<HypothesisCardProps> = ({
             component="button"
             cursor="pointer"
             flexShrink={0}
-            gap={2}
+            gap={spacing.xs}
+            padding={spacing.xs}
             {...focusRing("neutral")}
             props={{
               type: "button",
               onClick: () => setExpanded(!expanded),
-              "aria-label": expanded ? "Collapse evidence" : "Expand evidence",
+              "aria-label": expanded
+                ? "Collapse evidence"
+                : `Expand ${hypothesis.evidence.length} pieces of evidence`,
             }}
           >
-            <Block fontSize={11} lineHeight={1}>
-              {hypothesis.evidence.length}
+            <Block fontSize={fontSize.xs} lineHeight={lineHeight.tight}>
+              {hypothesis.evidence.length} evidence
             </Block>
             {expanded ? (
-              <ChevronDownIcon size={12} />
+              <ChevronDownIcon size={16} />
             ) : (
-              <ChevronRightIcon size={12} />
+              <ChevronRightIcon size={16} />
             )}
           </Row>
         )}
@@ -128,10 +141,9 @@ const HypothesisCard: React.FC<HypothesisCardProps> = ({
           <Block
             color={color.text.secondary}
             component="ul"
-            fontSize={13}
-            lineHeight={1.4}
             margin={0}
             paddingLeft={spacing.lg}
+            {...textStyles.bodySmall}
           >
             {hypothesis.evidence.map((piece, i) => (
               <Block component="li" key={i} marginBottom={spacing.xs}>
@@ -168,20 +180,10 @@ export const HypothesisList: React.FC<HypothesisListProps> = ({
       </Block>
 
       {isLowConfidenceTop && (
-        <Row
-          alignItems="center"
-          backgroundColor={color.warningSubtle}
-          borderRadius={radius.md}
-          color={color.warning}
-          gap={spacing.xs}
-          padding={spacing.sm}
-        >
-          <AlertTriangleIcon size={14} />
-          <Block fontSize={13} lineHeight={1.3}>
-            The top hypothesis has low confidence. More evidence may be needed
-            to reach a reliable conclusion.
-          </Block>
-        </Row>
+        <Alert type="warning" icon={<AlertTriangleIcon size={14} />}>
+          The top hypothesis has low confidence. More evidence may be needed to
+          reach a reliable conclusion.
+        </Alert>
       )}
 
       {sorted.map((hypothesis, index) => (

@@ -59,6 +59,7 @@ export const AgenticView: React.FC<{
   }
 
   function handleReset() {
+    lastSummaryRef.current = "";
     agentic.reset();
     setInputHasFocus(false);
   }
@@ -103,7 +104,7 @@ export const AgenticView: React.FC<{
         />
       </Col>
 
-      {hypotheses.length > 0 && (
+      {stage === "conclusion" && hypotheses.length > 0 && (
         <Block marginInline={spacing["2xl"]}>
           <HypothesisList hypotheses={hypotheses} />
         </Block>

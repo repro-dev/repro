@@ -36,6 +36,14 @@ mock.module('@repro/agentic', {
       stateCounter += 1
       const id = `state-${stateCounter}`
       return {
+        $stage: {
+          getValue: () => 'idle' as const,
+          pipe: () => ({ subscribe: () => ({ unsubscribe: () => {} }) }),
+        },
+        $hypotheses: {
+          getValue: () => [] as Array<never>,
+          pipe: () => ({ subscribe: () => ({ unsubscribe: () => {} }) }),
+        },
         destroy: () => destroyedStates.push(id),
       }
     },
@@ -52,8 +60,10 @@ mock.module('@repro/agentic-ui', {
     AgenticStateContext: React.createContext(null),
     AgenticView: ({
       onGoToTime,
+      onInvestigationComplete: _onInvestigationComplete,
     }: {
       onGoToTime: (timestampMs: number) => void
+      onInvestigationComplete?: (summary: string) => void
     }) => (
       <button type="button" onClick={() => onGoToTime(5_000)}>
         Go to agentic time
