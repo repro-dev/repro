@@ -55,6 +55,15 @@ export function getInvestigationReadiness(
   return "needs more evidence";
 }
 
+const VALID_CONFIDENCE = new Set(["low", "medium", "high"]);
+
+function normalizeConfidence(value: unknown): "low" | "medium" | "high" {
+  if (typeof value === "string" && VALID_CONFIDENCE.has(value)) {
+    return value as "low" | "medium" | "high";
+  }
+  return "medium";
+}
+
 export function normalizeHypotheses(
   value: unknown,
 ): { hypotheses: Array<Hypothesis> } | { error: AdvanceStageError } {
@@ -68,7 +77,7 @@ export function normalizeHypotheses(
         error: "Invalid hypotheses payload",
         reason: "The hypotheses value must be an array",
         suggestion:
-          "Call advanceStage with hypotheses as an array of { id, description, evidence } objects.",
+          "Call advanceStage with hypotheses as an array of { id, description, evidence, confidence } objects.",
       },
     };
   }
@@ -82,7 +91,7 @@ export function normalizeHypotheses(
           error: "Invalid hypothesis",
           reason: "Each hypothesis must be an object",
           suggestion:
-            "Provide hypotheses as objects with id, description, and evidence fields.",
+            "Provide hypotheses as objects with id, description, evidence, and confidence fields.",
         },
       };
     }
@@ -115,10 +124,43 @@ export function normalizeHypotheses(
       id: id.trim(),
       description: description.trim(),
       evidence: evidence.map((entry) => entry.trim()),
+      confidence: normalizeConfidence(record.confidence),
     });
   }
 
   return { hypotheses };
+}
+
+const CONFIDENCE_ORDER: Record<string, number> = {
+  high: 0,
+  medium: 1,
+  low: 2,
+};
+
+export function sortHypothesesByConfidence(
+  hypotheses: Array<Hypothesis>,
+): Array<Hypothesis> {
+  // Stable sort — new array, equal-confidence items keep relative order
+  return [...hypotheses].sort(
+    (a, b) =>
+      (CONFIDENCE_ORDER[a.confidence] ?? 1) -
+      (CONFIDENCE_ORDER[b.confidence] ?? 1),
+  );
+}
+
+export function buildInvestigationSummary(
+  hypotheses: Array<Hypothesis>,
+): string {
+  if (hypotheses.length === 0) {
+    return "The investigation did not produce any hypotheses.";
+  }
+
+  const sorted = sortHypothesesByConfidence(hypotheses);
+  const top = sorted[0];
+  if (top === undefined) {
+    return "The investigation did not produce any hypotheses.";
+  }
+  return `Top hypothesis: ${top.description} (confidence: ${top.confidence})`;
 }
 
 export function validateInvestigationStageTransition(

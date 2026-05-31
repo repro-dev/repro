@@ -45,7 +45,12 @@ describe("advanceStage tool", () => {
         {
           stage: "conclusion",
           hypotheses: [
-            { id: "h1", description: "A", evidence: ["console error"] },
+            {
+              id: "h1",
+              description: "A",
+              evidence: ["console error"],
+              confidence: "high",
+            },
           ],
         },
         context,
@@ -54,11 +59,25 @@ describe("advanceStage tool", () => {
 
     assert.deepEqual(received, {
       stage: "conclusion",
-      hypotheses: [{ id: "h1", description: "A", evidence: ["console error"] }],
+      hypotheses: [
+        {
+          id: "h1",
+          description: "A",
+          evidence: ["console error"],
+          confidence: "high",
+        },
+      ],
     });
     assert.deepEqual(result, {
       stage: "conclusion",
-      hypotheses: [{ id: "h1", description: "A", evidence: ["console error"] }],
+      hypotheses: [
+        {
+          id: "h1",
+          description: "A",
+          evidence: ["console error"],
+          confidence: "high",
+        },
+      ],
       readiness: "ready to conclude",
       _tokenEstimate: result._tokenEstimate,
     });
@@ -78,6 +97,7 @@ describe("advanceStage tool", () => {
               id: "keep",
               description: "Keep existing",
               evidence: ["evidence"],
+              confidence: "medium",
             },
           ],
           readiness: "needs more evidence",

@@ -3,6 +3,7 @@ export { AgenticStateContext, useAgenticState } from "./context";
 export { EmptyState } from "./EmptyState";
 export { AgenticInputSection } from "./components/AgenticInputSection";
 export { ErrorMessage } from "./components/ErrorMessage";
+export { HypothesisList } from "./components/HypothesisList";
 export { JumpToEndButton } from "./components/JumpToEndButton";
 export { LoadingIndicator } from "./components/LoadingIndicator";
 export { MessageList } from "./components/MessageList";

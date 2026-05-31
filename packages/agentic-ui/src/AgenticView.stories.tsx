@@ -4,6 +4,7 @@ import {
   AgenticError,
   AgenticState,
   Entry,
+  Hypothesis,
   Loading,
   PendingAskUserInteraction,
 } from "@repro/agentic";
@@ -48,12 +49,16 @@ function makeState(
   loading: Loading,
   error: AgenticError | null = null,
   truncatedBeforeId: string | null = null,
+  stage: "idle" | "orient" | "hypotheses" | "evidence" | "conclusion" = "idle",
+  hypotheses: Array<Hypothesis> = [],
 ): AgenticState {
   return {
     $entries: atom<Array<Entry>>(entries),
     $loading: atom<Loading>(loading),
     $error: atom<AgenticError | null>(error),
     $wasCancelled: atom<boolean>(false),
+    $stage: atom(stage),
+    $hypotheses: atom(hypotheses),
     $pendingInteraction: atom<PendingAskUserInteraction | null>(null),
     $truncatedBefore: atom<string | null>(truncatedBeforeId),
     cancel: () => {},
@@ -140,7 +145,7 @@ export const Responding: StoryObj = {
             role: "assistant",
             content: `Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras elementum pharetra odio ut interdum. Curabitur quis nunc vulputate, ornare eros ac, rhoncus libero. Phasellus eget mi ut mi volutpat dapibus nec id lacus. Curabitur volutpat dui libero, sed rhoncus dolor ullamcorper non. Pellentesque vehicula tincidunt lorem eu viverra. Vivamus ac massa orci. Suspendisse nisl leo, vestibulum et venenatis vitae, sodales sit amet arcu. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Interdum et malesuada fames ac ante ipsum primis in faucibus. Suspendisse pretium rhoncus velit. Maecenas ullamcorper ex ultricies urna ultricies ultrices. Sed viverra sem id massa aliquam laoreet. Etiam sed maximus lectus, sit amet suscipit urna. Ut feugiat et dui ac vulputate. Donec imperdiet non ante in finibus. Cras rhoncus ullamcorper dolor, ut consectetur dolor.
 
-Integer tempus, risus sed commodo tincidunt, urna tortor scelerisque enim, vel mattis lectus sapien ac elit. Sed condimentum ultricies rhoncus. Integer condimentum ut metus quis sodales. Integer est lorem, eleifend sodales metus eu, rhoncus volutpat ex. Donec sed feugiat nisi. Etiam quis lectus in felis congue accumsan vitae ut nulla. Praesent scelerisque neque quis leo malesuada congue. Cras malesuada, ante a bibendum accumsan, tellus metus tristique risus, venenatis iaculis dolor nunc in elit. Proin vel augue laoreet urna faucibus semper eget vel orci. In aliquet ut nisi ut venenatis. Sed at euismod dui. Integer fermentum placerat viverra. Suspendisse varius dolor at nisi fermentum tempus. Vivamus vitae tortor dictum, convallis nunc ac, auctor est.
+Integer tempus, risus sed commodo tincidunt, urna tortor scelerisque enim, vel mattis lectus sapien ac elit. Sed condimentum ultricies rhoncus. Integer condimentum ut metus quis sodales. Integer est lorem, eleifend sodales metus eu, rhoncus volutpat ex. Donec sed feugiat nisi. Etiam quis lectus in felis congue accumsan vitae ut nulla. Praesent scelerisque neque quis leo malesuada congue. Cras malesuada, ante a bibendum accumsan, tellus metus tristique risus, venenatis iaculis dolor nunc in elit. Proin vel augue urna faucibus semper eget vel orci. In aliquet ut nisi ut venenatis. Sed at euismod dui. Integer fermentum placerat viverra. Suspendisse varius dolor at nisi fermentum tempus. Vivamus vitae tortor dictum, convallis nunc ac, auctor est.
 
 Sed vitae orci vulputate eros maximus scelerisque. Fusce id nisi odio. Proin sollicitudin luctus elit, a condimentum eros accumsan sodales. Vestibulum vitae neque diam. Morbi fermentum id felis vel luctus. Integer nibh orci, commodo sit amet porta auctor, consequat vulputate felis. Quisque a dui augue. Fusce ac consequat est, a maximus massa.`,
             toolCalls: [],
@@ -365,6 +370,62 @@ export const WithTruncation: StoryObj = {
         null,
         // Truncation indicator before entry "3" — earlier messages were dropped
         "3",
+      ),
+    ),
+  ],
+};
+
+export const WithHypotheses: StoryObj = {
+  decorators: [
+    withState(
+      makeState(
+        [
+          {
+            id: "1",
+            timestamp: new Date(),
+            role: "user",
+            content: "Why is the login button not working?",
+          },
+          {
+            id: "2",
+            timestamp: new Date(),
+            role: "assistant",
+            content:
+              "I found several issues during the investigation. Here's what I discovered.",
+            toolCalls: [],
+          },
+        ],
+        "none",
+        null,
+        null,
+        "hypotheses",
+        [
+          {
+            id: "h1",
+            description: "Network request to auth endpoint is failing silently",
+            evidence: [
+              "Network request to /api/auth/login returned 500 at 3.2s",
+              "No retry logic detected in the XHR handler",
+            ],
+            confidence: "high",
+          },
+          {
+            id: "h2",
+            description:
+              "Form validation prevents submission without visual feedback",
+            evidence: [
+              "Button click at 2.1s did not trigger any network activity",
+              "No validation error messages visible in DOM snapshots",
+            ],
+            confidence: "medium",
+          },
+          {
+            id: "h3",
+            description: "Third-party script blocking main thread",
+            evidence: ["Long task detected at 1.5s from analytics.js"],
+            confidence: "low",
+          },
+        ],
       ),
     ),
   ],

@@ -28,9 +28,13 @@ async function hashPromptVersion(prompt: string) {
 
 interface AgenticProps {
   getSelectedRecording: RecordingActions['getSelectedRecording']
+  onInvestigationComplete?: (summary: string) => void
 }
 
-export const Agentic: React.FC<AgenticProps> = ({ getSelectedRecording }) => {
+export const Agentic: React.FC<AgenticProps> = ({
+  getSelectedRecording,
+  onInvestigationComplete,
+}) => {
   const apiClient = useApiClient()
   const playback = usePlayback()
   const selected = useMemo(() => getSelectedRecording(), [getSelectedRecording])
@@ -96,6 +100,7 @@ export const Agentic: React.FC<AgenticProps> = ({ getSelectedRecording }) => {
   return (
     <AgenticStateContext.Provider value={state}>
       <AgenticView
+        onInvestigationComplete={onInvestigationComplete}
         onGoToTime={timestampMs =>
           playback.seekToTime(selected.startTimeMs + timestampMs)
         }
