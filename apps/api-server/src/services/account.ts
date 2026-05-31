@@ -5,6 +5,7 @@ import {
   AccountSettingsSummary,
   Invitation,
   ProjectRole,
+  RecordingPrivacyPreset,
   Session,
   StaffAccount,
   StaffAccountDetail,
@@ -425,7 +426,7 @@ export function createAccountService(
     return attemptQuery(() => {
       return database
         .insertInto('accounts')
-        .values({ name, active: true })
+        .values({ name, active: true, recordingPrivacyPreset: 'standard' })
         .returning(['id', 'name'])
         .executeTakeFirstOrThrow()
     })
@@ -469,7 +470,11 @@ export function createAccountService(
           return database.transaction().execute(async trx => {
             const account = await trx
               .insertInto('accounts')
-              .values({ name: accountName, active: true })
+              .values({
+                name: accountName,
+                active: true,
+                recordingPrivacyPreset: 'standard',
+              })
               .returning(['id', 'name'])
               .executeTakeFirstOrThrow()
 
@@ -573,7 +578,7 @@ export function createAccountService(
     const account = attemptQuery(() => {
       return database
         .selectFrom('accounts')
-        .select(['id', 'name', 'createdAt'])
+        .select(['id', 'name', 'createdAt', 'recordingPrivacyPreset'])
         .where('id', '=', decodedAccountId)
         .where('active', '=', true)
         .executeTakeFirstOrThrow(() => notFound())
@@ -636,10 +641,50 @@ export function createAccountService(
               projects.count - projectPreviews.length,
               0
             ),
+            recordingPrivacyPreset:
+              account.recordingPrivacyPreset as RecordingPrivacyPreset,
           }))
         )
       )
     )
+  }
+
+  function getRecordingPrivacyPreset(
+    accountId: string
+  ): FutureInstance<Error, RecordingPrivacyPreset> {
+    const decodedAccountId = decodeId(accountId)
+
+    if (decodedAccountId == null) {
+      return reject(badRequest('Invalid account ID'))
+    }
+
+    return attemptQuery(() => {
+      return database
+        .selectFrom('accounts')
+        .select('recordingPrivacyPreset')
+        .where('id', '=', decodedAccountId)
+        .where('active', '=', true)
+        .executeTakeFirstOrThrow(() => notFound())
+    }).pipe(map(row => row.recordingPrivacyPreset as RecordingPrivacyPreset))
+  }
+
+  function updateRecordingPrivacyPreset(
+    accountId: string,
+    preset: RecordingPrivacyPreset
+  ): FutureInstance<Error, void> {
+    const decodedAccountId = decodeId(accountId)
+
+    if (decodedAccountId == null) {
+      return reject(badRequest('Invalid account ID'))
+    }
+
+    return attemptQuery(async () => {
+      await database
+        .updateTable('accounts')
+        .set('recordingPrivacyPreset', preset)
+        .where('id', '=', decodedAccountId)
+        .execute()
+    })
   }
 
   function deactivateAccount(accountId: string): FutureInstance<Error, void> {
@@ -1776,6 +1821,8 @@ export function createAccountService(
     getAccountForUser,
     getAccountForInvitation,
     getAccountSettingsSummary,
+    getRecordingPrivacyPreset,
+    updateRecordingPrivacyPreset,
     listAccounts,
     getStaffAccountDetail,
     listUsersForAccount,

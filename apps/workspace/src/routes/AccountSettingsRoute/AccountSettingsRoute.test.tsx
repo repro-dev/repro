@@ -62,6 +62,7 @@ const accountSummary: AccountSettingsSummary = {
   projects: accountProjects,
   additionalUserCount: 2,
   additionalProjectCount: 1,
+  recordingPrivacyPreset: 'standard',
 }
 
 const adminUser: User = {

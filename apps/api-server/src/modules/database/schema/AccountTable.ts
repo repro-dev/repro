@@ -5,4 +5,5 @@ export interface AccountTable {
   name: string
   active: boolean
   createdAt: GeneratedAlways<Date>
+  recordingPrivacyPreset: string
 }

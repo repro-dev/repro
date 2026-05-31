@@ -24,6 +24,8 @@ export interface User {
   admin?: boolean
 }
 
+export type RecordingPrivacyPreset = 'strict' | 'standard' | 'off'
+
 export interface AccountSettingsSummary {
   id: string
   name: string
@@ -42,6 +44,7 @@ export interface AccountSettingsSummary {
   }>
   additionalUserCount: number
   additionalProjectCount: number
+  recordingPrivacyPreset: RecordingPrivacyPreset
 }
 
 export type AccountPlanTier = 'Free' | 'Repro+' | 'Repro++'
