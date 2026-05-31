@@ -779,6 +779,8 @@ function createWebSocketObserver(
               protocols: null,
             })
           )
+
+          openEffect(this)
         }
 
         sendEffect(this, ...args)
