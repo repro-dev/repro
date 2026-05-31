@@ -2,7 +2,7 @@
 
 ## 1. Executive Summary
 
-This evaluation examines the compound component composition model used throughout `@repro/design` and compares it against props-first (slot props) alternatives. The analysis is grounded in concrete codebase evidence from all 22+ compound components in the design system and their usage across 5 app routes in `apps/admin` and `apps/workspace`.
+This evaluation examines the compound component composition model used throughout `@repro/design` and compares it against props-first (slot props) alternatives. The analysis is grounded in concrete codebase evidence from all 15 compound components in the design system and their usage across 5 app routes in `apps/admin` and `apps/workspace`.
 
 **Key finding**: The compound model is overused. Only 7 of 15 compound components (Tabs, Table, Accordion, DropdownMenu, SideNav, Breadcrumbs, AppShell) have genuinely variable structures that warrant sub-components. The remaining 8 (Modal, PageFrame, ToolView, EmptyState, Card, Collapsible, ConfirmDialog, Drawer) own fixed layouts that would be better served by slot props. The evidence from app-side drift — duplicated `useIsDesktopViewport`, inconsistent `Card context="danger" padding={0}` patterns, varied Modal.Header usage — confirms that giving consumers free-form control over internal composition causes measurable inconsistency.
 
@@ -92,7 +92,7 @@ The `ActionRow` component (a grid with label/description on the left and control
 | `apps/workspace/src/routes/AccountSettingsRoute/AccountSettingsRoute.tsx` | 33–58 | Grid, identical gap/spacing tokens |
 | `apps/workspace/src/routes/ProjectSettingsRoute/ProjectSettingsRoute.tsx` | 59–84 | Grid, identical gap/spacing tokens |
 
-All three define the same local `ActionRow` type and same `Grid gridTemplateColumns="minmax(0, 1fr) auto"` pattern. The plan at `../plan-REP-1074.md` called this out as risk #4 ("Settings page drift is real") and it is confirmed.
+All three define the same local `ActionRow` type and same `Grid gridTemplateColumns="minmax(0, 1fr) auto"` pattern. The plan at `plan-REP-1074.md` called this out as risk #4 ("Settings page drift is real") and it is confirmed.
 
 ### 3.3 The `Card context="danger" padding={0}` Pattern (3 copies)
 
