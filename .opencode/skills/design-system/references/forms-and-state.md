@@ -4,6 +4,24 @@
 
 Every label + input pair must be wrapped in `<FormField>`. This standardizes spacing (`gap: spacing.md`), auto-wires `id`/`htmlFor` via context, and provides `aria-describedby` linking to error/help text.
 
+For the 90% case — a single labelled text `Input` with optional help and error — use `<TextField>` from `@repro/design`. It composes `FormField` + `Label` + `Input` + optional help text + `FormFieldError` in one component.
+
+```tsx
+import { TextField } from '@repro/design'
+
+<TextField
+  label="Recording title"
+  value={title}
+  onChange={e => setTitle(e.currentTarget.value)}
+  placeholder="What did you record?"
+  help="A short description helps identify the recording later."
+  invalid={!!error}
+  error={error}
+/>
+```
+
+For complex compositions (multiple inputs, custom controls, `trailingAction`, or when `context="error"` on the Input must differ from `invalid` on FormField), fall back to composing `FormField` + `Label` + `Input` directly:
+
 ```tsx
 import { FormField, FormFieldError, Input, Label } from '@repro/design'
 
@@ -14,13 +32,12 @@ import { FormField, FormFieldError, Input, Label } from '@repro/design'
     onChange={e => setTitle(e.currentTarget.value)}
     placeholder="What did you record?"
   />
+  <Block>Optional helper content</Block>
   {error && <FormFieldError error={error} />}
 </FormField>
 ```
 
 **Do not** compose a bare `<label>` + `<Input>` without `FormField` — it loses spacing, context wiring, and accessibility plumbing.
-
-When `Input` is used within `react-hook-form`, the `FormField` + `Label` + `Input` pattern still applies. `Input` also accepts a `label` prop for simple standalone fields without a separate `<Label>` element.
 
 ---
 
