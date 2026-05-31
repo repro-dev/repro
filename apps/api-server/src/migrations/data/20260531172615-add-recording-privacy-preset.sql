@@ -5,4 +5,4 @@ ALTER TABLE accounts ADD COLUMN "recordingPrivacyPreset" TEXT NOT NULL DEFAULT '
 --
 -- Down
 --
-ALTER TABLE accounts DROP COLUMN "recordingPrivacyPreset";
+ALTER TABLE accounts DROP COLUMN IF EXISTS "recordingPrivacyPreset";

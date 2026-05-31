@@ -1,4 +1,4 @@
-import { Block, Col, Row } from '@jsxstyle/react'
+import { Block, Col, Inline, Row } from '@jsxstyle/react'
 import { useApiClient } from '@repro/api-client'
 import { useSession, useSessionLoading } from '@repro/auth'
 import {
@@ -12,6 +12,7 @@ import {
   focusRing,
   radius,
   spacing,
+  textStyles,
 } from '@repro/design'
 import { RecordingPrivacyPreset } from '@repro/domain'
 import { useFuture } from '@repro/future-utils'
@@ -23,6 +24,48 @@ import { fork } from 'fluture'
 import { CheckCircle, Circle } from 'lucide-react'
 import React, { useCallback, useState } from 'react'
 import { Navigate } from 'react-router-dom'
+
+const desktopViewportQuery = '(min-width: 1024px)'
+
+function useIsDesktopViewport() {
+  const [isDesktop, setIsDesktop] = React.useState(() => {
+    return (
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia(desktopViewportQuery).matches
+    )
+  })
+
+  React.useEffect(() => {
+    if (
+      typeof window === 'undefined' ||
+      typeof window.matchMedia !== 'function'
+    ) {
+      return
+    }
+
+    const mediaQueryList = window.matchMedia(desktopViewportQuery)
+    const updateMatches = () => setIsDesktop(mediaQueryList.matches)
+
+    updateMatches()
+
+    if (typeof mediaQueryList.addEventListener === 'function') {
+      mediaQueryList.addEventListener('change', updateMatches)
+
+      return () => {
+        mediaQueryList.removeEventListener('change', updateMatches)
+      }
+    }
+
+    mediaQueryList.addListener(updateMatches)
+
+    return () => {
+      mediaQueryList.removeListener(updateMatches)
+    }
+  }, [])
+
+  return isDesktop
+}
 
 type PresetInfo = {
   value: RecordingPrivacyPreset
@@ -61,6 +104,8 @@ export function RecordingPrivacySettingsRoute({
   updatePreset = defaultUpdateRecordingPrivacyPreset,
 }: RecordingPrivacySettingsRouteProps) {
   const apiClient = useApiClient()
+
+  const isDesktop = useIsDesktopViewport()
 
   const [refreshKey, setRefreshKey] = useState(0)
   const [selectedPreset, setSelectedPreset] = useState<
@@ -168,7 +213,11 @@ export function RecordingPrivacySettingsRoute({
               component="section"
               gap={spacing['3xl']}
               width="100%"
-              maxWidth="66.666%"
+              props={{
+                style: {
+                  maxWidth: isDesktop ? '66.666%' : '100%',
+                },
+              }}
             >
               {/* Preset selection */}
               <Col gap={spacing.md}>
@@ -187,6 +236,7 @@ export function RecordingPrivacySettingsRoute({
                       info={option}
                       selected={effectivePreset === option.value}
                       onSelect={handleSelect}
+                      disabled={saving}
                     />
                   ))}
                 </Col>
@@ -229,23 +279,60 @@ export function RecordingPrivacySettingsRoute({
                     <Col gap={spacing.sm}>
                       <Text variant="heading3">.rr-ignore</Text>
                       <Text variant="bodySmall" color={color.text.secondary}>
-                        Add <code>.rr-ignore</code> to any element to exclude it
-                        from recording. The element and its children will not
-                        appear in the recorded session.
+                        Add{' '}
+                        <Inline
+                          component="code"
+                          {...textStyles.code}
+                          backgroundColor={color.bg.muted}
+                          borderRadius={radius.sm}
+                          padding={`1px ${spacing.xs}px`}
+                        >
+                          .rr-ignore
+                        </Inline>{' '}
+                        to any element to exclude it from recording. The element
+                        and its children will not appear in the recorded
+                        session.
                       </Text>
                     </Col>
                     <Col gap={spacing.sm}>
                       <Text variant="heading3">.rr-mask</Text>
                       <Text variant="bodySmall" color={color.text.secondary}>
-                        Add <code>.rr-mask</code> to any element to mask its
-                        contents. The element&apos;s structure is preserved but
-                        text content is replaced with <code>[MASKED]</code>.
+                        Add{' '}
+                        <Inline
+                          component="code"
+                          {...textStyles.code}
+                          backgroundColor={color.bg.muted}
+                          borderRadius={radius.sm}
+                          padding={`1px ${spacing.xs}px`}
+                        >
+                          .rr-mask
+                        </Inline>{' '}
+                        to any element to mask its contents. The element&apos;s
+                        structure is preserved but text content is replaced with{' '}
+                        <Inline
+                          component="code"
+                          {...textStyles.code}
+                          backgroundColor={color.bg.muted}
+                          borderRadius={radius.sm}
+                          padding={`1px ${spacing.xs}px`}
+                        >
+                          [MASKED]
+                        </Inline>
+                        .
                       </Text>
                       <Alert type="info">
-                        <code>.rr-mask</code> support is planned but not yet
-                        active. The Strict preset uses an alternative masking
-                        approach that covers all input elements and images by
-                        default.
+                        <Inline
+                          component="code"
+                          {...textStyles.code}
+                          backgroundColor={color.bg.muted}
+                          borderRadius={radius.sm}
+                          padding={`1px ${spacing.xs}px`}
+                        >
+                          .rr-mask
+                        </Inline>{' '}
+                        support is planned but not yet active. The Strict preset
+                        uses an alternative masking approach that covers all
+                        input elements and images by default.
                       </Alert>
                     </Col>
                   </Col>
@@ -262,19 +349,23 @@ export function RecordingPrivacySettingsRoute({
 interface PresetCardProps {
   info: PresetInfo
   selected: boolean
+  disabled?: boolean
   onSelect: (value: RecordingPrivacyPreset) => void
 }
 
-function PresetCard({ info, selected, onSelect }: PresetCardProps) {
+function PresetCard({ info, selected, disabled, onSelect }: PresetCardProps) {
   const handleClick = useCallback(() => {
+    if (disabled) {
+      return
+    }
     onSelect(info.value)
-  }, [info.value, onSelect])
+  }, [info.value, onSelect, disabled])
 
   return (
     <Block
       component="button"
       width="100%"
-      cursor="pointer"
+      cursor={disabled ? 'default' : 'pointer'}
       fontFamily="inherit"
       fontSize="inherit"
       lineHeight="inherit"
@@ -282,7 +373,7 @@ function PresetCard({ info, selected, onSelect }: PresetCardProps) {
       border="none"
       padding={0}
       backgroundColor="transparent"
-      props={{ type: 'button', onClick: handleClick }}
+      props={{ type: 'button', onClick: handleClick, disabled }}
       {...focusRing()}
     >
       <Block
@@ -291,6 +382,8 @@ function PresetCard({ info, selected, onSelect }: PresetCardProps) {
         borderColor={selected ? color.primary : color.border.default}
         borderRadius={radius.md}
         backgroundColor={color.bg.surface}
+        opacity={disabled ? 0.5 : 1}
+        hoverBackgroundColor={disabled ? undefined : color.bg.hover}
       >
         <Row gap={spacing.lg} alignItems="flex-start" padding={spacing.lg}>
           <Block

@@ -672,19 +672,23 @@ export function createAccountService(
     accountId: string,
     preset: RecordingPrivacyPreset
   ): FutureInstance<Error, void> {
-    const decodedAccountId = decodeId(accountId)
+    return getAccountById(accountId).pipe(
+      chain(() => {
+        const decodedAccountId = decodeId(accountId)
 
-    if (decodedAccountId == null) {
-      return reject(badRequest('Invalid account ID'))
-    }
+        if (decodedAccountId == null) {
+          return reject(badRequest('Invalid account ID'))
+        }
 
-    return attemptQuery(async () => {
-      await database
-        .updateTable('accounts')
-        .set('recordingPrivacyPreset', preset)
-        .where('id', '=', decodedAccountId)
-        .execute()
-    })
+        return attemptQuery(async () => {
+          await database
+            .updateTable('accounts')
+            .set('recordingPrivacyPreset', preset)
+            .where('id', '=', decodedAccountId)
+            .execute()
+        })
+      })
+    )
   }
 
   function deactivateAccount(accountId: string): FutureInstance<Error, void> {
