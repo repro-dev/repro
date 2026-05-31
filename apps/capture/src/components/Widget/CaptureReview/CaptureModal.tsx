@@ -67,9 +67,7 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
   const fetchCancelRef = useRef<Cancel | null>(null)
 
   useEffect(() => {
-    if (!session) {
-      setProjectsLoading(false)
-      setProjects([])
+    if (!session || !savePopoverOpen) {
       return
     }
 
@@ -86,7 +84,7 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
     return () => {
       fetchCancelRef.current?.()
     }
-  }, [refetchTrigger, session])
+  }, [refetchTrigger, session, savePopoverOpen])
 
   // Create form state
   const [createMode, setCreateMode] = useState(false)
