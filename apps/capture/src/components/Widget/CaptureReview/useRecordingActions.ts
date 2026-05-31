@@ -40,7 +40,10 @@ export interface SelectedRecording {
 export interface RecordingActions {
   getSelectedRecording(): SelectedRecording
   getSerializedEvents(): { byteStrings: string[] }
-  enqueueUpload(values: { title: string; description: string | null }): void
+  enqueueUpload(
+    values: { title: string; description: string | null },
+    projectIdOverride?: string
+  ): void
   downloadLocally(): void
   uploadState: UploadState
   pollUploadProgress(ref: string): void
@@ -110,8 +113,12 @@ export function useRecordingActions(
   }, [getSelectedRecording])
 
   const enqueueUpload = useCallback(
-    (values: { title: string; description: string | null }) => {
-      if (!projectId) {
+    (
+      values: { title: string; description: string | null },
+      projectIdOverride?: string
+    ) => {
+      const resolvedProjectId = projectIdOverride ?? projectId
+      if (!resolvedProjectId) {
         return
       }
 
@@ -134,7 +141,7 @@ export function useRecordingActions(
         agent.raiseIntent({
           type: 'upload:enqueue',
           payload: {
-            projectId,
+            projectId: resolvedProjectId,
             title: values.title,
             description: values.description,
             url: typeof location !== 'undefined' ? location.href : '',

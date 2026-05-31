@@ -115,35 +115,39 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
   }, [actions])
 
   const onSaveSubmit = useCallback(() => {
-    actions.enqueueUpload({ title: saveTitle, description: null })
-    setSavePopoverOpen(false)
-  }, [actions, saveTitle])
+    if (selectedProjectId !== null) {
+      actions.enqueueUpload({ title: saveTitle, description: null })
+      setSavePopoverOpen(false)
+    } else if (createMode && newProjectName.trim()) {
+      setCreating(true)
+      setCreateError(null)
 
-  const onCreateProject = useCallback(() => {
-    const name = newProjectName.trim()
-    if (!name) return
+      const name = newProjectName.trim()
 
-    setCreating(true)
-    setCreateError(null)
-
-    createCancelRef.current = fork((_error: Error) => {
-      setCreating(false)
-      setCreateError('Failed to create project. Please try again.')
-    })((data: ProjectCreateResponse) => {
-      setCreating(false)
-      setNewProjectName('')
-      setCreateMode(false)
-      if (data && data.id) {
-        setSelectedProjectId(data.id)
-        setRefetchTrigger(t => t + 1)
-      }
-    })(
-      apiClientRef.current.fetch('/projects', {
-        method: 'POST',
-        body: JSON.stringify({ name }),
-      })
-    )
-  }, [newProjectName])
+      createCancelRef.current = fork((_error: Error) => {
+        setCreating(false)
+        setCreateError('Failed to create project. Please try again.')
+      })((data: ProjectCreateResponse) => {
+        setCreating(false)
+        setNewProjectName('')
+        setCreateMode(false)
+        if (data && data.id) {
+          actions.enqueueUpload(
+            { title: saveTitle, description: null },
+            data.id
+          )
+          setSelectedProjectId(data.id)
+          setRefetchTrigger(t => t + 1)
+          setSavePopoverOpen(false)
+        }
+      })(
+        apiClientRef.current.fetch('/projects', {
+          method: 'POST',
+          body: JSON.stringify({ name }),
+        })
+      )
+    }
+  }, [actions, saveTitle, selectedProjectId, createMode, newProjectName])
 
   const handleSelectChange = useCallback((value: string) => {
     if (value === CREATE_SENTINEL) {
@@ -155,8 +159,6 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
       setCreateMode(false)
     }
   }, [])
-
-  const canSaveToProject = selectedProjectId !== null && !createMode
 
   const headerActions = (
     <>
@@ -232,41 +234,41 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
           <Col gap={spacing.md} minWidth={260}>
             <Text variant="heading3">Save recording</Text>
 
-            {/* Project selection */}
-            <FormField>
-              <Label>Project</Label>
-              {projectsLoading ? (
-                <Select
-                  size="small"
-                  value=""
-                  onChange={() => {}}
-                  options={[]}
-                  placeholder="Loading projects…"
-                  disabled
-                  aria-label="Select project"
-                />
-              ) : projects.length > 0 && !createMode ? (
-                <Select
-                  size="small"
-                  value={selectedProjectId ?? ''}
-                  onChange={handleSelectChange}
-                  options={[
-                    ...projects.map(p => ({
-                      value: p.id,
-                      label: p.name,
-                    })),
-                    { value: CREATE_SENTINEL, label: 'Create new project…' },
-                  ]}
-                  placeholder="Select a project…"
-                  aria-label="Select project"
-                />
-              ) : null}
-            </FormField>
+            {/* Project selection — always visible when projects exist */}
+            <Col gap={spacing.sm} marginBottom={spacing.lg}>
+              <FormField>
+                <Label>Project</Label>
+                {projectsLoading ? (
+                  <Select
+                    size="small"
+                    value=""
+                    onChange={() => {}}
+                    options={[]}
+                    placeholder="Loading projects…"
+                    disabled
+                    aria-label="Select project"
+                  />
+                ) : projects.length > 0 ? (
+                  <Select
+                    size="small"
+                    value={selectedProjectId ?? ''}
+                    onChange={handleSelectChange}
+                    options={[
+                      ...projects.map(p => ({
+                        value: p.id,
+                        label: p.name,
+                      })),
+                      { value: CREATE_SENTINEL, label: 'Create new project…' },
+                    ]}
+                    placeholder="Select a project…"
+                    aria-label="Select project"
+                  />
+                ) : null}
+              </FormField>
 
-            {/* Inline create form */}
-            {(createMode || (projects.length === 0 && !projectsLoading)) && (
-              <Col gap={spacing.sm}>
-                <Row alignItems="center" gap={spacing.sm}>
+              {/* Inline project name input (visible in create mode or when no projects exist) */}
+              {(createMode || (projects.length === 0 && !projectsLoading)) && (
+                <Col gap={spacing.sm}>
                   <Input
                     size="small"
                     value={newProjectName}
@@ -275,22 +277,14 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
                     }
                     placeholder="Project name"
                   />
-                  <Button
-                    size="small"
-                    variant="contained"
-                    disabled={creating || !newProjectName.trim()}
-                    onClick={onCreateProject}
-                  >
-                    Create
-                  </Button>
-                </Row>
-                {createError && (
-                  <Text variant="caption" color={color.danger}>
-                    {createError}
-                  </Text>
-                )}
-              </Col>
-            )}
+                  {createError && (
+                    <Text variant="caption" color={color.danger}>
+                      {createError}
+                    </Text>
+                  )}
+                </Col>
+              )}
+            </Col>
 
             {/* Title */}
             <FormField>
@@ -311,9 +305,10 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
                 variant="contained"
                 size="small"
                 disabled={
-                  (!canSaveToProject &&
+                  (!selectedProjectId &&
                     !(createMode && newProjectName.trim())) ||
                   actions.uploadState.isUploading ||
+                  creating ||
                   !saveTitle.trim()
                 }
                 onClick={onSaveSubmit}

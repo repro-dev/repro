@@ -295,7 +295,7 @@ describe('CaptureModal', () => {
     )
   })
 
-  it('shows inline create form when "Create new project…" is selected', async () => {
+  it('keeps Select visible and shows project name input when "Create new project…" is selected', async () => {
     currentSession = mockSession
     renderModal()
 
@@ -312,20 +312,28 @@ describe('CaptureModal', () => {
     const createOption = await screen.findByText('Create new project…')
     fireEvent.click(createOption)
 
-    // The inline create form should appear
+    // The Select should still be visible with the same placeholder
+    const selectPlaceholder = screen.getByText('Select a project…')
+    assert.ok(
+      selectPlaceholder,
+      'Select should remain visible after selecting create option'
+    )
+
+    // The project name input should appear below the Select
     const input = screen.getByPlaceholderText('Project name')
     assert.ok(
       input,
       'Project name input should appear after selecting create option'
     )
 
-    const createButton = screen.getByText('Create')
-    assert.ok(createButton, 'Create button should appear')
+    // No inline Create button should exist
+    const createButton = screen.queryByText('Create')
+    assert.equal(createButton, null, 'Inline Create button should not appear')
   })
 
   // ── Zero projects ──
 
-  it('shows only inline create form (no Select) when projects list is empty', async () => {
+  it('shows only inline project name input (no Select) when projects list is empty', async () => {
     currentSession = mockSession
     // Override mockFetch to return empty items
     mockFetch = () => resolve({ items: [] }) as FutureInstance<any, any>
@@ -335,7 +343,7 @@ describe('CaptureModal', () => {
     // Open the popover
     fireEvent.click(screen.getByText('Save'))
 
-    // Wait for loading to complete — the create form should appear directly
+    // Wait for loading to complete — the input should appear directly
     const input = await screen.findByPlaceholderText('Project name')
     assert.ok(input, 'Project name input should render when no projects exist')
 
@@ -347,10 +355,12 @@ describe('CaptureModal', () => {
       'Select placeholder should not render when no projects exist'
     )
 
-    const createButton = screen.getByText('Create')
-    assert.ok(
+    // No inline Create button should exist
+    const createButton = screen.queryByText('Create')
+    assert.equal(
       createButton,
-      'Create button should render when no projects exist'
+      null,
+      'Create button should not render when no projects exist'
     )
   })
 
@@ -396,7 +406,7 @@ describe('CaptureModal', () => {
 
   // ── Project creation ──
 
-  it('calls apiClient.fetch POST /projects when Create is clicked', async () => {
+  it('calls apiClient.fetch POST /projects when Save is clicked in create mode', async () => {
     currentSession = mockSession
 
     let capturedPath = ''
@@ -441,9 +451,17 @@ describe('CaptureModal', () => {
     ) as HTMLInputElement
     fireEvent.input(input, { target: { value: 'My New Project' } })
 
-    // Click Create
-    const createButton = screen.getByText('Create')
-    fireEvent.click(createButton)
+    // Fill in the title (required for Save to be enabled)
+    const titleInput = screen.getByPlaceholderText('What did you record?')
+    fireEvent.input(titleInput, { target: { value: 'My test recording' } })
+
+    // Click Save instead of Create
+    // Find the Save button inside the popover content area
+    const saveButtons = screen.getAllByText('Save')
+    const popoverSaveButton =
+      saveButtons.find(btn => btn.closest('[aria-label="Save recording"]')) ??
+      saveButtons[saveButtons.length - 1]!
+    fireEvent.click(popoverSaveButton)
 
     // Wait for the future to resolve
     await waitFor(() => {
@@ -455,7 +473,7 @@ describe('CaptureModal', () => {
     })
   })
 
-  it('shows error text on project creation failure', async () => {
+  it('shows error text on project creation failure via Save button', async () => {
     currentSession = mockSession
 
     // Override mockFetch: POST /projects returns reject, GET /projects returns list
@@ -488,14 +506,22 @@ describe('CaptureModal', () => {
     const createOption = await screen.findByText('Create new project…')
     fireEvent.click(createOption)
 
-    // Type name and click Create
+    // Type name
     const input = screen.getByPlaceholderText(
       'Project name'
     ) as HTMLInputElement
     fireEvent.input(input, { target: { value: 'New Project' } })
 
-    const createButton = screen.getByText('Create') as HTMLButtonElement
-    fireEvent.click(createButton)
+    // Fill in the title (required for Save to be enabled)
+    const titleInput = screen.getByPlaceholderText('What did you record?')
+    fireEvent.input(titleInput, { target: { value: 'My test recording' } })
+
+    // Click Save instead of Create
+    const saveButtons = screen.getAllByText('Save')
+    const popoverSaveButton =
+      saveButtons.find(btn => btn.closest('[aria-label="Save recording"]')) ??
+      saveButtons[saveButtons.length - 1]!
+    fireEvent.click(popoverSaveButton)
 
     // Wait for the error text to appear
     const errorText = await screen.findByText(
@@ -506,15 +532,24 @@ describe('CaptureModal', () => {
       'Error text should be rendered on project creation failure'
     )
 
-    assert.ok(
-      !createButton.disabled,
-      'Create button should be re-enabled after error so user can retry'
-    )
+    // After error, the Save button should be re-enabled
+    await waitFor(() => {
+      const updatedSaveButtons = screen.getAllByText('Save')
+      const updatedSaveButton =
+        updatedSaveButtons.find(btn =>
+          btn.closest('[aria-label="Save recording"]')
+        ) ?? updatedSaveButtons[updatedSaveButtons.length - 1]!
+      const buttonElement = updatedSaveButton.closest('button')
+      assert.ok(
+        buttonElement && !buttonElement.disabled,
+        'Save button should be re-enabled after error so user can retry'
+      )
+    })
   })
 
   // ── Empty name validation ──
 
-  it('Create button is disabled when project name is empty', async () => {
+  it('popover Save button is disabled in create mode when project name is empty', async () => {
     currentSession = mockSession
     // Return empty projects list so we go straight to create mode
     mockFetch = () => resolve({ items: [] }) as FutureInstance<any, any>
@@ -525,11 +560,24 @@ describe('CaptureModal', () => {
     fireEvent.click(screen.getByText('Save'))
 
     // Wait for data to load and create form to appear
-    const createButton = await screen.findByText('Create')
-    assert.ok(
-      (createButton as HTMLButtonElement).disabled,
-      'Create button should be disabled when project name is empty'
-    )
+    await screen.findByPlaceholderText('Project name')
+
+    // Fill in title but leave project name empty
+    const titleInput = screen.getByPlaceholderText('What did you record?')
+    fireEvent.input(titleInput, { target: { value: 'My test recording' } })
+
+    // Save button should be disabled because project name is empty
+    await waitFor(() => {
+      const saveButtons = screen.getAllByText('Save')
+      const popoverSaveButton =
+        saveButtons.find(btn => btn.closest('[aria-label="Save recording"]')) ??
+        saveButtons[saveButtons.length - 1]!
+      const buttonElement = popoverSaveButton.closest('button')
+      assert.ok(
+        buttonElement?.disabled,
+        'Save button should be disabled when project name is empty'
+      )
+    })
   })
 
   // ── Loading state ──
