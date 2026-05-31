@@ -172,7 +172,18 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
         lineHeight={1}
         cursor="pointer"
         userSelect="none"
-        props={{ onClick: onDownloadLocally }}
+        props={{
+          onClick: onDownloadLocally,
+          role: 'button',
+          tabIndex: 0,
+          'aria-label': 'Download .repro file',
+          onKeyDown: (e: React.KeyboardEvent) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              onDownloadLocally()
+            }
+          },
+        }}
       >
         <Tooltip>Download locally</Tooltip>
         <DownloadIcon size={16} />

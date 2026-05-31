@@ -27,6 +27,7 @@ Use this skill when you need repo-specific guidance for writing, debugging, or v
 - Browser-like tests often need the same imports and event helpers as existing tests in that package.
 - Transition and animation behavior usually needs explicit lifecycle events rather than waiting for jsdom to simulate them implicitly.
 - If a package's Moon `test` target already wires the right environment, prefer it over reconstructing the command by hand.
+- Drag-and-drop testing: jsdom does NOT implement `DataTransfer` or `DragEvent`. Use `fireEvent.drop(element, { dataTransfer: { files: [file], items: [], types: ['Files'] } })` from `@testing-library/react` to simulate file drops. This bypasses the missing `DataTransfer` constructor by passing the mock through `fireEvent`'s event properties map.
 
 ### Mock and module shape conventions
 

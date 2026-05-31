@@ -160,14 +160,32 @@ export function useRecordingActions(
 
   const downloadLocally = useCallback(() => {
     const selected = getSelectedRecording()
-    const views = selected.events.toSource()
-    const buffer = toBinaryWireFormat(views)
 
-    const blob = new Blob([buffer], { type: 'application/octet-stream' })
+    // Guard: bail if there are no events to download
+    if (selected.events.size() === 0) {
+      console.warn('downloadLocally: no events to download')
+      return
+    }
+
+    const views = selected.events.toSource()
+
+    let wireFormatBuffer: DataView
+    try {
+      wireFormatBuffer = toBinaryWireFormat(views)
+    } catch (err) {
+      console.warn('downloadLocally: failed to encode wire format', err)
+      return
+    }
+
+    const blob = new Blob([wireFormatBuffer], {
+      type: 'application/octet-stream',
+    })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = 'recording.repro'
+    a.download = `repro-recording-${new Date()
+      .toISOString()
+      .replace(/[:.]/g, '-')}.repro`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)

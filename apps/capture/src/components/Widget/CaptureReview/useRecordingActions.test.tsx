@@ -273,13 +273,68 @@ describe('useRecordingActions', () => {
       assert.ok(capturedBlob)
       assert.equal((capturedBlob as Blob).type, 'application/octet-stream')
       assert.ok(appendedChild)
-      assert.equal(
-        (appendedChild as HTMLAnchorElement).download,
-        'recording.repro'
+      assert.ok(
+        (appendedChild as HTMLAnchorElement).download.endsWith('.repro')
+      )
+      assert.ok(
+        (appendedChild as HTMLAnchorElement).download.startsWith(
+          'repro-recording-'
+        )
       )
     } finally {
       URL.createObjectURL = originalCreateObjectURL
       document.body.appendChild = originalAppendChild
+    }
+  })
+
+  it('downloadLocally uses timestamped .repro filename', () => {
+    const playback = createMockPlayback()
+    const actions = renderHook(playback, 'proj-1', 1, 60000)
+
+    let capturedAnchor: HTMLElement | null = null
+    const originalAppendChild = document.body.appendChild.bind(document.body)
+    document.body.appendChild = <T extends Node>(child: T) => {
+      capturedAnchor = child as unknown as HTMLElement
+      return originalAppendChild(child)
+    }
+
+    try {
+      actions.downloadLocally()
+
+      assert.ok(capturedAnchor)
+      assert.ok(
+        (capturedAnchor as HTMLAnchorElement).download.endsWith('.repro')
+      )
+      assert.ok(
+        (capturedAnchor as HTMLAnchorElement).download.startsWith(
+          'repro-recording-'
+        )
+      )
+    } finally {
+      document.body.appendChild = originalAppendChild
+    }
+  })
+
+  it('downloadLocally does not call URL.createObjectURL for empty recording', () => {
+    const emptyEvents = new List(SourceEventView, [])
+    const playback = createMockPlayback({
+      getSourceEvents: () => emptyEvents,
+    })
+    const actions = renderHook(playback, 'proj-1', 1, 60000)
+
+    let createObjectURLCalled = false
+    const originalCreateObjectURL = URL.createObjectURL
+    URL.createObjectURL = () => {
+      createObjectURLCalled = true
+      return 'blob:test-url'
+    }
+
+    try {
+      actions.downloadLocally()
+
+      assert.equal(createObjectURLCalled, false)
+    } finally {
+      URL.createObjectURL = originalCreateObjectURL
     }
   })
 
