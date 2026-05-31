@@ -1,5 +1,5 @@
 import { Block, Col, Row } from '@jsxstyle/react'
-import { color, spacing, textStyles } from '@repro/design'
+import { color, focusRing, spacing, textStyles } from '@repro/design'
 import type { WebSocketGroup } from '@repro/source-utils'
 import { WifiIcon, XIcon } from 'lucide-react'
 import React, { useState } from 'react'
@@ -37,6 +37,7 @@ export const WebSocketPanel: React.FC = () => {
         cursor="pointer"
         backgroundColor={color.bg.hover}
         flexShrink={0}
+        {...focusRing()}
         props={{
           onClick: () => setIsOpen(!isOpen),
           role: 'button',
@@ -59,6 +60,7 @@ export const WebSocketPanel: React.FC = () => {
           <Row
             gap={spacing.sm}
             alignItems="center"
+            {...focusRing()}
             props={{
               onClick: (e: React.MouseEvent) => {
                 e.stopPropagation()

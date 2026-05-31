@@ -1,17 +1,12 @@
 import { Block, Col, Row } from '@jsxstyle/react'
-import { Button, color, spacing, textStyles } from '@repro/design'
+import { Button, color, Pagination, spacing, textStyles } from '@repro/design'
 import {
   NetworkMessageType,
   type WebSocketInbound,
   type WebSocketOutbound,
 } from '@repro/domain'
 import { findWebSocketFramesForConnection } from '@repro/source-utils'
-import {
-  ArrowDownIcon,
-  ArrowUpIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-} from 'lucide-react'
+import { ArrowDownIcon, ArrowUpIcon } from 'lucide-react'
 import React, { useMemo, useState } from 'react'
 import { usePlayback } from '../hooks'
 
@@ -209,36 +204,11 @@ export const WebSocketFrameInspector: React.FC<Props> = ({ correlationId }) => {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <Row
-          alignItems="center"
-          justifyContent="center"
-          gap={spacing.sm}
-          padding={spacing.sm}
-          borderTop={`1px solid ${color.border.default}`}
-          flexShrink={0}
-        >
-          <Button
-            size="small"
-            variant="text"
-            disabled={currentPage === 0}
-            onClick={() => setPage(currentPage - 1)}
-          >
-            <ChevronLeftIcon size={14} />
-          </Button>
-
-          <Block {...textStyles.caption} color={color.text.secondary}>
-            Page {currentPage + 1} of {totalPages}
-          </Block>
-
-          <Button
-            size="small"
-            variant="text"
-            disabled={currentPage >= totalPages - 1}
-            onClick={() => setPage(currentPage + 1)}
-          >
-            <ChevronRightIcon size={14} />
-          </Button>
-        </Row>
+        <Pagination
+          currentPage={currentPage + 1}
+          totalPages={totalPages}
+          onPageChange={p => setPage(p - 1)}
+        />
       )}
     </Col>
   )

@@ -449,7 +449,10 @@ function createWebSocketObserver(
     } else if (data instanceof Blob) {
       encodedData = await data.arrayBuffer()
     } else if (ArrayBuffer.isView(data)) {
-      encodedData = data.buffer.slice(data.byteOffset, data.byteLength)
+      encodedData = data.buffer.slice(
+        data.byteOffset,
+        data.byteOffset + data.byteLength
+      )
     } else {
       encodedData = data
     }
@@ -654,6 +657,27 @@ function createWebSocketObserver(
 
       if (target && isWebSocket(target)) {
         if (!hasCorrelationId(target)) {
+          const correlationId = randomString(4)
+          correlationIds.set(target, correlationId)
+          const url = target.url
+          connectionMeta.set(target, {
+            correlationId,
+            url,
+            messageCountSent: 0,
+            messageCountReceived: 0,
+            createdAt: performance.now(),
+            handshakeCompleted: false,
+          })
+
+          subscriber(
+            new Box({
+              type: NetworkMessageType.WebSocketCreated,
+              correlationId,
+              url,
+              protocols: null,
+            })
+          )
+
           openEffect(target)
         }
 

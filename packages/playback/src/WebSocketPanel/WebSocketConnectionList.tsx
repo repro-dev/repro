@@ -1,5 +1,5 @@
 import { Block, Col, Row } from '@jsxstyle/react'
-import { color, spacing, textStyles } from '@repro/design'
+import { color, focusRing, spacing, textStyles } from '@repro/design'
 import type { WebSocketGroup } from '@repro/source-utils'
 import { findWebSocketConnections } from '@repro/source-utils'
 import { GlobeIcon, WifiIcon } from 'lucide-react'
@@ -64,6 +64,7 @@ export const WebSocketConnectionList: React.FC<Props> = ({
               ? color.bg.hover
               : undefined
           }
+          {...focusRing()}
           props={{
             onClick: () => onSelectConnection(connection),
             role: 'button',

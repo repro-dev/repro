@@ -444,5 +444,60 @@ describe('libs/record: network observers', () => {
       expect(outbound).toBeDefined()
       expect(outbound.value.data.byteLength).toBeLessThanOrEqual(5)
     })
+
+    it('handles ArrayBufferView with non-zero byteOffset', async () => {
+      const messages: Array<NetworkMessage> = []
+
+      observer = createNetworkObserver(
+        message => {
+          messages.push(message)
+        },
+        {
+          maxTextPayloadLength: 65_536,
+          maxBinaryPayloadLength: 1_048_576,
+          redactTextPayloads: false,
+          captureBinaryPreview: false,
+          captureTextPreview: true,
+          binaryPreviewLength: 256,
+        }
+      )
+      observer.observe(document, vtree)
+
+      const ws = new (globalThis.WebSocket as any)(
+        'wss://example.com/socket'
+      ) as unknown as MockWebSocket
+
+      await flush()
+      messages.length = 0
+
+      // Create a buffer with padding before our data
+      const buffer = new ArrayBuffer(20)
+      const full = new Uint8Array(buffer)
+      full.set([
+        0xff, 0xff, 0xff, 0xff, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+        0x09, 0x0a, 0x0b, 0x0c,
+      ])
+      // Create a Uint8Array view with byteOffset=4, byteLength=8
+      const view = new Uint8Array(buffer, 4, 8)
+      expect(view.byteOffset).toBe(4)
+      expect(view.byteLength).toBe(8)
+      expect(view.length).toBe(8)
+
+      ws.send(view)
+
+      await flush()
+
+      const outbound = messages.find((m: any) => {
+        const t = m.value.type
+        return t === NetworkMessageType.WebSocketOutbound
+      }) as any
+
+      expect(outbound).toBeDefined()
+      // Should have captured exactly the 8 bytes from offset 4
+      expect(outbound.value.data.byteLength).toBe(8)
+      const decoder = new TextDecoder()
+      // view contains [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08]
+      expect(decoder.decode(outbound.value.data)).toBe(decoder.decode(view))
+    })
   })
 })
