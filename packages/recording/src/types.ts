@@ -19,6 +19,14 @@ export interface DOMOptions {
   maskedSelectors: Array<string>
 }
 
+export interface WebSocketRecordingConfig {
+  maxTextPayloadLength: number
+  maxBinaryPayloadLength: number
+  redactTextPayloads: boolean
+  captureBinaryPreview: boolean
+  binaryPreviewLength: number
+}
+
 export interface RecordingOptions extends DOMOptions {
   types: Set<
     | 'dom'
@@ -35,4 +43,5 @@ export interface RecordingOptions extends DOMOptions {
     resize: number
     scroll: number
   }
+  webSocket?: WebSocketRecordingConfig
 }

@@ -2,6 +2,8 @@ import {
   FetchRequest,
   FetchResponse,
   WebSocketClose,
+  WebSocketCreated,
+  WebSocketError,
   WebSocketInbound,
   WebSocketOpen,
   WebSocketOutbound,
@@ -28,13 +30,24 @@ export interface FetchGroup {
 export interface WebSocketGroup {
   type: 'ws'
 
-  openTime: number
-  openIndex: number
-  open: WebSocketOpen
+  createdTime: number
+  createdIndex: number
+  created: WebSocketCreated
+
+  openTime?: number
+  openIndex?: number
+  open?: WebSocketOpen
 
   closeTime?: number
   closeIndex?: number
   close?: WebSocketClose
+
+  errorTime?: number
+  errorIndex?: number
+  error?: WebSocketError
+
+  messageCountSent: number
+  messageCountReceived: number
 
   messages?: Array<{
     time: number

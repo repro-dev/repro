@@ -8,11 +8,12 @@ import {
   NodeType,
   RequestType,
   VTree,
+  WebSocketMessageType,
 } from '@repro/domain'
 import { ObserverLike } from '@repro/observer-utils'
 import { Box } from '@repro/tdl'
 import expect from 'expect'
-import { afterEach, describe, it } from 'node:test'
+import { afterEach, before, describe, it } from 'node:test'
 import { createNetworkObserver } from './observe'
 
 class MockXHR {
@@ -202,6 +203,225 @@ describe('libs/record: network observers', () => {
         cookie: '[MASKED]',
         'set-cookie': '[MASKED]',
       },
+    })
+  })
+
+  describe('WebSocket observer', () => {
+    class MockWebSocket {
+      static CONNECTING = 0
+      static OPEN = 1
+      static CLOSING = 2
+      static CLOSED = 3
+
+      readyState: number = MockWebSocket.CONNECTING
+      url: string
+      private listeners = new Map<string, Set<Function>>()
+
+      constructor(url: string, protocols?: string | string[]) {
+        this.url = url
+      }
+
+      addEventListener(event: string, listener: Function) {
+        if (!this.listeners.has(event)) {
+          this.listeners.set(event, new Set())
+        }
+        this.listeners.get(event)!.add(listener)
+      }
+
+      removeEventListener(event: string, listener: Function) {
+        this.listeners.get(event)?.delete(listener)
+      }
+
+      send(_data: string | ArrayBufferLike | Blob | ArrayBufferView) {}
+
+      close() {
+        this.readyState = MockWebSocket.CLOSED
+        this.dispatchEvent(new Event('close'))
+      }
+
+      dispatchEvent(event: Event): boolean {
+        const handlers = this.listeners.get(event.type)
+        if (handlers) {
+          for (const handler of handlers) {
+            handler.call(this, event)
+          }
+        }
+        return true
+      }
+    }
+
+    let originalWebSocket: typeof globalThis.WebSocket
+
+    before(() => {
+      originalWebSocket = globalThis.WebSocket
+      globalThis.WebSocket =
+        MockWebSocket as unknown as typeof globalThis.WebSocket
+    })
+
+    afterEach(() => {
+      globalThis.WebSocket = originalWebSocket
+      observer?.disconnect()
+      observer = null
+    })
+
+    it('emits WebSocketCreated at construction time', async () => {
+      const messages: Array<NetworkMessage> = []
+
+      observer = createNetworkObserver(message => {
+        messages.push(message)
+      })
+      observer.observe(document, vtree)
+
+      const ws = new (globalThis.WebSocket as any)(
+        'wss://example.com/socket'
+      ) as unknown as MockWebSocket
+
+      await flush()
+
+      expect(messages.length).toBeGreaterThanOrEqual(1)
+
+      const firstMsg = messages[0] as any
+      expect(firstMsg.value.type).toBe(NetworkMessageType.WebSocketCreated)
+      expect(firstMsg.value.url).toBe('wss://example.com/socket')
+      expect(firstMsg.value.protocols).toBe(null)
+    })
+
+    it('emits WebSocketCreated with protocols when provided as string', async () => {
+      const messages: Array<NetworkMessage> = []
+
+      observer = createNetworkObserver(message => {
+        messages.push(message)
+      })
+      observer.observe(document, vtree)
+
+      const ws = new (globalThis.WebSocket as any)(
+        'wss://example.com/socket',
+        'chat-protocol'
+      ) as unknown as MockWebSocket
+
+      await flush()
+
+      const firstMsg = messages[0] as any
+      expect(firstMsg.value.type).toBe(NetworkMessageType.WebSocketCreated)
+      expect(firstMsg.value.protocols).toBe('chat-protocol')
+    })
+
+    it('tracks text truncation via config', async () => {
+      const messages: Array<NetworkMessage> = []
+
+      observer = createNetworkObserver(
+        message => {
+          messages.push(message)
+        },
+        { maxTextPayloadLength: 10, redactTextPayloads: false }
+      )
+      observer.observe(document, vtree)
+
+      const ws = new (globalThis.WebSocket as any)(
+        'wss://example.com/socket'
+      ) as unknown as MockWebSocket
+
+      await flush()
+      messages.length = 0
+
+      ws.send('This is a long text payload that should be truncated')
+
+      await flush()
+
+      const wsMessages = messages.filter((m: any) => {
+        const t = m.value.type
+        return (
+          t === NetworkMessageType.WebSocketOutbound ||
+          t === NetworkMessageType.WebSocketInbound
+        )
+      })
+
+      expect(wsMessages.length).toBe(1)
+      const outbound = wsMessages[0] as any
+      expect(outbound.value.messageType).toBe(WebSocketMessageType.Text)
+
+      const decoder = new TextDecoder()
+      const decoded = decoder.decode(outbound.value.data)
+      expect(decoded.length).toBeLessThanOrEqual(10)
+      expect(decoded).toBe('This is a ')
+    })
+
+    it('applies redaction to text payloads', async () => {
+      const messages: Array<NetworkMessage> = []
+
+      observer = createNetworkObserver(
+        message => {
+          messages.push(message)
+        },
+        { redactTextPayloads: true, maxTextPayloadLength: 10000 }
+      )
+      observer.observe(document, vtree)
+
+      const ws = new (globalThis.WebSocket as any)(
+        'wss://example.com/socket'
+      ) as unknown as MockWebSocket
+
+      await flush()
+      messages.length = 0
+
+      ws.send(
+        JSON.stringify({
+          username: 'john',
+          password: 'super-secret-123',
+          data: 'hello',
+        })
+      )
+
+      await flush()
+
+      const outbound = messages.find((m: any) => {
+        const t = m.value.type
+        return t === NetworkMessageType.WebSocketOutbound
+      }) as any
+
+      expect(outbound).toBeDefined()
+
+      const decoder = new TextDecoder()
+      const decoded = decoder.decode(outbound.value.data)
+      const parsed = JSON.parse(decoded)
+
+      expect(parsed.password).toBe('[MASKED]')
+      expect(parsed.username).toBe('john')
+      expect(parsed.data).toBe('hello')
+    })
+
+    it('truncates binary payloads', async () => {
+      const messages: Array<NetworkMessage> = []
+
+      observer = createNetworkObserver(
+        message => {
+          messages.push(message)
+        },
+        { maxBinaryPayloadLength: 5, captureBinaryPreview: false }
+      )
+      observer.observe(document, vtree)
+
+      const ws = new (globalThis.WebSocket as any)(
+        'wss://example.com/socket'
+      ) as unknown as MockWebSocket
+
+      await flush()
+      messages.length = 0
+
+      const largeBuffer = new ArrayBuffer(100)
+      new Uint8Array(largeBuffer).set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+
+      ws.send(largeBuffer)
+
+      await flush()
+
+      const outbound = messages.find((m: any) => {
+        const t = m.value.type
+        return t === NetworkMessageType.WebSocketOutbound
+      }) as any
+
+      expect(outbound).toBeDefined()
+      expect(outbound.value.data.byteLength).toBeLessThanOrEqual(5)
     })
   })
 })

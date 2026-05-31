@@ -8,19 +8,30 @@ import {
 import { ObserverLike } from '@repro/observer-utils'
 import { randomString } from '@repro/random-string'
 import { Box } from '@repro/tdl'
-import { redactHeaders } from '../redaction'
+import { redactHeaders, redactTextPayload } from '../redaction'
+import { WebSocketRecordingConfig } from '../types'
 
 type Subscriber = (message: NetworkMessage) => void
 
 const MAX_BODY_BYTE_LENGTH = 1_000_000
 const EMPTY_ARRAY_BUFFER = new ArrayBuffer(0)
 
+const DEFAULT_WS_CONFIG: WebSocketRecordingConfig = {
+  maxTextPayloadLength: 65_536,
+  maxBinaryPayloadLength: 1_048_576,
+  redactTextPayloads: false,
+  captureBinaryPreview: true,
+  binaryPreviewLength: 256,
+}
+
 export function createNetworkObserver(
-  subscriber: Subscriber
+  subscriber: Subscriber,
+  wsConfig?: WebSocketRecordingConfig
 ): ObserverLike<Document> {
+  const config = { ...DEFAULT_WS_CONFIG, ...wsConfig }
   const xhrObserver = createXHRObserver(subscriber)
   const fetchObserver = createFetchObserver(subscriber)
-  const webSocketObserver = createWebSocketObserver(subscriber)
+  const webSocketObserver = createWebSocketObserver(subscriber, config)
 
   return {
     observe(doc, vtree) {
@@ -390,10 +401,21 @@ function createFetchObserver(subscriber: Subscriber): ObserverLike<Document> {
   }
 }
 
+interface ConnectionMeta {
+  correlationId: SyntheticId
+  url: string
+  messageCountSent: number
+  messageCountReceived: number
+  createdAt: number
+  handshakeCompleted: boolean
+}
+
 function createWebSocketObserver(
-  subscriber: Subscriber
+  subscriber: Subscriber,
+  config: WebSocketRecordingConfig
 ): ObserverLike<Document> {
   const correlationIds = new WeakMap<WebSocket, SyntheticId>()
+  const connectionMeta = new WeakMap<WebSocket, ConnectionMeta>()
 
   function hasCorrelationId(socket: WebSocket) {
     return correlationIds.has(socket)
@@ -408,6 +430,10 @@ function createWebSocketObserver(
     }
 
     return correlationId
+  }
+
+  function getConnectionMeta(socket: WebSocket): ConnectionMeta | undefined {
+    return connectionMeta.get(socket)
   }
 
   const textEncoder = new TextEncoder()
@@ -430,10 +456,75 @@ function createWebSocketObserver(
     return encodedData
   }
 
+  function applyTextPayloadLimit(payload: string): {
+    truncated: string
+    isTruncated: boolean
+  } {
+    if (payload.length > config.maxTextPayloadLength) {
+      return {
+        truncated: payload.slice(0, config.maxTextPayloadLength),
+        isTruncated: true,
+      }
+    }
+    return { truncated: payload, isTruncated: false }
+  }
+
+  function applyBinaryPayloadLimit(data: ArrayBuffer): {
+    truncated: ArrayBuffer
+    byteLength: number
+  } {
+    const isTruncated = data.byteLength > config.maxBinaryPayloadLength
+    return {
+      truncated: isTruncated
+        ? data.slice(0, config.maxBinaryPayloadLength)
+        : data,
+      byteLength: data.byteLength,
+    }
+  }
+
+  function createBinaryPreview(data: ArrayBuffer): string {
+    const maxPreview = config.binaryPreviewLength
+    const view = new Uint8Array(
+      data.byteLength > maxPreview ? data.slice(0, maxPreview) : data
+    )
+    return (
+      Array.from(view)
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join(' ') + (data.byteLength > maxPreview ? ' ...' : '')
+    )
+  }
+
+  function buildTextPreview(rawText: string): string | null {
+    if (!config.captureBinaryPreview) {
+      return null
+    }
+
+    const { truncated } = applyTextPayloadLimit(
+      config.redactTextPayloads ? redactTextPayload(rawText) : rawText
+    )
+
+    // Use first 200 chars as preview
+    return truncated.length > 200 ? truncated.slice(0, 200) + '...' : truncated
+  }
+
   function handleClose(this: WebSocket) {
     if (hasCorrelationId(this)) {
       closeEffect(this)
     }
+  }
+
+  function handleError(this: WebSocket, event: Event) {
+    const correlationId = getOrCreateCorrelationId(this)
+    const message =
+      (event as ErrorEvent).message || 'WebSocket connection error'
+
+    subscriber(
+      new Box({
+        type: NetworkMessageType.WebSocketError,
+        correlationId,
+        message,
+      })
+    )
   }
 
   function openEffect(socket: WebSocket) {
@@ -441,6 +532,18 @@ function createWebSocketObserver(
     const url = socket.url
 
     socket.addEventListener('close', handleClose)
+    socket.addEventListener('error', handleError)
+
+    const meta = getConnectionMeta(socket) ?? {
+      correlationId,
+      url,
+      messageCountSent: 0,
+      messageCountReceived: 0,
+      createdAt: performance.now(),
+      handshakeCompleted: false,
+    }
+    meta.handshakeCompleted = true
+    connectionMeta.set(socket, meta)
 
     subscriber(
       new Box({
@@ -462,7 +565,9 @@ function createWebSocketObserver(
     )
 
     correlationIds.delete(socket)
+    connectionMeta.delete(socket)
     socket.removeEventListener('close', handleClose)
+    socket.removeEventListener('error', handleError)
   }
 
   async function sendEffect(
@@ -470,22 +575,51 @@ function createWebSocketObserver(
     data: string | ArrayBufferLike | Blob | ArrayBufferView
   ) {
     const correlationId = getOrCreateCorrelationId(socket)
+    const meta = getConnectionMeta(socket)
+    if (meta) {
+      meta.messageCountSent++
+    }
 
     const isBinary =
       data instanceof ArrayBuffer ||
       data instanceof Blob ||
       ArrayBuffer.isView(data)
 
-    subscriber(
-      new Box({
-        type: NetworkMessageType.WebSocketOutbound,
-        correlationId,
-        messageType: isBinary
-          ? WebSocketMessageType.Binary
-          : WebSocketMessageType.Text,
-        data: await dataToArrayBuffer(data),
-      })
-    )
+    if (isBinary) {
+      const rawData = await dataToArrayBuffer(data)
+      const { truncated } = applyBinaryPayloadLimit(rawData)
+      const preview = config.captureBinaryPreview
+        ? createBinaryPreview(truncated)
+        : null
+
+      subscriber(
+        new Box({
+          type: NetworkMessageType.WebSocketOutbound,
+          correlationId,
+          messageType: WebSocketMessageType.Binary,
+          data: truncated,
+          preview,
+        })
+      )
+    } else {
+      const rawText = typeof data === 'string' ? data : ''
+      const processedText = config.redactTextPayloads
+        ? redactTextPayload(rawText)
+        : rawText
+      const { truncated, isTruncated } = applyTextPayloadLimit(processedText)
+      const payload = isTruncated ? truncated : processedText
+      const encoded = textEncoder.encode(payload).buffer
+
+      subscriber(
+        new Box({
+          type: NetworkMessageType.WebSocketOutbound,
+          correlationId,
+          messageType: WebSocketMessageType.Text,
+          data: encoded,
+          preview: buildTextPreview(rawText),
+        })
+      )
+    }
   }
 
   const messageEventObserver = createMessageEventObserver(ev => {
@@ -498,22 +632,55 @@ function createWebSocketObserver(
         }
 
         const correlationId = getOrCreateCorrelationId(target)
+        const meta = getConnectionMeta(target)
+        if (meta) {
+          meta.messageCountReceived++
+        }
 
         const isBinary =
           ev.data instanceof ArrayBuffer ||
           ev.data instanceof Blob ||
           ArrayBuffer.isView(ev.data)
 
-        subscriber(
-          new Box({
-            type: NetworkMessageType.WebSocketInbound,
-            correlationId,
-            messageType: isBinary
-              ? WebSocketMessageType.Binary
-              : WebSocketMessageType.Text,
-            data: await dataToArrayBuffer(ev.data),
-          })
-        )
+        if (isBinary) {
+          const rawData = await dataToArrayBuffer(ev.data)
+          const { truncated } = applyBinaryPayloadLimit(rawData)
+          const preview = config.captureBinaryPreview
+            ? createBinaryPreview(truncated)
+            : null
+
+          subscriber(
+            new Box({
+              type: NetworkMessageType.WebSocketInbound,
+              correlationId,
+              messageType: WebSocketMessageType.Binary,
+              data: truncated,
+              preview,
+            })
+          )
+        } else {
+          const rawText =
+            typeof ev.data === 'string'
+              ? ev.data
+              : new TextDecoder().decode(await dataToArrayBuffer(ev.data))
+          const processedText = config.redactTextPayloads
+            ? redactTextPayload(rawText)
+            : rawText
+          const { truncated, isTruncated } =
+            applyTextPayloadLimit(processedText)
+          const payload = isTruncated ? truncated : processedText
+          const encoded = textEncoder.encode(payload).buffer
+
+          subscriber(
+            new Box({
+              type: NetworkMessageType.WebSocketInbound,
+              correlationId,
+              messageType: WebSocketMessageType.Text,
+              data: encoded,
+              preview: buildTextPreview(rawText),
+            })
+          )
+        }
       }
     })()
   })
@@ -523,7 +690,36 @@ function createWebSocketObserver(
   const WebSocketCtorProxy = new Proxy(_WebSocket, {
     construct(target, args, newTarget) {
       const ws = Reflect.construct(target, args, newTarget)
-      openEffect(ws)
+
+      const correlationId = randomString(4)
+      correlationIds.set(ws, correlationId)
+
+      const url = typeof args[0] === 'string' ? args[0] : ''
+      const protocols =
+        args[1] != null
+          ? Array.isArray(args[1])
+            ? args[1].join(', ')
+            : String(args[1])
+          : null
+
+      connectionMeta.set(ws, {
+        correlationId,
+        url,
+        messageCountSent: 0,
+        messageCountReceived: 0,
+        createdAt: performance.now(),
+        handshakeCompleted: false,
+      })
+
+      subscriber(
+        new Box({
+          type: NetworkMessageType.WebSocketCreated,
+          correlationId,
+          url,
+          protocols,
+        })
+      )
+
       return ws
     },
   })
@@ -537,6 +733,29 @@ function createWebSocketObserver(
 
       globalThis.WebSocket.prototype.send = function (this, ...args) {
         if (!hasCorrelationId(this)) {
+          const correlationId = randomString(4)
+          correlationIds.set(this, correlationId)
+          const url = this.url
+          connectionMeta.set(this, {
+            correlationId,
+            url,
+            messageCountSent: 0,
+            messageCountReceived: 0,
+            createdAt: performance.now(),
+            handshakeCompleted: this.readyState === WebSocket.OPEN,
+          })
+
+          subscriber(
+            new Box({
+              type: NetworkMessageType.WebSocketCreated,
+              correlationId,
+              url,
+              protocols: null,
+            })
+          )
+        }
+
+        if (this.readyState !== WebSocket.OPEN) {
           openEffect(this)
         }
 
