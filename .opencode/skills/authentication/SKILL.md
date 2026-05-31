@@ -105,6 +105,69 @@ All endpoints live under the `basePath` prefix:
 
 OAuth routes are registered under `/account` via `socialAuthRouter` (see `accountPlugins` in `apps/api-server/src/index.ts`).
 
+## Staff OAuth (Google)
+
+Staff authentication uses a separate OAuth flow from the user-facing social auth, restricted exclusively to `@repro.dev` email addresses.
+
+### Flow
+
+```
+Admin App → GET /staff/oauth/google → API server → redirect to Google login
+                                                          ↓
+Admin App ← redirect to /staff/oauth/google/callback ← Google callback
+                                                          ↓
+                    API server validates code, enforces @repro.dev domain,
+                    creates/finds staff user, sets session cookie
+                                                          ↓
+                    Redirect to Admin App dashboard ← logged in
+```
+
+### Staff OAuth endpoints
+
+All staff OAuth endpoints are registered under the `/staff` prefix and handled by `createStaffOAuthRouter` in `apps/api-server/src/routers/staffOAuth.ts`:
+
+| Method + Path                       | Action                                    |
+| ----------------------------------- | ----------------------------------------- |
+| `GET /staff/oauth/:provider`        | Initiate OAuth flow (redirect to provider)|
+| `GET /staff/oauth/:provider/callback` | Handle OAuth callback, create session   |
+
+The staff OAuth routes are registered alongside `staffRouter` via `staffPlugins` in `apps/api-server/src/index.ts`. Only the `google` provider is currently supported for staff auth.
+
+### Google Cloud Console configuration
+
+Create an **OAuth 2.0 Client ID** of type **Web application** in the Google Cloud Console.
+
+**Authorized JavaScript origins** (not required for the OAuth code flow, but set if needed):
+- `https://admin.repro.dev`
+- `https://admin.reproqa.dev`
+
+**Authorized redirect URIs** (must match exactly):
+- `https://api.repro.dev/staff/oauth/google/callback`
+- `https://api.reproqa.dev/staff/oauth/google/callback`
+
+The redirect URI points to the **API server** (`api.*`), not the Admin app — the API server handles the OAuth code exchange internally, then redirects the browser to the Admin app.
+
+**Authorized domains**:
+- `repro.dev`
+- `reproqa.dev`
+
+### Environment variables
+
+Set these in the API server environment for each deployment:
+
+| Variable               | Description                |
+| ---------------------- | -------------------------- |
+| `GOOGLE_CLIENT_ID`     | Google OAuth client ID     |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
+
+- Both vars are defined as `z.string().optional()` in `createEnv.ts`
+- The `createGoogleProvider` function in `apps/api-server/src/index.ts` returns `null` when either var is absent, and the routes are omitted
+- Locally, the vars are forwarded from host env via `infra/services.json` `env_passthrough` and `infra/apps/api-server/Tiltfile` `os.getenv()` calls
+
+### Domain restriction
+
+Staff OAuth is restricted to `@repro.dev` email addresses. See `ALLOWED_DOMAIN` in `apps/api-server/src/routers/staffOAuth.ts`. Non-`@repro.dev` users are redirected to `{REPRO_ADMIN_URL}/login?error=domain_not_allowed`. This is covered by `staffOAuth.test.ts`.
+
 ## Session lifetime policy
 
 Browser auth uses opaque, cookie-backed server sessions rather than JWT access/refresh tokens. Session tokens are stored as hashes in the `sessions` table and the raw token is sent in the signed `SESSION_COOKIE`.
