@@ -1,9 +1,7 @@
 import { Block, InlineBlock } from '@jsxstyle/react'
-import { useApiClient } from '@repro/api-client'
 import { color, transition } from '@repro/design'
 import { RecordingMode } from '@repro/domain'
-import { useFuture } from '@repro/future-utils'
-import React, { Fragment, useCallback } from 'react'
+import React, { useCallback } from 'react'
 import { ReadyState, useReadyState, useRecordingMode } from '~/state'
 import { CaptureModal } from './CaptureReview/CaptureModal'
 import { Launcher } from './Launcher'
@@ -12,14 +10,6 @@ import { LiveControls } from './LiveControls'
 export const Widget: React.FC = () => {
   const [recordingMode, setRecordingMode] = useRecordingMode()
   const [readyState, setReadyState] = useReadyState()
-  const apiClient = useApiClient()
-  const projectsResult = useFuture(
-    () => apiClient.fetch('/projects'),
-    [apiClient]
-  )
-  const projectId = projectsResult.success
-    ? projectsResult.data.items[0]?.id ?? null
-    : null
 
   const isReady = readyState === ReadyState.Ready
   const isPendingLiveRecording =
@@ -31,7 +21,7 @@ export const Widget: React.FC = () => {
   }, [setReadyState, setRecordingMode])
 
   return (
-    <Fragment>
+    <React.Fragment>
       <Block
         position="fixed"
         left={0}
@@ -63,13 +53,9 @@ export const Widget: React.FC = () => {
         {isPendingLiveRecording && <LiveControls />}
 
         <Block position="relative" translate="20px -90px">
-          <CaptureModal
-            open={isReady}
-            projectId={projectId}
-            onClose={onReset}
-          />
+          <CaptureModal open={isReady} onClose={onReset} />
         </Block>
       </InlineBlock>
-    </Fragment>
+    </React.Fragment>
   )
 }
