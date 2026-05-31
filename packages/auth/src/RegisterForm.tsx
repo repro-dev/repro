@@ -5,11 +5,9 @@ import {
   Button,
   color,
   Divider,
-  FormField,
-  Input,
-  Label,
   spacing,
   Text,
+  TextField,
 } from '@repro/design'
 import { isValidationError } from '@repro/validation'
 import { done } from 'fluture'
@@ -116,56 +114,44 @@ export const RegisterForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
             </Alert>
           )}
 
-          <FormField>
-            <Label htmlFor="reg-account">Company</Label>
-            <Input
-              id="reg-account"
-              autoFocus={true}
-              context={
-                formState.errors.accountName != null ? 'error' : 'normal'
-              }
-              {...register('accountName', { required: true })}
-            />
-          </FormField>
+          <TextField
+            label="Company"
+            id="reg-account"
+            autoFocus
+            invalid={!!formState.errors.accountName}
+            {...register('accountName', { required: true })}
+          />
 
-          <FormField>
-            <Label htmlFor="reg-name">Your name</Label>
-            <Input
-              id="reg-name"
-              context={formState.errors.userName != null ? 'error' : 'normal'}
-              {...register('userName', { required: true })}
-            />
-          </FormField>
+          <TextField
+            label="Your name"
+            id="reg-name"
+            invalid={!!formState.errors.userName}
+            {...register('userName', { required: true })}
+          />
 
-          <FormField>
-            <Label htmlFor="reg-email">Email</Label>
-            <Input
-              id="reg-email"
-              autoComplete="email"
-              context={formState.errors.email != null ? 'error' : 'normal'}
-              {...register('email', { required: true })}
-            />
-          </FormField>
+          <TextField
+            label="Email"
+            id="reg-email"
+            autoComplete="email"
+            invalid={!!formState.errors.email}
+            {...register('email', { required: true })}
+          />
 
-          <FormField>
-            <Label htmlFor="reg-password">Password</Label>
-            <Input
-              id="reg-password"
-              type="password"
-              autoComplete="new-password"
-              {...register('password', { required: true })}
-            />
-          </FormField>
+          <TextField
+            label="Password"
+            id="reg-password"
+            type="password"
+            autoComplete="new-password"
+            {...register('password', { required: true })}
+          />
 
-          <FormField>
-            <Label htmlFor="reg-confirm-password">Confirm password</Label>
-            <Input
-              id="reg-confirm-password"
-              type="password"
-              autoComplete="new-password"
-              {...register('confirmedPassword', { required: true })}
-            />
-          </FormField>
+          <TextField
+            label="Confirm password"
+            id="reg-confirm-password"
+            type="password"
+            autoComplete="new-password"
+            {...register('confirmedPassword', { required: true })}
+          />
 
           <Button
             size="large"

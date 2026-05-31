@@ -1,7 +1,7 @@
-import { Block, Col, Row } from '@jsxstyle/react'
-import { Button, colors, FormField, Input, Label } from '@repro/design'
+import { Col, Row } from '@jsxstyle/react'
+import { Button, TextField } from '@repro/design'
 import { BugPlayIcon } from 'lucide-react'
-import React, { PropsWithChildren } from 'react'
+import React from 'react'
 import { useForm } from 'react-hook-form'
 
 interface FormState {
@@ -26,29 +26,29 @@ export const DetailsFields: React.FC<Props> = ({ onSubmit }) => {
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
       <Col gap={20}>
-        <FormField>
-          <Label htmlFor="report-title">Title</Label>
-          {formState.errors.title && <Error>Please enter a title</Error>}
-          <Input
-            {...register('title', { required: true })}
-            id="report-title"
-            autoFocus={true}
-            context={formState.errors.title !== undefined ? 'error' : 'normal'}
-            placeholder="What is the bug?"
-            size="large"
-          />
-        </FormField>
+        <TextField
+          label="Title"
+          id="report-title"
+          autoFocus
+          invalid={!!formState.errors.title}
+          error={
+            formState.errors.title
+              ? { message: 'Please enter a title' }
+              : undefined
+          }
+          placeholder="What is the bug?"
+          size="large"
+          {...register('title', { required: true })}
+        />
 
-        <FormField>
-          <Label htmlFor="report-description">Description</Label>
-          <Input
-            {...register('description')}
-            id="report-description"
-            size="medium"
-            placeholder="Is there anything else that would be useful to know?"
-            rows={12}
-          />
-        </FormField>
+        <TextField
+          label="Description"
+          id="report-description"
+          size="medium"
+          placeholder="Is there anything else that would be useful to know?"
+          rows={12}
+          {...register('description')}
+        />
 
         <Row>
           <Button type="submit" context="success" size="large">
@@ -60,7 +60,3 @@ export const DetailsFields: React.FC<Props> = ({ onSubmit }) => {
     </form>
   )
 }
-
-const Error: React.FC<PropsWithChildren> = ({ children }) => (
-  <Block color={colors.rose['700']}>{children}</Block>
-)

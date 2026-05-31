@@ -6,11 +6,10 @@ import {
   Button,
   Card,
   FullPageLoading,
-  Input,
-  Label,
   PageFrame,
   Stack,
   Text,
+  TextField,
   spacing,
 } from '@repro/design'
 import { UserProfile } from '@repro/domain'
@@ -167,14 +166,15 @@ export function ProfileSettingsRoute({
 
               {isEditingName ? (
                 <Col gap={spacing.md}>
-                  <Label htmlFor="profile-name">Name</Label>
-                  <Input
+                  <TextField
+                    label="Name"
                     id="profile-name"
                     value={nameValue}
                     onChange={e => setNameValue(e.target.value)}
                     placeholder="Your name"
+                    invalid={!!nameError}
+                    error={nameError ? { message: nameError } : undefined}
                   />
-                  {nameError && <Alert type="danger">{nameError}</Alert>}
                   <Row gap={spacing.md}>
                     <Button
                       variant="contained"

@@ -5,11 +5,9 @@ import {
   Button,
   color,
   Divider,
-  FormField,
-  Input,
-  Label,
   spacing,
   Text,
+  TextField,
 } from '@repro/design'
 import { fork } from 'fluture'
 import React, { useState } from 'react'
@@ -75,31 +73,27 @@ export const StaffLoginRoute: React.FC = () => {
 
       <form onSubmit={onSubmit}>
         <Col gap={spacing['2xl']} alignItems="stretch">
-          <FormField>
-            <Label htmlFor="staff-login-email">Email</Label>
-            <Input
-              id="staff-login-email"
-              autoFocus={true}
-              autoComplete="email"
-              context={errorMessage ? 'error' : 'normal'}
-              required={true}
-              value={email}
-              onChange={event => setEmail(event.currentTarget.value)}
-            />
-          </FormField>
+          <TextField
+            label="Email"
+            id="staff-login-email"
+            autoFocus
+            autoComplete="email"
+            invalid={!!errorMessage}
+            required
+            value={email}
+            onChange={event => setEmail(event.currentTarget.value)}
+          />
 
-          <FormField>
-            <Label htmlFor="staff-login-password">Password</Label>
-            <Input
-              id="staff-login-password"
-              type="password"
-              autoComplete="current-password"
-              context={errorMessage ? 'error' : 'normal'}
-              required={true}
-              value={password}
-              onChange={event => setPassword(event.currentTarget.value)}
-            />
-          </FormField>
+          <TextField
+            label="Password"
+            id="staff-login-password"
+            type="password"
+            autoComplete="current-password"
+            invalid={!!errorMessage}
+            required
+            value={password}
+            onChange={event => setPassword(event.currentTarget.value)}
+          />
 
           <Button size="large" disabled={isSubmitting} type="submit">
             Log in

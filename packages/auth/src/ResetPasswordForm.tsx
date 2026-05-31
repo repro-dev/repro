@@ -1,16 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Col } from '@jsxstyle/react'
-import {
-  Alert,
-  Button,
-  color,
-  FormField,
-  FormFieldError,
-  Input,
-  Label,
-  spacing,
-  Text,
-} from '@repro/design'
+import { Alert, Button, color, spacing, Text, TextField } from '@repro/design'
 import { fork } from 'fluture'
 import { AlertCircleIcon } from 'lucide-react'
 import React, { useState } from 'react'
@@ -94,54 +84,26 @@ export const ResetPasswordForm: React.FC<Props> = ({
             </Alert>
           )}
 
-          <FormField>
-            <Label htmlFor="reset-new-password">New password</Label>
-            <Input
-              id="reset-new-password"
-              type="password"
-              autoFocus={true}
-              autoComplete="new-password"
-              context={
-                formState.errors.newPassword != null ? 'error' : 'normal'
-              }
-              aria-describedby={
-                formState.errors.newPassword
-                  ? 'reset-new-password-error'
-                  : undefined
-              }
-              {...register('newPassword', { required: true })}
-            />
-            {formState.errors.newPassword && (
-              <FormFieldError
-                id="reset-new-password-error"
-                error={formState.errors.newPassword}
-              />
-            )}
-          </FormField>
+          <TextField
+            label="New password"
+            id="reset-new-password"
+            type="password"
+            autoFocus
+            autoComplete="new-password"
+            invalid={!!formState.errors.newPassword}
+            error={formState.errors.newPassword}
+            {...register('newPassword', { required: true })}
+          />
 
-          <FormField>
-            <Label htmlFor="reset-confirm-password">Confirm new password</Label>
-            <Input
-              id="reset-confirm-password"
-              type="password"
-              autoComplete="new-password"
-              context={
-                formState.errors.confirmedPassword != null ? 'error' : 'normal'
-              }
-              aria-describedby={
-                formState.errors.confirmedPassword
-                  ? 'reset-confirm-password-error'
-                  : undefined
-              }
-              {...register('confirmedPassword', { required: true })}
-            />
-            {formState.errors.confirmedPassword && (
-              <FormFieldError
-                id="reset-confirm-password-error"
-                error={formState.errors.confirmedPassword}
-              />
-            )}
-          </FormField>
+          <TextField
+            label="Confirm new password"
+            id="reset-confirm-password"
+            type="password"
+            autoComplete="new-password"
+            invalid={!!formState.errors.confirmedPassword}
+            error={formState.errors.confirmedPassword}
+            {...register('confirmedPassword', { required: true })}
+          />
 
           <Button
             disabled={!formState.isValid || formState.isSubmitting}

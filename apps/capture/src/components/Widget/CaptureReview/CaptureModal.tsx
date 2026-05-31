@@ -9,6 +9,7 @@ import {
   Popover,
   Select,
   Text,
+  TextField,
   Tooltip,
   color,
   spacing,
@@ -285,18 +286,14 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
             </Col>
 
             {/* Title */}
-            <FormField>
-              <Label>Title</Label>
-              <Input
-                value={saveTitle}
-                onChange={e =>
-                  setSaveTitle((e.target as HTMLInputElement).value)
-                }
-                size="small"
-                placeholder="What did you record?"
-                autoFocus={true}
-              />
-            </FormField>
+            <TextField
+              label="Title"
+              value={saveTitle}
+              onChange={e => setSaveTitle((e.target as HTMLInputElement).value)}
+              size="small"
+              placeholder="What did you record?"
+              autoFocus
+            />
 
             <Row justifyContent="flex-end">
               <Button

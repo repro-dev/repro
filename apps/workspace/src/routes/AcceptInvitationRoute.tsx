@@ -6,11 +6,8 @@ import {
   Button,
   Card,
   color,
-  FormField,
-  FormFieldError,
-  Input,
-  Label,
   spacing,
+  TextField,
   textStyles,
 } from '@repro/design'
 import { logger } from '@repro/logger'
@@ -163,85 +160,43 @@ const AcceptInvitationRoute: React.FC = () => {
               </Alert>
             )}
 
-            <FormField>
-              <Label htmlFor="invite-email">Email</Label>
-              {/* Email is pre-filled from the invitation link and not editable */}
-              <Input
-                id="invite-email"
-                readOnly={true}
-                value={email}
-                autoComplete="email"
-                context="normal"
-              />
-            </FormField>
+            <TextField
+              label="Email"
+              id="invite-email"
+              readOnly
+              value={email}
+              autoComplete="email"
+            />
 
-            <FormField>
-              <Label htmlFor="invite-name">Your name</Label>
-              <Input
-                id="invite-name"
-                autoFocus={true}
-                autoComplete="name"
-                context={formState.errors.name != null ? 'error' : 'normal'}
-                aria-describedby={
-                  formState.errors.name ? 'invite-name-error' : undefined
-                }
-                {...register('name', { required: true })}
-              />
-              {formState.errors.name && (
-                <FormFieldError
-                  id="invite-name-error"
-                  error={formState.errors.name}
-                />
-              )}
-            </FormField>
+            <TextField
+              label="Your name"
+              id="invite-name"
+              autoFocus
+              autoComplete="name"
+              invalid={!!formState.errors.name}
+              error={formState.errors.name}
+              {...register('name', { required: true })}
+            />
 
-            <FormField>
-              <Label htmlFor="invite-password">Password</Label>
-              <Input
-                id="invite-password"
-                type="password"
-                autoComplete="new-password"
-                context={formState.errors.password != null ? 'error' : 'normal'}
-                aria-describedby={
-                  formState.errors.password
-                    ? 'invite-password-error'
-                    : undefined
-                }
-                {...register('password', { required: true })}
-              />
-              {formState.errors.password && (
-                <FormFieldError
-                  id="invite-password-error"
-                  error={formState.errors.password}
-                />
-              )}
-            </FormField>
+            <TextField
+              label="Password"
+              id="invite-password"
+              type="password"
+              autoComplete="new-password"
+              invalid={!!formState.errors.password}
+              error={formState.errors.password}
+              {...register('password', { required: true })}
+            />
 
-            <FormField>
-              <Label htmlFor="invite-confirm-password">Confirm password</Label>
-              <Input
-                id="invite-confirm-password"
-                type="password"
-                autoComplete="new-password"
-                context={
-                  formState.errors.confirmedPassword != null
-                    ? 'error'
-                    : 'normal'
-                }
-                aria-describedby={
-                  formState.errors.confirmedPassword
-                    ? 'invite-confirm-password-error'
-                    : undefined
-                }
-                {...register('confirmedPassword', { required: true })}
-              />
-              {formState.errors.confirmedPassword && (
-                <FormFieldError
-                  id="invite-confirm-password-error"
-                  error={formState.errors.confirmedPassword}
-                />
-              )}
-            </FormField>
+            <TextField
+              label="Confirm password"
+              id="invite-confirm-password"
+              type="password"
+              autoComplete="new-password"
+              invalid={!!formState.errors.confirmedPassword}
+              error={formState.errors.confirmedPassword}
+              {...register('confirmedPassword', { required: true })}
+            />
 
             <Button disabled={!formState.isValid || submitting} type="submit">
               Create account

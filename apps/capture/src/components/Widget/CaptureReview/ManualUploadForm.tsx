@@ -1,13 +1,5 @@
 import { Block, Col, Row } from '@jsxstyle/react'
-import {
-  Button,
-  FormField,
-  Input,
-  Label,
-  color,
-  spacing,
-  textStyles,
-} from '@repro/design'
+import { Button, TextField, color, spacing, textStyles } from '@repro/design'
 import { BugPlayIcon } from 'lucide-react'
 import React from 'react'
 import { useForm } from 'react-hook-form'
@@ -57,33 +49,29 @@ export const ManualUploadForm: React.FC<ManualUploadFormProps> = ({
           </Block>
         )}
 
-        <FormField>
-          <Label htmlFor="manual-title">Title</Label>
-          {formState.errors.title && (
-            <Block {...textStyles.caption} color={color.danger}>
-              Please enter a title
-            </Block>
-          )}
-          <Input
-            {...register('title', { required: true })}
-            id="manual-title"
-            autoFocus={true}
-            context={formState.errors.title !== undefined ? 'error' : 'normal'}
-            placeholder="What is the bug?"
-            size="medium"
-          />
-        </FormField>
+        <TextField
+          label="Title"
+          id="manual-title"
+          autoFocus
+          invalid={!!formState.errors.title}
+          error={
+            formState.errors.title
+              ? { message: 'Please enter a title' }
+              : undefined
+          }
+          placeholder="What is the bug?"
+          size="medium"
+          {...register('title', { required: true })}
+        />
 
-        <FormField>
-          <Label htmlFor="manual-description">Description</Label>
-          <Input
-            {...register('description')}
-            id="manual-description"
-            size="medium"
-            placeholder="Is there anything else that would be useful to know?"
-            rows={6}
-          />
-        </FormField>
+        <TextField
+          label="Description"
+          id="manual-description"
+          size="medium"
+          placeholder="Is there anything else that would be useful to know?"
+          rows={6}
+          {...register('description')}
+        />
 
         <Row>
           <Button

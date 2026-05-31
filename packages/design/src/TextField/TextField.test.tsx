@@ -73,6 +73,14 @@ describe('TextField', () => {
     }
   })
 
+  it('forwards readOnly to the input element', () => {
+    render(
+      <TextField label="Email" id="email" readOnly value="test@example.com" />
+    )
+    const input = screen.getByRole('textbox', { name: 'Email' })
+    expect(input.hasAttribute('readOnly')).toBe(true)
+  })
+
   it('wires FormField context: id, aria-describedby, aria-invalid', () => {
     render(
       <TextField
