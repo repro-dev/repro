@@ -130,7 +130,7 @@ Every blocker must be classified as one of:
 - **`fixable_by_agent: false`**: fixing it safely requires human judgment beyond the current issue spec and plan.
   Examples: design ambiguity, conflicting requirements, a fundamental approach problem, or an unaddressed product/architecture decision.
 
-Major, Minor, and Nit findings do not need a `fixable_by_agent:` field.
+Major, Minor, and Nit findings may optionally include a `fixable_by_agent: true | false` field with a 1-sentence rationale. Include it when the fix is clearly mechanical (typo, import sort, token substitution, copy fix, trivial prop addition). Omit it when the fix requires human design judgment or the fix path is ambiguous. The non-blocker sweep in Phase 7 uses this field to decide which findings to auto-fix.
 
 ## Rules
 

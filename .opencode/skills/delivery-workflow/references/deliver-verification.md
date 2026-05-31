@@ -3,6 +3,7 @@
 - Refresh worktree and open-PR state before gating decisions.
 - Keep planner, develop, and review delegation bounded and retry only at phase boundaries.
 - Run smoke tests after each successful develop batch and record failures separately from publishability.
+- Re-run verification (typecheck, test, format) after the Phase 7 non-blocker sweep — treat failures as sweep blockers and stop, do not start a second fix loop.
 - Inspect rendered prompts and fragments manually when the command wiring changes.
 - Capture local browser or visual evidence only for UI-bearing work.
 

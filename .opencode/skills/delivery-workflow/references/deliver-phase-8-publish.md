@@ -35,6 +35,26 @@ For each publishable issue:
    - A short summary of the change
    - Verification performed
    - Any notable risk or follow-up note worth human attention
+   - **Review remainder** — a concise, triage-ready list of every non-blocking review finding (including those fixed in the sweep so a human reviewer can confirm the delta). Format as:
+
+     ```
+     ## Review remainder
+     
+     The following non-blocking review findings were not auto-fixed:
+     
+     ### Major
+     - **[file:line]** (category) Description. _Skipped-by-gate_ | _Not-agent-fixable_ (Major findings are not mechanically fixable — Fixed in sweep does not apply)
+     
+     ### Minor  
+     - **[file:line]** (category) Description. _Fixed in sweep_ | _Skipped-by-gate_ | _Not-agent-fixable_
+     
+     ### Nit
+     - **[file:line]** (category) Description. _Fixed in sweep_ | _Skipped-by-gate_ | _Not-agent-fixable_
+     ```
+     
+     Include every non-blocking finding: whether it was fixed in the sweep, skipped by the quality gate, or not `fixable_by_agent: true`. Report this section even when it is empty (`(none)`), so the human reviewer knows the sweep was considered.
+
+   - **Review remainder summary in orchestrator output**: emit the same review remainder to the publish-phase summary output so the agentic session log preserves it for later triage.
 
    Do **not** paste the full AI review output into the PR body, and do **not** duplicate that review output into Linear comments.
 
