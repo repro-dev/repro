@@ -40,6 +40,20 @@ mock.module('@repro/analytics', {
   },
 })
 
+let toBinaryWireFormatShouldThrow = false
+
+mock.module('@repro/wire-formats', {
+  namedExports: {
+    toBinaryWireFormat: () => {
+      if (toBinaryWireFormatShouldThrow) {
+        throw new Error('Mock encoding failure')
+      }
+      return new DataView(new ArrayBuffer(0))
+    },
+    toByteString: (bytes: Uint8Array) => bytes.toString(),
+  },
+})
+
 // Must require() after mock registration so the mocks take effect
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { useRecordingActions } =
@@ -307,6 +321,31 @@ describe('useRecordingActions', () => {
       assert.equal(createObjectURLCalled, false)
     } finally {
       URL.createObjectURL = originalCreateObjectURL
+    }
+  })
+
+  it('downloadLocally handles toBinaryWireFormat failure', () => {
+    toBinaryWireFormatShouldThrow = true
+    try {
+      const playback = createMockPlayback()
+      const actions = renderHook(playback, 'proj-1', 1, 60000)
+
+      let appendedChild: HTMLElement | null = null
+      const originalAppendChild = document.body.appendChild.bind(document.body)
+      document.body.appendChild = <T extends Node>(child: T) => {
+        appendedChild = child as unknown as HTMLElement
+        return originalAppendChild(child)
+      }
+
+      try {
+        actions.downloadLocally()
+
+        assert.equal(appendedChild, null)
+      } finally {
+        document.body.appendChild = originalAppendChild
+      }
+    } finally {
+      toBinaryWireFormatShouldThrow = false
     }
   })
 

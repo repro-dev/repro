@@ -29,7 +29,11 @@ export const FileLoader: React.FC<Props> = ({ onLoad }) => {
 
   function handleDragLeave(e: React.DragEvent) {
     e.preventDefault()
-    setIsDragOver(false)
+    // Guard: only clear drag state when leaving the drop zone itself, not
+    // when entering/exiting child elements
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragOver(false)
+    }
   }
 
   function handleDrop(e: React.DragEvent) {
