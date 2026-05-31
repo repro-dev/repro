@@ -83,6 +83,7 @@ const defaultOptions: RecordingOptions = {
     maxBinaryPayloadLength: 1_048_576,
     redactTextPayloads: false,
     captureBinaryPreview: true,
+    captureTextPreview: true,
     binaryPreviewLength: 256,
   },
 }

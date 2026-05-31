@@ -2,10 +2,10 @@ import { Block, Col, Row } from '@jsxstyle/react'
 import { Button, color, spacing, textStyles } from '@repro/design'
 import {
   NetworkMessageType,
-  SourceEventView,
   type WebSocketInbound,
   type WebSocketOutbound,
 } from '@repro/domain'
+import { findWebSocketFramesForConnection } from '@repro/source-utils'
 import {
   ArrowDownIcon,
   ArrowUpIcon,
@@ -60,41 +60,16 @@ export const WebSocketFrameInspector: React.FC<Props> = ({ correlationId }) => {
 
   const allFrames = useMemo(() => {
     const events = playback.getSourceEvents()
-    const frames: Array<{
-      time: number
-      direction: 'sent' | 'received'
-      data: WebSocketInbound | WebSocketOutbound
-    }> = []
+    const frames = findWebSocketFramesForConnection(events, correlationId)
 
-    const arr = events.toArray()
-    for (let i = 0; i < arr.length; i++) {
-      const view = arr[i]
-      if (!view) continue
-
-      const event = SourceEventView.over(view).unwrap()
-      if (!event || event.type !== 30 /* Network */) continue
-
-      const data = (event as any).data
-      const inner = data?.value
-      if (!inner) continue
-
-      if (
-        inner.correlationId === correlationId &&
-        (inner.type === NetworkMessageType.WebSocketInbound ||
-          inner.type === NetworkMessageType.WebSocketOutbound)
-      ) {
-        frames.push({
-          time: event.time,
-          direction:
-            inner.type === NetworkMessageType.WebSocketOutbound
-              ? 'sent'
-              : 'received',
-          data: inner,
-        })
-      }
-    }
-
-    return frames.sort((a, b) => a.time - b.time)
+    return frames.map(f => ({
+      time: f.time,
+      direction:
+        f.data.type === NetworkMessageType.WebSocketOutbound
+          ? ('sent' as const)
+          : ('received' as const),
+      data: f.data,
+    }))
   }, [playback, correlationId])
 
   const filteredFrames = useMemo(() => {
@@ -184,9 +159,7 @@ export const WebSocketFrameInspector: React.FC<Props> = ({ correlationId }) => {
               alignItems="flex-start"
               borderBottom={`1px solid ${color.border.default}`}
               backgroundColor={
-                frame.direction === 'sent'
-                  ? 'rgba(59, 130, 246, 0.03)'
-                  : 'rgba(34, 197, 94, 0.03)'
+                frame.direction === 'sent' ? color.infoTint : color.successTint
               }
             >
               {/* Direction icon */}
@@ -202,7 +175,7 @@ export const WebSocketFrameInspector: React.FC<Props> = ({ correlationId }) => {
                 )}
               </Block>
 
-              <Col flex={1} gap={2} minWidth={0}>
+              <Col flex={1} gap={spacing.xs} minWidth={0}>
                 {/* Timestamp */}
                 <Block {...textStyles.caption} color={color.text.muted}>
                   {formatTimestamp(frame.time)}
@@ -212,8 +185,6 @@ export const WebSocketFrameInspector: React.FC<Props> = ({ correlationId }) => {
                 <Block
                   {...textStyles.code}
                   color={color.text.default}
-                  fontSize={12}
-                  lineHeight="18px"
                   overflow="hidden"
                   whiteSpace="pre-wrap"
                   wordBreak="break-all"

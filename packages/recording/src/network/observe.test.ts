@@ -217,7 +217,7 @@ describe('libs/record: network observers', () => {
       url: string
       private listeners = new Map<string, Set<Function>>()
 
-      constructor(url: string, protocols?: string | string[]) {
+      constructor(url: string, _protocols?: string | string[]) {
         this.url = url
       }
 
@@ -272,7 +272,7 @@ describe('libs/record: network observers', () => {
       })
       observer.observe(document, vtree)
 
-      const ws = new (globalThis.WebSocket as any)(
+      new (globalThis.WebSocket as any)(
         'wss://example.com/socket'
       ) as unknown as MockWebSocket
 
@@ -294,7 +294,7 @@ describe('libs/record: network observers', () => {
       })
       observer.observe(document, vtree)
 
-      const ws = new (globalThis.WebSocket as any)(
+      new (globalThis.WebSocket as any)(
         'wss://example.com/socket',
         'chat-protocol'
       ) as unknown as MockWebSocket
@@ -313,18 +313,25 @@ describe('libs/record: network observers', () => {
         message => {
           messages.push(message)
         },
-        { maxTextPayloadLength: 10, redactTextPayloads: false }
+        {
+          maxTextPayloadLength: 10,
+          maxBinaryPayloadLength: 1_048_576,
+          redactTextPayloads: false,
+          captureBinaryPreview: true,
+          captureTextPreview: true,
+          binaryPreviewLength: 256,
+        }
       )
       observer.observe(document, vtree)
 
-      const ws = new (globalThis.WebSocket as any)(
+      const mockWs = new (globalThis.WebSocket as any)(
         'wss://example.com/socket'
       ) as unknown as MockWebSocket
 
       await flush()
       messages.length = 0
 
-      ws.send('This is a long text payload that should be truncated')
+      mockWs.send('This is a long text payload that should be truncated')
 
       await flush()
 
@@ -353,7 +360,14 @@ describe('libs/record: network observers', () => {
         message => {
           messages.push(message)
         },
-        { redactTextPayloads: true, maxTextPayloadLength: 10000 }
+        {
+          maxTextPayloadLength: 10000,
+          maxBinaryPayloadLength: 1_048_576,
+          redactTextPayloads: true,
+          captureBinaryPreview: true,
+          captureTextPreview: true,
+          binaryPreviewLength: 256,
+        }
       )
       observer.observe(document, vtree)
 
@@ -397,7 +411,14 @@ describe('libs/record: network observers', () => {
         message => {
           messages.push(message)
         },
-        { maxBinaryPayloadLength: 5, captureBinaryPreview: false }
+        {
+          maxTextPayloadLength: 65_536,
+          maxBinaryPayloadLength: 5,
+          redactTextPayloads: false,
+          captureBinaryPreview: false,
+          captureTextPreview: true,
+          binaryPreviewLength: 256,
+        }
       )
       observer.observe(document, vtree)
 

@@ -79,7 +79,7 @@ export const WebSocketConnectionList: React.FC<Props> = ({
             <GlobeIcon size={14} />
           </Block>
 
-          <Col flex={1} gap={2} minWidth={0}>
+          <Col flex={1} gap={spacing.xs} minWidth={0}>
             <Block
               {...textStyles.label}
               color={color.text.default}

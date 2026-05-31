@@ -24,6 +24,7 @@ export interface WebSocketRecordingConfig {
   maxBinaryPayloadLength: number
   redactTextPayloads: boolean
   captureBinaryPreview: boolean
+  captureTextPreview: boolean
   binaryPreviewLength: number
 }
 

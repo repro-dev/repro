@@ -21,6 +21,7 @@ const DEFAULT_WS_CONFIG: WebSocketRecordingConfig = {
   maxBinaryPayloadLength: 1_048_576,
   redactTextPayloads: false,
   captureBinaryPreview: true,
+  captureTextPreview: true,
   binaryPreviewLength: 256,
 }
 
@@ -495,7 +496,7 @@ function createWebSocketObserver(
   }
 
   function buildTextPreview(rawText: string): string | null {
-    if (!config.captureBinaryPreview) {
+    if (!config.captureTextPreview) {
       return null
     }
 
@@ -570,6 +571,54 @@ function createWebSocketObserver(
     socket.removeEventListener('error', handleError)
   }
 
+  async function processWebSocketPayload(
+    rawData: ArrayBuffer,
+    isBinary: boolean,
+    rawText: string,
+    direction: 'outbound' | 'inbound',
+    correlationId: SyntheticId
+  ) {
+    if (isBinary) {
+      const { truncated } = applyBinaryPayloadLimit(rawData)
+      const preview = config.captureBinaryPreview
+        ? createBinaryPreview(truncated)
+        : null
+
+      subscriber(
+        new Box({
+          type:
+            direction === 'outbound'
+              ? NetworkMessageType.WebSocketOutbound
+              : NetworkMessageType.WebSocketInbound,
+          correlationId,
+          messageType: WebSocketMessageType.Binary,
+          data: truncated,
+          preview,
+        })
+      )
+    } else {
+      const processedText = config.redactTextPayloads
+        ? redactTextPayload(rawText)
+        : rawText
+      const { truncated, isTruncated } = applyTextPayloadLimit(processedText)
+      const payload = isTruncated ? truncated : processedText
+      const encoded = textEncoder.encode(payload).buffer
+
+      subscriber(
+        new Box({
+          type:
+            direction === 'outbound'
+              ? NetworkMessageType.WebSocketOutbound
+              : NetworkMessageType.WebSocketInbound,
+          correlationId,
+          messageType: WebSocketMessageType.Text,
+          data: encoded,
+          preview: buildTextPreview(rawText),
+        })
+      )
+    }
+  }
+
   async function sendEffect(
     socket: WebSocket,
     data: string | ArrayBufferLike | Blob | ArrayBufferView
@@ -585,41 +634,18 @@ function createWebSocketObserver(
       data instanceof Blob ||
       ArrayBuffer.isView(data)
 
-    if (isBinary) {
-      const rawData = await dataToArrayBuffer(data)
-      const { truncated } = applyBinaryPayloadLimit(rawData)
-      const preview = config.captureBinaryPreview
-        ? createBinaryPreview(truncated)
-        : null
+    const rawData = isBinary
+      ? await dataToArrayBuffer(data)
+      : new ArrayBuffer(0)
+    const rawText = typeof data === 'string' ? data : ''
 
-      subscriber(
-        new Box({
-          type: NetworkMessageType.WebSocketOutbound,
-          correlationId,
-          messageType: WebSocketMessageType.Binary,
-          data: truncated,
-          preview,
-        })
-      )
-    } else {
-      const rawText = typeof data === 'string' ? data : ''
-      const processedText = config.redactTextPayloads
-        ? redactTextPayload(rawText)
-        : rawText
-      const { truncated, isTruncated } = applyTextPayloadLimit(processedText)
-      const payload = isTruncated ? truncated : processedText
-      const encoded = textEncoder.encode(payload).buffer
-
-      subscriber(
-        new Box({
-          type: NetworkMessageType.WebSocketOutbound,
-          correlationId,
-          messageType: WebSocketMessageType.Text,
-          data: encoded,
-          preview: buildTextPreview(rawText),
-        })
-      )
-    }
+    await processWebSocketPayload(
+      rawData,
+      isBinary,
+      rawText,
+      'outbound',
+      correlationId
+    )
   }
 
   const messageEventObserver = createMessageEventObserver(ev => {
@@ -642,45 +668,19 @@ function createWebSocketObserver(
           ev.data instanceof Blob ||
           ArrayBuffer.isView(ev.data)
 
-        if (isBinary) {
-          const rawData = await dataToArrayBuffer(ev.data)
-          const { truncated } = applyBinaryPayloadLimit(rawData)
-          const preview = config.captureBinaryPreview
-            ? createBinaryPreview(truncated)
-            : null
+        const rawData = await dataToArrayBuffer(ev.data)
+        const rawText =
+          typeof ev.data === 'string'
+            ? ev.data
+            : new TextDecoder().decode(rawData)
 
-          subscriber(
-            new Box({
-              type: NetworkMessageType.WebSocketInbound,
-              correlationId,
-              messageType: WebSocketMessageType.Binary,
-              data: truncated,
-              preview,
-            })
-          )
-        } else {
-          const rawText =
-            typeof ev.data === 'string'
-              ? ev.data
-              : new TextDecoder().decode(await dataToArrayBuffer(ev.data))
-          const processedText = config.redactTextPayloads
-            ? redactTextPayload(rawText)
-            : rawText
-          const { truncated, isTruncated } =
-            applyTextPayloadLimit(processedText)
-          const payload = isTruncated ? truncated : processedText
-          const encoded = textEncoder.encode(payload).buffer
-
-          subscriber(
-            new Box({
-              type: NetworkMessageType.WebSocketInbound,
-              correlationId,
-              messageType: WebSocketMessageType.Text,
-              data: encoded,
-              preview: buildTextPreview(rawText),
-            })
-          )
-        }
+        await processWebSocketPayload(
+          rawData,
+          isBinary,
+          rawText,
+          'inbound',
+          correlationId
+        )
       }
     })()
   })
@@ -720,6 +720,8 @@ function createWebSocketObserver(
         })
       )
 
+      openEffect(ws)
+
       return ws
     },
   })
@@ -753,10 +755,6 @@ function createWebSocketObserver(
               protocols: null,
             })
           )
-        }
-
-        if (this.readyState !== WebSocket.OPEN) {
-          openEffect(this)
         }
 
         sendEffect(this, ...args)
