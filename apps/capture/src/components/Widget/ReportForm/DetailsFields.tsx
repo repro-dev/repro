@@ -1,5 +1,5 @@
 import { Col, Row } from '@jsxstyle/react'
-import { Button, TextField } from '@repro/design'
+import { Button, spacing, TextField } from '@repro/design'
 import { BugPlayIcon } from 'lucide-react'
 import React from 'react'
 import { useForm } from 'react-hook-form'
@@ -25,7 +25,7 @@ export const DetailsFields: React.FC<Props> = ({ onSubmit }) => {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
-      <Col gap={20}>
+      <Col gap={spacing['2xl']}>
         <TextField
           label="Title"
           id="report-title"
