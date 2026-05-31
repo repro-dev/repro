@@ -122,6 +122,8 @@ Admin App ← redirect to /staff/oauth/google/callback ← Google callback
                     Redirect to Admin App dashboard ← logged in
 ```
 
+OAuth-created staff users are provisioned with an empty-string password hash (`''`). This sentinel ensures these users can never authenticate via password — only OAuth. See the `createStaffUser(name || email, email, '')` call in `apps/api-server/src/routers/staffOAuth.ts`.
+
 ### Staff OAuth endpoints
 
 All staff OAuth endpoints are registered under the `/staff` prefix and handled by `createStaffOAuthRouter` in `apps/api-server/src/routers/staffOAuth.ts`:
@@ -161,7 +163,7 @@ Set these in the API server environment for each deployment:
 | `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
 
 - Both vars are defined as `z.string().optional()` in `createEnv.ts`
-- The `createGoogleProvider` function in `apps/api-server/src/index.ts` returns `null` when either var is absent, and the routes are omitted
+- The `createGoogleProvider` function in `apps/api-server/src/index.ts` returns `null` when either var is absent, and the staff OAuth routes return 400 for any provider when no credentials are configured
 - Locally, the vars are forwarded from host env via `infra/services.json` `env_passthrough` and `infra/apps/api-server/Tiltfile` `os.getenv()` calls
 
 ### Domain restriction
