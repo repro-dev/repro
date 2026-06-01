@@ -9,6 +9,10 @@ This package captures DOM, network, and framework state for recordings.
 - Before writing a new assertion, check whether the fixture or subscriber payload originates from a union-typed descriptor. If it does, expect `Box` wrapping even when the inner value is a struct-like object.
 - If the payload access feels repetitive, prefer a tiny helper local to the shared testing utilities rather than ad hoc deep property traversal in every test.
 
+## `--experimental-test-module-mocks` policy
+
+This package intentionally omits the `--experimental-test-module-mocks` flag from its test script in `package.json`. No test in this package uses `t.mock.module()` (confirmed by grep), and the flag is known to trigger indefinite hangs with tsx 4.19.3 on files exceeding ~500 lines (see REP-436, REP-1009). Removing it avoids unnecessary overhead and hang risk. Do not reintroduce the flag unless a new test genuinely uses `t.mock.module()`.
+
 ## Fixtures and cross-project reuse
 
 - Be careful when reusing recording fixtures across projects or framework adapters. Shared fixtures can encode assumptions about the source app that do not hold in a different consumer.

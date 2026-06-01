@@ -314,7 +314,16 @@ bash scripts/check-test-file-size.sh
 
 Split large test files into per-feature files under `src/<module>/__tests__/`. Each file should stay under ~300 lines for a comfortable safety margin. The established pattern is in `packages/agentic/src/model/tools/__tests__/` — one file per tool.
 
+### REP-1009 case study
+
+The `packages/recording` package had a 577-line `vue3.test.ts` and was using `--experimental-test-module-mocks` despite having zero `t.mock.module()` calls. This matched the known hang profile (unnecessary flag + large test file).
+
+Fix: removed the unused flag and split `vue3.test.ts` into three files (basic tests ~300 lines, app:init tests ~130 lines, emit/idempotency/leak tests ~110 lines) plus a shared test-helpers module. The suite gained 1 test (suite completion smoke test) and all 116 other tests continue to pass.
+
+**Lesson**: When a package does not use `t.mock.module()`, removing `--experimental-test-module-mocks` eliminates the flag's contribution to the hang. This is a complementary fix to splitting — the two together provide more reliable coverage than splitting alone.
+
 ### NEVER
 
 - Write a test file that exceeds 500 lines. CI will reject it.
 - Merge files that were previously split to work around the hang.
+- Use `--experimental-test-module-mocks` in a package that has no `t.mock.module()` calls — it adds hang risk for zero benefit.
