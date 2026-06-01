@@ -120,6 +120,24 @@ export const textStyles = {
     lineHeight: lineHeight.normal,
     fontFamily: fontFamily.sans,
   },
+  heading4: {
+    fontSize: fontSize.base,
+    fontWeight: fontWeight.semibold,
+    lineHeight: lineHeight.normal,
+    fontFamily: fontFamily.sans,
+  },
+  heading5: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    lineHeight: lineHeight.normal,
+    fontFamily: fontFamily.sans,
+  },
+  heading6: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    lineHeight: lineHeight.normal,
+    fontFamily: fontFamily.sans,
+  },
   body: {
     fontSize: fontSize.base,
     fontWeight: fontWeight.normal,
