@@ -120,6 +120,14 @@ describe('RecordingPrivacySettingsRoute', () => {
       )
     })
 
+    // Check preset section heading
+    assert.ok(
+      screen.getByRole('heading', {
+        name: 'Default Privacy Preset',
+        level: 2,
+      })
+    )
+
     // Check preset names are displayed
     for (const name of ['Strict', 'Standard', 'Off']) {
       assert.ok(screen.getByText(name))
@@ -157,12 +165,12 @@ describe('RecordingPrivacySettingsRoute', () => {
       true
     )
 
-    // Click the Strict preset card
-    const strictButton = screen.getByText('Strict').closest('button')
-    assert.ok(strictButton)
+    // Click the Strict preset radio
+    const strictRadio = screen.getByRole('radio', { name: /^Strict / })
+    assert.ok(strictRadio)
 
     await act(async () => {
-      fireEvent.click(strictButton!)
+      fireEvent.click(strictRadio)
     })
 
     // Save should now be enabled
@@ -188,12 +196,12 @@ describe('RecordingPrivacySettingsRoute', () => {
       )
     })
 
-    // Click the Strict preset card
-    const strictButton = screen.getByText('Strict').closest('button')
-    assert.ok(strictButton)
+    // Click the Strict preset radio
+    const strictRadio = screen.getByRole('radio', { name: /^Strict / })
+    assert.ok(strictRadio)
 
     await act(async () => {
-      fireEvent.click(strictButton!)
+      fireEvent.click(strictRadio)
     })
 
     // Cancel button should appear
@@ -237,12 +245,12 @@ describe('RecordingPrivacySettingsRoute', () => {
       )
     })
 
-    // Click the Strict preset
-    const strictButton = screen.getByText('Strict').closest('button')
-    assert.ok(strictButton)
+    // Click the Strict preset radio
+    const strictRadio = screen.getByRole('radio', { name: /^Strict / })
+    assert.ok(strictRadio)
 
     await act(async () => {
-      fireEvent.click(strictButton!)
+      fireEvent.click(strictRadio)
     })
 
     // Click save
@@ -288,12 +296,12 @@ describe('RecordingPrivacySettingsRoute', () => {
       )
     })
 
-    // Click the Strict preset
-    const strictButton = screen.getByText('Strict').closest('button')
-    assert.ok(strictButton)
+    // Click the Strict preset radio
+    const strictRadio = screen.getByRole('radio', { name: /^Strict / })
+    assert.ok(strictRadio)
 
     await act(async () => {
-      fireEvent.click(strictButton!)
+      fireEvent.click(strictRadio)
     })
 
     // Click save
@@ -326,7 +334,7 @@ describe('RecordingPrivacySettingsRoute', () => {
     // Check documentation section headings
     assert.ok(
       screen.getByRole('heading', {
-        name: 'About selector-based overrides',
+        name: 'Selector-based Overrides',
         level: 2,
       })
     )

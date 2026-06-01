@@ -1,4 +1,4 @@
-import { Block, Col, Inline, Row } from '@jsxstyle/react'
+import { Col, Inline, Row } from '@jsxstyle/react'
 import { useApiClient } from '@repro/api-client'
 import { useSession, useSessionLoading } from '@repro/auth'
 import {
@@ -7,9 +7,11 @@ import {
   Card,
   FullPageLoading,
   PageFrame,
+  Radio,
+  RadioGroup,
+  Stack,
   Text,
   color,
-  focusRing,
   radius,
   spacing,
   textStyles,
@@ -21,51 +23,8 @@ import {
   updateRecordingPrivacyPreset as defaultUpdateRecordingPrivacyPreset,
 } from '@repro/workspace-api'
 import { fork } from 'fluture'
-import { CheckCircle, Circle } from 'lucide-react'
 import React, { useCallback, useState } from 'react'
 import { Navigate } from 'react-router-dom'
-
-const desktopViewportQuery = '(min-width: 1024px)'
-
-function useIsDesktopViewport() {
-  const [isDesktop, setIsDesktop] = React.useState(() => {
-    return (
-      typeof window !== 'undefined' &&
-      typeof window.matchMedia === 'function' &&
-      window.matchMedia(desktopViewportQuery).matches
-    )
-  })
-
-  React.useEffect(() => {
-    if (
-      typeof window === 'undefined' ||
-      typeof window.matchMedia !== 'function'
-    ) {
-      return
-    }
-
-    const mediaQueryList = window.matchMedia(desktopViewportQuery)
-    const updateMatches = () => setIsDesktop(mediaQueryList.matches)
-
-    updateMatches()
-
-    if (typeof mediaQueryList.addEventListener === 'function') {
-      mediaQueryList.addEventListener('change', updateMatches)
-
-      return () => {
-        mediaQueryList.removeEventListener('change', updateMatches)
-      }
-    }
-
-    mediaQueryList.addListener(updateMatches)
-
-    return () => {
-      mediaQueryList.removeListener(updateMatches)
-    }
-  }, [])
-
-  return isDesktop
-}
 
 type PresetInfo = {
   value: RecordingPrivacyPreset
@@ -105,8 +64,6 @@ export function RecordingPrivacySettingsRoute({
 }: RecordingPrivacySettingsRouteProps) {
   const apiClient = useApiClient()
 
-  const isDesktop = useIsDesktopViewport()
-
   const [refreshKey, setRefreshKey] = useState(0)
   const [selectedPreset, setSelectedPreset] = useState<
     RecordingPrivacyPreset | undefined
@@ -133,8 +90,8 @@ export function RecordingPrivacySettingsRoute({
   const effectivePreset = selectedPreset ?? savedPreset
 
   const handleSelect = useCallback(
-    (preset: RecordingPrivacyPreset) => {
-      setSelectedPreset(preset)
+    (preset: string) => {
+      setSelectedPreset(preset as RecordingPrivacyPreset)
       if (saveError != null) {
         setSaveError(null)
       }
@@ -177,13 +134,14 @@ export function RecordingPrivacySettingsRoute({
   if (error) {
     return (
       <PageFrame>
-        <PageFrame.Body>
-          <Block width="100%" maxWidth={1440} margin="0 auto">
-            <Alert type="danger">
-              Failed to load recording privacy settings. Please refresh the page
-              and try again.
-            </Alert>
-          </Block>
+        <PageFrame.Header>
+          <PageFrame.Title>Recording Privacy</PageFrame.Title>
+        </PageFrame.Header>
+        <PageFrame.Body maxWidth={720}>
+          <Alert type="danger">
+            Failed to load recording privacy settings. Please refresh the page
+            and try again.
+          </Alert>
         </PageFrame.Body>
       </PageFrame>
     )
@@ -191,59 +149,43 @@ export function RecordingPrivacySettingsRoute({
 
   return (
     <PageFrame>
-      <PageFrame.Body>
-        <Block width="100%" maxWidth={1440} margin="0 auto">
-          <Col gap={spacing.xl} width="100%">
-            <Block
-              component="header"
-              width="100%"
-              paddingBottom={spacing.lg}
-              borderBottom={`1px solid ${color.border.default}`}
-            >
-              <Col gap={spacing.sm}>
-                <PageFrame.Title>Recording Privacy</PageFrame.Title>
-                <Text variant="bodySmall" color={color.text.secondary}>
-                  Choose how the workspace handles privacy when recording
-                  sessions.
-                </Text>
-              </Col>
-            </Block>
+      <PageFrame.Header>
+        <PageFrame.Title>Recording Privacy</PageFrame.Title>
+      </PageFrame.Header>
 
-            <Col
-              component="section"
-              gap={spacing['3xl']}
-              width="100%"
-              props={{
-                style: {
-                  maxWidth: isDesktop ? '66.666%' : '100%',
-                },
-              }}
-            >
-              {/* Preset selection */}
-              <Col gap={spacing.md}>
-                <Col gap={spacing.xs}>
-                  <Text variant="heading2">Privacy preset</Text>
-                  <Text variant="bodySmall" color={color.text.muted}>
-                    Select a default privacy level for new recordings. This
-                    setting applies workspace-wide.
-                  </Text>
-                </Col>
+      <PageFrame.Body maxWidth={720}>
+        <Stack gap="lg">
+          {/* Default Privacy Preset section */}
+          <Col gap={spacing.md}>
+            <Col gap={spacing.xs}>
+              <Text variant="heading2">Default Privacy Preset</Text>
+              <Text variant="bodySmall" color={color.text.muted}>
+                Choose the default privacy level for new recordings in this
+                workspace.
+              </Text>
+            </Col>
 
-                <Col gap={spacing.sm}>
+            <Card>
+              <Col padding={spacing.xl} gap={spacing.lg}>
+                <RadioGroup
+                  label="Privacy preset"
+                  value={effectivePreset ?? 'standard'}
+                  onChange={handleSelect}
+                  disabled={saving}
+                >
                   {PRESET_OPTIONS.map(option => (
-                    <PresetCard
+                    <Radio
                       key={option.value}
-                      info={option}
-                      selected={effectivePreset === option.value}
-                      onSelect={handleSelect}
-                      disabled={saving}
+                      value={option.value}
+                      label={option.label}
+                      description={option.description}
                     />
                   ))}
-                </Col>
+                </RadioGroup>
 
                 {saveError && <Alert type="danger">{saveError}</Alert>}
 
-                <Row gap={spacing.sm} alignItems="center">
+                <Row justifyContent="flex-end" gap={spacing.md}>
                   <Button
                     size="medium"
                     variant="contained"
@@ -263,145 +205,85 @@ export function RecordingPrivacySettingsRoute({
                   )}
                 </Row>
               </Col>
+            </Card>
+          </Col>
 
-              {/* Documentation section */}
-              <Col gap={spacing.md}>
-                <Col gap={spacing.xs}>
-                  <Text variant="heading2">About selector-based overrides</Text>
-                  <Text variant="bodySmall" color={color.text.muted}>
-                    When using the Standard preset, you can control privacy at
-                    the element level by adding CSS classes to your page.
+          {/* Selector-based Overrides section */}
+          <Col gap={spacing.md}>
+            <Col gap={spacing.xs}>
+              <Text variant="heading2">Selector-based Overrides</Text>
+              <Text variant="bodySmall" color={color.text.muted}>
+                When using the Standard preset, you can control privacy at the
+                element level by adding CSS classes to your page.
+              </Text>
+            </Col>
+
+            <Card>
+              <Col padding={spacing.xl} gap={spacing.lg}>
+                <Col gap={spacing.sm}>
+                  <Text variant="heading3">.repro-ignore</Text>
+                  <Text variant="bodySmall" color={color.text.secondary}>
+                    Add{' '}
+                    <Inline
+                      component="code"
+                      {...textStyles.code}
+                      backgroundColor={color.bg.muted}
+                      borderRadius={radius.sm}
+                      padding={`1px ${spacing.xs}px`}
+                    >
+                      .repro-ignore
+                    </Inline>{' '}
+                    to any element to exclude it from recording. The element and
+                    its children will not appear in the recorded session.
                   </Text>
                 </Col>
-
-                <Card fullBleed>
-                  <Col gap={spacing.lg} padding={spacing.lg}>
-                    <Col gap={spacing.sm}>
-                      <Text variant="heading3">.repro-ignore</Text>
-                      <Text variant="bodySmall" color={color.text.secondary}>
-                        Add{' '}
-                        <Inline
-                          component="code"
-                          {...textStyles.code}
-                          backgroundColor={color.bg.muted}
-                          borderRadius={radius.sm}
-                          padding={`1px ${spacing.xs}px`}
-                        >
-                          .repro-ignore
-                        </Inline>{' '}
-                        to any element to exclude it from recording. The element
-                        and its children will not appear in the recorded
-                        session.
-                      </Text>
-                    </Col>
-                    <Col gap={spacing.sm}>
-                      <Text variant="heading3">.repro-mask</Text>
-                      <Text variant="bodySmall" color={color.text.secondary}>
-                        Add{' '}
-                        <Inline
-                          component="code"
-                          {...textStyles.code}
-                          backgroundColor={color.bg.muted}
-                          borderRadius={radius.sm}
-                          padding={`1px ${spacing.xs}px`}
-                        >
-                          .repro-mask
-                        </Inline>{' '}
-                        to any element to mask its contents. The element&apos;s
-                        structure is preserved but text content is replaced with{' '}
-                        <Inline
-                          component="code"
-                          {...textStyles.code}
-                          backgroundColor={color.bg.muted}
-                          borderRadius={radius.sm}
-                          padding={`1px ${spacing.xs}px`}
-                        >
-                          [MASKED]
-                        </Inline>
-                        .
-                      </Text>
-                      <Alert type="info">
-                        <Inline
-                          component="code"
-                          {...textStyles.code}
-                          backgroundColor={color.bg.muted}
-                          borderRadius={radius.sm}
-                          padding={`1px ${spacing.xs}px`}
-                        >
-                          .repro-mask
-                        </Inline>{' '}
-                        support is planned but not yet active. The Strict preset
-                        uses an alternative masking approach that covers all
-                        input elements and images by default.
-                      </Alert>
-                    </Col>
-                  </Col>
-                </Card>
+                <Col gap={spacing.sm}>
+                  <Text variant="heading3">.repro-mask</Text>
+                  <Text variant="bodySmall" color={color.text.secondary}>
+                    Add{' '}
+                    <Inline
+                      component="code"
+                      {...textStyles.code}
+                      backgroundColor={color.bg.muted}
+                      borderRadius={radius.sm}
+                      padding={`1px ${spacing.xs}px`}
+                    >
+                      .repro-mask
+                    </Inline>{' '}
+                    to any element to mask its contents. The element&apos;s
+                    structure is preserved but text content is replaced with{' '}
+                    <Inline
+                      component="code"
+                      {...textStyles.code}
+                      backgroundColor={color.bg.muted}
+                      borderRadius={radius.sm}
+                      padding={`1px ${spacing.xs}px`}
+                    >
+                      [MASKED]
+                    </Inline>
+                    .
+                  </Text>
+                  <Alert type="info">
+                    <Inline
+                      component="code"
+                      {...textStyles.code}
+                      backgroundColor={color.bg.muted}
+                      borderRadius={radius.sm}
+                      padding={`1px ${spacing.xs}px`}
+                    >
+                      .repro-mask
+                    </Inline>{' '}
+                    support is planned but not yet active. The Strict preset
+                    uses an alternative masking approach that covers all input
+                    elements and images by default.
+                  </Alert>
+                </Col>
               </Col>
-            </Col>
+            </Card>
           </Col>
-        </Block>
+        </Stack>
       </PageFrame.Body>
     </PageFrame>
-  )
-}
-
-interface PresetCardProps {
-  info: PresetInfo
-  selected: boolean
-  disabled?: boolean
-  onSelect: (value: RecordingPrivacyPreset) => void
-}
-
-function PresetCard({ info, selected, disabled, onSelect }: PresetCardProps) {
-  const handleClick = useCallback(() => {
-    if (disabled) {
-      return
-    }
-    onSelect(info.value)
-  }, [info.value, onSelect, disabled])
-
-  return (
-    <Block
-      component="button"
-      width="100%"
-      cursor={disabled ? 'default' : 'pointer'}
-      fontFamily="inherit"
-      fontSize="inherit"
-      lineHeight="inherit"
-      textAlign="left"
-      border="none"
-      padding={0}
-      backgroundColor="transparent"
-      props={{ type: 'button', onClick: handleClick, disabled }}
-      {...focusRing()}
-    >
-      <Block
-        borderWidth={1}
-        borderStyle="solid"
-        borderColor={selected ? color.primary : color.border.default}
-        borderRadius={radius.md}
-        backgroundColor={color.bg.surface}
-        opacity={disabled ? 0.5 : 1}
-        hoverBackgroundColor={disabled ? undefined : color.bg.hover}
-      >
-        <Row gap={spacing.lg} alignItems="flex-start" padding={spacing.lg}>
-          <Block
-            flexShrink={0}
-            paddingTop={spacing.xs}
-            color={selected ? color.primary : color.text.muted}
-          >
-            {selected ? <CheckCircle size={20} /> : <Circle size={20} />}
-          </Block>
-          <Col gap={spacing.xs} minWidth={0}>
-            <Text variant="label">{info.label}</Text>
-            <Text variant="bodySmall" color={color.text.secondary}>
-              {info.description}
-            </Text>
-          </Col>
-        </Row>
-      </Block>
-    </Block>
   )
 }
 
