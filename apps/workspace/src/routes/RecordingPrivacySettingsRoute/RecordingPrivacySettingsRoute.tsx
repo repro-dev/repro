@@ -1,4 +1,4 @@
-import { Col, Inline, Row } from '@jsxstyle/react'
+import { Block, Col, Inline, Row } from '@jsxstyle/react'
 import { useApiClient } from '@repro/api-client'
 import { useSession, useSessionLoading } from '@repro/auth'
 import {
@@ -137,11 +137,13 @@ export function RecordingPrivacySettingsRoute({
         <PageFrame.Header>
           <PageFrame.Title>Recording Privacy</PageFrame.Title>
         </PageFrame.Header>
-        <PageFrame.Body maxWidth={720}>
-          <Alert type="danger">
-            Failed to load recording privacy settings. Please refresh the page
-            and try again.
-          </Alert>
+        <PageFrame.Body>
+          <Block maxWidth={720} width="100%">
+            <Alert type="danger">
+              Failed to load recording privacy settings. Please refresh the page
+              and try again.
+            </Alert>
+          </Block>
         </PageFrame.Body>
       </PageFrame>
     )
@@ -153,139 +155,141 @@ export function RecordingPrivacySettingsRoute({
         <PageFrame.Title>Recording Privacy</PageFrame.Title>
       </PageFrame.Header>
 
-      <PageFrame.Body maxWidth={720}>
-        <Stack gap="lg">
-          {/* Default Privacy Preset section */}
-          <Col gap={spacing.md}>
-            <Col gap={spacing.xs}>
-              <Text variant="heading2">Default Privacy Preset</Text>
-              <Text variant="bodySmall" color={color.text.muted}>
-                Choose the default privacy level for new recordings in this
-                workspace.
-              </Text>
-            </Col>
+      <PageFrame.Body>
+        <Block maxWidth={720} width="100%">
+          <Stack gap="lg">
+            {/* Default Privacy Preset section */}
+            <Col gap={spacing.md}>
+              <Col gap={spacing.xs}>
+                <Text variant="heading2">Default Privacy Preset</Text>
+                <Text variant="bodySmall" color={color.text.muted}>
+                  Choose the default privacy level for new recordings in this
+                  workspace.
+                </Text>
+              </Col>
 
-            <Card>
-              <Col padding={spacing.xl} gap={spacing.lg}>
-                <RadioGroup
-                  label="Privacy preset"
-                  value={effectivePreset ?? 'standard'}
-                  onChange={handleSelect}
-                  disabled={saving}
-                >
-                  {PRESET_OPTIONS.map(option => (
-                    <Radio
-                      key={option.value}
-                      value={option.value}
-                      label={option.label}
-                      description={option.description}
-                    />
-                  ))}
-                </RadioGroup>
-
-                {saveError && <Alert type="danger">{saveError}</Alert>}
-
-                <Row justifyContent="flex-end" gap={spacing.md}>
-                  <Button
-                    size="medium"
-                    variant="contained"
-                    onClick={handleSave}
-                    disabled={saving || !hasUnsavedChanges}
+              <Card>
+                <Col padding={spacing.xl} gap={spacing.lg}>
+                  <RadioGroup
+                    label="Privacy preset"
+                    value={effectivePreset ?? 'standard'}
+                    onChange={handleSelect}
+                    disabled={saving}
                   >
-                    {saving ? 'Saving…' : 'Save changes'}
-                  </Button>
-                  {hasUnsavedChanges && !saving && (
+                    {PRESET_OPTIONS.map(option => (
+                      <Radio
+                        key={option.value}
+                        value={option.value}
+                        label={option.label}
+                        description={option.description}
+                      />
+                    ))}
+                  </RadioGroup>
+
+                  {saveError && <Alert type="danger">{saveError}</Alert>}
+
+                  <Row justifyContent="flex-end" gap={spacing.md}>
                     <Button
                       size="medium"
-                      variant="outlined"
-                      onClick={handleCancel}
+                      variant="contained"
+                      onClick={handleSave}
+                      disabled={saving || !hasUnsavedChanges}
                     >
-                      Cancel
+                      {saving ? 'Saving…' : 'Save changes'}
                     </Button>
-                  )}
-                </Row>
-              </Col>
-            </Card>
-          </Col>
-
-          {/* Selector-based Overrides section */}
-          <Col gap={spacing.md}>
-            <Col gap={spacing.xs}>
-              <Text variant="heading2">Selector-based Overrides</Text>
-              <Text variant="bodySmall" color={color.text.muted}>
-                When using the Standard preset, you can control privacy at the
-                element level by adding CSS classes to your page.
-              </Text>
+                    {hasUnsavedChanges && !saving && (
+                      <Button
+                        size="medium"
+                        variant="outlined"
+                        onClick={handleCancel}
+                      >
+                        Cancel
+                      </Button>
+                    )}
+                  </Row>
+                </Col>
+              </Card>
             </Col>
 
-            <Card>
-              <Col padding={spacing.xl} gap={spacing.lg}>
-                <Col gap={spacing.sm}>
-                  <Text variant="label" as="span" color={color.text.label}>
-                    .repro-ignore
-                  </Text>
-                  <Text variant="bodySmall" color={color.text.secondary}>
-                    Add{' '}
-                    <Inline
-                      component="code"
-                      {...textStyles.code}
-                      backgroundColor={color.bg.muted}
-                      borderRadius={radius.sm}
-                      padding={`1px ${spacing.xs}px`}
-                    >
-                      .repro-ignore
-                    </Inline>{' '}
-                    to any element to exclude it from recording. The element and
-                    its children will not appear in the recorded session.
-                  </Text>
-                </Col>
-                <Col gap={spacing.sm}>
-                  <Text variant="label" as="span" color={color.text.label}>
-                    .repro-mask
-                  </Text>
-                  <Text variant="bodySmall" color={color.text.secondary}>
-                    Add{' '}
-                    <Inline
-                      component="code"
-                      {...textStyles.code}
-                      backgroundColor={color.bg.muted}
-                      borderRadius={radius.sm}
-                      padding={`1px ${spacing.xs}px`}
-                    >
-                      .repro-mask
-                    </Inline>{' '}
-                    to any element to mask its contents. The element&apos;s
-                    structure is preserved but text content is replaced with{' '}
-                    <Inline
-                      component="code"
-                      {...textStyles.code}
-                      backgroundColor={color.bg.muted}
-                      borderRadius={radius.sm}
-                      padding={`1px ${spacing.xs}px`}
-                    >
-                      [MASKED]
-                    </Inline>
-                    .
-                  </Text>
-                  <Alert type="info">
-                    <Inline
-                      component="code"
-                      {...textStyles.code}
-                      backgroundColor={color.bg.muted}
-                      borderRadius={radius.sm}
-                      padding={`1px ${spacing.xs}px`}
-                    >
-                      .repro-mask
-                    </Inline>{' '}
-                    support is planned but not yet active. The Strict preset
-                    uses an alternative masking approach that covers all input
-                    elements and images by default.
-                  </Alert>
-                </Col>
+            {/* Selector-based Overrides section */}
+            <Col gap={spacing.md}>
+              <Col gap={spacing.xs}>
+                <Text variant="heading2">Selector-based Overrides</Text>
+                <Text variant="bodySmall" color={color.text.muted}>
+                  When using the Standard preset, you can control privacy at the
+                  element level by adding CSS classes to your page.
+                </Text>
               </Col>
-            </Card>
-          </Col>
-        </Stack>
+
+              <Card>
+                <Col padding={spacing.xl} gap={spacing.lg}>
+                  <Col gap={spacing.sm}>
+                    <Text variant="label" as="span" color={color.text.label}>
+                      .repro-ignore
+                    </Text>
+                    <Text variant="bodySmall" color={color.text.secondary}>
+                      Add{' '}
+                      <Inline
+                        component="code"
+                        {...textStyles.code}
+                        backgroundColor={color.bg.muted}
+                        borderRadius={radius.sm}
+                        padding={`1px ${spacing.xs}px`}
+                      >
+                        .repro-ignore
+                      </Inline>{' '}
+                      to any element to exclude it from recording. The element
+                      and its children will not appear in the recorded session.
+                    </Text>
+                  </Col>
+                  <Col gap={spacing.sm}>
+                    <Text variant="label" as="span" color={color.text.label}>
+                      .repro-mask
+                    </Text>
+                    <Text variant="bodySmall" color={color.text.secondary}>
+                      Add{' '}
+                      <Inline
+                        component="code"
+                        {...textStyles.code}
+                        backgroundColor={color.bg.muted}
+                        borderRadius={radius.sm}
+                        padding={`1px ${spacing.xs}px`}
+                      >
+                        .repro-mask
+                      </Inline>{' '}
+                      to any element to mask its contents. The element&apos;s
+                      structure is preserved but text content is replaced with{' '}
+                      <Inline
+                        component="code"
+                        {...textStyles.code}
+                        backgroundColor={color.bg.muted}
+                        borderRadius={radius.sm}
+                        padding={`1px ${spacing.xs}px`}
+                      >
+                        [MASKED]
+                      </Inline>
+                      .
+                    </Text>
+                    <Alert type="info">
+                      <Inline
+                        component="code"
+                        {...textStyles.code}
+                        backgroundColor={color.bg.muted}
+                        borderRadius={radius.sm}
+                        padding={`1px ${spacing.xs}px`}
+                      >
+                        .repro-mask
+                      </Inline>{' '}
+                      support is planned but not yet active. The Strict preset
+                      uses an alternative masking approach that covers all input
+                      elements and images by default.
+                    </Alert>
+                  </Col>
+                </Col>
+              </Card>
+            </Col>
+          </Stack>
+        </Block>
       </PageFrame.Body>
     </PageFrame>
   )
