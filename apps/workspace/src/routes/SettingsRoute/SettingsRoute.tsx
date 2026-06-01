@@ -28,7 +28,7 @@ const SettingsRoute: React.FC = () => (
     <Route path="api-keys" element={<ApiKeysRoute />} />
     <Route path="team" element={<TeamPage />} />
     <Route
-      path="recording-privacy"
+      path="privacy-controls"
       element={<RecordingPrivacySettingsRouteConnected />}
     />
     <Route path="billing" element={<BillingSettingsRouteConnected />} />

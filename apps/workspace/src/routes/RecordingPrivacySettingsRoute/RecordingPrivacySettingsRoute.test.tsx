@@ -55,11 +55,11 @@ function renderRoute({
   return render(
     <ApiProvider client={apiClient}>
       <PortalRootProvider>
-        <MemoryRouter initialEntries={['/settings/recording-privacy']}>
+        <MemoryRouter initialEntries={['/settings/privacy-controls']}>
           <Routes>
             <Route path="/login" element={<div>Login page</div>} />
             <Route
-              path="/settings/recording-privacy"
+              path="/settings/privacy-controls"
               element={
                 <RecordingPrivacySettingsRoute
                   getPreset={getPreset as any}
@@ -89,7 +89,7 @@ function renderConnectedRoute(session: User | null) {
     >
       <ApiProvider client={apiClient}>
         <PortalRootProvider>
-          <MemoryRouter initialEntries={['/settings/recording-privacy']}>
+          <MemoryRouter initialEntries={['/settings/privacy-controls']}>
             <Routes>
               <Route
                 path="/settings/profile"
@@ -114,7 +114,7 @@ describe('RecordingPrivacySettingsRoute', () => {
     await waitFor(() => {
       assert.ok(
         screen.getByRole('heading', {
-          name: 'Recording Privacy',
+          name: 'Privacy Controls',
           level: 1,
         })
       )
@@ -151,7 +151,7 @@ describe('RecordingPrivacySettingsRoute', () => {
     await waitFor(() => {
       assert.ok(
         screen.getByRole('heading', {
-          name: 'Recording Privacy',
+          name: 'Privacy Controls',
           level: 1,
         })
       )
@@ -190,7 +190,7 @@ describe('RecordingPrivacySettingsRoute', () => {
     await waitFor(() => {
       assert.ok(
         screen.getByRole('heading', {
-          name: 'Recording Privacy',
+          name: 'Privacy Controls',
           level: 1,
         })
       )
@@ -239,7 +239,7 @@ describe('RecordingPrivacySettingsRoute', () => {
     await waitFor(() => {
       assert.ok(
         screen.getByRole('heading', {
-          name: 'Recording Privacy',
+          name: 'Privacy Controls',
           level: 1,
         })
       )
@@ -290,7 +290,7 @@ describe('RecordingPrivacySettingsRoute', () => {
     await waitFor(() => {
       assert.ok(
         screen.getByRole('heading', {
-          name: 'Recording Privacy',
+          name: 'Privacy Controls',
           level: 1,
         })
       )
@@ -325,7 +325,7 @@ describe('RecordingPrivacySettingsRoute', () => {
     await waitFor(() => {
       assert.ok(
         screen.getByRole('heading', {
-          name: 'Recording Privacy',
+          name: 'Privacy Controls',
           level: 1,
         })
       )

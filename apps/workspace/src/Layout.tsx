@@ -28,8 +28,8 @@ export const Layout: React.FC = () => {
     path: '/settings/account',
     end: false,
   })
-  const recordingPrivacyActive = useMatch({
-    path: '/settings/recording-privacy',
+  const privacyControlsActive = useMatch({
+    path: '/settings/privacy-controls',
     end: false,
   })
   const settingsActive = useMatch({ path: '/settings', end: false })
@@ -56,13 +56,13 @@ export const Layout: React.FC = () => {
                   icon={SettingsIcon}
                   label="Settings"
                   // Active for all /settings/* routes except /settings/billing,
-                  // /settings/account, and /settings/recording-privacy,
+                  // /settings/account, and /settings/privacy-controls,
                   // which are handled by their own nav items below.
                   active={
                     !!settingsActive &&
                     !billingActive &&
                     !accountSettingsActive &&
-                    !recordingPrivacyActive
+                    !privacyControlsActive
                   }
                   component={RouterNavLink}
                   props={{ to: '/settings' }}
@@ -80,10 +80,10 @@ export const Layout: React.FC = () => {
                       />
                       <SideNav.Item
                         icon={ShieldIcon}
-                        label="Recording Privacy"
-                        active={!!recordingPrivacyActive}
+                        label="Privacy Controls"
+                        active={!!privacyControlsActive}
                         component={RouterNavLink}
-                        props={{ to: '/settings/recording-privacy' }}
+                        props={{ to: '/settings/privacy-controls' }}
                       />
                     </>
                   )}

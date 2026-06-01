@@ -135,7 +135,7 @@ export function RecordingPrivacySettingsRoute({
     return (
       <PageFrame>
         <PageFrame.Header>
-          <PageFrame.Title>Recording Privacy</PageFrame.Title>
+          <PageFrame.Title>Privacy Controls</PageFrame.Title>
         </PageFrame.Header>
         <PageFrame.Body>
           <Block maxWidth={720} width="100%">
@@ -152,7 +152,7 @@ export function RecordingPrivacySettingsRoute({
   return (
     <PageFrame>
       <PageFrame.Header>
-        <PageFrame.Title>Recording Privacy</PageFrame.Title>
+        <PageFrame.Title>Privacy Controls</PageFrame.Title>
       </PageFrame.Header>
 
       <PageFrame.Body>
