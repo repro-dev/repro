@@ -221,7 +221,9 @@ export function RecordingPrivacySettingsRoute({
             <Card>
               <Col padding={spacing.xl} gap={spacing.lg}>
                 <Col gap={spacing.sm}>
-                  <Text variant="heading3">.repro-ignore</Text>
+                  <Text variant="label" as="span" color={color.text.label}>
+                    .repro-ignore
+                  </Text>
                   <Text variant="bodySmall" color={color.text.secondary}>
                     Add{' '}
                     <Inline
@@ -238,7 +240,9 @@ export function RecordingPrivacySettingsRoute({
                   </Text>
                 </Col>
                 <Col gap={spacing.sm}>
-                  <Text variant="heading3">.repro-mask</Text>
+                  <Text variant="label" as="span" color={color.text.label}>
+                    .repro-mask
+                  </Text>
                   <Text variant="bodySmall" color={color.text.secondary}>
                     Add{' '}
                     <Inline

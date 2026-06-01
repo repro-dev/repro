@@ -331,25 +331,17 @@ describe('RecordingPrivacySettingsRoute', () => {
       )
     })
 
-    // Check documentation section headings
+    // Check documentation section heading
     assert.ok(
       screen.getByRole('heading', {
         name: 'Selector-based Overrides',
         level: 2,
       })
     )
-    assert.ok(
-      screen.getByRole('heading', {
-        name: '.repro-ignore',
-        level: 3,
-      })
-    )
-    assert.ok(
-      screen.getByRole('heading', {
-        name: '.repro-mask',
-        level: 3,
-      })
-    )
+
+    // Check selector documentation content
+    assert.ok(screen.getByText('.repro-ignore'))
+    assert.ok(screen.getByText('.repro-mask'))
   })
 
   it('redirects non-admin users to profile settings', async () => {
