@@ -37,6 +37,8 @@ export interface TextFieldProps {
   autoComplete?: string
   /** Automatically focus the input on mount. */
   autoFocus?: boolean
+  /** Makes the input read-only (non-editable, but focusable and selectable). */
+  readOnly?: boolean
   /** Input type (defaults to "text"). */
   type?: string
   /** When >1, renders a <textarea> instead of <input>. */
@@ -73,6 +75,7 @@ export const TextField = forwardRef<
       name,
       autoComplete,
       autoFocus,
+      readOnly,
       type,
       rows,
       onBlur,
@@ -97,6 +100,7 @@ export const TextField = forwardRef<
           name={name}
           autoComplete={autoComplete}
           autoFocus={autoFocus}
+          readOnly={readOnly}
           type={type ?? 'text'}
           rows={rows}
           onBlur={onBlur}

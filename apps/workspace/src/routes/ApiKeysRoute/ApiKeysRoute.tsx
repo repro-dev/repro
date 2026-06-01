@@ -6,7 +6,6 @@ import {
   Card,
   EmptyState,
   FormField,
-  FormFieldError,
   FullPageError,
   FullPageLoading,
   Input,
@@ -16,6 +15,7 @@ import {
   Stack,
   Table,
   Text,
+  TextField,
   color,
   spacing,
   useConfirm,
@@ -330,21 +330,19 @@ export const ApiKeysRoute: React.FC = () => {
                 <Stack gap="lg">
                   {createError && <Alert type="danger">{createError}</Alert>}
 
-                  <FormField>
-                    <Label>Name</Label>
-                    <Input
-                      context={errors.name ? 'error' : 'normal'}
-                      placeholder="e.g. CI/CD pipeline"
-                      {...register('name', {
-                        required: 'A name is required',
-                        maxLength: {
-                          value: 255,
-                          message: 'Name must be at most 255 characters',
-                        },
-                      })}
-                    />
-                    {errors.name && <FormFieldError error={errors.name} />}
-                  </FormField>
+                  <TextField
+                    label="Name"
+                    placeholder="e.g. CI/CD pipeline"
+                    invalid={!!errors.name}
+                    error={errors.name}
+                    {...register('name', {
+                      required: 'A name is required',
+                      maxLength: {
+                        value: 255,
+                        message: 'Name must be at most 255 characters',
+                      },
+                    })}
+                  />
 
                   <Row justifyContent="flex-end" gap={spacing.md}>
                     <Button

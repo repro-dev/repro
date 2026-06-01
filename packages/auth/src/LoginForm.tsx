@@ -5,13 +5,10 @@ import {
   Button,
   color,
   Divider,
-  FormField,
-  FormFieldError,
-  Input,
-  Label,
   Link,
   spacing,
   Text,
+  TextField,
 } from '@repro/design'
 import { isValidationError } from '@repro/validation'
 import { fork } from 'fluture'
@@ -139,36 +136,24 @@ export const LoginForm: React.FC<Props> = ({
             </Alert>
           )}
 
-          <FormField>
-            <Label htmlFor="login-email">Email</Label>
-            <Input
-              id="login-email"
-              autoFocus={true}
-              autoComplete="email"
-              context={formState.errors.email != null ? 'error' : 'normal'}
-              aria-describedby={
-                formState.errors.email ? 'login-email-error' : undefined
-              }
-              {...register('email', { required: true })}
-            />
-            {formState.errors.email && (
-              <FormFieldError
-                id="login-email-error"
-                error={formState.errors.email}
-              />
-            )}
-          </FormField>
+          <TextField
+            label="Email"
+            id="login-email"
+            autoFocus
+            autoComplete="email"
+            invalid={!!formState.errors.email}
+            error={formState.errors.email}
+            {...register('email', { required: true })}
+          />
 
           {!showResetFlow && (
-            <FormField>
-              <Label htmlFor="login-password">Password</Label>
-              <Input
-                id="login-password"
-                type="password"
-                autoComplete="current-password"
-                {...register('password', { required: true })}
-              />
-            </FormField>
+            <TextField
+              label="Password"
+              id="login-password"
+              type="password"
+              autoComplete="current-password"
+              {...register('password', { required: true })}
+            />
           )}
 
           {!showResetFlow && (

@@ -1,13 +1,5 @@
 import { Col, Row } from '@jsxstyle/react'
-import {
-  Button,
-  Input,
-  Label,
-  Modal,
-  Text,
-  color,
-  spacing,
-} from '@repro/design'
+import { Button, Modal, Text, TextField, spacing } from '@repro/design'
 import React, { useState } from 'react'
 
 interface DeactivateUserDialogProps {
@@ -59,22 +51,17 @@ export const DeactivateUserDialog: React.FC<DeactivateUserDialogProps> = ({
           />
           <Col gap={spacing.md}>
             <Text variant="body">Type {userName} exactly to continue.</Text>
-            <Col gap={spacing.xs}>
-              <Label htmlFor="deactivate-user-confirmation">User name</Label>
-              <Input
-                id="deactivate-user-confirmation"
-                value={confirmationName}
-                onChange={event => setConfirmationName(event.target.value)}
-                placeholder={userName}
-                autoFocus
-                disabled={loading}
-              />
-            </Col>
-            {confirmError && (
-              <Text variant="bodySmall" color={color.danger}>
-                {confirmError}
-              </Text>
-            )}
+            <TextField
+              label="User name"
+              id="deactivate-user-confirmation"
+              value={confirmationName}
+              onChange={event => setConfirmationName(event.target.value)}
+              placeholder={userName}
+              autoFocus
+              disabled={loading}
+              invalid={!!confirmError}
+              error={confirmError ? { message: confirmError } : undefined}
+            />
           </Col>
           <Row justifyContent="flex-end" gap={spacing.md}>
             <Button

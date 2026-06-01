@@ -5,13 +5,13 @@ import {
   FormField,
   FullPageError,
   FullPageLoading,
-  Input,
   Label,
   PageFrame,
   Pagination,
   Select,
   Table,
   Text,
+  TextField,
   color,
   duration,
   easing,
@@ -261,16 +261,13 @@ export const AccountsRoute: React.FC = () => {
               <Col gap={spacing.md}>
                 <Row gap={spacing.md} alignItems="end" flexWrap="wrap">
                   <Block minWidth={280} flex="1 1 320px">
-                    <FormField>
-                      <Label htmlFor="accounts-search">Search accounts</Label>
-                      <Input
-                        id="accounts-search"
-                        aria-label="Search accounts"
-                        value={draftSearch}
-                        onChange={event => setDraftSearch(event.target.value)}
-                        placeholder="Email or account ID"
-                      />
-                    </FormField>
+                    <TextField
+                      label="Search accounts"
+                      id="accounts-search"
+                      value={draftSearch}
+                      onChange={event => setDraftSearch(event.target.value)}
+                      placeholder="Email or account ID"
+                    />
                   </Block>
                   <Block width={180}>
                     <FormField>

@@ -18,6 +18,7 @@ import {
   Select,
   Table,
   Text,
+  TextField,
   color,
   spacing,
   useConfirm,
@@ -705,16 +706,14 @@ export function ProjectSettingsRoute({
 
               <form onSubmit={handleInviteSubmit}>
                 <Col gap={spacing.md}>
-                  <FormField>
-                    <Label htmlFor="invite-email">Email</Label>
-                    <Input
-                      id="invite-email"
-                      type="email"
-                      value={inviteEmail}
-                      onChange={event => setInviteEmail(event.target.value)}
-                      placeholder="name@example.com"
-                    />
-                  </FormField>
+                  <TextField
+                    label="Email"
+                    id="invite-email"
+                    type="email"
+                    value={inviteEmail}
+                    onChange={event => setInviteEmail(event.target.value)}
+                    placeholder="name@example.com"
+                  />
 
                   <FormField>
                     <Label htmlFor="invite-role">Role</Label>
