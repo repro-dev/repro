@@ -78,13 +78,13 @@ const PRESET_OPTIONS: Array<PresetInfo> = [
     value: 'strict',
     label: 'Strict',
     description:
-      'Masks all input elements and images by default on every recorded page. No page data is captured without explicit opt-in via .rr-ignore.',
+      'Masks all input elements and images by default on every recorded page. No page data is captured without explicit opt-in via .repro-ignore.',
   },
   {
     value: 'standard',
     label: 'Standard',
     description:
-      'Respects .rr-ignore (exclude element) and .rr-mask (mask contents) CSS classes on recorded pages. Note: .rr-mask is planned but not yet active.',
+      'Respects .repro-ignore (exclude element) and .repro-mask (mask contents) CSS classes on recorded pages. Note: .repro-mask is planned but not yet active.',
   },
   {
     value: 'off',
@@ -277,7 +277,7 @@ export function RecordingPrivacySettingsRoute({
                 <Card fullBleed>
                   <Col gap={spacing.lg} padding={spacing.lg}>
                     <Col gap={spacing.sm}>
-                      <Text variant="heading3">.rr-ignore</Text>
+                      <Text variant="heading3">.repro-ignore</Text>
                       <Text variant="bodySmall" color={color.text.secondary}>
                         Add{' '}
                         <Inline
@@ -287,7 +287,7 @@ export function RecordingPrivacySettingsRoute({
                           borderRadius={radius.sm}
                           padding={`1px ${spacing.xs}px`}
                         >
-                          .rr-ignore
+                          .repro-ignore
                         </Inline>{' '}
                         to any element to exclude it from recording. The element
                         and its children will not appear in the recorded
@@ -295,7 +295,7 @@ export function RecordingPrivacySettingsRoute({
                       </Text>
                     </Col>
                     <Col gap={spacing.sm}>
-                      <Text variant="heading3">.rr-mask</Text>
+                      <Text variant="heading3">.repro-mask</Text>
                       <Text variant="bodySmall" color={color.text.secondary}>
                         Add{' '}
                         <Inline
@@ -305,7 +305,7 @@ export function RecordingPrivacySettingsRoute({
                           borderRadius={radius.sm}
                           padding={`1px ${spacing.xs}px`}
                         >
-                          .rr-mask
+                          .repro-mask
                         </Inline>{' '}
                         to any element to mask its contents. The element&apos;s
                         structure is preserved but text content is replaced with{' '}
@@ -328,7 +328,7 @@ export function RecordingPrivacySettingsRoute({
                           borderRadius={radius.sm}
                           padding={`1px ${spacing.xs}px`}
                         >
-                          .rr-mask
+                          .repro-mask
                         </Inline>{' '}
                         support is planned but not yet active. The Strict preset
                         uses an alternative masking approach that covers all

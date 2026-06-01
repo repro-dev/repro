@@ -332,13 +332,13 @@ describe('RecordingPrivacySettingsRoute', () => {
     )
     assert.ok(
       screen.getByRole('heading', {
-        name: '.rr-ignore',
+        name: '.repro-ignore',
         level: 3,
       })
     )
     assert.ok(
       screen.getByRole('heading', {
-        name: '.rr-mask',
+        name: '.repro-mask',
         level: 3,
       })
     )
