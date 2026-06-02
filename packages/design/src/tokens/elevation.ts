@@ -16,20 +16,21 @@
 /**
  * Semantic box-shadow scale.
  *
- * Values are derived from the most common shadows found in the codebase
- * (cards, buttons, modals, inspector panels).
+ * Each token uses a consistent two-layer shadow: a tight contact shadow
+ * near the element edge (constant low opacity) plus a wider ambient
+ * shadow whose offset, blur, and opacity scale with elevation.
  */
 export const shadow = {
   /** No shadow */
   none: 'none',
-  /** Subtle input/control shadow — nearly flush with the surface */
-  xs: '0 0.5px 1.5px rgba(203, 213, 225, 0.85)',
-  /** Subtle shadow — small elevated elements */
-  sm: '0 4px 16px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.1)',
+  /** Near-flush — inputs, controls */
+  xs: '0 0.5px 1px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04)',
+  /** Subtle elevation — small raised elements */
+  sm: '0 1px 2px rgba(0, 0, 0, 0.06), 0 2px 4px rgba(0, 0, 0, 0.06)',
   /** Default card elevation */
-  md: '0 2px 4px rgba(0, 0, 0, 0.25)',
+  md: '0 2px 4px rgba(0, 0, 0, 0.06), 0 4px 8px rgba(0, 0, 0, 0.08)',
   /** Modal / overlay elevation */
-  lg: '0 8px 16px rgba(0, 0, 0, 0.25)',
+  lg: '0 4px 8px rgba(0, 0, 0, 0.06), 0 8px 16px rgba(0, 0, 0, 0.10)',
 } as const
 
 /**
