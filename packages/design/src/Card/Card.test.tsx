@@ -81,13 +81,13 @@ describe('Card', () => {
     expect(css).toContain('padding: 4px')
   })
 
-  it('defaults to flat surface with no shadow', () => {
-    const { container } = render(<Card>Flat card</Card>)
+  it('defaults to xs elevation', () => {
+    const { container } = render(<Card>Default card</Card>)
     const css = getElementCSSRules(container.firstElementChild!)
       .map(({ cssText }) => cssText)
       .join('\n')
 
-    expect(css).toContain(`box-shadow: ${shadow.none}`)
+    expect(css).toContain(`box-shadow: ${shadow.xs}`)
   })
 
   it('applies the specified shadow token', () => {

@@ -24,9 +24,9 @@ export interface CardProps {
  * to 0 for edge-to-edge child content. The `padding` prop can still
  * override the default when `fullBleed` is active.
  *
- * The `shadow` prop controls the card's elevation. Defaults to `'none'`
- * (flat). Pass `shadow="md"` for the classic card elevation, or choose
- * from `'xs' | 'sm' | 'md' | 'lg'`.
+ * The `shadow` prop controls the card's elevation. Defaults to `'xs'`
+ * (near-flush). Pass `shadow="md"` for classic card elevation, or choose
+ * from `'none' | 'xs' | 'sm' | 'md' | 'lg'`.
  */
 export const Card: React.FC<PropsWithChildren<CardProps>> = ({
   children,
@@ -34,7 +34,7 @@ export const Card: React.FC<PropsWithChildren<CardProps>> = ({
   fullBleed,
   padding = fullBleed ? 0 : spacing['2xl'],
   height = 'auto',
-  shadow: shadowProp = 'none',
+  shadow: shadowProp = 'xs',
 }) => (
   <Block
     height={height}
