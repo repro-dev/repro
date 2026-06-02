@@ -25,9 +25,9 @@ export const shadow = {
   /** Subtle input/control shadow — nearly flush with the surface */
   xs: '0 0.5px 1.5px rgba(203, 213, 225, 0.85)',
   /** Subtle shadow — small elevated elements */
-  sm: '0 2px 4px rgba(0, 0, 0, 0.25)',
+  sm: '0 4px 16px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.1)',
   /** Default card elevation */
-  md: '0 4px 16px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.1)',
+  md: '0 2px 4px rgba(0, 0, 0, 0.25)',
   /** Modal / overlay elevation */
   lg: '0 8px 16px rgba(0, 0, 0, 0.25)',
 } as const

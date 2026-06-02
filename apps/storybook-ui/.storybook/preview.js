@@ -17,11 +17,11 @@ const preview = {
       },
     },
     backgrounds: {
-      default: "Light",
+      default: "Neutral",
       values: [
+        { name: "Neutral", value: "#f5f5f5" },
         { name: "Light", value: "#ffffff" },
         { name: "Dark", value: "#1a1a2e" },
-        { name: "Neutral", value: "#f5f5f5" },
       ],
     },
   },
