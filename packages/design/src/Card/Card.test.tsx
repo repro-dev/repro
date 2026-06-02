@@ -96,6 +96,6 @@ describe('Card', () => {
       .map(({ cssText }) => cssText)
       .join('\n')
 
-    expect(css).toContain(shadow.md)
+    expect(css).toContain(`box-shadow: ${shadow.md}`)
   })
 })
