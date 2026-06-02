@@ -2,6 +2,7 @@ import { Block, Col } from '@jsxstyle/react'
 import type { Meta, StoryObj } from '@storybook/react'
 import React from 'react'
 import { color } from '../tokens/colors'
+import { shadow, type ShadowToken } from '../tokens/elevation'
 import { fontSize } from '../tokens/typography'
 import { Card } from './Card'
 
@@ -40,7 +41,8 @@ export const FullBleed: Story = {
           Full-Bleed Card
         </Block>
         <Block fontSize={fontSize.sm} color={color.text.secondary}>
-          This card has a transparent background with the shadow still applied.
+          This card has a transparent background with the default{' '}
+          <code>xs</code> elevation. Set <code>shadow</code> to increase it.
         </Block>
       </Block>
     ),
@@ -72,6 +74,22 @@ export const CustomPadding: Story = {
         <Card key={p} padding={p}>
           <Block fontSize={fontSize.sm} color={color.text.secondary}>
             padding: {p}px
+          </Block>
+        </Card>
+      ))}
+    </Col>
+  ),
+}
+
+/** Shadow variants — maps every shadow token onto a card so the visual
+    difference between `none`, `xs`, `sm`, `md`, and `lg` is visible. */
+export const ShadowVariants: Story = {
+  render: () => (
+    <Col gap={16} padding={16}>
+      {(['none', 'xs', 'sm', 'md', 'lg'] as ShadowToken[]).map(t => (
+        <Card key={t} shadow={t}>
+          <Block fontSize={fontSize.sm} color={color.text.secondary}>
+            shadow: {t} — {shadow[t]}
           </Block>
         </Card>
       ))}

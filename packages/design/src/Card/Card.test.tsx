@@ -4,6 +4,7 @@ import expect from 'expect'
 import { afterEach, describe, it } from 'node:test'
 import React from 'react'
 import { color } from '../tokens/colors'
+import { shadow } from '../tokens/elevation'
 import { spacing } from '../tokens/spacing'
 import { Card } from './Card'
 
@@ -21,9 +22,9 @@ describe('Card', () => {
       .map(({ cssText }) => cssText)
       .join('\n')
 
-    expect(neutralCSS).toContain('box-shadow')
+    expect(neutralCSS).toContain(`box-shadow: ${shadow.xs}`)
     expect(neutralCSS).not.toContain(color.dangerBorder)
-    expect(dangerCSS).toContain('box-shadow')
+    expect(dangerCSS).toContain(`box-shadow: ${shadow.xs}`)
     expect(dangerCSS).toContain(color.dangerBorder)
   })
 
@@ -76,5 +77,23 @@ describe('Card', () => {
 
     // Custom padding of 4px
     expect(css).toContain('padding: 4px')
+  })
+
+  it('defaults to xs elevation', () => {
+    const { container } = render(<Card>Default card</Card>)
+    const css = getElementCSSRules(container.firstElementChild!)
+      .map(({ cssText }) => cssText)
+      .join('\n')
+
+    expect(css).toContain(`box-shadow: ${shadow.xs}`)
+  })
+
+  it('applies the specified shadow token', () => {
+    const { container } = render(<Card shadow="md">Elevated card</Card>)
+    const css = getElementCSSRules(container.firstElementChild!)
+      .map(({ cssText }) => cssText)
+      .join('\n')
+
+    expect(css).toContain(`box-shadow: ${shadow.md}`)
   })
 })
