@@ -46,6 +46,8 @@ export const AsideRegion: React.FC<React.PropsWithChildren<{}>> = ({
     overflow="clip"
     overflowClipMargin={16}
   >
-    <Card height="100%">{children}</Card>
+    <Card shadow="md" height="100%">
+      {children}
+    </Card>
   </Grid>
 )

@@ -66,7 +66,7 @@ export const ProgressOverlay: React.FC<Props> = ({
 
   return (
     <Backdrop>
-      <Card>
+      <Card shadow="md">
         {progress.error && (
           <Col gap={10}>
             <Row alignItems="center" gap={10}>

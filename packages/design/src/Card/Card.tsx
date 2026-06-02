@@ -1,7 +1,7 @@
 import { Block } from '@jsxstyle/react'
 import React, { CSSProperties, PropsWithChildren } from 'react'
 import { color } from '../tokens/colors'
-import { radius, shadow } from '../tokens/elevation'
+import { radius, shadow, type ShadowToken } from '../tokens/elevation'
 import { spacing } from '../tokens/spacing'
 
 export type CardContext = 'neutral' | 'danger'
@@ -11,10 +11,11 @@ export interface CardProps {
   fullBleed?: boolean
   height?: CSSProperties['height']
   padding?: CSSProperties['padding']
+  shadow?: ShadowToken
 }
 
 /**
- * Elevated surface container with rounded corners and a box shadow.
+ * Surface container with rounded corners and configurable elevation.
  *
  * Use for grouping related content into a visually distinct section.
  * Use `context="danger"` for destructive action areas that need a stronger
@@ -22,6 +23,10 @@ export interface CardProps {
  * Set `fullBleed` to make the background transparent and default padding
  * to 0 for edge-to-edge child content. The `padding` prop can still
  * override the default when `fullBleed` is active.
+ *
+ * The `shadow` prop controls the card's elevation. Defaults to `'none'`
+ * (flat). Pass `shadow="md"` for the classic card elevation, or choose
+ * from `'xs' | 'sm' | 'md' | 'lg'`.
  */
 export const Card: React.FC<PropsWithChildren<CardProps>> = ({
   children,
@@ -29,6 +34,7 @@ export const Card: React.FC<PropsWithChildren<CardProps>> = ({
   fullBleed,
   padding = fullBleed ? 0 : spacing['2xl'],
   height = 'auto',
+  shadow: shadowProp = 'none',
 }) => (
   <Block
     height={height}
@@ -40,7 +46,7 @@ export const Card: React.FC<PropsWithChildren<CardProps>> = ({
       context === 'danger' ? color.dangerBorder : color.border.default
     }
     borderRadius={radius.sm}
-    boxShadow={shadow.md}
+    boxShadow={shadow[shadowProp]}
     overflow="hidden"
   >
     {children}
