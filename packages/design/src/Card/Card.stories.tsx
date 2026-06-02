@@ -41,8 +41,8 @@ export const FullBleed: Story = {
           Full-Bleed Card
         </Block>
         <Block fontSize={fontSize.sm} color={color.text.secondary}>
-          This card has a transparent background and no shadow by default. Add{' '}
-          <code>shadow</code> to bring back elevation.
+          This card has a transparent background with the default{' '}
+          <code>xs</code> elevation. Set <code>shadow</code> to increase it.
         </Block>
       </Block>
     ),

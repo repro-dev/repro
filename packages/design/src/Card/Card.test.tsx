@@ -22,11 +22,9 @@ describe('Card', () => {
       .map(({ cssText }) => cssText)
       .join('\n')
 
-    // Default shadow is none (flat) — existing consumers are expected to
-    // opt into elevation with the explicit `shadow` prop
-    expect(neutralCSS).toContain(`box-shadow: ${shadow.none}`)
+    expect(neutralCSS).toContain(`box-shadow: ${shadow.xs}`)
     expect(neutralCSS).not.toContain(color.dangerBorder)
-    expect(dangerCSS).toContain(`box-shadow: ${shadow.none}`)
+    expect(dangerCSS).toContain(`box-shadow: ${shadow.xs}`)
     expect(dangerCSS).toContain(color.dangerBorder)
   })
 
