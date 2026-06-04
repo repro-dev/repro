@@ -167,11 +167,11 @@
     "description": "Devtools demo build",
     "moon_project": "repro/devtools-demo",
     "app_dir": "apps/devtools-demo",
-    "serve_cmd": "moon run repro/devtools-demo:dev",
+    "serve_cmd": "portless devtools-demo.repro moon run repro/devtools-demo:dev",
     "serve_env": {},
-    "resource_deps": ["dependencies"],
+    "resource_deps": ["dependencies", "portless-proxy"],
     "labels": ["app"],
-    "port": 8080,
+    "portless_name": "devtools-demo.repro",
     "launch": {
       "kind": "url",
       "description": "Devtools Demo"
