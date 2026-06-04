@@ -398,7 +398,7 @@ export const WithHypotheses: StoryObj = {
         "none",
         null,
         null,
-        "hypotheses",
+        "conclusion",
         [
           {
             id: "h1",
