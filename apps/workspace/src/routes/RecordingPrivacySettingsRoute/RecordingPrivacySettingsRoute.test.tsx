@@ -49,7 +49,7 @@ interface TestProps {
 }
 
 function renderRoute({
-  getPreset = () => resolve({ preset: 'standard' }),
+  getPreset = () => resolve({ value: 'standard' }),
   updatePreset = () => resolve(undefined),
 }: TestProps = {}) {
   return render(
@@ -145,7 +145,7 @@ describe('RecordingPrivacySettingsRoute', () => {
 
   it('enables save when preset changes', async () => {
     renderRoute({
-      getPreset: () => resolve({ preset: 'standard' }),
+      getPreset: () => resolve({ value: 'standard' }),
     })
 
     await waitFor(() => {
@@ -184,7 +184,7 @@ describe('RecordingPrivacySettingsRoute', () => {
 
   it('shows cancel button when preset changes and restores on cancel', async () => {
     renderRoute({
-      getPreset: () => resolve({ preset: 'standard' }),
+      getPreset: () => resolve({ value: 'standard' }),
     })
 
     await waitFor(() => {
@@ -227,7 +227,7 @@ describe('RecordingPrivacySettingsRoute', () => {
     let loadCount = 0
     const getPreset = () => {
       loadCount++
-      return resolve({ preset: loadCount === 1 ? 'standard' : 'strict' })
+      return resolve({ value: loadCount === 1 ? 'standard' : 'strict' })
     }
     const updatePreset = (_apiClient: typeof apiClient, preset: string) => {
       updateCalls.push(preset)

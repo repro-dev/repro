@@ -302,13 +302,13 @@ describe('workspace-api: queries', () => {
 
   describe('getRecordingPrivacyPreset', () => {
     it('fetches GET /account/privacy and returns the preset', async () => {
-      const stub = createStubApiClient(() => ({ preset: 'strict' }))
+      const stub = createStubApiClient(() => ({ value: 'strict' }))
       const result = await promise(getRecordingPrivacyPreset(stub))
-      assert.deepEqual(result, { preset: 'strict' })
+      assert.deepEqual(result, { value: 'strict' })
     })
 
     it('calls the correct URL', async () => {
-      const stub = createStubApiClient(() => ({ preset: 'standard' }))
+      const stub = createStubApiClient(() => ({ value: 'standard' }))
       await promise(getRecordingPrivacyPreset(stub))
       assert.equal(stub.calls[0]?.url, '/account/privacy')
     })
@@ -327,7 +327,7 @@ describe('workspace-api: queries', () => {
       const stub = createStubApiClient(() => undefined)
       await promise(updateRecordingPrivacyPreset(stub, 'off'))
       const body = stub.calls[0]?.options.body as string
-      assert.deepEqual(JSON.parse(body), { preset: 'off' })
+      assert.deepEqual(JSON.parse(body), { value: 'off' })
     })
   })
 

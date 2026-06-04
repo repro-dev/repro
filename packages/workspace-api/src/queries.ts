@@ -105,7 +105,7 @@ export function deleteAccount(apiClient: ApiClient) {
 }
 
 export function getRecordingPrivacyPreset(apiClient: ApiClient) {
-  return apiClient.fetch<{ preset: RecordingPrivacyPreset }>('/account/privacy')
+  return apiClient.fetch<{ value: RecordingPrivacyPreset }>('/account/privacy')
 }
 
 export function updateRecordingPrivacyPreset(
@@ -114,7 +114,7 @@ export function updateRecordingPrivacyPreset(
 ) {
   return apiClient.fetch('/account/privacy', {
     method: 'put',
-    body: JSON.stringify({ preset }),
+    body: JSON.stringify({ value: preset }),
     headers: { 'content-type': 'application/json' },
   })
 }

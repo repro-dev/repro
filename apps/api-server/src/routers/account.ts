@@ -84,7 +84,7 @@ const updateNameSchema = {
 
 const updatePrivacyPresetSchema = {
   body: z.object({
-    preset: z.union([
+    value: z.union([
       z.literal('strict'),
       z.literal('standard'),
       z.literal('off'),
@@ -450,7 +450,7 @@ export function createAccountRouter(
                 chain(() =>
                   accountService
                     .getRecordingPrivacyPreset(account.id)
-                    .pipe(map(preset => ({ preset })))
+                    .pipe(map(value => ({ value })))
                 )
               )
           )
@@ -476,7 +476,7 @@ export function createAccountRouter(
                   chain(() =>
                     accountService.updateRecordingPrivacyPreset(
                       account.id,
-                      req.body.preset
+                      req.body.value
                     )
                   )
                 )

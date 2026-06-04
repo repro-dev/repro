@@ -77,7 +77,7 @@ export function RecordingPrivacySettingsRoute({
     error,
   } = useFuture(() => getPreset(apiClient), [apiClient, getPreset, refreshKey])
 
-  const savedPreset = response?.preset
+  const savedPreset = response?.value
 
   React.useEffect(() => {
     if (savedPreset != null && selectedPreset == null) {
@@ -157,7 +157,7 @@ export function RecordingPrivacySettingsRoute({
 
       <PageFrame.Body>
         <Block maxWidth={720} width="100%">
-          <Stack gap="lg">
+          <Stack gap="3xl">
             {/* Default Privacy Preset section */}
             <Col gap={spacing.md}>
               <Col gap={spacing.xs}>
@@ -169,7 +169,7 @@ export function RecordingPrivacySettingsRoute({
               </Col>
 
               <Card>
-                <Col padding={spacing.xl} gap={spacing.lg}>
+                <Col gap={spacing.lg}>
                   <RadioGroup
                     label="Privacy preset"
                     value={effectivePreset ?? 'standard'}
@@ -188,7 +188,7 @@ export function RecordingPrivacySettingsRoute({
 
                   {saveError && <Alert type="danger">{saveError}</Alert>}
 
-                  <Row justifyContent="flex-end" gap={spacing.md}>
+                  <Row gap={spacing.md}>
                     <Button
                       size="medium"
                       variant="contained"
@@ -200,7 +200,7 @@ export function RecordingPrivacySettingsRoute({
                     {hasUnsavedChanges && !saving && (
                       <Button
                         size="medium"
-                        variant="outlined"
+                        variant="text"
                         onClick={handleCancel}
                       >
                         Cancel
@@ -222,7 +222,7 @@ export function RecordingPrivacySettingsRoute({
               </Col>
 
               <Card>
-                <Col padding={spacing.xl} gap={spacing.lg}>
+                <Col gap={spacing.lg}>
                   <Col gap={spacing.sm}>
                     <Text variant="label" as="span" color={color.text.label}>
                       .repro-ignore
@@ -270,20 +270,6 @@ export function RecordingPrivacySettingsRoute({
                       </Inline>
                       .
                     </Text>
-                    <Alert type="info">
-                      <Inline
-                        component="code"
-                        {...textStyles.code}
-                        backgroundColor={color.bg.muted}
-                        borderRadius={radius.sm}
-                        padding={`1px ${spacing.xs}px`}
-                      >
-                        .repro-mask
-                      </Inline>{' '}
-                      support is planned but not yet active. The Strict preset
-                      uses an alternative masking approach that covers all input
-                      elements and images by default.
-                    </Alert>
                   </Col>
                 </Col>
               </Card>
