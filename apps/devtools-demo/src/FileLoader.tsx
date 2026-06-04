@@ -48,7 +48,7 @@ export const FileLoader: React.FC<Props> = ({ onLoad }) => {
   }
 
   return (
-    <Card height="100%" fullBleed padding={0}>
+    <Card height="100%">
       <Col
         alignItems="center"
         justifyContent="center"
