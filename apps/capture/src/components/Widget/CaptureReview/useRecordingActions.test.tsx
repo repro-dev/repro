@@ -40,6 +40,20 @@ mock.module('@repro/analytics', {
   },
 })
 
+let toBinaryWireFormatShouldThrow = false
+
+mock.module('@repro/wire-formats', {
+  namedExports: {
+    toBinaryWireFormat: () => {
+      if (toBinaryWireFormatShouldThrow) {
+        throw new Error('Mock encoding failure')
+      }
+      return new DataView(new ArrayBuffer(0))
+    },
+    toByteString: (bytes: Uint8Array) => bytes.toString(),
+  },
+})
+
 // Must require() after mock registration so the mocks take effect
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { useRecordingActions } =
@@ -273,13 +287,65 @@ describe('useRecordingActions', () => {
       assert.ok(capturedBlob)
       assert.equal((capturedBlob as Blob).type, 'application/octet-stream')
       assert.ok(appendedChild)
-      assert.equal(
-        (appendedChild as HTMLAnchorElement).download,
-        'recording.repro'
+      assert.ok(
+        (appendedChild as HTMLAnchorElement).download.endsWith('.repro')
+      )
+      assert.ok(
+        (appendedChild as HTMLAnchorElement).download.startsWith(
+          'repro-recording-'
+        )
       )
     } finally {
       URL.createObjectURL = originalCreateObjectURL
       document.body.appendChild = originalAppendChild
+    }
+  })
+
+  it('downloadLocally does not call URL.createObjectURL for empty recording', () => {
+    const emptyEvents = new List(SourceEventView, [])
+    const playback = createMockPlayback({
+      getSourceEvents: () => emptyEvents,
+    })
+    const actions = renderHook(playback, 'proj-1', 1, 60000)
+
+    let createObjectURLCalled = false
+    const originalCreateObjectURL = URL.createObjectURL
+    URL.createObjectURL = () => {
+      createObjectURLCalled = true
+      return 'blob:test-url'
+    }
+
+    try {
+      actions.downloadLocally()
+
+      assert.equal(createObjectURLCalled, false)
+    } finally {
+      URL.createObjectURL = originalCreateObjectURL
+    }
+  })
+
+  it('downloadLocally handles toBinaryWireFormat failure', () => {
+    toBinaryWireFormatShouldThrow = true
+    try {
+      const playback = createMockPlayback()
+      const actions = renderHook(playback, 'proj-1', 1, 60000)
+
+      let appendedChild: HTMLElement | null = null
+      const originalAppendChild = document.body.appendChild.bind(document.body)
+      document.body.appendChild = <T extends Node>(child: T) => {
+        appendedChild = child as unknown as HTMLElement
+        return originalAppendChild(child)
+      }
+
+      try {
+        actions.downloadLocally()
+
+        assert.equal(appendedChild, null)
+      } finally {
+        document.body.appendChild = originalAppendChild
+      }
+    } finally {
+      toBinaryWireFormatShouldThrow = false
     }
   })
 

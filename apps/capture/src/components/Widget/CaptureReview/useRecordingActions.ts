@@ -45,6 +45,7 @@ export interface RecordingActions {
     projectIdOverride?: string
   ): void
   downloadLocally(): void
+  isEmpty: boolean
   uploadState: UploadState
   pollUploadProgress(ref: string): void
   setUploadState(state: Partial<UploadState>): void
@@ -160,18 +161,36 @@ export function useRecordingActions(
 
   const downloadLocally = useCallback(() => {
     const selected = getSelectedRecording()
-    const views = selected.events.toSource()
-    const buffer = toBinaryWireFormat(views)
 
-    const blob = new Blob([buffer], { type: 'application/octet-stream' })
+    // Guard: bail if there are no events to download
+    if (selected.events.size() === 0) {
+      console.warn('downloadLocally: no events to download')
+      return
+    }
+
+    const views = selected.events.toSource()
+
+    let wireFormatBuffer: DataView
+    try {
+      wireFormatBuffer = toBinaryWireFormat(views)
+    } catch (err) {
+      console.warn('downloadLocally: failed to encode wire format', err)
+      return
+    }
+
+    const blob = new Blob([wireFormatBuffer], {
+      type: 'application/octet-stream',
+    })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = 'recording.repro'
+    a.download = `repro-recording-${new Date()
+      .toISOString()
+      .replace(/[:.]/g, '-')}.repro`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
-    URL.revokeObjectURL(url)
+    setTimeout(() => URL.revokeObjectURL(url), 0)
   }, [getSelectedRecording])
 
   const pollUploadProgress = useCallback(
@@ -216,6 +235,8 @@ export function useRecordingActions(
     }
   }, [setUploadState, uploadState.uploadRef, uploadState.isUploading, agent])
 
+  const isEmpty = playback.getSourceEvents().size() === 0
+
   return {
     getSelectedRecording,
     getSerializedEvents,
@@ -224,5 +245,6 @@ export function useRecordingActions(
     uploadState,
     pollUploadProgress,
     setUploadState,
+    isEmpty,
   }
 }

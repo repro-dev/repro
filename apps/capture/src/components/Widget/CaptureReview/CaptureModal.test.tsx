@@ -65,9 +65,9 @@ const mockSession = { id: 'test-session' }
  */
 function createPlaybackStub() {
   return {
-    getSourceEvents: () => ({ toSource: () => [] }),
+    getSourceEvents: () => ({ toSource: () => [], size: () => 0 }),
     getDuration: () => 60000,
-    getBuffer: () => ({ toSource: () => [] }),
+    getBuffer: () => ({ toSource: () => [], size: () => 0 }),
     getSnapshot: () => ({}),
     getResourceMap: () => ({}),
     copy: () => createPlaybackStub(),

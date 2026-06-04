@@ -167,13 +167,28 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
         paddingV={8}
         backgroundColor="rgba(255, 255, 255, 0.1)"
         color={color.infoTint}
-        hoverBackgroundColor={color.infoFg}
+        hoverBackgroundColor={actions.isEmpty ? undefined : color.infoFg}
         borderRadius={2}
         transition="all 100ms ease-in-out"
         lineHeight={1}
-        cursor="pointer"
+        cursor={actions.isEmpty ? 'not-allowed' : 'pointer'}
+        opacity={actions.isEmpty ? 0.4 : 1}
         userSelect="none"
-        props={{ onClick: onDownloadLocally }}
+        props={{
+          onClick: actions.isEmpty ? undefined : onDownloadLocally,
+          role: 'button',
+          tabIndex: actions.isEmpty ? undefined : 0,
+          'aria-label': 'Download .repro file',
+          'aria-disabled': actions.isEmpty ? true : undefined,
+          onKeyDown: actions.isEmpty
+            ? undefined
+            : (e: React.KeyboardEvent) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  onDownloadLocally()
+                }
+              },
+        }}
       >
         <Tooltip>Download locally</Tooltip>
         <DownloadIcon size={16} />
