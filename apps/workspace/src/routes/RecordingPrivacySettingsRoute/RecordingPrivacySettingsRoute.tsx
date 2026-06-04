@@ -212,7 +212,7 @@ export function RecordingPrivacySettingsRoute({
                             from: { transform: 'rotate(0deg)' },
                             to: { transform: 'rotate(360deg)' },
                           }}
-                          animationDuration={1000}
+                          animationDuration="1000ms"
                           animationIterationCount="infinite"
                         >
                           <Loader2 size={14} />
