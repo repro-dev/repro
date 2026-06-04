@@ -2,8 +2,8 @@ import { Block, Col, Row } from "@jsxstyle/react";
 import { sortHypothesesByConfidence, type Hypothesis } from "@repro/agentic";
 import {
   Alert,
+  Collapsible,
   color,
-  focusRing,
   fontSize,
   fontWeight,
   lineHeight,
@@ -11,14 +11,9 @@ import {
   spacing,
   textStyles,
 } from "@repro/design";
-import {
-  AlertTriangleIcon,
-  ChevronDownIcon,
-  ChevronRightIcon,
-} from "lucide-react";
-import React, { useState } from "react";
+import { AlertTriangleIcon } from "lucide-react";
+import React from "react";
 
-// Confidence color mapping: each level gets a semantic border/background tint
 const CONFIDENCE_COLORS: Record<
   "low" | "medium" | "high",
   { bg: string; text: string; label: string }
@@ -40,6 +35,37 @@ const CONFIDENCE_COLORS: Record<
   },
 };
 
+const ConfidenceBadge: React.FC<{ level: keyof typeof CONFIDENCE_COLORS }> = ({
+  level,
+}) => {
+  const { bg, text, label } = CONFIDENCE_COLORS[level];
+
+  return (
+    <Block
+      backgroundColor={bg}
+      borderRadius={radius.sm}
+      color={text}
+      fontSize={fontSize.xs}
+      fontWeight={fontWeight.semibold}
+      lineHeight={lineHeight.tight}
+      paddingH={spacing.xs}
+      paddingV={spacing.xs}
+    >
+      {label}
+    </Block>
+  );
+};
+
+const EvidenceList: React.FC<{ evidence: Array<string> }> = ({ evidence }) => (
+  <Block component="ul" margin={0} paddingLeft={spacing.lg}>
+    {evidence.map((piece, i) => (
+      <Block component="li" key={i} marginBottom={spacing.xs}>
+        {piece}
+      </Block>
+    ))}
+  </Block>
+);
+
 interface HypothesisCardProps {
   hypothesis: Hypothesis;
   isTop: boolean;
@@ -51,9 +77,46 @@ const HypothesisCard: React.FC<HypothesisCardProps> = ({
   isTop,
   defaultExpanded,
 }) => {
-  const [expanded, setExpanded] = useState(defaultExpanded);
-  const confColor = CONFIDENCE_COLORS[hypothesis.confidence];
   const hasEvidence = hypothesis.evidence.length > 0;
+
+  const header = (
+    <Col gap={spacing.xs} flex={1}>
+      <Row alignItems="center" gap={spacing.sm}>
+        <Block component="span" {...textStyles.body} flexGrow={1}>
+          {hypothesis.description}
+        </Block>
+        {isTop && (
+          <Block
+            backgroundColor={color.primary}
+            borderRadius={radius.sm}
+            color={color.text.inverse}
+            fontSize={fontSize.xs}
+            fontWeight={fontWeight.semibold}
+            lineHeight={lineHeight.tight}
+            paddingH={spacing.xs}
+            paddingV={spacing.xs}
+          >
+            Top
+          </Block>
+        )}
+        <ConfidenceBadge level={hypothesis.confidence} />
+      </Row>
+      {hasEvidence && (
+        <Block color={color.text.muted} {...textStyles.bodySmall}>
+          {hypothesis.evidence.length}{" "}
+          {hypothesis.evidence.length === 1 ? "evidence" : "evidence"}
+        </Block>
+      )}
+    </Col>
+  );
+
+  if (hasEvidence) {
+    return (
+      <Collapsible trigger={header} defaultOpen={defaultExpanded}>
+        <EvidenceList evidence={hypothesis.evidence} />
+      </Collapsible>
+    );
+  }
 
   return (
     <Block
@@ -68,91 +131,8 @@ const HypothesisCard: React.FC<HypothesisCardProps> = ({
         paddingH={spacing.md}
         paddingV={spacing.sm}
       >
-        <Block flexGrow={1}>
-          <Row alignItems="center" gap={spacing.sm}>
-            <Block component="span" {...textStyles.body}>
-              {hypothesis.description}
-            </Block>
-            {isTop && (
-              <Block
-                backgroundColor={color.primary}
-                borderRadius={radius.sm}
-                color={color.text.inverse}
-                fontSize={fontSize.xs}
-                fontWeight={fontWeight.semibold}
-                lineHeight={lineHeight.tight}
-                paddingH={spacing.xs}
-                paddingV={spacing.xs}
-              >
-                Top
-              </Block>
-            )}
-          </Row>
-        </Block>
-
-        <Block
-          backgroundColor={confColor.bg}
-          borderRadius={radius.sm}
-          color={confColor.text}
-          fontSize={fontSize.xs}
-          fontWeight={fontWeight.semibold}
-          lineHeight={lineHeight.tight}
-          paddingH={spacing.xs}
-          paddingV={spacing.xs}
-        >
-          {confColor.label}
-        </Block>
-
-        {hasEvidence && (
-          <Row
-            alignItems="center"
-            color={color.text.muted}
-            component="button"
-            cursor="pointer"
-            flexShrink={0}
-            gap={spacing.xs}
-            padding={spacing.xs}
-            {...focusRing("neutral")}
-            props={{
-              type: "button",
-              onClick: () => setExpanded(!expanded),
-              "aria-label": expanded
-                ? "Collapse evidence"
-                : `Expand ${hypothesis.evidence.length} pieces of evidence`,
-            }}
-          >
-            <Block fontSize={fontSize.xs} lineHeight={lineHeight.tight}>
-              {hypothesis.evidence.length} evidence
-            </Block>
-            {expanded ? (
-              <ChevronDownIcon size={16} />
-            ) : (
-              <ChevronRightIcon size={16} />
-            )}
-          </Row>
-        )}
+        {header}
       </Row>
-
-      {expanded && hasEvidence && (
-        <Block
-          borderTop={`1px solid ${color.border.default}`}
-          padding={spacing.md}
-        >
-          <Block
-            color={color.text.secondary}
-            component="ul"
-            margin={0}
-            paddingLeft={spacing.lg}
-            {...textStyles.bodySmall}
-          >
-            {hypothesis.evidence.map((piece, i) => (
-              <Block component="li" key={i} marginBottom={spacing.xs}>
-                {piece}
-              </Block>
-            ))}
-          </Block>
-        </Block>
-      )}
     </Block>
   );
 };
