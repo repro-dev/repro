@@ -131,7 +131,9 @@ export function AccountSettingsRoute({
 }: AccountSettingsRouteProps) {
   const apiClient = useApiClient()
 
-  const [refreshKey, setRefreshKey] = useState(0)
+  const [committedName, setCommittedName] = useState<string | undefined>(
+    undefined
+  )
   const [nameValue, setNameValue] = useState<string | undefined>(undefined)
   const [nameError, setNameError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -146,7 +148,7 @@ export function AccountSettingsRoute({
     error,
   } = useFuture(
     () => getAccountSettings(apiClient),
-    [apiClient, getAccountSettings, refreshKey]
+    [apiClient, getAccountSettings]
   )
 
   useEffect(() => {
@@ -156,8 +158,9 @@ export function AccountSettingsRoute({
   }, [summary])
 
   const currentNameValue = nameValue ?? summary?.name ?? ''
+  const serverName = committedName ?? summary?.name
   const hasUnsavedNameChanges =
-    summary != null && currentNameValue.trim() !== summary.name
+    summary != null && currentNameValue.trim() !== serverName
   const visibleUsers = summary?.users.slice(0, 3) ?? []
   const visibleProjects = summary?.projects.slice(0, 2) ?? []
   const userOverflowCount =
@@ -189,10 +192,10 @@ export function AccountSettingsRoute({
         setSaving(false)
       })(() => {
         setSaving(false)
-        setRefreshKey(key => key + 1)
+        setCommittedName(trimmed)
       })
     )
-  }, [apiClient, currentNameValue, renameAccount])
+  }, [apiClient, currentNameValue, renameAccount, setCommittedName])
 
   const handleNameChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -206,12 +209,13 @@ export function AccountSettingsRoute({
   )
 
   const handleCancelNameChange = useCallback(() => {
-    if (summary != null) {
-      setNameValue(summary.name)
+    const latestName = committedName ?? summary?.name
+    if (latestName != null) {
+      setNameValue(latestName)
     }
 
     setNameError(null)
-  }, [summary])
+  }, [committedName, summary])
 
   const handleOpenDeleteModal = useCallback(() => {
     setDeleteError(null)
