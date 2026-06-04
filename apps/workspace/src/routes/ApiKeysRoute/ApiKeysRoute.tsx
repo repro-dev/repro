@@ -155,7 +155,13 @@ export const ApiKeysRoute: React.FC = () => {
           fork<Error>(err => {
             setRevokeError(err.message ?? 'Failed to revoke API key')
           })(() => {
-            setKeys(prev => (prev ?? []).filter(k => k.id !== keyId))
+            setKeys(prev =>
+              (prev ?? []).map(k =>
+                k.id === keyId
+                  ? { ...k, revokedAt: new Date().toISOString() }
+                  : k
+              )
+            )
           })
         )
     },
