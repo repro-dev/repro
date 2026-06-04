@@ -1,4 +1,4 @@
-import { Block, Col, Inline, Row } from '@jsxstyle/react'
+import { Block, Col, Inline, InlineBlock, Row } from '@jsxstyle/react'
 import { useApiClient } from '@repro/api-client'
 import { useSession, useSessionLoading } from '@repro/auth'
 import {
@@ -23,7 +23,8 @@ import {
   updateRecordingPrivacyPreset as defaultUpdateRecordingPrivacyPreset,
 } from '@repro/workspace-api'
 import { fork } from 'fluture'
-import React, { useCallback, useState } from 'react'
+import { Check, Loader2 } from 'lucide-react'
+import React, { useCallback, useRef, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 
 type PresetInfo = {
@@ -69,7 +70,9 @@ export function RecordingPrivacySettingsRoute({
     RecordingPrivacyPreset | undefined
   >(undefined)
   const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const savedTimeoutRef = useRef<ReturnType<typeof setTimeout>>()
 
   const {
     loading,
@@ -92,6 +95,7 @@ export function RecordingPrivacySettingsRoute({
   const handleSelect = useCallback(
     (preset: string) => {
       setSelectedPreset(preset as RecordingPrivacyPreset)
+      setSaved(false)
       if (saveError != null) {
         setSaveError(null)
       }
@@ -115,7 +119,12 @@ export function RecordingPrivacySettingsRoute({
         setSaving(false)
       })(() => {
         setSaving(false)
+        setSaved(true)
         setRefreshKey(key => key + 1)
+        clearTimeout(savedTimeoutRef.current)
+        savedTimeoutRef.current = setTimeout(() => {
+          setSaved(false)
+        }, 2000)
       })
     )
   }, [apiClient, selectedPreset, updatePreset])
@@ -192,10 +201,29 @@ export function RecordingPrivacySettingsRoute({
                     <Button
                       size="medium"
                       variant="contained"
+                      context={saved ? 'success' : undefined}
                       onClick={handleSave}
-                      disabled={saving || !hasUnsavedChanges}
+                      disabled={saving || saved || !hasUnsavedChanges}
                     >
-                      {saving ? 'Saving…' : 'Save changes'}
+                      {saving ? (
+                        <InlineBlock
+                          lineHeight={0}
+                          animation={{
+                            from: { transform: 'rotate(0deg)' },
+                            to: { transform: 'rotate(360deg)' },
+                          }}
+                          animationDuration={1000}
+                          animationIterationCount="infinite"
+                        >
+                          <Loader2 size={14} />
+                        </InlineBlock>
+                      ) : saved ? (
+                        <>
+                          <Check size={14} /> Saved
+                        </>
+                      ) : (
+                        'Save changes'
+                      )}
                     </Button>
                     {hasUnsavedChanges && !saving && (
                       <Button
