@@ -28,7 +28,7 @@ export const RecordingLoader: React.FC<PropsWithChildren> = ({ children }) => {
   }, [fixtureId, setSource])
 
   return (
-    <PlaybackFromSourceProvider source={source}>
+    <>
       {isAwaitingFileLoad && (
         <FileLoader
           onLoad={file => {
@@ -38,7 +38,9 @@ export const RecordingLoader: React.FC<PropsWithChildren> = ({ children }) => {
         />
       )}
 
-      {ready && children}
-    </PlaybackFromSourceProvider>
+      <PlaybackFromSourceProvider source={source}>
+        {ready && children}
+      </PlaybackFromSourceProvider>
+    </>
   )
 }
