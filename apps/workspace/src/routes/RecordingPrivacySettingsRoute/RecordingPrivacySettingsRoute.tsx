@@ -65,8 +65,10 @@ export function RecordingPrivacySettingsRoute({
 }: RecordingPrivacySettingsRouteProps) {
   const apiClient = useApiClient()
 
-  const [refreshKey, setRefreshKey] = useState(0)
   const [selectedPreset, setSelectedPreset] = useState<
+    RecordingPrivacyPreset | undefined
+  >(undefined)
+  const [committedPreset, setCommittedPreset] = useState<
     RecordingPrivacyPreset | undefined
   >(undefined)
   const [saving, setSaving] = useState(false)
@@ -78,9 +80,9 @@ export function RecordingPrivacySettingsRoute({
     loading,
     data: response,
     error,
-  } = useFuture(() => getPreset(apiClient), [apiClient, getPreset, refreshKey])
+  } = useFuture(() => getPreset(apiClient), [apiClient, getPreset])
 
-  const savedPreset = response?.value
+  const savedPreset = committedPreset ?? response?.value
 
   React.useEffect(() => {
     if (savedPreset != null && selectedPreset == null) {
@@ -118,9 +120,9 @@ export function RecordingPrivacySettingsRoute({
         )
         setSaving(false)
       })(() => {
+        setCommittedPreset(selectedPreset)
         setSaving(false)
         setSaved(true)
-        setRefreshKey(key => key + 1)
         clearTimeout(savedTimeoutRef.current)
         savedTimeoutRef.current = setTimeout(() => {
           setSaved(false)
