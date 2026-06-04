@@ -84,7 +84,11 @@ const updateNameSchema = {
 
 const updatePrivacyPresetSchema = {
   body: z.object({
-    preset: z.enum(['strict', 'standard', 'off']),
+    preset: z.union([
+      z.literal('strict'),
+      z.literal('standard'),
+      z.literal('off'),
+    ]),
   }),
 } as const
 
