@@ -1,5 +1,5 @@
 import { Block, Grid, Row } from '@jsxstyle/react'
-import { Card, color, colors, Logo } from '@repro/design'
+import { Card, color, colors, Logo, PortalRootProvider } from '@repro/design'
 import { DevTools } from '@repro/devtools'
 import { Stats } from '@repro/diagnostics'
 import { applyResetStyles } from '@repro/theme'
@@ -38,15 +38,17 @@ if (rootElem) {
       </Block>
 
       <Block marginTop={-60} padding={15}>
-        <RecordingLoader>
-          <Grid gap={15} height="calc(100vh - 90px)" gridTemplateRows="100%">
-            <Card fullBleed height="100%">
-              <Block height="100%" overflow="hidden" borderRadius={4}>
-                <DevTools />
-              </Block>
-            </Card>
-          </Grid>
-        </RecordingLoader>
+        <PortalRootProvider>
+          <RecordingLoader>
+            <Grid gap={15} height="calc(100vh - 90px)" gridTemplateRows="100%">
+              <Card fullBleed height="100%">
+                <Block height="100%" overflow="hidden" borderRadius={4}>
+                  <DevTools />
+                </Block>
+              </Card>
+            </Grid>
+          </RecordingLoader>
+        </PortalRootProvider>
       </Block>
     </Grid>
   )
