@@ -101,14 +101,12 @@ export const AgenticView: React.FC<{
             lastPromptRef.current = prompt;
             agentic.query(prompt);
           }}
-        />
+        >
+          {stage === "conclusion" && hypotheses.length > 0 && (
+            <HypothesisList hypotheses={hypotheses} />
+          )}
+        </MessageList>
       </Col>
-
-      {stage === "conclusion" && hypotheses.length > 0 && (
-        <Block marginInline={spacing["2xl"]}>
-          <HypothesisList hypotheses={hypotheses} />
-        </Block>
-      )}
 
       <AgenticInputSection
         disabled={isActive}

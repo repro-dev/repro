@@ -24,6 +24,7 @@ interface MessageListProps {
   wasCancelled: boolean;
   onFeedback?: (sentiment: "positive" | "negative") => void;
   onGoToTime?: (timeMs: number) => void;
+  children?: React.ReactNode;
 }
 
 export const MessageList: React.FC<MessageListProps> = ({
@@ -37,6 +38,7 @@ export const MessageList: React.FC<MessageListProps> = ({
   wasCancelled,
   onFeedback,
   onGoToTime,
+  children,
 }) => {
   const renderItems = useMemo(() => groupToolCalls(entries), [entries]);
 
@@ -113,6 +115,7 @@ export const MessageList: React.FC<MessageListProps> = ({
           );
         })}
 
+        {children}
         {error !== null && <ErrorMessage error={error} onRetry={onRetry} />}
       </Col>
     </Block>
