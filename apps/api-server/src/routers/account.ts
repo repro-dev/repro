@@ -82,15 +82,7 @@ const updateNameSchema = {
   }),
 } as const
 
-const updatePrivacyPresetSchema = {
-  body: z.object({
-    value: z.union([
-      z.literal('strict'),
-      z.literal('standard'),
-      z.literal('off'),
-    ]),
-  }),
-} as const
+// Schema temporarily removed for debugging — see REP-970
 
 export function createAccountRouter(
   accountService: AccountService,
@@ -472,15 +464,15 @@ export function createAccountRouter(
         typeof req.body !== 'object' ||
         !('value' in req.body)
       ) {
-        return res
-          .status(400)
-          .send({ error: 'Expected body with "value" field' })
+        res.status(400).send({ error: 'Expected body with "value" field' })
+        return
       }
       const { value } = req.body as { value: string }
       if (!['strict', 'standard', 'off'].includes(value)) {
-        return res
+        res
           .status(400)
           .send({ error: 'Invalid value. Expected strict, standard, or off.' })
+        return
       }
       respondWith(
         res,
