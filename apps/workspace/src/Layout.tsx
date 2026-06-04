@@ -1,6 +1,11 @@
 import { IfSession, UnlessSession, UserMenu, useSession } from '@repro/auth'
 import { AppShell, Divider, Link, SideNav } from '@repro/design'
-import { CreditCardIcon, ListVideoIcon, SettingsIcon } from 'lucide-react'
+import {
+  CreditCardIcon,
+  ListVideoIcon,
+  SettingsIcon,
+  ShieldIcon,
+} from 'lucide-react'
 import React from 'react'
 import {
   Outlet,
@@ -21,6 +26,10 @@ export const Layout: React.FC = () => {
   const billingActive = useMatch({ path: '/settings/billing', end: false })
   const accountSettingsActive = useMatch({
     path: '/settings/account',
+    end: false,
+  })
+  const privacyControlsActive = useMatch({
+    path: '/settings/privacy-controls',
     end: false,
   })
   const settingsActive = useMatch({ path: '/settings', end: false })
@@ -47,9 +56,13 @@ export const Layout: React.FC = () => {
                   icon={SettingsIcon}
                   label="Settings"
                   // Active for all /settings/* routes except /settings/billing,
-                  // which is handled by the Billing item below.
+                  // /settings/account, and /settings/privacy-controls,
+                  // which are handled by their own nav items below.
                   active={
-                    !!settingsActive && !billingActive && !accountSettingsActive
+                    !!settingsActive &&
+                    !billingActive &&
+                    !accountSettingsActive &&
+                    !privacyControlsActive
                   }
                   component={RouterNavLink}
                   props={{ to: '/settings' }}
@@ -57,13 +70,22 @@ export const Layout: React.FC = () => {
                 {session != null &&
                   'admin' in session &&
                   session.admin === true && (
-                    <SideNav.Item
-                      icon={SettingsIcon}
-                      label="Account"
-                      active={!!accountSettingsActive}
-                      component={RouterNavLink}
-                      props={{ to: '/settings/account' }}
-                    />
+                    <>
+                      <SideNav.Item
+                        icon={SettingsIcon}
+                        label="Account"
+                        active={!!accountSettingsActive}
+                        component={RouterNavLink}
+                        props={{ to: '/settings/account' }}
+                      />
+                      <SideNav.Item
+                        icon={ShieldIcon}
+                        label="Privacy Controls"
+                        active={!!privacyControlsActive}
+                        component={RouterNavLink}
+                        props={{ to: '/settings/privacy-controls' }}
+                      />
+                    </>
                   )}
                 <SideNav.Item
                   icon={CreditCardIcon}

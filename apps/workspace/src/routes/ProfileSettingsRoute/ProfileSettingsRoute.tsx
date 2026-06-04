@@ -51,16 +51,17 @@ export function ProfileSettingsRoute({
 }: ProfileSettingsRouteProps) {
   const apiClient = useApiClient()
 
-  const [refreshKey, setRefreshKey] = useState(0)
+  const [committedProfile, setCommittedProfile] = useState<UserProfile | null>(
+    null
+  )
 
   const {
     loading,
     data: profile,
     error,
-  } = useFuture(
-    () => getProfile(apiClient),
-    [apiClient, getProfile, refreshKey]
-  )
+  } = useFuture(() => getProfile(apiClient), [apiClient, getProfile])
+
+  const effectiveProfile = committedProfile ?? profile
 
   const [isEditingName, setIsEditingName] = useState(false)
   const [nameValue, setNameValue] = useState('')
@@ -76,10 +77,10 @@ export function ProfileSettingsRoute({
   )
 
   const handleEdit = useCallback(() => {
-    setNameValue(profile?.name ?? '')
+    setNameValue(effectiveProfile?.name ?? '')
     setNameError(null)
     setIsEditingName(true)
-  }, [profile])
+  }, [effectiveProfile])
 
   const handleCancel = useCallback(() => {
     setIsEditingName(false)
@@ -103,10 +104,10 @@ export function ProfileSettingsRoute({
       })(() => {
         setIsEditingName(false)
         setUpdateLoading(false)
-        setRefreshKey(k => k + 1)
+        setCommittedProfile({ ...profile!, name: trimmed })
       })
     )
-  }, [apiClient, nameValue, updateName])
+  }, [apiClient, nameValue, profile, updateName])
 
   const handleSendVerification = useCallback(() => {
     setVerificationError(null)
@@ -144,6 +145,8 @@ export function ProfileSettingsRoute({
       </PageFrame>
     )
   }
+
+  const displayProfile = effectiveProfile!
 
   return (
     <PageFrame>
@@ -193,7 +196,7 @@ export function ProfileSettingsRoute({
                   </Row>
                 </Col>
               ) : (
-                <Text variant="body">{profile.name}</Text>
+                <Text variant="body">{displayProfile.name}</Text>
               )}
             </Col>
           </Card>
@@ -202,12 +205,14 @@ export function ProfileSettingsRoute({
             <Col padding={spacing.xl} gap={spacing.lg}>
               <Text variant="heading3">Email</Text>
               <Row alignItems="center" gap={spacing.md}>
-                <Text variant="body">{profile.email}</Text>
-                <Badge context={profile.verified ? 'success' : 'warning'}>
-                  {profile.verified ? 'Verified' : 'Unverified'}
+                <Text variant="body">{displayProfile.email}</Text>
+                <Badge
+                  context={displayProfile.verified ? 'success' : 'warning'}
+                >
+                  {displayProfile.verified ? 'Verified' : 'Unverified'}
                 </Badge>
               </Row>
-              {!profile.verified && (
+              {!displayProfile.verified && (
                 <Col gap={spacing.md}>
                   {verificationError && (
                     <Alert type="danger">{verificationError}</Alert>
@@ -230,7 +235,7 @@ export function ProfileSettingsRoute({
           <Card>
             <Col padding={spacing.xl} gap={spacing.lg}>
               <Text variant="heading3">Account</Text>
-              <Text variant="body">{profile.account.name}</Text>
+              <Text variant="body">{displayProfile.account.name}</Text>
             </Col>
           </Card>
 
@@ -238,7 +243,7 @@ export function ProfileSettingsRoute({
             <Col padding={spacing.xl} gap={spacing.lg}>
               <Text variant="heading3">Member since</Text>
               <Text variant="body">
-                {new Date(profile.createdAt).toLocaleDateString()}
+                {new Date(displayProfile.createdAt).toLocaleDateString()}
               </Text>
             </Col>
           </Card>

@@ -19,11 +19,13 @@ import {
   getProjectMembers,
   getProjectRecordings,
   getProjects,
+  getRecordingPrivacyPreset,
   inviteProjectMember,
   removeProjectMember,
   renameAccount,
   renameProject,
   updateProjectMemberRole,
+  updateRecordingPrivacyPreset,
 } from './queries'
 
 type CallRecord = { url: string; options: FetchOptions }
@@ -295,6 +297,37 @@ describe('workspace-api: queries', () => {
       const call = stub.calls[0]
       assert.equal(call?.url, '/account')
       assert.equal(call?.options.method, 'delete')
+    })
+  })
+
+  describe('getRecordingPrivacyPreset', () => {
+    it('fetches GET /account/privacy and returns the preset', async () => {
+      const stub = createStubApiClient(() => ({ value: 'strict' }))
+      const result = await promise(getRecordingPrivacyPreset(stub))
+      assert.deepEqual(result, { value: 'strict' })
+    })
+
+    it('calls the correct URL', async () => {
+      const stub = createStubApiClient(() => ({ value: 'standard' }))
+      await promise(getRecordingPrivacyPreset(stub))
+      assert.equal(stub.calls[0]?.url, '/account/privacy')
+    })
+  })
+
+  describe('updateRecordingPrivacyPreset', () => {
+    it('PUTs to /account/privacy with preset in body', async () => {
+      const stub = createStubApiClient(() => undefined)
+      await promise(updateRecordingPrivacyPreset(stub, 'strict'))
+      const call = stub.calls[0]
+      assert.equal(call?.url, '/account/privacy')
+      assert.equal(call?.options.method, 'put')
+    })
+
+    it('serialises preset in JSON body', async () => {
+      const stub = createStubApiClient(() => undefined)
+      await promise(updateRecordingPrivacyPreset(stub, 'off'))
+      const body = stub.calls[0]?.options.body as string
+      assert.deepEqual(JSON.parse(body), { value: 'off' })
     })
   })
 

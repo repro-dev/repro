@@ -14,6 +14,7 @@ import {
   reject,
   resolve,
 } from 'fluture'
+
 import z from 'zod'
 import { defaultEnv as env } from '~/config/env'
 import { defaultSystemConfig } from '~/config/system'
@@ -78,6 +79,16 @@ const resetPasswordConfirmSchema = {
 const updateNameSchema = {
   body: z.object({
     name: z.string().trim().min(1, 'Account name is required'),
+  }),
+} as const
+
+const updatePrivacyPresetSchema = {
+  body: z.object({
+    value: z.union([
+      z.literal('strict'),
+      z.literal('standard'),
+      z.literal('off'),
+    ]),
   }),
 } as const
 
@@ -427,6 +438,53 @@ export function createAccountRouter(
         )
       )
     })
+
+    app.get('/privacy', (req, res) => {
+      respondWith(
+        res,
+        getCurrentUserAccount(req, accountService).pipe(
+          chain(({ user, account }) =>
+            accountService
+              .ensureUserIsAdmin(user)
+              .pipe(
+                chain(() =>
+                  accountService
+                    .getRecordingPrivacyPreset(account.id)
+                    .pipe(map(value => ({ value })))
+                )
+              )
+          )
+        )
+      )
+    })
+
+    app.put<{
+      Body: z.infer<typeof updatePrivacyPresetSchema.body>
+    }>(
+      '/privacy',
+      {
+        schema: updatePrivacyPresetSchema,
+      },
+      (req, res) => {
+        respondWith(
+          res,
+          getCurrentUserAccount(req, accountService).pipe(
+            chain(({ user, account }) =>
+              accountService
+                .ensureUserIsAdmin(user)
+                .pipe(
+                  chain(() =>
+                    accountService.updateRecordingPrivacyPreset(
+                      account.id,
+                      req.body.value
+                    )
+                  )
+                )
+            )
+          )
+        )
+      }
+    )
 
     app.put<{
       Body: z.infer<typeof updateNameSchema.body>

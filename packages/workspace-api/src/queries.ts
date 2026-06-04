@@ -1,5 +1,5 @@
 import type { ApiClient } from '@repro/api-client'
-import { ProjectRole } from '@repro/domain'
+import { ProjectRole, RecordingPrivacyPreset } from '@repro/domain'
 import { map } from 'fluture'
 import type { AccountSettingsSummary } from './types'
 
@@ -26,7 +26,6 @@ export function renameProject(
   return apiClient.fetch(`/projects/${projectId}/name`, {
     method: 'put',
     body: JSON.stringify({ name }),
-    headers: { 'content-type': 'application/json' },
   })
 }
 
@@ -34,7 +33,6 @@ export function deactivateProject(apiClient: ApiClient, projectId: string) {
   return apiClient.fetch(`/projects/${projectId}/active`, {
     method: 'put',
     body: JSON.stringify({ active: false }),
-    headers: { 'content-type': 'application/json' },
   })
 }
 
@@ -72,7 +70,6 @@ export function updateProjectMemberRole(
   return apiClient.fetch(`/projects/${projectId}/members/${userId}/role`, {
     method: 'put',
     body: JSON.stringify({ role }),
-    headers: { 'content-type': 'application/json' },
   })
 }
 
@@ -94,12 +91,25 @@ export function renameAccount(apiClient: ApiClient, name: string) {
   return apiClient.fetch('/account/name', {
     method: 'put',
     body: JSON.stringify({ name }),
-    headers: { 'content-type': 'application/json' },
   })
 }
 
 export function deleteAccount(apiClient: ApiClient) {
   return apiClient.fetch('/account', {
     method: 'delete',
+  })
+}
+
+export function getRecordingPrivacyPreset(apiClient: ApiClient) {
+  return apiClient.fetch<{ value: RecordingPrivacyPreset }>('/account/privacy')
+}
+
+export function updateRecordingPrivacyPreset(
+  apiClient: ApiClient,
+  preset: RecordingPrivacyPreset
+) {
+  return apiClient.fetch('/account/privacy', {
+    method: 'put',
+    body: JSON.stringify({ value: preset }),
   })
 }

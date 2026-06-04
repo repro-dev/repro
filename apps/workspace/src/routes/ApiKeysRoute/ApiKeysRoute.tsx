@@ -30,7 +30,7 @@ import {
   PlusIcon,
   TrashIcon,
 } from 'lucide-react'
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 
 interface ApiKey {
@@ -60,7 +60,7 @@ interface CreateApiKeyForm {
 export const ApiKeysRoute: React.FC = () => {
   const apiClient = useApiClient()
   const confirm = useConfirm()
-  const [refreshKey, setRefreshKey] = useState(0)
+  const [keys, setKeys] = useState<ApiKey[] | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [newKeyValue, setNewKeyValue] = useState<string | null>(null)
   const [createError, setCreateError] = useState<string | null>(null)
@@ -69,9 +69,14 @@ export const ApiKeysRoute: React.FC = () => {
 
   const { loading, error, data } = useFuture(
     () => apiClient.fetch<ListResponse<ApiKey>>('/account/api-keys'),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [apiClient, refreshKey]
+    [apiClient]
   )
+
+  useEffect(() => {
+    if (data) {
+      setKeys(prev => prev ?? data.items)
+    }
+  }, [data])
 
   const {
     register,
@@ -108,7 +113,19 @@ export const ApiKeysRoute: React.FC = () => {
               resolve()
             })(result => {
               setNewKeyValue(result.key)
-              setRefreshKey(k => k + 1)
+              setKeys(prev => [
+                ...(prev ?? []),
+                {
+                  id: result.id,
+                  name: result.name,
+                  keyPrefix: result.prefix,
+                  scopes: result.scopes,
+                  lastUsedAt: null,
+                  expiresAt: null,
+                  revokedAt: null,
+                  createdAt: result.createdAt,
+                },
+              ])
               resolve()
             })
           )
@@ -138,7 +155,13 @@ export const ApiKeysRoute: React.FC = () => {
           fork<Error>(err => {
             setRevokeError(err.message ?? 'Failed to revoke API key')
           })(() => {
-            setRefreshKey(k => k + 1)
+            setKeys(prev =>
+              (prev ?? []).map(k =>
+                k.id === keyId
+                  ? { ...k, revokedAt: new Date().toISOString() }
+                  : k
+              )
+            )
           })
         )
     },
@@ -157,8 +180,6 @@ export const ApiKeysRoute: React.FC = () => {
       />
     )
   }
-
-  const keys = data!.items
 
   return (
     <PageFrame>
@@ -188,7 +209,7 @@ export const ApiKeysRoute: React.FC = () => {
 
           {revokeError && <Alert type="danger">{revokeError}</Alert>}
 
-          {keys.length === 0 ? (
+          {!keys || keys.length === 0 ? (
             <Card fullBleed>
               <EmptyState>
                 <EmptyState.Icon>
@@ -216,7 +237,7 @@ export const ApiKeysRoute: React.FC = () => {
                   </Table.Row>
                 </Table.Header>
                 <Table.Body>
-                  {keys.map(key => (
+                  {keys?.map(key => (
                     <Table.Row key={key.id}>
                       <Table.Cell>{key.name}</Table.Cell>
                       <Table.Cell>

@@ -62,6 +62,7 @@ const accountSummary: AccountSettingsSummary = {
   projects: accountProjects,
   additionalUserCount: 2,
   additionalProjectCount: 1,
+  recordingPrivacyPreset: 'standard',
 }
 
 const adminUser: User = {
@@ -337,7 +338,7 @@ describe('AccountSettingsRoute', () => {
     })
 
     assert.deepEqual(renameCalls, ['Renamed Account'])
-    assert.equal(loadCount, 2)
+    assert.equal(loadCount, 1)
   })
 
   it('shows cancel when the name changes and restores the account name', async () => {

@@ -6,6 +6,7 @@ import AccountSettingsRouteConnected from '~/routes/AccountSettingsRoute/Account
 import ApiKeysRoute from '~/routes/ApiKeysRoute'
 import BillingSettingsRouteConnected from '~/routes/BillingSettingsRoute'
 import ProfileSettingsRouteConnected from '~/routes/ProfileSettingsRoute'
+import RecordingPrivacySettingsRouteConnected from '~/routes/RecordingPrivacySettingsRoute/RecordingPrivacySettingsRoute'
 
 const TeamPage: React.FC = () => (
   <PageFrame>
@@ -26,6 +27,10 @@ const SettingsRoute: React.FC = () => (
     <Route path="account" element={<AccountSettingsRouteConnected />} />
     <Route path="api-keys" element={<ApiKeysRoute />} />
     <Route path="team" element={<TeamPage />} />
+    <Route
+      path="privacy-controls"
+      element={<RecordingPrivacySettingsRouteConnected />}
+    />
     <Route path="billing" element={<BillingSettingsRouteConnected />} />
   </Routes>
 )

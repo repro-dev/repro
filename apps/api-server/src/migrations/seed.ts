@@ -38,7 +38,7 @@ async function seedAccounts(db: Database) {
 
     return db
       .insertInto('accounts')
-      .values({ name, active: true })
+      .values({ name, active: true, recordingPrivacyPreset: 'standard' })
       .returning(['id'])
       .executeTakeFirstOrThrow()
   }
