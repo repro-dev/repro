@@ -339,9 +339,9 @@ describe('RecordingPrivacySettingsRoute', () => {
       })
     )
 
-    // Check selector documentation content
-    assert.ok(screen.getByText('.repro-ignore'))
-    assert.ok(screen.getByText('.repro-mask'))
+    // Check selector documentation content (appears in both label and inline code)
+    assert.ok(screen.getAllByText('.repro-ignore').length >= 2)
+    assert.ok(screen.getAllByText('.repro-mask').length >= 2)
   })
 
   it('redirects non-admin users to profile settings', async () => {
