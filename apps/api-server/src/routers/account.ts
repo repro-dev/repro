@@ -1,4 +1,4 @@
-import { Account, User } from '@repro/domain'
+import { Account, RecordingPrivacyPreset, User } from '@repro/domain'
 import { invitationEmail, passwordResetEmail } from '@repro/email'
 import { tapF } from '@repro/future-utils'
 import { FastifyPluginAsync } from 'fastify'
@@ -458,33 +458,48 @@ export function createAccountRouter(
       )
     })
 
-    app.put<{
-      Body: z.infer<typeof updatePrivacyPresetSchema.body>
-    }>(
-      '/privacy',
-      {
-        schema: updatePrivacyPresetSchema,
-      },
-      (req, res) => {
-        respondWith(
-          res,
-          getCurrentUserAccount(req, accountService).pipe(
-            chain(({ user, account }) =>
-              accountService
-                .ensureUserIsAdmin(user)
-                .pipe(
-                  chain(() =>
-                    accountService.updateRecordingPrivacyPreset(
-                      account.id,
-                      req.body.value
-                    )
+    app.put('/privacy', (req, res) => {
+      req.log.info(
+        {
+          body: req.body,
+          raw: typeof req.body,
+          headers: req.headers['content-type'],
+        },
+        'PUT /privacy handler — raw body'
+      )
+      if (
+        req.body == null ||
+        typeof req.body !== 'object' ||
+        !('value' in req.body)
+      ) {
+        return res
+          .status(400)
+          .send({ error: 'Expected body with "value" field' })
+      }
+      const { value } = req.body as { value: string }
+      if (!['strict', 'standard', 'off'].includes(value)) {
+        return res
+          .status(400)
+          .send({ error: 'Invalid value. Expected strict, standard, or off.' })
+      }
+      respondWith(
+        res,
+        getCurrentUserAccount(req, accountService).pipe(
+          chain(({ user, account }) =>
+            accountService
+              .ensureUserIsAdmin(user)
+              .pipe(
+                chain(() =>
+                  accountService.updateRecordingPrivacyPreset(
+                    account.id,
+                    value as RecordingPrivacyPreset
                   )
                 )
-            )
+              )
           )
         )
-      }
-    )
+      )
+    })
 
     app.put<{
       Body: z.infer<typeof updateNameSchema.body>
