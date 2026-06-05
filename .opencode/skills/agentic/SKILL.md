@@ -268,11 +268,11 @@ In the extension (`Agentic.hoc.tsx`), the accessor is built by spreading `makeAc
 
 **Location**: `packages/domain/src/model-configs.ts`
 
-| Constant                | Value                       | Purpose                                                                            |
-| ----------------------- | --------------------------- | ---------------------------------------------------------------------------------- |
-| `AGENTIC_DEFAULT_MODEL` | `'minimax/minimax-m2.7'`    | Production model (204,800 token context; perfect correctness on all eval fixtures) |
-| `EVAL_JUDGE_MODEL`      | `'google/gemini-2.5-flash'` | LLM-as-judge for eval scoring                                                      |
-| `EVAL_REASONING_MODEL`  | `'google/gemini-2.5-pro'`   | Eval critic and introspector                                                       |
+| Constant                | Value                       | Purpose                                                                                                                                                              |
+| ----------------------- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AGENTIC_DEFAULT_MODEL` | `'google/gemini-2.5-flash'` | Production model (1,048,576 token context; most efficient — avg ~4.0 tool calls; restored as default after minimax/m2.7 lost function-calling support on OpenRouter) |
+| `EVAL_JUDGE_MODEL`      | `'google/gemini-2.5-flash'` | LLM-as-judge for eval scoring                                                                                                                                        |
+| `EVAL_REASONING_MODEL`  | `'google/gemini-2.5-pro'`   | Eval critic and introspector                                                                                                                                         |
 
 **`reasoning.effort` guard**: The `reasoning.effort` parameter is only supported by OpenAI models (`openai/*`). The eval `streamProvider.ts` correctly guards this with `modelId.startsWith("openai/")`. The production `services/agentic.ts` currently sends it unconditionally — this is a known gap to fix when the model becomes configurable.
 

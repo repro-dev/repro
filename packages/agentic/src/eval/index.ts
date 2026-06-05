@@ -11,7 +11,7 @@
  *   OPENROUTER_API_KEY=<key> tsx packages/agentic/src/eval/index.ts --model google/gemini-2.5-flash
  *   OPENROUTER_API_KEY=<key> tsx packages/agentic/src/eval/index.ts --test-set
  *
- * When --model is omitted, defaults to AGENTIC_DEFAULT_MODEL (google/gemini-2.5-flash).
+ * When --model is omitted, defaults to AGENTIC_DEFAULT_MODEL.
  * When --test-set is present, runs the test fixture set instead of the default training set.
  *
  * How to add a new eval case:

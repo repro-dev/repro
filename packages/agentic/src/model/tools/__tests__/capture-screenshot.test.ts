@@ -94,17 +94,17 @@ describe("extensionTools array", () => {
     );
   });
 
-  it("extensionTools contains all other tools from tools[]", () => {
+  it("extensionTools contains all tools from tools[] except captureScreenshot and askUser", () => {
     const toolNames = tools
       .map((t) => (t as { function: { name: string } }).function.name)
-      .filter((name) => name !== "captureScreenshot");
+      .filter((name) => name !== "captureScreenshot" && name !== "askUser");
     const extensionToolNames = extensionTools.map(
       (t) => (t as { function: { name: string } }).function.name,
     );
     assert.deepStrictEqual(extensionToolNames, toolNames);
   });
 
-  it("extensionTools is smaller than tools by exactly one entry", () => {
-    assert.strictEqual(extensionTools.length, tools.length - 1);
+  it("extensionTools is smaller than tools by exactly two entries (captureScreenshot + askUser)", () => {
+    assert.strictEqual(extensionTools.length, tools.length - 2);
   });
 });
