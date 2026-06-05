@@ -1,18 +1,18 @@
-import { fork, resolve, type FutureInstance } from "fluture";
-import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { fork, resolve, type FutureInstance } from 'fluture'
+import assert from 'node:assert/strict'
+import { describe, it } from 'node:test'
 
-import { handler } from "../advance-stage";
 import type {
   AdvanceStageResult,
   RecordingDataAccessor,
   ToolExecutionContext,
-} from "../../../types";
+} from '../../../types'
+import { handler } from '../advance-stage'
 
 function runFuture<R>(future: FutureInstance<unknown, R>): Promise<R> {
   return new Promise((resolvePromise, rejectPromise) => {
-    future.pipe(fork(rejectPromise)(resolvePromise));
-  });
+    future.pipe(fork(rejectPromise)(resolvePromise))
+  })
 }
 
 function makeAccessor(): RecordingDataAccessor {
@@ -22,151 +22,151 @@ function makeAccessor(): RecordingDataAccessor {
     getResourceMap: () => ({}),
     getEventsByType: () => [],
     getEventsInRange: () => [],
-  };
+  }
 }
 
-describe("advanceStage tool", () => {
-  it("delegates valid payloads to the runtime callback", async () => {
-    let received: unknown;
+describe('advanceStage tool', () => {
+  it('delegates valid payloads to the runtime callback', async () => {
+    let received: unknown
     const context: ToolExecutionContext = {
-      advanceStage: (input) => {
-        received = input;
+      advanceStage: input => {
+        received = input
         return resolve({
           stage: input.stage,
           hypotheses: input.hypotheses ?? [],
-          readiness: "ready to conclude",
-        });
+          readiness: 'ready to conclude',
+        })
       },
-    };
+    }
 
     const result = (await runFuture(
       handler(
         makeAccessor(),
         {
-          stage: "conclusion",
+          stage: 'conclusion',
           hypotheses: [
             {
-              id: "h1",
-              description: "A",
-              evidence: ["console error"],
-              confidence: "high",
+              id: 'h1',
+              description: 'A',
+              evidence: ['console error'],
+              confidence: 'high',
             },
           ],
         },
-        context,
-      ),
-    )) as AdvanceStageResult;
+        context
+      )
+    )) as AdvanceStageResult
 
     assert.deepEqual(received, {
-      stage: "conclusion",
+      stage: 'conclusion',
       hypotheses: [
         {
-          id: "h1",
-          description: "A",
-          evidence: ["console error"],
-          confidence: "high",
+          id: 'h1',
+          description: 'A',
+          evidence: ['console error'],
+          confidence: 'high',
         },
       ],
-    });
+    })
     assert.deepEqual(result, {
-      stage: "conclusion",
+      stage: 'conclusion',
       hypotheses: [
         {
-          id: "h1",
-          description: "A",
-          evidence: ["console error"],
-          confidence: "high",
+          id: 'h1',
+          description: 'A',
+          evidence: ['console error'],
+          confidence: 'high',
         },
       ],
-      readiness: "ready to conclude",
+      readiness: 'ready to conclude',
       _tokenEstimate: result._tokenEstimate,
-    });
-    assert.equal(typeof result._tokenEstimate, "number");
-    assert.ok((result._tokenEstimate ?? 0) > 0);
-  });
+    })
+    assert.equal(typeof result._tokenEstimate, 'number')
+    assert.ok((result._tokenEstimate ?? 0) > 0)
+  })
 
-  it("preserves omitted hypotheses instead of clearing them", async () => {
-    let received: unknown;
+  it('preserves omitted hypotheses instead of clearing them', async () => {
+    let received: unknown
     const context: ToolExecutionContext = {
-      advanceStage: (input) => {
-        received = input;
+      advanceStage: input => {
+        received = input
         return resolve({
           stage: input.stage,
           hypotheses: [
             {
-              id: "keep",
-              description: "Keep existing",
-              evidence: ["evidence"],
-              confidence: "medium",
+              id: 'keep',
+              description: 'Keep existing',
+              evidence: ['evidence'],
+              confidence: 'medium',
             },
           ],
-          readiness: "needs more evidence",
-        });
+          readiness: 'needs more evidence',
+        })
       },
-    };
+    }
 
     const result = (await runFuture(
-      handler(makeAccessor(), { stage: "evidence" }, context),
-    )) as AdvanceStageResult;
+      handler(makeAccessor(), { stage: 'evidence' }, context)
+    )) as AdvanceStageResult
 
     assert.equal(
       (received as { hypotheses?: Array<unknown> }).hypotheses,
-      undefined,
-    );
-    assert.equal(result.stage, "evidence");
-  });
+      undefined
+    )
+    assert.equal(result.stage, 'evidence')
+  })
 
-  it("returns a structured error when the runtime callback is missing", async () => {
+  it('returns a structured error when the runtime callback is missing', async () => {
     const result = await runFuture(
       handler(makeAccessor(), {
-        stage: "orient",
-      }),
-    );
+        stage: 'orient',
+      })
+    )
 
-    assert.ok(result !== null && typeof result === "object");
+    assert.ok(result !== null && typeof result === 'object')
     assert.equal(
       (result as { error: string }).error,
-      "advanceStage is unavailable",
-    );
-  });
+      'advanceStage is unavailable'
+    )
+  })
 
-  it("rejects invalid stage and hypothesis payloads", async () => {
+  it('rejects invalid stage and hypothesis payloads', async () => {
     const context: ToolExecutionContext = {
       advanceStage: () =>
         resolve({
-          stage: "orient",
+          stage: 'orient',
           hypotheses: [],
-          readiness: "needs more evidence",
+          readiness: 'needs more evidence',
         }),
-    };
+    }
 
     const invalidStage = await runFuture(
-      handler(makeAccessor(), { stage: "idle" }, context),
-    );
+      handler(makeAccessor(), { stage: 'idle' }, context)
+    )
 
-    assert.ok(invalidStage !== null && typeof invalidStage === "object");
+    assert.ok(invalidStage !== null && typeof invalidStage === 'object')
     assert.equal(
       (invalidStage as { error: string }).error,
-      "Invalid investigation stage",
-    );
+      'Invalid investigation stage'
+    )
 
     const invalidHypotheses = await runFuture(
       handler(
         makeAccessor(),
         {
-          stage: "hypotheses",
-          hypotheses: [{ id: "", description: "", evidence: [""] }],
+          stage: 'hypotheses',
+          hypotheses: [{ id: '', description: '', evidence: [''] }],
         },
-        context,
-      ),
-    );
+        context
+      )
+    )
 
     assert.ok(
-      invalidHypotheses !== null && typeof invalidHypotheses === "object",
-    );
+      invalidHypotheses !== null && typeof invalidHypotheses === 'object'
+    )
     assert.equal(
       (invalidHypotheses as { error: string }).error,
-      "Invalid hypothesis",
-    );
-  });
-});
+      'Invalid hypothesis'
+    )
+  })
+})

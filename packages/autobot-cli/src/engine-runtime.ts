@@ -1,266 +1,266 @@
-import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
-import path from "node:path";
+import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import path from 'node:path'
 
-import type { EngineState, HealthCheck, RepoRef } from "@repro/autobot-core";
-import { Future, type FutureInstance } from "fluture";
+import type { EngineState, HealthCheck, RepoRef } from '@repro/autobot-core'
+import { Future, type FutureInstance } from 'fluture'
 
-import { AutobotCliError } from "./errors";
+import { AutobotCliError } from './errors'
 
 export interface EngineRuntimeRecord {
-  pid: number;
-  started_at: string;
-  state: EngineState;
-  last_tick_at: string | null;
-  stop_requested_at: string | null;
-  health: HealthCheck[];
-  tick_interval_seconds: number;
+  pid: number
+  started_at: string
+  state: EngineState
+  last_tick_at: string | null
+  stop_requested_at: string | null
+  health: HealthCheck[]
+  tick_interval_seconds: number
 }
 
 export interface EngineRuntimePaths {
-  state_dir: string;
-  acquire_guard_path: string;
-  lock_path: string;
-  status_path: string;
-  stop_path: string;
+  state_dir: string
+  acquire_guard_path: string
+  lock_path: string
+  status_path: string
+  stop_path: string
 }
 
 export interface EngineRuntimeSnapshot {
-  lock: EngineRuntimeRecord | null;
-  status: EngineRuntimeRecord | null;
-  stop_requested_at: string | null;
-  stale_lock: boolean;
+  lock: EngineRuntimeRecord | null
+  status: EngineRuntimeRecord | null
+  stop_requested_at: string | null
+  stale_lock: boolean
 }
 
 function futureAsync<T>(thunk: () => Promise<T>): FutureInstance<unknown, T> {
   return Future((reject, resolveFuture) => {
-    let cancelled = false;
+    let cancelled = false
 
     void thunk().then(
-      (value) => {
+      value => {
         if (!cancelled) {
-          resolveFuture(value);
+          resolveFuture(value)
         }
       },
-      (error) => {
+      error => {
         if (!cancelled) {
-          reject(error);
+          reject(error)
         }
-      },
-    );
+      }
+    )
 
     return () => {
-      cancelled = true;
-    };
-  });
+      cancelled = true
+    }
+  })
 }
 
 async function readJsonFile<T>(filePath: string): Promise<T | null> {
   try {
-    const raw = await readFile(filePath, "utf8");
-    return JSON.parse(raw) as T;
+    const raw = await readFile(filePath, 'utf8')
+    return JSON.parse(raw) as T
   } catch (error) {
     if (
       error !== null &&
-      typeof error === "object" &&
-      "code" in error &&
-      (error as { code?: unknown }).code === "ENOENT"
+      typeof error === 'object' &&
+      'code' in error &&
+      (error as { code?: unknown }).code === 'ENOENT'
     ) {
-      return null;
+      return null
     }
 
-    throw error;
+    throw error
   }
 }
 
 async function writeJsonFile<T>(filePath: string, value: T): Promise<T> {
-  await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
-  return value;
+  await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8')
+  return value
 }
 
 async function removeFile(filePath: string): Promise<void> {
-  await rm(filePath, { force: true });
+  await rm(filePath, { force: true })
 }
 
 function isProcessAlive(pid: number): boolean {
   try {
-    process.kill(pid, 0);
-    return true;
+    process.kill(pid, 0)
+    return true
   } catch (error) {
     if (
       error !== null &&
-      typeof error === "object" &&
-      "code" in error &&
-      (error as { code?: unknown }).code === "ESRCH"
+      typeof error === 'object' &&
+      'code' in error &&
+      (error as { code?: unknown }).code === 'ESRCH'
     ) {
-      return false;
+      return false
     }
 
-    return true;
+    return true
   }
 }
 
 function sameEngineRuntimeOwner(
   left: EngineRuntimeRecord,
-  right: EngineRuntimeRecord,
+  right: EngineRuntimeRecord
 ): boolean {
-  return left.pid === right.pid && left.started_at === right.started_at;
+  return left.pid === right.pid && left.started_at === right.started_at
 }
 
-const acquireGuardStaleTimeoutMilliseconds = 30_000;
+const acquireGuardStaleTimeoutMilliseconds = 30_000
 
 async function recoverStaleAcquireGuard(paths: EngineRuntimePaths) {
   const guard = await readJsonFile<EngineRuntimeRecord>(
-    paths.acquire_guard_path,
-  );
+    paths.acquire_guard_path
+  )
 
   if (guard === null) {
-    return true;
+    return true
   }
 
   if (guard.pid > 0 && isProcessAlive(guard.pid)) {
     try {
-      const guardStat = await stat(paths.acquire_guard_path);
+      const guardStat = await stat(paths.acquire_guard_path)
       if (
         Date.now() - guardStat.mtimeMs <
         acquireGuardStaleTimeoutMilliseconds
       ) {
-        return false;
+        return false
       }
     } catch {
-      return true;
+      return true
     }
   }
 
-  await removeFile(paths.acquire_guard_path);
-  return true;
+  await removeFile(paths.acquire_guard_path)
+  return true
 }
 
 export function resolveEngineRuntimePaths(repo: RepoRef): EngineRuntimePaths {
-  const stateDir = path.resolve(repo.path, repo.state_dir);
+  const stateDir = path.resolve(repo.path, repo.state_dir)
 
   return {
     state_dir: stateDir,
-    acquire_guard_path: path.join(stateDir, "engine.acquire.lock"),
-    lock_path: path.join(stateDir, "engine.lock"),
-    status_path: path.join(stateDir, "engine.status.json"),
-    stop_path: path.join(stateDir, "engine.stop"),
-  };
+    acquire_guard_path: path.join(stateDir, 'engine.acquire.lock'),
+    lock_path: path.join(stateDir, 'engine.lock'),
+    status_path: path.join(stateDir, 'engine.status.json'),
+    stop_path: path.join(stateDir, 'engine.stop'),
+  }
 }
 
 export function readEngineRuntime(
-  repo: RepoRef,
+  repo: RepoRef
 ): FutureInstance<unknown, EngineRuntimeSnapshot> {
-  return futureAsync(async () => readEngineRuntimeValue(repo));
+  return futureAsync(async () => readEngineRuntimeValue(repo))
 }
 
 async function readEngineRuntimeValue(
-  repo: RepoRef,
+  repo: RepoRef
 ): Promise<EngineRuntimeSnapshot> {
-  const paths = resolveEngineRuntimePaths(repo);
+  const paths = resolveEngineRuntimePaths(repo)
   const [lock, status, stop] = await Promise.all([
     readJsonFile<EngineRuntimeRecord>(paths.lock_path),
     readJsonFile<EngineRuntimeRecord>(paths.status_path),
     readJsonFile<{ requested_at: string }>(paths.stop_path),
-  ]);
+  ])
 
   const staleLock =
-    lock !== null && (lock.pid <= 0 || !isProcessAlive(lock.pid));
+    lock !== null && (lock.pid <= 0 || !isProcessAlive(lock.pid))
 
   return {
     lock,
     status,
     stop_requested_at: stop?.requested_at ?? null,
     stale_lock: staleLock,
-  };
+  }
 }
 
 export function createEngineAlreadyRunningError(input: {
-  pid: number;
-  started_at: string;
+  pid: number
+  started_at: string
 }): AutobotCliError {
   return new AutobotCliError({
-    code: "ENGINE_ALREADY_RUNNING",
-    message: "Supervisor is already running",
-    what_failed: "supervisor start",
+    code: 'ENGINE_ALREADY_RUNNING',
+    message: 'Supervisor is already running',
+    what_failed: 'supervisor start',
     likely_cause: `a daemon process with pid ${input.pid} already owns the lock`,
     recovery_commands: [
-      "autobot-next supervisor status",
-      "autobot-next supervisor stop",
+      'autobot-next supervisor status',
+      'autobot-next supervisor stop',
     ],
     details: input,
     exit_code: 2,
-  });
+  })
 }
 
 export function acquireEngineRuntime(
   repo: RepoRef,
   input: {
-    pid: number;
-    started_at: string;
-    tick_interval_seconds: number;
-  },
+    pid: number
+    started_at: string
+    tick_interval_seconds: number
+  }
 ): FutureInstance<unknown, EngineRuntimeRecord> {
-  const paths = resolveEngineRuntimePaths(repo);
+  const paths = resolveEngineRuntimePaths(repo)
   let record: EngineRuntimeRecord = {
     pid: input.pid,
     started_at: input.started_at,
-    state: "starting",
+    state: 'starting',
     last_tick_at: null,
     stop_requested_at: null,
     health: [],
     tick_interval_seconds: input.tick_interval_seconds,
-  };
+  }
 
   return Future((reject, resolve) => {
-    let cancelled = false;
-    let settled = false;
-    let acquired = false;
-    let acquireGuardOwned = false;
+    let cancelled = false
+    let settled = false
+    let acquired = false
+    let acquireGuardOwned = false
 
     const wait = (milliseconds: number) =>
-      new Promise<void>((resolveDelay) => {
-        setTimeout(resolveDelay, milliseconds);
-      });
+      new Promise<void>(resolveDelay => {
+        setTimeout(resolveDelay, milliseconds)
+      })
 
     const cleanupAcquireState = async () => {
       if (acquireGuardOwned) {
-        await removeFile(paths.acquire_guard_path);
+        await removeFile(paths.acquire_guard_path)
       }
-    };
+    }
 
     const cleanupOwnedState = async () => {
-      await removeFile(paths.lock_path);
-      await removeFile(paths.status_path);
-    };
+      await removeFile(paths.lock_path)
+      await removeFile(paths.status_path)
+    }
 
     const settleReject = async (error: unknown) => {
       if (settled || cancelled) {
-        return;
+        return
       }
 
-      settled = true;
-      await cleanupAcquireState();
+      settled = true
+      await cleanupAcquireState()
 
       if (acquired) {
-        await cleanupOwnedState();
+        await cleanupOwnedState()
       }
 
-      reject(error);
-    };
+      reject(error)
+    }
 
     const settleResolve = async () => {
       if (settled || cancelled) {
-        return;
+        return
       }
 
-      settled = true;
-      await removeFile(paths.acquire_guard_path);
-      resolve(record);
-    };
+      settled = true
+      await removeFile(paths.acquire_guard_path)
+      resolve(record)
+    }
 
     void (async () => {
       try {
-        await mkdir(paths.state_dir, { recursive: true });
+        await mkdir(paths.state_dir, { recursive: true })
 
         while (!cancelled) {
           try {
@@ -268,48 +268,48 @@ export function acquireEngineRuntime(
               paths.acquire_guard_path,
               `${JSON.stringify(record, null, 2)}\n`,
               {
-                encoding: "utf8",
-                flag: "wx",
-              },
-            );
+                encoding: 'utf8',
+                flag: 'wx',
+              }
+            )
 
-            acquireGuardOwned = true;
-            break;
+            acquireGuardOwned = true
+            break
           } catch (error) {
             if (cancelled) {
-              return;
+              return
             }
 
             if (
               error !== null &&
-              typeof error === "object" &&
-              "code" in error &&
-              (error as { code?: unknown }).code !== "EEXIST"
+              typeof error === 'object' &&
+              'code' in error &&
+              (error as { code?: unknown }).code !== 'EEXIST'
             ) {
-              throw error;
+              throw error
             }
 
-            const recovered = await recoverStaleAcquireGuard(paths);
+            const recovered = await recoverStaleAcquireGuard(paths)
             if (cancelled) {
-              return;
+              return
             }
 
             if (!recovered) {
-              await wait(5);
+              await wait(5)
             }
           }
         }
 
         if (cancelled) {
-          return;
+          return
         }
 
         const existingLock = await readJsonFile<EngineRuntimeRecord>(
-          paths.lock_path,
-        );
+          paths.lock_path
+        )
 
         if (cancelled) {
-          return;
+          return
         }
 
         if (
@@ -317,27 +317,27 @@ export function acquireEngineRuntime(
           existingLock.pid > 0 &&
           isProcessAlive(existingLock.pid)
         ) {
-          throw createEngineAlreadyRunningError(existingLock);
+          throw createEngineAlreadyRunningError(existingLock)
         }
 
         if (existingLock !== null) {
-          await rm(paths.lock_path, { force: true });
+          await rm(paths.lock_path, { force: true })
         }
 
         await writeFile(
           paths.lock_path,
           `${JSON.stringify(record, null, 2)}\n`,
           {
-            encoding: "utf8",
-            flag: "wx",
-          },
-        );
+            encoding: 'utf8',
+            flag: 'wx',
+          }
+        )
 
-        acquired = true;
+        acquired = true
 
         const pendingStop = await readJsonFile<{ requested_at: string }>(
-          paths.stop_path,
-        );
+          paths.stop_path
+        )
 
         if (
           pendingStop !== null &&
@@ -346,145 +346,143 @@ export function acquireEngineRuntime(
           record = {
             ...record,
             stop_requested_at: pendingStop.requested_at,
-          };
+          }
         } else {
-          await removeFile(paths.stop_path);
+          await removeFile(paths.stop_path)
         }
 
         if (cancelled) {
-          await cleanupOwnedState();
-          await cleanupAcquireState();
-          return;
+          await cleanupOwnedState()
+          await cleanupAcquireState()
+          return
         }
 
-        await writeJsonFile(paths.status_path, record);
+        await writeJsonFile(paths.status_path, record)
 
         if (cancelled) {
-          await cleanupOwnedState();
-          await cleanupAcquireState();
-          return;
+          await cleanupOwnedState()
+          await cleanupAcquireState()
+          return
         }
 
-        await cleanupAcquireState();
-        settleResolve();
+        await cleanupAcquireState()
+        settleResolve()
       } catch (error) {
-        await settleReject(error);
+        await settleReject(error)
       }
-    })();
+    })()
 
     return () => {
-      cancelled = true;
+      cancelled = true
 
       if (!settled) {
         void cleanupAcquireState().then(() =>
-          acquired ? cleanupOwnedState() : undefined,
-        );
+          acquired ? cleanupOwnedState() : undefined
+        )
       }
-    };
-  });
+    }
+  })
 }
 
 export function writeEngineRuntimeStatus(
   repo: RepoRef,
-  record: EngineRuntimeRecord,
+  record: EngineRuntimeRecord
 ): FutureInstance<unknown, EngineRuntimeRecord> {
-  const paths = resolveEngineRuntimePaths(repo);
+  const paths = resolveEngineRuntimePaths(repo)
 
   return futureAsync(async () => {
-    await mkdir(paths.state_dir, { recursive: true });
-    await writeJsonFile(paths.status_path, record);
-    return record;
-  });
+    await mkdir(paths.state_dir, { recursive: true })
+    await writeJsonFile(paths.status_path, record)
+    return record
+  })
 }
 
 export function requestEngineStop(
   repo: RepoRef,
-  requestedAt: string,
+  requestedAt: string
 ): FutureInstance<unknown, EngineRuntimeSnapshot> {
   return futureAsync(async () => {
-    const paths = resolveEngineRuntimePaths(repo);
-    const snapshot = await readEngineRuntimeValue(repo);
+    const paths = resolveEngineRuntimePaths(repo)
+    const snapshot = await readEngineRuntimeValue(repo)
     if (snapshot.status === null) {
       if (snapshot.lock !== null) {
         await writeFile(
           paths.stop_path,
           `${JSON.stringify({ requested_at: requestedAt })}\n`,
-          "utf8",
-        );
+          'utf8'
+        )
 
         return {
           ...snapshot,
           stop_requested_at: requestedAt,
-        };
+        }
       }
 
-      await removeFile(paths.stop_path);
+      await removeFile(paths.stop_path)
 
       return {
         ...snapshot,
         stop_requested_at: null,
-      };
+      }
     }
 
     const nextStatus =
-      snapshot.status.state === "stopped"
+      snapshot.status.state === 'stopped'
         ? {
             ...snapshot.status,
-            state: "stopped" as EngineState,
+            state: 'stopped' as EngineState,
             stop_requested_at: null,
           }
         : {
             ...snapshot.status,
-            state: "stopping" as EngineState,
+            state: 'stopping' as EngineState,
             stop_requested_at: requestedAt,
-          };
+          }
 
-    await writeJsonFile(paths.status_path, nextStatus);
+    await writeJsonFile(paths.status_path, nextStatus)
 
-    if (nextStatus.state === "stopping") {
+    if (nextStatus.state === 'stopping') {
       await writeFile(
         paths.stop_path,
         `${JSON.stringify({ requested_at: requestedAt })}\n`,
-        "utf8",
-      );
+        'utf8'
+      )
     } else {
-      await removeFile(paths.stop_path);
+      await removeFile(paths.stop_path)
     }
 
     return {
       ...snapshot,
       status: nextStatus,
       stop_requested_at: nextStatus.stop_requested_at,
-    };
-  });
+    }
+  })
 }
 
 export function releaseEngineRuntime(
   repo: RepoRef,
-  record?: EngineRuntimeRecord | null,
+  record?: EngineRuntimeRecord | null
 ): FutureInstance<unknown, void> {
-  const paths = resolveEngineRuntimePaths(repo);
+  const paths = resolveEngineRuntimePaths(repo)
 
   return futureAsync(async () => {
     if (record === undefined || record === null) {
-      return;
+      return
     }
 
-    const currentLock = await readJsonFile<EngineRuntimeRecord>(
-      paths.lock_path,
-    );
+    const currentLock = await readJsonFile<EngineRuntimeRecord>(paths.lock_path)
 
     if (currentLock === null || !sameEngineRuntimeOwner(currentLock, record)) {
-      return;
+      return
     }
 
     await writeJsonFile(paths.status_path, {
       ...record,
-      state: "stopped" as EngineState,
+      state: 'stopped' as EngineState,
       stop_requested_at: null,
-    });
+    })
 
-    await removeFile(paths.lock_path);
-    await removeFile(paths.stop_path);
-  });
+    await removeFile(paths.lock_path)
+    await removeFile(paths.stop_path)
+  })
 }

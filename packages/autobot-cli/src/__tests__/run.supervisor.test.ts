@@ -1,32 +1,32 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import assert from 'node:assert/strict'
+import test from 'node:test'
 
-import { fork, resolve, type FutureInstance } from "fluture";
+import { fork, resolve, type FutureInstance } from 'fluture'
 
-import { runAutobotCli } from "../run";
+import { runAutobotCli } from '../run'
 
 function runFuture<T>(future: FutureInstance<unknown, T>): Promise<T> {
   return new Promise((resolvePromise, rejectPromise) => {
-    future.pipe(fork(rejectPromise)(resolvePromise));
-  });
+    future.pipe(fork(rejectPromise)(resolvePromise))
+  })
 }
 
-test("supervisor status renders the preferred supervisor wording", async () => {
-  let stdout = "";
+test('supervisor status renders the preferred supervisor wording', async () => {
+  let stdout = ''
 
   const exitCode = await runFuture(
     runAutobotCli(
-      ["node", "autobot-next", "supervisor", "status"],
+      ['node', 'autobot-next', 'supervisor', 'status'],
       {
         stdout: {
           write(chunk: string) {
-            stdout += chunk;
-            return true;
+            stdout += chunk
+            return true
           },
         },
         stderr: {
           write() {
-            return true;
+            return true
           },
         },
         isTTY: false,
@@ -34,18 +34,18 @@ test("supervisor status renders the preferred supervisor wording", async () => {
       {
         handleInvocation() {
           return resolve({
-            kind: "supervisor-status",
-            command: "autobot-next supervisor status",
+            kind: 'supervisor-status',
+            command: 'autobot-next supervisor status',
             repo: {
-              path: "/worktrees/autobot",
-              state_dir: ".autobot",
+              path: '/worktrees/autobot',
+              state_dir: '.autobot',
             },
             data: {
               supervisor: {
-                state: "running",
+                state: 'running',
                 pid: 4242,
-                started_at: "2026-05-15T10:00:00Z",
-                last_tick_at: "2026-05-15T10:05:00Z",
+                started_at: '2026-05-15T10:00:00Z',
+                last_tick_at: '2026-05-15T10:05:00Z',
                 tick_interval_seconds: 15,
                 queue_depth: 1,
                 max_concurrency: 1,
@@ -72,13 +72,13 @@ test("supervisor status renders the preferred supervisor wording", async () => {
               items: [],
               config: [],
             },
-          });
+          })
         },
-      },
-    ),
-  );
+      }
+    )
+  )
 
-  assert.equal(exitCode, 0);
-  assert.match(stdout, /Supervisor status/);
-  assert.match(stdout, /Supervisor:/);
-});
+  assert.equal(exitCode, 0)
+  assert.match(stdout, /Supervisor status/)
+  assert.match(stdout, /Supervisor:/)
+})

@@ -1,53 +1,7 @@
-import { createHash, randomUUID } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import path from "node:path";
+import { createHash, randomUUID } from 'node:crypto'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import path from 'node:path'
 
-import type {
-  ArtifactRef,
-  ArtifactKind,
-  ConfigEntry,
-  ConfigSource,
-  ConfigValue,
-  DomainEvent,
-  ErrorSummary,
-  EngineStatus,
-  HealthCheck,
-  LinearIssueRef,
-  Warning,
-  ItemState,
-  ItemDetail,
-  ItemSummary,
-  RepoRef,
-  RunSummary,
-  WorkerSummary,
-} from "@repro/autobot-core";
-import {
-  itemStates,
-  getRetryTransition,
-  isInProgressState,
-  isTerminalState,
-} from "@repro/autobot-core";
-import {
-  createAutobotStore,
-  type ItemRecord,
-  type FlowcraftEventRecord,
-  type FlowcraftExecutionRecord,
-  type WorkerRecord,
-  type AutobotStore,
-  type ConfigOverrideRecord,
-} from "@repro/autobot-store";
-import {
-  executeAutobotDeliverIssueWorkflow,
-  getFlowcraftWorkflow,
-  mapFlowcraftStatusToItemState,
-  listFlowcraftWorkflows,
-  renderFlowcraftWorkflowDiagram,
-  validateFlowcraftWorkflows,
-} from "@repro/autobot-flowcraft";
-import type {
-  FlowcraftExecutionPlan,
-  FlowcraftPhaseProgressWriter,
-} from "@repro/autobot-flowcraft";
 import {
   discoverLinearIssues,
   loadLinearIssue as loadLinearIssueFromAdapters,
@@ -57,7 +11,53 @@ import {
   type GitWorktreePreparationResult,
   type WorkspaceSetupProgressRecord,
   type WorkspaceSetupResult,
-} from "@repro/autobot-adapters";
+} from '@repro/autobot-adapters'
+import type {
+  ArtifactKind,
+  ArtifactRef,
+  ConfigEntry,
+  ConfigSource,
+  ConfigValue,
+  DomainEvent,
+  EngineStatus,
+  ErrorSummary,
+  HealthCheck,
+  ItemDetail,
+  ItemState,
+  ItemSummary,
+  LinearIssueRef,
+  RepoRef,
+  RunSummary,
+  Warning,
+  WorkerSummary,
+} from '@repro/autobot-core'
+import {
+  getRetryTransition,
+  isInProgressState,
+  isTerminalState,
+  itemStates,
+} from '@repro/autobot-core'
+import type {
+  FlowcraftExecutionPlan,
+  FlowcraftPhaseProgressWriter,
+} from '@repro/autobot-flowcraft'
+import {
+  executeAutobotDeliverIssueWorkflow,
+  getFlowcraftWorkflow,
+  listFlowcraftWorkflows,
+  mapFlowcraftStatusToItemState,
+  renderFlowcraftWorkflowDiagram,
+  validateFlowcraftWorkflows,
+} from '@repro/autobot-flowcraft'
+import {
+  createAutobotStore,
+  type AutobotStore,
+  type ConfigOverrideRecord,
+  type FlowcraftEventRecord,
+  type FlowcraftExecutionRecord,
+  type ItemRecord,
+  type WorkerRecord,
+} from '@repro/autobot-store'
 import {
   Future,
   bichain,
@@ -67,7 +67,7 @@ import {
   map,
   resolve,
   type FutureInstance,
-} from "fluture";
+} from 'fluture'
 
 import {
   acquireEngineRuntime,
@@ -76,7 +76,15 @@ import {
   requestEngineStop,
   writeEngineRuntimeStatus,
   type EngineRuntimeSnapshot,
-} from "./engine-runtime";
+} from './engine-runtime'
+import {
+  AutobotCliError,
+  createNotImplementedError,
+  createUsageError,
+  toErrorPayload,
+} from './errors'
+import type { SingleTrackPhaseContractName } from './phase-contracts'
+import { renderSingleTrackPhaseContract } from './phase-contracts'
 import {
   createNoopPlanningSessionRunner,
   runOpenCodePlanningSession,
@@ -85,390 +93,382 @@ import {
   type PlanningSessionResult,
   type PlanningSessionRunner,
   type PlanningWorkerStarter,
-} from "./planning-session";
-import type { SingleTrackPhaseContractName } from "./phase-contracts";
-import { renderSingleTrackPhaseContract } from "./phase-contracts";
-import {
-  AutobotCliError,
-  createNotImplementedError,
-  createUsageError,
-  toErrorPayload,
-} from "./errors";
+} from './planning-session'
 import type {
   AutobotCommandResult,
   AutobotGlobalOptions,
   AutobotInvocation,
-  EngineTickSkip,
-  EngineTickReport,
   DiscoverCandidate,
   EngineStatusData,
-} from "./types";
+  EngineTickReport,
+  EngineTickSkip,
+} from './types'
 
 type FlowcraftExecutionContext = {
-  execution: FlowcraftExecutionRecord | null;
-  run: RunSummary | null;
-  worker: WorkerSummary | null;
-  artifacts: ArtifactRef[];
-  flowcraft_events: FlowcraftEventRecord[];
-};
+  execution: FlowcraftExecutionRecord | null
+  run: RunSummary | null
+  worker: WorkerSummary | null
+  artifacts: ArtifactRef[]
+  flowcraft_events: FlowcraftEventRecord[]
+}
 
 type EngineTickSettings = {
-  autoDiscover: boolean;
-  queueDepth: number;
-  maxConcurrency: number;
-  maxRetries: number;
-  discoveryProjects: string[];
-  scanLimit: number;
-};
+  autoDiscover: boolean
+  queueDepth: number
+  maxConcurrency: number
+  maxRetries: number
+  discoveryProjects: string[]
+  scanLimit: number
+}
 
 type EngineTickCandidateRecord = {
-  summary: ItemSummary;
-  record: ItemRecord;
-};
+  summary: ItemSummary
+  record: ItemRecord
+}
 
 export interface AutobotServiceDependencies {
-  openStore?: (repo: RepoRef | string) => FutureInstance<unknown, AutobotStore>;
-  now?: () => string;
-  randomId?: () => string;
-  sleep?: (milliseconds: number) => FutureInstance<unknown, void>;
-  kill?: (pid: number, signal?: NodeJS.Signals | number) => boolean;
-  isProcessAlive?: (pid: number) => boolean;
-  artifactWriter?: ArtifactWriter;
-  artifactReader?: ArtifactReader;
-  planningSessionRunner?: PlanningSessionRunner;
-  planningWorkerStarter?: PlanningWorkerStarter;
+  openStore?: (repo: RepoRef | string) => FutureInstance<unknown, AutobotStore>
+  now?: () => string
+  randomId?: () => string
+  sleep?: (milliseconds: number) => FutureInstance<unknown, void>
+  kill?: (pid: number, signal?: NodeJS.Signals | number) => boolean
+  isProcessAlive?: (pid: number) => boolean
+  artifactWriter?: ArtifactWriter
+  artifactReader?: ArtifactReader
+  planningSessionRunner?: PlanningSessionRunner
+  planningWorkerStarter?: PlanningWorkerStarter
   discoverIssues?: (
-    input: DiscoverIssueInput,
-  ) => FutureInstance<unknown, DiscoverCandidate[]>;
+    input: DiscoverIssueInput
+  ) => FutureInstance<unknown, DiscoverCandidate[]>
   loadLinearIssue?: (
-    input: LoadLinearIssueInput,
-  ) => FutureInstance<unknown, LinearIssueRef | null>;
+    input: LoadLinearIssueInput
+  ) => FutureInstance<unknown, LinearIssueRef | null>
   prepareWorktree?: (
-    input: PrepareWorktreeInput,
-  ) => FutureInstance<unknown, GitWorktreePreparationResult>;
+    input: PrepareWorktreeInput
+  ) => FutureInstance<unknown, GitWorktreePreparationResult>
   setupWorkspace?: (
     input: SetupWorkspaceInput,
     dependencies?: {
-      onProgress?: (record: WorkspaceSetupProgressRecord) => void;
-    },
-  ) => FutureInstance<unknown, WorkspaceSetupResult>;
+      onProgress?: (record: WorkspaceSetupProgressRecord) => void
+    }
+  ) => FutureInstance<unknown, WorkspaceSetupResult>
 }
 
 interface DiscoverIssueInput {
-  repo: RepoRef;
-  projects: string[];
-  scanLimit: number;
+  repo: RepoRef
+  projects: string[]
+  scanLimit: number
 }
 
 interface LoadLinearIssueInput {
-  repo: RepoRef;
-  issueId: string;
+  repo: RepoRef
+  issueId: string
 }
 
 interface PrepareWorktreeInput {
-  repoRoot: string;
-  issueId: string;
+  repoRoot: string
+  issueId: string
 }
 
 interface SetupWorkspaceInput {
-  repoRoot: string;
-  workspacePath: string;
-  issueId: string;
-  runId: string;
-  attempt: number;
+  repoRoot: string
+  workspacePath: string
+  issueId: string
+  runId: string
+  attempt: number
 }
 
 function createNoopWorkspaceSetup(
   input: SetupWorkspaceInput,
   dependencies?: {
-    onProgress?: (record: WorkspaceSetupProgressRecord) => void;
-  },
+    onProgress?: (record: WorkspaceSetupProgressRecord) => void
+  }
 ): FutureInstance<unknown, WorkspaceSetupResult> {
-  const occurredAt = new Date().toISOString();
+  const occurredAt = new Date().toISOString()
   const result: WorkspaceSetupResult = {
     issue_id: input.issueId,
     run_id: input.runId,
     attempt: input.attempt,
     workspace_path: input.workspacePath,
-    status: "succeeded",
+    status: 'succeeded',
     started_at: occurredAt,
     finished_at: occurredAt,
     steps: [],
     summary_artifact_path: path.join(
       input.workspacePath,
-      ".autobot",
-      "runs",
+      '.autobot',
+      'runs',
       input.issueId,
       `attempt-${input.attempt}`,
-      "workspace-setup.json",
+      'workspace-setup.json'
     ),
-  };
+  }
 
   dependencies?.onProgress?.({
-    event: "started",
-    step: "workspace-setup",
+    event: 'started',
+    step: 'workspace-setup',
     occurred_at: occurredAt,
-  });
+  })
   dependencies?.onProgress?.({
-    event: "succeeded",
-    step: "workspace-setup",
+    event: 'succeeded',
+    step: 'workspace-setup',
     occurred_at: occurredAt,
     data: result as unknown as Record<string, unknown>,
-  });
+  })
 
-  return resolve(result);
+  return resolve(result)
 }
 
 type ArtifactWriter = (input: {
-  path: string;
-  content: string;
-}) => FutureInstance<unknown, void>;
+  path: string
+  content: string
+}) => FutureInstance<unknown, void>
 
 type ArtifactReader = (input: {
-  path: string;
-}) => FutureInstance<unknown, string>;
+  path: string
+}) => FutureInstance<unknown, string>
 
 type PlanningArtifactDraft = {
-  kind: ArtifactKind;
-  path: string;
-  description: string;
-  content: string;
-  content_hash: string;
-  persist?: boolean;
-};
+  kind: ArtifactKind
+  path: string
+  description: string
+  content: string
+  content_hash: string
+  persist?: boolean
+}
 
-type PlanningPhaseName = SingleTrackPhaseContractName;
+type PlanningPhaseName = SingleTrackPhaseContractName
 
 function createPreparationRunDirectories(input: {
-  repoRoot: string;
-  runId: string;
-  issueId: string;
-  attempt: number;
+  repoRoot: string
+  runId: string
+  issueId: string
+  attempt: number
 }): FutureInstance<unknown, void> {
   return Future((_reject, resolve) => {
     void Promise.all([
       mkdir(
-        path.join(input.repoRoot, ".autobot", "runs", input.runId, "artifacts"),
+        path.join(input.repoRoot, '.autobot', 'runs', input.runId, 'artifacts'),
         {
           recursive: true,
-        },
+        }
       ),
       mkdir(
-        path.join(input.repoRoot, ".autobot", "runs", input.runId, "logs"),
+        path.join(input.repoRoot, '.autobot', 'runs', input.runId, 'logs'),
         {
           recursive: true,
-        },
+        }
       ),
       mkdir(
         path.join(
           input.repoRoot,
-          ".autobot",
-          "runs",
+          '.autobot',
+          'runs',
           input.issueId,
-          `attempt-${input.attempt}`,
+          `attempt-${input.attempt}`
         ),
         {
           recursive: true,
-        },
+        }
       ),
     ]).then(
       () => resolve(undefined),
-      () => resolve(undefined),
-    );
+      () => resolve(undefined)
+    )
 
-    return () => undefined;
-  });
+    return () => undefined
+  })
 }
 
 interface ConfigDefinition {
-  key: string;
-  default_value: ConfigValue;
-  type: "boolean" | "integer" | "string";
-  description: string;
-  requires_engine_restart: boolean;
-  bounds: { min?: number; max?: number } | null;
-  allowed_values: ConfigValue[] | null;
+  key: string
+  default_value: ConfigValue
+  type: 'boolean' | 'integer' | 'string'
+  description: string
+  requires_engine_restart: boolean
+  bounds: { min?: number; max?: number } | null
+  allowed_values: ConfigValue[] | null
 }
 
 function sequenceFutures<T>(
-  futures: Array<FutureInstance<unknown, T>>,
+  futures: Array<FutureInstance<unknown, T>>
 ): FutureInstance<unknown, T[]> {
-  let result: FutureInstance<unknown, T[]> = resolve([] as T[]);
+  let result: FutureInstance<unknown, T[]> = resolve([] as T[])
 
   for (const future of futures) {
     result = result.pipe(
-      chain((values) => future.pipe(map((value) => [...values, value]))),
-    ) as FutureInstance<unknown, T[]>;
+      chain(values => future.pipe(map(value => [...values, value])))
+    ) as FutureInstance<unknown, T[]>
   }
 
-  return result;
+  return result
 }
 
 function createDelayFuture(
-  milliseconds: number,
+  milliseconds: number
 ): FutureInstance<unknown, void> {
   return Future((reject, resolveFuture) => {
-    void reject;
+    void reject
     const timeout = setTimeout(() => {
-      resolveFuture(undefined);
-    }, milliseconds);
+      resolveFuture(undefined)
+    }, milliseconds)
 
     return () => {
-      clearTimeout(timeout);
-    };
-  });
+      clearTimeout(timeout)
+    }
+  })
 }
 
 function defaultArtifactWriter(input: {
-  path: string;
-  content: string;
+  path: string
+  content: string
 }): FutureInstance<unknown, void> {
   return Future((reject, resolveFuture) => {
     void mkdir(path.dirname(input.path), { recursive: true })
-      .then(() => writeFile(input.path, input.content, "utf8"))
-      .then(() => resolveFuture(undefined), reject);
+      .then(() => writeFile(input.path, input.content, 'utf8'))
+      .then(() => resolveFuture(undefined), reject)
 
-    return () => undefined;
-  });
+    return () => undefined
+  })
 }
 
 function defaultArtifactReader(input: {
-  path: string;
+  path: string
 }): FutureInstance<unknown, string> {
   return Future((reject, resolveFuture) => {
-    void readFile(input.path, "utf8").then(resolveFuture, reject);
+    void readFile(input.path, 'utf8').then(resolveFuture, reject)
 
-    return () => undefined;
-  });
+    return () => undefined
+  })
 }
 
 function warningToHealthCheck(warning: Warning): {
-  code: string;
-  status: "warning";
-  message: string;
+  code: string
+  status: 'warning'
+  message: string
 } {
   return {
     code: warning.code,
-    status: "warning",
+    status: 'warning',
     message: warning.message,
-  };
+  }
 }
 
 function loadActiveWorkers(
-  store: AutobotStore,
-): FutureInstance<unknown, Array<EngineStatusData["active_workers"][number]>> {
+  store: AutobotStore
+): FutureInstance<unknown, Array<EngineStatusData['active_workers'][number]>> {
   return store.workers.list({ includeTerminal: false }) as FutureInstance<
     unknown,
-    Array<EngineStatusData["active_workers"][number]>
-  >;
+    Array<EngineStatusData['active_workers'][number]>
+  >
 }
 
 function loadEngineEvents(
-  store: AutobotStore,
+  store: AutobotStore
 ): FutureInstance<unknown, DomainEvent[]> {
-  const pageSize = 1000;
+  const pageSize = 1000
 
   return store.events
     .list(undefined, {
       limit: pageSize,
-      typePrefix: "engine.",
-      order: "desc",
+      typePrefix: 'engine.',
+      order: 'desc',
     })
-    .pipe(chain((events) => resolve([...events].reverse())));
+    .pipe(chain(events => resolve([...events].reverse())))
 }
 
 function waitForEngineTickDelay(
   repo: RepoRef,
   milliseconds: number,
-  sleep: (milliseconds: number) => FutureInstance<unknown, void>,
+  sleep: (milliseconds: number) => FutureInstance<unknown, void>
 ): FutureInstance<unknown, void> {
-  const pollIntervalMilliseconds = Math.max(1, Math.min(milliseconds, 1000));
+  const pollIntervalMilliseconds = Math.max(1, Math.min(milliseconds, 1000))
 
   return Future((reject, resolveFuture) => {
-    let cancelled = false;
+    let cancelled = false
 
     const settle = () => {
       if (!cancelled) {
-        resolveFuture(undefined);
+        resolveFuture(undefined)
       }
-    };
+    }
 
     const step = (remainingMilliseconds: number) => {
       if (cancelled) {
-        return;
+        return
       }
 
       readEngineRuntime(repo).pipe(
-        fork(reject)((snapshotBeforeDelay) => {
+        fork(reject)(snapshotBeforeDelay => {
           if (snapshotBeforeDelay.stop_requested_at !== null) {
-            settle();
-            return;
+            settle()
+            return
           }
 
           const delayMilliseconds = Math.min(
             pollIntervalMilliseconds,
-            remainingMilliseconds,
-          );
+            remainingMilliseconds
+          )
 
           sleep(delayMilliseconds).pipe(
             fork(reject)(() => {
               if (cancelled) {
-                return;
+                return
               }
 
               readEngineRuntime(repo).pipe(
-                fork(reject)((snapshotAfterDelay) => {
+                fork(reject)(snapshotAfterDelay => {
                   if (
                     snapshotAfterDelay.stop_requested_at !== null ||
                     remainingMilliseconds - delayMilliseconds <= 0
                   ) {
-                    settle();
-                    return;
+                    settle()
+                    return
                   }
 
-                  step(remainingMilliseconds - delayMilliseconds);
-                }),
-              );
-            }),
-          );
-        }),
-      );
-    };
+                  step(remainingMilliseconds - delayMilliseconds)
+                })
+              )
+            })
+          )
+        })
+      )
+    }
 
-    step(milliseconds);
+    step(milliseconds)
 
     return () => {
-      cancelled = true;
-    };
-  });
+      cancelled = true
+    }
+  })
 }
 
 function synthesizeEngineEvents(
   runtime: EngineRuntimeSnapshot | null,
-  events: readonly DomainEvent[],
+  events: readonly DomainEvent[]
 ): DomainEvent[] {
   if (events.length > 0) {
-    return [...events];
+    return [...events]
   }
 
-  const runtimeRecord = runtime?.status ?? runtime?.lock ?? null;
-  const state = runtimeRecord?.state ?? "stopped";
+  const runtimeRecord = runtime?.status ?? runtime?.lock ?? null
+  const state = runtimeRecord?.state ?? 'stopped'
   const occurredAt =
     runtimeRecord?.last_tick_at ??
     runtimeRecord?.started_at ??
-    new Date().toISOString();
+    new Date().toISOString()
 
   return [
     {
-      event_id: `engine-status-${state}-${runtimeRecord?.started_at ?? "n-a"}`,
+      event_id: `engine-status-${state}-${runtimeRecord?.started_at ?? 'n-a'}`,
       issue_id: null,
       run_id: null,
       type: `engine.status.${state}`,
       state: null,
       message: `engine ${state}`,
-      severity: "info",
+      severity: 'info',
       occurred_at: occurredAt,
-      actor: "engine",
+      actor: 'engine',
       transport: null,
       data: {
         state,
@@ -476,174 +476,174 @@ function synthesizeEngineEvents(
         stale_lock: runtime?.stale_lock ?? false,
       },
     },
-  ];
+  ]
 }
 
 const configDefinitions: readonly ConfigDefinition[] = [
   {
-    key: "supervisor.auto-discover",
+    key: 'supervisor.auto-discover',
     default_value: false,
-    type: "boolean",
+    type: 'boolean',
     description:
-      "Whether supervisor ticks may discover and queue candidate work automatically.",
+      'Whether supervisor ticks may discover and queue candidate work automatically.',
     requires_engine_restart: false,
     bounds: null,
     allowed_values: [true, false],
   },
   {
-    key: "supervisor.queue-depth",
+    key: 'supervisor.queue-depth',
     default_value: 5,
-    type: "integer",
+    type: 'integer',
     description:
-      "Maximum queued-but-not-running items maintained by auto-discovery.",
+      'Maximum queued-but-not-running items maintained by auto-discovery.',
     requires_engine_restart: false,
     bounds: { min: 0, max: 100 },
     allowed_values: null,
   },
   {
-    key: "supervisor.max-concurrency",
+    key: 'supervisor.max-concurrency',
     default_value: 1,
-    type: "integer",
+    type: 'integer',
     description:
-      "Maximum active runs the local supervisor may supervise at once.",
+      'Maximum active runs the local supervisor may supervise at once.',
     requires_engine_restart: false,
     bounds: { min: 1, max: 16 },
     allowed_values: null,
   },
   {
-    key: "supervisor.max-retries",
+    key: 'supervisor.max-retries',
     default_value: 2,
-    type: "integer",
+    type: 'integer',
     description:
-      "Maximum retry attempts the local supervisor may schedule for retryable work.",
+      'Maximum retry attempts the local supervisor may schedule for retryable work.',
     requires_engine_restart: false,
     bounds: { min: 0, max: 10 },
     allowed_values: null,
   },
   {
-    key: "supervisor.tick-interval-seconds",
+    key: 'supervisor.tick-interval-seconds',
     default_value: 15,
-    type: "integer",
-    description: "Delay between daemon supervisor ticks.",
+    type: 'integer',
+    description: 'Delay between daemon supervisor ticks.',
     requires_engine_restart: false,
     bounds: { min: 1, max: 3600 },
     allowed_values: null,
   },
   {
-    key: "delivery.require-review",
+    key: 'delivery.require-review',
     default_value: true,
-    type: "boolean",
+    type: 'boolean',
     description:
-      "Whether delivery workflow must include a review gate before completion.",
+      'Whether delivery workflow must include a review gate before completion.',
     requires_engine_restart: false,
     bounds: null,
     allowed_values: [true, false],
   },
   {
-    key: "delivery.allow-release",
+    key: 'delivery.allow-release',
     default_value: false,
-    type: "boolean",
-    description: "Whether automated publish/release behavior is allowed.",
+    type: 'boolean',
+    description: 'Whether automated publish/release behavior is allowed.',
     requires_engine_restart: false,
     bounds: null,
     allowed_values: [true, false],
   },
   {
-    key: "logs.retention-days",
+    key: 'logs.retention-days',
     default_value: 30,
-    type: "integer",
-    description: "Retention target for future log/artifact cleanup.",
+    type: 'integer',
+    description: 'Retention target for future log/artifact cleanup.',
     requires_engine_restart: false,
     bounds: { min: 1, max: 365 },
     allowed_values: null,
   },
   {
-    key: "discovery.projects",
-    default_value: "",
-    type: "string",
+    key: 'discovery.projects',
+    default_value: '',
+    type: 'string',
     description:
-      "Comma-separated Linear project allowlist used by discover when no --project flags are provided.",
+      'Comma-separated Linear project allowlist used by discover when no --project flags are provided.',
     requires_engine_restart: false,
     bounds: null,
     allowed_values: null,
   },
-];
+]
 
 const configDefinitionsByKey = new Map(
-  configDefinitions.map((definition) => [definition.key, definition] as const),
-);
+  configDefinitions.map(definition => [definition.key, definition] as const)
+)
 
-const discoverDefaultScanLimit = 100;
+const discoverDefaultScanLimit = 100
 
 function resolveRepoRef(options: AutobotGlobalOptions): RepoRef {
   return {
     path: path.resolve(options.repo ?? process.cwd()),
-    state_dir: options.state_dir ?? ".autobot",
-  };
+    state_dir: options.state_dir ?? '.autobot',
+  }
 }
 
 function sameConfigValue(left: ConfigValue, right: ConfigValue): boolean {
-  return Object.is(left, right);
+  return Object.is(left, right)
 }
 
 function normalizeConfigValue(value: string | number | boolean): ConfigValue {
-  return value;
+  return value
 }
 
 function parseBooleanValue(key: string, rawValue: string): boolean {
-  const normalized = rawValue.trim().toLowerCase();
+  const normalized = rawValue.trim().toLowerCase()
 
-  if (["true", "on", "yes", "1"].includes(normalized)) {
-    return true;
+  if (['true', 'on', 'yes', '1'].includes(normalized)) {
+    return true
   }
 
-  if (["false", "off", "no", "0"].includes(normalized)) {
-    return false;
+  if (['false', 'off', 'no', '0'].includes(normalized)) {
+    return false
   }
 
   throw new AutobotCliError({
-    code: "CONFIG_VALUE_INVALID",
+    code: 'CONFIG_VALUE_INVALID',
     message: `Invalid boolean value for ${key}`,
-    what_failed: "config parsing",
+    what_failed: 'config parsing',
     likely_cause:
-      "the value is not one of true, false, on, off, yes, no, 1, or 0",
+      'the value is not one of true, false, on, off, yes, no, 1, or 0',
     recovery_commands: [
       `autobot-next config list --json`,
       `autobot-next config set ${key} true --dry-run`,
     ],
     details: { key, value: rawValue },
     exit_code: 2,
-  });
+  })
 }
 
 function parseIntegerValue(
   key: string,
   definition: ConfigDefinition,
-  rawValue: string,
+  rawValue: string
 ): number {
   if (!/^-?\d+$/.test(rawValue.trim())) {
     throw new AutobotCliError({
-      code: "CONFIG_VALUE_INVALID",
+      code: 'CONFIG_VALUE_INVALID',
       message: `Invalid integer value for ${key}`,
-      what_failed: "config parsing",
-      likely_cause: "the value is not a base-10 whole number",
+      what_failed: 'config parsing',
+      likely_cause: 'the value is not a base-10 whole number',
       recovery_commands: [
         `autobot-next config list --json`,
         `autobot-next config set ${key} ${definition.default_value} --dry-run`,
       ],
       details: { key, value: rawValue },
       exit_code: 2,
-    });
+    })
   }
 
-  const parsed = Number.parseInt(rawValue, 10);
-  const bounds = definition.bounds;
+  const parsed = Number.parseInt(rawValue, 10)
+  const bounds = definition.bounds
 
   if (bounds?.min !== undefined && parsed < bounds.min) {
     throw new AutobotCliError({
-      code: "CONFIG_VALUE_INVALID",
+      code: 'CONFIG_VALUE_INVALID',
       message: `Value for ${key} is below the minimum`,
-      what_failed: "config parsing",
+      what_failed: 'config parsing',
       likely_cause: `the value must be at least ${bounds.min}`,
       recovery_commands: [
         `autobot-next config list --json`,
@@ -651,14 +651,14 @@ function parseIntegerValue(
       ],
       details: { key, value: rawValue, min: bounds.min },
       exit_code: 2,
-    });
+    })
   }
 
   if (bounds?.max !== undefined && parsed > bounds.max) {
     throw new AutobotCliError({
-      code: "CONFIG_VALUE_INVALID",
+      code: 'CONFIG_VALUE_INVALID',
       message: `Value for ${key} is above the maximum`,
-      what_failed: "config parsing",
+      what_failed: 'config parsing',
       likely_cause: `the value must be at most ${bounds.max}`,
       recovery_commands: [
         `autobot-next config list --json`,
@@ -666,55 +666,55 @@ function parseIntegerValue(
       ],
       details: { key, value: rawValue, max: bounds.max },
       exit_code: 2,
-    });
+    })
   }
 
-  return parsed;
+  return parsed
 }
 
 function parseConfigValue(
   definition: ConfigDefinition,
-  rawValue: string,
+  rawValue: string
 ): ConfigValue {
   switch (definition.type) {
-    case "boolean":
-      return parseBooleanValue(definition.key, rawValue);
-    case "integer":
-      return parseIntegerValue(definition.key, definition, rawValue);
-    case "string":
-      return rawValue;
+    case 'boolean':
+      return parseBooleanValue(definition.key, rawValue)
+    case 'integer':
+      return parseIntegerValue(definition.key, definition, rawValue)
+    case 'string':
+      return rawValue
   }
 }
 
 function toConfigEntry(
   definition: ConfigDefinition,
-  override?: ConfigOverrideRecord | null,
+  override?: ConfigOverrideRecord | null
 ): ConfigEntry {
-  const value = override?.value ?? definition.default_value;
+  const value = override?.value ?? definition.default_value
 
   return {
     key: definition.key,
     value,
     default_value: definition.default_value,
     type: definition.type,
-    source: override?.source ?? "default",
+    source: override?.source ?? 'default',
     description: definition.description,
     requires_engine_restart: definition.requires_engine_restart,
     bounds: definition.bounds,
     allowed_values: definition.allowed_values,
-  };
+  }
 }
 
 function createDomainEvent(input: {
-  type: string;
-  state: ItemState | null;
-  severity: DomainEvent["severity"];
-  message: string;
-  data: Record<string, unknown>;
-  issue_id?: string | null;
-  run_id?: string | null;
-  actor?: string;
-  occurred_at?: string;
+  type: string
+  state: ItemState | null
+  severity: DomainEvent['severity']
+  message: string
+  data: Record<string, unknown>
+  issue_id?: string | null
+  run_id?: string | null
+  actor?: string
+  occurred_at?: string
 }): DomainEvent {
   return {
     event_id: `autobot-${randomUUID()}`,
@@ -725,27 +725,27 @@ function createDomainEvent(input: {
     message: input.message,
     severity: input.severity,
     occurred_at: input.occurred_at ?? new Date().toISOString(),
-    actor: input.actor ?? "autobot-cli",
+    actor: input.actor ?? 'autobot-cli',
     transport: null,
     data: input.data,
-  };
+  }
 }
 
 function buildItemSummary(input: {
-  issue_id: string;
-  title: string | null;
-  url: string | null;
-  state: ItemState;
-  attempt: number;
-  priority: number | null;
-  owner: string | null;
-  workspace: string | null;
-  branch: string | null;
-  queued_at: string | null;
-  started_at: string | null;
-  updated_at: string;
-  last_event: string | null;
-  last_error: ItemSummary["last_error"];
+  issue_id: string
+  title: string | null
+  url: string | null
+  state: ItemState
+  attempt: number
+  priority: number | null
+  owner: string | null
+  workspace: string | null
+  branch: string | null
+  queued_at: string | null
+  started_at: string | null
+  updated_at: string
+  last_event: string | null
+  last_error: ItemSummary['last_error']
 }): ItemSummary {
   return {
     issue_id: input.issue_id,
@@ -762,18 +762,18 @@ function buildItemSummary(input: {
     updated_at: input.updated_at,
     last_event: input.last_event,
     last_error: input.last_error,
-  };
+  }
 }
 
 function buildQueuedItemSummary(
   issueId: string,
-  queuedAt: string,
+  queuedAt: string
 ): ItemSummary {
   return buildItemSummary({
     issue_id: issueId,
     title: null,
     url: null,
-    state: "queued",
+    state: 'queued',
     attempt: 1,
     priority: null,
     owner: null,
@@ -782,93 +782,91 @@ function buildQueuedItemSummary(
     queued_at: queuedAt,
     started_at: null,
     updated_at: queuedAt,
-    last_event: "item.queued",
+    last_event: 'item.queued',
     last_error: null,
-  });
+  })
 }
 
 function buildItemSummaryFromExisting(
   item: ItemSummary,
   state: ItemState,
-  updatedAt: string,
+  updatedAt: string
 ): ItemSummary {
   return buildItemSummary({
     ...item,
     state,
     updated_at: updatedAt,
-  });
+  })
 }
 
 export function createEngineStatus(
   config: ConfigEntry[],
   counts: Record<ItemState, number>,
   input: {
-    runtime?: EngineRuntimeSnapshot | null;
-    lastTickAt?: string | null;
-    activeWorkers?: Array<EngineStatusData["active_workers"][number]>;
-    events?: readonly DomainEvent[];
-    health?: HealthCheck[];
-    fallbackState?: EngineStatus["state"];
-  } = {},
+    runtime?: EngineRuntimeSnapshot | null
+    lastTickAt?: string | null
+    activeWorkers?: Array<EngineStatusData['active_workers'][number]>
+    events?: readonly DomainEvent[]
+    health?: HealthCheck[]
+    fallbackState?: EngineStatus['state']
+  } = {}
 ): EngineStatus {
   const maxConcurrency =
-    config.find((entry) => entry.key === "supervisor.max-concurrency")?.value ??
-    1;
+    config.find(entry => entry.key === 'supervisor.max-concurrency')?.value ?? 1
   const tickIntervalSeconds =
-    config.find((entry) => entry.key === "supervisor.tick-interval-seconds")
-      ?.value ?? 15;
-  const runtime = input.runtime ?? null;
-  const runtimeStatus = runtime?.status ?? null;
-  const runtimeLock = runtime?.lock ?? null;
-  const activeWorkers = input.activeWorkers ?? [];
-  const events = input.events ?? [];
-  const providedHealth = input.health ?? null;
-  const statusHealth = providedHealth ?? runtimeStatus?.health ?? [];
+    config.find(entry => entry.key === 'supervisor.tick-interval-seconds')
+      ?.value ?? 15
+  const runtime = input.runtime ?? null
+  const runtimeStatus = runtime?.status ?? null
+  const runtimeLock = runtime?.lock ?? null
+  const activeWorkers = input.activeWorkers ?? []
+  const events = input.events ?? []
+  const providedHealth = input.health ?? null
+  const statusHealth = providedHealth ?? runtimeStatus?.health ?? []
   const health = [
     ...(runtime !== null && runtime.stale_lock
       ? [
           {
-            code: "ENGINE_STALE_LOCK",
-            status: "error" as const,
-            message: `stale engine lock at pid ${runtimeLock?.pid ?? "n/a"}`,
+            code: 'ENGINE_STALE_LOCK',
+            status: 'error' as const,
+            message: `stale engine lock at pid ${runtimeLock?.pid ?? 'n/a'}`,
           },
         ]
       : []),
     ...(runtime !== null && runtime.stop_requested_at !== null
       ? [
           {
-            code: "ENGINE_STOP_REQUESTED",
-            status: "warning" as const,
-            message: "graceful shutdown requested",
+            code: 'ENGINE_STOP_REQUESTED',
+            status: 'warning' as const,
+            message: 'graceful shutdown requested',
           },
         ]
       : []),
     ...statusHealth,
-  ];
-  const startedAt =
-    runtimeStatus?.started_at ?? runtimeLock?.started_at ?? null;
-  const pid = runtimeStatus?.pid ?? runtimeLock?.pid ?? null;
-  const lastTickAt = input.lastTickAt ?? runtimeStatus?.last_tick_at ?? null;
+  ]
+  const startedAt = runtimeStatus?.started_at ?? runtimeLock?.started_at ?? null
+  const pid = runtimeStatus?.pid ?? runtimeLock?.pid ?? null
+  const lastTickAt = input.lastTickAt ?? runtimeStatus?.last_tick_at ?? null
 
   const state =
     runtime === null
-      ? input.fallbackState ?? "unknown"
+      ? input.fallbackState ?? 'unknown'
       : runtime.stale_lock
-      ? "unhealthy"
+      ? 'unhealthy'
       : runtime.stop_requested_at !== null ||
-        runtimeStatus?.state === "stopping"
-      ? "stopping"
-      : runtimeStatus?.state === "unhealthy"
-      ? "unhealthy"
-      : runtimeStatus?.state === "stopped"
-      ? "stopped"
-      : runtimeStatus?.state === "starting"
-      ? "starting"
+        runtimeStatus?.state === 'stopping'
+      ? 'stopping'
+      : runtimeStatus?.state === 'unhealthy'
+      ? 'unhealthy'
+      : runtimeStatus?.state === 'stopped'
+      ? 'stopped'
+      : runtimeStatus?.state === 'starting'
+      ? 'starting'
       : runtimeLock !== null || runtimeStatus !== null
-      ? statusHealth.some((item) => item.status === "error")
-        ? "unhealthy"
-        : "running"
-      : "stopped";
+      ? statusHealth.some(item => item.status === 'error')
+        ? 'unhealthy'
+        : 'running'
+      : 'stopped'
 
   return {
     state,
@@ -880,32 +878,30 @@ export function createEngineStatus(
     max_concurrency: Number(maxConcurrency),
     active_runs: itemStates.reduce(
       (total, state) => total + (isInProgressState(state) ? counts[state] : 0),
-      0,
+      0
     ),
     active_workers: activeWorkers,
     events,
     health,
-  };
+  }
 }
 
 function resolveEngineTickSettings(config: ConfigEntry[]): EngineTickSettings {
-  const configByKey = new Map(
-    config.map((entry) => [entry.key, entry] as const),
-  );
+  const configByKey = new Map(config.map(entry => [entry.key, entry] as const))
   const autoDiscover =
-    (configByKey.get("supervisor.auto-discover")?.value as
+    (configByKey.get('supervisor.auto-discover')?.value as
       | boolean
-      | undefined) ?? false;
+      | undefined) ?? false
   const queueDepth =
-    (configByKey.get("supervisor.queue-depth")?.value as number | undefined) ??
-    0;
+    (configByKey.get('supervisor.queue-depth')?.value as number | undefined) ??
+    0
   const maxConcurrency =
-    (configByKey.get("supervisor.max-concurrency")?.value as
+    (configByKey.get('supervisor.max-concurrency')?.value as
       | number
-      | undefined) ?? 1;
+      | undefined) ?? 1
   const maxRetries =
-    (configByKey.get("supervisor.max-retries")?.value as number | undefined) ??
-    2;
+    (configByKey.get('supervisor.max-retries')?.value as number | undefined) ??
+    2
 
   return {
     autoDiscover,
@@ -913,33 +909,33 @@ function resolveEngineTickSettings(config: ConfigEntry[]): EngineTickSettings {
     maxConcurrency,
     maxRetries,
     discoveryProjects: normalizeDiscoverProjects(
-      configByKey.get("discovery.projects")?.value as string | undefined,
+      configByKey.get('discovery.projects')?.value as string | undefined
     ),
     scanLimit: Math.max(discoverDefaultScanLimit, queueDepth),
-  };
+  }
 }
 
 function createEngineDiscoveryWarning(): Warning {
   return {
-    code: "ENGINE_DISCOVERY_PROJECTS_MISSING",
+    code: 'ENGINE_DISCOVERY_PROJECTS_MISSING',
     message:
-      "Auto-discovery is enabled but discovery.projects is unset; skipping discovery.",
-    severity: "warning",
-  };
+      'Auto-discovery is enabled but discovery.projects is unset; skipping discovery.',
+    severity: 'warning',
+  }
 }
 
 function createEngineReconciledEvent(input: {
-  issue_id: string;
-  previous_state: ItemState;
-  next_state: ItemState;
-  reason: string;
-  tick_at: string;
+  issue_id: string
+  previous_state: ItemState
+  next_state: ItemState
+  reason: string
+  tick_at: string
 }): DomainEvent {
   return createDomainEvent({
-    type: "engine.item.reconciled",
-    severity: "info",
+    type: 'engine.item.reconciled',
+    severity: 'info',
     state: input.next_state,
-    message: "Engine reconciled item state",
+    message: 'Engine reconciled item state',
     issue_id: input.issue_id,
     occurred_at: input.tick_at,
     data: {
@@ -948,46 +944,46 @@ function createEngineReconciledEvent(input: {
       next_state: input.next_state,
       reason: input.reason,
     },
-  });
+  })
 }
 
 function createEngineRetryScheduledEvent(input: {
-  issue_id: string;
-  previous_state: ItemState;
-  previous_attempt: number;
-  next_attempt: number;
-  reason: string;
-  tick_at: string;
+  issue_id: string
+  previous_state: ItemState
+  previous_attempt: number
+  next_attempt: number
+  reason: string
+  tick_at: string
 }): DomainEvent {
   return createDomainEvent({
-    type: "engine.item.retry_scheduled",
-    severity: "info",
-    state: "queued",
-    message: "Engine scheduled item retry",
+    type: 'engine.item.retry_scheduled',
+    severity: 'info',
+    state: 'queued',
+    message: 'Engine scheduled item retry',
     issue_id: input.issue_id,
     occurred_at: input.tick_at,
     data: {
       issue_id: input.issue_id,
       previous_state: input.previous_state,
-      next_state: "queued",
+      next_state: 'queued',
       previous_attempt: input.previous_attempt,
       next_attempt: input.next_attempt,
       reason: input.reason,
     },
-  });
+  })
 }
 
 function createEngineTickEvent(input: {
-  type: "engine.tick.started" | "engine.tick.selected" | "engine.tick.finished";
-  tickAt: string;
-  selectedIssueIds: string[];
-  reconciledIssueIds: string[];
-  queuedIssueIds: string[];
-  startedIssueIds: string[];
+  type: 'engine.tick.started' | 'engine.tick.selected' | 'engine.tick.finished'
+  tickAt: string
+  selectedIssueIds: string[]
+  reconciledIssueIds: string[]
+  queuedIssueIds: string[]
+  startedIssueIds: string[]
 }): DomainEvent {
   return createDomainEvent({
     type: input.type,
-    severity: "info",
+    severity: 'info',
     state: null,
     message: input.type,
     occurred_at: input.tickAt,
@@ -997,22 +993,22 @@ function createEngineTickEvent(input: {
       queued_issue_ids: input.queuedIssueIds,
       started_issue_ids: input.startedIssueIds,
     },
-  });
+  })
 }
 
 function createWorkerReconciledEvent(input: {
-  issue_id: string;
-  worker_id: string;
-  previous_state: string;
-  next_state: string;
-  reason: string;
-  tick_at: string;
+  issue_id: string
+  worker_id: string
+  previous_state: string
+  next_state: string
+  reason: string
+  tick_at: string
 }): DomainEvent {
   return createDomainEvent({
-    type: "engine.worker.reconciled",
-    severity: "info",
+    type: 'engine.worker.reconciled',
+    severity: 'info',
     state: null,
-    message: "Engine reconciled worker state",
+    message: 'Engine reconciled worker state',
     issue_id: input.issue_id,
     occurred_at: input.tick_at,
     data: {
@@ -1022,19 +1018,19 @@ function createWorkerReconciledEvent(input: {
       next_state: input.next_state,
       reason: input.reason,
     },
-  });
+  })
 }
 
 function createDiscoveredItemRecord(
   candidate: DiscoverCandidate,
-  queuedAt: string,
+  queuedAt: string
 ): EngineTickCandidateRecord {
   return {
     summary: buildItemSummary({
       issue_id: candidate.issue_id,
       title: candidate.title,
       url: candidate.url,
-      state: "queued",
+      state: 'queued',
       attempt: 1,
       priority: candidate.priority,
       owner: candidate.assignee,
@@ -1043,14 +1039,14 @@ function createDiscoveredItemRecord(
       queued_at: queuedAt,
       started_at: null,
       updated_at: queuedAt,
-      last_event: "item.queued",
+      last_event: 'item.queued',
       last_error: null,
     }),
     record: {
       issue_id: candidate.issue_id,
       title: candidate.title,
       url: candidate.url,
-      state: "queued",
+      state: 'queued',
       attempt: 1,
       priority: candidate.priority,
       owner: candidate.assignee,
@@ -1059,7 +1055,7 @@ function createDiscoveredItemRecord(
       queued_at: queuedAt,
       started_at: null,
       updated_at: queuedAt,
-      last_event: "item.queued",
+      last_event: 'item.queued',
       last_error: null,
       recovery_commands: [`autobot-next status ${candidate.issue_id} --json`],
       cancellation_requested: false,
@@ -1071,19 +1067,19 @@ function createDiscoveredItemRecord(
       assignee: candidate.assignee,
       current_run_id: null,
     },
-  };
+  }
 }
 
 function createReconciledItemRecord(input: {
-  item: ItemSummary;
-  state: ItemState;
-  updatedAt: string;
-  lastError?: ErrorSummary | null;
-  recoveryCommands?: string[];
+  item: ItemSummary
+  state: ItemState
+  updatedAt: string
+  lastError?: ErrorSummary | null
+  recoveryCommands?: string[]
 }): ItemRecord {
   return {
     ...buildItemSummaryFromExisting(input.item, input.state, input.updatedAt),
-    last_event: "engine.item.reconciled",
+    last_event: 'engine.item.reconciled',
     recovery_commands: input.recoveryCommands ?? [],
     cancellation_requested: false,
     cancellation_requested_at: null,
@@ -1094,48 +1090,48 @@ function createReconciledItemRecord(input: {
     assignee: input.item.owner,
     current_run_id: null,
     last_error: input.lastError ?? null,
-  };
+  }
 }
 
 function createErrorSummary(
   error: unknown,
-  occurredAt: string,
-): ItemSummary["last_error"] {
-  const payload = toErrorPayload(error);
+  occurredAt: string
+): ItemSummary['last_error'] {
+  const payload = toErrorPayload(error)
 
   return {
     code: payload.code,
     message: payload.message,
     occurred_at: occurredAt,
-  };
+  }
 }
 
 function buildRetryScheduledItemSummary(
   item: ItemSummary,
   updatedAt: string,
-  lastError: ErrorSummary,
+  lastError: ErrorSummary
 ): ItemSummary {
   return buildItemSummary({
     ...item,
-    state: "queued",
+    state: 'queued',
     attempt: item.attempt + 1,
     updated_at: updatedAt,
-    last_event: "engine.item.retry_scheduled",
+    last_event: 'engine.item.retry_scheduled',
     last_error: lastError,
-  });
+  })
 }
 
 function createRetryScheduledItemRecord(input: {
-  item: ItemSummary;
-  updatedAt: string;
-  lastError: ErrorSummary;
-  recoveryCommands?: string[];
+  item: ItemSummary
+  updatedAt: string
+  lastError: ErrorSummary
+  recoveryCommands?: string[]
 }): ItemRecord {
   return {
     ...buildRetryScheduledItemSummary(
       input.item,
       input.updatedAt,
-      input.lastError,
+      input.lastError
     ),
     recovery_commands: input.recoveryCommands ?? [],
     cancellation_requested: false,
@@ -1147,22 +1143,22 @@ function createRetryScheduledItemRecord(input: {
     assignee: input.item.owner,
     current_run_id: null,
     last_error: input.lastError,
-  };
+  }
 }
 
 function createRetryExhaustedItemRecord(input: {
-  item: ItemSummary;
-  updatedAt: string;
-  lastError: ErrorSummary;
-  recoveryCommands?: string[];
+  item: ItemSummary
+  updatedAt: string
+  lastError: ErrorSummary
+  recoveryCommands?: string[]
 }): ItemRecord {
   return {
     ...buildRetryExhaustedItemSummary(
       input.item,
       input.updatedAt,
-      input.lastError,
+      input.lastError
     ),
-    last_event: "engine.item.retry_exhausted",
+    last_event: 'engine.item.retry_exhausted',
     recovery_commands: input.recoveryCommands ?? [],
     cancellation_requested: false,
     cancellation_requested_at: null,
@@ -1173,159 +1169,159 @@ function createRetryExhaustedItemRecord(input: {
     assignee: input.item.owner,
     current_run_id: null,
     last_error: input.lastError,
-  };
+  }
 }
 
 function buildRetryExhaustedItemSummary(
   item: ItemSummary,
   updatedAt: string,
-  lastError: ErrorSummary,
+  lastError: ErrorSummary
 ): ItemSummary {
   return buildItemSummary({
     ...item,
-    state: "failed",
+    state: 'failed',
     updated_at: updatedAt,
-    last_event: "engine.item.retry_exhausted",
+    last_event: 'engine.item.retry_exhausted',
     last_error: lastError,
-  });
+  })
 }
 
 function createEngineRetryExhaustedEvent(input: {
-  issue_id: string;
-  previous_state: ItemState;
-  previous_attempt: number;
-  max_retries: number;
-  reason: string;
-  tick_at: string;
+  issue_id: string
+  previous_state: ItemState
+  previous_attempt: number
+  max_retries: number
+  reason: string
+  tick_at: string
 }): DomainEvent {
   return createDomainEvent({
-    type: "engine.item.retry_exhausted",
-    severity: "info",
-    state: "failed",
-    message: "Engine exhausted item retry budget",
+    type: 'engine.item.retry_exhausted',
+    severity: 'info',
+    state: 'failed',
+    message: 'Engine exhausted item retry budget',
     issue_id: input.issue_id,
     occurred_at: input.tick_at,
     data: {
       issue_id: input.issue_id,
       previous_state: input.previous_state,
-      next_state: "failed",
+      next_state: 'failed',
       previous_attempt: input.previous_attempt,
       max_retries: input.max_retries,
       reason: input.reason,
     },
-  });
+  })
 }
 
 const retryableFailureCodes = new Set([
-  "AUTOBOT-WORKER-FAILED",
-  "AUTOBOT-WORKER-EXITED",
-  "AUTOBOT-WORKER-STALE",
-  "AUTOBOT-WORKER-MISSING-PROCESS",
-  "AUTOBOT-WORKER-SPAWN-FAILED",
-  "AUTOBOT-PLANNING-WORKER-RESULT-MISSING",
-]);
+  'AUTOBOT-WORKER-FAILED',
+  'AUTOBOT-WORKER-EXITED',
+  'AUTOBOT-WORKER-STALE',
+  'AUTOBOT-WORKER-MISSING-PROCESS',
+  'AUTOBOT-WORKER-SPAWN-FAILED',
+  'AUTOBOT-PLANNING-WORKER-RESULT-MISSING',
+])
 
 function isRetryableFailedItem(item: ItemSummary): boolean {
-  if (item.state !== "failed") {
-    return false;
+  if (item.state !== 'failed') {
+    return false
   }
 
-  if (item.last_event === "engine.item.retry_exhausted") {
-    return false;
+  if (item.last_event === 'engine.item.retry_exhausted') {
+    return false
   }
 
-  const code = item.last_error?.code ?? null;
-  return code !== null && retryableFailureCodes.has(code);
+  const code = item.last_error?.code ?? null
+  return code !== null && retryableFailureCodes.has(code)
 }
 
 function getRetryFailureReason(item: ItemSummary): string {
-  const code = item.last_error?.code ?? null;
+  const code = item.last_error?.code ?? null
 
   switch (code) {
-    case "AUTOBOT-WORKER-STALE":
-      return "worker-stale";
-    case "AUTOBOT-WORKER-MISSING-PROCESS":
-      return "missing-process";
-    case "AUTOBOT-WORKER-FAILED":
-      return "worker-failed";
-    case "AUTOBOT-WORKER-SPAWN-FAILED":
-      return "worker-spawn-error";
-    case "AUTOBOT-WORKER-EXITED":
+    case 'AUTOBOT-WORKER-STALE':
+      return 'worker-stale'
+    case 'AUTOBOT-WORKER-MISSING-PROCESS':
+      return 'missing-process'
+    case 'AUTOBOT-WORKER-FAILED':
+      return 'worker-failed'
+    case 'AUTOBOT-WORKER-SPAWN-FAILED':
+      return 'worker-spawn-error'
+    case 'AUTOBOT-WORKER-EXITED':
     default:
-      return item.last_error?.message?.includes("signal") === true
-        ? "worker-signal"
-        : item.last_error?.message?.includes("code") === true
-        ? "worker-exit-code"
-        : "worker-exited";
+      return item.last_error?.message?.includes('signal') === true
+        ? 'worker-signal'
+        : item.last_error?.message?.includes('code') === true
+        ? 'worker-exit-code'
+        : 'worker-exited'
   }
 }
 
 function compareQueuedItems(left: ItemSummary, right: ItemSummary): number {
-  const leftQueuedAt = left.queued_at ?? left.updated_at;
-  const rightQueuedAt = right.queued_at ?? right.updated_at;
+  const leftQueuedAt = left.queued_at ?? left.updated_at
+  const rightQueuedAt = right.queued_at ?? right.updated_at
 
   return (
     leftQueuedAt.localeCompare(rightQueuedAt) ||
     left.updated_at.localeCompare(right.updated_at) ||
     left.issue_id.localeCompare(right.issue_id)
-  );
+  )
 }
 
 function createWorkerRecoveryCommands(
   issueId: string,
-  includeLogs: boolean,
+  includeLogs: boolean
 ): string[] {
   return [
     `autobot-next status ${issueId} --json`,
     ...(includeLogs ? [`autobot-next logs ${issueId} --json`] : []),
-  ];
+  ]
 }
 
 function createWorkerReconciliationError(input: {
-  code: string;
-  message: string;
-  occurredAt: string;
+  code: string
+  message: string
+  occurredAt: string
 }): ErrorSummary {
   return {
     code: input.code,
     message: input.message,
     occurred_at: input.occurredAt,
-  };
+  }
 }
 
 function resolveProcessLiveness(
   worker: WorkerSummary,
-  isProcessAlive?: (pid: number) => boolean,
+  isProcessAlive?: (pid: number) => boolean
 ): {
-  runnerAlive: boolean;
-  childAlive: boolean;
-  processGroupAlive: boolean;
-  anyAlive: boolean;
+  runnerAlive: boolean
+  childAlive: boolean
+  processGroupAlive: boolean
+  anyAlive: boolean
 } {
   const probe =
     isProcessAlive ??
     ((pid: number) => {
       try {
-        process.kill(pid, 0);
-        return true;
+        process.kill(pid, 0)
+        return true
       } catch {
-        return false;
+        return false
       }
-    });
+    })
 
-  const runnerAlive = worker.pid !== null ? probe(worker.pid) : false;
-  const childPid = worker.child_pid ?? null;
-  const childAlive = childPid !== null ? probe(childPid) : false;
-  const processGroupId = worker.process_group_id ?? null;
+  const runnerAlive = worker.pid !== null ? probe(worker.pid) : false
+  const childPid = worker.child_pid ?? null
+  const childAlive = childPid !== null ? probe(childPid) : false
+  const processGroupId = worker.process_group_id ?? null
   const processGroupAlive =
-    processGroupId !== null ? probe(-processGroupId) : false;
+    processGroupId !== null ? probe(-processGroupId) : false
 
   return {
     runnerAlive,
     childAlive,
     processGroupAlive,
     anyAlive: runnerAlive || childAlive || processGroupAlive,
-  };
+  }
 }
 
 function toWorkerRecord(worker: WorkerSummary): WorkerRecord {
@@ -1353,90 +1349,88 @@ function toWorkerRecord(worker: WorkerSummary): WorkerRecord {
     exit_code: worker.exit_code ?? null,
     signal: worker.signal ?? null,
     finished_at: worker.finished_at ?? null,
-  };
+  }
 }
 
 function findCurrentWorker(input: {
-  item: ItemSummary;
-  currentRun: RunSummary;
-  workers: WorkerSummary[];
-  workersById: Map<string, WorkerSummary>;
+  item: ItemSummary
+  currentRun: RunSummary
+  workers: WorkerSummary[]
+  workersById: Map<string, WorkerSummary>
 }): WorkerSummary | null {
   const exactMatches: Array<string | null> = [
     input.currentRun.worker_id,
     input.currentRun.run_id,
     input.currentRun.flowcraft_execution_id,
     input.item.issue_id,
-  ];
+  ]
 
   for (const key of exactMatches) {
     if (key === null) {
-      continue;
+      continue
     }
 
-    const matchById = input.workersById.get(key) ?? null;
+    const matchById = input.workersById.get(key) ?? null
     if (matchById !== null) {
-      return matchById;
+      return matchById
     }
 
-    const matchByRun = input.workers.find((worker) => worker.run_id === key);
+    const matchByRun = input.workers.find(worker => worker.run_id === key)
     if (matchByRun !== undefined) {
-      return matchByRun;
+      return matchByRun
     }
 
-    const matchByIssue = input.workers.find(
-      (worker) => worker.issue_id === key,
-    );
+    const matchByIssue = input.workers.find(worker => worker.issue_id === key)
     if (matchByIssue !== undefined) {
-      return matchByIssue;
+      return matchByIssue
     }
   }
 
-  return null;
+  return null
 }
 
 type EngineTickReconciliationOutcome = {
-  item: ItemSummary;
-  reconciled_issue_id: string | null;
-  skipped: EngineTickSkip[];
-};
+  item: ItemSummary
+  reconciled_issue_id: string | null
+  skipped: EngineTickSkip[]
+}
 
 function isPlanningWorker(worker: WorkerSummary): boolean {
   return (
-    worker.phase === "planning" ||
-    worker.phase === "plan" ||
-    worker.workflow_node_id === "planning" ||
-    worker.workflow_node_id === "plan"
-  );
+    worker.phase === 'planning' ||
+    worker.phase === 'plan' ||
+    worker.workflow_node_id === 'planning' ||
+    worker.workflow_node_id === 'plan'
+  )
 }
 
 function isPlanningWorkerReconciliationState(
-  state: RunSummary["state"],
+  state: RunSummary['state']
 ): boolean {
-  return state === "claimed" || state === "preparing" || state === "planning";
+  return state === 'claimed' || state === 'preparing' || state === 'planning'
 }
 
 function planningSessionResultFromWorker(
-  worker: WorkerSummary,
+  worker: WorkerSummary
 ): PlanningSessionResult | null {
-  const result = worker.result;
+  const result = worker.result
 
   if (result === null || result === undefined) {
-    return null;
+    return null
   }
 
   if (
-    typeof result.command !== "string" ||
+    typeof result.command !== 'string' ||
     !Array.isArray(result.args) ||
-    !result.args.every((arg) => typeof arg === "string") ||
-    typeof result.started_at !== "string" ||
-    typeof result.finished_at !== "string" ||
-    (typeof result.exit_code !== "number" && result.exit_code !== null) ||
-    (typeof result.signal !== "string" && result.signal !== null) ||
-    typeof result.stdout !== "string" ||
-    typeof result.stderr !== "string"
+    !result.args.every(arg => typeof arg === 'string') ||
+    typeof result.started_at !== 'string' ||
+    typeof result.finished_at !== 'string' ||
+    (typeof result.exit_code !== 'number' && result.exit_code !== null) ||
+    (typeof result.signal !== 'string' && result.signal !== null) ||
+    typeof result.stdout !== 'string' ||
+    typeof result.stderr !== 'string'
   ) {
-    return null;
+    return null
   }
 
   return {
@@ -1448,48 +1442,48 @@ function planningSessionResultFromWorker(
     signal: result.signal as NodeJS.Signals | null,
     stdout: result.stdout,
     stderr: result.stderr,
-  };
+  }
 }
 
 function filterNewFlowcraftEvents(
   events: FlowcraftEventRecord[],
-  persistedEvents: FlowcraftEventRecord[],
+  persistedEvents: FlowcraftEventRecord[]
 ): FlowcraftEventRecord[] {
   const persistedEventsById = new Map(
-    persistedEvents.map((event) => [event.flowcraft_event_id, event]),
-  );
-  const occupiedEventIds = new Set(persistedEventsById.keys());
+    persistedEvents.map(event => [event.flowcraft_event_id, event])
+  )
+  const occupiedEventIds = new Set(persistedEventsById.keys())
 
-  return events.flatMap((event) => {
-    const persistedEvent = persistedEventsById.get(event.flowcraft_event_id);
+  return events.flatMap(event => {
+    const persistedEvent = persistedEventsById.get(event.flowcraft_event_id)
 
     if (persistedEvent === undefined) {
-      occupiedEventIds.add(event.flowcraft_event_id);
-      return [event];
+      occupiedEventIds.add(event.flowcraft_event_id)
+      return [event]
     }
 
     if (flowcraftEventsMatch(event, persistedEvent)) {
-      return [];
+      return []
     }
 
     const flowcraft_event_id = createReconciledFlowcraftEventId({
       eventId: event.flowcraft_event_id,
       occupiedEventIds,
-    });
-    occupiedEventIds.add(flowcraft_event_id);
+    })
+    occupiedEventIds.add(flowcraft_event_id)
 
     return [
       {
         ...event,
         flowcraft_event_id,
       },
-    ];
-  });
+    ]
+  })
 }
 
 function flowcraftEventsMatch(
   left: FlowcraftEventRecord,
-  right: FlowcraftEventRecord,
+  right: FlowcraftEventRecord
 ): boolean {
   return (
     left.flowcraft_event_id === right.flowcraft_event_id &&
@@ -1498,88 +1492,88 @@ function flowcraftEventsMatch(
     left.type === right.type &&
     left.occurred_at === right.occurred_at &&
     JSON.stringify(left.data) === JSON.stringify(right.data)
-  );
+  )
 }
 
 function createReconciledFlowcraftEventId(input: {
-  eventId: string;
-  occupiedEventIds: Set<string>;
+  eventId: string
+  occupiedEventIds: Set<string>
 }): string {
   for (let index = 1; ; index += 1) {
     const candidate = `${input.eventId}-reconciled-${String(index).padStart(
       2,
-      "0",
-    )}`;
+      '0'
+    )}`
 
     if (!input.occupiedEventIds.has(candidate)) {
-      return candidate;
+      return candidate
     }
   }
 }
 
 function isPersistedProgressPhaseEvent(event: DomainEvent): boolean {
-  const phase = event.data.phase;
+  const phase = event.data.phase
 
   return (
-    (event.type === "workflow.phase.prepared" && phase === "preparing") ||
-    (event.type === "workflow.phase.planned" && phase === "planning")
-  );
+    (event.type === 'workflow.phase.prepared' && phase === 'preparing') ||
+    (event.type === 'workflow.phase.planned' && phase === 'planning')
+  )
 }
 
 function filterPersistedPhaseDomainEvents(
   events: DomainEvent[],
-  persistedEvents: DomainEvent[],
+  persistedEvents: DomainEvent[]
 ): DomainEvent[] {
   const persistedProgressTypes = new Set(
     persistedEvents
       .filter(isPersistedProgressPhaseEvent)
-      .map((event) => event.type),
-  );
+      .map(event => event.type)
+  )
 
   return events.filter(
-    (event) =>
+    event =>
       !isPersistedProgressPhaseEvent(event) ||
-      !persistedProgressTypes.has(event.type),
-  );
+      !persistedProgressTypes.has(event.type)
+  )
 }
 
 function reconcileCompletedPlanningWorker(input: {
-  store: AutobotStore;
-  item: ItemSummary;
-  currentRun: RunSummary;
-  worker: WorkerSummary;
-  tickAt: string;
-  dryRun: boolean;
-  artifactWriter: ArtifactWriter;
-  artifactReader: ArtifactReader;
+  store: AutobotStore
+  item: ItemSummary
+  currentRun: RunSummary
+  worker: WorkerSummary
+  tickAt: string
+  dryRun: boolean
+  artifactWriter: ArtifactWriter
+  artifactReader: ArtifactReader
 }): FutureInstance<unknown, EngineTickReconciliationOutcome> {
-  const planningSessionResult = planningSessionResultFromWorker(input.worker);
+  const planningSessionResult = planningSessionResultFromWorker(input.worker)
 
   if (planningSessionResult === null) {
     const lastError = createWorkerReconciliationError({
-      code: "AUTOBOT-PLANNING-WORKER-RESULT-MISSING",
+      code: 'AUTOBOT-PLANNING-WORKER-RESULT-MISSING',
       message:
-        "completed planning worker did not produce a valid result payload for workflow reconciliation",
+        'completed planning worker did not produce a valid result payload for workflow reconciliation',
       occurredAt: input.tickAt,
-    });
+    })
     const nextItem = buildItemSummaryFromExisting(
       input.item,
-      "failed",
-      input.tickAt,
-    );
+      'failed',
+      input.tickAt
+    )
 
     if (input.dryRun) {
       return resolve({
         item: nextItem,
         reconciled_issue_id: input.item.issue_id,
         skipped: [],
-      });
+      })
     }
 
     return input.store.runs
       .upsert({
         ...input.currentRun,
-        state: "failed",
+        state: 'failed',
         finished_at: input.tickAt,
         worker_id: null,
         last_heartbeat_at: null,
@@ -1590,14 +1584,14 @@ function reconcileCompletedPlanningWorker(input: {
             .upsert(
               createReconciledItemRecord({
                 item: input.item,
-                state: "failed",
+                state: 'failed',
                 updatedAt: input.tickAt,
                 lastError,
                 recoveryCommands: createWorkerRecoveryCommands(
                   input.item.issue_id,
-                  true,
+                  true
                 ),
-              }),
+              })
             )
             .pipe(
               chain(() =>
@@ -1606,22 +1600,22 @@ function reconcileCompletedPlanningWorker(input: {
                     createEngineReconciledEvent({
                       issue_id: input.item.issue_id,
                       previous_state: input.item.state,
-                      next_state: "failed",
-                      reason: "planning-worker-result-missing",
+                      next_state: 'failed',
+                      reason: 'planning-worker-result-missing',
                       tick_at: input.tickAt,
-                    }),
+                    })
                   )
                   .pipe(
                     map(() => ({
                       item: nextItem,
                       reconciled_issue_id: input.item.issue_id,
                       skipped: [],
-                    })),
-                  ),
-              ),
-            ),
-        ),
-      );
+                    }))
+                  )
+              )
+            )
+        )
+      )
   }
 
   if (input.dryRun) {
@@ -1629,7 +1623,7 @@ function reconcileCompletedPlanningWorker(input: {
       item: input.item,
       reconciled_issue_id: null,
       skipped: [],
-    });
+    })
   }
 
   const fallbackItemDetail: ItemDetail = {
@@ -1641,30 +1635,30 @@ function reconcileCompletedPlanningWorker(input: {
     recovery_commands: [`autobot-next status ${input.item.issue_id} --json`],
     artifacts: [],
     events: [],
-  };
+  }
 
   return input.store.projections.getItemDetail(input.item.issue_id).pipe(
-    chain((itemDetail) => {
-      const planningItem = itemDetail ?? fallbackItemDetail;
+    chain(itemDetail => {
+      const planningItem = itemDetail ?? fallbackItemDetail
       const planningRepo = resolvePlanningRepoForItem(
         input.store.repo,
-        planningItem,
-      );
+        planningItem
+      )
       const planningArtifactDrafts = buildPlanningArtifactDrafts({
         repoPath: planningRepo.path,
         item: planningItem,
         runId: input.currentRun.run_id,
         executionId: input.currentRun.flowcraft_execution_id!,
         startedAt: input.currentRun.started_at,
-      });
+      })
       const planningArtifactPaths = buildPlanningSessionArtifactPaths(
         planningArtifactDrafts,
-        planningRepo.path,
-      );
+        planningRepo.path
+      )
       const workflowFinishedAt = createCurrentOrLaterTimestamp(
         input.tickAt,
-        planningSessionResult.finished_at,
-      );
+        planningSessionResult.finished_at
+      )
 
       return executeAutobotDeliverIssueWorkflow({
         issue_id: input.item.issue_id,
@@ -1687,19 +1681,19 @@ function reconcileCompletedPlanningWorker(input: {
       }).pipe(
         chain((plan: FlowcraftExecutionPlan) => {
           const runState = mapFlowcraftStatusToItemState(
-            plan.metadata.workflow_status,
-          );
+            plan.metadata.workflow_status
+          )
           const flowcraftFinishedAt = createMonotonicLaterTimestamp(
             plan.metadata.planning_session_result?.finished_at ??
-              workflowFinishedAt,
-          );
-          const planningSessionResult = plan.metadata.planning_session_result;
+              workflowFinishedAt
+          )
+          const planningSessionResult = plan.metadata.planning_session_result
           const lastError =
-            runState === "awaiting"
+            runState === 'awaiting'
               ? {
-                  code: "AUTOBOT-PLANNER-RUN-PLAN-NOT-READY",
+                  code: 'AUTOBOT-PLANNER-RUN-PLAN-NOT-READY',
                   message:
-                    "planning session produced a non-ready run-plan.md; route to research-refine before implementation",
+                    'planning session produced a non-ready run-plan.md; route to research-refine before implementation',
                   occurred_at:
                     plan.metadata.planning_session_result?.finished_at ??
                     flowcraftFinishedAt,
@@ -1707,57 +1701,57 @@ function reconcileCompletedPlanningWorker(input: {
               : plan.metadata.planning_should_fail === true
               ? planningSessionResult === null
                 ? {
-                    code: "AUTOBOT-PLANNING-ARTIFACTS-FAILED",
+                    code: 'AUTOBOT-PLANNING-ARTIFACTS-FAILED',
                     message:
                       plan.metadata.planning_failure_reason ??
-                      "planning failed",
+                      'planning failed',
                     occurred_at: flowcraftFinishedAt,
                   }
                 : plan.metadata.planning_run_plan_valid === false
                 ? {
-                    code: "AUTOBOT-PLANNER-RUN-PLAN-INVALID",
+                    code: 'AUTOBOT-PLANNER-RUN-PLAN-INVALID',
                     message:
                       plan.metadata.planning_failure_reason ??
-                      "planning session produced invalid run-plan.md",
+                      'planning session produced invalid run-plan.md',
                     occurred_at: planningSessionResult.finished_at,
                   }
                 : {
-                    code: "AUTOBOT-PLANNER-SESSION-FAILED",
+                    code: 'AUTOBOT-PLANNER-SESSION-FAILED',
                     message: `planning session exited with code ${String(
-                      planningSessionResult.exit_code,
+                      planningSessionResult.exit_code
                     )}`,
                     occurred_at: planningSessionResult.finished_at,
                   }
-              : null;
+              : null
           const nextItem = buildItemSummaryFromExisting(
             input.item,
             runState,
-            flowcraftFinishedAt,
-          );
+            flowcraftFinishedAt
+          )
 
           return input.store.flowcraft
             .listEvents(input.currentRun.flowcraft_execution_id!)
             .pipe(
-              chain((persistedFlowcraftEvents) =>
+              chain(persistedFlowcraftEvents =>
                 input.store.events
                   .list(input.item.issue_id, {
                     runId: input.currentRun.run_id,
-                    typePrefix: "workflow.phase.",
-                    order: "asc",
+                    typePrefix: 'workflow.phase.',
+                    order: 'asc',
                   })
                   .pipe(
-                    chain((persistedDomainEvents) => {
+                    chain(persistedDomainEvents => {
                       const finalFlowcraftEvents = filterNewFlowcraftEvents(
                         plan.flowcraft_events,
-                        persistedFlowcraftEvents,
-                      );
+                        persistedFlowcraftEvents
+                      )
                       const finalDomainEvents =
                         filterPersistedPhaseDomainEvents(
                           plan.domain_events,
-                          persistedDomainEvents,
-                        );
+                          persistedDomainEvents
+                        )
 
-                      return input.store.transaction((transaction) => {
+                      return input.store.transaction(transaction => {
                         const recordArtifact = (draft: PlanningArtifactDraft) =>
                           transaction.artifacts
                             .record({
@@ -1772,7 +1766,7 @@ function reconcileCompletedPlanningWorker(input: {
                               inherited_from_artifact_id: null,
                               created_at: input.currentRun.started_at,
                             })
-                            .pipe(map(() => undefined));
+                            .pipe(map(() => undefined))
 
                         return transaction.runs
                           .upsert({
@@ -1783,10 +1777,10 @@ function reconcileCompletedPlanningWorker(input: {
                             last_heartbeat_at: null,
                           })
                           .pipe(
-                            chain((run) =>
+                            chain(run =>
                               sequenceFutures([
                                 ...plan.metadata.planning_artifacts
-                                  .filter((draft) => draft.persist !== false)
+                                  .filter(draft => draft.persist !== false)
                                   .map(recordArtifact),
                                 transaction.flowcraft
                                   .recordExecution({
@@ -1800,15 +1794,15 @@ function reconcileCompletedPlanningWorker(input: {
                                     metadata: plan.metadata,
                                   })
                                   .pipe(map(() => undefined)),
-                                ...finalFlowcraftEvents.map((event) =>
+                                ...finalFlowcraftEvents.map(event =>
                                   transaction.flowcraft
                                     .recordEvent(event)
-                                    .pipe(map(() => undefined)),
+                                    .pipe(map(() => undefined))
                                 ),
-                                ...finalDomainEvents.map((event) =>
+                                ...finalDomainEvents.map(event =>
                                   transaction.events
                                     .append(event)
-                                    .pipe(map(() => undefined)),
+                                    .pipe(map(() => undefined))
                                 ),
                                 transaction.items
                                   .upsert(
@@ -1828,7 +1822,7 @@ function reconcileCompletedPlanningWorker(input: {
                                       current_run: null,
                                       artifacts: [],
                                       events: [],
-                                    }),
+                                    })
                                   )
                                   .pipe(map(() => undefined)),
                               ]).pipe(
@@ -1836,19 +1830,19 @@ function reconcileCompletedPlanningWorker(input: {
                                   item: nextItem,
                                   reconciled_issue_id: input.item.issue_id,
                                   skipped: [],
-                                })),
-                              ),
-                            ),
-                          );
-                      });
-                    }),
-                  ),
-              ),
-            );
-        }),
-      );
-    }),
-  );
+                                }))
+                              )
+                            )
+                          )
+                      })
+                    })
+                  )
+              )
+            )
+        })
+      )
+    })
+  )
 }
 
 function reconcileEngineItem(
@@ -1861,47 +1855,47 @@ function reconcileEngineItem(
   maxRetries: number,
   artifactWriter: ArtifactWriter,
   artifactReader: ArtifactReader,
-  isProcessAlive?: AutobotServiceDependencies["isProcessAlive"],
-  killProcess?: AutobotServiceDependencies["kill"],
+  isProcessAlive?: AutobotServiceDependencies['isProcessAlive'],
+  killProcess?: AutobotServiceDependencies['kill']
 ): FutureInstance<unknown, EngineTickReconciliationOutcome> {
   if (!isInProgressState(item.state)) {
     return resolve({
       item,
       reconciled_issue_id: null,
       skipped: [],
-    });
+    })
   }
 
   return store.runs.getCurrent(item.issue_id).pipe(
     chain(
       (
-        currentRun,
+        currentRun
       ): FutureInstance<unknown, EngineTickReconciliationOutcome> => {
         if (currentRun === null) {
-          const nextItem = buildItemSummaryFromExisting(item, "failed", tickAt);
+          const nextItem = buildItemSummaryFromExisting(item, 'failed', tickAt)
           const reconcileEvent = createEngineReconciledEvent({
             issue_id: item.issue_id,
             previous_state: item.state,
-            next_state: "failed",
-            reason: "missing-current-run",
+            next_state: 'failed',
+            reason: 'missing-current-run',
             tick_at: tickAt,
-          });
+          })
 
           if (dryRun) {
             return resolve({
               item: nextItem,
               reconciled_issue_id: item.issue_id,
               skipped: [],
-            });
+            })
           }
 
           return store.items
             .upsert(
               createReconciledItemRecord({
                 item,
-                state: "failed",
+                state: 'failed',
                 updatedAt: tickAt,
-              }),
+              })
             )
             .pipe(
               chain(() =>
@@ -1910,32 +1904,32 @@ function reconcileEngineItem(
                     item: nextItem,
                     reconciled_issue_id: item.issue_id,
                     skipped: [],
-                  })),
-                ),
-              ),
-            );
+                  }))
+                )
+              )
+            )
         }
 
         if (isTerminalState(currentRun.state)) {
           const nextItem = buildItemSummaryFromExisting(
             item,
             currentRun.state,
-            tickAt,
-          );
+            tickAt
+          )
           const reconcileEvent = createEngineReconciledEvent({
             issue_id: item.issue_id,
             previous_state: item.state,
             next_state: currentRun.state,
-            reason: "terminal-current-run",
+            reason: 'terminal-current-run',
             tick_at: tickAt,
-          });
+          })
 
           if (dryRun) {
             return resolve({
               item: nextItem,
               reconciled_issue_id: item.issue_id,
               skipped: [],
-            });
+            })
           }
 
           return store.items
@@ -1944,7 +1938,7 @@ function reconcileEngineItem(
                 item,
                 state: currentRun.state,
                 updatedAt: tickAt,
-              }),
+              })
             )
             .pipe(
               chain(() =>
@@ -1953,10 +1947,10 @@ function reconcileEngineItem(
                     item: nextItem,
                     reconciled_issue_id: item.issue_id,
                     skipped: [],
-                  })),
-                ),
-              ),
-            );
+                  }))
+                )
+              )
+            )
         }
 
         const worker = findCurrentWorker({
@@ -1964,13 +1958,13 @@ function reconcileEngineItem(
           currentRun,
           workers,
           workersById,
-        });
+        })
 
         if (worker !== null) {
-          const liveness = resolveProcessLiveness(worker, isProcessAlive);
+          const liveness = resolveProcessLiveness(worker, isProcessAlive)
 
           if (
-            worker.state === "completed" ||
+            worker.state === 'completed' ||
             (worker.exit_code === 0 && worker.signal === null)
           ) {
             if (
@@ -1986,34 +1980,34 @@ function reconcileEngineItem(
                 dryRun,
                 artifactWriter,
                 artifactReader,
-              });
+              })
             }
 
             const nextItem = buildItemSummaryFromExisting(
               item,
-              "completed",
-              tickAt,
-            );
+              'completed',
+              tickAt
+            )
             const reconcileEvent = createEngineReconciledEvent({
               issue_id: item.issue_id,
               previous_state: item.state,
-              next_state: "completed",
-              reason: "worker-completed",
+              next_state: 'completed',
+              reason: 'worker-completed',
               tick_at: tickAt,
-            });
+            })
 
             if (dryRun) {
               return resolve({
                 item: nextItem,
                 reconciled_issue_id: item.issue_id,
                 skipped: [],
-              });
+              })
             }
 
             return store.runs
               .upsert({
                 ...currentRun,
-                state: "completed",
+                state: 'completed',
                 finished_at: tickAt,
                 worker_id: null,
                 last_heartbeat_at: null,
@@ -2024,9 +2018,9 @@ function reconcileEngineItem(
                     .upsert(
                       createReconciledItemRecord({
                         item,
-                        state: "completed",
+                        state: 'completed',
                         updatedAt: tickAt,
-                      }),
+                      })
                     )
                     .pipe(
                       chain(() =>
@@ -2035,24 +2029,24 @@ function reconcileEngineItem(
                             item: nextItem,
                             reconciled_issue_id: item.issue_id,
                             skipped: [],
-                          })),
-                        ),
-                      ),
-                    ),
-                ),
-              );
+                          }))
+                        )
+                      )
+                    )
+                )
+              )
           }
 
-          if (worker.state === "cancellation-requested") {
+          if (worker.state === 'cancellation-requested') {
             if (!dryRun && liveness.anyAlive && killProcess !== undefined) {
-              const pidToKill = worker.process_group_id ?? worker.pid;
+              const pidToKill = worker.process_group_id ?? worker.pid
 
               if (pidToKill !== null) {
                 try {
-                  killProcess(-pidToKill, "SIGTERM");
+                  killProcess(-pidToKill, 'SIGTERM')
                 } catch {
                   try {
-                    killProcess(pidToKill, "SIGTERM");
+                    killProcess(pidToKill, 'SIGTERM')
                   } catch {
                     // Best effort only.
                   }
@@ -2062,29 +2056,29 @@ function reconcileEngineItem(
 
             const nextItem = buildItemSummaryFromExisting(
               item,
-              "canceled",
-              tickAt,
-            );
+              'canceled',
+              tickAt
+            )
             const reconcileEvent = createEngineReconciledEvent({
               issue_id: item.issue_id,
               previous_state: item.state,
-              next_state: "canceled",
-              reason: "worker-cancellation-requested",
+              next_state: 'canceled',
+              reason: 'worker-cancellation-requested',
               tick_at: tickAt,
-            });
+            })
 
             if (dryRun) {
               return resolve({
                 item: nextItem,
                 reconciled_issue_id: item.issue_id,
                 skipped: [],
-              });
+              })
             }
 
             return store.runs
               .upsert({
                 ...currentRun,
-                state: "canceled",
+                state: 'canceled',
                 finished_at: tickAt,
                 worker_id: null,
                 last_heartbeat_at: null,
@@ -2095,20 +2089,20 @@ function reconcileEngineItem(
                     .upsert(
                       createReconciledItemRecord({
                         item,
-                        state: "canceled",
+                        state: 'canceled',
                         updatedAt: tickAt,
                         recoveryCommands: createWorkerRecoveryCommands(
                           item.issue_id,
-                          false,
+                          false
                         ),
-                      }),
+                      })
                     )
                     .pipe(
                       chain(() =>
                         store.workers
                           .upsert({
                             ...toWorkerRecord(worker),
-                            state: "canceled",
+                            state: 'canceled',
                             last_heartbeat_at: tickAt,
                             deadline_at: null,
                             finished_at: tickAt,
@@ -2120,39 +2114,39 @@ function reconcileEngineItem(
                                   item: nextItem,
                                   reconciled_issue_id: item.issue_id,
                                   skipped: [],
-                                })),
-                              ),
-                            ),
-                          ),
-                      ),
-                    ),
-                ),
-              );
+                                }))
+                              )
+                            )
+                          )
+                      )
+                    )
+                )
+              )
           }
 
           if (
-            worker.state === "running" ||
-            worker.state === "starting" ||
-            worker.state === "stale"
+            worker.state === 'running' ||
+            worker.state === 'starting' ||
+            worker.state === 'stale'
           ) {
             if (!liveness.anyAlive) {
               const lastError = createWorkerReconciliationError({
                 code:
-                  worker.state === "stale"
-                    ? "AUTOBOT-WORKER-STALE"
-                    : "AUTOBOT-WORKER-MISSING-PROCESS",
+                  worker.state === 'stale'
+                    ? 'AUTOBOT-WORKER-STALE'
+                    : 'AUTOBOT-WORKER-MISSING-PROCESS',
                 message:
-                  worker.state === "stale"
-                    ? "worker heartbeat is stale and no process is alive"
-                    : "worker process group or runner is missing",
+                  worker.state === 'stale'
+                    ? 'worker heartbeat is stale and no process is alive'
+                    : 'worker process group or runner is missing',
                 occurredAt: tickAt,
-              });
+              })
               const reason =
-                worker.state === "stale" ? "worker-stale" : "missing-process";
-              const retryable = item.attempt <= maxRetries;
+                worker.state === 'stale' ? 'worker-stale' : 'missing-process'
+              const retryable = item.attempt <= maxRetries
               const nextItem = retryable
                 ? buildRetryScheduledItemSummary(item, tickAt, lastError)
-                : buildItemSummaryFromExisting(item, "failed", tickAt);
+                : buildItemSummaryFromExisting(item, 'failed', tickAt)
               const event = retryable
                 ? createEngineRetryScheduledEvent({
                     issue_id: item.issue_id,
@@ -2169,20 +2163,20 @@ function reconcileEngineItem(
                     max_retries: maxRetries,
                     reason,
                     tick_at: tickAt,
-                  });
+                  })
 
               if (dryRun) {
                 return resolve({
                   item: nextItem,
                   reconciled_issue_id: item.issue_id,
                   skipped: [],
-                });
+                })
               }
 
               return store.runs
                 .upsert({
                   ...currentRun,
-                  state: "failed",
+                  state: 'failed',
                   finished_at: tickAt,
                   worker_id: null,
                   last_heartbeat_at: null,
@@ -2198,7 +2192,7 @@ function reconcileEngineItem(
                               lastError,
                               recoveryCommands: createWorkerRecoveryCommands(
                                 item.issue_id,
-                                true,
+                                true
                               ),
                             })
                           : createRetryExhaustedItemRecord({
@@ -2207,16 +2201,16 @@ function reconcileEngineItem(
                               lastError,
                               recoveryCommands: createWorkerRecoveryCommands(
                                 item.issue_id,
-                                true,
+                                true
                               ),
-                            }),
+                            })
                       )
                       .pipe(
                         chain(() =>
                           store.workers
                             .upsert({
                               ...toWorkerRecord(worker),
-                              state: "exited",
+                              state: 'exited',
                               last_heartbeat_at: tickAt,
                               deadline_at: null,
                               finished_at: tickAt,
@@ -2228,20 +2222,20 @@ function reconcileEngineItem(
                                     item: nextItem,
                                     reconciled_issue_id: item.issue_id,
                                     skipped: [],
-                                  })),
-                                ),
-                              ),
-                            ),
-                        ),
-                      ),
-                  ),
-                );
+                                  }))
+                                )
+                              )
+                            )
+                        )
+                      )
+                  )
+                )
             }
 
-            const workerDeadlineAt = worker.deadline_at ?? null;
+            const workerDeadlineAt = worker.deadline_at ?? null
 
             if (
-              worker.state !== "stale" &&
+              worker.state !== 'stale' &&
               workerDeadlineAt !== null &&
               workerDeadlineAt <= tickAt
             ) {
@@ -2250,13 +2244,13 @@ function reconcileEngineItem(
                   item,
                   reconciled_issue_id: null,
                   skipped: [],
-                });
+                })
               }
 
               return store.workers
                 .upsert({
                   ...toWorkerRecord(worker),
-                  state: "stale",
+                  state: 'stale',
                 })
                 .pipe(
                   chain(() =>
@@ -2266,64 +2260,64 @@ function reconcileEngineItem(
                           issue_id: item.issue_id,
                           worker_id: worker.worker_id,
                           previous_state: worker.state,
-                          next_state: "stale",
-                          reason: "heartbeat-deadline-exceeded",
+                          next_state: 'stale',
+                          reason: 'heartbeat-deadline-exceeded',
                           tick_at: tickAt,
-                        }),
+                        })
                       )
                       .pipe(
                         map(() => ({
                           item,
                           reconciled_issue_id: null,
                           skipped: [],
-                        })),
-                      ),
-                  ),
-                );
+                        }))
+                      )
+                  )
+                )
             }
 
             return resolve({
               item,
               reconciled_issue_id: null,
               skipped: [],
-            });
+            })
           }
 
           if (
-            worker.state === "failed" ||
+            worker.state === 'failed' ||
             worker.spawn_error != null ||
             worker.exit_code !== null ||
             worker.signal !== null
           ) {
             const reason =
               worker.spawn_error != null
-                ? "worker-spawn-error"
+                ? 'worker-spawn-error'
                 : worker.signal !== null
-                ? "worker-signal"
+                ? 'worker-signal'
                 : worker.exit_code !== null && worker.exit_code !== 0
-                ? "worker-exit-code"
-                : worker.state === "failed"
-                ? "worker-failed"
-                : "worker-exited";
+                ? 'worker-exit-code'
+                : worker.state === 'failed'
+                ? 'worker-failed'
+                : 'worker-exited'
             const lastError =
               worker.spawn_error ??
               createWorkerReconciliationError({
                 code:
                   worker.exit_code !== null && worker.exit_code !== 0
-                    ? "AUTOBOT-WORKER-FAILED"
-                    : "AUTOBOT-WORKER-EXITED",
+                    ? 'AUTOBOT-WORKER-FAILED'
+                    : 'AUTOBOT-WORKER-EXITED',
                 message:
                   worker.exit_code !== null && worker.exit_code !== 0
                     ? `worker exited with code ${String(worker.exit_code)}`
                     : worker.signal !== null
                     ? `worker exited with signal ${worker.signal}`
-                    : "worker failed",
+                    : 'worker failed',
                 occurredAt: tickAt,
-              });
-            const retryable = item.attempt <= maxRetries;
+              })
+            const retryable = item.attempt <= maxRetries
             const nextItem = retryable
               ? buildRetryScheduledItemSummary(item, tickAt, lastError)
-              : buildItemSummaryFromExisting(item, "failed", tickAt);
+              : buildItemSummaryFromExisting(item, 'failed', tickAt)
             const event = retryable
               ? createEngineRetryScheduledEvent({
                   issue_id: item.issue_id,
@@ -2340,20 +2334,20 @@ function reconcileEngineItem(
                   max_retries: maxRetries,
                   reason,
                   tick_at: tickAt,
-                });
+                })
 
             if (dryRun) {
               return resolve({
                 item: nextItem,
                 reconciled_issue_id: item.issue_id,
                 skipped: [],
-              });
+              })
             }
 
             return store.runs
               .upsert({
                 ...currentRun,
-                state: "failed",
+                state: 'failed',
                 finished_at: tickAt,
                 worker_id: null,
                 last_heartbeat_at: null,
@@ -2369,7 +2363,7 @@ function reconcileEngineItem(
                             lastError,
                             recoveryCommands: createWorkerRecoveryCommands(
                               item.issue_id,
-                              true,
+                              true
                             ),
                           })
                         : createRetryExhaustedItemRecord({
@@ -2378,9 +2372,9 @@ function reconcileEngineItem(
                             lastError,
                             recoveryCommands: createWorkerRecoveryCommands(
                               item.issue_id,
-                              true,
+                              true
                             ),
-                          }),
+                          })
                     )
                     .pipe(
                       chain(() =>
@@ -2389,12 +2383,12 @@ function reconcileEngineItem(
                             item: nextItem,
                             reconciled_issue_id: item.issue_id,
                             skipped: [],
-                          })),
-                        ),
-                      ),
-                    ),
-                ),
-              );
+                          }))
+                        )
+                      )
+                    )
+                )
+              )
           }
         }
 
@@ -2402,10 +2396,10 @@ function reconcileEngineItem(
           item,
           reconciled_issue_id: null,
           skipped: [],
-        });
-      },
-    ),
-  );
+        })
+      }
+    )
+  )
 }
 
 function isInProgressItemEligibleForReconciliation(
@@ -2414,16 +2408,16 @@ function isInProgressItemEligibleForReconciliation(
   workers: WorkerSummary[],
   workersById: Map<string, WorkerSummary>,
   tickAt: string,
-  isProcessAlive?: AutobotServiceDependencies["isProcessAlive"],
+  isProcessAlive?: AutobotServiceDependencies['isProcessAlive']
 ): FutureInstance<unknown, boolean> {
   if (!isInProgressState(item.state)) {
-    return resolve(false);
+    return resolve(false)
   }
 
   return store.runs.getCurrent(item.issue_id).pipe(
-    map((currentRun) => {
+    map(currentRun => {
       if (currentRun === null || isTerminalState(currentRun.state)) {
-        return true;
+        return true
       }
 
       const worker = findCurrentWorker({
@@ -2431,68 +2425,68 @@ function isInProgressItemEligibleForReconciliation(
         currentRun,
         workers,
         workersById,
-      });
+      })
 
       if (worker === null) {
-        return false;
+        return false
       }
 
       if (
-        worker.state === "completed" ||
-        worker.state === "failed" ||
-        worker.state === "cancellation-requested" ||
+        worker.state === 'completed' ||
+        worker.state === 'failed' ||
+        worker.state === 'cancellation-requested' ||
         worker.spawn_error != null ||
         (worker.exit_code ?? null) !== null ||
         (worker.signal ?? null) !== null
       ) {
-        return true;
+        return true
       }
 
       if (
-        worker.state === "running" ||
-        worker.state === "starting" ||
-        worker.state === "stale"
+        worker.state === 'running' ||
+        worker.state === 'starting' ||
+        worker.state === 'stale'
       ) {
-        const liveness = resolveProcessLiveness(worker, isProcessAlive);
+        const liveness = resolveProcessLiveness(worker, isProcessAlive)
 
         if (!liveness.anyAlive) {
-          return true;
+          return true
         }
 
         return (
-          worker.state !== "stale" &&
+          worker.state !== 'stale' &&
           worker.deadline_at !== null &&
           worker.deadline_at !== undefined &&
           worker.deadline_at <= tickAt
-        );
+        )
       }
 
-      return false;
-    }),
-  );
+      return false
+    })
+  )
 }
 
 function reconcileEligibleEngineItems(input: {
-  store: AutobotStore;
-  items: ItemSummary[];
-  workers: WorkerSummary[];
-  workersById: Map<string, WorkerSummary>;
-  tickAt: string;
-  dryRun: boolean;
-  maxRetries: number;
-  artifactWriter: ArtifactWriter;
-  artifactReader: ArtifactReader;
-  isProcessAlive?: AutobotServiceDependencies["isProcessAlive"];
-  killProcess?: AutobotServiceDependencies["kill"];
+  store: AutobotStore
+  items: ItemSummary[]
+  workers: WorkerSummary[]
+  workersById: Map<string, WorkerSummary>
+  tickAt: string
+  dryRun: boolean
+  maxRetries: number
+  artifactWriter: ArtifactWriter
+  artifactReader: ArtifactReader
+  isProcessAlive?: AutobotServiceDependencies['isProcessAlive']
+  killProcess?: AutobotServiceDependencies['kill']
 }): FutureInstance<unknown, EngineTickReconciliationOutcome[]> {
   const scan = (
     index: number,
-    outcomes: EngineTickReconciliationOutcome[],
+    outcomes: EngineTickReconciliationOutcome[]
   ): FutureInstance<unknown, EngineTickReconciliationOutcome[]> => {
-    const item = input.items[index];
+    const item = input.items[index]
 
     if (item === undefined) {
-      return resolve(outcomes);
+      return resolve(outcomes)
     }
 
     return isInProgressItemEligibleForReconciliation(
@@ -2501,11 +2495,11 @@ function reconcileEligibleEngineItems(input: {
       input.workers,
       input.workersById,
       input.tickAt,
-      input.isProcessAlive,
+      input.isProcessAlive
     ).pipe(
-      chain((eligible) => {
+      chain(eligible => {
         if (!eligible) {
-          return scan(index + 1, outcomes);
+          return scan(index + 1, outcomes)
         }
 
         return reconcileEngineItem(
@@ -2519,13 +2513,13 @@ function reconcileEligibleEngineItems(input: {
           input.artifactWriter,
           input.artifactReader,
           input.isProcessAlive,
-          input.killProcess,
-        ).pipe(chain((outcome) => scan(index + 1, [...outcomes, outcome])));
-      }),
-    );
-  };
+          input.killProcess
+        ).pipe(chain(outcome => scan(index + 1, [...outcomes, outcome])))
+      })
+    )
+  }
 
-  return scan(0, []);
+  return scan(0, [])
 }
 
 function reconcileRetryableFailedItem(
@@ -2533,21 +2527,21 @@ function reconcileRetryableFailedItem(
   item: ItemSummary,
   tickAt: string,
   dryRun: boolean,
-  maxRetries: number,
+  maxRetries: number
 ): FutureInstance<unknown, EngineTickReconciliationOutcome> {
   if (!isRetryableFailedItem(item) || item.last_error === null) {
     return resolve({
       item,
       reconciled_issue_id: null,
       skipped: [],
-    });
+    })
   }
 
-  const reason = getRetryFailureReason(item);
-  const retryable = item.attempt <= maxRetries;
+  const reason = getRetryFailureReason(item)
+  const retryable = item.attempt <= maxRetries
   const nextItem = retryable
     ? buildRetryScheduledItemSummary(item, tickAt, item.last_error)
-    : buildRetryExhaustedItemSummary(item, tickAt, item.last_error);
+    : buildRetryExhaustedItemSummary(item, tickAt, item.last_error)
   const event = retryable
     ? createEngineRetryScheduledEvent({
         issue_id: item.issue_id,
@@ -2564,14 +2558,14 @@ function reconcileRetryableFailedItem(
         max_retries: maxRetries,
         reason,
         tick_at: tickAt,
-      });
+      })
 
   if (dryRun) {
     return resolve({
       item: nextItem,
       reconciled_issue_id: item.issue_id,
       skipped: [],
-    });
+    })
   }
 
   return store.items
@@ -2588,7 +2582,7 @@ function reconcileRetryableFailedItem(
             updatedAt: tickAt,
             lastError: item.last_error,
             recoveryCommands: createWorkerRecoveryCommands(item.issue_id, true),
-          }),
+          })
     )
     .pipe(
       chain(() =>
@@ -2597,123 +2591,121 @@ function reconcileRetryableFailedItem(
             item: nextItem,
             reconciled_issue_id: item.issue_id,
             skipped: [],
-          })),
-        ),
-      ),
-    );
+          }))
+        )
+      )
+    )
 }
 
 function createConfigList(
-  store: AutobotStore,
+  store: AutobotStore
 ): FutureInstance<unknown, ConfigEntry[]> {
   return Future((reject, resolve) => {
     store.config.listOverrides().pipe(
-      fork(reject)((overrides) => {
+      fork(reject)(overrides => {
         const overridesByKey = new Map(
-          overrides.map((override) => [override.key, override] as const),
-        );
+          overrides.map(override => [override.key, override] as const)
+        )
         resolve(
-          configDefinitions.map((definition) =>
+          configDefinitions.map(definition =>
             toConfigEntry(
               definition,
-              overridesByKey.get(definition.key) ?? null,
-            ),
-          ),
-        );
-      }),
-    );
+              overridesByKey.get(definition.key) ?? null
+            )
+          )
+        )
+      })
+    )
 
-    return () => undefined;
-  });
+    return () => undefined
+  })
 }
 
 function createConfigEntryFuture(
   store: AutobotStore,
-  key: string,
+  key: string
 ): FutureInstance<unknown, ConfigEntry> {
-  const definition = configDefinitionsByKey.get(key);
+  const definition = configDefinitionsByKey.get(key)
 
   if (definition === undefined) {
-    return Future((reject) => {
+    return Future(reject => {
       reject(
         new AutobotCliError({
-          code: "CONFIG_VALUE_INVALID",
+          code: 'CONFIG_VALUE_INVALID',
           message: `Unknown config key: ${key}`,
-          what_failed: "config lookup",
-          likely_cause: "the key is not in the MVP config surface",
-          recovery_commands: ["autobot-next config list --json"],
+          what_failed: 'config lookup',
+          likely_cause: 'the key is not in the MVP config surface',
+          recovery_commands: ['autobot-next config list --json'],
           details: { key },
           exit_code: 2,
-        }),
-      );
-      return () => undefined;
-    });
+        })
+      )
+      return () => undefined
+    })
   }
 
   return Future((reject, resolve) => {
     store.config
       .getOverride(key)
       .pipe(
-        fork(reject)((override) =>
-          resolve(toConfigEntry(definition, override)),
-        ),
-      );
+        fork(reject)(override => resolve(toConfigEntry(definition, override)))
+      )
 
-    return () => undefined;
-  });
+    return () => undefined
+  })
 }
 
 function createQueueList(
-  store: AutobotStore,
+  store: AutobotStore
 ): FutureInstance<unknown, AutobotCommandResult> {
   return Future((reject, resolve) => {
     store.projections.listItems().pipe(
-      fork(reject)((items) => {
+      fork(reject)(items => {
         resolve({
-          kind: "queue-list",
-          command: "autobot-next list",
+          kind: 'queue-list',
+          command: 'autobot-next list',
           repo: store.repo,
           data: {
             items,
           },
-        });
-      }),
-    );
+        })
+      })
+    )
 
-    return () => undefined;
-  });
+    return () => undefined
+  })
 }
 
 function createQueueStatus(
   store: AutobotStore,
   options: {
-    command?: string;
-    lastTickAt?: string | null;
-    runtime?: EngineRuntimeSnapshot | null;
-    fallbackState?: EngineStatus["state"];
-    events?: readonly DomainEvent[];
-    tick?: EngineTickReport;
-    warnings?: readonly Warning[];
-  } = {},
+    command?: string
+    lastTickAt?: string | null
+    runtime?: EngineRuntimeSnapshot | null
+    fallbackState?: EngineStatus['state']
+    events?: readonly DomainEvent[]
+    tick?: EngineTickReport
+    warnings?: readonly Warning[]
+  } = {}
 ): FutureInstance<unknown, AutobotCommandResult> {
   return Future((reject, resolve) => {
     createConfigList(store).pipe(
-      fork(reject)((config) => {
+      fork(reject)(config => {
         store.projections.listItems({ include_terminal: true }).pipe(
-          fork(reject)((items) => {
+          fork(reject)(items => {
             loadActiveWorkers(store).pipe(
-              fork(reject)((activeWorkers) => {
+              fork(reject)(activeWorkers => {
                 const counts = Object.fromEntries(
-                  itemStates.map((state) => [state, 0]),
-                ) as Record<ItemState, number>;
+                  itemStates.map(state => [state, 0])
+                ) as Record<ItemState, number>
 
                 for (const item of items) {
-                  counts[item.state] += 1;
+                  counts[item.state] += 1
                 }
 
                 resolve({
-                  kind: "queue-status",
-                  command: options.command ?? "autobot-next status",
+                  kind: 'queue-status',
+                  command: options.command ?? 'autobot-next status',
                   repo: store.repo,
                   ...(options.warnings === undefined
                     ? {}
@@ -2729,12 +2721,12 @@ function createQueueStatus(
                         : {
                             health: options.warnings.map(warningToHealthCheck),
                           }),
-                      fallbackState: options.fallbackState ?? "unknown",
+                      fallbackState: options.fallbackState ?? 'unknown',
                     }),
                     counts,
                     active_workers: activeWorkers,
                     events: options.events,
-                    items: items.filter((item) => !isTerminalState(item.state)),
+                    items: items.filter(item => !isTerminalState(item.state)),
                     config,
                     ...(options.tick === undefined
                       ? {}
@@ -2743,44 +2735,44 @@ function createQueueStatus(
                       ? {}
                       : { warnings: options.warnings }),
                   },
-                });
-              }),
-            );
-          }),
-        );
-      }),
-    );
+                })
+              })
+            )
+          })
+        )
+      })
+    )
 
-    return () => undefined;
-  });
+    return () => undefined
+  })
 }
 
 function createEngineStatusResult(input: {
-  store: AutobotStore;
-  command: string;
-  runtime?: EngineRuntimeSnapshot | null;
-  lastTickAt?: string | null;
-  events?: readonly DomainEvent[];
-  tick?: EngineTickReport;
-  warnings?: readonly Warning[];
-  action?: "start" | "stop";
-  message?: string;
-  kind: "supervisor-status" | "supervisor-logs";
+  store: AutobotStore
+  command: string
+  runtime?: EngineRuntimeSnapshot | null
+  lastTickAt?: string | null
+  events?: readonly DomainEvent[]
+  tick?: EngineTickReport
+  warnings?: readonly Warning[]
+  action?: 'start' | 'stop'
+  message?: string
+  kind: 'supervisor-status' | 'supervisor-logs'
 }): FutureInstance<unknown, AutobotCommandResult> {
   return createQueueStatus(input.store, {
     command: input.command,
     runtime: input.runtime ?? null,
     lastTickAt: input.lastTickAt ?? null,
     events: input.events,
-    fallbackState: "stopped",
+    fallbackState: 'stopped',
     tick: input.tick,
     warnings: input.warnings,
   }).pipe(
     map((result): AutobotCommandResult => {
       const queueStatus = result as Extract<
         AutobotCommandResult,
-        { kind: "queue-status" }
-      >;
+        { kind: 'queue-status' }
+      >
 
       return {
         ...queueStatus,
@@ -2790,22 +2782,22 @@ function createEngineStatusResult(input: {
           action: input.action,
           message: input.message,
         },
-      };
-    }),
-  );
+      }
+    })
+  )
 }
 
 function createQueueMutationResult(input: {
-  action: "add" | "remove" | "retry";
-  dry_run: boolean;
-  changed: boolean;
-  item: ItemSummary;
-  events: DomainEvent[];
-  store: AutobotStore;
-  command: string;
+  action: 'add' | 'remove' | 'retry'
+  dry_run: boolean
+  changed: boolean
+  item: ItemSummary
+  events: DomainEvent[]
+  store: AutobotStore
+  command: string
 }): AutobotCommandResult {
   return {
-    kind: "queue-mutation",
+    kind: 'queue-mutation',
     command: input.command,
     repo: input.store.repo,
     data: {
@@ -2815,21 +2807,21 @@ function createQueueMutationResult(input: {
       item: input.item,
       events: input.events,
     },
-  };
+  }
 }
 
 function createConfigMutationResult(input: {
-  action: "set" | "unset";
-  dry_run: boolean;
-  changed: boolean;
-  previous: ConfigEntry;
-  next: ConfigEntry;
-  events: DomainEvent[];
-  store: AutobotStore;
-  command: string;
+  action: 'set' | 'unset'
+  dry_run: boolean
+  changed: boolean
+  previous: ConfigEntry
+  next: ConfigEntry
+  events: DomainEvent[]
+  store: AutobotStore
+  command: string
 }): AutobotCommandResult {
   return {
-    kind: "config-mutation",
+    kind: 'config-mutation',
     command: input.command,
     repo: input.store.repo,
     data: {
@@ -2840,66 +2832,66 @@ function createConfigMutationResult(input: {
       next: input.next,
       events: input.events,
     },
-  };
+  }
 }
 
 function createWorkflowListResult(
-  invocation: AutobotInvocation,
+  invocation: AutobotInvocation
 ): AutobotCommandResult {
   return {
-    kind: "workflow-list",
+    kind: 'workflow-list',
     command: invocation.command,
     repo: resolveRepoRef(invocation.options),
     data: {
       workflows: listFlowcraftWorkflows(),
     },
-  };
+  }
 }
 
 function createWorkflowValidationResult(
-  invocation: AutobotInvocation,
+  invocation: AutobotInvocation
 ): AutobotCommandResult {
   return {
-    kind: "workflow-validation",
+    kind: 'workflow-validation',
     command: invocation.command,
     repo: resolveRepoRef(invocation.options),
     data: {
       validations: validateFlowcraftWorkflows(),
     },
-  };
+  }
 }
 
 function createWorkflowDiagramResult(
-  invocation: AutobotInvocation,
+  invocation: AutobotInvocation
 ): AutobotCommandResult {
   const workflowId = (invocation.args[0] ??
-    "autobot-deliver-issue") as Parameters<typeof getFlowcraftWorkflow>[0];
+    'autobot-deliver-issue') as Parameters<typeof getFlowcraftWorkflow>[0]
 
   return {
-    kind: "workflow-diagram",
+    kind: 'workflow-diagram',
     command: invocation.command,
     repo: resolveRepoRef(invocation.options),
     data: {
       workflow_id: workflowId,
       diagram: renderFlowcraftWorkflowDiagram(workflowId),
     },
-  };
+  }
 }
 
 function createFlowcraftInspectResult(input: {
-  invocation: AutobotInvocation;
-  kind: "run" | "flowcraft-execution";
-  identifier: string;
-  issue_id: string | null;
-  run: RunSummary | null;
-  worker: WorkerSummary | null;
-  execution: FlowcraftExecutionRecord | null;
-  artifacts: ArtifactRef[];
-  domain_events: DomainEvent[];
-  flowcraft_events: FlowcraftEventRecord[];
+  invocation: AutobotInvocation
+  kind: 'run' | 'flowcraft-execution'
+  identifier: string
+  issue_id: string | null
+  run: RunSummary | null
+  worker: WorkerSummary | null
+  execution: FlowcraftExecutionRecord | null
+  artifacts: ArtifactRef[]
+  domain_events: DomainEvent[]
+  flowcraft_events: FlowcraftEventRecord[]
 }): AutobotCommandResult {
   return {
-    kind: "flowcraft-inspect",
+    kind: 'flowcraft-inspect',
     command: input.invocation.command,
     repo: resolveRepoRef(input.invocation.options),
     data: {
@@ -2915,16 +2907,16 @@ function createFlowcraftInspectResult(input: {
         flowcraft_events: input.flowcraft_events,
       },
     },
-  };
+  }
 }
 
 function loadFlowcraftExecutionContext(
   store: AutobotStore,
   executionId: string,
-  fallbackRun: RunSummary | null = null,
+  fallbackRun: RunSummary | null = null
 ): FutureInstance<unknown, FlowcraftExecutionContext> {
   return store.flowcraft.getExecution(executionId).pipe(
-    chain((execution) => {
+    chain(execution => {
       if (execution === null) {
         const workerFuture =
           fallbackRun === null
@@ -2932,12 +2924,12 @@ function loadFlowcraftExecutionContext(
             : store.workers
                 .resolveCurrentByFlowcraftExecution(executionId)
                 .pipe(
-                  chain((worker) =>
+                  chain(worker =>
                     worker !== null
                       ? resolve(worker)
-                      : store.workers.resolveCurrentByRun(fallbackRun.run_id),
-                  ),
-                );
+                      : store.workers.resolveCurrentByRun(fallbackRun.run_id)
+                  )
+                )
 
         return workerFuture.pipe(
           chain(
@@ -2949,27 +2941,27 @@ function loadFlowcraftExecutionContext(
                   worker,
                   artifacts: [] as ArtifactRef[],
                   flowcraft_events: [],
-                });
+                })
               }
 
               return store.artifacts.list(fallbackRun.issue_id).pipe(
-                map((artifacts) => ({
+                map(artifacts => ({
                   execution,
                   run: fallbackRun,
                   worker,
                   artifacts,
                   flowcraft_events: [],
-                })),
-              );
-            },
-          ),
-        ) as FutureInstance<unknown, FlowcraftExecutionContext>;
+                }))
+              )
+            }
+          )
+        ) as FutureInstance<unknown, FlowcraftExecutionContext>
       }
 
       const runFuture =
         execution.run_id === null
           ? resolve(null)
-          : store.runs.get(execution.run_id);
+          : store.runs.get(execution.run_id)
 
       const workerFuture =
         execution.run_id === null
@@ -2977,104 +2969,104 @@ function loadFlowcraftExecutionContext(
           : store.workers
               .resolveCurrentByFlowcraftExecution(executionId)
               .pipe(
-                chain((worker) =>
+                chain(worker =>
                   worker !== null
                     ? resolve(worker)
-                    : store.workers.resolveCurrentByRun(execution.run_id!),
-                ),
-              );
+                    : store.workers.resolveCurrentByRun(execution.run_id!)
+                )
+              )
 
       return runFuture.pipe(
-        chain((run) =>
+        chain(run =>
           workerFuture.pipe(
-            chain((worker) =>
+            chain(worker =>
               store.artifacts.list(execution.issue_id).pipe(
-                chain((artifacts) =>
+                chain(artifacts =>
                   store.flowcraft.listEvents(executionId).pipe(
                     map(
-                      (flowcraft_events) =>
+                      flowcraft_events =>
                         ({
                           execution,
                           run,
                           worker,
                           artifacts,
                           flowcraft_events,
-                        }) as FlowcraftExecutionContext,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ) as FutureInstance<unknown, FlowcraftExecutionContext>;
-    }),
-  );
+                        }) as FlowcraftExecutionContext
+                    )
+                  )
+                )
+              )
+            )
+          )
+        )
+      ) as FutureInstance<unknown, FlowcraftExecutionContext>
+    })
+  )
 }
 
 function normalizeDiscoverText(
-  value: string | null | undefined,
+  value: string | null | undefined
 ): string | null {
-  if (typeof value !== "string") {
-    return null;
+  if (typeof value !== 'string') {
+    return null
   }
 
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : null
 }
 
 function normalizeDiscoverProjects(value: string | null | undefined): string[] {
-  const normalized = normalizeDiscoverText(value);
+  const normalized = normalizeDiscoverText(value)
 
   if (normalized === null) {
-    return [];
+    return []
   }
 
   return normalized
     .split(/[,\n]/)
-    .map((project) => project.trim())
-    .filter(Boolean);
+    .map(project => project.trim())
+    .filter(Boolean)
 }
 
 function discoverPriorityToNumber(priority: string | null): number | null {
   if (priority === null) {
-    return null;
+    return null
   }
 
   switch (priority.toLowerCase()) {
-    case "urgent":
-      return 1;
-    case "high":
-      return 2;
-    case "medium":
-      return 3;
-    case "low":
-      return 4;
-    case "none":
-      return 0;
+    case 'urgent':
+      return 1
+    case 'high':
+      return 2
+    case 'medium':
+      return 3
+    case 'low':
+      return 4
+    case 'none':
+      return 0
     default:
-      return null;
+      return null
   }
 }
 
 function createDiscoverExclusion(input: {
-  issue_id: string;
-  reason: string;
-  details: Record<string, unknown> | null;
+  issue_id: string
+  reason: string
+  details: Record<string, unknown> | null
 }): {
-  issue_id: string;
-  reason: string;
-  details: Record<string, unknown> | null;
+  issue_id: string
+  reason: string
+  details: Record<string, unknown> | null
 } {
-  return input;
+  return input
 }
 
 function discoverMatchesQuery(
   candidate: DiscoverCandidate,
-  query: string | null,
+  query: string | null
 ): boolean {
   if (query === null) {
-    return true;
+    return true
   }
 
   const haystack = [
@@ -3085,60 +3077,60 @@ function discoverMatchesQuery(
     candidate.status_name,
     candidate.state_type,
     candidate.assignee,
-    candidate.labels.join(" "),
+    candidate.labels.join(' '),
   ]
-    .filter((value): value is string => typeof value === "string")
-    .join(" ")
-    .toLowerCase();
+    .filter((value): value is string => typeof value === 'string')
+    .join(' ')
+    .toLowerCase()
 
-  return haystack.includes(query.toLowerCase());
+  return haystack.includes(query.toLowerCase())
 }
 
 function discoverMatchesLabels(
   candidate: DiscoverCandidate,
-  labels: string[],
+  labels: string[]
 ): boolean {
   if (labels.length === 0) {
-    return true;
+    return true
   }
 
-  return labels.every((label) => candidate.labels.includes(label));
+  return labels.every(label => candidate.labels.includes(label))
 }
 
 function discoverMatchesPriority(
   candidate: DiscoverCandidate,
-  priority: string | null,
+  priority: string | null
 ): boolean {
   if (priority === null) {
-    return true;
+    return true
   }
 
-  const priorityNumber = discoverPriorityToNumber(priority);
-  return priorityNumber === candidate.priority;
+  const priorityNumber = discoverPriorityToNumber(priority)
+  return priorityNumber === candidate.priority
 }
 
 function buildDiscoverResult(input: {
-  store: AutobotStore;
-  projects: string[];
-  query: string | null;
-  labels: string[];
-  priority: string | null;
-  limit: number;
-  scanLimit: number;
-  quiet: boolean;
-  scanned: number;
-  candidates: DiscoverCandidate[];
+  store: AutobotStore
+  projects: string[]
+  query: string | null
+  labels: string[]
+  priority: string | null
+  limit: number
+  scanLimit: number
+  quiet: boolean
+  scanned: number
+  candidates: DiscoverCandidate[]
   exclusions: Array<{
-    issue_id: string;
-    reason: string;
-    details: Record<string, unknown> | null;
-  }>;
+    issue_id: string
+    reason: string
+    details: Record<string, unknown> | null
+  }>
 }): AutobotCommandResult {
-  const issue_ids = input.candidates.map((candidate) => candidate.issue_id);
+  const issue_ids = input.candidates.map(candidate => candidate.issue_id)
 
   return {
-    kind: "discover",
-    command: "autobot-next discover",
+    kind: 'discover',
+    command: 'autobot-next discover',
     repo: input.store.repo,
     data: {
       projects: [...input.projects],
@@ -3155,49 +3147,49 @@ function buildDiscoverResult(input: {
       exclusions: input.exclusions,
       quiet: input.quiet,
     },
-  };
+  }
 }
 
 function handleDiscover(
   invocation: AutobotInvocation,
   store: AutobotStore,
-  discoverIssues: AutobotServiceDependencies["discoverIssues"],
+  discoverIssues: AutobotServiceDependencies['discoverIssues']
 ): FutureInstance<unknown, AutobotCommandResult> {
   return Future((reject, resolve) => {
-    const query = normalizeDiscoverText(invocation.args[0]);
+    const query = normalizeDiscoverText(invocation.args[0])
     if (invocation.args.length > 1) {
       reject(
         createUsageError({
-          command: "autobot-next discover",
-          message: "discover accepts at most one query argument",
-          what_failed: "discover command parsing",
-          likely_cause: "multiple positional query tokens were provided",
-          recovery_commands: ["autobot-next discover --help"],
-        }),
-      );
-      return () => undefined;
+          command: 'autobot-next discover',
+          message: 'discover accepts at most one query argument',
+          what_failed: 'discover command parsing',
+          likely_cause: 'multiple positional query tokens were provided',
+          recovery_commands: ['autobot-next discover --help'],
+        })
+      )
+      return () => undefined
     }
 
     const labels = invocation.options.labels
-      .map((label) => label.trim())
-      .filter(Boolean);
-    const priority = normalizeDiscoverText(invocation.options.priority);
-    const limit = invocation.options.limit;
+      .map(label => label.trim())
+      .filter(Boolean)
+    const priority = normalizeDiscoverText(invocation.options.priority)
+    const limit = invocation.options.limit
     const projectFlags = invocation.options.project
-      .map((project) => normalizeDiscoverText(project))
-      .filter((project): project is string => project !== null);
+      .map(project => normalizeDiscoverText(project))
+      .filter((project): project is string => project !== null)
 
     if (limit !== null && (!Number.isInteger(limit) || limit < 1)) {
       reject(
         createUsageError({
-          command: "autobot-next discover",
+          command: 'autobot-next discover',
           message: `Invalid limit: ${limit}`,
-          what_failed: "discover limit parsing",
-          likely_cause: "--limit must be a positive integer",
-          recovery_commands: ["autobot-next discover --help"],
-        }),
-      );
-      return () => undefined;
+          what_failed: 'discover limit parsing',
+          likely_cause: '--limit must be a positive integer',
+          recovery_commands: ['autobot-next discover --help'],
+        })
+      )
+      return () => undefined
     }
 
     const defaultDiscoverIssues =
@@ -3207,120 +3199,120 @@ function handleDiscover(
           repoRoot: input.repo.path,
           projects: input.projects,
           limit: input.scanLimit,
-        }));
+        }))
 
     const resolveDiscoverLimit = (
-      fallback: ConfigOverrideRecord | null,
+      fallback: ConfigOverrideRecord | null
     ): number => {
       if (fallback !== null) {
-        return fallback.value as number;
+        return fallback.value as number
       }
 
-      return configDefinitionsByKey.get("supervisor.queue-depth")!
-        .default_value as number;
-    };
+      return configDefinitionsByKey.get('supervisor.queue-depth')!
+        .default_value as number
+    }
 
     const resolveProjects = (
       fallback: ConfigOverrideRecord | null,
-      queueDepthOverride: ConfigOverrideRecord | null,
+      queueDepthOverride: ConfigOverrideRecord | null
     ) => {
       const effectiveProjects =
         projectFlags.length > 0
           ? projectFlags
-          : normalizeDiscoverProjects(fallback?.value as string | undefined);
+          : normalizeDiscoverProjects(fallback?.value as string | undefined)
       const effectiveLimit =
-        limit === null ? resolveDiscoverLimit(queueDepthOverride) : limit;
-      const scanLimit = Math.max(discoverDefaultScanLimit, effectiveLimit);
+        limit === null ? resolveDiscoverLimit(queueDepthOverride) : limit
+      const scanLimit = Math.max(discoverDefaultScanLimit, effectiveLimit)
 
       store.projections.listItems().pipe(
-        fork(reject)((localItems) => {
+        fork(reject)(localItems => {
           const localById = new Map(
-            localItems.map((item) => [item.issue_id, item] as const),
-          );
+            localItems.map(item => [item.issue_id, item] as const)
+          )
 
           defaultDiscoverIssues({
             repo: store.repo,
             projects: effectiveProjects,
             scanLimit,
           }).pipe(
-            fork(reject)((issues) => {
+            fork(reject)(issues => {
               const exclusions: Array<{
-                issue_id: string;
-                reason: string;
-                details: Record<string, unknown> | null;
-              }> = [];
-              const filtered = issues.filter((candidate) => {
-                const localItem = localById.get(candidate.issue_id);
+                issue_id: string
+                reason: string
+                details: Record<string, unknown> | null
+              }> = []
+              const filtered = issues.filter(candidate => {
+                const localItem = localById.get(candidate.issue_id)
                 if (localItem !== undefined) {
                   exclusions.push(
                     createDiscoverExclusion({
                       issue_id: candidate.issue_id,
-                      reason: "local-non-terminal",
+                      reason: 'local-non-terminal',
                       details: {
                         state: localItem.state,
                       },
-                    }),
-                  );
-                  return false;
+                    })
+                  )
+                  return false
                 }
 
                 if (!discoverMatchesQuery(candidate, query)) {
                   exclusions.push(
                     createDiscoverExclusion({
                       issue_id: candidate.issue_id,
-                      reason: "query-filter",
+                      reason: 'query-filter',
                       details: {
                         query,
                       },
-                    }),
-                  );
-                  return false;
+                    })
+                  )
+                  return false
                 }
 
                 if (!discoverMatchesLabels(candidate, labels)) {
                   exclusions.push(
                     createDiscoverExclusion({
                       issue_id: candidate.issue_id,
-                      reason: "label-filter",
+                      reason: 'label-filter',
                       details: {
                         labels,
                         candidate_labels: candidate.labels,
                       },
-                    }),
-                  );
-                  return false;
+                    })
+                  )
+                  return false
                 }
 
                 if (!discoverMatchesPriority(candidate, priority)) {
                   exclusions.push(
                     createDiscoverExclusion({
                       issue_id: candidate.issue_id,
-                      reason: "priority-filter",
+                      reason: 'priority-filter',
                       details: {
                         priority,
                         candidate_priority: candidate.priority,
                       },
-                    }),
-                  );
-                  return false;
+                    })
+                  )
+                  return false
                 }
 
-                return true;
-              });
+                return true
+              })
 
-              const limited = filtered.slice(0, effectiveLimit);
+              const limited = filtered.slice(0, effectiveLimit)
 
               if (filtered.length > limited.length) {
                 for (const candidate of filtered.slice(limited.length)) {
                   exclusions.push(
                     createDiscoverExclusion({
                       issue_id: candidate.issue_id,
-                      reason: "limit-reached",
+                      reason: 'limit-reached',
                       details: {
                         limit: effectiveLimit,
                       },
-                    }),
-                  );
+                    })
+                  )
                 }
               }
 
@@ -3337,86 +3329,85 @@ function handleDiscover(
                   scanned: issues.length,
                   candidates: limited,
                   exclusions,
-                }),
-              );
-            }),
-          );
-        }),
-      );
+                })
+              )
+            })
+          )
+        })
+      )
 
-      return;
-    };
-
-    if (projectFlags.length > 0) {
-      store.config.getOverride("supervisor.queue-depth").pipe(
-        fork(reject)((queueDepthOverride) => {
-          resolveProjects(null, queueDepthOverride);
-        }),
-      );
-    } else {
-      store.config.getOverride("discovery.projects").pipe(
-        fork(reject)((override) => {
-          store.config.getOverride("supervisor.queue-depth").pipe(
-            fork(reject)((queueDepthOverride) => {
-              resolveProjects(override, queueDepthOverride);
-            }),
-          );
-        }),
-      );
+      return
     }
 
-    return () => undefined;
-  });
+    if (projectFlags.length > 0) {
+      store.config.getOverride('supervisor.queue-depth').pipe(
+        fork(reject)(queueDepthOverride => {
+          resolveProjects(null, queueDepthOverride)
+        })
+      )
+    } else {
+      store.config.getOverride('discovery.projects').pipe(
+        fork(reject)(override => {
+          store.config.getOverride('supervisor.queue-depth').pipe(
+            fork(reject)(queueDepthOverride => {
+              resolveProjects(override, queueDepthOverride)
+            })
+          )
+        })
+      )
+    }
+
+    return () => undefined
+  })
 }
 
 function handleWorkflow(
-  invocation: AutobotInvocation,
+  invocation: AutobotInvocation
 ): FutureInstance<unknown, AutobotCommandResult> {
-  const subcommand =
-    invocation.command_path[invocation.command_path.length - 1];
+  const subcommand = invocation.command_path[invocation.command_path.length - 1]
 
   return Future((reject, resolve) => {
     switch (subcommand) {
-      case "list":
-        resolve(createWorkflowListResult(invocation));
-        return () => undefined;
-      case "validate":
-        resolve(createWorkflowValidationResult(invocation));
-        return () => undefined;
-      case "diagram":
-        resolve(createWorkflowDiagramResult(invocation));
-        return () => undefined;
+      case 'list':
+        resolve(createWorkflowListResult(invocation))
+        return () => undefined
+      case 'validate':
+        resolve(createWorkflowValidationResult(invocation))
+        return () => undefined
+      case 'diagram':
+        resolve(createWorkflowDiagramResult(invocation))
+        return () => undefined
       default:
-        reject(createNotImplementedError(invocation.command));
-        return () => undefined;
+        reject(createNotImplementedError(invocation.command))
+        return () => undefined
     }
-  });
+  })
 }
 
 function handleInspect(
   invocation: AutobotInvocation,
-  store: AutobotStore,
+  store: AutobotStore
 ): FutureInstance<unknown, AutobotCommandResult> {
-  const identifier = invocation.args[0];
+  const identifier = invocation.args[0]
 
   if (identifier === undefined) {
-    return Future((reject) => {
+    return Future(reject => {
       reject(
         createUsageError({
           command: invocation.command,
-          message: "inspect requires a run id or flowcraft execution id",
-          what_failed: "inspect request",
-          likely_cause: "the identifier argument was missing",
+          message: 'inspect requires a run id or flowcraft execution id',
+          what_failed: 'inspect request',
+          likely_cause: 'the identifier argument was missing',
           recovery_commands: [
-            "autobot-next inspect <run-id|flowcraft-execution-id>",
+            'autobot-next inspect <run-id|flowcraft-execution-id>',
           ],
-        }),
-      );
-      return () => undefined;
-    });
+        })
+      )
+      return () => undefined
+    })
   }
 
-  if (identifier.startsWith("flowcraft-")) {
+  if (identifier.startsWith('flowcraft-')) {
     return loadFlowcraftExecutionContext(store, identifier).pipe(
       chain(
         ({
@@ -3427,20 +3418,20 @@ function handleInspect(
           flowcraft_events,
         }): FutureInstance<unknown, AutobotCommandResult> => {
           if (execution === null) {
-            return Future((reject) => {
+            return Future(reject => {
               reject(
                 new AutobotCliError({
-                  code: "FLOWCRAFT_EXECUTION_NOT_FOUND",
+                  code: 'FLOWCRAFT_EXECUTION_NOT_FOUND',
                   message: `No run or flowcraft execution found for ${identifier}`,
-                  what_failed: "inspect request",
-                  likely_cause: "the run or execution id is not stored locally",
-                  recovery_commands: ["autobot-next status --json"],
+                  what_failed: 'inspect request',
+                  likely_cause: 'the run or execution id is not stored locally',
+                  recovery_commands: ['autobot-next status --json'],
                   details: { identifier },
                   exit_code: 2,
-                }),
-              );
-              return () => undefined;
-            });
+                })
+              )
+              return () => undefined
+            })
           }
 
           return store.events
@@ -3452,7 +3443,7 @@ function handleInspect(
                 (domain_events): AutobotCommandResult =>
                   createFlowcraftInspectResult({
                     invocation,
-                    kind: "flowcraft-execution",
+                    kind: 'flowcraft-execution',
                     identifier,
                     issue_id: execution.issue_id,
                     run,
@@ -3461,28 +3452,28 @@ function handleInspect(
                     artifacts,
                     domain_events,
                     flowcraft_events,
-                  }),
-              ),
-            );
-        },
-      ),
-    );
+                  })
+              )
+            )
+        }
+      )
+    )
   }
 
   const inspectRun = (
-    run: RunSummary,
+    run: RunSummary
   ): FutureInstance<unknown, AutobotCommandResult> => {
     if (run.flowcraft_execution_id === null) {
       return store.workers.resolveCurrentByRun(run.run_id).pipe(
-        chain((worker) =>
+        chain(worker =>
           store.events.list(run.issue_id, { runId: run.run_id }).pipe(
             chain(
               (domain_events): FutureInstance<unknown, AutobotCommandResult> =>
                 store.artifacts.list(run.issue_id).pipe(
-                  map((artifacts) =>
+                  map(artifacts =>
                     createFlowcraftInspectResult({
                       invocation,
-                      kind: "run",
+                      kind: 'run',
                       identifier,
                       issue_id: run.issue_id,
                       run,
@@ -3491,26 +3482,26 @@ function handleInspect(
                       artifacts,
                       domain_events,
                       flowcraft_events: [],
-                    }),
-                  ),
-                ),
-            ),
-          ),
-        ),
-      );
+                    })
+                  )
+                )
+            )
+          )
+        )
+      )
     }
 
     return loadFlowcraftExecutionContext(
       store,
       run.flowcraft_execution_id,
-      run,
+      run
     ).pipe(
       chain(({ execution, worker, artifacts, flowcraft_events }) =>
         store.events.list(run.issue_id, { runId: run.run_id }).pipe(
-          map((domain_events) =>
+          map(domain_events =>
             createFlowcraftInspectResult({
               invocation,
-              kind: "run",
+              kind: 'run',
               identifier,
               issue_id: run.issue_id,
               run,
@@ -3519,281 +3510,274 @@ function handleInspect(
               artifacts,
               domain_events,
               flowcraft_events,
-            }),
-          ),
-        ),
-      ),
-    );
-  };
+            })
+          )
+        )
+      )
+    )
+  }
 
   return store.runs.get(identifier).pipe(
     chain((run): FutureInstance<unknown, AutobotCommandResult> => {
       if (run !== null) {
-        return inspectRun(run);
+        return inspectRun(run)
       }
 
       return store.runs.getCurrent(identifier).pipe(
         chain((currentRun): FutureInstance<unknown, AutobotCommandResult> => {
           if (currentRun !== null) {
-            return inspectRun(currentRun);
+            return inspectRun(currentRun)
           }
 
-          return Future((reject) => {
+          return Future(reject => {
             reject(
               new AutobotCliError({
-                code: "FLOWCRAFT_EXECUTION_NOT_FOUND",
+                code: 'FLOWCRAFT_EXECUTION_NOT_FOUND',
                 message: `No run or flowcraft execution found for ${identifier}`,
-                what_failed: "inspect request",
-                likely_cause: "the run or execution id is not stored locally",
-                recovery_commands: ["autobot-next status --json"],
+                what_failed: 'inspect request',
+                likely_cause: 'the run or execution id is not stored locally',
+                recovery_commands: ['autobot-next status --json'],
                 details: { identifier },
                 exit_code: 2,
-              }),
-            );
-            return () => undefined;
-          });
-        }),
-      );
-    }),
-  );
+              })
+            )
+            return () => undefined
+          })
+        })
+      )
+    })
+  )
 }
 
 function createContentHash(content: string): string {
-  return createHash("sha256").update(content).digest("hex");
+  return createHash('sha256').update(content).digest('hex')
 }
 
 function buildPlanningArtifactRelativePath(
   issueId: string,
   attempt: number,
-  fileName: string,
+  fileName: string
 ): string {
-  return path.join(".autobot", "runs", issueId, `attempt-${attempt}`, fileName);
+  return path.join('.autobot', 'runs', issueId, `attempt-${attempt}`, fileName)
 }
 
 function renderPlanningContextArtifact(input: {
-  item: ItemDetail;
-  runId: string;
-  executionId: string;
-  startedAt: string;
+  item: ItemDetail
+  runId: string
+  executionId: string
+  startedAt: string
 }): string {
-  const linear = input.item.linear;
+  const linear = input.item.linear
   const labels =
     linear === null || linear.labels.length === 0
-      ? "n/a"
-      : linear.labels.join(", ");
+      ? 'n/a'
+      : linear.labels.join(', ')
 
   return [
     `# Planning context — ${input.item.issue_id}`,
-    "",
-    "## Run metadata",
+    '',
+    '## Run metadata',
     `- Run: ${input.runId}`,
     `- Execution: ${input.executionId}`,
     `- Started: ${input.startedAt}`,
-    "",
-    "## Linear metadata",
+    '',
+    '## Linear metadata',
     linear === null
-      ? "- Linear issue: (none)"
+      ? '- Linear issue: (none)'
       : [
           `- Linear issue: ${linear.issue_id}`,
           `- Title: ${linear.title}`,
           `- URL: ${linear.url}`,
-          `- Project: ${linear.project ?? "n/a"}`,
+          `- Project: ${linear.project ?? 'n/a'}`,
           `- Labels: ${labels}`,
-          `- Assignee: ${linear.assignee ?? "n/a"}`,
-          `- State: ${linear.state_name ?? "n/a"} (${
-            linear.state_type ?? "n/a"
+          `- Assignee: ${linear.assignee ?? 'n/a'}`,
+          `- State: ${linear.state_name ?? 'n/a'} (${
+            linear.state_type ?? 'n/a'
           })`,
-        ].join("\n"),
-  ].join("\n");
+        ].join('\n'),
+  ].join('\n')
 }
 
 function renderPlanningTestPlanArtifact(input: {
-  issueId: string;
-  title: string | null;
-  contextPath: string;
-  contractPath: string;
-  runPlanPath: string;
-  promptPath: string;
+  issueId: string
+  title: string | null
+  contextPath: string
+  contractPath: string
+  runPlanPath: string
+  promptPath: string
 }): string {
   return [
     `# Planning test plan — ${input.issueId}`,
-    "",
+    '',
     `- Issue: ${input.issueId}`,
-    `- Title: ${input.title ?? "(untitled)"}`,
+    `- Title: ${input.title ?? '(untitled)'}`,
     `- Context: ${input.contextPath}`,
     `- Contract: ${input.contractPath}`,
     `- Run plan: ${input.runPlanPath}`,
     `- Prompt: ${input.promptPath}`,
-    "",
-    "## Behaviors To Cover",
-    "- Workflow creates durable planning artifacts before autonomous execution.",
-    "- Workflow exposes a preparing phase before planning.",
-    "- Status and inspect output surface artifact paths.",
-  ].join("\n");
+    '',
+    '## Behaviors To Cover',
+    '- Workflow creates durable planning artifacts before autonomous execution.',
+    '- Workflow exposes a preparing phase before planning.',
+    '- Status and inspect output surface artifact paths.',
+  ].join('\n')
 }
 
 function renderPlanningPromptArtifact(input: {
-  phase: PlanningPhaseName;
-  issueId: string;
-  attempt: number;
+  phase: PlanningPhaseName
+  issueId: string
+  attempt: number
 }): string {
   return renderSingleTrackPhaseContract(input.phase, {
     issueId: input.issueId,
     attempt: input.attempt,
-  });
+  })
 }
 
 export function buildPlanningPhaseOutputArtifact(input: {
-  phase: PlanningPhaseName;
-  path: string;
-  content: string;
+  phase: PlanningPhaseName
+  path: string
+  content: string
 }): PlanningArtifactDraft | null {
-  if (input.phase === "prepare") {
-    return null;
+  if (input.phase === 'prepare') {
+    return null
   }
 
   return {
     kind:
-      input.phase === "classify"
-        ? "classify"
-        : input.phase === "risk-assess"
-        ? "risk-assessment"
-        : "run-plan",
+      input.phase === 'classify'
+        ? 'classify'
+        : input.phase === 'risk-assess'
+        ? 'risk-assessment'
+        : 'run-plan',
     path: input.path,
     description:
-      input.phase === "classify"
-        ? "Planning classification"
-        : input.phase === "risk-assess"
-        ? "Planning risk assessment"
-        : "Planning run plan",
+      input.phase === 'classify'
+        ? 'Planning classification'
+        : input.phase === 'risk-assess'
+        ? 'Planning risk assessment'
+        : 'Planning run plan',
     content: input.content,
     content_hash: createContentHash(input.content),
-  };
+  }
 }
 
 export function readPlanningRunPlanArtifact(input: {
-  path: string;
-  reader: ArtifactReader;
+  path: string
+  reader: ArtifactReader
 }): FutureInstance<unknown, { content: string | null; error: unknown | null }> {
   return Future((reject, resolveFuture) => {
-    void reject;
+    void reject
     input.reader({ path: input.path }).pipe(
-      fork((error) => {
-        resolveFuture({ content: null, error });
-      })((content) => {
-        resolveFuture({ content, error: null });
-      }),
-    );
+      fork(error => {
+        resolveFuture({ content: null, error })
+      })(content => {
+        resolveFuture({ content, error: null })
+      })
+    )
 
-    return () => undefined;
-  });
+    return () => undefined
+  })
 }
 
 type PlanningRunPlanReadiness =
-  | "ready_to_proceed"
-  | "needs_research"
-  | "not_ready"
-  | "escalate"
-  | null;
+  | 'ready_to_proceed'
+  | 'needs_research'
+  | 'not_ready'
+  | 'escalate'
+  | null
 
 type PlanningRunPlanAssessment = {
-  errors: string[];
-  readiness: PlanningRunPlanReadiness;
-};
+  errors: string[]
+  readiness: PlanningRunPlanReadiness
+}
 
 export function assessPlanningRunPlanContent(
-  content: string,
+  content: string
 ): PlanningRunPlanAssessment {
-  const lines = content.split(/\r?\n/);
+  const lines = content.split(/\r?\n/)
   const getHeadingLine = (heading: string): number =>
-    lines.findIndex((line) => line.trim() === `## ${heading}`);
+    lines.findIndex(line => line.trim() === `## ${heading}`)
   const getSectionBody = (heading: string): string | null => {
-    const headingLine = getHeadingLine(heading);
+    const headingLine = getHeadingLine(heading)
 
     if (headingLine === -1) {
-      return null;
+      return null
     }
 
     const nextHeadingLine = lines.findIndex(
-      (line, index) => index > headingLine && line.startsWith("## "),
-    );
-    const endLine = nextHeadingLine === -1 ? lines.length : nextHeadingLine;
+      (line, index) => index > headingLine && line.startsWith('## ')
+    )
+    const endLine = nextHeadingLine === -1 ? lines.length : nextHeadingLine
 
     return lines
       .slice(headingLine + 1, endLine)
-      .join("\n")
-      .trim();
-  };
+      .join('\n')
+      .trim()
+  }
   const getFirstContentLine = (heading: string): string | null => {
-    const body = getSectionBody(heading);
+    const body = getSectionBody(heading)
     if (body === null) {
-      return null;
+      return null
     }
 
     const firstContentLine = body
       .split(/\r?\n/)
-      .find((line) => line.trim().length > 0);
+      .find(line => line.trim().length > 0)
 
-    return firstContentLine?.trim() ?? null;
-  };
+    return firstContentLine?.trim() ?? null
+  }
   const normalizePlanningSentinel = (value: string | null): string | null => {
     if (value === null) {
-      return null;
+      return null
     }
 
-    const trimmed = value.trim();
+    const trimmed = value.trim()
     const unwrapped =
-      trimmed.startsWith("`") && trimmed.endsWith("`") && trimmed.length >= 2
+      trimmed.startsWith('`') && trimmed.endsWith('`') && trimmed.length >= 2
         ? trimmed.slice(1, -1).trim()
-        : trimmed;
+        : trimmed
 
-    return unwrapped.toLowerCase();
-  };
-  const requiredHeadings = [
-    "Readiness",
-    "Sequence Notes",
-    "Risk Notes",
-    "Plan",
-  ];
+    return unwrapped.toLowerCase()
+  }
+  const requiredHeadings = ['Readiness', 'Sequence Notes', 'Risk Notes', 'Plan']
   const missingHeadings = requiredHeadings
-    .filter((heading) => getHeadingLine(heading) === -1)
-    .map((heading) => `missing ## ${heading}`);
-  const emptySections = requiredHeadings.filter((heading) => {
-    const body = getSectionBody(heading);
-    return body === null || body.length === 0;
-  });
-  const emptySectionErrors = emptySections.map(
-    (heading) => `empty ## ${heading}`,
-  );
-  const hasOpenQuestions = getHeadingLine("Open Questions") !== -1;
+    .filter(heading => getHeadingLine(heading) === -1)
+    .map(heading => `missing ## ${heading}`)
+  const emptySections = requiredHeadings.filter(heading => {
+    const body = getSectionBody(heading)
+    return body === null || body.length === 0
+  })
+  const emptySectionErrors = emptySections.map(heading => `empty ## ${heading}`)
+  const hasOpenQuestions = getHeadingLine('Open Questions') !== -1
   const readinessSentinel = normalizePlanningSentinel(
-    getFirstContentLine("Readiness"),
-  );
+    getFirstContentLine('Readiness')
+  )
   const readiness =
-    readinessSentinel === "ready_to_proceed"
-      ? "ready_to_proceed"
-      : readinessSentinel === "needs_research"
-      ? "needs_research"
-      : readinessSentinel === "not_ready" ||
-        readinessSentinel === "not_ready_to_proceed"
-      ? "not_ready"
-      : readinessSentinel === "escalate"
-      ? "escalate"
-      : null;
+    readinessSentinel === 'ready_to_proceed'
+      ? 'ready_to_proceed'
+      : readinessSentinel === 'needs_research'
+      ? 'needs_research'
+      : readinessSentinel === 'not_ready' ||
+        readinessSentinel === 'not_ready_to_proceed'
+      ? 'not_ready'
+      : readinessSentinel === 'escalate'
+      ? 'escalate'
+      : null
   const invalidOpenQuestions =
-    hasOpenQuestions && readiness === "ready_to_proceed"
-      ? ["## Open Questions is only allowed when ## Readiness is not ready"]
-      : [];
+    hasOpenQuestions && readiness === 'ready_to_proceed'
+      ? ['## Open Questions is only allowed when ## Readiness is not ready']
+      : []
   const emptyOpenQuestions =
-    hasOpenQuestions && (getSectionBody("Open Questions")?.length ?? 0) === 0
-      ? ["empty ## Open Questions"]
-      : [];
+    hasOpenQuestions && (getSectionBody('Open Questions')?.length ?? 0) === 0
+      ? ['empty ## Open Questions']
+      : []
   const invalidReadiness =
     readiness === null
       ? [
-          "## Readiness must start with one of: ready_to_proceed, needs_research, not_ready, not_ready_to_proceed, escalate",
+          '## Readiness must start with one of: ready_to_proceed, needs_research, not_ready, not_ready_to_proceed, escalate',
         ]
-      : [];
+      : []
 
   return {
     errors: [
@@ -3804,34 +3788,34 @@ export function assessPlanningRunPlanContent(
       ...invalidReadiness,
     ],
     readiness,
-  };
+  }
 }
 
 export function buildPlanningBaseArtifactDrafts(input: {
-  repoPath: string;
-  item: ItemDetail;
-  runId: string;
-  executionId: string;
-  startedAt: string;
+  repoPath: string
+  item: ItemDetail
+  runId: string
+  executionId: string
+  startedAt: string
 }): PlanningArtifactDraft[] {
-  void input.repoPath;
+  void input.repoPath
   const contextPath = buildPlanningArtifactRelativePath(
     input.item.issue_id,
     input.item.attempt,
-    "context.md",
-  );
+    'context.md'
+  )
   const testPlanPath = buildPlanningArtifactRelativePath(
     input.item.issue_id,
     input.item.attempt,
-    "test-plan.md",
-  );
+    'test-plan.md'
+  )
 
   const contextContent = renderPlanningContextArtifact({
     item: input.item,
     runId: input.runId,
     executionId: input.executionId,
     startedAt: input.startedAt,
-  });
+  })
   const testPlanContent = renderPlanningTestPlanArtifact({
     issueId: input.item.issue_id,
     title: input.item.title,
@@ -3839,171 +3823,171 @@ export function buildPlanningBaseArtifactDrafts(input: {
     contractPath: buildPlanningArtifactRelativePath(
       input.item.issue_id,
       input.item.attempt,
-      "prepare-contract.md",
+      'prepare-contract.md'
     ),
     runPlanPath: buildPlanningArtifactRelativePath(
       input.item.issue_id,
       input.item.attempt,
-      "run-plan.md",
+      'run-plan.md'
     ),
     promptPath: buildPlanningArtifactRelativePath(
       input.item.issue_id,
       input.item.attempt,
-      "prepare-prompt.md",
+      'prepare-prompt.md'
     ),
-  });
+  })
 
   return [
     {
-      kind: "context",
+      kind: 'context',
       path: contextPath,
-      description: "Planning context",
+      description: 'Planning context',
       content: contextContent,
       content_hash: createContentHash(contextContent),
     },
     {
-      kind: "test-plan",
+      kind: 'test-plan',
       path: testPlanPath,
-      description: "Planning test plan",
+      description: 'Planning test plan',
       content: testPlanContent,
       content_hash: createContentHash(testPlanContent),
     },
-  ];
+  ]
 }
 
 export function buildPlanningPhaseArtifactDrafts(input: {
-  issueId: string;
-  attempt: number;
-  phase: PlanningPhaseName;
+  issueId: string
+  attempt: number
+  phase: PlanningPhaseName
 }): PlanningArtifactDraft[] {
   const contractPath = buildPlanningArtifactRelativePath(
     input.issueId,
     input.attempt,
-    `${input.phase}-contract.md`,
-  );
+    `${input.phase}-contract.md`
+  )
   const promptPath = buildPlanningArtifactRelativePath(
     input.issueId,
     input.attempt,
-    `${input.phase}-prompt.md`,
-  );
+    `${input.phase}-prompt.md`
+  )
   const promptContent = renderPlanningPromptArtifact({
     phase: input.phase,
     issueId: input.issueId,
     attempt: input.attempt,
-  });
+  })
 
   return [
     {
-      kind: "contract",
+      kind: 'contract',
       path: contractPath,
       description: `Planning ${input.phase} contract`,
       content: promptContent,
       content_hash: createContentHash(promptContent),
     },
     {
-      kind: "prompt",
+      kind: 'prompt',
       path: promptPath,
       description: `Planning ${input.phase} prompt`,
       content: promptContent,
       content_hash: createContentHash(promptContent),
     },
-  ];
+  ]
 }
 
 function buildPlanningArtifactDrafts(input: {
-  repoPath: string;
-  item: ItemDetail;
-  runId: string;
-  executionId: string;
-  startedAt: string;
+  repoPath: string
+  item: ItemDetail
+  runId: string
+  executionId: string
+  startedAt: string
 }): PlanningArtifactDraft[] {
-  void input.repoPath;
-  const baseDrafts = buildPlanningBaseArtifactDrafts(input);
+  void input.repoPath
+  const baseDrafts = buildPlanningBaseArtifactDrafts(input)
   const planDrafts = buildPlanningPhaseArtifactDrafts({
     issueId: input.item.issue_id,
     attempt: input.item.attempt,
-    phase: "plan",
-  });
+    phase: 'plan',
+  })
   const runPlanPath = buildPlanningArtifactRelativePath(
     input.item.issue_id,
     input.item.attempt,
-    "run-plan.md",
-  );
+    'run-plan.md'
+  )
 
   return [
     ...baseDrafts,
     ...planDrafts,
     {
-      kind: "run-plan",
+      kind: 'run-plan',
       path: runPlanPath,
-      description: "Planning run plan",
-      content: "",
-      content_hash: createContentHash(""),
+      description: 'Planning run plan',
+      content: '',
+      content_hash: createContentHash(''),
       persist: false,
     },
-  ];
+  ]
 }
 
 function resolvePlanningRepoForItem(
   storeRepo: RepoRef,
-  item: ItemDetail,
+  item: ItemDetail
 ): RepoRef {
-  return typeof item.workspace === "string" && path.isAbsolute(item.workspace)
+  return typeof item.workspace === 'string' && path.isAbsolute(item.workspace)
     ? {
         ...storeRepo,
         path: item.workspace,
       }
-    : storeRepo;
+    : storeRepo
 }
 
 export function buildPlanningPhaseOutputPath(input: {
-  contextPath: string;
-  phase: PlanningPhaseName;
+  contextPath: string
+  phase: PlanningPhaseName
 }): string | null {
-  const rootPath = path.dirname(input.contextPath);
+  const rootPath = path.dirname(input.contextPath)
 
-  if (input.phase === "prepare") {
-    return null;
+  if (input.phase === 'prepare') {
+    return null
   }
 
   return path.join(
     rootPath,
-    input.phase === "classify"
-      ? "classify.json"
-      : input.phase === "risk-assess"
-      ? "risk-assessment.md"
-      : "run-plan.md",
-  );
+    input.phase === 'classify'
+      ? 'classify.json'
+      : input.phase === 'risk-assess'
+      ? 'risk-assessment.md'
+      : 'run-plan.md'
+  )
 }
 
 export function persistPlanningArtifacts(
   drafts: PlanningArtifactDraft[],
   writer: ArtifactWriter,
-  repoPath: string,
+  repoPath: string
 ): FutureInstance<unknown, void> {
   return sequenceFutures(
     drafts
-      .filter((draft) => draft.persist !== false)
-      .map((draft) =>
+      .filter(draft => draft.persist !== false)
+      .map(draft =>
         writer({
           path: path.join(repoPath, draft.path),
           content: draft.content,
-        }),
-      ),
-  ).pipe(map(() => undefined));
+        })
+      )
+  ).pipe(map(() => undefined))
 }
 
 export function createPlanningArtifactCreatedEvent(input: {
-  issueId: string;
-  runId: string;
-  executionId: string;
-  artifact: PlanningArtifactDraft;
-  occurredAt: string;
+  issueId: string
+  runId: string
+  executionId: string
+  artifact: PlanningArtifactDraft
+  occurredAt: string
 }): DomainEvent {
   return createDomainEvent({
-    type: "workflow.artifact.created",
-    severity: "info",
-    state: "planning",
+    type: 'workflow.artifact.created',
+    severity: 'info',
+    state: 'planning',
     message: `Planning artifact created: ${path.basename(input.artifact.path)}`,
     issue_id: input.issueId,
     run_id: input.runId,
@@ -4017,49 +4001,49 @@ export function createPlanningArtifactCreatedEvent(input: {
       artifact_description: input.artifact.description,
       content_hash: input.artifact.content_hash,
     },
-  });
+  })
 }
 
 function buildWorkspaceSetupSummaryArtifact(input: {
-  repoPath: string;
-  result: WorkspaceSetupResult;
+  repoPath: string
+  result: WorkspaceSetupResult
 }): PlanningArtifactDraft {
   const relativePath = path.relative(
     input.repoPath,
-    input.result.summary_artifact_path,
-  );
-  const content = JSON.stringify(input.result, null, 2);
+    input.result.summary_artifact_path
+  )
+  const content = JSON.stringify(input.result, null, 2)
 
   return {
-    kind: "summary",
+    kind: 'summary',
     path: relativePath,
-    description: "Workspace setup summary",
+    description: 'Workspace setup summary',
     content,
     content_hash: createContentHash(content),
-  };
+  }
 }
 
 function createWorkspaceSetupProgressEvent(input: {
-  issueId: string;
-  runId: string;
-  executionId: string;
-  record: WorkspaceSetupProgressRecord;
+  issueId: string
+  runId: string
+  executionId: string
+  record: WorkspaceSetupProgressRecord
 }): DomainEvent {
-  const type = `workflow.workspace_setup.${input.record.event}`;
+  const type = `workflow.workspace_setup.${input.record.event}`
   const severity =
-    input.record.event === "failed" || input.record.event === "step_failed"
-      ? "error"
-      : "info";
+    input.record.event === 'failed' || input.record.event === 'step_failed'
+      ? 'error'
+      : 'info'
   const progressData =
-    severity === "error"
+    severity === 'error'
       ? { error: input.record.data }
-      : { ...input.record.data };
+      : { ...input.record.data }
 
   return createDomainEvent({
     type,
     severity,
-    state: severity === "error" ? "failed" : "preparing",
-    message: `Workspace setup ${input.record.event.replace(/_/g, " ")}`,
+    state: severity === 'error' ? 'failed' : 'preparing',
+    message: `Workspace setup ${input.record.event.replace(/_/g, ' ')}`,
     issue_id: input.issueId,
     run_id: input.runId,
     occurred_at: input.record.occurred_at,
@@ -4070,22 +4054,22 @@ function createWorkspaceSetupProgressEvent(input: {
       step: input.record.step,
       ...progressData,
     },
-  });
+  })
 }
 
 function createWorktreeProgressEvent(input: {
-  issueId: string;
-  runId: string;
-  executionId: string;
-  event: "started" | "succeeded" | "failed";
-  occurredAt: string;
-  severity: DomainEvent["severity"];
-  data: Record<string, unknown>;
+  issueId: string
+  runId: string
+  executionId: string
+  event: 'started' | 'succeeded' | 'failed'
+  occurredAt: string
+  severity: DomainEvent['severity']
+  data: Record<string, unknown>
 }): DomainEvent {
   return createDomainEvent({
     type: `workflow.worktree.${input.event}`,
     severity: input.severity,
-    state: input.event === "failed" ? "failed" : "preparing",
+    state: input.event === 'failed' ? 'failed' : 'preparing',
     message: `Git worktree preparation ${input.event}`,
     issue_id: input.issueId,
     run_id: input.runId,
@@ -4096,41 +4080,41 @@ function createWorktreeProgressEvent(input: {
       execution_id: input.executionId,
       ...input.data,
     },
-  });
+  })
 }
 
 export function buildPlanningSessionArtifactPaths(
   drafts: PlanningArtifactDraft[],
-  repoPath: string,
-): PlanningSessionArtifactPaths;
+  repoPath: string
+): PlanningSessionArtifactPaths
 export function buildPlanningSessionArtifactPaths(input: {
-  repoPath: string;
-  context: string;
-  testPlan: string;
-  contract: string;
-  prompt: string;
-}): PlanningSessionArtifactPaths;
+  repoPath: string
+  context: string
+  testPlan: string
+  contract: string
+  prompt: string
+}): PlanningSessionArtifactPaths
 export function buildPlanningSessionArtifactPaths(
   input:
     | PlanningArtifactDraft[]
     | {
-        repoPath: string;
-        context: string;
-        testPlan: string;
-        contract: string;
-        prompt: string;
+        repoPath: string
+        context: string
+        testPlan: string
+        contract: string
+        prompt: string
       },
-  repoPath?: string,
+  repoPath?: string
 ): PlanningSessionArtifactPaths {
   if (Array.isArray(input)) {
-    const context = input.find((draft) => draft.kind === "context")?.path;
-    const testPlan = input.find((draft) => draft.kind === "test-plan")?.path;
-    const prompt = input.find((draft) => draft.kind === "prompt")?.path;
-    const contract = input.find((draft) => draft.kind === "contract")?.path;
+    const context = input.find(draft => draft.kind === 'context')?.path
+    const testPlan = input.find(draft => draft.kind === 'test-plan')?.path
+    const prompt = input.find(draft => draft.kind === 'prompt')?.path
+    const contract = input.find(draft => draft.kind === 'contract')?.path
     const runPlan =
       context === undefined
         ? undefined
-        : path.join(path.dirname(context), "run-plan.md");
+        : path.join(path.dirname(context), 'run-plan.md')
 
     if (
       context === undefined ||
@@ -4140,7 +4124,7 @@ export function buildPlanningSessionArtifactPaths(
       runPlan === undefined ||
       repoPath === undefined
     ) {
-      throw new Error("planning artifacts are incomplete");
+      throw new Error('planning artifacts are incomplete')
     }
 
     return {
@@ -4149,7 +4133,7 @@ export function buildPlanningSessionArtifactPaths(
       contract: path.join(repoPath, contract),
       runPlan: path.join(repoPath, runPlan),
       prompt: path.join(repoPath, prompt),
-    };
+    }
   }
 
   return {
@@ -4158,26 +4142,26 @@ export function buildPlanningSessionArtifactPaths(
     contract: path.join(input.repoPath, input.contract),
     runPlan: path.join(
       path.dirname(path.join(input.repoPath, input.context)),
-      "run-plan.md",
+      'run-plan.md'
     ),
     prompt: path.join(input.repoPath, input.prompt),
-  };
+  }
 }
 
 export function createPlanningSessionStartedEvent(input: {
-  issueId: string;
-  runId: string;
-  executionId: string;
-  command: string;
-  args: string[];
-  artifactPaths: PlanningSessionArtifactPaths;
-  occurredAt: string;
+  issueId: string
+  runId: string
+  executionId: string
+  command: string
+  args: string[]
+  artifactPaths: PlanningSessionArtifactPaths
+  occurredAt: string
 }): DomainEvent {
   return createDomainEvent({
-    type: "workflow.planner.started",
-    severity: "info",
-    state: "planning",
-    message: "Planning session started",
+    type: 'workflow.planner.started',
+    severity: 'info',
+    state: 'planning',
+    message: 'Planning session started',
     issue_id: input.issueId,
     run_id: input.runId,
     occurred_at: input.occurredAt,
@@ -4189,21 +4173,21 @@ export function createPlanningSessionStartedEvent(input: {
       args: input.args,
       artifact_paths: input.artifactPaths,
     },
-  });
+  })
 }
 
 export function createPlanningSessionOutputEvent(input: {
-  issueId: string;
-  runId: string;
-  executionId: string;
-  stream: "stdout" | "stderr";
-  output: string;
-  occurredAt: string;
+  issueId: string
+  runId: string
+  executionId: string
+  stream: 'stdout' | 'stderr'
+  output: string
+  occurredAt: string
 }): DomainEvent {
   return createDomainEvent({
     type: `workflow.planner.${input.stream}`,
-    severity: input.stream === "stderr" ? "warning" : "info",
-    state: "planning",
+    severity: input.stream === 'stderr' ? 'warning' : 'info',
+    state: 'planning',
     message: `Planning session ${input.stream}`,
     issue_id: input.issueId,
     run_id: input.runId,
@@ -4215,22 +4199,22 @@ export function createPlanningSessionOutputEvent(input: {
       stream: input.stream,
       output: input.output,
     },
-  });
+  })
 }
 
 export function createPlanningSessionFinishedEvent(input: {
-  issueId: string;
-  runId: string;
-  executionId: string;
-  result: PlanningSessionResult;
+  issueId: string
+  runId: string
+  executionId: string
+  result: PlanningSessionResult
 }): DomainEvent {
-  const success = input.result.exit_code === 0 && input.result.signal === null;
+  const success = input.result.exit_code === 0 && input.result.signal === null
 
   return createDomainEvent({
-    type: "workflow.planner.finished",
-    severity: success ? "info" : "error",
-    state: "planning",
-    message: success ? "Planning session finished" : "Planning session failed",
+    type: 'workflow.planner.finished',
+    severity: success ? 'info' : 'error',
+    state: 'planning',
+    message: success ? 'Planning session finished' : 'Planning session failed',
     issue_id: input.issueId,
     run_id: input.runId,
     occurred_at: input.result.finished_at,
@@ -4243,45 +4227,45 @@ export function createPlanningSessionFinishedEvent(input: {
       exit_code: input.result.exit_code,
       signal: input.result.signal,
     },
-  });
+  })
 }
 
 function createMonotonicLaterTimestamp(timestamp: string): string {
-  return new Date(Date.parse(timestamp) + 1).toISOString();
+  return new Date(Date.parse(timestamp) + 1).toISOString()
 }
 
 function createCurrentOrLaterTimestamp(
   previousTimestamp: string,
-  currentTimestamp: string,
+  currentTimestamp: string
 ): string {
-  const previousMs = Date.parse(previousTimestamp);
-  const currentMs = Date.parse(currentTimestamp);
+  const previousMs = Date.parse(previousTimestamp)
+  const currentMs = Date.parse(currentTimestamp)
 
   if (Number.isFinite(previousMs) && Number.isFinite(currentMs)) {
     return currentMs > previousMs
       ? currentTimestamp
-      : createMonotonicLaterTimestamp(previousTimestamp);
+      : createMonotonicLaterTimestamp(previousTimestamp)
   }
 
-  return currentTimestamp;
+  return currentTimestamp
 }
 
 function persistWorkflowClaim(input: {
-  store: AutobotStore;
-  item: ItemDetail;
-  issueId: string;
-  attempt: number;
-  runId: string;
-  executionId: string;
-  occurredAt: string;
-  startedAt: string;
-  recoveryCommands: string[];
+  store: AutobotStore
+  item: ItemDetail
+  issueId: string
+  attempt: number
+  runId: string
+  executionId: string
+  occurredAt: string
+  startedAt: string
+  recoveryCommands: string[]
 }): FutureInstance<unknown, void> {
   const event = createDomainEvent({
-    type: "workflow.phase.claimed",
-    severity: "info",
-    state: "claimed",
-    message: "Issue claimed",
+    type: 'workflow.phase.claimed',
+    severity: 'info',
+    state: 'claimed',
+    message: 'Issue claimed',
     issue_id: input.issueId,
     run_id: input.runId,
     occurred_at: input.occurredAt,
@@ -4290,25 +4274,25 @@ function persistWorkflowClaim(input: {
       attempt: input.attempt,
       run_id: input.runId,
       execution_id: input.executionId,
-      phase: "claimed",
-      state: "claimed",
+      phase: 'claimed',
+      state: 'claimed',
       recovery_commands: input.recoveryCommands,
-      blueprint_id: "autobot-deliver-issue",
-      blueprint_version: "1.0.0",
+      blueprint_id: 'autobot-deliver-issue',
+      blueprint_version: '1.0.0',
     },
-  });
+  })
 
-  return input.store.transaction((transaction) =>
+  return input.store.transaction(transaction =>
     sequenceFutures([
       transaction.runs
         .upsert({
           run_id: input.runId,
           issue_id: input.issueId,
           attempt: input.attempt,
-          state: "claimed",
+          state: 'claimed',
           flowcraft_execution_id: input.executionId,
-          blueprint_id: "autobot-deliver-issue",
-          blueprint_version: "1.0.0",
+          blueprint_id: 'autobot-deliver-issue',
+          blueprint_version: '1.0.0',
           started_at: input.startedAt,
           finished_at: null,
           worker_id: null,
@@ -4320,7 +4304,7 @@ function persistWorkflowClaim(input: {
         .upsert(
           toItemRecordFromDetail({
             ...input.item,
-            state: "claimed",
+            state: 'claimed',
             started_at: input.item.started_at ?? input.startedAt,
             updated_at: input.occurredAt,
             last_event: event.type,
@@ -4332,10 +4316,10 @@ function persistWorkflowClaim(input: {
               run_id: input.runId,
               issue_id: input.issueId,
               attempt: input.attempt,
-              state: "claimed",
+              state: 'claimed',
               flowcraft_execution_id: input.executionId,
-              blueprint_id: "autobot-deliver-issue",
-              blueprint_version: "1.0.0",
+              blueprint_id: 'autobot-deliver-issue',
+              blueprint_version: '1.0.0',
               started_at: input.startedAt,
               finished_at: null,
               worker_id: null,
@@ -4344,38 +4328,38 @@ function persistWorkflowClaim(input: {
             } satisfies RunSummary,
             artifacts: [],
             events: [],
-          }),
+          })
         )
         .pipe(map(() => undefined)),
       transaction.events.append(event).pipe(map(() => undefined)),
-    ]).pipe(map(() => undefined)),
-  );
+    ]).pipe(map(() => undefined))
+  )
 }
 
 function createFlowcraftProgressWriter(input: {
-  store: AutobotStore;
-  item: ItemDetail;
-  issueId: string;
-  attempt: number;
-  runId: string;
-  executionId: string;
-  startedAt: string;
-  writtenPhases: Set<"preparing" | "planning">;
+  store: AutobotStore
+  item: ItemDetail
+  issueId: string
+  attempt: number
+  runId: string
+  executionId: string
+  startedAt: string
+  writtenPhases: Set<'preparing' | 'planning'>
 }): FlowcraftPhaseProgressWriter {
   const nodeOutputs: Array<
-    Parameters<FlowcraftPhaseProgressWriter>[0]["node_output"]
-  > = [];
+    Parameters<FlowcraftPhaseProgressWriter>[0]['node_output']
+  > = []
 
-  return (progress) => {
-    const phase = progress.phase === "preparing" ? "preparing" : "planning";
+  return progress => {
+    const phase = progress.phase === 'preparing' ? 'preparing' : 'planning'
     const event = createDomainEvent({
       type: progress.event_type,
-      severity: "info",
+      severity: 'info',
       state: progress.state,
       message: progress.message,
       issue_id: input.issueId,
       run_id: input.runId,
-      actor: "autobot-flowcraft",
+      actor: 'autobot-flowcraft',
       occurred_at: progress.occurred_at,
       data: {
         issue_id: input.issueId,
@@ -4392,7 +4376,7 @@ function createFlowcraftProgressWriter(input: {
         blueprint_id: progress.workflow_id,
         blueprint_version: progress.workflow_version,
       },
-    });
+    })
 
     const currentRun: RunSummary = {
       run_id: input.runId,
@@ -4407,12 +4391,12 @@ function createFlowcraftProgressWriter(input: {
       worker_id: null,
       last_heartbeat_at: null,
       transport: null,
-    };
+    }
 
-    input.writtenPhases.add(phase);
-    nodeOutputs.push(progress.node_output);
+    input.writtenPhases.add(phase)
+    nodeOutputs.push(progress.node_output)
 
-    return input.store.transaction((transaction) =>
+    return input.store.transaction(transaction =>
       sequenceFutures([
         transaction.runs.upsert(currentRun).pipe(map(() => undefined)),
         transaction.items
@@ -4430,7 +4414,7 @@ function createFlowcraftProgressWriter(input: {
               current_run: currentRun,
               artifacts: [],
               events: [],
-            }),
+            })
           )
           .pipe(map(() => undefined)),
         transaction.events.append(event).pipe(map(() => undefined)),
@@ -4445,7 +4429,7 @@ function createFlowcraftProgressWriter(input: {
             metadata: {
               workflow_id: progress.workflow_id,
               workflow_version: progress.workflow_version,
-              workflow_status: "awaiting",
+              workflow_status: 'awaiting',
               item_state: progress.state,
               bounded: true,
               phase_sequence: [...input.writtenPhases],
@@ -4456,24 +4440,24 @@ function createFlowcraftProgressWriter(input: {
             },
           })
           .pipe(map(() => undefined)),
-      ]).pipe(map(() => undefined)),
-    );
-  };
+      ]).pipe(map(() => undefined))
+    )
+  }
 }
 
 function persistAwaitingWorkerFlowcraftExecution(input: {
-  store: AutobotStore;
-  issueId: string;
-  runId: string;
-  executionId: string;
-  startedAt: string;
-  plan: FlowcraftExecutionPlan;
+  store: AutobotStore
+  issueId: string
+  runId: string
+  executionId: string
+  startedAt: string
+  plan: FlowcraftExecutionPlan
 }): FutureInstance<unknown, void> {
   const executionState = mapFlowcraftStatusToItemState(
-    input.plan.metadata.workflow_status,
-  );
+    input.plan.metadata.workflow_status
+  )
 
-  return input.store.transaction((transaction) =>
+  return input.store.transaction(transaction =>
     sequenceFutures([
       transaction.flowcraft
         .recordExecution({
@@ -4487,23 +4471,23 @@ function persistAwaitingWorkerFlowcraftExecution(input: {
         })
         .pipe(map(() => undefined)),
       ...input.plan.flowcraft_events.map((event: FlowcraftEventRecord) =>
-        transaction.flowcraft.recordEvent(event).pipe(map(() => undefined)),
+        transaction.flowcraft.recordEvent(event).pipe(map(() => undefined))
       ),
-    ]).pipe(map(() => undefined)),
-  );
+    ]).pipe(map(() => undefined))
+  )
 }
 
 function hydratePlanningItemDetail(
   item: ItemDetail,
-  linear: LinearIssueRef | null,
+  linear: LinearIssueRef | null
 ): ItemDetail {
-  const resolvedLinear = linear ?? item.linear ?? null;
+  const resolvedLinear = linear ?? item.linear ?? null
 
   if (resolvedLinear === null) {
     return {
       ...item,
       linear: null,
-    };
+    }
   }
 
   return {
@@ -4511,7 +4495,7 @@ function hydratePlanningItemDetail(
     title: resolvedLinear.title,
     url: resolvedLinear.url,
     linear: resolvedLinear,
-  };
+  }
 }
 
 function toItemRecordFromDetail(item: ItemDetail): ItemRecord {
@@ -4539,49 +4523,49 @@ function toItemRecordFromDetail(item: ItemDetail): ItemRecord {
     labels: item.linear?.labels ?? [],
     assignee: item.linear?.assignee ?? null,
     current_run_id: item.current_run?.run_id ?? null,
-  };
+  }
 }
 
 function markPlanningFailure(
   store: AutobotStore,
   target: ItemSummary,
   tickAt: string,
-  error: unknown,
+  error: unknown
 ): FutureInstance<unknown, void> {
-  let message = "planning artifact generation failed";
+  let message = 'planning artifact generation failed'
   if (error instanceof Error && error.message.length > 0) {
-    message = error.message;
+    message = error.message
   } else if (
-    typeof error === "object" &&
+    typeof error === 'object' &&
     error !== null &&
-    "message" in error
+    'message' in error
   ) {
-    const structuredMessage = (error as { message?: unknown }).message;
-    if (typeof structuredMessage === "string" && structuredMessage.length > 0) {
-      message = structuredMessage;
+    const structuredMessage = (error as { message?: unknown }).message
+    if (typeof structuredMessage === 'string' && structuredMessage.length > 0) {
+      message = structuredMessage
     }
   }
   const failureEvent = createDomainEvent({
-    type: "workflow.phase.failed",
-    severity: "error",
-    state: "planning",
-    message: "Planning artifacts failed",
+    type: 'workflow.phase.failed',
+    severity: 'error',
+    state: 'planning',
+    message: 'Planning artifacts failed',
     issue_id: target.issue_id,
     occurred_at: tickAt,
     data: {
       issue_id: target.issue_id,
-      phase: "planning",
+      phase: 'planning',
       reason: message,
     },
-  });
+  })
 
-  return store.transaction((transaction) =>
+  return store.transaction(transaction =>
     transaction.items
       .upsert({
-        ...buildItemSummaryFromExisting(target, "failed", tickAt),
+        ...buildItemSummaryFromExisting(target, 'failed', tickAt),
         last_event: failureEvent.type,
         last_error: {
-          code: "AUTOBOT-PLANNING-ARTIFACTS-FAILED",
+          code: 'AUTOBOT-PLANNING-ARTIFACTS-FAILED',
           message,
           occurred_at: tickAt,
         },
@@ -4597,10 +4581,10 @@ function markPlanningFailure(
       })
       .pipe(
         chain(() =>
-          transaction.events.append(failureEvent).pipe(map(() => undefined)),
-        ),
-      ),
-  );
+          transaction.events.append(failureEvent).pipe(map(() => undefined))
+        )
+      )
+  )
 }
 
 function runBoundedWorkflowTickForItem(
@@ -4613,58 +4597,58 @@ function runBoundedWorkflowTickForItem(
   artifactReader: ArtifactReader = defaultArtifactReader,
   planningSessionRunner: PlanningSessionRunner = createNoopPlanningSessionRunner(),
   planningWorkerStarter?: PlanningWorkerStarter,
-  loadLinearIssueDependency?: AutobotServiceDependencies["loadLinearIssue"],
-  prepareWorktree: AutobotServiceDependencies["prepareWorktree"] = prepareAutobotWorktree,
+  loadLinearIssueDependency?: AutobotServiceDependencies['loadLinearIssue'],
+  prepareWorktree: AutobotServiceDependencies['prepareWorktree'] = prepareAutobotWorktree,
   setupWorkspace: NonNullable<
-    AutobotServiceDependencies["setupWorkspace"]
-  > = setupAutobotWorkspace,
+    AutobotServiceDependencies['setupWorkspace']
+  > = setupAutobotWorkspace
 ): FutureInstance<unknown, void> {
-  const startedAt = tickAt;
-  const runId = randomId();
-  const executionId = `flowcraft-${runId}`;
-  const setupFailureHandled = { code: "AUTOBOT-WORKSPACE-SETUP-HANDLED" };
+  const startedAt = tickAt
+  const runId = randomId()
+  const executionId = `flowcraft-${runId}`
+  const setupFailureHandled = { code: 'AUTOBOT-WORKSPACE-SETUP-HANDLED' }
   const emitPreparationSubactionEvents =
-    setupWorkspace !== createNoopWorkspaceSetup;
-  const claimedAt = startedAt;
+    setupWorkspace !== createNoopWorkspaceSetup
+  const claimedAt = startedAt
   const worktreePaths = resolveAutobotWorktreePaths({
     repoRoot: store.repo.path,
     issueId: target.issue_id,
-  });
+  })
   const prepareStartedEvent = createDomainEvent({
-    type: "workflow.phase.started",
-    severity: "info",
-    state: "preparing",
-    message: "Worktree preparation started",
+    type: 'workflow.phase.started',
+    severity: 'info',
+    state: 'preparing',
+    message: 'Worktree preparation started',
     issue_id: target.issue_id,
     occurred_at: tickAt,
     data: {
       issue_id: target.issue_id,
       run_id: runId,
       execution_id: executionId,
-      phase: "preparing",
+      phase: 'preparing',
       branch: worktreePaths.branch,
       worktree_path: worktreePaths.worktree_path,
     },
-  });
+  })
   const worktreeStartedEvent = createWorktreeProgressEvent({
     issueId: target.issue_id,
     runId,
     executionId,
-    event: "started",
+    event: 'started',
     occurredAt: tickAt,
-    severity: "info",
+    severity: 'info',
     data: {
       branch: worktreePaths.branch,
       worktree_path: worktreePaths.worktree_path,
     },
-  });
+  })
   const createPrepareSucceededEvent = (
-    worktree: GitWorktreePreparationResult,
+    worktree: GitWorktreePreparationResult
   ) =>
     emitPreparationSubactionEvents
       ? createWorktreeProgressEvent({
-          event: "succeeded",
-          severity: "info",
+          event: 'succeeded',
+          severity: 'info',
           issueId: target.issue_id,
           runId,
           executionId,
@@ -4676,26 +4660,26 @@ function runBoundedWorkflowTickForItem(
           },
         })
       : createDomainEvent({
-          type: "workflow.phase.succeeded",
-          severity: "info",
-          state: "preparing",
-          message: "Worktree preparation completed",
+          type: 'workflow.phase.succeeded',
+          severity: 'info',
+          state: 'preparing',
+          message: 'Worktree preparation completed',
           issue_id: target.issue_id,
           occurred_at: tickAt,
           data: {
             issue_id: target.issue_id,
             run_id: runId,
             execution_id: executionId,
-            phase: "preparing",
+            phase: 'preparing',
             branch: worktree.branch,
             worktree_path: worktree.worktree_path,
             archived_worktree_path: worktree.archived_worktree_path,
           },
-        });
+        })
   const createPrepareFailedEvent = (error: unknown) =>
     createWorktreeProgressEvent({
-      event: "failed",
-      severity: "error",
+      event: 'failed',
+      severity: 'error',
       issueId: target.issue_id,
       runId,
       executionId,
@@ -4705,13 +4689,13 @@ function runBoundedWorkflowTickForItem(
         worktree_path: worktreePaths.worktree_path,
         error: toErrorPayload(error),
       },
-    });
+    })
   const createPreparePhaseFailedEvent = (error: unknown) =>
     createDomainEvent({
-      type: "workflow.phase.failed",
-      severity: "error",
-      state: "failed",
-      message: "Worktree preparation failed",
+      type: 'workflow.phase.failed',
+      severity: 'error',
+      state: 'failed',
+      message: 'Worktree preparation failed',
       issue_id: target.issue_id,
       run_id: runId,
       occurred_at: tickAt,
@@ -4719,19 +4703,19 @@ function runBoundedWorkflowTickForItem(
         issue_id: target.issue_id,
         run_id: runId,
         execution_id: executionId,
-        phase: "preparing",
+        phase: 'preparing',
         branch: worktreePaths.branch,
         worktree_path: worktreePaths.worktree_path,
         error: toErrorPayload(error),
       },
-    });
+    })
   const createPrepareFailedRecord = (error: unknown): ItemRecord => ({
     ...createReconciledItemRecord({
       item: {
         ...target,
         branch: worktreePaths.branch,
       },
-      state: "failed",
+      state: 'failed',
       updatedAt: tickAt,
       lastError: createErrorSummary(error, tickAt),
       recoveryCommands: [
@@ -4742,8 +4726,8 @@ function runBoundedWorkflowTickForItem(
     branch: worktreePaths.branch,
     workspace: worktreePaths.worktree_path,
     started_at: tickAt,
-    last_event: "failed-from-preparing",
-  });
+    last_event: 'failed-from-preparing',
+  })
   const failFromPreparing = (error: unknown): FutureInstance<unknown, void> =>
     sequenceFutures([
       ...(emitPreparationSubactionEvents
@@ -4759,17 +4743,17 @@ function runBoundedWorkflowTickForItem(
       store.items
         .upsert(createPrepareFailedRecord(error))
         .pipe(map(() => undefined)),
-    ]).pipe(map(() => undefined));
+    ]).pipe(map(() => undefined))
 
   const createPhaseSucceededEvent = (
     worktree: GitWorktreePreparationResult,
-    setup: WorkspaceSetupResult,
+    setup: WorkspaceSetupResult
   ) =>
     createDomainEvent({
-      type: "workflow.phase.succeeded",
-      severity: "info",
-      state: "preparing",
-      message: "Workspace preparation completed",
+      type: 'workflow.phase.succeeded',
+      severity: 'info',
+      state: 'preparing',
+      message: 'Workspace preparation completed',
       issue_id: target.issue_id,
       run_id: runId,
       occurred_at: setup.finished_at,
@@ -4777,23 +4761,23 @@ function runBoundedWorkflowTickForItem(
         issue_id: target.issue_id,
         run_id: runId,
         execution_id: executionId,
-        phase: "preparing",
+        phase: 'preparing',
         branch: worktree.branch,
         worktree_path: worktree.worktree_path,
         archived_worktree_path: worktree.archived_worktree_path,
         workspace_setup_summary_path: setup.summary_artifact_path,
       },
-    });
+    })
   const failFromSetup = (
     worktree: GitWorktreePreparationResult,
     progressEvents: DomainEvent[],
-    error: unknown,
+    error: unknown
   ): FutureInstance<unknown, void> => {
     const phaseFailedEvent = createDomainEvent({
-      type: "workflow.phase.failed",
-      severity: "error",
-      state: "failed",
-      message: "Workspace setup failed",
+      type: 'workflow.phase.failed',
+      severity: 'error',
+      state: 'failed',
+      message: 'Workspace setup failed',
       issue_id: target.issue_id,
       run_id: runId,
       occurred_at: tickAt,
@@ -4801,16 +4785,16 @@ function runBoundedWorkflowTickForItem(
         issue_id: target.issue_id,
         run_id: runId,
         execution_id: executionId,
-        phase: "preparing",
+        phase: 'preparing',
         branch: worktree.branch,
         worktree_path: worktree.worktree_path,
         error: toErrorPayload(error),
       },
-    });
-    const payload = toErrorPayload(error);
+    })
+    const payload = toErrorPayload(error)
     return sequenceFutures([
-      ...progressEvents.map((event) =>
-        store.events.append(event).pipe(map(() => undefined)),
+      ...progressEvents.map(event =>
+        store.events.append(event).pipe(map(() => undefined))
       ),
       store.events.append(phaseFailedEvent).pipe(map(() => undefined)),
       store.items
@@ -4821,7 +4805,7 @@ function runBoundedWorkflowTickForItem(
               branch: worktree.branch,
               workspace: worktree.worktree_path,
             },
-            state: "failed",
+            state: 'failed',
             updatedAt: tickAt,
             lastError: createErrorSummary(error, tickAt),
             recoveryCommands:
@@ -4832,11 +4816,11 @@ function runBoundedWorkflowTickForItem(
           branch: worktree.branch,
           workspace: worktree.worktree_path,
           started_at: startedAt,
-          last_event: "failed-from-preparing",
+          last_event: 'failed-from-preparing',
         })
         .pipe(map(() => undefined)),
-    ]).pipe(map(() => undefined));
-  };
+    ]).pipe(map(() => undefined))
+  }
 
   return store.events
     .append(prepareStartedEvent)
@@ -4844,8 +4828,8 @@ function runBoundedWorkflowTickForItem(
       chain(() =>
         emitPreparationSubactionEvents
           ? store.events.append(worktreeStartedEvent).pipe(map(() => undefined))
-          : resolve(undefined),
-      ),
+          : resolve(undefined)
+      )
     )
     .pipe(
       chain(() =>
@@ -4853,18 +4837,18 @@ function runBoundedWorkflowTickForItem(
           repoRoot: store.repo.path,
           issueId: target.issue_id,
         }).pipe(
-          bichain(failFromPreparing)((worktree) => {
+          bichain(failFromPreparing)(worktree => {
             const preparedRepo: RepoRef = {
               ...store.repo,
               path: worktree.worktree_path,
-            };
+            }
             const preparedTarget: ItemSummary = {
               ...target,
               workspace: worktree.worktree_path,
               branch: worktree.branch,
               started_at: startedAt,
-            };
-            const prepareSucceededEvent = createPrepareSucceededEvent(worktree);
+            }
+            const prepareSucceededEvent = createPrepareSucceededEvent(worktree)
             const fallbackItemDetail: ItemDetail = {
               ...preparedTarget,
               linear: null,
@@ -4876,14 +4860,14 @@ function runBoundedWorkflowTickForItem(
               ],
               artifacts: [],
               events: [],
-            };
+            }
             const loadLinearIssueFuture =
               loadLinearIssueDependency === undefined
                 ? resolve<LinearIssueRef | null>(null)
                 : loadLinearIssueDependency({
                     repo: preparedRepo,
                     issueId: target.issue_id,
-                  });
+                  })
 
             return sequenceFutures([
               createPreparationRunDirectories({
@@ -4896,7 +4880,7 @@ function runBoundedWorkflowTickForItem(
                 .upsert({
                   ...createReconciledItemRecord({
                     item: preparedTarget,
-                    state: "preparing",
+                    state: 'preparing',
                     updatedAt: tickAt,
                     recoveryCommands: [
                       `autobot-next status ${target.issue_id} --json`,
@@ -4906,7 +4890,7 @@ function runBoundedWorkflowTickForItem(
                   workspace: worktree.worktree_path,
                   branch: worktree.branch,
                   started_at: startedAt,
-                  last_event: "workflow.phase.succeeded",
+                  last_event: 'workflow.phase.succeeded',
                 })
                 .pipe(map(() => undefined)),
               store.events
@@ -4915,7 +4899,7 @@ function runBoundedWorkflowTickForItem(
             ])
               .pipe(
                 chain(() => {
-                  const setupProgressEvents: DomainEvent[] = [];
+                  const setupProgressEvents: DomainEvent[] = []
                   return setupWorkspace(
                     {
                       repoRoot: store.repo.path,
@@ -4925,46 +4909,46 @@ function runBoundedWorkflowTickForItem(
                       attempt: target.attempt,
                     },
                     {
-                      onProgress: (record) => {
+                      onProgress: record => {
                         setupProgressEvents.push(
                           createWorkspaceSetupProgressEvent({
                             issueId: target.issue_id,
                             runId,
                             executionId,
                             record,
-                          }),
-                        );
+                          })
+                        )
                       },
-                    },
+                    }
                   ).pipe(
-                    bichain((error) =>
+                    bichain(error =>
                       failFromSetup(worktree, setupProgressEvents, error).pipe(
                         chain(() =>
-                          Future((reject) => {
-                            reject(setupFailureHandled);
-                            return () => undefined;
-                          }),
-                        ),
-                      ),
-                    )((setupResult) => {
+                          Future(reject => {
+                            reject(setupFailureHandled)
+                            return () => undefined
+                          })
+                        )
+                      )
+                    )(setupResult => {
                       const setupArtifact = buildWorkspaceSetupSummaryArtifact({
                         repoPath: preparedRepo.path,
                         result: setupResult,
-                      });
+                      })
                       return sequenceFutures(
                         emitPreparationSubactionEvents
                           ? [
-                              ...setupProgressEvents.map((event) =>
+                              ...setupProgressEvents.map(event =>
                                 store.events
                                   .append(event)
-                                  .pipe(map(() => undefined)),
+                                  .pipe(map(() => undefined))
                               ),
                               store.events
                                 .append(
                                   createPhaseSucceededEvent(
                                     worktree,
-                                    setupResult,
-                                  ),
+                                    setupResult
+                                  )
                                 )
                                 .pipe(map(() => undefined)),
                               store.artifacts
@@ -4982,27 +4966,27 @@ function runBoundedWorkflowTickForItem(
                                 })
                                 .pipe(map(() => undefined)),
                             ]
-                          : [],
-                      ).pipe(map(() => setupResult));
-                    }),
-                  );
-                }),
+                          : []
+                      ).pipe(map(() => setupResult))
+                    })
+                  )
+                })
               )
               .pipe(
                 chain(() =>
                   store.projections.getItemDetail(target.issue_id).pipe(
-                    chain((itemDetail) =>
+                    chain(itemDetail =>
                       loadLinearIssueFuture.pipe(
-                        chain((linearIssue) => {
+                        chain(linearIssue => {
                           const planningItem = {
                             ...hydratePlanningItemDetail(
                               itemDetail ?? fallbackItemDetail,
-                              linearIssue,
+                              linearIssue
                             ),
                             workspace: worktree.worktree_path,
                             branch: worktree.branch,
                             started_at: startedAt,
-                          };
+                          }
 
                           const planningArtifactDrafts =
                             buildPlanningArtifactDrafts({
@@ -5011,32 +4995,32 @@ function runBoundedWorkflowTickForItem(
                               runId,
                               executionId,
                               startedAt,
-                            });
+                            })
                           const planningArtifactPaths =
                             buildPlanningSessionArtifactPaths(
                               planningArtifactDrafts,
-                              preparedRepo.path,
-                            );
+                              preparedRepo.path
+                            )
 
                           const progressRecoveryCommands = [
                             `autobot-next status ${target.issue_id} --json`,
                             `autobot-next logs ${target.issue_id} --json`,
-                          ];
+                          ]
                           const preparingAt = createCurrentOrLaterTimestamp(
                             claimedAt,
-                            now(),
-                          );
+                            now()
+                          )
                           const planningAt = createCurrentOrLaterTimestamp(
                             preparingAt,
-                            now(),
-                          );
+                            now()
+                          )
                           const progressPhaseTimes = {
                             preparing: preparingAt,
                             planning: planningAt,
-                          };
+                          }
                           const writtenProgressPhases = new Set<
-                            "preparing" | "planning"
-                          >();
+                            'preparing' | 'planning'
+                          >()
                           const progressWriter = createFlowcraftProgressWriter({
                             store,
                             item: planningItem,
@@ -5046,17 +5030,17 @@ function runBoundedWorkflowTickForItem(
                             executionId,
                             startedAt,
                             writtenPhases: writtenProgressPhases,
-                          });
+                          })
                           const workflowStartedAt =
                             createCurrentOrLaterTimestamp(
                               progressPhaseTimes.planning,
-                              now(),
-                            );
+                              now()
+                            )
                           const workflowFinishedAt =
                             createCurrentOrLaterTimestamp(
                               workflowStartedAt,
-                              now(),
-                            );
+                              now()
+                            )
 
                           if (planningWorkerStarter !== undefined) {
                             return sequenceFutures([
@@ -5087,9 +5071,9 @@ function runBoundedWorkflowTickForItem(
                                     artifactWriter,
                                     artifactReader,
                                     planningSessionRunner,
-                                    planningWorkerStarter: (input) =>
+                                    planningWorkerStarter: input =>
                                       planningWorkerStarter({
-                                        phase: "plan",
+                                        phase: 'plan',
                                         repo: input.repo,
                                         issueId: input.issueId,
                                         attempt: input.attempt,
@@ -5099,7 +5083,7 @@ function runBoundedWorkflowTickForItem(
                                       }),
                                     progressWriter,
                                     progressClock: () =>
-                                      writtenProgressPhases.has("preparing")
+                                      writtenProgressPhases.has('preparing')
                                         ? progressPhaseTimes.planning
                                         : progressPhaseTimes.preparing,
                                   },
@@ -5113,10 +5097,10 @@ function runBoundedWorkflowTickForItem(
                                     executionId,
                                     startedAt,
                                     plan,
-                                  }),
-                                ),
+                                  })
+                                )
                               ),
-                            ]).pipe(map(() => undefined));
+                            ]).pipe(map(() => undefined))
                           }
 
                           return sequenceFutures([
@@ -5149,7 +5133,7 @@ function runBoundedWorkflowTickForItem(
                                   planningSessionRunner,
                                   progressWriter,
                                   progressClock: () =>
-                                    writtenProgressPhases.has("preparing")
+                                    writtenProgressPhases.has('preparing')
                                       ? progressPhaseTimes.planning
                                       : progressPhaseTimes.preparing,
                                 },
@@ -5157,34 +5141,34 @@ function runBoundedWorkflowTickForItem(
                             }).pipe(
                               chain(
                                 (
-                                  plan: FlowcraftExecutionPlan,
+                                  plan: FlowcraftExecutionPlan
                                 ): FutureInstance<unknown, void> => {
                                   const runState =
                                     mapFlowcraftStatusToItemState(
-                                      plan.metadata.workflow_status,
-                                    );
+                                      plan.metadata.workflow_status
+                                    )
                                   const flowcraftFinishedAt =
                                     createMonotonicLaterTimestamp(
                                       plan.metadata.planning_session_result
-                                        ?.finished_at ?? workflowStartedAt,
-                                    );
+                                        ?.finished_at ?? workflowStartedAt
+                                    )
                                   const planningSessionResult =
-                                    plan.metadata.planning_session_result;
+                                    plan.metadata.planning_session_result
                                   const finalDomainEvents =
-                                    plan.domain_events.filter((event) => {
-                                      const phase = event.data.phase;
+                                    plan.domain_events.filter(event => {
+                                      const phase = event.data.phase
                                       return !(
-                                        (phase === "preparing" ||
-                                          phase === "planning") &&
+                                        (phase === 'preparing' ||
+                                          phase === 'planning') &&
                                         writtenProgressPhases.has(phase)
-                                      );
-                                    });
+                                      )
+                                    })
                                   const lastError =
-                                    runState === "awaiting"
+                                    runState === 'awaiting'
                                       ? {
-                                          code: "AUTOBOT-PLANNER-RUN-PLAN-NOT-READY",
+                                          code: 'AUTOBOT-PLANNER-RUN-PLAN-NOT-READY',
                                           message:
-                                            "planning session produced a non-ready run-plan.md; route to research-refine before implementation",
+                                            'planning session produced a non-ready run-plan.md; route to research-refine before implementation',
                                           occurred_at:
                                             planningSessionResult?.finished_at ??
                                             flowcraftFinishedAt,
@@ -5193,37 +5177,37 @@ function runBoundedWorkflowTickForItem(
                                         true
                                       ? planningSessionResult === null
                                         ? {
-                                            code: "AUTOBOT-PLANNING-ARTIFACTS-FAILED",
+                                            code: 'AUTOBOT-PLANNING-ARTIFACTS-FAILED',
                                             message:
                                               plan.metadata
                                                 .planning_failure_reason ??
-                                              "planning failed",
+                                              'planning failed',
                                             occurred_at: flowcraftFinishedAt,
                                           }
                                         : plan.metadata
                                             .planning_run_plan_valid === false
                                         ? {
-                                            code: "AUTOBOT-PLANNER-RUN-PLAN-INVALID",
+                                            code: 'AUTOBOT-PLANNER-RUN-PLAN-INVALID',
                                             message:
                                               plan.metadata
                                                 .planning_failure_reason ??
-                                              "planning session produced invalid run-plan.md",
+                                              'planning session produced invalid run-plan.md',
                                             occurred_at:
                                               planningSessionResult.finished_at,
                                           }
                                         : {
-                                            code: "AUTOBOT-PLANNER-SESSION-FAILED",
+                                            code: 'AUTOBOT-PLANNER-SESSION-FAILED',
                                             message: `planning session exited with code ${String(
-                                              planningSessionResult.exit_code,
+                                              planningSessionResult.exit_code
                                             )}`,
                                             occurred_at:
                                               planningSessionResult.finished_at,
                                           }
-                                      : null;
+                                      : null
 
-                                  return store.transaction((transaction) => {
+                                  return store.transaction(transaction => {
                                     const recordArtifact = (
-                                      draft: PlanningArtifactDraft,
+                                      draft: PlanningArtifactDraft
                                     ) =>
                                       transaction.artifacts
                                         .record({
@@ -5238,7 +5222,7 @@ function runBoundedWorkflowTickForItem(
                                           inherited_from_artifact_id: null,
                                           created_at: startedAt,
                                         })
-                                        .pipe(map(() => undefined));
+                                        .pipe(map(() => undefined))
                                     return transaction.runs
                                       .upsert({
                                         run_id: runId,
@@ -5258,13 +5242,13 @@ function runBoundedWorkflowTickForItem(
                                       .pipe(
                                         chain(
                                           (
-                                            run,
+                                            run
                                           ): FutureInstance<unknown, void> =>
                                             sequenceFutures([
                                               ...plan.metadata.planning_artifacts
                                                 .filter(
-                                                  (draft) =>
-                                                    draft.persist !== false,
+                                                  draft =>
+                                                    draft.persist !== false
                                                 )
                                                 .map(recordArtifact),
                                               transaction.flowcraft
@@ -5283,13 +5267,13 @@ function runBoundedWorkflowTickForItem(
                                                 (event: FlowcraftEventRecord) =>
                                                   transaction.flowcraft
                                                     .recordEvent(event)
-                                                    .pipe(map(() => undefined)),
+                                                    .pipe(map(() => undefined))
                                               ),
                                               ...finalDomainEvents.map(
                                                 (event: DomainEvent) =>
                                                   transaction.events
                                                     .append(event)
-                                                    .pipe(map(() => undefined)),
+                                                    .pipe(map(() => undefined))
                                               ),
                                               transaction.items
                                                 .upsert(
@@ -5303,7 +5287,7 @@ function runBoundedWorkflowTickForItem(
                                                       finalDomainEvents.at(-1)
                                                         ?.type ??
                                                       plan.flowcraft_events.at(
-                                                        -1,
+                                                        -1
                                                       )?.type ??
                                                       null,
                                                     recovery_commands:
@@ -5316,34 +5300,34 @@ function runBoundedWorkflowTickForItem(
                                                     current_run: null,
                                                     artifacts: [],
                                                     events: [],
-                                                  }),
+                                                  })
                                                 )
                                                 .pipe(map(() => undefined)),
-                                            ]).pipe(map(() => undefined)),
-                                        ),
-                                      );
-                                  });
-                                },
-                              ),
+                                            ]).pipe(map(() => undefined))
+                                        )
+                                      )
+                                  })
+                                }
+                              )
                             ),
-                          ]).pipe(map(() => undefined));
-                        }),
-                      ),
-                    ),
-                  ),
-                ),
-              );
-          }),
-        ),
-      ),
+                          ]).pipe(map(() => undefined))
+                        })
+                      )
+                    )
+                  )
+                )
+              )
+          })
+        )
+      )
     )
     .pipe(
-      chainRej((error) =>
+      chainRej(error =>
         error === setupFailureHandled
           ? resolve(undefined)
-          : markPlanningFailure(store, target, tickAt, error),
-      ),
-    );
+          : markPlanningFailure(store, target, tickAt, error)
+      )
+    )
 }
 
 function handleEngineRunOnce(
@@ -5351,25 +5335,25 @@ function handleEngineRunOnce(
   store: AutobotStore,
   now: () => string,
   randomId: () => string,
-  prepareWorktree?: AutobotServiceDependencies["prepareWorktree"],
-  setupWorkspace?: AutobotServiceDependencies["setupWorkspace"],
-  discoverIssues?: AutobotServiceDependencies["discoverIssues"],
+  prepareWorktree?: AutobotServiceDependencies['prepareWorktree'],
+  setupWorkspace?: AutobotServiceDependencies['setupWorkspace'],
+  discoverIssues?: AutobotServiceDependencies['discoverIssues'],
   artifactWriter: ArtifactWriter = defaultArtifactWriter,
   artifactReader: ArtifactReader = defaultArtifactReader,
   planningSessionRunner: PlanningSessionRunner = createNoopPlanningSessionRunner(),
   planningWorkerStarter?: PlanningWorkerStarter,
-  loadLinearIssue?: AutobotServiceDependencies["loadLinearIssue"],
-  isProcessAlive?: AutobotServiceDependencies["isProcessAlive"],
-  killProcess?: AutobotServiceDependencies["kill"],
-  runtime?: EngineRuntimeSnapshot | null,
+  loadLinearIssue?: AutobotServiceDependencies['loadLinearIssue'],
+  isProcessAlive?: AutobotServiceDependencies['isProcessAlive'],
+  killProcess?: AutobotServiceDependencies['kill'],
+  runtime?: EngineRuntimeSnapshot | null
 ): FutureInstance<unknown, AutobotCommandResult> {
-  const root = getSupervisorCommandRoot(invocation);
+  const root = getSupervisorCommandRoot(invocation)
 
   return createConfigList(store).pipe(
     chain((config): FutureInstance<unknown, AutobotCommandResult> => {
-      const settings = resolveEngineTickSettings(config);
-      const tickAt = now();
-      const warnings: Warning[] = [];
+      const settings = resolveEngineTickSettings(config)
+      const tickAt = now()
+      const warnings: Warning[] = []
       const defaultDiscoverIssues =
         discoverIssues ??
         ((input: DiscoverIssueInput) =>
@@ -5377,41 +5361,41 @@ function handleEngineRunOnce(
             repoRoot: input.repo.path,
             projects: input.projects,
             limit: input.scanLimit,
-          }));
+          }))
 
       return store.projections.listItems({ include_terminal: true }).pipe(
-        chain((initialItems) =>
+        chain(initialItems =>
           store.workers.list().pipe(
-            chain((workers) => {
+            chain(workers => {
               const workersById = new Map(
-                workers.map((worker) => [worker.worker_id, worker] as const),
-              );
-              const workingItems = [...initialItems];
-              const reconciledIssueIds: string[] = [];
-              const discoveredIssueIds: string[] = [];
-              const queuedIssueIds: string[] = [];
-              const selectedIssueIds: string[] = [];
-              const startedIssueIds: string[] = [];
-              const skipped: EngineTickSkip[] = [];
-              const inProgressItems = workingItems.filter((item) =>
-                isInProgressState(item.state),
-              );
+                workers.map(worker => [worker.worker_id, worker] as const)
+              )
+              const workingItems = [...initialItems]
+              const reconciledIssueIds: string[] = []
+              const discoveredIssueIds: string[] = []
+              const queuedIssueIds: string[] = []
+              const selectedIssueIds: string[] = []
+              const startedIssueIds: string[] = []
+              const skipped: EngineTickSkip[] = []
+              const inProgressItems = workingItems.filter(item =>
+                isInProgressState(item.state)
+              )
               const applyReconciliationOutcome = (
-                outcome: EngineTickReconciliationOutcome,
+                outcome: EngineTickReconciliationOutcome
               ) => {
                 if (outcome.reconciled_issue_id !== null) {
-                  reconciledIssueIds.push(outcome.reconciled_issue_id);
+                  reconciledIssueIds.push(outcome.reconciled_issue_id)
                 }
 
                 const index = workingItems.findIndex(
-                  (current) => current.issue_id === outcome.item.issue_id,
-                );
+                  current => current.issue_id === outcome.item.issue_id
+                )
                 if (index !== -1) {
-                  workingItems[index] = outcome.item;
+                  workingItems[index] = outcome.item
                 }
 
-                return outcome;
-              };
+                return outcome
+              }
 
               return reconcileEligibleEngineItems({
                 store,
@@ -5427,144 +5411,142 @@ function handleEngineRunOnce(
                 killProcess,
               })
                 .pipe(
-                  map((outcomes) => {
+                  map(outcomes => {
                     for (const outcome of outcomes) {
-                      applyReconciliationOutcome(outcome);
+                      applyReconciliationOutcome(outcome)
                     }
 
-                    return outcomes;
-                  }),
+                    return outcomes
+                  })
                 )
                 .pipe(
                   chain(() => {
-                    const retryableItems = workingItems.filter((item) =>
-                      isRetryableFailedItem(item),
-                    );
-                    const retryFutures = retryableItems.map((item) =>
+                    const retryableItems = workingItems.filter(item =>
+                      isRetryableFailedItem(item)
+                    )
+                    const retryFutures = retryableItems.map(item =>
                       reconcileRetryableFailedItem(
                         store,
                         item,
                         tickAt,
                         invocation.options.dry_run,
-                        settings.maxRetries,
-                      ).pipe(map(applyReconciliationOutcome)),
-                    );
+                        settings.maxRetries
+                      ).pipe(map(applyReconciliationOutcome))
+                    )
 
                     return sequenceFutures(retryFutures).pipe(
                       chain(() => {
                         const refreshWorkingItems = invocation.options.dry_run
                           ? resolve(undefined)
                           : store.projections.listItems().pipe(
-                              map((items) => {
+                              map(items => {
                                 workingItems.splice(
                                   0,
                                   workingItems.length,
-                                  ...items,
-                                );
-                              }),
-                            );
+                                  ...items
+                                )
+                              })
+                            )
 
                         const queueDiscoveredCandidates = (
-                          candidates: DiscoverCandidate[],
+                          candidates: DiscoverCandidate[]
                         ): FutureInstance<unknown, void> => {
                           discoveredIssueIds.push(
-                            ...candidates.map(
-                              (candidate) => candidate.issue_id,
-                            ),
-                          );
+                            ...candidates.map(candidate => candidate.issue_id)
+                          )
 
                           const knownIssueIds = new Map(
                             workingItems.map(
-                              (item) => [item.issue_id, item] as const,
-                            ),
-                          );
+                              item => [item.issue_id, item] as const
+                            )
+                          )
                           const queueBudget = Math.max(
                             0,
                             settings.queueDepth -
                               workingItems.filter(
-                                (item) => item.state === "queued",
-                              ).length,
-                          );
-                          const accepted: EngineTickCandidateRecord[] = [];
+                                item => item.state === 'queued'
+                              ).length
+                          )
+                          const accepted: EngineTickCandidateRecord[] = []
 
                           for (const candidate of candidates) {
                             const existing = knownIssueIds.get(
-                              candidate.issue_id,
-                            );
+                              candidate.issue_id
+                            )
                             if (existing !== undefined) {
                               skipped.push({
                                 issue_id: candidate.issue_id,
-                                reason: "local-existing",
+                                reason: 'local-existing',
                                 details: {
                                   state: existing.state,
                                 },
-                              });
-                              continue;
+                              })
+                              continue
                             }
 
                             if (accepted.length >= queueBudget) {
                               skipped.push({
                                 issue_id: candidate.issue_id,
-                                reason: "queue-depth-exhausted",
+                                reason: 'queue-depth-exhausted',
                                 details: {
                                   queue_depth: settings.queueDepth,
                                 },
-                              });
-                              continue;
+                              })
+                              continue
                             }
 
                             const queueCandidate = createDiscoveredItemRecord(
                               candidate,
-                              tickAt,
-                            );
-                            accepted.push(queueCandidate);
+                              tickAt
+                            )
+                            accepted.push(queueCandidate)
                             knownIssueIds.set(
                               candidate.issue_id,
-                              queueCandidate.summary,
-                            );
+                              queueCandidate.summary
+                            )
                           }
 
-                          const queueCandidates = accepted;
+                          const queueCandidates = accepted
 
                           queuedIssueIds.push(
                             ...queueCandidates.map(
-                              (candidate) => candidate.summary.issue_id,
-                            ),
-                          );
+                              candidate => candidate.summary.issue_id
+                            )
+                          )
 
                           for (const candidate of queueCandidates) {
-                            workingItems.push(candidate.summary);
+                            workingItems.push(candidate.summary)
                           }
 
                           if (
                             invocation.options.dry_run ||
                             queueCandidates.length === 0
                           ) {
-                            return resolve(undefined);
+                            return resolve(undefined)
                           }
 
                           const persistQueueFutures = queueCandidates.flatMap(
                             (candidate, index) => {
                               const queuePosition =
                                 workingItems.filter(
-                                  (item) => item.state === "queued",
+                                  item => item.state === 'queued'
                                 ).length -
                                 queueCandidates.length +
                                 index +
-                                1;
+                                1
                               const event = createDomainEvent({
-                                type: "item.queued",
-                                severity: "info",
-                                state: "queued",
-                                message: "Item queued",
+                                type: 'item.queued',
+                                severity: 'info',
+                                state: 'queued',
+                                message: 'Item queued',
                                 issue_id: candidate.summary.issue_id,
                                 occurred_at: tickAt,
                                 data: {
                                   issue_id: candidate.summary.issue_id,
                                   queue_position: queuePosition,
-                                  reason: "automatic discovery",
+                                  reason: 'automatic discovery',
                                 },
-                              });
+                              })
 
                               return [
                                 store.items
@@ -5573,14 +5555,14 @@ function handleEngineRunOnce(
                                 store.events
                                   .append(event)
                                   .pipe(map(() => undefined)),
-                              ];
-                            },
-                          );
+                              ]
+                            }
+                          )
 
                           return sequenceFutures(persistQueueFutures).pipe(
-                            map(() => undefined),
-                          );
-                        };
+                            map(() => undefined)
+                          )
+                        }
 
                         const discoveryFuture = settings.autoDiscover
                           ? settings.discoveryProjects.length === 0
@@ -5591,45 +5573,45 @@ function handleEngineRunOnce(
                                 projects: settings.discoveryProjects,
                                 scanLimit: settings.scanLimit,
                               }).pipe(chain(queueDiscoveredCandidates))
-                          : resolve(undefined);
+                          : resolve(undefined)
 
                         return refreshWorkingItems
                           .pipe(chain(() => discoveryFuture))
                           .pipe(
                             chain(() => {
-                              const activeCount = workingItems.filter((item) =>
-                                isInProgressState(item.state),
-                              ).length;
+                              const activeCount = workingItems.filter(item =>
+                                isInProgressState(item.state)
+                              ).length
                               const capacity = Math.max(
                                 0,
-                                settings.maxConcurrency - activeCount,
-                              );
+                                settings.maxConcurrency - activeCount
+                              )
                               const queuedItems = [...workingItems]
-                                .filter((item) => item.state === "queued")
-                                .sort(compareQueuedItems);
-                              const selectionLimit = capacity;
+                                .filter(item => item.state === 'queued')
+                                .sort(compareQueuedItems)
+                              const selectionLimit = capacity
                               const selectedItems = queuedItems.slice(
                                 0,
-                                selectionLimit,
-                              );
+                                selectionLimit
+                              )
 
                               selectedIssueIds.push(
-                                ...selectedItems.map((item) => item.issue_id),
-                              );
+                                ...selectedItems.map(item => item.issue_id)
+                              )
                               if (!invocation.options.dry_run) {
-                                startedIssueIds.push(...selectedIssueIds);
+                                startedIssueIds.push(...selectedIssueIds)
                               }
                               skipped.push(
                                 ...queuedItems
                                   .slice(selectedItems.length)
-                                  .map((item) => ({
+                                  .map(item => ({
                                     issue_id: item.issue_id,
-                                    reason: "capacity-exhausted",
+                                    reason: 'capacity-exhausted',
                                     details: {
                                       capacity,
                                     },
-                                  })),
-                              );
+                                  }))
+                              )
 
                               const tickReport: EngineTickReport = {
                                 dry_run: invocation.options.dry_run,
@@ -5640,7 +5622,7 @@ function handleEngineRunOnce(
                                 selected_issue_ids: selectedIssueIds,
                                 started_issue_ids: startedIssueIds,
                                 skipped,
-                              };
+                              }
 
                               if (invocation.options.dry_run) {
                                 return createQueueStatus(store, {
@@ -5650,43 +5632,43 @@ function handleEngineRunOnce(
                                   tick: tickReport,
                                   warnings,
                                 }).pipe(
-                                  map((result) =>
-                                    root === "supervisor"
+                                  map(result =>
+                                    root === 'supervisor'
                                       ? liftQueueStatusToSupervisorStatus(
                                           result as Extract<
                                             AutobotCommandResult,
-                                            { kind: "queue-status" }
-                                          >,
+                                            { kind: 'queue-status' }
+                                          >
                                         )
-                                      : result,
-                                  ),
-                                );
+                                      : result
+                                  )
+                                )
                               }
 
                               const startedEvent = createEngineTickEvent({
-                                type: "engine.tick.started",
+                                type: 'engine.tick.started',
                                 tickAt,
                                 selectedIssueIds,
                                 reconciledIssueIds,
                                 queuedIssueIds,
                                 startedIssueIds,
-                              });
+                              })
                               const selectedEvent = createEngineTickEvent({
-                                type: "engine.tick.selected",
+                                type: 'engine.tick.selected',
                                 tickAt,
                                 selectedIssueIds,
                                 reconciledIssueIds,
                                 queuedIssueIds,
                                 startedIssueIds,
-                              });
+                              })
                               const finishedEvent = createEngineTickEvent({
-                                type: "engine.tick.finished",
+                                type: 'engine.tick.finished',
                                 tickAt,
                                 selectedIssueIds,
                                 reconciledIssueIds,
                                 queuedIssueIds,
                                 startedIssueIds,
-                              });
+                              })
 
                               return sequenceFutures([
                                 store.events
@@ -5695,7 +5677,7 @@ function handleEngineRunOnce(
                                 store.events
                                   .append(selectedEvent)
                                   .pipe(map(() => undefined)),
-                                ...selectedItems.map((target) =>
+                                ...selectedItems.map(target =>
                                   runBoundedWorkflowTickForItem(
                                     store,
                                     target,
@@ -5708,8 +5690,8 @@ function handleEngineRunOnce(
                                     planningWorkerStarter,
                                     loadLinearIssue,
                                     prepareWorktree,
-                                    setupWorkspace ?? setupAutobotWorkspace,
-                                  ),
+                                    setupWorkspace ?? setupAutobotWorkspace
+                                  )
                                 ),
                               ]).pipe(
                                 chain(() =>
@@ -5722,162 +5704,162 @@ function handleEngineRunOnce(
                                         tick: tickReport,
                                         warnings,
                                       }).pipe(
-                                        map((result) =>
-                                          root === "supervisor"
+                                        map(result =>
+                                          root === 'supervisor'
                                             ? liftQueueStatusToSupervisorStatus(
                                                 result as Extract<
                                                   AutobotCommandResult,
-                                                  { kind: "queue-status" }
-                                                >,
+                                                  { kind: 'queue-status' }
+                                                >
                                               )
-                                            : result,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              );
-                            }),
-                          );
-                      }),
-                    );
-                  }),
-                );
-            }),
-          ),
-        ),
-      );
-    }),
-  ) as FutureInstance<unknown, AutobotCommandResult>;
+                                            : result
+                                        )
+                                      )
+                                    )
+                                  )
+                                )
+                              )
+                            })
+                          )
+                      })
+                    )
+                  })
+                )
+            })
+          )
+        )
+      )
+    })
+  ) as FutureInstance<unknown, AutobotCommandResult>
 }
 
 function withStore<T>(
   options: AutobotGlobalOptions,
   openStore: (repo: RepoRef | string) => FutureInstance<unknown, AutobotStore>,
-  handler: (store: AutobotStore) => FutureInstance<unknown, T>,
+  handler: (store: AutobotStore) => FutureInstance<unknown, T>
 ): FutureInstance<unknown, T> {
-  const repo = resolveRepoRef(options);
+  const repo = resolveRepoRef(options)
 
   return Future((reject, resolve) => {
-    let cancelled = false;
-    let store: AutobotStore | null = null;
-    let innerCancel: (() => void) | null = null;
+    let cancelled = false
+    let store: AutobotStore | null = null
+    let innerCancel: (() => void) | null = null
 
     const closeStore = () => {
-      const current = store;
-      store = null;
+      const current = store
+      store = null
 
       if (current !== null) {
-        current.close().pipe(fork(() => undefined)(() => undefined));
+        current.close().pipe(fork(() => undefined)(() => undefined))
       }
-    };
+    }
 
     const settleReject = (error: unknown) => {
       if (cancelled) {
-        return;
+        return
       }
 
-      closeStore();
-      reject(error);
-    };
+      closeStore()
+      reject(error)
+    }
 
     const settleResolve = (value: T) => {
       if (cancelled) {
-        return;
+        return
       }
 
-      closeStore();
-      resolve(value);
-    };
+      closeStore()
+      resolve(value)
+    }
 
     const openCancel = openStore(repo).pipe(
-      fork(settleReject)((openedStore) => {
+      fork(settleReject)(openedStore => {
         if (cancelled) {
-          openedStore.close().pipe(fork(() => undefined)(() => undefined));
-          return;
+          openedStore.close().pipe(fork(() => undefined)(() => undefined))
+          return
         }
 
-        store = openedStore;
+        store = openedStore
 
         try {
           innerCancel = handler(openedStore).pipe(
-            fork(settleReject)(settleResolve),
-          );
+            fork(settleReject)(settleResolve)
+          )
         } catch (error) {
-          settleReject(error);
+          settleReject(error)
         }
-      }),
-    );
+      })
+    )
 
     return () => {
-      cancelled = true;
-      openCancel();
-      innerCancel?.();
-      closeStore();
-    };
-  });
+      cancelled = true
+      openCancel()
+      innerCancel?.()
+      closeStore()
+    }
+  })
 }
 
 function handleAdd(
   invocation: AutobotInvocation,
   store: AutobotStore,
-  now: () => string,
+  now: () => string
 ): FutureInstance<unknown, AutobotCommandResult> {
   return Future((reject, resolve) => {
-    const issueId = invocation.args[0];
+    const issueId = invocation.args[0]
     if (issueId === undefined) {
       reject(
         createUsageError({
-          command: "autobot-next add",
-          message: "add requires an issue id",
-          what_failed: "queue add",
-          likely_cause: "the issue identifier was missing",
-          recovery_commands: ["autobot-next add REP-123 --dry-run"],
-        }),
-      );
-      return () => undefined;
+          command: 'autobot-next add',
+          message: 'add requires an issue id',
+          what_failed: 'queue add',
+          likely_cause: 'the issue identifier was missing',
+          recovery_commands: ['autobot-next add REP-123 --dry-run'],
+        })
+      )
+      return () => undefined
     }
 
     store.items.get(issueId).pipe(
-      fork(reject)((existing) => {
+      fork(reject)(existing => {
         if (existing !== null) {
           if (isTerminalState(existing.state)) {
             reject(
               new AutobotCliError({
-                code: "ITEM_TERMINAL_REQUEUE_BLOCKED",
+                code: 'ITEM_TERMINAL_REQUEUE_BLOCKED',
                 message: `Cannot queue terminal item ${issueId} again`,
-                what_failed: "queue re-add",
-                likely_cause: "the item has already completed or been canceled",
+                what_failed: 'queue re-add',
+                likely_cause: 'the item has already completed or been canceled',
                 recovery_commands: [
                   `autobot-next status ${issueId} --json`,
-                  "autobot-next list --json",
+                  'autobot-next list --json',
                 ],
                 details: { issue_id: issueId, state: existing.state },
                 exit_code: 1,
-              }),
-            );
-            return;
+              })
+            )
+            return
           }
 
           reject(
             new AutobotCliError({
-              code: "ITEM_ALREADY_QUEUED",
+              code: 'ITEM_ALREADY_QUEUED',
               message: `Issue ${issueId} is already queued`,
-              what_failed: "queue add",
-              likely_cause: "the item already exists in a non-terminal state",
+              what_failed: 'queue add',
+              likely_cause: 'the item already exists in a non-terminal state',
               recovery_commands: [
                 `autobot-next status ${issueId} --json`,
-                "autobot-next list --json",
+                'autobot-next list --json',
               ],
               details: { issue_id: issueId, state: existing.state },
               exit_code: 1,
-            }),
-          );
-          return;
+            })
+          )
+          return
         }
 
-        const queuedAt = now();
-        const nextItem = buildQueuedItemSummary(issueId, queuedAt);
+        const queuedAt = now()
+        const nextItem = buildQueuedItemSummary(issueId, queuedAt)
         const itemRecord = {
           ...nextItem,
           state_name: null,
@@ -5889,39 +5871,39 @@ function handleAdd(
           cancellation_requested: false,
           cancellation_requested_at: null,
           recovery_commands: [`autobot-next status ${issueId} --json`],
-        };
+        }
 
         if (invocation.options.dry_run) {
           resolve(
             createQueueMutationResult({
-              action: "add",
+              action: 'add',
               dry_run: true,
               changed: false,
               item: nextItem,
               events: [],
               store,
               command: `autobot-next add ${issueId}`,
-            }),
-          );
-          return;
+            })
+          )
+          return
         }
 
         store.projections.listItems({ include_terminal: true }).pipe(
-          fork(reject)((items) => {
+          fork(reject)(items => {
             const queuePosition =
-              items.filter((item) => item.state === "queued").length + 1;
+              items.filter(item => item.state === 'queued').length + 1
             const event = createDomainEvent({
-              type: "item.queued",
-              severity: "info",
-              state: "queued",
-              message: "Item queued",
+              type: 'item.queued',
+              severity: 'info',
+              state: 'queued',
+              message: 'Item queued',
               issue_id: issueId,
               data: {
                 issue_id: issueId,
                 queue_position: queuePosition,
-                reason: "manual add",
+                reason: 'manual add',
               },
-            });
+            })
 
             store.items
               .upsert({
@@ -5950,68 +5932,68 @@ function handleAdd(
                 current_run_id: itemRecord.current_run_id,
               })
               .pipe(
-                fork(reject)((queuedItem) => {
+                fork(reject)(queuedItem => {
                   store.events.append(event).pipe(
-                    fork(reject)((storedEvent) => {
+                    fork(reject)(storedEvent => {
                       resolve(
                         createQueueMutationResult({
-                          action: "add",
+                          action: 'add',
                           dry_run: false,
                           changed: true,
                           item: queuedItem,
                           events: [storedEvent],
                           store,
                           command: `autobot-next add ${issueId}`,
-                        }),
-                      );
-                    }),
-                  );
-                }),
-              );
-          }),
-        );
-      }),
-    );
+                        })
+                      )
+                    })
+                  )
+                })
+              )
+          })
+        )
+      })
+    )
 
-    return () => undefined;
-  });
+    return () => undefined
+  })
 }
 
 function handleRemove(
   invocation: AutobotInvocation,
   store: AutobotStore,
-  now: () => string,
+  now: () => string
 ): FutureInstance<unknown, AutobotCommandResult> {
   return Future((reject, resolve) => {
-    const issueId = invocation.args[0];
+    const issueId = invocation.args[0]
     if (issueId === undefined) {
       reject(
         createUsageError({
-          command: "autobot-next remove",
-          message: "remove requires an issue id",
-          what_failed: "queue remove",
-          likely_cause: "the issue identifier was missing",
-          recovery_commands: ["autobot-next remove REP-123 --dry-run"],
-        }),
-      );
-      return () => undefined;
+          command: 'autobot-next remove',
+          message: 'remove requires an issue id',
+          what_failed: 'queue remove',
+          likely_cause: 'the issue identifier was missing',
+          recovery_commands: ['autobot-next remove REP-123 --dry-run'],
+        })
+      )
+      return () => undefined
     }
 
     store.items.get(issueId).pipe(
-      fork(reject)((existing) => {
+      fork(reject)(existing => {
         if (existing === null) {
           reject(
             new AutobotCliError({
-              code: "ITEM_NOT_FOUND",
+              code: 'ITEM_NOT_FOUND',
               message: `Issue ${issueId} is not known locally`,
-              what_failed: "queue remove",
-              likely_cause: "the item has not been queued yet",
-              recovery_commands: ["autobot-next list --json"],
+              what_failed: 'queue remove',
+              likely_cause: 'the item has not been queued yet',
+              recovery_commands: ['autobot-next list --json'],
               details: { issue_id: issueId },
               exit_code: 1,
-            }),
-          );
-          return;
+            })
+          )
+          return
         }
 
         if (
@@ -6020,70 +6002,70 @@ function handleRemove(
         ) {
           reject(
             new AutobotCliError({
-              code: "ITEM_REMOVE_REQUIRES_FORCE",
+              code: 'ITEM_REMOVE_REQUIRES_FORCE',
               message: `Issue ${issueId} is in progress and cannot be removed directly`,
-              what_failed: "queue remove",
-              likely_cause: "the item is already claimed by an active run",
+              what_failed: 'queue remove',
+              likely_cause: 'the item is already claimed by an active run',
               recovery_commands: [
                 `autobot-next cancel ${issueId} --dry-run`,
                 `autobot-next remove ${issueId} --force --dry-run`,
               ],
               details: { issue_id: issueId, state: existing.state },
               exit_code: 1,
-            }),
-          );
-          return;
+            })
+          )
+          return
         }
 
         const nextState: ItemState =
           isInProgressState(existing.state) && invocation.options.force === true
             ? existing.state
-            : "canceled";
-        const updatedAt = now();
+            : 'canceled'
+        const updatedAt = now()
         const nextItem = buildItemSummaryFromExisting(
           existing,
           nextState,
-          updatedAt,
-        );
+          updatedAt
+        )
         const event =
           isInProgressState(existing.state) && invocation.options.force === true
             ? createDomainEvent({
-                type: "item.cancellation_requested",
-                severity: "warning",
+                type: 'item.cancellation_requested',
+                severity: 'warning',
                 state: existing.state,
-                message: "Cancellation requested for in-progress item",
+                message: 'Cancellation requested for in-progress item',
                 issue_id: issueId,
                 data: {
                   issue_id: issueId,
-                  reason: "forced remove",
+                  reason: 'forced remove',
                   force: true,
                 },
               })
             : createDomainEvent({
-                type: "item.removed",
-                severity: "info",
-                state: "canceled",
-                message: "Item removed from queue",
+                type: 'item.removed',
+                severity: 'info',
+                state: 'canceled',
+                message: 'Item removed from queue',
                 issue_id: issueId,
                 data: {
                   issue_id: issueId,
-                  reason: "manual remove",
+                  reason: 'manual remove',
                 },
-              });
+              })
 
         if (invocation.options.dry_run) {
           resolve(
             createQueueMutationResult({
-              action: "remove",
+              action: 'remove',
               dry_run: true,
               changed: false,
               item: nextItem,
               events: [],
               store,
               command: `autobot-next remove ${issueId}`,
-            }),
-          );
-          return;
+            })
+          )
+          return
         }
 
         store.items
@@ -6119,85 +6101,85 @@ function handleRemove(
             current_run_id: null,
           })
           .pipe(
-            fork(reject)((removedItem) => {
+            fork(reject)(removedItem => {
               store.events.append(event).pipe(
-                fork(reject)((storedEvent) => {
+                fork(reject)(storedEvent => {
                   resolve(
                     createQueueMutationResult({
-                      action: "remove",
+                      action: 'remove',
                       dry_run: false,
                       changed: true,
                       item: removedItem,
                       events: [storedEvent],
                       store,
                       command: `autobot-next remove ${issueId}`,
-                    }),
-                  );
-                }),
-              );
-            }),
-          );
-      }),
-    );
+                    })
+                  )
+                })
+              )
+            })
+          )
+      })
+    )
 
-    return () => undefined;
-  });
+    return () => undefined
+  })
 }
 
 function handleRetry(
   invocation: AutobotInvocation,
   store: AutobotStore,
-  now: () => string,
+  now: () => string
 ): FutureInstance<unknown, AutobotCommandResult> {
   return Future((reject, resolve) => {
-    const issueId = invocation.args[0];
+    const issueId = invocation.args[0]
     if (issueId === undefined) {
       reject(
         createUsageError({
-          command: "autobot-next retry",
-          message: "retry requires an issue id",
-          what_failed: "retry request",
-          likely_cause: "the issue identifier was missing",
-          recovery_commands: ["autobot-next retry REP-123 --dry-run"],
-        }),
-      );
-      return () => undefined;
+          command: 'autobot-next retry',
+          message: 'retry requires an issue id',
+          what_failed: 'retry request',
+          likely_cause: 'the issue identifier was missing',
+          recovery_commands: ['autobot-next retry REP-123 --dry-run'],
+        })
+      )
+      return () => undefined
     }
 
     store.items.get(issueId).pipe(
-      fork(reject)((existing) => {
+      fork(reject)(existing => {
         if (existing === null) {
           reject(
             new AutobotCliError({
-              code: "ITEM_NOT_FOUND",
+              code: 'ITEM_NOT_FOUND',
               message: `Issue ${issueId} is not known locally`,
-              what_failed: "retry request",
-              likely_cause: "the item has not been queued yet",
-              recovery_commands: ["autobot-next list --json"],
+              what_failed: 'retry request',
+              likely_cause: 'the item has not been queued yet',
+              recovery_commands: ['autobot-next list --json'],
               details: { issue_id: issueId },
               exit_code: 1,
-            }),
-          );
-          return;
+            })
+          )
+          return
         }
 
-        const nextState = getRetryTransition(existing.state);
+        const nextState = getRetryTransition(existing.state)
         if (nextState === null) {
           reject(
             new AutobotCliError({
-              code: "AUTOBOT-RETRY-NOT-ALLOWED",
-              message: "retry is only available after failed runs",
-              what_failed: "retry request",
-              likely_cause: "the item is not in failed state",
+              code: 'AUTOBOT-RETRY-NOT-ALLOWED',
+              message: 'retry is only available after failed runs',
+              what_failed: 'retry request',
+              likely_cause: 'the item is not in failed state',
               recovery_commands: [`autobot-next status ${issueId} --json`],
               details: { issue_id: issueId, state: existing.state },
               exit_code: 1,
-            }),
-          );
-          return;
+            })
+          )
+          return
         }
 
-        const updatedAt = now();
+        const updatedAt = now()
         const nextItem = buildItemSummary({
           issue_id: existing.issue_id,
           title: existing.title,
@@ -6211,24 +6193,24 @@ function handleRetry(
           queued_at: updatedAt,
           started_at: null,
           updated_at: updatedAt,
-          last_event: "item.retried",
+          last_event: 'item.retried',
           last_error: null,
-        });
+        })
         const event = createDomainEvent({
-          type: "item.retried",
-          severity: "info",
-          state: "queued",
-          message: "Item retried after failure",
+          type: 'item.retried',
+          severity: 'info',
+          state: 'queued',
+          message: 'Item retried after failure',
           issue_id: issueId,
           data: {
             issue_id: issueId,
             previous_state: existing.state,
             failed_phase:
-              existing.last_event === "failed-from-preparing"
-                ? "preparing"
+              existing.last_event === 'failed-from-preparing'
+                ? 'preparing'
                 : existing.last_event,
           },
-        });
+        })
 
         const nextRecord = {
           ...nextItem,
@@ -6241,240 +6223,240 @@ function handleRetry(
           cancellation_requested: false,
           cancellation_requested_at: null,
           recovery_commands: [`autobot-next status ${issueId} --json`],
-        };
+        }
 
         if (invocation.options.dry_run) {
           resolve(
             createQueueMutationResult({
-              action: "retry",
+              action: 'retry',
               dry_run: true,
               changed: false,
               item: nextItem,
               events: [],
               store,
               command: `autobot-next retry ${issueId}`,
-            }),
-          );
-          return;
+            })
+          )
+          return
         }
 
         store.items.upsert(nextRecord).pipe(
-          fork(reject)((retriedItem) => {
+          fork(reject)(retriedItem => {
             store.events.append(event).pipe(
-              fork(reject)((storedEvent) => {
+              fork(reject)(storedEvent => {
                 resolve(
                   createQueueMutationResult({
-                    action: "retry",
+                    action: 'retry',
                     dry_run: false,
                     changed: true,
                     item: retriedItem,
                     events: [storedEvent],
                     store,
                     command: `autobot-next retry ${issueId}`,
-                  }),
-                );
-              }),
-            );
-          }),
-        );
-      }),
-    );
+                  })
+                )
+              })
+            )
+          })
+        )
+      })
+    )
 
-    return () => undefined;
-  });
+    return () => undefined
+  })
 }
 
 function handleStatus(
   invocation: AutobotInvocation,
-  store: AutobotStore,
+  store: AutobotStore
 ): FutureInstance<unknown, AutobotCommandResult> {
-  const issueId = invocation.args[0];
+  const issueId = invocation.args[0]
 
   if (issueId !== undefined) {
     return createItemDetailResult(
       store,
       issueId,
-      `autobot-next status ${issueId}`,
-    );
+      `autobot-next status ${issueId}`
+    )
   }
 
-  return createQueueStatus(store);
+  return createQueueStatus(store)
 }
 
 function handleLogs(
   invocation: AutobotInvocation,
-  store: AutobotStore,
+  store: AutobotStore
 ): FutureInstance<unknown, AutobotCommandResult> {
-  const issueId = invocation.args[0];
+  const issueId = invocation.args[0]
 
   if (issueId === undefined) {
-    return Future((reject) => {
+    return Future(reject => {
       reject(
         createUsageError({
           command: invocation.command,
-          message: "logs requires an issue id",
-          what_failed: "logs request",
-          likely_cause: "the issue id argument was missing",
-          recovery_commands: ["autobot-next logs <issue-id>"],
-        }),
-      );
+          message: 'logs requires an issue id',
+          what_failed: 'logs request',
+          likely_cause: 'the issue id argument was missing',
+          recovery_commands: ['autobot-next logs <issue-id>'],
+        })
+      )
 
-      return () => undefined;
-    });
+      return () => undefined
+    })
   }
 
-  return createItemDetailResult(store, issueId, `autobot-next logs ${issueId}`);
+  return createItemDetailResult(store, issueId, `autobot-next logs ${issueId}`)
 }
 
 function createItemDetailResult(
   store: AutobotStore,
   issueId: string,
-  command: string,
+  command: string
 ): FutureInstance<unknown, AutobotCommandResult> {
   return Future((reject, resolve) => {
     store.projections.getItemDetail(issueId).pipe(
-      fork(reject)((item) => {
+      fork(reject)(item => {
         if (item === null) {
           reject(
             new AutobotCliError({
-              code: "ITEM_NOT_FOUND",
+              code: 'ITEM_NOT_FOUND',
               message: `Issue ${issueId} is not known locally`,
-              what_failed: "queue status",
-              likely_cause: "the item has not been queued yet",
-              recovery_commands: ["autobot-next list --json"],
+              what_failed: 'queue status',
+              likely_cause: 'the item has not been queued yet',
+              recovery_commands: ['autobot-next list --json'],
               details: { issue_id: issueId },
               exit_code: 1,
-            }),
-          );
-          return;
+            })
+          )
+          return
         }
 
         resolve({
-          kind: "item-detail",
+          kind: 'item-detail',
           command,
           repo: store.repo,
           data: item,
-        });
-      }),
-    );
+        })
+      })
+    )
 
-    return () => undefined;
-  });
+    return () => undefined
+  })
 }
 
-function getSupervisorCommandRoot(invocation: AutobotInvocation): "supervisor" {
-  void invocation;
-  return "supervisor";
+function getSupervisorCommandRoot(invocation: AutobotInvocation): 'supervisor' {
+  void invocation
+  return 'supervisor'
 }
 
-function getSupervisorNoun(root: "supervisor"): string {
-  void root;
-  return "Supervisor";
+function getSupervisorNoun(root: 'supervisor'): string {
+  void root
+  return 'Supervisor'
 }
 
 function liftQueueStatusToSupervisorStatus(
-  result: Extract<AutobotCommandResult, { kind: "queue-status" }>,
-): Extract<AutobotCommandResult, { kind: "supervisor-status" }> {
+  result: Extract<AutobotCommandResult, { kind: 'queue-status' }>
+): Extract<AutobotCommandResult, { kind: 'supervisor-status' }> {
   return {
     ...result,
-    kind: "supervisor-status",
+    kind: 'supervisor-status',
     data: {
       ...result.data,
     },
-  };
+  }
 }
 
 function handleEngineStatus(
   invocation: AutobotInvocation,
-  store: AutobotStore,
+  store: AutobotStore
 ): FutureInstance<unknown, AutobotCommandResult> {
-  const root = getSupervisorCommandRoot(invocation);
+  const root = getSupervisorCommandRoot(invocation)
 
   return loadEngineEvents(store).pipe(
-    chain((events) =>
+    chain(events =>
       readEngineRuntime(store.repo).pipe(
-        chain((runtime) => {
-          const runtimeState = runtime.status?.state ?? null;
+        chain(runtime => {
+          const runtimeState = runtime.status?.state ?? null
 
           return createEngineStatusResult({
             store,
             command: invocation.command,
             runtime,
             events: synthesizeEngineEvents(runtime, events),
-            kind: "supervisor-status",
+            kind: 'supervisor-status',
             message:
               runtime.stop_requested_at !== null
                 ? `${getSupervisorNoun(root)} graceful shutdown is in progress`
                 : runtime.stale_lock
                 ? `${getSupervisorNoun(root)} lock is stale`
-                : runtimeState === "starting"
+                : runtimeState === 'starting'
                 ? `${getSupervisorNoun(root)} is starting`
-                : runtimeState === "running"
+                : runtimeState === 'running'
                 ? `${getSupervisorNoun(root)} is running`
-                : runtimeState === "stopping"
-                ? "Graceful shutdown is in progress"
-                : runtimeState === "unhealthy"
+                : runtimeState === 'stopping'
+                ? 'Graceful shutdown is in progress'
+                : runtimeState === 'unhealthy'
                 ? `${getSupervisorNoun(root)} is unhealthy`
-                : runtimeState === "stopped"
+                : runtimeState === 'stopped'
                 ? `${getSupervisorNoun(root)} is stopped`
                 : runtime.lock !== null || runtime.status !== null
                 ? `${getSupervisorNoun(root)} is running`
                 : `${getSupervisorNoun(root)} is stopped`,
-          });
-        }),
-      ),
-    ),
-  );
+          })
+        })
+      )
+    )
+  )
 }
 
 function handleEngineLogs(
   invocation: AutobotInvocation,
-  store: AutobotStore,
+  store: AutobotStore
 ): FutureInstance<unknown, AutobotCommandResult> {
-  const root = getSupervisorCommandRoot(invocation);
+  const root = getSupervisorCommandRoot(invocation)
 
   return loadEngineEvents(store).pipe(
-    chain((events) =>
+    chain(events =>
       readEngineRuntime(store.repo).pipe(
-        chain((runtime) =>
+        chain(runtime =>
           createEngineStatusResult({
             store,
             command: invocation.command,
             runtime,
             events: synthesizeEngineEvents(runtime, events),
-            kind: "supervisor-logs",
+            kind: 'supervisor-logs',
             message: `Recent ${root} events`,
-          }),
-        ),
-      ),
-    ),
-  );
+          })
+        )
+      )
+    )
+  )
 }
 
 function handleEngineStop(
   invocation: AutobotInvocation,
   store: AutobotStore,
-  now: () => string,
+  now: () => string
 ): FutureInstance<unknown, AutobotCommandResult> {
-  const root = getSupervisorCommandRoot(invocation);
+  const root = getSupervisorCommandRoot(invocation)
 
   return requestEngineStop(store.repo, now()).pipe(
-    chain((runtime) =>
+    chain(runtime =>
       createEngineStatusResult({
         store,
         command: invocation.command,
         runtime,
-        action: "stop",
-        kind: "supervisor-status",
+        action: 'stop',
+        kind: 'supervisor-status',
         message:
-          runtime.status?.state === "stopped"
+          runtime.status?.state === 'stopped'
             ? `${getSupervisorNoun(root)} is already stopped`
             : runtime.lock === null && runtime.status === null
             ? `No ${root} lock was active`
             : `${getSupervisorNoun(root)} graceful shutdown requested`,
-      }),
-    ),
-  );
+      })
+    )
+  )
 }
 
 function handleEngineStart(
@@ -6482,61 +6464,61 @@ function handleEngineStart(
   store: AutobotStore,
   now: () => string,
   randomId: () => string,
-  prepareWorktree?: AutobotServiceDependencies["prepareWorktree"],
-  setupWorkspace?: AutobotServiceDependencies["setupWorkspace"],
-  discoverIssues?: AutobotServiceDependencies["discoverIssues"],
+  prepareWorktree?: AutobotServiceDependencies['prepareWorktree'],
+  setupWorkspace?: AutobotServiceDependencies['setupWorkspace'],
+  discoverIssues?: AutobotServiceDependencies['discoverIssues'],
   artifactWriter: ArtifactWriter = defaultArtifactWriter,
   artifactReader: ArtifactReader = defaultArtifactReader,
   planningSessionRunner: PlanningSessionRunner = createNoopPlanningSessionRunner(),
   planningWorkerStarter?: PlanningWorkerStarter,
-  loadLinearIssue?: AutobotServiceDependencies["loadLinearIssue"],
-  isProcessAlive?: AutobotServiceDependencies["isProcessAlive"],
-  killProcess?: AutobotServiceDependencies["kill"],
+  loadLinearIssue?: AutobotServiceDependencies['loadLinearIssue'],
+  isProcessAlive?: AutobotServiceDependencies['isProcessAlive'],
+  killProcess?: AutobotServiceDependencies['kill'],
   sleep: (
-    milliseconds: number,
-  ) => FutureInstance<unknown, void> = createDelayFuture,
+    milliseconds: number
+  ) => FutureInstance<unknown, void> = createDelayFuture
 ): FutureInstance<unknown, AutobotCommandResult> {
-  const root = getSupervisorCommandRoot(invocation);
+  const root = getSupervisorCommandRoot(invocation)
   const result = createConfigList(store).pipe(
-    chain((config) => {
+    chain(config => {
       const tickIntervalSeconds = Number(
-        config.find((entry) => entry.key === "supervisor.tick-interval-seconds")
-          ?.value ?? 15,
-      );
-      const startedAt = now();
+        config.find(entry => entry.key === 'supervisor.tick-interval-seconds')
+          ?.value ?? 15
+      )
+      const startedAt = now()
 
       return acquireEngineRuntime(store.repo, {
         pid: process.pid,
         started_at: startedAt,
         tick_interval_seconds: tickIntervalSeconds,
       }).pipe(
-        chain((record) =>
+        chain(record =>
           Future((reject, resolveFuture) => {
-            let cancelled = false;
-            let released = false;
-            let currentRecord = record;
+            let cancelled = false
+            let released = false
+            let currentRecord = record
 
             const releaseAndReject = (error: unknown) => {
               if (released) {
-                return;
+                return
               }
 
-              released = true;
+              released = true
               releaseEngineRuntime(store.repo, currentRecord).pipe(
                 fork(() => {
-                  reject(error);
+                  reject(error)
                 })(() => {
-                  reject(error);
-                }),
-              );
-            };
+                  reject(error)
+                })
+              )
+            }
 
             const finish = (message: string) => {
               if (released) {
-                return;
+                return
               }
 
-              released = true;
+              released = true
               releaseEngineRuntime(store.repo, currentRecord).pipe(
                 fork(reject)(() => {
                   createEngineStatusResult({
@@ -6546,45 +6528,45 @@ function handleEngineStart(
                       lock: null,
                       status: {
                         ...currentRecord,
-                        state: "stopped",
+                        state: 'stopped',
                         stop_requested_at: null,
                       },
                       stop_requested_at: null,
                       stale_lock: false,
                     },
-                    action: "start",
-                    kind: "supervisor-status",
+                    action: 'start',
+                    kind: 'supervisor-status',
                     message,
-                  }).pipe(fork(reject)(resolveFuture));
-                }),
-              );
-            };
+                  }).pipe(fork(reject)(resolveFuture))
+                })
+              )
+            }
 
             const tick = () => {
               if (cancelled) {
-                return;
+                return
               }
 
               readEngineRuntime(store.repo).pipe(
-                fork(releaseAndReject)((snapshotBeforeTick) => {
+                fork(releaseAndReject)(snapshotBeforeTick => {
                   if (cancelled) {
-                    return;
+                    return
                   }
 
                   if (snapshotBeforeTick.stop_requested_at !== null) {
                     currentRecord = {
                       ...currentRecord,
-                      state: "stopped",
+                      state: 'stopped',
                       stop_requested_at: snapshotBeforeTick.stop_requested_at,
-                    };
-                    finish(`${getSupervisorNoun(root)} stopped gracefully`);
-                    return;
+                    }
+                    finish(`${getSupervisorNoun(root)} stopped gracefully`)
+                    return
                   }
 
                   handleEngineRunOnce(
                     {
                       ...invocation,
-                      command_path: [root, "run-once"],
+                      command_path: [root, 'run-once'],
                       command: `${root} run-once`,
                       args: [],
                       options: {
@@ -6614,47 +6596,47 @@ function handleEngineStart(
                       },
                       stop_requested_at: currentRecord.stop_requested_at,
                       stale_lock: false,
-                    },
+                    }
                   ).pipe(
-                    fork(releaseAndReject)((result) => {
+                    fork(releaseAndReject)(result => {
                       if (cancelled) {
-                        return;
+                        return
                       }
 
                       const queueStatus = result as Extract<
                         AutobotCommandResult,
-                        { kind: "queue-status" }
-                      >;
-                      const supervisor = queueStatus.data.supervisor;
+                        { kind: 'queue-status' }
+                      >
+                      const supervisor = queueStatus.data.supervisor
                       currentRecord = {
                         pid: currentRecord.pid,
                         started_at: currentRecord.started_at,
                         state: supervisor.health.some(
-                          (check: HealthCheck) => check.status === "error",
+                          (check: HealthCheck) => check.status === 'error'
                         )
-                          ? "unhealthy"
-                          : "running",
+                          ? 'unhealthy'
+                          : 'running',
                         last_tick_at: supervisor.last_tick_at,
                         stop_requested_at: snapshotBeforeTick.stop_requested_at,
                         health:
                           queueStatus.warnings?.map(warningToHealthCheck) ?? [],
                         tick_interval_seconds: supervisor.tick_interval_seconds,
-                      };
+                      }
 
                       if (cancelled) {
-                        return;
+                        return
                       }
 
                       writeEngineRuntimeStatus(store.repo, currentRecord).pipe(
                         fork(releaseAndReject)(() => {
                           if (cancelled) {
-                            return;
+                            return
                           }
 
                           readEngineRuntime(store.repo).pipe(
-                            fork(releaseAndReject)((snapshotAfterTick) => {
+                            fork(releaseAndReject)(snapshotAfterTick => {
                               if (cancelled) {
-                                return;
+                                return
                               }
 
                               if (
@@ -6662,192 +6644,192 @@ function handleEngineStart(
                               ) {
                                 finish(
                                   `${getSupervisorNoun(
-                                    root,
-                                  )} stopped gracefully`,
-                                );
-                                return;
+                                    root
+                                  )} stopped gracefully`
+                                )
+                                return
                               }
 
                               waitForEngineTickDelay(
                                 store.repo,
                                 supervisor.tick_interval_seconds * 1000,
-                                sleep,
+                                sleep
                               ).pipe(
                                 fork(releaseAndReject)(() => {
                                   if (cancelled) {
-                                    return;
+                                    return
                                   }
 
-                                  tick();
-                                }),
-                              );
-                            }),
-                          );
-                        }),
-                      );
-                    }),
-                  );
-                }),
-              );
-            };
+                                  tick()
+                                })
+                              )
+                            })
+                          )
+                        })
+                      )
+                    })
+                  )
+                })
+              )
+            }
 
-            tick();
+            tick()
 
             return () => {
-              cancelled = true;
+              cancelled = true
 
               if (!released) {
-                released = true;
+                released = true
                 releaseEngineRuntime(store.repo, currentRecord).pipe(
-                  fork(() => undefined)(() => undefined),
-                );
+                  fork(() => undefined)(() => undefined)
+                )
               }
-            };
-          }),
-        ),
-      );
-    }),
-  );
+            }
+          })
+        )
+      )
+    })
+  )
 
-  return result as FutureInstance<unknown, AutobotCommandResult>;
+  return result as FutureInstance<unknown, AutobotCommandResult>
 }
 
 function handleConfigList(
-  store: AutobotStore,
+  store: AutobotStore
 ): FutureInstance<unknown, AutobotCommandResult> {
   return Future((reject, resolve) => {
     createConfigList(store).pipe(
-      fork(reject)((config) => {
+      fork(reject)(config => {
         resolve({
-          kind: "config-list",
-          command: "autobot-next config list",
+          kind: 'config-list',
+          command: 'autobot-next config list',
           repo: store.repo,
           data: {
             config,
           },
-        });
-      }),
-    );
+        })
+      })
+    )
 
-    return () => undefined;
-  });
+    return () => undefined
+  })
 }
 
 function handleConfigGet(
   store: AutobotStore,
-  key: string | undefined,
+  key: string | undefined
 ): FutureInstance<unknown, AutobotCommandResult> {
   if (key === undefined) {
-    return Future((reject) => {
+    return Future(reject => {
       reject(
         createUsageError({
-          command: "autobot-next config get",
-          message: "config get requires a key",
-          what_failed: "config lookup",
-          likely_cause: "the config key was missing",
-          recovery_commands: ["autobot-next config list --json"],
-        }),
-      );
-      return () => undefined;
-    });
+          command: 'autobot-next config get',
+          message: 'config get requires a key',
+          what_failed: 'config lookup',
+          likely_cause: 'the config key was missing',
+          recovery_commands: ['autobot-next config list --json'],
+        })
+      )
+      return () => undefined
+    })
   }
 
   return Future((reject, resolve) => {
     createConfigEntryFuture(store, key).pipe(
-      fork(reject)((config) => {
+      fork(reject)(config => {
         resolve({
-          kind: "config-value",
+          kind: 'config-value',
           command: `autobot-next config get ${key}`,
           repo: store.repo,
           data: {
             config,
           },
-        });
-      }),
-    );
+        })
+      })
+    )
 
-    return () => undefined;
-  });
+    return () => undefined
+  })
 }
 
 function handleConfigSet(
   invocation: AutobotInvocation,
   store: AutobotStore,
-  now: () => string,
+  now: () => string
 ): FutureInstance<unknown, AutobotCommandResult> {
   return Future((reject, resolve) => {
-    const [key, rawValue] = invocation.args;
+    const [key, rawValue] = invocation.args
 
     if (key === undefined || rawValue === undefined) {
       reject(
         createUsageError({
-          command: "autobot-next config set",
-          message: "config set requires a key and value",
-          what_failed: "config mutation",
-          likely_cause: "the key or value was missing",
-          recovery_commands: ["autobot-next config list --json"],
-        }),
-      );
-      return () => undefined;
+          command: 'autobot-next config set',
+          message: 'config set requires a key and value',
+          what_failed: 'config mutation',
+          likely_cause: 'the key or value was missing',
+          recovery_commands: ['autobot-next config list --json'],
+        })
+      )
+      return () => undefined
     }
 
-    const definition = configDefinitionsByKey.get(key);
+    const definition = configDefinitionsByKey.get(key)
     if (definition === undefined) {
       reject(
         new AutobotCliError({
-          code: "CONFIG_VALUE_INVALID",
+          code: 'CONFIG_VALUE_INVALID',
           message: `Unknown config key: ${key}`,
-          what_failed: "config mutation",
-          likely_cause: "the key is not in the MVP config surface",
-          recovery_commands: ["autobot-next config list --json"],
+          what_failed: 'config mutation',
+          likely_cause: 'the key is not in the MVP config surface',
+          recovery_commands: ['autobot-next config list --json'],
           details: { key },
           exit_code: 2,
-        }),
-      );
-      return () => undefined;
+        })
+      )
+      return () => undefined
     }
 
-    let parsedValue: ConfigValue;
+    let parsedValue: ConfigValue
     try {
-      parsedValue = parseConfigValue(definition, rawValue);
+      parsedValue = parseConfigValue(definition, rawValue)
     } catch (error) {
       const invalidEvent = createDomainEvent({
-        type: "config.invalid",
-        severity: "error",
+        type: 'config.invalid',
+        severity: 'error',
         state: null,
-        message: "Config value failed validation",
+        message: 'Config value failed validation',
         data: {
           key,
           value: rawValue,
-          reason: error instanceof Error ? error.message : "invalid value",
+          reason: error instanceof Error ? error.message : 'invalid value',
         },
-      });
+      })
 
       store.events
         .append(invalidEvent)
-        .pipe(fork(() => undefined)(() => undefined));
-      reject(error);
-      return () => undefined;
+        .pipe(fork(() => undefined)(() => undefined))
+      reject(error)
+      return () => undefined
     }
 
     createConfigEntryFuture(store, key).pipe(
-      fork(reject)((previous) => {
+      fork(reject)(previous => {
         const next = toConfigEntry(definition, {
           key,
           value: normalizeConfigValue(parsedValue),
           value_type: definition.type,
-          source: "repo" as ConfigSource,
+          source: 'repo' as ConfigSource,
           updated_at: now(),
-        });
+        })
 
         const changed =
           !sameConfigValue(previous.value, next.value) ||
-          previous.source !== "repo";
+          previous.source !== 'repo'
 
         if (invocation.options.dry_run || !changed) {
           resolve(
             createConfigMutationResult({
-              action: "set",
+              action: 'set',
               dry_run: invocation.options.dry_run,
               changed: false,
               previous,
@@ -6855,39 +6837,39 @@ function handleConfigSet(
               events: [],
               store,
               command: `autobot-next config set ${key} ${rawValue}`,
-            }),
-          );
-          return;
+            })
+          )
+          return
         }
 
         const event = createDomainEvent({
-          type: "config.changed",
-          severity: "info",
+          type: 'config.changed',
+          severity: 'info',
           state: null,
           message: `Config key ${key} changed`,
           data: {
             key,
             old_value: previous.value,
             new_value: next.value,
-            source: "repo",
+            source: 'repo',
           },
-        });
+        })
 
         store.config
           .setOverride({
             key,
             value: parsedValue,
             value_type: definition.type,
-            source: "repo",
+            source: 'repo',
             updated_at: now(),
           })
           .pipe(
-            fork(reject)((storedOverride) => {
+            fork(reject)(storedOverride => {
               store.events.append(event).pipe(
-                fork(reject)((storedEvent) => {
+                fork(reject)(storedEvent => {
                   resolve(
                     createConfigMutationResult({
-                      action: "set",
+                      action: 'set',
                       dry_run: false,
                       changed: true,
                       previous,
@@ -6895,64 +6877,64 @@ function handleConfigSet(
                       events: [storedEvent],
                       store,
                       command: `autobot-next config set ${key} ${rawValue}`,
-                    }),
-                  );
-                }),
-              );
-            }),
-          );
-      }),
-    );
+                    })
+                  )
+                })
+              )
+            })
+          )
+      })
+    )
 
-    return () => undefined;
-  });
+    return () => undefined
+  })
 }
 
 function handleConfigUnset(
   invocation: AutobotInvocation,
-  store: AutobotStore,
+  store: AutobotStore
 ): FutureInstance<unknown, AutobotCommandResult> {
   return Future((reject, resolve) => {
-    const key = invocation.args[0];
+    const key = invocation.args[0]
 
     if (key === undefined) {
       reject(
         createUsageError({
-          command: "autobot-next config unset",
-          message: "config unset requires a key",
-          what_failed: "config mutation",
-          likely_cause: "the config key was missing",
-          recovery_commands: ["autobot-next config list --json"],
-        }),
-      );
-      return () => undefined;
+          command: 'autobot-next config unset',
+          message: 'config unset requires a key',
+          what_failed: 'config mutation',
+          likely_cause: 'the config key was missing',
+          recovery_commands: ['autobot-next config list --json'],
+        })
+      )
+      return () => undefined
     }
 
-    const definition = configDefinitionsByKey.get(key);
+    const definition = configDefinitionsByKey.get(key)
     if (definition === undefined) {
       reject(
         new AutobotCliError({
-          code: "CONFIG_VALUE_INVALID",
+          code: 'CONFIG_VALUE_INVALID',
           message: `Unknown config key: ${key}`,
-          what_failed: "config mutation",
-          likely_cause: "the key is not in the MVP config surface",
-          recovery_commands: ["autobot-next config list --json"],
+          what_failed: 'config mutation',
+          likely_cause: 'the key is not in the MVP config surface',
+          recovery_commands: ['autobot-next config list --json'],
           details: { key },
           exit_code: 2,
-        }),
-      );
-      return () => undefined;
+        })
+      )
+      return () => undefined
     }
 
     createConfigEntryFuture(store, key).pipe(
-      fork(reject)((previous) => {
-        const next = toConfigEntry(definition, null);
-        const changed = previous.source === "repo";
+      fork(reject)(previous => {
+        const next = toConfigEntry(definition, null)
+        const changed = previous.source === 'repo'
 
         if (invocation.options.dry_run || !changed) {
           resolve(
             createConfigMutationResult({
-              action: "unset",
+              action: 'unset',
               dry_run: invocation.options.dry_run,
               changed: false,
               previous,
@@ -6960,14 +6942,14 @@ function handleConfigUnset(
               events: [],
               store,
               command: `autobot-next config unset ${key}`,
-            }),
-          );
-          return;
+            })
+          )
+          return
         }
 
         const event = createDomainEvent({
-          type: "config.unset",
-          severity: "info",
+          type: 'config.unset',
+          severity: 'info',
           state: null,
           message: `Config key ${key} unset`,
           data: {
@@ -6975,15 +6957,15 @@ function handleConfigUnset(
             old_value: previous.value,
             new_value: next.value,
           },
-        });
+        })
 
         store.config.deleteOverride(key).pipe(
           fork(reject)(() => {
             store.events.append(event).pipe(
-              fork(reject)((storedEvent) => {
+              fork(reject)(storedEvent => {
                 resolve(
                   createConfigMutationResult({
-                    action: "unset",
+                    action: 'unset',
                     dry_run: false,
                     changed: true,
                     previous,
@@ -6991,40 +6973,40 @@ function handleConfigUnset(
                     events: [storedEvent],
                     store,
                     command: `autobot-next config unset ${key}`,
-                  }),
-                );
-              }),
-            );
-          }),
-        );
-      }),
-    );
+                  })
+                )
+              })
+            )
+          })
+        )
+      })
+    )
 
-    return () => undefined;
-  });
+    return () => undefined
+  })
 }
 
 function handleConfig(
   invocation: AutobotInvocation,
   store: AutobotStore,
-  now: () => string,
+  now: () => string
 ): FutureInstance<unknown, AutobotCommandResult> {
-  const [subcommand, ...rest] = invocation.command_path.slice(1);
+  const [subcommand, ...rest] = invocation.command_path.slice(1)
 
   switch (subcommand) {
-    case "list":
-      return handleConfigList(store);
-    case "get":
-      return handleConfigGet(store, rest[0]);
-    case "set":
-      return handleConfigSet(invocation, store, now);
-    case "unset":
-      return handleConfigUnset(invocation, store);
+    case 'list':
+      return handleConfigList(store)
+    case 'get':
+      return handleConfigGet(store, rest[0])
+    case 'set':
+      return handleConfigSet(invocation, store, now)
+    case 'unset':
+      return handleConfigUnset(invocation, store)
     default:
-      return Future((reject) => {
-        reject(createNotImplementedError(invocation.command));
-        return () => undefined;
-      });
+      return Future(reject => {
+        reject(createNotImplementedError(invocation.command))
+        return () => undefined
+      })
   }
 }
 
@@ -7032,47 +7014,47 @@ function handleCommand(
   invocation: AutobotInvocation,
   store: AutobotStore,
   now: () => string,
-  prepareWorktree?: AutobotServiceDependencies["prepareWorktree"],
-  setupWorkspace?: AutobotServiceDependencies["setupWorkspace"],
-  discoverIssues?: AutobotServiceDependencies["discoverIssues"],
+  prepareWorktree?: AutobotServiceDependencies['prepareWorktree'],
+  setupWorkspace?: AutobotServiceDependencies['setupWorkspace'],
+  discoverIssues?: AutobotServiceDependencies['discoverIssues'],
   artifactWriter: ArtifactWriter = defaultArtifactWriter,
   artifactReader: ArtifactReader = defaultArtifactReader,
   planningSessionRunner: PlanningSessionRunner = createNoopPlanningSessionRunner(),
   planningWorkerStarter?: PlanningWorkerStarter,
-  loadLinearIssue?: AutobotServiceDependencies["loadLinearIssue"],
-  isProcessAlive?: AutobotServiceDependencies["isProcessAlive"],
-  killProcess?: AutobotServiceDependencies["kill"],
+  loadLinearIssue?: AutobotServiceDependencies['loadLinearIssue'],
+  isProcessAlive?: AutobotServiceDependencies['isProcessAlive'],
+  killProcess?: AutobotServiceDependencies['kill'],
   randomId: () => string = randomUUID,
   sleep: (
-    milliseconds: number,
-  ) => FutureInstance<unknown, void> = createDelayFuture,
+    milliseconds: number
+  ) => FutureInstance<unknown, void> = createDelayFuture
 ): FutureInstance<unknown, AutobotCommandResult> {
-  const [head] = invocation.command_path;
+  const [head] = invocation.command_path
 
   switch (head) {
-    case "add":
-      return handleAdd(invocation, store, now);
-    case "remove":
-      return handleRemove(invocation, store, now);
-    case "retry":
-      return handleRetry(invocation, store, now);
-    case "list":
-      return createQueueList(store);
-    case "status":
-      return handleStatus(invocation, store);
-    case "discover":
-      return handleDiscover(invocation, store, discoverIssues);
-    case "config":
-      return handleConfig(invocation, store, now);
-    case "inspect":
-      return handleInspect(invocation, store);
-    case "logs":
-      return handleLogs(invocation, store);
-    case "supervisor":
+    case 'add':
+      return handleAdd(invocation, store, now)
+    case 'remove':
+      return handleRemove(invocation, store, now)
+    case 'retry':
+      return handleRetry(invocation, store, now)
+    case 'list':
+      return createQueueList(store)
+    case 'status':
+      return handleStatus(invocation, store)
+    case 'discover':
+      return handleDiscover(invocation, store, discoverIssues)
+    case 'config':
+      return handleConfig(invocation, store, now)
+    case 'inspect':
+      return handleInspect(invocation, store)
+    case 'logs':
+      return handleLogs(invocation, store)
+    case 'supervisor':
       switch (invocation.command_path[1]) {
-        case "logs":
-          return handleEngineLogs(invocation, store);
-        case "run-once":
+        case 'logs':
+          return handleEngineLogs(invocation, store)
+        case 'run-once':
           return handleEngineRunOnce(
             invocation,
             store,
@@ -7087,11 +7069,11 @@ function handleCommand(
             planningWorkerStarter,
             loadLinearIssue,
             isProcessAlive,
-            killProcess,
-          );
-        case "status":
-          return handleEngineStatus(invocation, store);
-        case "start":
+            killProcess
+          )
+        case 'status':
+          return handleEngineStatus(invocation, store)
+        case 'start':
           return handleEngineStart(
             invocation,
             store,
@@ -7107,45 +7089,45 @@ function handleCommand(
             loadLinearIssue,
             isProcessAlive,
             killProcess,
-            sleep,
-          );
-        case "stop":
-          return handleEngineStop(invocation, store, now);
+            sleep
+          )
+        case 'stop':
+          return handleEngineStop(invocation, store, now)
         default:
-          return Future((reject) => {
-            reject(createNotImplementedError(invocation.command));
-            return () => undefined;
-          });
+          return Future(reject => {
+            reject(createNotImplementedError(invocation.command))
+            return () => undefined
+          })
       }
     default:
-      return Future((reject) => {
-        reject(createNotImplementedError(invocation.command));
-        return () => undefined;
-      });
+      return Future(reject => {
+        reject(createNotImplementedError(invocation.command))
+        return () => undefined
+      })
   }
 }
 
 export interface AutobotServices {
   handleInvocation(
-    invocation: AutobotInvocation,
-  ): FutureInstance<unknown, AutobotCommandResult>;
+    invocation: AutobotInvocation
+  ): FutureInstance<unknown, AutobotCommandResult>
 }
 
 export function createAutobotServices(
-  dependencies: AutobotServiceDependencies = {},
+  dependencies: AutobotServiceDependencies = {}
 ): AutobotServices {
   const openStore =
     dependencies.openStore ??
-    ((repo: RepoRef | string) => createAutobotStore({ repo }));
-  const now = dependencies.now ?? (() => new Date().toISOString());
-  const artifactReader = dependencies.artifactReader ?? defaultArtifactReader;
+    ((repo: RepoRef | string) => createAutobotStore({ repo }))
+  const now = dependencies.now ?? (() => new Date().toISOString())
+  const artifactReader = dependencies.artifactReader ?? defaultArtifactReader
   const planningSessionRunner =
-    dependencies.planningSessionRunner ?? runOpenCodePlanningSession;
+    dependencies.planningSessionRunner ?? runOpenCodePlanningSession
   const planningWorkerStarter =
     dependencies.planningWorkerStarter ??
     (dependencies.planningSessionRunner === undefined
       ? startOpenCodePlanningSessionWorker
-      : undefined);
+      : undefined)
   // Planning only: hydrate Linear metadata for artifact generation.
   const loadPlanningLinearIssue =
     dependencies.loadLinearIssue ??
@@ -7153,19 +7135,19 @@ export function createAutobotServices(
       loadLinearIssueFromAdapters({
         repoRoot: input.repo.path,
         issueId: input.issueId,
-      }));
+      }))
 
   return {
     handleInvocation(invocation: AutobotInvocation) {
       if (
-        invocation.command_path[0] === "supervisor" &&
-        invocation.command_path[1] === "debug" &&
-        invocation.command_path[2] === "workflow"
+        invocation.command_path[0] === 'supervisor' &&
+        invocation.command_path[1] === 'debug' &&
+        invocation.command_path[2] === 'workflow'
       ) {
-        return handleWorkflow(invocation);
+        return handleWorkflow(invocation)
       }
 
-      return withStore(invocation.options, openStore, (store) =>
+      return withStore(invocation.options, openStore, store =>
         handleCommand(
           invocation,
           store,
@@ -7173,7 +7155,7 @@ export function createAutobotServices(
           dependencies.prepareWorktree ?? prepareAutobotWorktree,
           dependencies.setupWorkspace ??
             (dependencies.prepareWorktree === undefined
-              ? typeof setupAutobotWorkspace === "function"
+              ? typeof setupAutobotWorkspace === 'function'
                 ? setupAutobotWorkspace
                 : createNoopWorkspaceSetup
               : createNoopWorkspaceSetup),
@@ -7186,9 +7168,9 @@ export function createAutobotServices(
           dependencies.isProcessAlive,
           dependencies.kill,
           dependencies.randomId ?? randomUUID,
-          dependencies.sleep ?? createDelayFuture,
-        ),
-      );
+          dependencies.sleep ?? createDelayFuture
+        )
+      )
     },
-  };
+  }
 }

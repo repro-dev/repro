@@ -5,15 +5,15 @@ import {
   isLocalStylesheet,
   isTextNode,
   isValidAttributeName,
-} from "@repro/dom-utils";
+} from '@repro/dom-utils'
 import {
   DOMPatchEvent,
   PatchType,
   ScrollMap,
   SyntheticId,
   VTree,
-} from "@repro/domain";
-import { logger } from "@repro/logger";
+} from '@repro/domain'
+import { logger } from '@repro/logger'
 import {
   extractCSSEmbeddedURLs,
   isDocTypeVNode,
@@ -22,52 +22,52 @@ import {
   isParentVNode,
   isStyleElementVNode,
   isTextVNode,
-} from "@repro/vdom-utils";
+} from '@repro/vdom-utils'
 
-export type MutableNodeMap = Record<SyntheticId, Node>;
+export type MutableNodeMap = Record<SyntheticId, Node>
 
-export const HOVER_CLASS = "-repro-hover";
-export const HOVER_SELECTOR = `.${HOVER_CLASS}`;
+export const HOVER_CLASS = '-repro-hover'
+export const HOVER_SELECTOR = `.${HOVER_CLASS}`
 
 export function clearDocument(doc: Document) {
   while (doc.documentElement.firstChild) {
-    doc.documentElement.firstChild.remove();
+    doc.documentElement.firstChild.remove()
   }
 
-  updateScroll(doc.documentElement, 0, 0);
+  updateScroll(doc.documentElement, 0, 0)
 }
 
 export function updateAllScrollStates(
   nodeMap: MutableNodeMap,
-  scrollMap: ScrollMap,
+  scrollMap: ScrollMap
 ) {
   for (const [nodeId, [x, y]] of Object.entries(scrollMap)) {
-    const node = nodeMap[nodeId];
+    const node = nodeMap[nodeId]
 
     if (node) {
-      updateScroll(node, x, y);
+      updateScroll(node, x, y)
     }
   }
 }
 
 export function updateScroll(node: Node, x: number, y: number) {
   if (node && isElementNode(node)) {
-    let element = node;
+    let element = node
 
     if (isBodyElement(element)) {
-      element = element.ownerDocument.documentElement;
+      element = element.ownerDocument.documentElement
     }
 
     // Override CSS `scroll-behavior` if set
     if (isHTMLElement(element)) {
-      element.style.scrollBehavior = "auto";
+      element.style.scrollBehavior = 'auto'
     }
 
-    element.scrollTo(x, y);
+    element.scrollTo(x, y)
 
     // Revert CSS `scroll-behavior`
     if (isHTMLElement(element)) {
-      element.style.scrollBehavior = "";
+      element.style.scrollBehavior = ''
     }
   }
 }
@@ -78,108 +78,106 @@ export function applyDOMPatchEvent(
   nodeMap: MutableNodeMap,
   currentPageURL: string,
   resourceBaseURL: string,
-  resourceMap: Record<string, string>,
+  resourceMap: Record<string, string>
 ) {
-  event.data.apply((data) => {
+  event.data.apply(data => {
     outer: {
       switch (data.type) {
         case PatchType.Text: {
-          const targetId = data.targetId;
-          const node = nodeMap[targetId];
+          const targetId = data.targetId
+          const node = nodeMap[targetId]
 
           if (node && isTextNode(node)) {
-            node.textContent = data.value;
+            node.textContent = data.value
           }
 
-          break;
+          break
         }
 
         case PatchType.Attribute: {
-          const targetId = data.targetId;
-          const node = nodeMap[targetId];
+          const targetId = data.targetId
+          const node = nodeMap[targetId]
 
           if (node && isElementNode(node)) {
             if (isValidAttributeName(data.name)) {
-              let value = data.value;
+              let value = data.value
 
               if (value !== null) {
-                if (data.name === "src") {
+                if (data.name === 'src') {
                   value = resolveURLToResource(
                     value,
                     currentPageURL,
                     resourceBaseURL,
-                    resourceMap,
-                  );
-                } else if (data.name === "srcset") {
+                    resourceMap
+                  )
+                } else if (data.name === 'srcset') {
                   value = replaceURLsInSrcset(
                     value,
                     currentPageURL,
                     resourceBaseURL,
-                    resourceMap,
-                  );
-                } else if (data.name === "style") {
+                    resourceMap
+                  )
+                } else if (data.name === 'style') {
                   value = replaceURLsInCSSText(
                     value,
                     currentPageURL,
                     resourceBaseURL,
-                    resourceMap,
-                  );
+                    resourceMap
+                  )
                 }
               }
 
-              node.setAttribute(data.name, value ?? "");
+              node.setAttribute(data.name, value ?? '')
             }
           }
 
-          break;
+          break
         }
 
         case PatchType.BooleanProperty:
         case PatchType.NumberProperty:
         case PatchType.TextProperty: {
-          const targetId = data.targetId;
-          const node = nodeMap[targetId];
+          const targetId = data.targetId
+          const node = nodeMap[targetId]
 
           if (node && isElementNode(node)) {
             // TODO: ensure property is valid for target element
 
             if (
               Object.getPrototypeOf(node).hasOwnProperty(
-                `__original__${data.name}`,
+                `__original__${data.name}`
               )
             ) {
               // @ts-ignore
-              node[`__original__${data.name}`] = data.value;
+              node[`__original__${data.name}`] = data.value
               // @ts-ignore
             } else {
               // @ts-ignore
-              node[data.name] = data.value;
+              node[data.name] = data.value
             }
           }
 
-          break;
+          break
         }
 
         case PatchType.AddNodes: {
-          const parentId = data.parentId;
-          const previousSiblingId = data.previousSiblingId;
-          const nextSiblingId = data.nextSiblingId;
+          const parentId = data.parentId
+          const previousSiblingId = data.previousSiblingId
+          const nextSiblingId = data.nextSiblingId
 
-          const parent = nodeMap[parentId];
+          const parent = nodeMap[parentId]
           const parentIsStyleRoot =
-            parent != null &&
-            isElementNode(parent) &&
-            isLocalStylesheet(parent);
+            parent != null && isElementNode(parent) && isLocalStylesheet(parent)
 
           for (const vtree of data.nodes) {
             if (nodeMap.hasOwnProperty(vtree.rootId)) {
-              break outer;
+              break outer
             }
           }
 
           if (parent) {
             const [fragment, newNodeMap] = data.nodes
-              .map((vtree) =>
+              .map(vtree =>
                 createDOMFromVTree({
                   vtree,
                   doc,
@@ -188,86 +186,84 @@ export function applyDOMPatchEvent(
                   resourceBaseURL,
                   resourceMap,
                   isUnderStyleRoot: parentIsStyleRoot,
-                }),
+                })
               )
               .reduce(
                 ([fragment, nodeMap], [node, nextNodeMap]) => {
                   if (fragment && node) {
-                    fragment.appendChild(node);
-                    Object.assign(nodeMap, nextNodeMap);
+                    fragment.appendChild(node)
+                    Object.assign(nodeMap, nextNodeMap)
                   }
 
-                  return [fragment, nodeMap];
+                  return [fragment, nodeMap]
                 },
-                [doc.createDocumentFragment(), {}],
-              );
+                [doc.createDocumentFragment(), {}]
+              )
 
             if (!fragment) {
-              break;
+              break
             }
 
             const prev =
               previousSiblingId !== null
                 ? nodeMap[previousSiblingId] ?? null
-                : null;
+                : null
 
             const next =
-              nextSiblingId !== null ? nodeMap[nextSiblingId] ?? null : null;
+              nextSiblingId !== null ? nodeMap[nextSiblingId] ?? null : null
 
-            let didMount = false;
+            let didMount = false
 
             if (prev && prev.parentNode) {
               if (prev.parentNode === parent) {
                 if (prev.nextSibling) {
-                  parent.insertBefore(fragment, prev.nextSibling);
-                  didMount = true;
+                  parent.insertBefore(fragment, prev.nextSibling)
+                  didMount = true
                 } else {
-                  parent.appendChild(fragment);
-                  didMount = true;
+                  parent.appendChild(fragment)
+                  didMount = true
                 }
               }
             } else if (next && next.parentNode) {
               if (next.parentNode === parent) {
-                parent.insertBefore(fragment, next);
-                didMount = true;
+                parent.insertBefore(fragment, next)
+                didMount = true
               }
             } else {
-              parent.appendChild(fragment);
-              didMount = true;
+              parent.appendChild(fragment)
+              didMount = true
             }
 
             if (didMount) {
-              Object.assign(nodeMap, newNodeMap);
+              Object.assign(nodeMap, newNodeMap)
             }
           }
 
-          break;
+          break
         }
 
         case PatchType.RemoveNodes: {
-          const rootNodeIds = data.nodes.map((vtree) => vtree.rootId);
-          const nodeIds = data.nodes.flatMap((vtree) =>
-            Object.keys(vtree.nodes),
-          );
+          const rootNodeIds = data.nodes.map(vtree => vtree.rootId)
+          const nodeIds = data.nodes.flatMap(vtree => Object.keys(vtree.nodes))
 
           for (const nodeId of rootNodeIds) {
-            const node = nodeMap[nodeId];
-            const parent = node?.parentNode || null;
+            const node = nodeMap[nodeId]
+            const parent = node?.parentNode || null
 
             if (node && parent) {
-              parent.removeChild(node);
+              parent.removeChild(node)
             }
           }
 
           for (const nodeId of nodeIds) {
-            delete nodeMap[nodeId];
+            delete nodeMap[nodeId]
           }
 
-          break;
+          break
         }
       }
     }
-  });
+  })
 }
 
 export function createDOMFromVTree({
@@ -279,24 +275,24 @@ export function createDOMFromVTree({
   resourceMap,
   isUnderStyleRoot,
 }: {
-  vtree: VTree;
-  doc: Document;
-  rootNodeMap: MutableNodeMap;
-  currentPageURL: string;
-  resourceBaseURL: string;
-  resourceMap: Record<string, string>;
-  isUnderStyleRoot: boolean;
+  vtree: VTree
+  doc: Document
+  rootNodeMap: MutableNodeMap
+  currentPageURL: string
+  resourceBaseURL: string
+  resourceMap: Record<string, string>
+  isUnderStyleRoot: boolean
 }): [Node | null, MutableNodeMap] {
-  const nodeMap: MutableNodeMap = {};
+  const nodeMap: MutableNodeMap = {}
 
   const createNode = (
     nodeId: SyntheticId,
     parentId: SyntheticId | null,
-    svgContext: boolean = false,
+    svgContext: boolean = false
   ): Node => {
-    const vNode = vtree.nodes[nodeId] || null;
+    const vNode = vtree.nodes[nodeId] || null
 
-    const parentVNode = (parentId && vtree.nodes[parentId]) || null;
+    const parentVNode = (parentId && vtree.nodes[parentId]) || null
 
     if (rootNodeMap.hasOwnProperty(nodeId)) {
       logger.warn(
@@ -304,14 +300,14 @@ export function createDOMFromVTree({
         rootNodeMap[nodeId],
         vNode?.orElse(null),
         parentVNode?.orElse(null),
-        vtree,
-      );
+        vtree
+      )
 
       // TODO: investigate why web component slots have duplicate renders
-      return doc.createDocumentFragment();
+      return doc.createDocumentFragment()
     }
 
-    let node: Node = document.createDocumentFragment();
+    let node: Node = document.createDocumentFragment()
 
     if (!vNode) {
       logger.error(`render: Could not find VNode(${nodeId})`, {
@@ -319,13 +315,13 @@ export function createDOMFromVTree({
         parentId,
         parentVNode: parentVNode?.orElse(null),
         vtree,
-      });
+      })
 
-      return node;
+      return node
     }
 
     if (isTextVNode(vNode)) {
-      let value = vNode.map((vNode) => vNode.value).orElse("");
+      let value = vNode.map(vNode => vNode.value).orElse('')
 
       // CSS hover states cannot be triggered programmatically.
       // Replace hover pseudo-selectors with class selector.
@@ -333,140 +329,139 @@ export function createDOMFromVTree({
         isUnderStyleRoot ||
         (parentVNode && isStyleElementVNode(parentVNode))
       ) {
-        value = value.replace(":hover", HOVER_SELECTOR);
+        value = value.replace(':hover', HOVER_SELECTOR)
         value = replaceURLsInCSSText(
           value,
           currentPageURL,
           resourceBaseURL,
-          resourceMap,
-        );
+          resourceMap
+        )
       }
 
-      node = doc.createTextNode(value);
+      node = doc.createTextNode(value)
     } else if (isDocTypeVNode(vNode)) {
-      node = doc.createDocumentFragment();
+      node = doc.createDocumentFragment()
     } else if (
       isDocumentVNode(vNode) ||
-      (isElementVNode(vNode) &&
-        vNode.match((vNode) => vNode.tagName === "html"))
+      (isElementVNode(vNode) && vNode.match(vNode => vNode.tagName === 'html'))
     ) {
-      const fragment = doc.createDocumentFragment();
+      const fragment = doc.createDocumentFragment()
 
-      vNode.apply((vNode) => {
+      vNode.apply(vNode => {
         for (const childId of vNode.children) {
-          fragment.appendChild(createNode(childId, nodeId, svgContext));
+          fragment.appendChild(createNode(childId, nodeId, svgContext))
         }
-      });
+      })
 
-      node = fragment;
+      node = fragment
     } else {
       if (isElementVNode(vNode)) {
-        vNode.apply((vNode) => {
-          if (vNode.tagName === "iframe") {
-            const frame = doc.createElement("iframe");
+        vNode.apply(vNode => {
+          if (vNode.tagName === 'iframe') {
+            const frame = doc.createElement('iframe')
 
             for (const [name, value] of Object.entries(vNode.attributes)) {
-              if (isValidAttributeName(name) && name !== "src") {
-                frame.setAttribute(name, value ?? "");
+              if (isValidAttributeName(name) && name !== 'src') {
+                frame.setAttribute(name, value ?? '')
               }
             }
 
-            const fragment = doc.createDocumentFragment();
+            const fragment = doc.createDocumentFragment()
 
             for (const childId of vNode.children) {
-              fragment.appendChild(createNode(childId, nodeId, svgContext));
+              fragment.appendChild(createNode(childId, nodeId, svgContext))
             }
 
             frame.addEventListener(
-              "load",
+              'load',
               () => {
-                const doc = frame.contentDocument;
+                const doc = frame.contentDocument
 
                 if (doc) {
-                  doc.open();
-                  doc.write("<!doctype html>");
-                  doc.close();
+                  doc.open()
+                  doc.write('<!doctype html>')
+                  doc.close()
 
-                  const root = doc.createElement("html");
-                  doc.documentElement.remove();
-                  doc.appendChild(root);
-                  root.appendChild(fragment);
+                  const root = doc.createElement('html')
+                  doc.documentElement.remove()
+                  doc.appendChild(root)
+                  root.appendChild(fragment)
                 }
               },
-              { once: true },
-            );
+              { once: true }
+            )
 
-            node = frame;
+            node = frame
           } else {
-            if (vNode.tagName === "svg") {
-              svgContext = true;
+            if (vNode.tagName === 'svg') {
+              svgContext = true
             }
 
-            let tagName = vNode.tagName;
+            let tagName = vNode.tagName
 
             const element = svgContext
-              ? doc.createElementNS("http://www.w3.org/2000/svg", tagName)
-              : doc.createElement(tagName);
+              ? doc.createElementNS('http://www.w3.org/2000/svg', tagName)
+              : doc.createElement(tagName)
 
-            if (vNode.tagName === "foreignObject") {
-              svgContext = false;
+            if (vNode.tagName === 'foreignObject') {
+              svgContext = false
             }
 
             for (let [name, value] of Object.entries(vNode.attributes)) {
               if (isValidAttributeName(name)) {
                 if (value !== null) {
-                  if (name === "src") {
+                  if (name === 'src') {
                     value = resolveURLToResource(
                       value,
                       currentPageURL,
                       resourceBaseURL,
-                      resourceMap,
-                    );
-                  } else if (name === "srcset") {
+                      resourceMap
+                    )
+                  } else if (name === 'srcset') {
                     value = replaceURLsInSrcset(
                       value,
                       currentPageURL,
                       resourceBaseURL,
-                      resourceMap,
-                    );
-                  } else if (name === "style") {
+                      resourceMap
+                    )
+                  } else if (name === 'style') {
                     value = replaceURLsInCSSText(
                       value,
                       currentPageURL,
                       resourceBaseURL,
-                      resourceMap,
-                    );
-                  } else if (name === "href" && vNode.tagName === "link") {
+                      resourceMap
+                    )
+                  } else if (name === 'href' && vNode.tagName === 'link') {
                     value = resolveURLToResource(
                       value,
                       currentPageURL,
                       resourceBaseURL,
-                      resourceMap,
-                    );
+                      resourceMap
+                    )
                   } else if (
-                    (name === "href" || name === "xlink:href") &&
-                    vNode.tagName === "use" &&
-                    !value.startsWith("#")
+                    (name === 'href' || name === 'xlink:href') &&
+                    vNode.tagName === 'use' &&
+                    !value.startsWith('#')
                   ) {
                     // Resolve the base URL of external SVG sprite hrefs.
                     // The resource map stores the base file URL (hash stripped);
                     // reconstruct the full href with the original fragment intact.
-                    const hashIndex = value.indexOf("#");
+                    const hashIndex = value.indexOf('#')
                     const baseURL =
-                      hashIndex !== -1 ? value.slice(0, hashIndex) : value;
+                      hashIndex !== -1 ? value.slice(0, hashIndex) : value
                     const fragment =
-                      hashIndex !== -1 ? value.slice(hashIndex) : "";
+                      hashIndex !== -1 ? value.slice(hashIndex) : ''
                     value =
                       resolveURLToResource(
                         baseURL,
                         currentPageURL,
                         resourceBaseURL,
-                        resourceMap,
-                      ) + fragment;
+                        resourceMap
+                      ) + fragment
                   }
                 }
 
-                element.setAttribute(name, value ?? "");
+                element.setAttribute(name, value ?? '')
               }
             }
 
@@ -476,142 +471,142 @@ export function createDOMFromVTree({
 
                 if (
                   Object.getPrototypeOf(element).hasOwnProperty(
-                    `__original__${name}`,
+                    `__original__${name}`
                   )
                 ) {
                   // @ts-ignore
-                  element[`__original__${name}`] = value;
+                  element[`__original__${name}`] = value
                 } else {
                   // @ts-ignore
-                  element[name] = value;
+                  element[name] = value
                 }
               }
-            });
+            })
 
             for (const childId of vNode.children) {
-              element.appendChild(createNode(childId, nodeId, svgContext));
+              element.appendChild(createNode(childId, nodeId, svgContext))
             }
 
-            node = element;
+            node = element
           }
-        });
+        })
       }
     }
 
     if (isElementNode(node)) {
-      node.setAttribute("data-repro-node", nodeId);
+      node.setAttribute('data-repro-node', nodeId)
     }
 
-    nodeMap[nodeId] = node;
+    nodeMap[nodeId] = node
 
-    return node;
-  };
+    return node
+  }
 
-  return [createNode(vtree.rootId, null, false), nodeMap];
+  return [createNode(vtree.rootId, null, false), nodeMap]
 }
 
 export function replaceURLsInSrcset(
   srcset: string,
   currentPageURL: string,
   resourceBaseURL: string,
-  resourceMap: Record<string, string>,
+  resourceMap: Record<string, string>
 ) {
   return srcset
-    .split(",")
-    .map((source) => source.trim().split(/\s+/) as [string, string | undefined])
+    .split(',')
+    .map(source => source.trim().split(/\s+/) as [string, string | undefined])
     .map(([url, condition]) =>
       [
         resolveURLToResource(url, currentPageURL, resourceBaseURL, resourceMap),
         condition,
-      ].join(" "),
+      ].join(' ')
     )
-    .join(",");
+    .join(',')
 }
 
 export function replaceURLsInCSSText(
   cssText: string,
   currentPageURL: string,
   resourceBaseURL: string,
-  resourceMap: Record<string, string>,
+  resourceMap: Record<string, string>
 ) {
   const urls = extractCSSEmbeddedURLs(cssText).map(
-    (url) =>
+    url =>
       [
         url,
         resolveURLToResource(url, currentPageURL, resourceBaseURL, resourceMap),
-      ] as const,
-  );
+      ] as const
+  )
 
   for (const [url, resourceURL] of urls) {
     if (url !== resourceURL) {
-      cssText = cssText.replace(url, resourceURL);
+      cssText = cssText.replace(url, resourceURL)
     }
   }
 
-  return cssText;
+  return cssText
 }
 
 export function resolveURLToResource(
   url: string,
   currentPageURL: string,
   resourceBaseURL: string,
-  resourceMap: Record<string, string>,
+  resourceMap: Record<string, string>
 ) {
   // Do not attempt to resolve hash URLs
-  if (url.startsWith("#")) {
-    return url;
+  if (url.startsWith('#')) {
+    return url
   }
 
   try {
     // If the url is relative and we do not have access to the base URL,
     // `new URL` will throw. In this case, we just fall back to the URL
     // contained in the source event.
-    const absoluteURL = new URL(url, currentPageURL || undefined).href;
-    const resourceId = resourceMap[absoluteURL];
-    return resourceId ? `${resourceBaseURL}${resourceId}` : absoluteURL;
+    const absoluteURL = new URL(url, currentPageURL || undefined).href
+    const resourceId = resourceMap[absoluteURL]
+    return resourceId ? `${resourceBaseURL}${resourceId}` : absoluteURL
   } catch {
-    return url;
+    return url
   }
 }
 
 export function patchDocumentElement(
   vtree: VTree,
   nodeMap: MutableNodeMap,
-  documentElement: HTMLElement,
+  documentElement: HTMLElement
 ) {
-  const queue = [vtree.rootId];
+  const queue = [vtree.rootId]
 
-  let nodeId: SyntheticId | undefined;
+  let nodeId: SyntheticId | undefined
   while ((nodeId = queue.shift())) {
-    const vNode = vtree.nodes[nodeId];
+    const vNode = vtree.nodes[nodeId]
 
     if (!vNode) {
       throw new Error(
-        `PlaybackCanvas/NativeDOMRenderer: could not find VNode: ${nodeId}`,
-      );
+        `PlaybackCanvas/NativeDOMRenderer: could not find VNode: ${nodeId}`
+      )
     }
 
     if (
       isElementVNode(vNode) &&
-      vNode.match((vNode) => vNode.tagName === "html")
+      vNode.match(vNode => vNode.tagName === 'html')
     ) {
-      nodeMap[nodeId] = documentElement;
+      nodeMap[nodeId] = documentElement
 
-      vNode.apply((vNode) => {
+      vNode.apply(vNode => {
         for (const [name, value] of Object.entries(vNode.attributes)) {
           if (isValidAttributeName(name)) {
-            documentElement.setAttribute(name, value ?? "");
+            documentElement.setAttribute(name, value ?? '')
           }
         }
-      });
+      })
 
-      break;
+      break
     }
 
     if (isParentVNode(vNode)) {
-      vNode.apply((vNode) => {
-        queue.push(...vNode.children);
-      });
+      vNode.apply(vNode => {
+        queue.push(...vNode.children)
+      })
     }
   }
 }

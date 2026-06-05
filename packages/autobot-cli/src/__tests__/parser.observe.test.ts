@@ -1,15 +1,13 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import assert from 'node:assert/strict'
+import test from 'node:test'
 
-import { createAutobotProgram } from "../program";
+import { createAutobotProgram } from '../program'
 
-test("observe commands are present in the parser tree", () => {
-  const program = createAutobotProgram();
-  const topLevelNames = program.commands
-    .map((command) => command.name())
-    .sort();
+test('observe commands are present in the parser tree', () => {
+  const program = createAutobotProgram()
+  const topLevelNames = program.commands.map(command => command.name()).sort()
 
-  assert.ok(topLevelNames.includes("inspect"));
-  assert.ok(topLevelNames.includes("logs"));
-  assert.ok(topLevelNames.includes("status"));
-});
+  assert.ok(topLevelNames.includes('inspect'))
+  assert.ok(topLevelNames.includes('logs'))
+  assert.ok(topLevelNames.includes('status'))
+})

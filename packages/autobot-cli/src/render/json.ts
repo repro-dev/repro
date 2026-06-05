@@ -1,21 +1,21 @@
 import {
   createJsonErrorEnvelope,
   createJsonSuccessEnvelope,
-} from "@repro/autobot-core";
+} from '@repro/autobot-core'
 
 import type {
   AutobotErrorEnvelopeInput,
   AutobotSuccessEnvelopeInput,
-} from "../types";
+} from '../types'
 
 export function renderJsonSuccessEnvelope<TData>(
-  input: AutobotSuccessEnvelopeInput<TData>,
+  input: AutobotSuccessEnvelopeInput<TData>
 ): string {
-  return `${JSON.stringify(createJsonSuccessEnvelope(input))}\n`;
+  return `${JSON.stringify(createJsonSuccessEnvelope(input))}\n`
 }
 
 export function renderJsonErrorEnvelope(
-  input: AutobotErrorEnvelopeInput,
+  input: AutobotErrorEnvelopeInput
 ): string {
-  return `${JSON.stringify(createJsonErrorEnvelope(input))}\n`;
+  return `${JSON.stringify(createJsonErrorEnvelope(input))}\n`
 }

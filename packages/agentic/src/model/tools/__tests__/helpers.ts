@@ -11,18 +11,18 @@ import {
   SourceEventType,
   SourceEventView,
   WebSocketMessageType,
-} from "@repro/domain";
-import { fork } from "fluture";
-import { Box } from "@repro/tdl";
-import { makeAccessorFromEventList } from "../../../recordingDataAccessor";
-import { RecordingDataAccessor } from "../../../types";
-import type { FutureInstance } from "fluture";
+} from '@repro/domain'
+import { Box } from '@repro/tdl'
+import type { FutureInstance } from 'fluture'
+import { fork } from 'fluture'
+import { makeAccessorFromEventList } from '../../../recordingDataAccessor'
+import { RecordingDataAccessor } from '../../../types'
 
 // Forks a FutureInstance into a Promise so tests can use await.
 export function runFuture<L, R>(future: FutureInstance<L, R>): Promise<R> {
   return new Promise<R>((resolve, reject) => {
-    fork(reject)(resolve)(future);
-  });
+    fork(reject)(resolve)(future)
+  })
 }
 
 // ─── Accessor helpers ────────────────────────────────────────────────────────
@@ -30,7 +30,7 @@ export function runFuture<L, R>(future: FutureInstance<L, R>): Promise<R> {
 export function makeAccessor(
   events: Array<ReturnType<typeof SourceEventView.from>>,
   duration?: number,
-  snapshotFn?: (timestampMs: number) => Snapshot | null,
+  snapshotFn?: (timestampMs: number) => Snapshot | null
 ): RecordingDataAccessor {
   return {
     getDuration: () => duration ?? Number.MAX_SAFE_INTEGER,
@@ -38,13 +38,13 @@ export function makeAccessor(
     getResourceMap: () => ({}),
     ...makeAccessorFromEventList({
       size: () => events.length,
-      over: (i) => events[i] ?? null,
+      over: i => events[i] ?? null,
     }),
-  };
+  }
 }
 
 export function makeEmptyAccessor(): RecordingDataAccessor {
-  return makeAccessor([]);
+  return makeAccessor([])
 }
 
 // ─── Network event factories ──────────────────────────────────────────────────
@@ -54,7 +54,7 @@ export function makeFetchRequestEvent(
   correlationId: string,
   url: string,
   method: string,
-  headers?: Record<string, string>,
+  headers?: Record<string, string>
 ): ReturnType<typeof SourceEventView.from> {
   // Bypass SourceEventView.from() — the binary codec's getByteLength cannot
   // handle all nested union/struct combinations at construction time.
@@ -71,14 +71,14 @@ export function makeFetchRequestEvent(
       headers: headers ?? {},
       body: new ArrayBuffer(0),
     }),
-  }) as unknown as ReturnType<typeof SourceEventView.from>;
+  }) as unknown as ReturnType<typeof SourceEventView.from>
 }
 
 export function makeFetchResponseEvent(
   time: number,
   correlationId: string,
   status: number,
-  headers?: Record<string, string>,
+  headers?: Record<string, string>
 ): ReturnType<typeof SourceEventView.from> {
   // Bypass SourceEventView.from() — see comment in makeFetchRequestEvent.
   return new Box({
@@ -91,7 +91,7 @@ export function makeFetchResponseEvent(
       headers: headers ?? {},
       body: new ArrayBuffer(0),
     }),
-  }) as unknown as ReturnType<typeof SourceEventView.from>;
+  }) as unknown as ReturnType<typeof SourceEventView.from>
 }
 
 export function makeFetchRequestEventWithBody(
@@ -100,7 +100,7 @@ export function makeFetchRequestEventWithBody(
   url: string,
   method: string,
   body: string,
-  headers?: Record<string, string>,
+  headers?: Record<string, string>
 ): ReturnType<typeof SourceEventView.from> {
   // Bypass SourceEventView.from() — see comment in makeFetchRequestEvent.
   return new Box({
@@ -115,7 +115,7 @@ export function makeFetchRequestEventWithBody(
       headers: headers ?? {},
       body: new TextEncoder().encode(body).buffer,
     }),
-  }) as unknown as ReturnType<typeof SourceEventView.from>;
+  }) as unknown as ReturnType<typeof SourceEventView.from>
 }
 
 export function makeFetchResponseEventWithBody(
@@ -123,7 +123,7 @@ export function makeFetchResponseEventWithBody(
   correlationId: string,
   status: number,
   body: string,
-  headers?: Record<string, string>,
+  headers?: Record<string, string>
 ): ReturnType<typeof SourceEventView.from> {
   // Bypass SourceEventView.from() — see comment in makeFetchRequestEvent.
   return new Box({
@@ -136,13 +136,13 @@ export function makeFetchResponseEventWithBody(
       headers: headers ?? {},
       body: new TextEncoder().encode(body).buffer,
     }),
-  }) as unknown as ReturnType<typeof SourceEventView.from>;
+  }) as unknown as ReturnType<typeof SourceEventView.from>
 }
 
 export function makeWebSocketOpenEvent(
   time: number,
   correlationId: string,
-  url: string,
+  url: string
 ): ReturnType<typeof SourceEventView.from> {
   // Bypass SourceEventView.from() — see comment in makeFetchRequestEvent.
   return new Box({
@@ -153,12 +153,12 @@ export function makeWebSocketOpenEvent(
       correlationId,
       url,
     }),
-  }) as unknown as ReturnType<typeof SourceEventView.from>;
+  }) as unknown as ReturnType<typeof SourceEventView.from>
 }
 
 export function makeWebSocketCloseEvent(
   time: number,
-  correlationId: string,
+  correlationId: string
 ): ReturnType<typeof SourceEventView.from> {
   // Bypass SourceEventView.from() — see comment in makeFetchRequestEvent.
   return new Box({
@@ -168,13 +168,13 @@ export function makeWebSocketCloseEvent(
       type: NetworkMessageType.WebSocketClose,
       correlationId,
     }),
-  }) as unknown as ReturnType<typeof SourceEventView.from>;
+  }) as unknown as ReturnType<typeof SourceEventView.from>
 }
 
 export function makeWebSocketInboundEvent(
   time: number,
   correlationId: string,
-  payload: string,
+  payload: string
 ): ReturnType<typeof SourceEventView.from> {
   // Bypass SourceEventView.from() — see comment in makeFetchRequestEvent.
   return new Box({
@@ -186,13 +186,13 @@ export function makeWebSocketInboundEvent(
       messageType: WebSocketMessageType.Text,
       data: new TextEncoder().encode(payload).buffer as ArrayBuffer,
     }),
-  }) as unknown as ReturnType<typeof SourceEventView.from>;
+  }) as unknown as ReturnType<typeof SourceEventView.from>
 }
 
 export function makeWebSocketOutboundEvent(
   time: number,
   correlationId: string,
-  payload: string,
+  payload: string
 ): ReturnType<typeof SourceEventView.from> {
   // Bypass SourceEventView.from() — see comment in makeFetchRequestEvent.
   return new Box({
@@ -204,13 +204,13 @@ export function makeWebSocketOutboundEvent(
       messageType: WebSocketMessageType.Text,
       data: new TextEncoder().encode(payload).buffer as ArrayBuffer,
     }),
-  }) as unknown as ReturnType<typeof SourceEventView.from>;
+  }) as unknown as ReturnType<typeof SourceEventView.from>
 }
 
 export function makeWebSocketBinaryInboundEvent(
   time: number,
   correlationId: string,
-  byteLength: number,
+  byteLength: number
 ): ReturnType<typeof SourceEventView.from> {
   // Bypass SourceEventView.from() — see comment in makeFetchRequestEvent.
   return new Box({
@@ -222,7 +222,7 @@ export function makeWebSocketBinaryInboundEvent(
       messageType: WebSocketMessageType.Binary,
       data: new ArrayBuffer(byteLength),
     }),
-  }) as unknown as ReturnType<typeof SourceEventView.from>;
+  }) as unknown as ReturnType<typeof SourceEventView.from>
 }
 
 // ─── Console event factories ──────────────────────────────────────────────────
@@ -232,11 +232,11 @@ export function makeConsoleEvent(
   level: LogLevel,
   text: string,
   stack?: Array<{
-    functionName?: string;
-    fileName: string;
-    lineNumber: number;
-    columnNumber: number;
-  }>,
+    functionName?: string
+    fileName: string
+    lineNumber: number
+    columnNumber: number
+  }>
 ): ReturnType<typeof SourceEventView.from> {
   // Bypass SourceEventView.from() — see comment in makeFetchRequestEvent.
   return new Box({
@@ -250,34 +250,34 @@ export function makeConsoleEvent(
           value: text,
         }),
       ],
-      stack: (stack ?? []).map((s) => ({
+      stack: (stack ?? []).map(s => ({
         functionName: s.functionName ?? null,
         fileName: s.fileName,
         lineNumber: s.lineNumber,
         columnNumber: s.columnNumber,
       })),
     },
-  }) as unknown as ReturnType<typeof SourceEventView.from>;
+  }) as unknown as ReturnType<typeof SourceEventView.from>
 }
 
 export function makeConsoleErrorEvent(
   time: number,
   message: string,
   stack?: Array<{
-    functionName?: string;
-    fileName: string;
-    lineNumber: number;
-    columnNumber: number;
-  }>,
+    functionName?: string
+    fileName: string
+    lineNumber: number
+    columnNumber: number
+  }>
 ): ReturnType<typeof SourceEventView.from> {
-  return makeConsoleEvent(time, LogLevel.Error, message, stack);
+  return makeConsoleEvent(time, LogLevel.Error, message, stack)
 }
 
 export function makeConsoleInfoEvent(
   time: number,
-  message: string,
+  message: string
 ): ReturnType<typeof SourceEventView.from> {
-  return makeConsoleEvent(time, LogLevel.Info, message);
+  return makeConsoleEvent(time, LogLevel.Info, message)
 }
 
 // ─── Snapshot helpers ─────────────────────────────────────────────────────────
@@ -285,53 +285,53 @@ export function makeConsoleInfoEvent(
 export function makeSimpleSnapshot(): Snapshot {
   return {
     dom: {
-      rootId: "root",
+      rootId: 'root',
       nodes: {
         root: new Box({
           type: NodeType.Document as NodeType.Document,
-          id: "root",
+          id: 'root',
           parentId: null,
-          children: ["btn"],
+          children: ['btn'],
         }),
         btn: new Box({
           type: NodeType.Element as NodeType.Element,
-          id: "btn",
-          parentId: "root",
-          tagName: "button",
-          children: ["txt"],
-          attributes: { "aria-label": "Submit" },
+          id: 'btn',
+          parentId: 'root',
+          tagName: 'button',
+          children: ['txt'],
+          attributes: { 'aria-label': 'Submit' },
           properties: { value: null, checked: null, selectedIndex: null },
           shadowRoot: false,
         }),
         txt: new Box({
           type: NodeType.Text as NodeType.Text,
-          id: "txt",
-          parentId: "btn",
-          value: "Submit",
+          id: 'txt',
+          parentId: 'btn',
+          value: 'Submit',
         }),
       },
     },
     interaction: null,
     frameworkState: null,
-  };
+  }
 }
 
 export function makeSnapshotWithMissingRoot(): {
-  dom: { rootId: string; nodes: Record<string, never> };
-  interaction: null;
+  dom: { rootId: string; nodes: Record<string, never> }
+  interaction: null
 } {
   return {
-    dom: { rootId: "nonexistent-root", nodes: {} },
+    dom: { rootId: 'nonexistent-root', nodes: {} },
     interaction: null,
-  };
+  }
 }
 
 // ─── Interaction event factories ──────────────────────────────────────────────
 
 export interface MetaNode {
-  id: string;
-  tagName: string;
-  attributes: Record<string, string | null>;
+  id: string
+  tagName: string
+  attributes: Record<string, string | null>
 }
 
 export function makeClickEvent(
@@ -339,10 +339,10 @@ export function makeClickEvent(
   label?: string | null,
   at?: [number, number],
   metaNode?: MetaNode,
-  targets?: string[],
+  targets?: string[]
 ): ReturnType<typeof SourceEventView.from> {
-  const resolvedAt = at ?? [100, 200];
-  const resolvedLabel = label ?? null;
+  const resolvedAt = at ?? [100, 200]
+  const resolvedLabel = label ?? null
   const node = metaNode
     ? {
         type: NodeType.Element,
@@ -356,14 +356,14 @@ export function makeClickEvent(
       }
     : {
         type: NodeType.Element,
-        id: "00001" as NodeId,
+        id: '00001' as NodeId,
         parentId: null,
-        tagName: "button",
+        tagName: 'button',
         children: [],
         attributes: {},
         properties: { value: null, checked: null, selectedIndex: null },
         shadowRoot: false,
-      };
+      }
   // Bypass SourceEventView.from() — see comment in makeFetchRequestEvent.
   return new Box({
     type: SourceEventType.Interaction,
@@ -378,7 +378,7 @@ export function makeClickEvent(
         humanReadableLabel: resolvedLabel,
       },
     }),
-  }) as unknown as ReturnType<typeof SourceEventView.from>;
+  }) as unknown as ReturnType<typeof SourceEventView.from>
 }
 
 export function makeDoubleClickEvent(
@@ -386,10 +386,10 @@ export function makeDoubleClickEvent(
   label?: string | null,
   at?: [number, number],
   metaNode?: MetaNode,
-  targets?: string[],
+  targets?: string[]
 ): ReturnType<typeof SourceEventView.from> {
-  const resolvedAt = at ?? [50, 60];
-  const resolvedLabel = label ?? null;
+  const resolvedAt = at ?? [50, 60]
+  const resolvedLabel = label ?? null
   const node = metaNode
     ? {
         type: NodeType.Element,
@@ -403,14 +403,14 @@ export function makeDoubleClickEvent(
       }
     : {
         type: NodeType.Element,
-        id: "00001" as NodeId,
+        id: '00001' as NodeId,
         parentId: null,
-        tagName: "button",
+        tagName: 'button',
         children: [],
         attributes: {},
         properties: { value: null, checked: null, selectedIndex: null },
         shadowRoot: false,
-      };
+      }
   // Bypass SourceEventView.from() — see comment in makeFetchRequestEvent.
   return new Box({
     type: SourceEventType.Interaction,
@@ -425,12 +425,12 @@ export function makeDoubleClickEvent(
         humanReadableLabel: resolvedLabel,
       },
     }),
-  }) as unknown as ReturnType<typeof SourceEventView.from>;
+  }) as unknown as ReturnType<typeof SourceEventView.from>
 }
 
 export function makeKeyDownEvent(
   time: number,
-  key: string,
+  key: string
 ): ReturnType<typeof SourceEventView.from> {
   // Bypass SourceEventView.from() — see comment in makeFetchRequestEvent.
   return new Box({
@@ -440,12 +440,12 @@ export function makeKeyDownEvent(
       type: InteractionType.KeyDown,
       key,
     }),
-  }) as unknown as ReturnType<typeof SourceEventView.from>;
+  }) as unknown as ReturnType<typeof SourceEventView.from>
 }
 
 export function makeKeyUpEvent(
   time: number,
-  key: string,
+  key: string
 ): ReturnType<typeof SourceEventView.from> {
   // Bypass SourceEventView.from() — see comment in makeFetchRequestEvent.
   return new Box({
@@ -455,14 +455,14 @@ export function makeKeyUpEvent(
       type: InteractionType.KeyUp,
       key,
     }),
-  }) as unknown as ReturnType<typeof SourceEventView.from>;
+  }) as unknown as ReturnType<typeof SourceEventView.from>
 }
 
 export function makeScrollEvent(
   time: number,
-  target: NodeId = "00001" as NodeId,
+  target: NodeId = '00001' as NodeId,
   from: [number, number] = [0, 0],
-  to: [number, number] = [0, 300],
+  to: [number, number] = [0, 300]
 ): ReturnType<typeof SourceEventView.from> {
   // Bypass SourceEventView.from() — see comment in makeFetchRequestEvent.
   return new Box({
@@ -475,14 +475,14 @@ export function makeScrollEvent(
       to,
       duration: 0,
     }),
-  }) as unknown as ReturnType<typeof SourceEventView.from>;
+  }) as unknown as ReturnType<typeof SourceEventView.from>
 }
 
 // Note: argument order is (time, to, from?) to match the original test helpers
 export function makePageTransitionEvent(
   time: number,
   to: string,
-  from: string | null = null,
+  from: string | null = null
 ): ReturnType<typeof SourceEventView.from> {
   // Bypass SourceEventView.from() — see comment in makeFetchRequestEvent.
   return new Box({
@@ -493,13 +493,13 @@ export function makePageTransitionEvent(
       from,
       to,
     }),
-  }) as unknown as ReturnType<typeof SourceEventView.from>;
+  }) as unknown as ReturnType<typeof SourceEventView.from>
 }
 
 export function makeViewportResizeEvent(
   time: number,
   from: [number, number] = [1024, 768],
-  to: [number, number] = [800, 600],
+  to: [number, number] = [800, 600]
 ): ReturnType<typeof SourceEventView.from> {
   // Bypass SourceEventView.from() — see comment in makeFetchRequestEvent.
   return new Box({
@@ -511,11 +511,11 @@ export function makeViewportResizeEvent(
       to,
       duration: 0,
     }),
-  }) as unknown as ReturnType<typeof SourceEventView.from>;
+  }) as unknown as ReturnType<typeof SourceEventView.from>
 }
 
 export function makeDOMPatchEvent(
-  time: number,
+  time: number
 ): ReturnType<typeof SourceEventView.from> {
   // Bypass SourceEventView.from() — see comment in makeFetchRequestEvent.
   return new Box({
@@ -523,16 +523,16 @@ export function makeDOMPatchEvent(
     time,
     data: new Box({
       type: PatchType.Attribute,
-      targetId: "00001" as NodeId,
-      name: "class",
+      targetId: '00001' as NodeId,
+      name: 'class',
       value: null,
       oldValue: null,
     }),
-  }) as unknown as ReturnType<typeof SourceEventView.from>;
+  }) as unknown as ReturnType<typeof SourceEventView.from>
 }
 
 export function makePointerMoveEvent(
-  time: number,
+  time: number
 ): ReturnType<typeof SourceEventView.from> {
   // Bypass SourceEventView.from() — see comment in makeFetchRequestEvent.
   return new Box({
@@ -544,11 +544,11 @@ export function makePointerMoveEvent(
       to: [10, 10],
       duration: 100,
     }),
-  }) as unknown as ReturnType<typeof SourceEventView.from>;
+  }) as unknown as ReturnType<typeof SourceEventView.from>
 }
 
 export function makePointerDownEvent(
-  time: number,
+  time: number
 ): ReturnType<typeof SourceEventView.from> {
   // Bypass SourceEventView.from() — see comment in makeFetchRequestEvent.
   return new Box({
@@ -559,11 +559,11 @@ export function makePointerDownEvent(
       targets: [],
       at: [0, 0],
     }),
-  }) as unknown as ReturnType<typeof SourceEventView.from>;
+  }) as unknown as ReturnType<typeof SourceEventView.from>
 }
 
 export function makePointerUpEvent(
-  time: number,
+  time: number
 ): ReturnType<typeof SourceEventView.from> {
   // Bypass SourceEventView.from() — see comment in makeFetchRequestEvent.
   return new Box({
@@ -574,22 +574,22 @@ export function makePointerUpEvent(
       targets: [],
       at: [0, 0],
     }),
-  }) as unknown as ReturnType<typeof SourceEventView.from>;
+  }) as unknown as ReturnType<typeof SourceEventView.from>
 }
 
 export function makeNetworkEvent(
-  time: number,
+  time: number
 ): ReturnType<typeof SourceEventView.from> {
   return makeFetchRequestEvent(
     time,
     `net-${time}`,
-    "https://example.com/",
-    "GET",
-  );
+    'https://example.com/',
+    'GET'
+  )
 }
 
 export function makeSnapshotEvent(
-  time: number,
+  time: number
 ): ReturnType<typeof SourceEventView.from> {
   // Bypass SourceEventView.from() — see comment in makeFetchRequestEvent.
   // data is not accessed by any handler — only type is checked.
@@ -597,11 +597,11 @@ export function makeSnapshotEvent(
     type: SourceEventType.Snapshot,
     time,
     data: {} as never,
-  }) as unknown as ReturnType<typeof SourceEventView.from>;
+  }) as unknown as ReturnType<typeof SourceEventView.from>
 }
 
 export function makePerformanceEvent(
-  time: number,
+  time: number
 ): ReturnType<typeof SourceEventView.from> {
   // Bypass SourceEventView.from() — see comment in makeFetchRequestEvent.
   // data is not accessed by any handler — only type is checked.
@@ -609,7 +609,7 @@ export function makePerformanceEvent(
     type: SourceEventType.Performance,
     time,
     data: {} as never,
-  }) as unknown as ReturnType<typeof SourceEventView.from>;
+  }) as unknown as ReturnType<typeof SourceEventView.from>
 }
 
 // ─── DOMPatch event factories ─────────────────────────────────────────────────
@@ -619,7 +619,7 @@ export function makeAttributePatchEvent(
   targetId: string,
   name: string,
   value: string | null,
-  oldValue: string | null,
+  oldValue: string | null
 ): ReturnType<typeof SourceEventView.from> {
   // Bypass SourceEventView.from(): NodeId is fixed-width 5 bytes in the
   // binary codec, so IDs longer than 5 chars would be silently truncated.
@@ -634,14 +634,14 @@ export function makeAttributePatchEvent(
       value,
       oldValue,
     }),
-  }) as unknown as ReturnType<typeof SourceEventView.from>;
+  }) as unknown as ReturnType<typeof SourceEventView.from>
 }
 
 export function makeTextPatchEvent(
   time: number,
   targetId: string,
   value: string,
-  oldValue: string,
+  oldValue: string
 ): ReturnType<typeof SourceEventView.from> {
   // Bypass SourceEventView.from() — see comment in makeAttributePatchEvent.
   return new Box({
@@ -654,34 +654,34 @@ export function makeTextPatchEvent(
       oldValue,
       parentId: null,
     }),
-  }) as unknown as ReturnType<typeof SourceEventView.from>;
+  }) as unknown as ReturnType<typeof SourceEventView.from>
 }
 
 export function makeAddNodesPatchEvent(
   time: number,
   parentId: string,
-  nodeIds: string[],
+  nodeIds: string[]
 ): ReturnType<typeof SourceEventView.from> {
   // Each entry in nodes is a minimal VTree with a single root element.
   // We bypass SourceEventView.from() here because the binary codec hangs when
   // encoding the nested VTree nodes map (encodeMap + encodeUnion recursion).
   // A plain Box is sufficient — getEventsByType only calls .get("time") and
   // .get("type"), and the getDOMDiff handler calls .get("data").get(...).
-  const nodes = nodeIds.map((id) => ({
+  const nodes = nodeIds.map(id => ({
     rootId: id as NodeId,
     nodes: {
       [id]: new Box({
         type: NodeType.Element as NodeType.Element,
         id: id as NodeId,
         parentId: parentId as NodeId,
-        tagName: "div",
+        tagName: 'div',
         children: [] as NodeId[],
         attributes: {} as Record<string, string | null>,
         properties: { value: null, checked: null, selectedIndex: null },
         shadowRoot: false,
       }),
     },
-  }));
+  }))
   return new Box({
     type: SourceEventType.DOMPatch,
     time,
@@ -692,30 +692,30 @@ export function makeAddNodesPatchEvent(
       nextSiblingId: null,
       nodes,
     }),
-  }) as unknown as ReturnType<typeof SourceEventView.from>;
+  }) as unknown as ReturnType<typeof SourceEventView.from>
 }
 
 export function makeRemoveNodesPatchEvent(
   time: number,
   parentId: string,
-  nodeIds: string[],
+  nodeIds: string[]
 ): ReturnType<typeof SourceEventView.from> {
   // Bypass SourceEventView.from() — see comment in makeAddNodesPatchEvent.
-  const nodes = nodeIds.map((id) => ({
+  const nodes = nodeIds.map(id => ({
     rootId: id as NodeId,
     nodes: {
       [id]: new Box({
         type: NodeType.Element as NodeType.Element,
         id: id as NodeId,
         parentId: parentId as NodeId,
-        tagName: "div",
+        tagName: 'div',
         children: [] as NodeId[],
         attributes: {} as Record<string, string | null>,
         properties: { value: null, checked: null, selectedIndex: null },
         shadowRoot: false,
       }),
     },
-  }));
+  }))
   return new Box({
     type: SourceEventType.DOMPatch,
     time,
@@ -726,7 +726,7 @@ export function makeRemoveNodesPatchEvent(
       nextSiblingId: null,
       nodes,
     }),
-  }) as unknown as ReturnType<typeof SourceEventView.from>;
+  }) as unknown as ReturnType<typeof SourceEventView.from>
 }
 
 export function makeTextPropertyPatchEvent(
@@ -734,7 +734,7 @@ export function makeTextPropertyPatchEvent(
   targetId: string,
   name: string,
   value: string,
-  oldValue: string,
+  oldValue: string
 ): ReturnType<typeof SourceEventView.from> {
   // Bypass SourceEventView.from() — see comment in makeAttributePatchEvent.
   return new Box({
@@ -747,7 +747,7 @@ export function makeTextPropertyPatchEvent(
       value,
       oldValue,
     }),
-  }) as unknown as ReturnType<typeof SourceEventView.from>;
+  }) as unknown as ReturnType<typeof SourceEventView.from>
 }
 
 export function makeBooleanPropertyPatchEvent(
@@ -755,7 +755,7 @@ export function makeBooleanPropertyPatchEvent(
   targetId: string,
   name: string,
   value: boolean,
-  oldValue: boolean,
+  oldValue: boolean
 ): ReturnType<typeof SourceEventView.from> {
   // Bypass SourceEventView.from() — see comment in makeAttributePatchEvent.
   return new Box({
@@ -768,7 +768,7 @@ export function makeBooleanPropertyPatchEvent(
       value,
       oldValue,
     }),
-  }) as unknown as ReturnType<typeof SourceEventView.from>;
+  }) as unknown as ReturnType<typeof SourceEventView.from>
 }
 
 export function makeNumberPropertyPatchEvent(
@@ -776,7 +776,7 @@ export function makeNumberPropertyPatchEvent(
   targetId: string,
   name: string,
   value: number,
-  oldValue: number,
+  oldValue: number
 ): ReturnType<typeof SourceEventView.from> {
   // Bypass SourceEventView.from() — see comment in makeAttributePatchEvent.
   return new Box({
@@ -789,5 +789,5 @@ export function makeNumberPropertyPatchEvent(
       value,
       oldValue,
     }),
-  }) as unknown as ReturnType<typeof SourceEventView.from>;
+  }) as unknown as ReturnType<typeof SourceEventView.from>
 }

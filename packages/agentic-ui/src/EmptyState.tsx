@@ -1,14 +1,14 @@
-import { Block, Col, Row } from "@jsxstyle/react";
-import { color, fontSize, radius, spacing, transition } from "@repro/design";
-import { BotMessageSquareIcon } from "lucide-react";
-import React from "react";
+import { Block, Col, Row } from '@jsxstyle/react'
+import { color, fontSize, radius, spacing, transition } from '@repro/design'
+import { BotMessageSquareIcon } from 'lucide-react'
+import React from 'react'
 
 const EXAMPLE_PROMPTS = [
-  "What errors occurred?",
-  "Why did the page stop responding?",
-  "Walk me through what the user did",
-  "Are there any failed network requests?",
-];
+  'What errors occurred?',
+  'Why did the page stop responding?',
+  'Walk me through what the user did',
+  'Are there any failed network requests?',
+]
 
 const Ring: React.FC<{ distance: number }> = ({ distance }) => (
   <Block
@@ -23,10 +23,10 @@ const Ring: React.FC<{ distance: number }> = ({ distance }) => (
     scale={0.25 + distance * 0.25}
     opacity={Math.min(1, 1 - distance * 0.2)}
   />
-);
+)
 
 interface EmptyStateProps {
-  onSelectPrompt: (prompt: string) => void;
+  onSelectPrompt: (prompt: string) => void
 }
 
 export const EmptyState: React.FC<EmptyStateProps> = ({ onSelectPrompt }) => {
@@ -36,7 +36,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ onSelectPrompt }) => {
       justifyContent="center"
       gap={spacing.xl}
       blockSize="100%"
-      paddingBlock={spacing["2xl"]}
+      paddingBlock={spacing['2xl']}
     >
       {/* Decorative icon section — constrained so rings don't dominate */}
       <Block
@@ -77,7 +77,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ onSelectPrompt }) => {
 
         {/* Example prompt chips */}
         <Col gap={spacing.md} alignItems="center">
-          {EXAMPLE_PROMPTS.map((prompt) => (
+          {EXAMPLE_PROMPTS.map(prompt => (
             <Block
               key={prompt}
               component="button"
@@ -102,5 +102,5 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ onSelectPrompt }) => {
         </Col>
       </Col>
     </Col>
-  );
-};
+  )
+}

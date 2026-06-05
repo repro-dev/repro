@@ -1,59 +1,59 @@
-import { InteractionType, LogLevel, SourceEventType } from "@repro/domain";
-import { fork } from "fluture";
-import type { FutureInstance } from "fluture";
-import assert from "node:assert/strict";
-import { describe, it } from "node:test";
-import { makeAccessorFromEventList } from "../../../recordingDataAccessor";
-import { RecordingDataAccessor } from "../../../types";
-import { executeTool, tools } from "../index";
+import { InteractionType, LogLevel, SourceEventType } from '@repro/domain'
+import type { FutureInstance } from 'fluture'
+import { fork } from 'fluture'
+import assert from 'node:assert/strict'
+import { describe, it } from 'node:test'
+import { makeAccessorFromEventList } from '../../../recordingDataAccessor'
+import { RecordingDataAccessor } from '../../../types'
+import { executeTool, tools } from '../index'
 
 // Forks a FutureInstance into a Promise so tests can use await.
 function runFuture<L, R>(future: FutureInstance<L, R>): Promise<R> {
   return new Promise<R>((resolve, reject) => {
-    fork(reject)(resolve)(future);
-  });
+    fork(reject)(resolve)(future)
+  })
 }
 
 // This test file uses a lightweight Box mock rather than real SourceEventView.from()
 // because getEventsAroundTime only reads type/time/data fields via .get().orElse().
-type DeepBoxable = Record<string, unknown>;
+type DeepBoxable = Record<string, unknown>
 
 function makeBox<T>(value: T): {
-  match: (fn: (v: T) => boolean) => boolean;
-  get: <K extends keyof T>(key: K) => ReturnType<typeof makeBox<T[K]>>;
-  orElse: <U>(other: U) => T | U;
-  map: <R>(fn: (v: T) => R) => ReturnType<typeof makeBox<R>>;
-  flat: () => ReturnType<typeof makeBox<T>>;
+  match: (fn: (v: T) => boolean) => boolean
+  get: <K extends keyof T>(key: K) => ReturnType<typeof makeBox<T[K]>>
+  orElse: <U>(other: U) => T | U
+  map: <R>(fn: (v: T) => R) => ReturnType<typeof makeBox<R>>
+  flat: () => ReturnType<typeof makeBox<T>>
 } {
   return {
-    match: (fn) => (value != null ? fn(value) : false),
-    get: (key) =>
+    match: fn => (value != null ? fn(value) : false),
+    get: key =>
       // Guard against null/undefined — mirrors real Box.get() which returns Box(null) safely
       value != null
         ? makeBox((value as DeepBoxable)[key as string] as T[typeof key])
         : makeBox(null as unknown as T[typeof key]),
-    orElse: (other) => (value == null ? other : value),
-    map: (fn) =>
+    orElse: other => (value == null ? other : value),
+    map: fn =>
       makeBox(
-        value != null ? fn(value) : (null as unknown as ReturnType<typeof fn>),
+        value != null ? fn(value) : (null as unknown as ReturnType<typeof fn>)
       ),
     flat: () => makeBox(value),
-  };
+  }
 }
 
 function makeEvent(type: SourceEventType, time: number, data: DeepBoxable) {
-  return makeBox({ type, time, data });
+  return makeBox({ type, time, data })
 }
 
 function makeClickEvent(
   time: number,
   label: string | null = null,
   metaNode?: {
-    id: string;
-    tagName: string;
-    attributes: Record<string, string | null>;
+    id: string
+    tagName: string
+    attributes: Record<string, string | null>
   },
-  targets?: string[],
+  targets?: string[]
 ) {
   return makeEvent(SourceEventType.Interaction, time, {
     type: InteractionType.Click,
@@ -62,18 +62,18 @@ function makeClickEvent(
       node: metaNode ?? null,
     },
     targets: targets ?? [],
-  });
+  })
 }
 
 function makeDoubleClickEvent(
   time: number,
   label: string | null = null,
   metaNode?: {
-    id: string;
-    tagName: string;
-    attributes: Record<string, string | null>;
+    id: string
+    tagName: string
+    attributes: Record<string, string | null>
   },
-  targets?: string[],
+  targets?: string[]
 ) {
   return makeEvent(SourceEventType.Interaction, time, {
     type: InteractionType.DoubleClick,
@@ -82,34 +82,34 @@ function makeDoubleClickEvent(
       node: metaNode ?? null,
     },
     targets: targets ?? [],
-  });
+  })
 }
 
 function makeKeyDownEvent(time: number, key: string) {
   return makeEvent(SourceEventType.Interaction, time, {
     type: InteractionType.KeyDown,
     key,
-  });
+  })
 }
 
 function makeKeyUpEvent(time: number, key: string) {
   return makeEvent(SourceEventType.Interaction, time, {
     type: InteractionType.KeyUp,
     key,
-  });
+  })
 }
 
 function makePointerEvent(time: number, interactionType: InteractionType) {
   return makeEvent(SourceEventType.Interaction, time, {
     type: interactionType,
-  });
+  })
 }
 
 function makeScrollEvent(time: number, target: string) {
   return makeEvent(SourceEventType.Interaction, time, {
     type: InteractionType.Scroll,
     target,
-  });
+  })
 }
 
 // NOTE: argument order here is (time, from, to) — matching the old test file.
@@ -118,28 +118,28 @@ function makeScrollEvent(time: number, target: string) {
 function makePageTransitionEvent(
   time: number,
   from: string | null,
-  to: string,
+  to: string
 ) {
   return makeEvent(SourceEventType.Interaction, time, {
     type: InteractionType.PageTransition,
     from,
     to,
-  });
+  })
 }
 
 function makeViewportResizeEvent(time: number, width: number, height: number) {
   return makeEvent(SourceEventType.Interaction, time, {
     type: InteractionType.ViewportResize,
     to: [width, height],
-  });
+  })
 }
 
 function makeDOMPatchEvent(time: number) {
-  return makeEvent(SourceEventType.DOMPatch, time, {});
+  return makeEvent(SourceEventType.DOMPatch, time, {})
 }
 
 function makeNetworkEvent(time: number) {
-  return makeEvent(SourceEventType.Network, time, {});
+  return makeEvent(SourceEventType.Network, time, {})
 }
 
 function makeConsoleEvent(time: number, level: LogLevel, text: string) {
@@ -147,22 +147,22 @@ function makeConsoleEvent(time: number, level: LogLevel, text: string) {
     level,
     parts: [makeBox({ type: 0, value: text }) as unknown as DeepBoxable],
     stack: [],
-  });
+  })
 }
 
 function makeSnapshotEvent(time: number) {
-  return makeEvent(SourceEventType.Snapshot, time, {});
+  return makeEvent(SourceEventType.Snapshot, time, {})
 }
 
 function makePerformanceEvent(time: number) {
-  return makeEvent(SourceEventType.Performance, time, {});
+  return makeEvent(SourceEventType.Performance, time, {})
 }
 
-type MockEvent = ReturnType<typeof makeEvent>;
+type MockEvent = ReturnType<typeof makeEvent>
 
 function makeAccessor(
   events: MockEvent[],
-  duration = 10000,
+  duration = 10000
 ): RecordingDataAccessor {
   return {
     getDuration: () => duration,
@@ -170,531 +170,531 @@ function makeAccessor(
     getResourceMap: () => ({}),
     ...makeAccessorFromEventList({
       size: () => events.length,
-      over: (i) =>
+      over: i =>
         events[i] as unknown as ReturnType<
-          typeof import("@repro/domain").SourceEventView.from
+          typeof import('@repro/domain').SourceEventView.from
         > | null,
     }),
-  };
+  }
 }
 
-describe("tools array — getEventsAroundTime", () => {
-  it("includes getEventsAroundTime in tools array", async () => {
+describe('tools array — getEventsAroundTime', () => {
+  it('includes getEventsAroundTime in tools array', async () => {
     const def = tools.find(
-      (t) =>
+      t =>
         (t as { function: { name: string } }).function.name ===
-        "getEventsAroundTime",
-    );
-    assert.ok(def !== undefined);
-  });
-});
+        'getEventsAroundTime'
+    )
+    assert.ok(def !== undefined)
+  })
+})
 
-describe("executeTool — getEventsAroundTime — windowing", () => {
-  it("returns events within the default 5000ms window", async () => {
+describe('executeTool — getEventsAroundTime — windowing', () => {
+  it('returns events within the default 5000ms window', async () => {
     const events = [
       makeClickEvent(0),
       makeClickEvent(2500),
       makeClickEvent(5000),
       makeClickEvent(6000),
       makeClickEvent(8000),
-    ];
-    const accessor = makeAccessor(events);
+    ]
+    const accessor = makeAccessor(events)
     const result = (await runFuture(
-      executeTool(accessor, "getEventsAroundTime", {
+      executeTool(accessor, 'getEventsAroundTime', {
         timestampMs: 5000,
-      }),
+      })
     )) as {
-      events: Array<{ timeMs: number; type: string }>;
-      windowMs: number;
-      rangeStartMs: number;
-      rangeEndMs: number;
-    };
+      events: Array<{ timeMs: number; type: string }>
+      windowMs: number
+      rangeStartMs: number
+      rangeEndMs: number
+    }
 
-    assert.strictEqual(result.windowMs, 5000);
-    assert.strictEqual(result.rangeStartMs, 2500);
-    assert.strictEqual(result.rangeEndMs, 7500);
-    const times = result.events.map((e) => e.timeMs);
-    assert.ok(!times.includes(0), "should not include events before window");
-    assert.ok(times.includes(2500));
-    assert.ok(times.includes(5000));
-    assert.ok(times.includes(6000));
-    assert.ok(!times.includes(8000), "should not include events after window");
-  });
+    assert.strictEqual(result.windowMs, 5000)
+    assert.strictEqual(result.rangeStartMs, 2500)
+    assert.strictEqual(result.rangeEndMs, 7500)
+    const times = result.events.map(e => e.timeMs)
+    assert.ok(!times.includes(0), 'should not include events before window')
+    assert.ok(times.includes(2500))
+    assert.ok(times.includes(5000))
+    assert.ok(times.includes(6000))
+    assert.ok(!times.includes(8000), 'should not include events after window')
+  })
 
-  it("respects custom windowMs", async () => {
+  it('respects custom windowMs', async () => {
     const events = [
       makeClickEvent(3000),
       makeClickEvent(4500),
       makeClickEvent(5000),
       makeClickEvent(5500),
       makeClickEvent(7000),
-    ];
-    const accessor = makeAccessor(events);
+    ]
+    const accessor = makeAccessor(events)
     const result = (await runFuture(
-      executeTool(accessor, "getEventsAroundTime", {
+      executeTool(accessor, 'getEventsAroundTime', {
         timestampMs: 5000,
         windowMs: 2000,
-      }),
+      })
     )) as {
-      events: Array<{ timeMs: number }>;
-      rangeStartMs: number;
-      rangeEndMs: number;
-    };
+      events: Array<{ timeMs: number }>
+      rangeStartMs: number
+      rangeEndMs: number
+    }
 
-    assert.strictEqual(result.rangeStartMs, 4000);
-    assert.strictEqual(result.rangeEndMs, 6000);
-    const times = result.events.map((e) => e.timeMs);
-    assert.ok(!times.includes(3000));
-    assert.ok(times.includes(4500));
-    assert.ok(times.includes(5000));
-    assert.ok(times.includes(5500));
-    assert.ok(!times.includes(7000));
-  });
+    assert.strictEqual(result.rangeStartMs, 4000)
+    assert.strictEqual(result.rangeEndMs, 6000)
+    const times = result.events.map(e => e.timeMs)
+    assert.ok(!times.includes(3000))
+    assert.ok(times.includes(4500))
+    assert.ok(times.includes(5000))
+    assert.ok(times.includes(5500))
+    assert.ok(!times.includes(7000))
+  })
 
-  it("clamps window start to 0 when near start of recording", async () => {
-    const events = [makeClickEvent(200)];
-    const accessor = makeAccessor(events);
+  it('clamps window start to 0 when near start of recording', async () => {
+    const events = [makeClickEvent(200)]
+    const accessor = makeAccessor(events)
     const result = (await runFuture(
-      executeTool(accessor, "getEventsAroundTime", {
+      executeTool(accessor, 'getEventsAroundTime', {
         timestampMs: 500,
         windowMs: 5000,
-      }),
-    )) as { rangeStartMs: number };
+      })
+    )) as { rangeStartMs: number }
 
-    assert.strictEqual(result.rangeStartMs, 0);
-  });
+    assert.strictEqual(result.rangeStartMs, 0)
+  })
 
-  it("clamps window end to recording duration", async () => {
-    const events = [makeClickEvent(9800)];
-    const accessor = makeAccessor(events, 10000);
+  it('clamps window end to recording duration', async () => {
+    const events = [makeClickEvent(9800)]
+    const accessor = makeAccessor(events, 10000)
     const result = (await runFuture(
-      executeTool(accessor, "getEventsAroundTime", {
+      executeTool(accessor, 'getEventsAroundTime', {
         timestampMs: 9500,
         windowMs: 5000,
-      }),
-    )) as { rangeEndMs: number };
+      })
+    )) as { rangeEndMs: number }
 
-    assert.strictEqual(result.rangeEndMs, 10000);
-  });
-});
+    assert.strictEqual(result.rangeEndMs, 10000)
+  })
+})
 
-describe("executeTool — getEventsAroundTime — excluded events", () => {
-  it("excludes PointerMove, PointerDown, PointerUp events", async () => {
+describe('executeTool — getEventsAroundTime — excluded events', () => {
+  it('excludes PointerMove, PointerDown, PointerUp events', async () => {
     const events = [
       makePointerEvent(5000, InteractionType.PointerMove),
       makePointerEvent(5001, InteractionType.PointerDown),
       makePointerEvent(5002, InteractionType.PointerUp),
       makeClickEvent(5003),
-    ];
-    const accessor = makeAccessor(events);
+    ]
+    const accessor = makeAccessor(events)
     const result = (await runFuture(
-      executeTool(accessor, "getEventsAroundTime", {
+      executeTool(accessor, 'getEventsAroundTime', {
         timestampMs: 5000,
         windowMs: 1000,
-      }),
-    )) as { events: Array<{ type: string; timeMs: number }> };
+      })
+    )) as { events: Array<{ type: string; timeMs: number }> }
 
-    assert.strictEqual(result.events.length, 1);
-    assert.strictEqual(result.events[0]!.type, "click");
-    assert.strictEqual(result.events[0]!.timeMs, 5003);
-  });
+    assert.strictEqual(result.events.length, 1)
+    assert.strictEqual(result.events[0]!.type, 'click')
+    assert.strictEqual(result.events[0]!.timeMs, 5003)
+  })
 
-  it("excludes DOMPatch events", async () => {
-    const events = [makeDOMPatchEvent(5000), makeClickEvent(5001)];
-    const accessor = makeAccessor(events);
+  it('excludes DOMPatch events', async () => {
+    const events = [makeDOMPatchEvent(5000), makeClickEvent(5001)]
+    const accessor = makeAccessor(events)
     const result = (await runFuture(
-      executeTool(accessor, "getEventsAroundTime", {
+      executeTool(accessor, 'getEventsAroundTime', {
         timestampMs: 5000,
         windowMs: 1000,
-      }),
-    )) as { events: Array<{ type: string }> };
+      })
+    )) as { events: Array<{ type: string }> }
 
-    assert.strictEqual(result.events.length, 1);
-    assert.strictEqual(result.events[0]!.type, "click");
-  });
+    assert.strictEqual(result.events.length, 1)
+    assert.strictEqual(result.events[0]!.type, 'click')
+  })
 
-  it("excludes Snapshot events", async () => {
-    const events = [makeSnapshotEvent(5000), makeClickEvent(5001)];
-    const accessor = makeAccessor(events);
+  it('excludes Snapshot events', async () => {
+    const events = [makeSnapshotEvent(5000), makeClickEvent(5001)]
+    const accessor = makeAccessor(events)
     const result = (await runFuture(
-      executeTool(accessor, "getEventsAroundTime", {
+      executeTool(accessor, 'getEventsAroundTime', {
         timestampMs: 5000,
         windowMs: 1000,
-      }),
-    )) as { events: Array<{ type: string }> };
+      })
+    )) as { events: Array<{ type: string }> }
 
-    assert.strictEqual(result.events.length, 1);
-    assert.strictEqual(result.events[0]!.type, "click");
-  });
+    assert.strictEqual(result.events.length, 1)
+    assert.strictEqual(result.events[0]!.type, 'click')
+  })
 
-  it("excludes keyUp events", async () => {
-    const events = [makeKeyDownEvent(5000, "a"), makeKeyUpEvent(5001, "a")];
-    const accessor = makeAccessor(events);
+  it('excludes keyUp events', async () => {
+    const events = [makeKeyDownEvent(5000, 'a'), makeKeyUpEvent(5001, 'a')]
+    const accessor = makeAccessor(events)
     const result = (await runFuture(
-      executeTool(accessor, "getEventsAroundTime", {
+      executeTool(accessor, 'getEventsAroundTime', {
         timestampMs: 5000,
         windowMs: 1000,
-      }),
-    )) as { events: Array<{ type: string }> };
+      })
+    )) as { events: Array<{ type: string }> }
 
-    assert.strictEqual(result.events.length, 1);
-    assert.strictEqual(result.events[0]!.type, "keyDown");
-  });
-});
+    assert.strictEqual(result.events.length, 1)
+    assert.strictEqual(result.events[0]!.type, 'keyDown')
+  })
+})
 
-describe("executeTool — getEventsAroundTime — included events", () => {
-  it("includes click with humanReadableLabel", async () => {
-    const events = [makeClickEvent(5000, "Submit button")];
-    const accessor = makeAccessor(events);
+describe('executeTool — getEventsAroundTime — included events', () => {
+  it('includes click with humanReadableLabel', async () => {
+    const events = [makeClickEvent(5000, 'Submit button')]
+    const accessor = makeAccessor(events)
     const result = (await runFuture(
-      executeTool(accessor, "getEventsAroundTime", {
+      executeTool(accessor, 'getEventsAroundTime', {
         timestampMs: 5000,
         windowMs: 1000,
-      }),
-    )) as { events: Array<{ type: string; label?: string }> };
+      })
+    )) as { events: Array<{ type: string; label?: string }> }
 
-    assert.strictEqual(result.events.length, 1);
-    assert.strictEqual(result.events[0]!.type, "click");
-    assert.strictEqual(result.events[0]!.label, "Submit button");
-  });
+    assert.strictEqual(result.events.length, 1)
+    assert.strictEqual(result.events[0]!.type, 'click')
+    assert.strictEqual(result.events[0]!.label, 'Submit button')
+  })
 
-  it("includes click without label when humanReadableLabel is null", async () => {
-    const events = [makeClickEvent(5000, null)];
-    const accessor = makeAccessor(events);
+  it('includes click without label when humanReadableLabel is null', async () => {
+    const events = [makeClickEvent(5000, null)]
+    const accessor = makeAccessor(events)
     const result = (await runFuture(
-      executeTool(accessor, "getEventsAroundTime", {
+      executeTool(accessor, 'getEventsAroundTime', {
         timestampMs: 5000,
         windowMs: 1000,
-      }),
-    )) as { events: Array<{ type: string; label?: string }> };
+      })
+    )) as { events: Array<{ type: string; label?: string }> }
 
-    assert.strictEqual(result.events.length, 1);
-    assert.strictEqual(result.events[0]!.type, "click");
-    assert.strictEqual(result.events[0]!.label, undefined);
-  });
+    assert.strictEqual(result.events.length, 1)
+    assert.strictEqual(result.events[0]!.type, 'click')
+    assert.strictEqual(result.events[0]!.label, undefined)
+  })
 
-  it("includes console events with text", async () => {
+  it('includes console events with text', async () => {
     const events = [
-      makeConsoleEvent(5000, LogLevel.Error, "Something went wrong"),
-    ];
-    const accessor = makeAccessor(events);
+      makeConsoleEvent(5000, LogLevel.Error, 'Something went wrong'),
+    ]
+    const accessor = makeAccessor(events)
     const result = (await runFuture(
-      executeTool(accessor, "getEventsAroundTime", {
+      executeTool(accessor, 'getEventsAroundTime', {
         timestampMs: 5000,
         windowMs: 1000,
-      }),
-    )) as { events: Array<{ type: string; level: string; text: string }> };
+      })
+    )) as { events: Array<{ type: string; level: string; text: string }> }
 
-    assert.strictEqual(result.events.length, 1);
-    assert.strictEqual(result.events[0]!.type, "console");
-    assert.strictEqual(result.events[0]!.level, "error");
-    assert.strictEqual(result.events[0]!.text, "Something went wrong");
-  });
+    assert.strictEqual(result.events.length, 1)
+    assert.strictEqual(result.events[0]!.type, 'console')
+    assert.strictEqual(result.events[0]!.level, 'error')
+    assert.strictEqual(result.events[0]!.text, 'Something went wrong')
+  })
 
-  it("includes keyDown events individually", async () => {
-    const events = [makeKeyDownEvent(5000, "Enter")];
-    const accessor = makeAccessor(events);
+  it('includes keyDown events individually', async () => {
+    const events = [makeKeyDownEvent(5000, 'Enter')]
+    const accessor = makeAccessor(events)
     const result = (await runFuture(
-      executeTool(accessor, "getEventsAroundTime", {
+      executeTool(accessor, 'getEventsAroundTime', {
         timestampMs: 5000,
         windowMs: 1000,
-      }),
-    )) as { events: Array<{ type: string; key: string }> };
+      })
+    )) as { events: Array<{ type: string; key: string }> }
 
-    assert.strictEqual(result.events.length, 1);
-    assert.strictEqual(result.events[0]!.type, "keyDown");
-    assert.strictEqual(result.events[0]!.key, "Enter");
-  });
+    assert.strictEqual(result.events.length, 1)
+    assert.strictEqual(result.events[0]!.type, 'keyDown')
+    assert.strictEqual(result.events[0]!.key, 'Enter')
+  })
 
-  it("includes pageTransition with from and to", async () => {
-    const events = [makePageTransitionEvent(5000, "/home", "/about")];
-    const accessor = makeAccessor(events);
+  it('includes pageTransition with from and to', async () => {
+    const events = [makePageTransitionEvent(5000, '/home', '/about')]
+    const accessor = makeAccessor(events)
     const result = (await runFuture(
-      executeTool(accessor, "getEventsAroundTime", {
+      executeTool(accessor, 'getEventsAroundTime', {
         timestampMs: 5000,
         windowMs: 1000,
-      }),
-    )) as { events: Array<{ type: string; from?: string; to: string }> };
+      })
+    )) as { events: Array<{ type: string; from?: string; to: string }> }
 
-    assert.strictEqual(result.events.length, 1);
-    assert.strictEqual(result.events[0]!.type, "pageTransition");
-    assert.strictEqual(result.events[0]!.from, "/home");
-    assert.strictEqual(result.events[0]!.to, "/about");
-  });
+    assert.strictEqual(result.events.length, 1)
+    assert.strictEqual(result.events[0]!.type, 'pageTransition')
+    assert.strictEqual(result.events[0]!.from, '/home')
+    assert.strictEqual(result.events[0]!.to, '/about')
+  })
 
-  it("includes network events", async () => {
-    const events = [makeNetworkEvent(5000)];
-    const accessor = makeAccessor(events);
+  it('includes network events', async () => {
+    const events = [makeNetworkEvent(5000)]
+    const accessor = makeAccessor(events)
     const result = (await runFuture(
-      executeTool(accessor, "getEventsAroundTime", {
+      executeTool(accessor, 'getEventsAroundTime', {
         timestampMs: 5000,
         windowMs: 1000,
-      }),
-    )) as { events: Array<{ type: string }> };
+      })
+    )) as { events: Array<{ type: string }> }
 
-    assert.strictEqual(result.events.length, 1);
-    assert.strictEqual(result.events[0]!.type, "network");
-  });
+    assert.strictEqual(result.events.length, 1)
+    assert.strictEqual(result.events[0]!.type, 'network')
+  })
 
-  it("includes performance events", async () => {
-    const events = [makePerformanceEvent(5000)];
-    const accessor = makeAccessor(events);
+  it('includes performance events', async () => {
+    const events = [makePerformanceEvent(5000)]
+    const accessor = makeAccessor(events)
     const result = (await runFuture(
-      executeTool(accessor, "getEventsAroundTime", {
+      executeTool(accessor, 'getEventsAroundTime', {
         timestampMs: 5000,
         windowMs: 1000,
-      }),
-    )) as { events: Array<{ type: string }> };
+      })
+    )) as { events: Array<{ type: string }> }
 
-    assert.strictEqual(result.events.length, 1);
-    assert.strictEqual(result.events[0]!.type, "performance");
-  });
+    assert.strictEqual(result.events.length, 1)
+    assert.strictEqual(result.events[0]!.type, 'performance')
+  })
 
-  it("includes doubleClick events", async () => {
-    const events = [makeDoubleClickEvent(5000, "Image")];
-    const accessor = makeAccessor(events);
+  it('includes doubleClick events', async () => {
+    const events = [makeDoubleClickEvent(5000, 'Image')]
+    const accessor = makeAccessor(events)
     const result = (await runFuture(
-      executeTool(accessor, "getEventsAroundTime", {
+      executeTool(accessor, 'getEventsAroundTime', {
         timestampMs: 5000,
         windowMs: 1000,
-      }),
-    )) as { events: Array<{ type: string; label?: string }> };
+      })
+    )) as { events: Array<{ type: string; label?: string }> }
 
-    assert.strictEqual(result.events.length, 1);
-    assert.strictEqual(result.events[0]!.type, "doubleClick");
-    assert.strictEqual(result.events[0]!.label, "Image");
-  });
+    assert.strictEqual(result.events.length, 1)
+    assert.strictEqual(result.events[0]!.type, 'doubleClick')
+    assert.strictEqual(result.events[0]!.label, 'Image')
+  })
 
-  it("includes scroll events", async () => {
-    const events = [makeScrollEvent(5000, "42")];
-    const accessor = makeAccessor(events);
+  it('includes scroll events', async () => {
+    const events = [makeScrollEvent(5000, '42')]
+    const accessor = makeAccessor(events)
     const result = (await runFuture(
-      executeTool(accessor, "getEventsAroundTime", {
+      executeTool(accessor, 'getEventsAroundTime', {
         timestampMs: 5000,
         windowMs: 1000,
-      }),
-    )) as { events: Array<{ type: string; target: string }> };
+      })
+    )) as { events: Array<{ type: string; target: string }> }
 
-    assert.strictEqual(result.events.length, 1);
-    assert.strictEqual(result.events[0]!.type, "scroll");
-    assert.strictEqual(result.events[0]!.target, "42");
-  });
+    assert.strictEqual(result.events.length, 1)
+    assert.strictEqual(result.events[0]!.type, 'scroll')
+    assert.strictEqual(result.events[0]!.target, '42')
+  })
 
-  it("includes viewportResize events", async () => {
-    const events = [makeViewportResizeEvent(5000, 1280, 720)];
-    const accessor = makeAccessor(events);
+  it('includes viewportResize events', async () => {
+    const events = [makeViewportResizeEvent(5000, 1280, 720)]
+    const accessor = makeAccessor(events)
     const result = (await runFuture(
-      executeTool(accessor, "getEventsAroundTime", {
+      executeTool(accessor, 'getEventsAroundTime', {
         timestampMs: 5000,
         windowMs: 1000,
-      }),
+      })
     )) as {
-      events: Array<{ type: string; to: { width: number; height: number } }>;
-    };
+      events: Array<{ type: string; to: { width: number; height: number } }>
+    }
 
-    assert.strictEqual(result.events.length, 1);
-    assert.strictEqual(result.events[0]!.type, "viewportResize");
-    assert.deepStrictEqual(result.events[0]!.to, { width: 1280, height: 720 });
-  });
-});
+    assert.strictEqual(result.events.length, 1)
+    assert.strictEqual(result.events[0]!.type, 'viewportResize')
+    assert.deepStrictEqual(result.events[0]!.to, { width: 1280, height: 720 })
+  })
+})
 
-describe("executeTool — getEventsAroundTime — edge cases", () => {
-  it("returns empty events array when no events in window", async () => {
-    const events = [makeClickEvent(1000), makeClickEvent(9000)];
-    const accessor = makeAccessor(events);
+describe('executeTool — getEventsAroundTime — edge cases', () => {
+  it('returns empty events array when no events in window', async () => {
+    const events = [makeClickEvent(1000), makeClickEvent(9000)]
+    const accessor = makeAccessor(events)
     const result = (await runFuture(
-      executeTool(accessor, "getEventsAroundTime", {
+      executeTool(accessor, 'getEventsAroundTime', {
         timestampMs: 5000,
         windowMs: 100,
-      }),
-    )) as { events: Array<unknown> };
+      })
+    )) as { events: Array<unknown> }
 
-    assert.strictEqual(result.events.length, 0);
-  });
+    assert.strictEqual(result.events.length, 0)
+  })
 
-  it("returns correct response metadata shape", async () => {
-    const accessor = makeAccessor([]);
+  it('returns correct response metadata shape', async () => {
+    const accessor = makeAccessor([])
     const result = (await runFuture(
-      executeTool(accessor, "getEventsAroundTime", {
+      executeTool(accessor, 'getEventsAroundTime', {
         timestampMs: 5000,
         windowMs: 2000,
-      }),
+      })
     )) as {
-      centerMs: number;
-      windowMs: number;
-      rangeStartMs: number;
-      rangeEndMs: number;
-      events: unknown[];
-      _tokenEstimate: number;
-    };
+      centerMs: number
+      windowMs: number
+      rangeStartMs: number
+      rangeEndMs: number
+      events: unknown[]
+      _tokenEstimate: number
+    }
 
-    assert.strictEqual(result.centerMs, 5000);
-    assert.strictEqual(result.windowMs, 2000);
-    assert.strictEqual(result.rangeStartMs, 4000);
-    assert.strictEqual(result.rangeEndMs, 6000);
-    assert.ok(Array.isArray(result.events));
-    assert.ok(typeof result._tokenEstimate === "number");
-  });
-});
+    assert.strictEqual(result.centerMs, 5000)
+    assert.strictEqual(result.windowMs, 2000)
+    assert.strictEqual(result.rangeStartMs, 4000)
+    assert.strictEqual(result.rangeEndMs, 6000)
+    assert.ok(Array.isArray(result.events))
+    assert.ok(typeof result._tokenEstimate === 'number')
+  })
+})
 
-describe("executeTool — getEventsAroundTime — validation errors", () => {
-  it("returns structured error when timestamp is below 0", async () => {
-    const accessor = makeAccessor([], 10000);
+describe('executeTool — getEventsAroundTime — validation errors', () => {
+  it('returns structured error when timestamp is below 0', async () => {
+    const accessor = makeAccessor([], 10000)
     const result = (await runFuture(
-      executeTool(accessor, "getEventsAroundTime", {
+      executeTool(accessor, 'getEventsAroundTime', {
         timestampMs: -1,
-      }),
-    )) as { error: string; reason: string; suggestion: string };
-    assert.ok(result.error.includes("-1ms"));
-    assert.ok(result.reason);
-    assert.ok(result.suggestion);
-    assert.ok(result.suggestion.includes("getRecordingDuration"));
-  });
+      })
+    )) as { error: string; reason: string; suggestion: string }
+    assert.ok(result.error.includes('-1ms'))
+    assert.ok(result.reason)
+    assert.ok(result.suggestion)
+    assert.ok(result.suggestion.includes('getRecordingDuration'))
+  })
 
-  it("returns structured error when timestamp exceeds recording duration", async () => {
-    const accessor = makeAccessor([], 10000);
+  it('returns structured error when timestamp exceeds recording duration', async () => {
+    const accessor = makeAccessor([], 10000)
     const result = (await runFuture(
-      executeTool(accessor, "getEventsAroundTime", {
+      executeTool(accessor, 'getEventsAroundTime', {
         timestampMs: 99999,
-      }),
-    )) as { error: string; reason: string; suggestion: string };
-    assert.ok(result.error.includes("99999ms"));
-    assert.ok(result.error.includes("10000ms"));
-    assert.ok(result.reason);
-    assert.ok(result.suggestion);
-    assert.ok(result.suggestion.includes("getRecordingDuration"));
-  });
+      })
+    )) as { error: string; reason: string; suggestion: string }
+    assert.ok(result.error.includes('99999ms'))
+    assert.ok(result.error.includes('10000ms'))
+    assert.ok(result.reason)
+    assert.ok(result.suggestion)
+    assert.ok(result.suggestion.includes('getRecordingDuration'))
+  })
 
-  it("does not return error when timestamp is exactly 0", async () => {
-    const accessor = makeAccessor([], 10000);
+  it('does not return error when timestamp is exactly 0', async () => {
+    const accessor = makeAccessor([], 10000)
     const result = (await runFuture(
-      executeTool(accessor, "getEventsAroundTime", {
+      executeTool(accessor, 'getEventsAroundTime', {
         timestampMs: 0,
-      }),
-    )) as { events?: unknown[]; error?: string };
-    assert.strictEqual(result.error, undefined);
-    assert.ok(Array.isArray(result.events));
-  });
+      })
+    )) as { events?: unknown[]; error?: string }
+    assert.strictEqual(result.error, undefined)
+    assert.ok(Array.isArray(result.events))
+  })
 
-  it("does not return error when timestamp equals recording duration", async () => {
-    const accessor = makeAccessor([], 10000);
+  it('does not return error when timestamp equals recording duration', async () => {
+    const accessor = makeAccessor([], 10000)
     const result = (await runFuture(
-      executeTool(accessor, "getEventsAroundTime", {
+      executeTool(accessor, 'getEventsAroundTime', {
         timestampMs: 10000,
-      }),
-    )) as { events?: unknown[]; error?: string };
-    assert.strictEqual(result.error, undefined);
-    assert.ok(Array.isArray(result.events));
-  });
-});
+      })
+    )) as { events?: unknown[]; error?: string }
+    assert.strictEqual(result.error, undefined)
+    assert.ok(Array.isArray(result.events))
+  })
+})
 
 // ─── Change 1: meta.node element extraction in getEventsAroundTime ────────────
 
-describe("executeTool — getEventsAroundTime — click element enrichment", () => {
-  it("click includes element with nodeId, tagName, attributes (nulls filtered)", async () => {
+describe('executeTool — getEventsAroundTime — click element enrichment', () => {
+  it('click includes element with nodeId, tagName, attributes (nulls filtered)', async () => {
     const events = [
       makeClickEvent(
         5000,
         null,
         {
-          id: "node-42",
-          tagName: "button",
-          attributes: { class: "btn", "data-x": null },
+          id: 'node-42',
+          tagName: 'button',
+          attributes: { class: 'btn', 'data-x': null },
         },
-        [],
+        []
       ),
-    ];
-    const accessor = makeAccessor(events);
+    ]
+    const accessor = makeAccessor(events)
     const result = (await runFuture(
-      executeTool(accessor, "getEventsAroundTime", {
+      executeTool(accessor, 'getEventsAroundTime', {
         timestampMs: 5000,
         windowMs: 1000,
-      }),
+      })
     )) as {
       events: Array<{
-        type: string;
+        type: string
         element?: {
-          nodeId: string;
-          tagName: string;
-          attributes: Record<string, string>;
-        };
-      }>;
-    };
-    assert.strictEqual(result.events.length, 1);
-    const ev = result.events[0]!;
-    assert.ok(ev.element, "should have element field");
-    assert.strictEqual(ev.element!.nodeId, "node-42");
-    assert.strictEqual(ev.element!.tagName, "button");
-    assert.deepStrictEqual(ev.element!.attributes, { class: "btn" });
-  });
+          nodeId: string
+          tagName: string
+          attributes: Record<string, string>
+        }
+      }>
+    }
+    assert.strictEqual(result.events.length, 1)
+    const ev = result.events[0]!
+    assert.ok(ev.element, 'should have element field')
+    assert.strictEqual(ev.element!.nodeId, 'node-42')
+    assert.strictEqual(ev.element!.tagName, 'button')
+    assert.deepStrictEqual(ev.element!.attributes, { class: 'btn' })
+  })
 
-  it("click includes targets when non-empty", async () => {
+  it('click includes targets when non-empty', async () => {
     const events = [
       makeClickEvent(
         5000,
         null,
-        { id: "node-1", tagName: "a", attributes: {} },
-        ["node-1", "node-2"],
+        { id: 'node-1', tagName: 'a', attributes: {} },
+        ['node-1', 'node-2']
       ),
-    ];
-    const accessor = makeAccessor(events);
+    ]
+    const accessor = makeAccessor(events)
     const result = (await runFuture(
-      executeTool(accessor, "getEventsAroundTime", {
+      executeTool(accessor, 'getEventsAroundTime', {
         timestampMs: 5000,
         windowMs: 1000,
-      }),
-    )) as { events: Array<{ targets?: string[] }> };
-    assert.ok("targets" in result.events[0]!, "should have targets");
-    assert.deepStrictEqual(result.events[0]!.targets, ["node-1", "node-2"]);
-  });
+      })
+    )) as { events: Array<{ targets?: string[] }> }
+    assert.ok('targets' in result.events[0]!, 'should have targets')
+    assert.deepStrictEqual(result.events[0]!.targets, ['node-1', 'node-2'])
+  })
 
-  it("click omits targets when empty", async () => {
+  it('click omits targets when empty', async () => {
     const events = [
       makeClickEvent(
         5000,
         null,
-        { id: "node-1", tagName: "a", attributes: {} },
-        [],
+        { id: 'node-1', tagName: 'a', attributes: {} },
+        []
       ),
-    ];
-    const accessor = makeAccessor(events);
+    ]
+    const accessor = makeAccessor(events)
     const result = (await runFuture(
-      executeTool(accessor, "getEventsAroundTime", {
+      executeTool(accessor, 'getEventsAroundTime', {
         timestampMs: 5000,
         windowMs: 1000,
-      }),
-    )) as { events: Array<{ targets?: string[] }> };
+      })
+    )) as { events: Array<{ targets?: string[] }> }
     assert.ok(
-      !("targets" in result.events[0]!),
-      "should NOT have targets when empty",
-    );
-  });
+      !('targets' in result.events[0]!),
+      'should NOT have targets when empty'
+    )
+  })
 
-  it("doubleClick includes element", async () => {
+  it('doubleClick includes element', async () => {
     const events = [
       makeDoubleClickEvent(
         5000,
         null,
-        { id: "node-77", tagName: "img", attributes: { alt: "Logo" } },
-        [],
+        { id: 'node-77', tagName: 'img', attributes: { alt: 'Logo' } },
+        []
       ),
-    ];
-    const accessor = makeAccessor(events);
+    ]
+    const accessor = makeAccessor(events)
     const result = (await runFuture(
-      executeTool(accessor, "getEventsAroundTime", {
+      executeTool(accessor, 'getEventsAroundTime', {
         timestampMs: 5000,
         windowMs: 1000,
-      }),
+      })
     )) as {
       events: Array<{
-        type: string;
-        element?: { nodeId: string; tagName: string };
-      }>;
-    };
-    const ev = result.events[0]!;
-    assert.strictEqual(ev.type, "doubleClick");
-    assert.ok(ev.element, "should have element for doubleClick");
-    assert.strictEqual(ev.element!.nodeId, "node-77");
-    assert.strictEqual(ev.element!.tagName, "img");
-  });
-});
+        type: string
+        element?: { nodeId: string; tagName: string }
+      }>
+    }
+    const ev = result.events[0]!
+    assert.strictEqual(ev.type, 'doubleClick')
+    assert.ok(ev.element, 'should have element for doubleClick')
+    assert.strictEqual(ev.element!.nodeId, 'node-77')
+    assert.strictEqual(ev.element!.tagName, 'img')
+  })
+})

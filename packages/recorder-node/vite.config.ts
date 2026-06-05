@@ -1,19 +1,19 @@
-import path from "node:path";
-import { defineConfig } from "vite";
+import path from 'node:path'
+import { defineConfig } from 'vite'
 
 export default defineConfig({
   define: {
-    "process.env.NODE_ENV": JSON.stringify("production"),
+    'process.env.NODE_ENV': JSON.stringify('production'),
   },
   build: {
-    outDir: "dist",
+    outDir: 'dist',
     sourcemap: false,
-    target: "esnext",
+    target: 'esnext',
     lib: {
-      entry: path.resolve(__dirname, "src/inject.ts"),
-      name: "ReproRecorderInject",
-      formats: ["iife"],
-      fileName: () => "inject.js",
+      entry: path.resolve(__dirname, 'src/inject.ts'),
+      name: 'ReproRecorderInject',
+      formats: ['iife'],
+      fileName: () => 'inject.js',
     },
     rollupOptions: {
       output: {
@@ -22,4 +22,4 @@ export default defineConfig({
     },
     emptyOutDir: false,
   },
-});
+})

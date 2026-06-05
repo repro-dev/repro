@@ -1,4 +1,4 @@
-import { fontSize, lineHeight, spacing } from "@repro/design";
+import { fontSize, lineHeight, spacing } from '@repro/design'
 
 export const TOOL_RESULT_ROW_STYLES = {
   gap: spacing.lg,
@@ -22,4 +22,4 @@ export const TOOL_RESULT_ROW_STYLES = {
   actionOpacityHidden: 0,
   actionOpacityVisible: 1,
   actionLabelSpacing: spacing.sm,
-} as const;
+} as const

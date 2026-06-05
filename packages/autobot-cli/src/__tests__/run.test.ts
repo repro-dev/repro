@@ -1,159 +1,159 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import assert from 'node:assert/strict'
+import test from 'node:test'
 
-import { fork, Future, reject, resolve, type FutureInstance } from "fluture";
+import { fork, Future, reject, resolve, type FutureInstance } from 'fluture'
 
-import type { ItemDetail } from "@repro/autobot-core";
+import type { ItemDetail } from '@repro/autobot-core'
 
-import { runAutobotCli } from "../run";
-import type { AutobotCommandResult } from "../types";
+import { runAutobotCli } from '../run'
+import type { AutobotCommandResult } from '../types'
 
 function createIo() {
-  let stdout = "";
-  let stderr = "";
+  let stdout = ''
+  let stderr = ''
 
   return {
     io: {
       stdout: {
         write(chunk: string) {
-          stdout += chunk;
-          return true;
+          stdout += chunk
+          return true
         },
       },
       stderr: {
         write(chunk: string) {
-          stderr += chunk;
-          return true;
+          stderr += chunk
+          return true
         },
       },
       isTTY: false,
     },
     read() {
-      return { stdout, stderr };
+      return { stdout, stderr }
     },
-  };
+  }
 }
 
 function runFuture<T>(future: FutureInstance<unknown, T>): Promise<T> {
   return new Promise((resolve, reject) => {
-    future.pipe(fork(reject)(resolve));
-  });
+    future.pipe(fork(reject)(resolve))
+  })
 }
 
-function makeDetail(state: ItemDetail["state"] = "queued"): ItemDetail {
+function makeDetail(state: ItemDetail['state'] = 'queued'): ItemDetail {
   return {
-    issue_id: "REP-1151",
-    title: "Build Autobot CLI parser, JSON envelopes, and renderers",
-    url: "https://linear.app/repro/issue/REP-1151/build-autobot-cli-parser-json-envelopes-and-renderers",
+    issue_id: 'REP-1151',
+    title: 'Build Autobot CLI parser, JSON envelopes, and renderers',
+    url: 'https://linear.app/repro/issue/REP-1151/build-autobot-cli-parser-json-envelopes-and-renderers',
     state,
     attempt: 1,
     priority: 2,
-    owner: "Gary",
-    workspace: "autobot",
-    branch: "autobot/REP-1151",
-    queued_at: "2026-05-14T11:00:00Z",
-    started_at: "2026-05-14T11:10:00Z",
-    updated_at: "2026-05-14T11:20:00Z",
-    last_event: "retry.failed",
+    owner: 'Gary',
+    workspace: 'autobot',
+    branch: 'autobot/REP-1151',
+    queued_at: '2026-05-14T11:00:00Z',
+    started_at: '2026-05-14T11:10:00Z',
+    updated_at: '2026-05-14T11:20:00Z',
+    last_event: 'retry.failed',
     last_error:
-      state === "failed"
+      state === 'failed'
         ? {
-            code: "AUTOBOT-RETRY-NOT-ALLOWED",
-            message: "retry is only available after failed runs",
-            occurred_at: "2026-05-14T11:19:00Z",
+            code: 'AUTOBOT-RETRY-NOT-ALLOWED',
+            message: 'retry is only available after failed runs',
+            occurred_at: '2026-05-14T11:19:00Z',
           }
         : null,
     linear: null,
     current_run: null,
     cancellation_requested: false,
     cancellation_requested_at: null,
-    recovery_commands: ["autobot-next status REP-1151 --json"],
+    recovery_commands: ['autobot-next status REP-1151 --json'],
     artifacts: [],
     events: [],
-  };
+  }
 }
 
-test("successful json invocations emit the success envelope", async () => {
-  const io = createIo();
+test('successful json invocations emit the success envelope', async () => {
+  const io = createIo()
   const result: AutobotCommandResult = {
-    kind: "item-detail",
-    command: "autobot-next list",
+    kind: 'item-detail',
+    command: 'autobot-next list',
     repo: {
-      path: "/worktrees/autobot",
-      state_dir: ".autobot",
+      path: '/worktrees/autobot',
+      state_dir: '.autobot',
     },
-    data: makeDetail("queued"),
+    data: makeDetail('queued'),
     warnings: [],
-  };
+  }
 
   const exitCode = await runFuture(
-    runAutobotCli(["node", "autobot-next", "--json", "list"], io.io, {
+    runAutobotCli(['node', 'autobot-next', '--json', 'list'], io.io, {
       handleInvocation() {
-        return resolve(result);
+        return resolve(result)
       },
-    }),
-  );
+    })
+  )
 
-  assert.equal(exitCode, 0);
-  assert.equal(io.read().stderr, "");
+  assert.equal(exitCode, 0)
+  assert.equal(io.read().stderr, '')
   assert.deepStrictEqual(JSON.parse(io.read().stdout), {
     schema_version: 1,
     ok: true,
-    command: "autobot-next list",
+    command: 'autobot-next list',
     repo: {
-      path: "/worktrees/autobot",
-      state_dir: ".autobot",
+      path: '/worktrees/autobot',
+      state_dir: '.autobot',
     },
-    data: makeDetail("queued"),
+    data: makeDetail('queued'),
     warnings: [],
-  });
-});
+  })
+})
 
-test("successful human invocations render the human output", async () => {
-  const io = createIo();
+test('successful human invocations render the human output', async () => {
+  const io = createIo()
   const result: AutobotCommandResult = {
-    kind: "item-detail",
-    command: "autobot-next list",
+    kind: 'item-detail',
+    command: 'autobot-next list',
     repo: {
-      path: "/worktrees/autobot",
-      state_dir: ".autobot",
+      path: '/worktrees/autobot',
+      state_dir: '.autobot',
     },
-    data: makeDetail("queued"),
+    data: makeDetail('queued'),
     warnings: [],
-  };
+  }
 
   const exitCode = await runFuture(
-    runAutobotCli(["node", "autobot-next", "list"], io.io, {
+    runAutobotCli(['node', 'autobot-next', 'list'], io.io, {
       handleInvocation() {
-        return resolve(result);
+        return resolve(result)
       },
-    }),
-  );
+    })
+  )
 
-  assert.equal(exitCode, 0);
-  assert.match(io.read().stdout, /REP-1151/);
-  assert.equal(io.read().stderr, "");
-});
+  assert.equal(exitCode, 0)
+  assert.match(io.read().stdout, /REP-1151/)
+  assert.equal(io.read().stderr, '')
+})
 
-test("successful human supervisor status output renders warnings and tick details", async () => {
-  const io = createIo();
+test('successful human supervisor status output renders warnings and tick details', async () => {
+  const io = createIo()
 
   const exitCode = await runFuture(
-    runAutobotCli(["node", "autobot-next", "supervisor", "run-once"], io.io, {
+    runAutobotCli(['node', 'autobot-next', 'supervisor', 'run-once'], io.io, {
       handleInvocation() {
         return resolve({
-          kind: "supervisor-status",
-          command: "autobot-next supervisor run-once",
+          kind: 'supervisor-status',
+          command: 'autobot-next supervisor run-once',
           repo: {
-            path: "/worktrees/autobot",
-            state_dir: ".autobot",
+            path: '/worktrees/autobot',
+            state_dir: '.autobot',
           },
           data: {
             supervisor: {
-              state: "unknown",
+              state: 'unknown',
               pid: null,
               started_at: null,
-              last_tick_at: "2026-05-15T12:00:00Z",
+              last_tick_at: '2026-05-15T12:00:00Z',
               tick_interval_seconds: 15,
               queue_depth: 1,
               max_concurrency: 1,
@@ -181,87 +181,87 @@ test("successful human supervisor status output renders warnings and tick detail
             config: [],
             tick: {
               dry_run: true,
-              tick_at: "2026-05-15T12:00:00Z",
-              reconciled_issue_ids: ["REP-1151"],
-              discovered_issue_ids: ["REP-300"],
-              queued_issue_ids: ["REP-300"],
-              selected_issue_ids: ["REP-1151"],
+              tick_at: '2026-05-15T12:00:00Z',
+              reconciled_issue_ids: ['REP-1151'],
+              discovered_issue_ids: ['REP-300'],
+              queued_issue_ids: ['REP-300'],
+              selected_issue_ids: ['REP-1151'],
               started_issue_ids: [],
               skipped: [],
             },
           },
           warnings: [
             {
-              code: "ENGINE_DISCOVERY_PROJECTS_MISSING",
+              code: 'ENGINE_DISCOVERY_PROJECTS_MISSING',
               message:
-                "Auto-discovery is enabled but discovery.projects is unset; skipping discovery.",
-              severity: "warning",
+                'Auto-discovery is enabled but discovery.projects is unset; skipping discovery.',
+              severity: 'warning',
             },
           ],
-        } as AutobotCommandResult);
+        } as AutobotCommandResult)
       },
-    }),
-  );
+    })
+  )
 
-  assert.equal(exitCode, 0);
-  assert.match(io.read().stdout, /ENGINE_DISCOVERY_PROJECTS_MISSING/);
-  assert.match(io.read().stdout, /Dry run: yes/);
-  assert.match(io.read().stdout, /Selected: REP-1151/);
-});
+  assert.equal(exitCode, 0)
+  assert.match(io.read().stdout, /ENGINE_DISCOVERY_PROJECTS_MISSING/)
+  assert.match(io.read().stdout, /Dry run: yes/)
+  assert.match(io.read().stdout, /Selected: REP-1151/)
+})
 
-test.skip("supervisor status output renders relay-aware workers", async () => {
-  const io = createIo();
+test.skip('supervisor status output renders relay-aware workers', async () => {
+  const io = createIo()
 
   await runFuture(
-    runAutobotCli(["node", "autobot-next", "supervisor", "status"], io.io, {
+    runAutobotCli(['node', 'autobot-next', 'supervisor', 'status'], io.io, {
       handleInvocation() {
         return resolve({
-          kind: "supervisor-status",
-          command: "autobot-next supervisor status",
+          kind: 'supervisor-status',
+          command: 'autobot-next supervisor status',
           repo: {
-            path: "/worktrees/autobot",
-            state_dir: ".autobot",
+            path: '/worktrees/autobot',
+            state_dir: '.autobot',
           },
           data: {
             supervisor: {
-              state: "running",
+              state: 'running',
               pid: 4242,
-              started_at: "2026-05-15T10:00:00Z",
-              last_tick_at: "2026-05-15T10:05:00Z",
+              started_at: '2026-05-15T10:00:00Z',
+              last_tick_at: '2026-05-15T10:05:00Z',
               tick_interval_seconds: 15,
               queue_depth: 1,
               max_concurrency: 1,
               active_runs: 1,
               active_workers: [
                 {
-                  worker_id: "worker-1",
-                  issue_id: "REP-1154",
-                  run_id: "run-1154",
-                  state: "running",
+                  worker_id: 'worker-1',
+                  issue_id: 'REP-1154',
+                  run_id: 'run-1154',
+                  state: 'running',
                   pid: 4242,
-                  started_at: "2026-05-15T10:00:00Z",
-                  last_heartbeat_at: "2026-05-15T10:05:00Z",
+                  started_at: '2026-05-15T10:00:00Z',
+                  last_heartbeat_at: '2026-05-15T10:05:00Z',
                   transport: {
-                    source: "relay",
-                    workspace_id: "relay-workspace",
-                    channel_id: "relay-channel",
-                    thread_id: "relay-thread",
-                    agent_id: "relay-agent",
-                    message_id: "relay-message",
+                    source: 'relay',
+                    workspace_id: 'relay-workspace',
+                    channel_id: 'relay-channel',
+                    thread_id: 'relay-thread',
+                    agent_id: 'relay-agent',
+                    message_id: 'relay-message',
                   },
                 },
               ],
               events: [
                 {
-                  event_id: "event-engine-1",
+                  event_id: 'event-engine-1',
                   issue_id: null,
                   run_id: null,
-                  type: "engine.tick.started",
+                  type: 'engine.tick.started',
                   state: null,
-                  message: "engine.tick.started",
-                  severity: "info",
-                  occurred_at: "2026-05-15T12:00:00Z",
-                  actor: "engine",
+                  message: 'engine.tick.started',
+                  severity: 'info',
+                  occurred_at: '2026-05-15T12:00:00Z',
+                  actor: 'engine',
                   transport: null,
                   data: {
                     selected_issue_ids: [],
@@ -273,9 +273,9 @@ test.skip("supervisor status output renders relay-aware workers", async () => {
               ],
               health: [
                 {
-                  code: "ENGINE_STOP_REQUESTED",
-                  status: "warning",
-                  message: "graceful shutdown requested",
+                  code: 'ENGINE_STOP_REQUESTED',
+                  status: 'warning',
+                  message: 'graceful shutdown requested',
                 },
               ],
             },
@@ -297,59 +297,59 @@ test.skip("supervisor status output renders relay-aware workers", async () => {
           },
           active_workers: [
             {
-              worker_id: "worker-1",
-              issue_id: "REP-1154",
-              run_id: "run-1154",
-              state: "running",
+              worker_id: 'worker-1',
+              issue_id: 'REP-1154',
+              run_id: 'run-1154',
+              state: 'running',
               pid: 4242,
-              started_at: "2026-05-15T10:00:00Z",
-              last_heartbeat_at: "2026-05-15T10:05:00Z",
+              started_at: '2026-05-15T10:00:00Z',
+              last_heartbeat_at: '2026-05-15T10:05:00Z',
               transport: {
-                source: "relay",
-                workspace_id: "relay-workspace",
-                channel_id: "relay-channel",
-                thread_id: "relay-thread",
-                agent_id: "relay-agent",
-                message_id: "relay-message",
+                source: 'relay',
+                workspace_id: 'relay-workspace',
+                channel_id: 'relay-channel',
+                thread_id: 'relay-thread',
+                agent_id: 'relay-agent',
+                message_id: 'relay-message',
               },
             },
           ],
           items: [],
           config: [],
-          action: "stop",
-          message: "Graceful shutdown requested",
+          action: 'stop',
+          message: 'Graceful shutdown requested',
           warnings: [],
-        } as unknown as AutobotCommandResult);
+        } as unknown as AutobotCommandResult)
       },
-    }),
-  );
+    })
+  )
 
-  assert.match(io.read().stdout, /Supervisor status/);
-  assert.match(io.read().stdout, /Relay:/);
-  assert.match(io.read().stdout, /Events:/);
-  assert.match(io.read().stdout, /engine\.tick\.started/);
-  assert.match(io.read().stdout, /Graceful shutdown requested/);
-});
+  assert.match(io.read().stdout, /Supervisor status/)
+  assert.match(io.read().stdout, /Relay:/)
+  assert.match(io.read().stdout, /Events:/)
+  assert.match(io.read().stdout, /engine\.tick\.started/)
+  assert.match(io.read().stdout, /Graceful shutdown requested/)
+})
 
-test("supervisor logs output renders engine events", async () => {
-  const io = createIo();
+test('supervisor logs output renders engine events', async () => {
+  const io = createIo()
 
   const exitCode = await runFuture(
-    runAutobotCli(["node", "autobot-next", "supervisor", "logs"], io.io, {
+    runAutobotCli(['node', 'autobot-next', 'supervisor', 'logs'], io.io, {
       handleInvocation() {
         return resolve({
-          kind: "supervisor-logs",
-          command: "autobot-next supervisor logs",
+          kind: 'supervisor-logs',
+          command: 'autobot-next supervisor logs',
           repo: {
-            path: "/worktrees/autobot",
-            state_dir: ".autobot",
+            path: '/worktrees/autobot',
+            state_dir: '.autobot',
           },
           data: {
             supervisor: {
-              state: "running",
+              state: 'running',
               pid: 4242,
-              started_at: "2026-05-15T10:00:00Z",
-              last_tick_at: "2026-05-15T10:05:00Z",
+              started_at: '2026-05-15T10:00:00Z',
+              last_tick_at: '2026-05-15T10:05:00Z',
               tick_interval_seconds: 15,
               queue_depth: 1,
               max_concurrency: 1,
@@ -357,15 +357,15 @@ test("supervisor logs output renders engine events", async () => {
               active_workers: [],
               events: [
                 {
-                  event_id: "event-engine-1",
+                  event_id: 'event-engine-1',
                   issue_id: null,
                   run_id: null,
-                  type: "engine.tick.finished",
+                  type: 'engine.tick.finished',
                   state: null,
-                  message: "engine.tick.finished",
-                  severity: "info",
-                  occurred_at: "2026-05-15T12:00:00Z",
-                  actor: "engine",
+                  message: 'engine.tick.finished',
+                  severity: 'info',
+                  occurred_at: '2026-05-15T12:00:00Z',
+                  actor: 'engine',
                   transport: null,
                   data: {
                     selected_issue_ids: [],
@@ -393,164 +393,164 @@ test("supervisor logs output renders engine events", async () => {
               canceled: 0,
             },
             active_workers: [],
-            items: [makeDetail("queued")],
+            items: [makeDetail('queued')],
             config: [],
-            message: "Recent engine events",
+            message: 'Recent engine events',
           },
           warnings: [],
-        } as AutobotCommandResult);
+        } as AutobotCommandResult)
       },
-    }),
-  );
+    })
+  )
 
-  assert.equal(exitCode, 0);
-  assert.match(io.read().stdout, /Supervisor logs/);
-  assert.match(io.read().stdout, /engine\.tick\.finished/);
-});
+  assert.equal(exitCode, 0)
+  assert.match(io.read().stdout, /Supervisor logs/)
+  assert.match(io.read().stdout, /engine\.tick\.finished/)
+})
 
-test("supervisor start responds to SIGINT and SIGTERM by resolving after cleanup", async () => {
-  const signalNames: Array<NodeJS.Signals> = ["SIGINT", "SIGTERM"];
+test('supervisor start responds to SIGINT and SIGTERM by resolving after cleanup', async () => {
+  const signalNames: Array<NodeJS.Signals> = ['SIGINT', 'SIGTERM']
 
   for (const signalName of signalNames) {
-    const io = createIo();
-    const signalHandlers = new Map<NodeJS.Signals, NodeJS.SignalsListener>();
-    const originalOn = process.on;
-    let cleanupCalls = 0;
+    const io = createIo()
+    const signalHandlers = new Map<NodeJS.Signals, NodeJS.SignalsListener>()
+    const originalOn = process.on
+    let cleanupCalls = 0
 
     process.on = ((event, listener) => {
-      if (event === "SIGINT" || event === "SIGTERM") {
-        signalHandlers.set(event, listener as NodeJS.SignalsListener);
+      if (event === 'SIGINT' || event === 'SIGTERM') {
+        signalHandlers.set(event, listener as NodeJS.SignalsListener)
       }
 
-      return originalOn.call(process, event, listener);
-    }) as typeof process.on;
+      return originalOn.call(process, event, listener)
+    }) as typeof process.on
 
     try {
       const future = runAutobotCli(
-        ["node", "autobot-next", "supervisor", "start"],
+        ['node', 'autobot-next', 'supervisor', 'start'],
         io.io,
         {
           handleInvocation() {
             return Future(() => {
               return () => {
-                cleanupCalls += 1;
-              };
-            });
+                cleanupCalls += 1
+              }
+            })
           },
-        },
-      );
+        }
+      )
 
-      const exitCodePromise = runFuture(future);
+      const exitCodePromise = runFuture(future)
 
-      await new Promise((resolvePromise) => setImmediate(resolvePromise));
-      const signalHandler = signalHandlers.get(signalName);
-      assert.ok(signalHandler);
+      await new Promise(resolvePromise => setImmediate(resolvePromise))
+      const signalHandler = signalHandlers.get(signalName)
+      assert.ok(signalHandler)
 
-      signalHandler(signalName);
+      signalHandler(signalName)
 
       const exitCode = await Promise.race([
         exitCodePromise,
         new Promise<number>((_, rejectPromise) => {
           setTimeout(
-            () => rejectPromise(new Error("supervisor start did not settle")),
-            100,
-          );
+            () => rejectPromise(new Error('supervisor start did not settle')),
+            100
+          )
         }),
-      ]);
+      ])
 
-      assert.equal(exitCode, 0);
-      assert.equal(cleanupCalls, 1);
+      assert.equal(exitCode, 0)
+      assert.equal(cleanupCalls, 1)
     } finally {
-      process.on = originalOn;
+      process.on = originalOn
     }
   }
-});
+})
 
-test("non-daemon commands do not register shutdown handlers", async () => {
-  const io = createIo();
-  const signalHandlers = new Map<NodeJS.Signals, NodeJS.SignalsListener>();
-  const originalOn = process.on;
+test('non-daemon commands do not register shutdown handlers', async () => {
+  const io = createIo()
+  const signalHandlers = new Map<NodeJS.Signals, NodeJS.SignalsListener>()
+  const originalOn = process.on
 
   process.on = ((event, listener) => {
-    if (event === "SIGINT" || event === "SIGTERM") {
-      signalHandlers.set(event, listener as NodeJS.SignalsListener);
+    if (event === 'SIGINT' || event === 'SIGTERM') {
+      signalHandlers.set(event, listener as NodeJS.SignalsListener)
     }
 
-    return originalOn.call(process, event, listener);
-  }) as typeof process.on;
+    return originalOn.call(process, event, listener)
+  }) as typeof process.on
 
   try {
     const exitCode = await runFuture(
-      runAutobotCli(["node", "autobot-next", "list"], io.io, {
+      runAutobotCli(['node', 'autobot-next', 'list'], io.io, {
         handleInvocation() {
           return resolve({
-            kind: "item-detail",
-            command: "autobot-next list",
+            kind: 'item-detail',
+            command: 'autobot-next list',
             repo: {
-              path: "/worktrees/autobot",
-              state_dir: ".autobot",
+              path: '/worktrees/autobot',
+              state_dir: '.autobot',
             },
-            data: makeDetail("queued"),
+            data: makeDetail('queued'),
             warnings: [],
-          });
+          })
         },
-      }),
-    );
+      })
+    )
 
-    assert.equal(exitCode, 0);
-    assert.equal(signalHandlers.size, 0);
+    assert.equal(exitCode, 0)
+    assert.equal(signalHandlers.size, 0)
   } finally {
-    process.on = originalOn;
+    process.on = originalOn
   }
-});
+})
 
-test("terminal status output omits next steps", async () => {
-  const io = createIo();
+test('terminal status output omits next steps', async () => {
+  const io = createIo()
 
   const exitCode = await runFuture(
-    runAutobotCli(["node", "autobot-next", "status", "REP-1151"], io.io, {
+    runAutobotCli(['node', 'autobot-next', 'status', 'REP-1151'], io.io, {
       handleInvocation() {
         return resolve({
-          kind: "item-detail",
-          command: "autobot-next status REP-1151",
+          kind: 'item-detail',
+          command: 'autobot-next status REP-1151',
           repo: {
-            path: "/worktrees/autobot",
-            state_dir: ".autobot",
+            path: '/worktrees/autobot',
+            state_dir: '.autobot',
           },
-          data: makeDetail("canceled"),
+          data: makeDetail('canceled'),
           warnings: [],
-        });
+        })
       },
-    }),
-  );
+    })
+  )
 
-  assert.equal(exitCode, 0);
-  assert.equal(io.read().stdout.includes("Next:"), false);
-});
+  assert.equal(exitCode, 0)
+  assert.equal(io.read().stdout.includes('Next:'), false)
+})
 
-test("config list renders unset defaults explicitly", async () => {
-  const io = createIo();
+test('config list renders unset defaults explicitly', async () => {
+  const io = createIo()
 
   const exitCode = await runFuture(
-    runAutobotCli(["node", "autobot-next", "config", "list"], io.io, {
+    runAutobotCli(['node', 'autobot-next', 'config', 'list'], io.io, {
       handleInvocation() {
         return resolve({
-          kind: "config-list",
-          command: "autobot-next config list",
+          kind: 'config-list',
+          command: 'autobot-next config list',
           repo: {
-            path: "/worktrees/autobot",
-            state_dir: ".autobot",
+            path: '/worktrees/autobot',
+            state_dir: '.autobot',
           },
           data: {
             config: [
               {
-                key: "discovery.projects",
-                value: "",
-                default_value: "",
-                type: "string",
-                source: "default",
+                key: 'discovery.projects',
+                value: '',
+                default_value: '',
+                type: 'string',
+                source: 'default',
                 description:
-                  "Comma-separated Linear project allowlist used by discover when no --project flags are provided.",
+                  'Comma-separated Linear project allowlist used by discover when no --project flags are provided.',
                 requires_engine_restart: false,
                 bounds: null,
                 allowed_values: null,
@@ -558,79 +558,79 @@ test("config list renders unset defaults explicitly", async () => {
             ],
           },
           warnings: [],
-        });
+        })
       },
-    }),
-  );
+    })
+  )
 
-  assert.equal(exitCode, 0);
-  assert.match(io.read().stdout, /default: \(unset\)/);
-});
+  assert.equal(exitCode, 0)
+  assert.match(io.read().stdout, /default: \(unset\)/)
+})
 
-test("workflow list renders the FlowCraft skeleton summary", async () => {
-  const io = createIo();
+test('workflow list renders the FlowCraft skeleton summary', async () => {
+  const io = createIo()
 
   const exitCode = await runFuture(
     runAutobotCli(
-      ["node", "autobot-next", "supervisor", "debug", "workflow", "list"],
+      ['node', 'autobot-next', 'supervisor', 'debug', 'workflow', 'list'],
       io.io,
       {
         handleInvocation() {
           return resolve({
-            kind: "workflow-list",
-            command: "autobot-next supervisor debug workflow list",
+            kind: 'workflow-list',
+            command: 'autobot-next supervisor debug workflow list',
             repo: {
-              path: "/worktrees/autobot",
-              state_dir: ".autobot",
+              path: '/worktrees/autobot',
+              state_dir: '.autobot',
             },
             data: {
               workflows: [
                 {
-                  id: "autobot-deliver-issue",
-                  version: "1.0.0",
+                  id: 'autobot-deliver-issue',
+                  version: '1.0.0',
                   description:
-                    "Claim an issue, reconcile state, then complete.",
+                    'Claim an issue, reconcile state, then complete.',
                   node_ids: [
-                    "claim",
-                    "preparing",
-                    "planning",
-                    "reconcile",
-                    "complete",
+                    'claim',
+                    'preparing',
+                    'planning',
+                    'reconcile',
+                    'complete',
                   ],
                   edge_count: 2,
                 },
               ],
             },
             warnings: [],
-          });
+          })
         },
-      },
-    ),
-  );
+      }
+    )
+  )
 
-  assert.equal(exitCode, 0);
-  assert.match(io.read().stdout, /Workflow list/);
+  assert.equal(exitCode, 0)
+  assert.match(io.read().stdout, /Workflow list/)
   assert.match(
     io.read().stdout,
-    /claim → preparing → planning → reconcile → complete/,
-  );
-});
+    /claim → preparing → planning → reconcile → complete/
+  )
+})
 
-test("discover quiet output prints issue ids only", async () => {
-  const io = createIo();
+test('discover quiet output prints issue ids only', async () => {
+  const io = createIo()
 
   const exitCode = await runFuture(
-    runAutobotCli(["node", "autobot-next", "discover", "-q"], io.io, {
+    runAutobotCli(['node', 'autobot-next', 'discover', '-q'], io.io, {
       handleInvocation() {
         return resolve({
-          kind: "discover",
-          command: "autobot-next discover",
+          kind: 'discover',
+          command: 'autobot-next discover',
           repo: {
-            path: "/worktrees/autobot",
-            state_dir: ".autobot",
+            path: '/worktrees/autobot',
+            state_dir: '.autobot',
           },
           data: {
-            projects: ["Engineering"],
+            projects: ['Engineering'],
             query: null,
             filters: {
               labels: [],
@@ -641,142 +641,142 @@ test("discover quiet output prints issue ids only", async () => {
             scanned: 2,
             candidates: [
               {
-                issue_id: "REP-300",
-                title: "Ship discovery path",
-                url: "https://linear.app/repro/issue/REP-300",
-                project: "Engineering",
-                labels: ["backend"],
+                issue_id: 'REP-300',
+                title: 'Ship discovery path',
+                url: 'https://linear.app/repro/issue/REP-300',
+                project: 'Engineering',
+                labels: ['backend'],
                 priority: 2,
-                priority_label: "High",
-                status_name: "Todo",
-                state_type: "unstarted",
-                assignee: "Gary",
+                priority_label: 'High',
+                status_name: 'Todo',
+                state_type: 'unstarted',
+                assignee: 'Gary',
               },
             ],
-            issue_ids: ["REP-300"],
+            issue_ids: ['REP-300'],
             exclusions: [],
             quiet: true,
           },
           warnings: [],
-        } as AutobotCommandResult);
+        } as AutobotCommandResult)
       },
-    }),
-  );
+    })
+  )
 
-  assert.equal(exitCode, 0);
-  assert.equal(io.read().stdout, "REP-300\n");
-});
+  assert.equal(exitCode, 0)
+  assert.equal(io.read().stdout, 'REP-300\n')
+})
 
-test("tty human output respects no-color", async () => {
-  const io = createIo();
-  io.io.isTTY = true;
+test('tty human output respects no-color', async () => {
+  const io = createIo()
+  io.io.isTTY = true
 
   const exitCode = await runFuture(
-    runAutobotCli(["node", "autobot-next", "--no-color", "list"], io.io, {
+    runAutobotCli(['node', 'autobot-next', '--no-color', 'list'], io.io, {
       handleInvocation() {
         return resolve({
-          kind: "item-detail",
-          command: "autobot-next list",
+          kind: 'item-detail',
+          command: 'autobot-next list',
           repo: {
-            path: "/worktrees/autobot",
-            state_dir: ".autobot",
+            path: '/worktrees/autobot',
+            state_dir: '.autobot',
           },
-          data: makeDetail("failed"),
+          data: makeDetail('failed'),
           warnings: [],
-        });
+        })
       },
-    }),
-  );
+    })
+  )
 
-  assert.equal(exitCode, 0);
-  assert.equal(io.read().stdout.includes("\u001b["), false);
-});
+  assert.equal(exitCode, 0)
+  assert.equal(io.read().stdout.includes('\u001b['), false)
+})
 
-test("unexpected errors are generic and redact stacks", async () => {
-  const io = createIo();
+test('unexpected errors are generic and redact stacks', async () => {
+  const io = createIo()
 
   const exitCode = await runFuture(
-    runAutobotCli(["node", "autobot-next", "--json", "list"], io.io, {
+    runAutobotCli(['node', 'autobot-next', '--json', 'list'], io.io, {
       handleInvocation() {
-        return reject(new Error("/Users/gary/secret.txt"));
+        return reject(new Error('/Users/gary/secret.txt'))
       },
-    }),
-  );
+    })
+  )
 
-  const envelope = JSON.parse(io.read().stdout);
+  const envelope = JSON.parse(io.read().stdout)
 
-  assert.equal(exitCode, 1);
-  assert.equal(envelope.error.message, "Unexpected Autobot CLI error");
-  assert.equal(envelope.error.details, null);
+  assert.equal(exitCode, 1)
+  assert.equal(envelope.error.message, 'Unexpected Autobot CLI error')
+  assert.equal(envelope.error.details, null)
   assert.equal(
-    JSON.stringify(envelope).includes("/Users/gary/secret.txt"),
-    false,
-  );
-});
+    JSON.stringify(envelope).includes('/Users/gary/secret.txt'),
+    false
+  )
+})
 
-test("bare command renders top-level help", async () => {
-  const io = createIo();
-
-  const exitCode = await runFuture(
-    runAutobotCli(["node", "autobot-next"], io.io),
-  );
-
-  assert.equal(exitCode, 0);
-  assert.match(io.read().stdout, /Usage: autobot-next/);
-  assert.equal(io.read().stderr, "");
-});
-
-test("help flag renders top-level help", async () => {
-  const io = createIo();
+test('bare command renders top-level help', async () => {
+  const io = createIo()
 
   const exitCode = await runFuture(
-    runAutobotCli(["node", "autobot-next", "--help"], io.io),
-  );
+    runAutobotCli(['node', 'autobot-next'], io.io)
+  )
 
-  assert.equal(exitCode, 0);
-  assert.match(io.read().stdout, /Usage: autobot-next/);
-  assert.equal(io.read().stderr, "");
-});
+  assert.equal(exitCode, 0)
+  assert.match(io.read().stdout, /Usage: autobot-next/)
+  assert.equal(io.read().stderr, '')
+})
 
-test("json usage errors use the canonical command path", async () => {
-  const io = createIo();
+test('help flag renders top-level help', async () => {
+  const io = createIo()
+
+  const exitCode = await runFuture(
+    runAutobotCli(['node', 'autobot-next', '--help'], io.io)
+  )
+
+  assert.equal(exitCode, 0)
+  assert.match(io.read().stdout, /Usage: autobot-next/)
+  assert.equal(io.read().stderr, '')
+})
+
+test('json usage errors use the canonical command path', async () => {
+  const io = createIo()
 
   const exitCode = await runFuture(
     runAutobotCli(
-      ["node", "autobot-next", "--json", "bogus", "secret-token"],
+      ['node', 'autobot-next', '--json', 'bogus', 'secret-token'],
       io.io,
       {
         handleInvocation() {
-          throw new Error("should not be called");
+          throw new Error('should not be called')
         },
-      },
-    ),
-  );
+      }
+    )
+  )
 
-  const envelope = JSON.parse(io.read().stdout);
+  const envelope = JSON.parse(io.read().stdout)
 
-  assert.equal(exitCode, 2);
-  assert.equal(envelope.command, "autobot-next");
-  assert.equal(envelope.error.code, "AUTOBOT-USAGE-ERROR");
-  assert.equal(envelope.error.message, "Invalid command usage");
-  assert.equal(JSON.stringify(envelope).includes("secret-token"), false);
-});
+  assert.equal(exitCode, 2)
+  assert.equal(envelope.command, 'autobot-next')
+  assert.equal(envelope.error.code, 'AUTOBOT-USAGE-ERROR')
+  assert.equal(envelope.error.message, 'Invalid command usage')
+  assert.equal(JSON.stringify(envelope).includes('secret-token'), false)
+})
 
-test("json mode without a subcommand emits a usage envelope", async () => {
-  const io = createIo();
+test('json mode without a subcommand emits a usage envelope', async () => {
+  const io = createIo()
 
   const exitCode = await runFuture(
-    runAutobotCli(["node", "autobot-next", "--json"], io.io, {
+    runAutobotCli(['node', 'autobot-next', '--json'], io.io, {
       handleInvocation() {
-        throw new Error("should not be called");
+        throw new Error('should not be called')
       },
-    }),
-  );
+    })
+  )
 
-  const envelope = JSON.parse(io.read().stdout);
+  const envelope = JSON.parse(io.read().stdout)
 
-  assert.equal(exitCode, 2);
-  assert.equal(envelope.command, "autobot-next");
-  assert.equal(envelope.error.code, "AUTOBOT-USAGE-ERROR");
-  assert.equal(envelope.error.message, "Invalid command usage");
-});
+  assert.equal(exitCode, 2)
+  assert.equal(envelope.command, 'autobot-next')
+  assert.equal(envelope.error.code, 'AUTOBOT-USAGE-ERROR')
+  assert.equal(envelope.error.message, 'Invalid command usage')
+})

@@ -1,49 +1,49 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import assert from 'node:assert/strict'
+import test from 'node:test'
 
-import type { ItemDetail, ItemSummary } from "@repro/autobot-core";
+import type { ItemDetail, ItemSummary } from '@repro/autobot-core'
 
-import { assertNormalizedEqual } from "./helpers";
 import {
   renderAutobotDiscoverResults,
   renderAutobotFlowcraftInspect,
   renderAutobotItemDetail,
   renderAutobotItemSummary,
   renderAutobotQueueStatus,
+  renderAutobotSupervisorStatus,
   renderAutobotWorkflowDiagram,
   renderAutobotWorkflowList,
   renderAutobotWorkflowValidation,
-  renderAutobotSupervisorStatus,
-} from "../render/human";
-import type { DiscoverData } from "../types";
+} from '../render/human'
+import type { DiscoverData } from '../types'
+import { assertNormalizedEqual } from './helpers'
 
-test("workflow renderers keep the stable FlowCraft skeleton visible", () => {
+test('workflow renderers keep the stable FlowCraft skeleton visible', () => {
   assertNormalizedEqual(
     renderAutobotWorkflowList([
       {
-        id: "autobot-deliver-issue",
-        version: "1.0.0",
+        id: 'autobot-deliver-issue',
+        version: '1.0.0',
         description:
-          "Claim an issue, prepare Linear data, generate planning artifacts, reconcile the state, then complete it.",
-        node_ids: ["claim", "preparing", "planning", "reconcile", "complete"],
+          'Claim an issue, prepare Linear data, generate planning artifacts, reconcile the state, then complete it.',
+        node_ids: ['claim', 'preparing', 'planning', 'reconcile', 'complete'],
         edge_count: 4,
       },
     ]),
     `
     Workflow list
     autobot-deliver-issue v1.0.0 · claim → preparing → planning → reconcile → complete
-    `,
-  );
+    `
+  )
 
   assertNormalizedEqual(
     renderAutobotWorkflowValidation([
       {
-        workflow_id: "autobot-deliver-issue",
+        workflow_id: 'autobot-deliver-issue',
         valid: true,
         analysis: {
           cycles: [],
-          startNodeIds: ["claim"],
-          terminalNodeIds: ["complete"],
+          startNodeIds: ['claim'],
+          terminalNodeIds: ['complete'],
           nodeCount: 3,
           edgeCount: 2,
           isDag: true,
@@ -58,24 +58,24 @@ test("workflow renderers keep the stable FlowCraft skeleton visible", () => {
     `
     Workflow validation
     autobot-deliver-issue: valid
-    `,
-  );
+    `
+  )
 
   assert.match(
-    renderAutobotWorkflowDiagram("flowchart TD\nclaim --> reconcile\n"),
-    /flowchart TD/,
-  );
-});
+    renderAutobotWorkflowDiagram('flowchart TD\nclaim --> reconcile\n'),
+    /flowchart TD/
+  )
+})
 
-test("queue status renderer includes tick metadata when available", () => {
+test('queue status renderer includes tick metadata when available', () => {
   assertNormalizedEqual(
     renderAutobotQueueStatus(
       {
         supervisor: {
-          state: "unknown",
+          state: 'unknown',
           pid: null,
           started_at: null,
-          last_tick_at: "2026-05-15T11:00:00Z",
+          last_tick_at: '2026-05-15T11:00:00Z',
           tick_interval_seconds: 15,
           queue_depth: 3,
           max_concurrency: 1,
@@ -102,7 +102,7 @@ test("queue status renderer includes tick metadata when available", () => {
         items: [],
         config: [],
       },
-      { color: false },
+      { color: false }
     ),
     `
     Queue status
@@ -112,83 +112,83 @@ test("queue status renderer includes tick metadata when available", () => {
     Counts: queued: 0, claimed: 0, preparing: 0, planning: 0, developing: 0, testing: 0, reviewing: 0, reconciling: 0, awaiting: 0, failed: 0, escalated: 0, completed: 0, canceled: 0
     Last tick: 2026-05-15T11:00:00Z
     Tick scope: queue scheduler
-    `,
-  );
-});
+    `
+  )
+})
 
-test("flowcraft inspect renderer includes persisted transports but keeps raw payloads scoped", () => {
+test('flowcraft inspect renderer includes persisted transports but keeps raw payloads scoped', () => {
   assertNormalizedEqual(
     renderAutobotFlowcraftInspect({
       lookup: {
-        kind: "flowcraft-execution",
-        identifier: "exec-1154",
-        issue_id: "REP-1154",
+        kind: 'flowcraft-execution',
+        identifier: 'exec-1154',
+        issue_id: 'REP-1154',
         run: {
-          run_id: "run-1154",
-          issue_id: "REP-1154",
+          run_id: 'run-1154',
+          issue_id: 'REP-1154',
           attempt: 1,
-          state: "completed",
-          flowcraft_execution_id: "exec-1154",
-          blueprint_id: "autobot-deliver-issue",
-          blueprint_version: "1.0.0",
-          started_at: "2026-05-15T11:00:00Z",
-          finished_at: "2026-05-15T11:00:01Z",
+          state: 'completed',
+          flowcraft_execution_id: 'exec-1154',
+          blueprint_id: 'autobot-deliver-issue',
+          blueprint_version: '1.0.0',
+          started_at: '2026-05-15T11:00:00Z',
+          finished_at: '2026-05-15T11:00:01Z',
           worker_id: null,
           last_heartbeat_at: null,
           transport: {
-            source: "relay",
-            workspace_id: "relay-workspace",
-            channel_id: "relay-channel",
-            thread_id: "relay-thread",
-            agent_id: "relay-agent",
-            message_id: "relay-message",
+            source: 'relay',
+            workspace_id: 'relay-workspace',
+            channel_id: 'relay-channel',
+            thread_id: 'relay-thread',
+            agent_id: 'relay-agent',
+            message_id: 'relay-message',
           },
         },
         worker: null,
         execution: {
-          execution_id: "exec-1154",
-          issue_id: "REP-1154",
-          run_id: "run-1154",
-          state: "completed",
-          started_at: "2026-05-15T11:00:00Z",
-          finished_at: "2026-05-15T11:00:01Z",
+          execution_id: 'exec-1154',
+          issue_id: 'REP-1154',
+          run_id: 'run-1154',
+          state: 'completed',
+          started_at: '2026-05-15T11:00:00Z',
+          finished_at: '2026-05-15T11:00:01Z',
           metadata: {
-            workflow_id: "autobot-deliver-issue",
-            workflow_version: "1.0.0",
+            workflow_id: 'autobot-deliver-issue',
+            workflow_version: '1.0.0',
             bounded: true,
-            status: "completed",
+            status: 'completed',
           },
         },
         artifacts: [
           {
-            kind: "context",
-            path: ".autobot/runs/REP-1154/attempt-1/context.md",
-            description: "Planning context",
-            created_at: "2026-05-15T11:00:00Z",
+            kind: 'context',
+            path: '.autobot/runs/REP-1154/attempt-1/context.md',
+            description: 'Planning context',
+            created_at: '2026-05-15T11:00:00Z',
           },
         ],
         domain_events: [
           {
-            event_id: "event-1",
-            issue_id: "REP-1154",
-            run_id: "run-1154",
-            type: "workflow.phase.claimed",
-            state: "claimed",
-            message: "Issue claimed",
-            severity: "info",
-            occurred_at: "2026-05-15T11:00:00Z",
-            actor: "autobot-flowcraft",
+            event_id: 'event-1',
+            issue_id: 'REP-1154',
+            run_id: 'run-1154',
+            type: 'workflow.phase.claimed',
+            state: 'claimed',
+            message: 'Issue claimed',
+            severity: 'info',
+            occurred_at: '2026-05-15T11:00:00Z',
+            actor: 'autobot-flowcraft',
             transport: null,
             data: {},
           },
         ],
         flowcraft_events: [
           {
-            flowcraft_event_id: "flowcraft-1",
-            execution_id: "exec-1154",
-            node_id: "claim",
-            type: "execution.started",
-            occurred_at: "2026-05-15T11:00:00Z",
+            flowcraft_event_id: 'flowcraft-1',
+            execution_id: 'exec-1154',
+            node_id: 'claim',
+            type: 'execution.started',
+            occurred_at: '2026-05-15T11:00:00Z',
             data: {},
           },
         ],
@@ -216,47 +216,47 @@ test("flowcraft inspect renderer includes persisted transports but keeps raw pay
       2026-05-15T11:00:00Z workflow.phase.claimed Issue claimed
     FlowCraft events:
       2026-05-15T11:00:00Z claim execution.started {}
-    `,
-  );
-});
+    `
+  )
+})
 
-test("supervisor status renderer shows relay-aware worker supervision", () => {
+test('supervisor status renderer shows relay-aware worker supervision', () => {
   assertNormalizedEqual(
     renderAutobotSupervisorStatus(
       {
         supervisor: {
-          state: "running",
+          state: 'running',
           pid: 4242,
-          started_at: "2026-05-15T10:00:00Z",
-          last_tick_at: "2026-05-15T10:05:00Z",
+          started_at: '2026-05-15T10:00:00Z',
+          last_tick_at: '2026-05-15T10:05:00Z',
           tick_interval_seconds: 15,
           queue_depth: 1,
           max_concurrency: 1,
           active_runs: 1,
           active_workers: [
             {
-              worker_id: "worker-1",
-              issue_id: "REP-1154",
-              run_id: "run-1154",
-              state: "running",
+              worker_id: 'worker-1',
+              issue_id: 'REP-1154',
+              run_id: 'run-1154',
+              state: 'running',
               pid: 4242,
-              started_at: "2026-05-15T10:00:00Z",
-              last_heartbeat_at: "2026-05-15T10:05:00Z",
+              started_at: '2026-05-15T10:00:00Z',
+              last_heartbeat_at: '2026-05-15T10:05:00Z',
               transport: {
-                source: "relay",
-                workspace_id: "relay-workspace",
-                channel_id: "relay-channel",
-                thread_id: "relay-thread",
-                agent_id: "relay-agent",
-                message_id: "relay-message",
+                source: 'relay',
+                workspace_id: 'relay-workspace',
+                channel_id: 'relay-channel',
+                thread_id: 'relay-thread',
+                agent_id: 'relay-agent',
+                message_id: 'relay-message',
               },
             },
           ],
           health: [
             {
-              code: "ENGINE_STOP_REQUESTED",
-              status: "warning",
-              message: "graceful shutdown requested",
+              code: 'ENGINE_STOP_REQUESTED',
+              status: 'warning',
+              message: 'graceful shutdown requested',
             },
           ],
         },
@@ -277,29 +277,29 @@ test("supervisor status renderer shows relay-aware worker supervision", () => {
         },
         active_workers: [
           {
-            worker_id: "worker-1",
-            issue_id: "REP-1154",
-            run_id: "run-1154",
-            state: "running",
+            worker_id: 'worker-1',
+            issue_id: 'REP-1154',
+            run_id: 'run-1154',
+            state: 'running',
             pid: 4242,
-            started_at: "2026-05-15T10:00:00Z",
-            last_heartbeat_at: "2026-05-15T10:05:00Z",
+            started_at: '2026-05-15T10:00:00Z',
+            last_heartbeat_at: '2026-05-15T10:05:00Z',
             transport: {
-              source: "relay",
-              workspace_id: "relay-workspace",
-              channel_id: "relay-channel",
-              thread_id: "relay-thread",
-              agent_id: "relay-agent",
-              message_id: "relay-message",
+              source: 'relay',
+              workspace_id: 'relay-workspace',
+              channel_id: 'relay-channel',
+              thread_id: 'relay-thread',
+              agent_id: 'relay-agent',
+              message_id: 'relay-message',
             },
           },
         ],
         items: [],
         config: [],
-        action: "stop",
-        message: "Graceful shutdown requested",
+        action: 'stop',
+        message: 'Graceful shutdown requested',
       },
-      { color: false },
+      { color: false }
     ),
     `
     Supervisor status
@@ -331,27 +331,27 @@ test("supervisor status renderer shows relay-aware worker supervision", () => {
         thread_id: relay-thread
         agent_id: relay-agent
         message_id: relay-message
-    `,
-  );
-});
+    `
+  )
+})
 
-test("item summary renderer uses the shared core contract", () => {
+test('item summary renderer uses the shared core contract', () => {
   const item: ItemSummary = {
-    issue_id: "REP-1151",
-    title: "Build Autobot CLI parser, JSON envelopes, and renderers",
-    url: "https://linear.app/repro/issue/REP-1151/build-autobot-cli-parser-json-envelopes-and-renderers",
-    state: "queued",
+    issue_id: 'REP-1151',
+    title: 'Build Autobot CLI parser, JSON envelopes, and renderers',
+    url: 'https://linear.app/repro/issue/REP-1151/build-autobot-cli-parser-json-envelopes-and-renderers',
+    state: 'queued',
     attempt: 1,
     priority: 2,
-    owner: "Gary",
-    workspace: "autobot",
-    branch: "autobot/REP-1151",
-    queued_at: "2026-05-14T11:00:00Z",
+    owner: 'Gary',
+    workspace: 'autobot',
+    branch: 'autobot/REP-1151',
+    queued_at: '2026-05-14T11:00:00Z',
     started_at: null,
-    updated_at: "2026-05-14T11:20:00Z",
+    updated_at: '2026-05-14T11:20:00Z',
     last_event: null,
     last_error: null,
-  };
+  }
 
   assertNormalizedEqual(
     renderAutobotItemSummary(item),
@@ -362,38 +362,38 @@ test("item summary renderer uses the shared core contract", () => {
     Owner: Gary
     Workspace: autobot
     Branch: autobot/REP-1151
-    `,
-  );
-});
+    `
+  )
+})
 
-test("failed item detail renderer keeps semantic next-step guidance", () => {
+test('failed item detail renderer keeps semantic next-step guidance', () => {
   const item: ItemDetail = {
-    issue_id: "REP-1151",
-    title: "Build Autobot CLI parser, JSON envelopes, and renderers",
-    url: "https://linear.app/repro/issue/REP-1151/build-autobot-cli-parser-json-envelopes-and-renderers",
-    state: "failed",
+    issue_id: 'REP-1151',
+    title: 'Build Autobot CLI parser, JSON envelopes, and renderers',
+    url: 'https://linear.app/repro/issue/REP-1151/build-autobot-cli-parser-json-envelopes-and-renderers',
+    state: 'failed',
     attempt: 2,
     priority: 2,
-    owner: "Gary",
-    workspace: "autobot",
-    branch: "autobot/REP-1151",
-    queued_at: "2026-05-14T11:00:00Z",
-    started_at: "2026-05-14T11:10:00Z",
-    updated_at: "2026-05-14T11:20:00Z",
-    last_event: "retry.failed",
+    owner: 'Gary',
+    workspace: 'autobot',
+    branch: 'autobot/REP-1151',
+    queued_at: '2026-05-14T11:00:00Z',
+    started_at: '2026-05-14T11:10:00Z',
+    updated_at: '2026-05-14T11:20:00Z',
+    last_event: 'retry.failed',
     last_error: {
-      code: "AUTOBOT-RETRY-NOT-ALLOWED",
-      message: "retry is only available after failed runs",
-      occurred_at: "2026-05-14T11:19:00Z",
+      code: 'AUTOBOT-RETRY-NOT-ALLOWED',
+      message: 'retry is only available after failed runs',
+      occurred_at: '2026-05-14T11:19:00Z',
     },
     linear: null,
     current_run: null,
     cancellation_requested: false,
     cancellation_requested_at: null,
-    recovery_commands: ["autobot-next status REP-1151 --json"],
+    recovery_commands: ['autobot-next status REP-1151 --json'],
     artifacts: [],
     events: [],
-  };
+  }
 
   assertNormalizedEqual(
     renderAutobotItemDetail(item),
@@ -408,54 +408,54 @@ test("failed item detail renderer keeps semantic next-step guidance", () => {
     Last error: AUTOBOT-RETRY-NOT-ALLOWED — retry is only available after failed runs
     Next:
     autobot-next status REP-1151 --json
-    `,
-  );
-});
+    `
+  )
+})
 
-test("item detail renderer surfaces relay transport for active runs", () => {
+test('item detail renderer surfaces relay transport for active runs', () => {
   const item: ItemDetail = {
-    issue_id: "REP-1154",
-    title: "Ship FlowCraft workflow skeleton",
-    url: "https://linear.app/repro/issue/REP-1154/ship-flowcraft-workflow-skeleton",
-    state: "claimed",
+    issue_id: 'REP-1154',
+    title: 'Ship FlowCraft workflow skeleton',
+    url: 'https://linear.app/repro/issue/REP-1154/ship-flowcraft-workflow-skeleton',
+    state: 'claimed',
     attempt: 1,
     priority: 2,
-    owner: "Gary",
-    workspace: "autobot",
-    branch: "autobot/REP-1154",
-    queued_at: "2026-05-15T11:00:00Z",
-    started_at: "2026-05-15T11:05:00Z",
-    updated_at: "2026-05-15T11:10:00Z",
-    last_event: "workflow.phase.claimed",
+    owner: 'Gary',
+    workspace: 'autobot',
+    branch: 'autobot/REP-1154',
+    queued_at: '2026-05-15T11:00:00Z',
+    started_at: '2026-05-15T11:05:00Z',
+    updated_at: '2026-05-15T11:10:00Z',
+    last_event: 'workflow.phase.claimed',
     last_error: null,
     linear: null,
     current_run: {
-      run_id: "run-1154",
-      issue_id: "REP-1154",
+      run_id: 'run-1154',
+      issue_id: 'REP-1154',
       attempt: 1,
-      state: "claimed",
+      state: 'claimed',
       flowcraft_execution_id: null,
-      blueprint_id: "autobot-deliver-issue",
-      blueprint_version: "1.0.0",
-      started_at: "2026-05-15T11:00:00Z",
+      blueprint_id: 'autobot-deliver-issue',
+      blueprint_version: '1.0.0',
+      started_at: '2026-05-15T11:00:00Z',
       finished_at: null,
-      worker_id: "worker-1",
-      last_heartbeat_at: "2026-05-15T11:10:00Z",
+      worker_id: 'worker-1',
+      last_heartbeat_at: '2026-05-15T11:10:00Z',
       transport: {
-        source: "relay",
-        workspace_id: "relay-workspace",
-        channel_id: "relay-channel",
-        thread_id: "relay-thread",
-        agent_id: "relay-agent",
-        message_id: "relay-message",
+        source: 'relay',
+        workspace_id: 'relay-workspace',
+        channel_id: 'relay-channel',
+        thread_id: 'relay-thread',
+        agent_id: 'relay-agent',
+        message_id: 'relay-message',
       },
     },
     cancellation_requested: false,
     cancellation_requested_at: null,
-    recovery_commands: ["autobot-next status REP-1154 --json"],
+    recovery_commands: ['autobot-next status REP-1154 --json'],
     artifacts: [],
     events: [],
-  };
+  }
 
   assertNormalizedEqual(
     renderAutobotItemDetail(item),
@@ -481,11 +481,11 @@ test("item detail renderer surfaces relay transport for active runs", () => {
       message_id: relay-message
     Next:
     autobot-next status REP-1154 --json
-    `,
-  );
-});
+    `
+  )
+})
 
-test("discover renderer distinguishes empty scan, all excluded, and candidates", () => {
+test('discover renderer distinguishes empty scan, all excluded, and candidates', () => {
   const noRemoteScan: DiscoverData = {
     projects: [],
     query: null,
@@ -500,18 +500,18 @@ test("discover renderer distinguishes empty scan, all excluded, and candidates",
     issue_ids: [],
     exclusions: [],
     quiet: false,
-  };
+  }
 
   assertNormalizedEqual(
     renderAutobotDiscoverResults(noRemoteScan),
     `
     No remote issues scanned for all projects.
     Limit: 5
-    `,
-  );
+    `
+  )
 
   const allExcluded: DiscoverData = {
-    projects: ["Engineering"],
+    projects: ['Engineering'],
     query: null,
     filters: {
       labels: [],
@@ -524,15 +524,15 @@ test("discover renderer distinguishes empty scan, all excluded, and candidates",
     issue_ids: [],
     exclusions: [
       {
-        issue_id: "REP-200",
-        reason: "local-non-terminal",
+        issue_id: 'REP-200',
+        reason: 'local-non-terminal',
         details: {
-          state: "failed",
+          state: 'failed',
         },
       },
     ],
     quiet: false,
-  };
+  }
 
   assertNormalizedEqual(
     renderAutobotDiscoverResults(allExcluded),
@@ -542,45 +542,45 @@ test("discover renderer distinguishes empty scan, all excluded, and candidates",
 
     Exclusions: 1
     REP-200 (local-non-terminal) {"state":"failed"}
-    `,
-  );
+    `
+  )
 
   const candidatesFound: DiscoverData = {
-    projects: ["Engineering", "Platform"],
-    query: "autobot",
+    projects: ['Engineering', 'Platform'],
+    query: 'autobot',
     filters: {
-      labels: ["backend"],
-      priority: "high",
+      labels: ['backend'],
+      priority: 'high',
       limit: 2,
       scan_limit: 100,
     },
     scanned: 3,
     candidates: [
       {
-        issue_id: "REP-201",
-        title: "Candidate REP-201",
-        url: "https://linear.app/repro/issue/REP-201",
-        project: "Engineering",
-        labels: ["backend"],
+        issue_id: 'REP-201',
+        title: 'Candidate REP-201',
+        url: 'https://linear.app/repro/issue/REP-201',
+        project: 'Engineering',
+        labels: ['backend'],
         priority: 2,
-        priority_label: "High",
-        status_name: "Todo",
-        state_type: "unstarted",
-        assignee: "Gary",
+        priority_label: 'High',
+        status_name: 'Todo',
+        state_type: 'unstarted',
+        assignee: 'Gary',
       },
     ],
-    issue_ids: ["REP-201"],
+    issue_ids: ['REP-201'],
     exclusions: [
       {
-        issue_id: "REP-202",
-        reason: "limit-reached",
+        issue_id: 'REP-202',
+        reason: 'limit-reached',
         details: {
           limit: 2,
         },
       },
     ],
     quiet: false,
-  };
+  }
 
   assertNormalizedEqual(
     renderAutobotDiscoverResults(candidatesFound),
@@ -592,6 +592,6 @@ test("discover renderer distinguishes empty scan, all excluded, and candidates",
     REP-201 · Candidate REP-201
 
     Exclusions: 1 (see --json for details)
-    `,
-  );
-});
+    `
+  )
+})

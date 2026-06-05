@@ -1,16 +1,16 @@
-import { Grid } from "@jsxstyle/react";
-import React from "react";
+import { Grid } from '@jsxstyle/react'
+import React from 'react'
 
-import { ToolResultRow } from "./ToolResultRow";
-import { TOOL_RESULT_ROW_STYLES } from "./toolResultRowStyles";
+import { ToolResultRow } from './ToolResultRow'
+import { TOOL_RESULT_ROW_STYLES } from './toolResultRowStyles'
 
 interface ToolResultSemanticGridProps {
-  timeMs: number;
-  kind: "console" | "network";
-  children: React.ReactNode;
-  onGoToTime?: (timeMs: number) => void;
-  showGoToTime?: boolean;
-  gridTemplateColumns: string;
+  timeMs: number
+  kind: 'console' | 'network'
+  children: React.ReactNode
+  onGoToTime?: (timeMs: number) => void
+  showGoToTime?: boolean
+  gridTemplateColumns: string
 }
 
 export const ToolResultSemanticGrid: React.FC<ToolResultSemanticGridProps> = ({
@@ -39,4 +39,4 @@ export const ToolResultSemanticGrid: React.FC<ToolResultSemanticGridProps> = ({
       {children}
     </Grid>
   </ToolResultRow>
-);
+)

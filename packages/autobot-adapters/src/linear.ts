@@ -1,104 +1,104 @@
-import { execFile } from "node:child_process";
-import path from "node:path";
-import { promisify } from "node:util";
+import { execFile } from 'node:child_process'
+import path from 'node:path'
+import { promisify } from 'node:util'
 
-import { Future, fork, type FutureInstance } from "fluture";
+import { Future, fork, type FutureInstance } from 'fluture'
 
 export interface LinearIssueRef {
-  issue_id: string;
-  title: string;
-  url: string;
-  state_name: string | null;
-  state_type: string | null;
-  project: string | null;
-  labels: string[];
-  assignee: string | null;
+  issue_id: string
+  title: string
+  url: string
+  state_name: string | null
+  state_type: string | null
+  project: string | null
+  labels: string[]
+  assignee: string | null
 }
 
 export interface LinearDiscoverIssue {
-  issue_id: string;
-  title: string | null;
-  url: string | null;
-  project: string | null;
-  labels: string[];
-  priority: number | null;
-  priority_label: string | null;
-  status_name: string | null;
-  state_type: string | null;
-  assignee: string | null;
+  issue_id: string
+  title: string | null
+  url: string | null
+  project: string | null
+  labels: string[]
+  priority: number | null
+  priority_label: string | null
+  status_name: string | null
+  state_type: string | null
+  assignee: string | null
 }
 
 export interface LinearDiscoverInput {
-  repoRoot: string;
-  projects: string[];
-  limit: number;
+  repoRoot: string
+  projects: string[]
+  limit: number
 }
 
 interface RunCommandInput {
-  cwd: string;
-  command: string;
-  args: string[];
+  cwd: string
+  command: string
+  args: string[]
 }
 
 interface DiscoverDependencies {
-  runCommand?: (input: RunCommandInput) => FutureInstance<unknown, string>;
+  runCommand?: (input: RunCommandInput) => FutureInstance<unknown, string>
 }
 
 interface LoadIssueInput {
-  repoRoot: string;
-  issueId: string;
+  repoRoot: string
+  issueId: string
 }
 
 interface LoadDependencies {
-  runCommand?: (input: RunCommandInput) => FutureInstance<unknown, string>;
+  runCommand?: (input: RunCommandInput) => FutureInstance<unknown, string>
 }
 
-const execFileAsync = promisify(execFile);
+const execFileAsync = promisify(execFile)
 
 function resolveLinearBinary(repoRoot: string): string {
-  return path.join(repoRoot, "bin", "linear");
+  return path.join(repoRoot, 'bin', 'linear')
 }
 
 function createDiscoverError(input: {
-  repoRoot: string;
-  projects: string[];
-  limit: number;
-  command: string;
-  args: string[];
-  cause: unknown;
-  failureKind: "command" | "parse";
+  repoRoot: string
+  projects: string[]
+  limit: number
+  command: string
+  args: string[]
+  cause: unknown
+  failureKind: 'command' | 'parse'
 }): {
-  code: string;
-  message: string;
-  what_failed: string;
-  likely_cause: string;
-  recovery_commands: string[];
-  details: Record<string, unknown> | null;
+  code: string
+  message: string
+  what_failed: string
+  likely_cause: string
+  recovery_commands: string[]
+  details: Record<string, unknown> | null
 } {
-  const cause = input.cause as { code?: unknown; message?: unknown } | null;
+  const cause = input.cause as { code?: unknown; message?: unknown } | null
   const causeMessage =
-    typeof cause?.message === "string" ? cause.message : String(input.cause);
+    typeof cause?.message === 'string' ? cause.message : String(input.cause)
   const missingBinary =
-    cause?.code === "ENOENT" ||
-    /ENOENT|not found|no such file/i.test(causeMessage);
-  const malformedJson = input.failureKind === "parse";
+    cause?.code === 'ENOENT' ||
+    /ENOENT|not found|no such file/i.test(causeMessage)
+  const malformedJson = input.failureKind === 'parse'
 
   return {
-    code: "AUTOBOT-LINEAR-DISCOVERY-FAILED",
+    code: 'AUTOBOT-LINEAR-DISCOVERY-FAILED',
     message: malformedJson
-      ? "Linear discovery returned malformed JSON"
-      : "Linear discovery command failed",
-    what_failed: "Linear discovery command",
+      ? 'Linear discovery returned malformed JSON'
+      : 'Linear discovery command failed',
+    what_failed: 'Linear discovery command',
     likely_cause: missingBinary
       ? `the repo-owned Linear CLI at ${resolveLinearBinary(
-          input.repoRoot,
+          input.repoRoot
         )} is missing or not executable`
       : malformedJson
-      ? "Linear CLI output was not valid JSON"
+      ? 'Linear CLI output was not valid JSON'
       : causeMessage,
     recovery_commands: [
       `${resolveLinearBinary(input.repoRoot)} issue list --help`,
-      "autobot-next discover --help",
+      'autobot-next discover --help',
     ],
     details: {
       repo_root: input.repoRoot,
@@ -108,105 +108,105 @@ function createDiscoverError(input: {
       args: [...input.args],
       error: causeMessage,
     },
-  };
+  }
 }
 
 function normalizeString(value: unknown): string | null {
-  return typeof value === "string" && value.trim().length > 0
+  return typeof value === 'string' && value.trim().length > 0
     ? value.trim()
-    : null;
+    : null
 }
 
 function normalizeLabels(value: unknown): string[] {
   if (!Array.isArray(value)) {
-    return [];
+    return []
   }
 
-  return value.flatMap((entry) => {
-    if (typeof entry === "string") {
-      return [entry];
+  return value.flatMap(entry => {
+    if (typeof entry === 'string') {
+      return [entry]
     }
 
-    if (entry !== null && typeof entry === "object") {
-      const label = (entry as { name?: unknown }).name;
-      if (typeof label === "string" && label.trim().length > 0) {
-        return [label.trim()];
+    if (entry !== null && typeof entry === 'object') {
+      const label = (entry as { name?: unknown }).name
+      if (typeof label === 'string' && label.trim().length > 0) {
+        return [label.trim()]
       }
     }
 
-    return [];
-  });
+    return []
+  })
 }
 
 function normalizeAssignee(value: unknown): string | null {
-  if (typeof value === "string") {
-    return normalizeString(value);
+  if (typeof value === 'string') {
+    return normalizeString(value)
   }
 
-  if (value !== null && typeof value === "object") {
-    const name = (value as { name?: unknown }).name;
-    if (typeof name === "string") {
-      return normalizeString(name);
+  if (value !== null && typeof value === 'object') {
+    const name = (value as { name?: unknown }).name
+    if (typeof name === 'string') {
+      return normalizeString(name)
     }
   }
 
-  return null;
+  return null
 }
 
 function normalizeStatusName(value: unknown): string | null {
-  if (typeof value === "string") {
-    return normalizeString(value);
+  if (typeof value === 'string') {
+    return normalizeString(value)
   }
 
-  if (value !== null && typeof value === "object") {
-    const name = (value as { name?: unknown }).name;
-    if (typeof name === "string") {
-      return normalizeString(name);
+  if (value !== null && typeof value === 'object') {
+    const name = (value as { name?: unknown }).name
+    if (typeof name === 'string') {
+      return normalizeString(name)
     }
   }
 
-  return null;
+  return null
 }
 
 function normalizeStateType(value: unknown): string | null {
-  if (value !== null && typeof value === "object") {
-    const type = (value as { type?: unknown }).type;
-    if (typeof type === "string") {
-      return normalizeString(type);
+  if (value !== null && typeof value === 'object') {
+    const type = (value as { type?: unknown }).type
+    if (typeof type === 'string') {
+      return normalizeString(type)
     }
   }
 
-  return null;
+  return null
 }
 
 function normalizeProject(value: unknown): string | null {
-  if (typeof value === "string") {
-    return normalizeString(value);
+  if (typeof value === 'string') {
+    return normalizeString(value)
   }
 
-  if (value !== null && typeof value === "object") {
-    const name = (value as { name?: unknown }).name;
-    if (typeof name === "string") {
-      return normalizeString(name);
+  if (value !== null && typeof value === 'object') {
+    const name = (value as { name?: unknown }).name
+    if (typeof name === 'string') {
+      return normalizeString(name)
     }
   }
 
-  return null;
+  return null
 }
 
 function normalizePriority(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
 }
 
 function normalizeIssue(value: unknown): LinearDiscoverIssue | null {
-  if (value === null || typeof value !== "object") {
-    return null;
+  if (value === null || typeof value !== 'object') {
+    return null
   }
 
-  const issue = value as Record<string, unknown>;
-  const issue_id = normalizeString(issue.identifier ?? issue.issue_id);
+  const issue = value as Record<string, unknown>
+  const issue_id = normalizeString(issue.identifier ?? issue.issue_id)
   if (issue_id === null) {
-    return null;
+    return null
   }
 
   return {
@@ -220,21 +220,21 @@ function normalizeIssue(value: unknown): LinearDiscoverIssue | null {
     status_name: normalizeStatusName(issue.status),
     state_type: normalizeStateType(issue.status),
     assignee: normalizeAssignee(issue.assignee),
-  };
+  }
 }
 
 function normalizeIssueRef(value: unknown): LinearIssueRef | null {
-  if (value === null || typeof value !== "object") {
-    return null;
+  if (value === null || typeof value !== 'object') {
+    return null
   }
 
-  const issue = value as Record<string, unknown>;
-  const issue_id = normalizeString(issue.identifier ?? issue.issue_id);
-  const title = normalizeString(issue.title);
-  const url = normalizeString(issue.url);
+  const issue = value as Record<string, unknown>
+  const issue_id = normalizeString(issue.identifier ?? issue.issue_id)
+  const title = normalizeString(issue.title)
+  const url = normalizeString(issue.url)
 
   if (issue_id === null || title === null || url === null) {
-    return null;
+    return null
   }
 
   return {
@@ -246,64 +246,64 @@ function normalizeIssueRef(value: unknown): LinearIssueRef | null {
     project: normalizeProject(issue.project),
     labels: normalizeLabels(issue.labels),
     assignee: normalizeAssignee(issue.assignee),
-  };
+  }
 }
 
 function parseLinearDiscoverPayload(payload: string): LinearDiscoverIssue[] {
-  const parsed = JSON.parse(payload) as unknown;
+  const parsed = JSON.parse(payload) as unknown
   const items = Array.isArray(parsed)
     ? parsed
     : parsed !== null &&
-      typeof parsed === "object" &&
+      typeof parsed === 'object' &&
       Array.isArray((parsed as { items?: unknown }).items)
     ? (parsed as { items: unknown[] }).items
-    : null;
+    : null
 
   if (items === null) {
-    throw new Error("Unexpected Linear issue list payload shape");
+    throw new Error('Unexpected Linear issue list payload shape')
   }
 
-  return items.flatMap((item) => {
-    const normalized = normalizeIssue(item);
-    return normalized === null ? [] : [normalized];
-  });
+  return items.flatMap(item => {
+    const normalized = normalizeIssue(item)
+    return normalized === null ? [] : [normalized]
+  })
 }
 
 function defaultRunCommand(
-  input: RunCommandInput,
+  input: RunCommandInput
 ): FutureInstance<unknown, string> {
   return Future((reject, resolve) => {
     void execFileAsync(input.command, input.args, {
       cwd: input.cwd,
       maxBuffer: 1024 * 1024,
-      encoding: "utf8",
-    }).then((result) => resolve(result.stdout), reject);
+      encoding: 'utf8',
+    }).then(result => resolve(result.stdout), reject)
 
-    return () => undefined;
-  });
+    return () => undefined
+  })
 }
 
 export function discoverLinearIssues(
   input: LinearDiscoverInput,
-  dependencies: DiscoverDependencies = {},
+  dependencies: DiscoverDependencies = {}
 ): FutureInstance<unknown, LinearDiscoverIssue[]> {
-  const runCommand = dependencies.runCommand ?? defaultRunCommand;
-  const projectArgs = input.projects.flatMap((project) =>
-    project.length > 0 ? ["--project", project] : [],
-  );
+  const runCommand = dependencies.runCommand ?? defaultRunCommand
+  const projectArgs = input.projects.flatMap(project =>
+    project.length > 0 ? ['--project', project] : []
+  )
   const args = [
-    "issue",
-    "list",
+    'issue',
+    'list',
     ...projectArgs,
-    "--status",
-    "backlog",
-    "--status",
-    "todo",
-    "--json",
-    "identifier,title,url,priority,priorityLabel,status,project,assignee,labels",
-    "--limit",
+    '--status',
+    'backlog',
+    '--status',
+    'todo',
+    '--json',
+    'identifier,title,url,priority,priorityLabel,status,project,assignee,labels',
+    '--limit',
     String(input.limit),
-  ];
+  ]
 
   return Future((reject, resolve) => {
     runCommand({
@@ -311,7 +311,7 @@ export function discoverLinearIssues(
       command: resolveLinearBinary(input.repoRoot),
       args,
     }).pipe(
-      fork((error) => {
+      fork(error => {
         reject(
           createDiscoverError({
             repoRoot: input.repoRoot,
@@ -320,12 +320,12 @@ export function discoverLinearIssues(
             command: resolveLinearBinary(input.repoRoot),
             args,
             cause: error,
-            failureKind: "command",
-          }),
-        );
-      })((payload) => {
+            failureKind: 'command',
+          })
+        )
+      })(payload => {
         try {
-          resolve(parseLinearDiscoverPayload(payload));
+          resolve(parseLinearDiscoverPayload(payload))
         } catch (error) {
           reject(
             createDiscoverError({
@@ -335,58 +335,58 @@ export function discoverLinearIssues(
               command: resolveLinearBinary(input.repoRoot),
               args,
               cause: error,
-              failureKind: "parse",
-            }),
-          );
+              failureKind: 'parse',
+            })
+          )
         }
-      }),
-    );
+      })
+    )
 
-    return () => undefined;
-  });
+    return () => undefined
+  })
 }
 
 function createLoadIssueError(input: {
-  repoRoot: string;
-  issueId: string;
-  command: string;
-  args: string[];
-  cause: unknown;
-  failureKind: "command" | "parse";
+  repoRoot: string
+  issueId: string
+  command: string
+  args: string[]
+  cause: unknown
+  failureKind: 'command' | 'parse'
 }): {
-  code: string;
-  message: string;
-  what_failed: string;
-  likely_cause: string;
-  recovery_commands: string[];
-  details: Record<string, unknown> | null;
+  code: string
+  message: string
+  what_failed: string
+  likely_cause: string
+  recovery_commands: string[]
+  details: Record<string, unknown> | null
 } {
-  const cause = input.cause as { code?: unknown; message?: unknown } | null;
+  const cause = input.cause as { code?: unknown; message?: unknown } | null
   const causeMessage =
-    typeof cause?.message === "string" ? cause.message : String(input.cause);
+    typeof cause?.message === 'string' ? cause.message : String(input.cause)
   const missingBinary =
-    cause?.code === "ENOENT" ||
-    /ENOENT|not found|no such file/i.test(causeMessage);
-  const malformedJson = input.failureKind === "parse";
+    cause?.code === 'ENOENT' ||
+    /ENOENT|not found|no such file/i.test(causeMessage)
+  const malformedJson = input.failureKind === 'parse'
 
   return {
-    code: "AUTOBOT-LINEAR-ISSUE-LOAD-FAILED",
+    code: 'AUTOBOT-LINEAR-ISSUE-LOAD-FAILED',
     message: malformedJson
-      ? "Linear issue show returned malformed JSON"
-      : "Linear issue show command failed",
-    what_failed: "Linear issue hydration",
+      ? 'Linear issue show returned malformed JSON'
+      : 'Linear issue show command failed',
+    what_failed: 'Linear issue hydration',
     likely_cause: missingBinary
       ? `the repo-owned Linear CLI at ${resolveLinearBinary(
-          input.repoRoot,
+          input.repoRoot
         )} is missing or not executable`
       : malformedJson
-      ? "Linear CLI output was not valid JSON"
+      ? 'Linear CLI output was not valid JSON'
       : causeMessage,
     recovery_commands: [
       `${resolveLinearBinary(input.repoRoot)} issue show ${
         input.issueId
       } --help`,
-      "autobot-next status <issue-id> --json",
+      'autobot-next status <issue-id> --json',
     ],
     details: {
       repo_root: input.repoRoot,
@@ -395,30 +395,30 @@ function createLoadIssueError(input: {
       args: [...input.args],
       error: causeMessage,
     },
-  };
+  }
 }
 
 function parseLinearIssuePayload(payload: string): LinearIssueRef {
-  const parsed = JSON.parse(payload) as unknown;
+  const parsed = JSON.parse(payload) as unknown
   const item =
-    parsed !== null && typeof parsed === "object" && "item" in parsed
+    parsed !== null && typeof parsed === 'object' && 'item' in parsed
       ? (parsed as { item?: unknown }).item
-      : parsed;
+      : parsed
 
-  const normalized = normalizeIssueRef(item);
+  const normalized = normalizeIssueRef(item)
   if (normalized === null) {
-    throw new Error("Unexpected Linear issue payload shape");
+    throw new Error('Unexpected Linear issue payload shape')
   }
 
-  return normalized;
+  return normalized
 }
 
 export function loadLinearIssue(
   input: LoadIssueInput,
-  dependencies: LoadDependencies = {},
+  dependencies: LoadDependencies = {}
 ): FutureInstance<unknown, LinearIssueRef | null> {
-  const runCommand = dependencies.runCommand ?? defaultRunCommand;
-  const args = ["issue", "show", input.issueId, "--json"];
+  const runCommand = dependencies.runCommand ?? defaultRunCommand
+  const args = ['issue', 'show', input.issueId, '--json']
 
   return Future((reject, resolve) => {
     runCommand({
@@ -426,7 +426,7 @@ export function loadLinearIssue(
       command: resolveLinearBinary(input.repoRoot),
       args,
     }).pipe(
-      fork((error) => {
+      fork(error => {
         reject(
           createLoadIssueError({
             repoRoot: input.repoRoot,
@@ -434,12 +434,12 @@ export function loadLinearIssue(
             command: resolveLinearBinary(input.repoRoot),
             args,
             cause: error,
-            failureKind: "command",
-          }),
-        );
-      })((payload) => {
+            failureKind: 'command',
+          })
+        )
+      })(payload => {
         try {
-          resolve(parseLinearIssuePayload(payload));
+          resolve(parseLinearIssuePayload(payload))
         } catch (error) {
           reject(
             createLoadIssueError({
@@ -448,13 +448,13 @@ export function loadLinearIssue(
               command: resolveLinearBinary(input.repoRoot),
               args,
               cause: error,
-              failureKind: "parse",
-            }),
-          );
+              failureKind: 'parse',
+            })
+          )
         }
-      }),
-    );
+      })
+    )
 
-    return () => undefined;
-  });
+    return () => undefined
+  })
 }

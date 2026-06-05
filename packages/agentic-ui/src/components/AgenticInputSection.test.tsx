@@ -1,50 +1,50 @@
-import { cleanup, render } from "@testing-library/react";
-import expect from "expect";
-import { afterEach, describe, it, mock } from "node:test";
-import React from "react";
+import { cleanup, render } from '@testing-library/react'
+import expect from 'expect'
+import { afterEach, describe, it, mock } from 'node:test'
+import React from 'react'
 
 // Capture the last placeholders prop passed to AgenticInput.
 // Must be registered before importing AgenticInputSection (which imports @repro/design).
-let capturedPlaceholders: Array<string> | undefined;
+let capturedPlaceholders: Array<string> | undefined
 
-mock.module("@repro/design", {
+mock.module('@repro/design', {
   namedExports: {
     AgenticInput: (props: {
-      disabled?: boolean;
-      placeholders?: Array<string>;
-      historyValue?: string;
-      onFocusChange: (hasFocus: boolean) => void;
-      onNavigateHistory?: (direction: "up" | "down") => void;
-      onSubmit: () => void;
+      disabled?: boolean
+      placeholders?: Array<string>
+      historyValue?: string
+      onFocusChange: (hasFocus: boolean) => void
+      onNavigateHistory?: (direction: 'up' | 'down') => void
+      onSubmit: () => void
     }) => {
-      capturedPlaceholders = props.placeholders;
-      return null;
+      capturedPlaceholders = props.placeholders
+      return null
     },
     AgenticInputFormState: {},
-    colors: { white: "#fff", slate: { "100": "#f1f5f9", "200": "#e2e8f0" } },
+    colors: { white: '#fff', slate: { '100': '#f1f5f9', '200': '#e2e8f0' } },
     color: {
-      bg: { surface: "#fff", hover: "#f1f5f9" },
-      border: { default: "#e2e8f0" },
+      bg: { surface: '#fff', hover: '#f1f5f9' },
+      border: { default: '#e2e8f0' },
     },
-    spacing: { "2xl": 24 },
+    spacing: { '2xl': 24 },
   },
-});
+})
 
 // Import after mock registration so the mock takes effect
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { AgenticInputSection } =
-  require("./AgenticInputSection") as typeof import("./AgenticInputSection");
+  require('./AgenticInputSection') as typeof import('./AgenticInputSection')
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { PLACEHOLDER_COPY, REPLY_PLACEHOLDER } =
-  require("../constants") as typeof import("../constants");
+  require('../constants') as typeof import('../constants')
 
 afterEach(() => {
-  capturedPlaceholders = undefined;
-  cleanup();
-});
+  capturedPlaceholders = undefined
+  cleanup()
+})
 
-describe("AgenticInputSection placeholder behaviour (REP-708)", () => {
-  it("passes cycling PLACEHOLDER_COPY when conversation has not started", () => {
+describe('AgenticInputSection placeholder behaviour (REP-708)', () => {
+  it('passes cycling PLACEHOLDER_COPY when conversation has not started', () => {
     render(
       <AgenticInputSection
         disabled={false}
@@ -53,13 +53,13 @@ describe("AgenticInputSection placeholder behaviour (REP-708)", () => {
         entries={[]}
         onFocusChange={() => undefined}
         onSubmit={() => undefined}
-      />,
-    );
+      />
+    )
 
-    expect(capturedPlaceholders).toEqual(PLACEHOLDER_COPY);
-  });
+    expect(capturedPlaceholders).toEqual(PLACEHOLDER_COPY)
+  })
 
-  it("passes a single static REPLY_PLACEHOLDER once conversation has started", () => {
+  it('passes a single static REPLY_PLACEHOLDER once conversation has started', () => {
     render(
       <AgenticInputSection
         disabled={false}
@@ -68,13 +68,13 @@ describe("AgenticInputSection placeholder behaviour (REP-708)", () => {
         entries={[]}
         onFocusChange={() => undefined}
         onSubmit={() => undefined}
-      />,
-    );
+      />
+    )
 
-    expect(capturedPlaceholders).toEqual([REPLY_PLACEHOLDER]);
-  });
+    expect(capturedPlaceholders).toEqual([REPLY_PLACEHOLDER])
+  })
 
-  it("reverts to cycling PLACEHOLDER_COPY after conversation is reset", () => {
+  it('reverts to cycling PLACEHOLDER_COPY after conversation is reset', () => {
     const { rerender } = render(
       <AgenticInputSection
         disabled={false}
@@ -83,10 +83,10 @@ describe("AgenticInputSection placeholder behaviour (REP-708)", () => {
         entries={[]}
         onFocusChange={() => undefined}
         onSubmit={() => undefined}
-      />,
-    );
+      />
+    )
 
-    expect(capturedPlaceholders).toEqual([REPLY_PLACEHOLDER]);
+    expect(capturedPlaceholders).toEqual([REPLY_PLACEHOLDER])
 
     // Simulate agentic.reset() clearing the conversation
     rerender(
@@ -97,9 +97,9 @@ describe("AgenticInputSection placeholder behaviour (REP-708)", () => {
         entries={[]}
         onFocusChange={() => undefined}
         onSubmit={() => undefined}
-      />,
-    );
+      />
+    )
 
-    expect(capturedPlaceholders).toEqual(PLACEHOLDER_COPY);
-  });
-});
+    expect(capturedPlaceholders).toEqual(PLACEHOLDER_COPY)
+  })
+})
