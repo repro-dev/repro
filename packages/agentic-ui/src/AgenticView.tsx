@@ -1,5 +1,6 @@
 import { Block, Col } from "@jsxstyle/react";
 import { useAtomValue } from "@repro/atom";
+import { buildInvestigationSummary } from "@repro/agentic";
 import {
   AgenticInputFormState,
   color,
@@ -10,8 +11,9 @@ import {
   transition,
 } from "@repro/design";
 import { RotateCcwIcon } from "lucide-react";
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { AgenticInputSection } from "./components/AgenticInputSection";
+import { HypothesisList } from "./components/HypothesisList";
 import { JumpToEndButton } from "./components/JumpToEndButton";
 import { LoadingIndicator } from "./components/LoadingIndicator";
 import { MessageList } from "./components/MessageList";
@@ -21,14 +23,18 @@ import { useHistoryScroll } from "./hooks/useHistoryScroll";
 export const AgenticView: React.FC<{
   onFeedback?: (sentiment: "positive" | "negative") => void;
   onGoToTime?: (timeMs: number) => void;
-}> = ({ onFeedback, onGoToTime }) => {
+  onInvestigationComplete?: (summary: string) => void;
+}> = ({ onFeedback, onGoToTime, onInvestigationComplete }) => {
   const [inputHasFocus, setInputHasFocus] = useState(false);
+  const lastSummaryRef = useRef("");
 
   const agentic = useAgenticState();
   const entries = useAtomValue(agentic.$entries);
   const loading = useAtomValue(agentic.$loading);
   const error = useAtomValue(agentic.$error);
   const wasCancelled = useAtomValue(agentic.$wasCancelled);
+  const stage = useAtomValue(agentic.$stage);
+  const hypotheses = useAtomValue(agentic.$hypotheses);
 
   const lastPromptRef = useRef("");
 
@@ -53,9 +59,25 @@ export const AgenticView: React.FC<{
   }
 
   function handleReset() {
+    lastSummaryRef.current = "";
     agentic.reset();
     setInputHasFocus(false);
   }
+
+  // Fire onInvestigationComplete when the investigation reaches conclusion
+  useEffect(() => {
+    if (
+      stage === "conclusion" &&
+      hypotheses.length > 0 &&
+      onInvestigationComplete
+    ) {
+      const summary = buildInvestigationSummary(hypotheses);
+      if (summary !== lastSummaryRef.current) {
+        lastSummaryRef.current = summary;
+        onInvestigationComplete(summary);
+      }
+    }
+  }, [stage, hypotheses, onInvestigationComplete]);
 
   return (
     <Block
@@ -79,7 +101,11 @@ export const AgenticView: React.FC<{
             lastPromptRef.current = prompt;
             agentic.query(prompt);
           }}
-        />
+        >
+          {stage === "conclusion" && hypotheses.length > 0 && (
+            <HypothesisList hypotheses={hypotheses} />
+          )}
+        </MessageList>
       </Col>
 
       <AgenticInputSection

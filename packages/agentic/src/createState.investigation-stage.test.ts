@@ -111,6 +111,7 @@ describe("createAgenticState investigation stage", () => {
         id: "h1",
         description: "The request is failing before render",
         evidence: [],
+        confidence: "medium" as const,
       },
     ];
 
@@ -170,6 +171,7 @@ describe("createAgenticState investigation stage", () => {
         id: "h1",
         description: "The request is failing before render",
         evidence: ["console error at 3.2s"],
+        confidence: "medium",
       },
     ]);
 
@@ -182,13 +184,46 @@ describe("createAgenticState investigation stage", () => {
       callCount += 1;
 
       if (callCount === 1) {
+        // orient → hypotheses
+        return resolve(
+          makeToolCallStream("advance-hypotheses", "advanceStage", {
+            stage: "hypotheses",
+            hypotheses: [
+              {
+                id: "h1",
+                description: "The request is failing before render",
+                evidence: ["some observation"],
+              },
+            ],
+          }),
+        ) as never;
+      }
+
+      if (callCount === 2) {
+        // hypotheses → evidence (carry forward the hypothesis with evidence)
+        return resolve(
+          makeToolCallStream("advance-evidence", "advanceStage", {
+            stage: "evidence",
+            hypotheses: [
+              {
+                id: "h1",
+                description: "The request is failing before render",
+                evidence: ["some observation"],
+              },
+            ],
+          }),
+        ) as never;
+      }
+
+      if (callCount === 3) {
+        // evidence → conclusion — attempt with empty evidence hypothesis
         return resolve(
           makeToolCallStream("advance-conclusion", "advanceStage", {
             stage: "conclusion",
             hypotheses: [
               {
-                id: "h1",
-                description: "The request is failing before render",
+                id: "h2",
+                description: "Unsupported hypothesis",
                 evidence: [],
               },
             ],
@@ -205,15 +240,19 @@ describe("createAgenticState investigation stage", () => {
 
     await waitFor(() => state.$loading.getValue() === "none");
 
-    assert.equal(state.$stage.getValue(), "orient");
+    // Stage should have advanced through hypotheses and evidence, but the
+    // conclusion attempt with empty evidence should keep the stage at evidence.
+    assert.equal(state.$stage.getValue(), "evidence");
 
-    const toolMessage = state.$entries
+    const toolMessages = state.$entries
       .getValue()
-      .find((entry) => entry.role === "tool");
+      .filter((entry) => entry.role === "tool");
 
-    assert.ok(toolMessage);
+    // The last tool message is the rejected conclusion attempt
+    const lastToolMessage = toolMessages[toolMessages.length - 1];
+    assert.ok(lastToolMessage);
     assert.match(
-      JSON.stringify(toolMessage?.content),
+      JSON.stringify(lastToolMessage.content),
       /Conclusion requires evidence/,
     );
 

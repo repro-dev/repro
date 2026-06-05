@@ -159,6 +159,7 @@ export interface Hypothesis {
   id: string;
   description: string;
   evidence: Array<string>;
+  confidence: "low" | "medium" | "high";
 }
 
 export interface AdvanceStageInput {

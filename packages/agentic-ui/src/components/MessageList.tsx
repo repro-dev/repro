@@ -1,7 +1,7 @@
 import { Block, Col } from "@jsxstyle/react";
 import { Md } from "@m2d/react-markdown";
 import { AgenticError, Entry, Loading, groupToolCalls } from "@repro/agentic";
-import { colors, spacing } from "@repro/design";
+import { colors, fontSize, spacing } from "@repro/design";
 import React, { useMemo } from "react";
 import {
   INPUT_CONTAINER_OFFSET_PX,
@@ -24,6 +24,7 @@ interface MessageListProps {
   wasCancelled: boolean;
   onFeedback?: (sentiment: "positive" | "negative") => void;
   onGoToTime?: (timeMs: number) => void;
+  children?: React.ReactNode;
 }
 
 export const MessageList: React.FC<MessageListProps> = ({
@@ -37,6 +38,7 @@ export const MessageList: React.FC<MessageListProps> = ({
   wasCancelled,
   onFeedback,
   onGoToTime,
+  children,
 }) => {
   const renderItems = useMemo(() => groupToolCalls(entries), [entries]);
 
@@ -52,7 +54,7 @@ export const MessageList: React.FC<MessageListProps> = ({
           ? `calc(100cqb - ${INPUT_CONTAINER_OFFSET_PX}px)`
           : "100cqb"
       }
-      fontSize={13}
+      fontSize={fontSize.sm}
       overflowY="scroll"
       paddingBlockStart={spacing.lg}
       paddingBlockEnd={isLoading ? LOADING_CONTAINER_OFFSET_PX : spacing.lg}
@@ -113,6 +115,7 @@ export const MessageList: React.FC<MessageListProps> = ({
           );
         })}
 
+        {children}
         {error !== null && <ErrorMessage error={error} onRetry={onRetry} />}
       </Col>
     </Block>

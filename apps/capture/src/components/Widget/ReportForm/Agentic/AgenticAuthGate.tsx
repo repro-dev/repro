@@ -8,10 +8,12 @@ import { Agentic } from './Agentic.hoc'
 
 interface AgenticAuthGateProps {
   getSelectedRecording: RecordingActions['getSelectedRecording']
+  onInvestigationComplete?: (summary: string) => void
 }
 
 export const AgenticAuthGate: React.FC<AgenticAuthGateProps> = ({
   getSelectedRecording,
+  onInvestigationComplete,
 }) => {
   const sessionLoading = useSessionLoading()
   const session = useSession()
@@ -64,5 +66,10 @@ export const AgenticAuthGate: React.FC<AgenticAuthGateProps> = ({
     )
   }
 
-  return <Agentic getSelectedRecording={getSelectedRecording} />
+  return (
+    <Agentic
+      getSelectedRecording={getSelectedRecording}
+      onInvestigationComplete={onInvestigationComplete}
+    />
+  )
 }

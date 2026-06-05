@@ -56,10 +56,12 @@ export type {
   UserMessageContext,
 } from "./types";
 export {
+  buildInvestigationSummary,
   getInvestigationReadiness,
   hasSupportedHypothesis,
   isAdvanceableInvestigationStage,
   isInvestigationStage,
   normalizeHypotheses,
+  sortHypothesesByConfidence,
   validateInvestigationStageTransition,
 } from "./investigationStage";

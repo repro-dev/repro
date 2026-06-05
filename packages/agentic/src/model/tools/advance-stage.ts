@@ -29,12 +29,18 @@ export const TOOL_DEFINITION = {
         hypotheses: {
           type: "array",
           description:
-            "Optional hypotheses to store with the new stage. Each hypothesis must include id, description, and evidence.",
+            "Optional hypotheses to store with the new stage. Each hypothesis must include id, description, evidence, and confidence.",
           items: {
             type: "object",
             properties: {
               id: { type: "string" },
               description: { type: "string" },
+              confidence: {
+                type: "string",
+                enum: ["low", "medium", "high"],
+                description:
+                  "Confidence level based on evidence volume and directness.",
+              },
               evidence: {
                 type: "array",
                 items: { type: "string" },

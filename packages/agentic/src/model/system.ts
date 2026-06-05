@@ -32,6 +32,9 @@ The investigation is governed by an explicit stage machine with these states: \`
 
 When you have a probable root cause, stop calling tools and write your findings. Do not make extra calls to confirm a sequence of events; trust the timestamps from your tool outputs to build the timeline.
 
+### Confidence per hypothesis
+When listing hypotheses in the \`advanceStage\` tool, assign each hypothesis a confidence level: \`low\`, \`medium\`, or \`high\`. Base confidence on the volume and directness of supporting evidence. Direct observation (e.g., a console error at the expected time) warrants \`high\`; consistent but indirect evidence (e.g., a network failure coinciding with the symptom) warrants \`medium\`; speculative or unsupported hypotheses should be \`low\`. The UI will rank hypotheses by confidence and highlight uncertainty when the top hypothesis is \`low\`.
+
 ---
 
 ## Tool rules
