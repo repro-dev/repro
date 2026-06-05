@@ -10,12 +10,12 @@ export interface ModelConfig {
 //
 // BASE TIER
 //
-// google/gemini-2.5-flash — strong base-tier option; previously the default.
-//   Context window: 1,048,576 tokens. Eval results (2026-03-28, 3 fixtures × 3
-//   runs): 100%/67%/100% correctness at ~4.0 avg tool calls — most efficient
-//   model tested. Fails 1-in-3 on the hardest fixture (conditional-rendering-bug).
-//   Pricing: $0.30/$2.50 per 1M tokens. Retained as an option; superseded as
-//   default by minimax-m2.7 which achieves 100% on all fixtures.
+// google/gemini-2.5-flash — current default. Restored after minimax/minimax-m2.7
+//   lost function-calling (tool_calls) support through the OpenRouter API. Context
+//   window: 1,048,576 tokens. Eval results (2026-03-28, 3 fixtures × 3 runs):
+//   100%/67%/100% correctness at ~4.0 avg tool calls — most efficient model
+//   tested. Fails 1-in-3 on the hardest fixture (conditional-rendering-bug).
+//   Pricing: $0.30/$2.50 per 1M tokens.
 //   NOTE: Do not send reasoning.effort to this model — it is not supported and
 //   caused premature stopping in earlier eval runs. See streamProvider.ts.
 //
@@ -30,15 +30,13 @@ export interface ModelConfig {
 //   3× more tool calls than gemini-2.5-flash. Suitable for users who need the
 //   highest reliability and don't mind higher token spend.
 //
-// minimax/minimax-m2.7 — current default. Context: 204,800 tokens. Pricing:
-//   $0.30/$1.20 per 1M tokens (same input cost as gemini-2.5-flash, cheaper
-//   output). Eval results (2026-03-28, 5 batches × 3 runs = 15 runs total):
-//   100%/100%/100% — the only model to achieve perfect correctness on all three
-//   fixtures including the hardest (conditional-rendering-bug). Avg tool calls:
-//   5.0/16.3/4.7. Tool error rate is elevated on cond-render (~8%) but the model
-//   always recovers and converges. Chosen as default over gemini-2.5-flash for
-//   its perfect correctness; shorter context window (205k vs 1M) is the primary
-//   trade-off for very long sessions.
+// minimax/minimax-m2.7 — retained as a registered base-tier option. Previously
+//   the default (2026-03-28 to 2026-06-04) due to perfect correctness on all
+//   fixtures. Demoted after losing function-calling (tool_calls) support through
+//   the OpenRouter API — model returns text responses without tool calls, causing
+//   0 tool calls on all eval fixtures. Context: 204,800 tokens. Pricing: $0.30/$1.20
+//   per 1M tokens. Retained for monitoring; re-evaluate if OpenRouter restores
+//   function-calling support for this model.
 //
 // REASONING TIER
 //
@@ -121,12 +119,11 @@ export const DEFAULT_MODEL_CONFIG: ModelConfig = {
   tier: 'base',
 }
 
-// Primary model for the agentic session. minimax-m2.7 chosen for perfect
-// correctness on all 3 eval fixtures (100%/100%/100%, 15 runs). Supersedes
-// gemini-2.5-flash which failed 1-in-3 on the hardest fixture. Trade-off:
-// 205k context window vs gemini's 1M — acceptable for typical sessions.
-// See rationale block above.
-export const AGENTIC_DEFAULT_MODEL = 'minimax/minimax-m2.7'
+// Primary model for the agentic session. gemini-2.5-flash restored as default
+// after minimax/m2.7 lost function-calling support via OpenRouter. gemini-2.5-flash
+// has a 1M context window and achieves the best efficiency (avg ~4.0 tool calls)
+// but fails 1-in-3 on the hardest eval fixture. See rationale block above.
+export const AGENTIC_DEFAULT_MODEL = 'google/gemini-2.5-flash'
 
 // Cheap judge model for eval scoring. Runs 9+ times per eval run.
 // gemini-2.5-flash at $0.30/$2.50 per 1M provides better quality and
