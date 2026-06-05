@@ -78,6 +78,7 @@ export const Collapsible = forwardRef<HTMLDivElement, CollapsibleProps>(
           cursor={disabled ? 'not-allowed' : 'pointer'}
           opacity={disabled ? 0.6 : 1}
           borderWidth={0}
+          textAlign="inherit"
           transition={transition.fast}
           {...focusRing()}
           props={{

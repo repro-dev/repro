@@ -1,139 +1,88 @@
-import { Block, Col, Row } from "@jsxstyle/react";
+import { Col, Row } from "@jsxstyle/react";
 import { sortHypothesesByConfidence, type Hypothesis } from "@repro/agentic";
 import {
   Alert,
+  Badge,
+  BadgeProps,
   Collapsible,
   color,
-  fontSize,
-  fontWeight,
-  lineHeight,
-  radius,
   spacing,
-  textStyles,
+  Table,
+  Text,
 } from "@repro/design";
 import { AlertTriangleIcon } from "lucide-react";
 import React from "react";
 
-const CONFIDENCE_COLORS: Record<
-  "low" | "medium" | "high",
-  { bg: string; text: string; label: string }
-> = {
-  high: {
-    bg: color.successSubtle,
-    text: color.success,
-    label: "High",
-  },
-  medium: {
-    bg: color.warningSubtle,
-    text: color.warning,
-    label: "Medium",
-  },
-  low: {
-    bg: color.dangerSubtle,
-    text: color.danger,
-    label: "Low",
-  },
+type ConfidenceLevel = "high" | "medium" | "low";
+
+const contextMap: Record<ConfidenceLevel, BadgeProps["context"]> = {
+  high: "danger",
+  medium: "warning",
+  low: "neutral",
 };
 
-const ConfidenceBadge: React.FC<{ level: keyof typeof CONFIDENCE_COLORS }> = ({
+const ConfidenceBadge: React.FC<{ level: "high" | "medium" | "low" }> = ({
   level,
 }) => {
-  const { bg, text, label } = CONFIDENCE_COLORS[level];
-
   return (
-    <Block
-      backgroundColor={bg}
-      borderRadius={radius.sm}
-      color={text}
-      fontSize={fontSize.xs}
-      fontWeight={fontWeight.semibold}
-      lineHeight={lineHeight.tight}
-      paddingH={spacing.xs}
-      paddingV={spacing.xs}
-    >
-      {label}
-    </Block>
+    <Badge size="small" context={contextMap[level]}>
+      {level}
+    </Badge>
   );
 };
 
 const EvidenceList: React.FC<{ evidence: Array<string> }> = ({ evidence }) => (
-  <Block component="ul" margin={0} paddingLeft={spacing.lg}>
+  <Table density="compact">
     {evidence.map((piece, i) => (
-      <Block component="li" key={i} marginBottom={spacing.xs}>
-        {piece}
-      </Block>
+      <Table.Row key={i}>
+        <Table.Cell>
+          <Text variant="caption" weight="semibold">
+            {i + 1}.
+          </Text>
+        </Table.Cell>
+        <Table.Cell>
+          <Text variant="caption">{piece}</Text>
+        </Table.Cell>
+      </Table.Row>
     ))}
-  </Block>
+  </Table>
 );
 
 interface HypothesisCardProps {
   hypothesis: Hypothesis;
-  isTop: boolean;
   defaultExpanded: boolean;
 }
 
 const HypothesisCard: React.FC<HypothesisCardProps> = ({
   hypothesis,
-  isTop,
   defaultExpanded,
 }) => {
   const hasEvidence = hypothesis.evidence.length > 0;
 
   const header = (
     <Col gap={spacing.xs} flex={1}>
-      <Row alignItems="center" gap={spacing.sm}>
-        <Block component="span" {...textStyles.body} flexGrow={1}>
-          {hypothesis.description}
-        </Block>
-        {isTop && (
-          <Block
-            backgroundColor={color.primary}
-            borderRadius={radius.sm}
-            color={color.text.inverse}
-            fontSize={fontSize.xs}
-            fontWeight={fontWeight.semibold}
-            lineHeight={lineHeight.tight}
-            paddingH={spacing.xs}
-            paddingV={spacing.xs}
-          >
-            Top
-          </Block>
-        )}
-        <ConfidenceBadge level={hypothesis.confidence} />
-      </Row>
+      <Text variant="bodySmall">{hypothesis.description}</Text>
       {hasEvidence && (
-        <Block color={color.text.muted} {...textStyles.bodySmall}>
-          {hypothesis.evidence.length}{" "}
-          {hypothesis.evidence.length === 1 ? "evidence" : "evidence"}
-        </Block>
+        <Row alignItems="center" gap={spacing.md}>
+          <Text variant="caption" weight="semibold">
+            Confidence: <ConfidenceBadge level={hypothesis.confidence} />
+          </Text>
+
+          <Text variant="caption">&rarr;</Text>
+
+          <Text variant="caption" color={color.text.muted}>
+            {hypothesis.evidence.length}{" "}
+            {hypothesis.evidence.length === 1 ? "reason" : "reasons"}
+          </Text>
+        </Row>
       )}
     </Col>
   );
 
-  if (hasEvidence) {
-    return (
-      <Collapsible trigger={header} defaultOpen={defaultExpanded}>
-        <EvidenceList evidence={hypothesis.evidence} />
-      </Collapsible>
-    );
-  }
-
   return (
-    <Block
-      backgroundColor={color.bg.surface}
-      border={`1px solid ${color.border.default}`}
-      borderRadius={radius.md}
-      overflow="hidden"
-    >
-      <Row
-        alignItems="center"
-        gap={spacing.sm}
-        paddingH={spacing.md}
-        paddingV={spacing.sm}
-      >
-        {header}
-      </Row>
-    </Block>
+    <Collapsible trigger={header} defaultOpen={defaultExpanded}>
+      <EvidenceList evidence={hypothesis.evidence} />
+    </Collapsible>
   );
 };
 
@@ -155,9 +104,7 @@ export const HypothesisList: React.FC<HypothesisListProps> = ({
 
   return (
     <Col gap={spacing.sm} marginTop={spacing.md}>
-      <Block {...textStyles.label} color={color.text.secondary}>
-        Investigation hypotheses
-      </Block>
+      <Text variant="heading3">Investigation hypotheses</Text>
 
       {isLowConfidenceTop && (
         <Alert type="warning" icon={<AlertTriangleIcon size={14} />}>
@@ -170,7 +117,6 @@ export const HypothesisList: React.FC<HypothesisListProps> = ({
         <HypothesisCard
           key={hypothesis.id}
           hypothesis={hypothesis}
-          isTop={index === 0}
           defaultExpanded={index === 0}
         />
       ))}
