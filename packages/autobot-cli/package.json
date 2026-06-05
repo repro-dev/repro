@@ -6,7 +6,9 @@
     "autobot-next": "./bin/autobot-next"
   },
   "scripts": {
-    "test": "tsx --experimental-test-module-mocks --test --test-timeout=30000 --test-force-exit src/**/*.test.ts",
+    "test": "tsx --test --test-timeout=30000 --test-force-exit src/__tests__/worker-runner-finalization.test.ts src/__tests__/services.workflow.workspace-setup.test.ts src/__tests__/services.workflow.test.ts src/__tests__/services.workflow.run-once.bounded-tick.test.ts src/__tests__/services.workflow.run-once.review-fixes.test.ts src/__tests__/services.workflow.run-once.test.ts src/__tests__/worker-runner.test.ts src/__tests__/services.workflow.planning-worker-artifacts.test.ts src/__tests__/services.supervisor.test.ts src/__tests__/services.discover.test.ts src/__tests__/services.planning-session.test.ts src/__tests__/services.workflow.run-once-discovery.test.ts src/__tests__/run.test.ts src/__tests__/services.queue-config.test.ts src/__tests__/services.engine.test.ts src/__tests__/services.engine.workers.test.ts src/__tests__/parser.config-workflow.test.ts src/__tests__/parser.queue.test.ts src/__tests__/parser.observe.test.ts src/__tests__/json-renderer.test.ts src/__tests__/human-renderer.workers.test.ts src/__tests__/parser.operate.test.ts src/__tests__/parser.usage-error.test.ts src/__tests__/parser.supervisor.test.ts src/__tests__/phase-contracts.test.ts src/__tests__/planning-session.test.ts src/__tests__/run.supervisor.test.ts src/__tests__/human-renderer.test.ts",
+"test:mocks": "tsx --experimental-test-module-mocks --test --test-timeout=30000 --test-force-exit src/__tests__/worker-runner-entry.test.ts src/__tests__/services.workflow.run-once.default-linear.test.ts src/__tests__/planning-session.spawn-failure.test.ts src/__tests__/planning-session.spawn-order.test.ts",
+"test:all": "pnpm test && pnpm test:mocks",
     "fmt": "prettier --write src bin",
     "typecheck": "tsc --noEmit"
   },
