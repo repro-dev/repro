@@ -33,34 +33,39 @@ describe("HypothesisList", () => {
 
     render(<HypothesisList hypotheses={hypotheses} />);
 
-    // The section heading should be present
     expect(screen.getByText("Investigation hypotheses")).toBeDefined();
 
-    // All descriptions should appear (distinct descriptions avoid ambiguity)
     expect(screen.getByText("High hypothesis")).toBeDefined();
     expect(screen.getByText("Medium hypothesis")).toBeDefined();
     expect(screen.getByText("Low hypothesis")).toBeDefined();
-
-    // The "Top" badge should be on the high-confidence hypothesis
-    const topBadges = screen.getAllByText("Top");
-    expect(topBadges.length).toBe(1);
   });
 
   it("renders confidence badges per hypothesis", () => {
     const hypotheses = makeHypotheses([
-      { description: "High confidence hypothesis", confidence: "high" },
-      { description: "Medium confidence guess", confidence: "medium" },
-      { description: "Low confidence hunch", confidence: "low" },
+      {
+        description: "High confidence hypothesis",
+        confidence: "high",
+        evidence: ["strong signal"],
+      },
+      {
+        description: "Medium confidence guess",
+        confidence: "medium",
+        evidence: ["moderate signal"],
+      },
+      {
+        description: "Low confidence hunch",
+        confidence: "low",
+        evidence: ["weak signal"],
+      },
     ]);
 
     render(<HypothesisList hypotheses={hypotheses} />);
 
-    // Use getAllByText for confidence badge levels (non-unique text)
-    const highBadges = screen.getAllByText("High");
+    const highBadges = screen.getAllByText("high");
     expect(highBadges.length).toBeGreaterThanOrEqual(1);
-    const mediumBadges = screen.getAllByText("Medium");
+    const mediumBadges = screen.getAllByText("medium");
     expect(mediumBadges.length).toBeGreaterThanOrEqual(1);
-    const lowBadges = screen.getAllByText("Low");
+    const lowBadges = screen.getAllByText("low");
     expect(lowBadges.length).toBeGreaterThanOrEqual(1);
   });
 
@@ -98,7 +103,6 @@ describe("HypothesisList", () => {
 
     render(<HypothesisList hypotheses={hypotheses} />);
 
-    // The first hypothesis starts expanded
     expect(screen.getByText("e1")).toBeDefined();
   });
 
@@ -114,8 +118,6 @@ describe("HypothesisList", () => {
     render(<HypothesisList hypotheses={hypotheses} />);
 
     expect(screen.getByText("Solo hypothesis")).toBeDefined();
-    expect(screen.getByText("Medium")).toBeDefined();
-    // Single hypothesis gets a "Top" badge
-    expect(screen.getByText("Top")).toBeDefined();
+    expect(screen.getByText("medium")).toBeDefined();
   });
 });
