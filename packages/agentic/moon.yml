@@ -14,7 +14,7 @@ tasks:
     env:
       OPENROUTER_API_KEY: $OPENROUTER_API_KEY
     options:
-      cache: false
+      runInCI: false
   apply-prompt-suggestions:
     command: tsx src/eval/applyPromptSuggestions.ts
     deps:
@@ -22,6 +22,6 @@ tasks:
     inputs:
       - src/eval/**/*.ts
     options:
-      cache: false
+      runInCI: false
 toolchains:
   default: node

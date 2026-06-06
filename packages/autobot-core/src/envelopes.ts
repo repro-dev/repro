@@ -4,13 +4,13 @@ import type {
   JsonErrorEnvelope,
   RepoRef,
   Warning,
-} from "./contracts";
+} from './contracts'
 
 export function createJsonSuccessEnvelope<TData>(input: {
-  command: string;
-  repo: RepoRef;
-  data: TData;
-  warnings?: readonly Warning[];
+  command: string
+  repo: RepoRef
+  data: TData
+  warnings?: readonly Warning[]
 }): JsonEnvelope<TData> {
   return {
     schema_version: 1,
@@ -19,14 +19,14 @@ export function createJsonSuccessEnvelope<TData>(input: {
     repo: input.repo,
     data: input.data,
     warnings: [...(input.warnings ?? [])],
-  };
+  }
 }
 
 export function createJsonErrorEnvelope(input: {
-  command: string;
-  error: ErrorPayload;
-  repo?: RepoRef;
-  warnings?: readonly Warning[];
+  command: string
+  error: ErrorPayload
+  repo?: RepoRef
+  warnings?: readonly Warning[]
 }): JsonErrorEnvelope {
   const envelope: JsonErrorEnvelope = {
     schema_version: 1,
@@ -34,11 +34,11 @@ export function createJsonErrorEnvelope(input: {
     command: input.command,
     error: input.error,
     warnings: [...(input.warnings ?? [])],
-  };
-
-  if (input.repo !== undefined) {
-    envelope.repo = input.repo;
   }
 
-  return envelope;
+  if (input.repo !== undefined) {
+    envelope.repo = input.repo
+  }
+
+  return envelope
 }

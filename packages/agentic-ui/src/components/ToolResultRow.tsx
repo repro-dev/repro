@@ -1,39 +1,39 @@
-import { Block, Grid } from "@jsxstyle/react";
-import { color, fontFamily, transition } from "@repro/design";
-import React from "react";
-import { formatTimeMs } from "./formatTimeMs";
-import { ToolResultSeekAction } from "./ToolResultSeekAction";
-import { TOOL_RESULT_ROW_STYLES } from "./toolResultRowStyles";
+import { Block, Grid } from '@jsxstyle/react'
+import { color, fontFamily, transition } from '@repro/design'
+import React from 'react'
+import { formatTimeMs } from './formatTimeMs'
+import { TOOL_RESULT_ROW_STYLES } from './toolResultRowStyles'
+import { ToolResultSeekAction } from './ToolResultSeekAction'
 
 interface ToolResultRowProps {
-  timeMs: number;
-  children: React.ReactNode;
-  alignItems?: "center" | "flex-start";
-  onGoToTime?: (timeMs: number) => void;
-  showGoToTime?: boolean;
-  kind?: "console" | "network";
+  timeMs: number
+  children: React.ReactNode
+  alignItems?: 'center' | 'flex-start'
+  onGoToTime?: (timeMs: number) => void
+  showGoToTime?: boolean
+  kind?: 'console' | 'network'
 }
 
 export const ToolResultRow: React.FC<ToolResultRowProps> = ({
   timeMs,
   children,
-  alignItems = "center",
+  alignItems = 'center',
   onGoToTime,
   showGoToTime = true,
-  kind = "console",
+  kind = 'console',
 }) => {
-  const showAction = showGoToTime;
+  const showAction = showGoToTime
   const rowAlignItems =
-    kind === "network" || kind === "console" ? "flex-start" : alignItems;
+    kind === 'network' || kind === 'console' ? 'flex-start' : alignItems
 
   return (
     <Grid
       alignItems={rowAlignItems}
       gap={TOOL_RESULT_ROW_STYLES.gap}
       gridTemplateColumns={`${TOOL_RESULT_ROW_STYLES.timeColumnMinWidth}px minmax(0, 1fr)`}
-      width={kind === "network" ? "100%" : undefined}
+      width={kind === 'network' ? '100%' : undefined}
       paddingBlock={
-        kind === "network"
+        kind === 'network'
           ? TOOL_RESULT_ROW_STYLES.paddingBlockNetwork
           : TOOL_RESULT_ROW_STYLES.paddingBlockConsole
       }
@@ -80,5 +80,5 @@ export const ToolResultRow: React.FC<ToolResultRowProps> = ({
         {children}
       </Block>
     </Grid>
-  );
-};
+  )
+}

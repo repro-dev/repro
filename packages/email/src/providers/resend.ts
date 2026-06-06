@@ -1,6 +1,6 @@
-import { FutureInstance, attemptP, chain, reject, resolve } from "fluture";
-import { Resend } from "resend";
-import { EmailMessage, EmailProvider } from "../types";
+import { FutureInstance, attemptP, chain, reject, resolve } from 'fluture'
+import { Resend } from 'resend'
+import { EmailMessage, EmailProvider } from '../types'
 
 export function createResendProvider(client: Resend): EmailProvider {
   function send(message: EmailMessage): FutureInstance<Error, void> {
@@ -12,17 +12,17 @@ export function createResendProvider(client: Resend): EmailProvider {
           subject: message.subject,
           html: message.html,
           text: message.text,
-        }),
+        })
       ) as FutureInstance<Error, Awaited<ReturnType<typeof client.emails.send>>>
     ).pipe(
-      chain((result) => {
+      chain(result => {
         if (result.error) {
-          return reject(new Error(result.error.message));
+          return reject(new Error(result.error.message))
         }
-        return resolve(undefined);
-      }),
-    );
+        return resolve(undefined)
+      })
+    )
   }
 
-  return { send };
+  return { send }
 }

@@ -1,18 +1,12 @@
-import { Block, Row } from "@jsxstyle/react";
-import {
-  color,
-  focusRing,
-  lineHeight,
-  radius,
-  transition,
-} from "@repro/design";
-import { SkipForward } from "lucide-react";
-import React, { useCallback } from "react";
-import { TOOL_RESULT_ROW_STYLES } from "./toolResultRowStyles";
+import { Block, Row } from '@jsxstyle/react'
+import { color, focusRing, lineHeight, radius, transition } from '@repro/design'
+import { SkipForward } from 'lucide-react'
+import React, { useCallback } from 'react'
+import { TOOL_RESULT_ROW_STYLES } from './toolResultRowStyles'
 
 interface ToolResultSeekActionProps {
-  timeMs: number;
-  onGoToTime?: (timeMs: number) => void;
+  timeMs: number
+  onGoToTime?: (timeMs: number) => void
 }
 
 export const ToolResultSeekAction: React.FC<ToolResultSeekActionProps> = ({
@@ -20,12 +14,12 @@ export const ToolResultSeekAction: React.FC<ToolResultSeekActionProps> = ({
   onGoToTime,
 }) => {
   const handleClick = useCallback<React.MouseEventHandler<HTMLButtonElement>>(
-    (event) => {
-      event.currentTarget.blur();
-      onGoToTime?.(timeMs);
+    event => {
+      event.currentTarget.blur()
+      onGoToTime?.(timeMs)
     },
-    [onGoToTime, timeMs],
-  );
+    [onGoToTime, timeMs]
+  )
 
   return (
     <Row
@@ -51,9 +45,9 @@ export const ToolResultSeekAction: React.FC<ToolResultSeekActionProps> = ({
       transition={transition.opacity}
       {...focusRing()}
       props={{
-        type: "button",
+        type: 'button',
         onClick: handleClick,
-        "aria-label": "Go to time",
+        'aria-label': 'Go to time',
       }}
     >
       <SkipForward size={TOOL_RESULT_ROW_STYLES.actionIconSize} />
@@ -64,5 +58,5 @@ export const ToolResultSeekAction: React.FC<ToolResultSeekActionProps> = ({
         Go To Time
       </Block>
     </Row>
-  );
-};
+  )
+}

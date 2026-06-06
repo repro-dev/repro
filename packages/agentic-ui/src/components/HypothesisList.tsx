@@ -1,5 +1,5 @@
-import { Col, Row } from "@jsxstyle/react";
-import { sortHypothesesByConfidence, type Hypothesis } from "@repro/agentic";
+import { Col, Row } from '@jsxstyle/react'
+import { sortHypothesesByConfidence, type Hypothesis } from '@repro/agentic'
 import {
   Alert,
   Badge,
@@ -9,27 +9,27 @@ import {
   spacing,
   Table,
   Text,
-} from "@repro/design";
-import { AlertTriangleIcon } from "lucide-react";
-import React from "react";
+} from '@repro/design'
+import { AlertTriangleIcon } from 'lucide-react'
+import React from 'react'
 
-type ConfidenceLevel = "high" | "medium" | "low";
+type ConfidenceLevel = 'high' | 'medium' | 'low'
 
-const contextMap: Record<ConfidenceLevel, BadgeProps["context"]> = {
-  high: "danger",
-  medium: "warning",
-  low: "neutral",
-};
+const contextMap: Record<ConfidenceLevel, BadgeProps['context']> = {
+  high: 'danger',
+  medium: 'warning',
+  low: 'neutral',
+}
 
-const ConfidenceBadge: React.FC<{ level: "high" | "medium" | "low" }> = ({
+const ConfidenceBadge: React.FC<{ level: 'high' | 'medium' | 'low' }> = ({
   level,
 }) => {
   return (
     <Badge size="small" context={contextMap[level]}>
       {level}
     </Badge>
-  );
-};
+  )
+}
 
 const EvidenceList: React.FC<{ evidence: Array<string> }> = ({ evidence }) => (
   <Table density="compact">
@@ -46,18 +46,18 @@ const EvidenceList: React.FC<{ evidence: Array<string> }> = ({ evidence }) => (
       </Table.Row>
     ))}
   </Table>
-);
+)
 
 interface HypothesisCardProps {
-  hypothesis: Hypothesis;
-  defaultExpanded: boolean;
+  hypothesis: Hypothesis
+  defaultExpanded: boolean
 }
 
 const HypothesisCard: React.FC<HypothesisCardProps> = ({
   hypothesis,
   defaultExpanded,
 }) => {
-  const hasEvidence = hypothesis.evidence.length > 0;
+  const hasEvidence = hypothesis.evidence.length > 0
 
   const header = (
     <Col gap={spacing.xs} flex={1}>
@@ -71,35 +71,35 @@ const HypothesisCard: React.FC<HypothesisCardProps> = ({
           <Text variant="caption">&rarr;</Text>
 
           <Text variant="caption" color={color.text.muted}>
-            {hypothesis.evidence.length}{" "}
-            {hypothesis.evidence.length === 1 ? "reason" : "reasons"}
+            {hypothesis.evidence.length}{' '}
+            {hypothesis.evidence.length === 1 ? 'reason' : 'reasons'}
           </Text>
         </Row>
       )}
     </Col>
-  );
+  )
 
   return (
     <Collapsible trigger={header} defaultOpen={defaultExpanded}>
       <EvidenceList evidence={hypothesis.evidence} />
     </Collapsible>
-  );
-};
+  )
+}
 
 interface HypothesisListProps {
-  hypotheses: Array<Hypothesis>;
+  hypotheses: Array<Hypothesis>
 }
 
 export const HypothesisList: React.FC<HypothesisListProps> = ({
   hypotheses,
 }) => {
-  const sorted = sortHypothesesByConfidence(hypotheses);
-  const topHypothesis = sorted[0];
+  const sorted = sortHypothesesByConfidence(hypotheses)
+  const topHypothesis = sorted[0]
   const isLowConfidenceTop =
-    topHypothesis !== undefined && topHypothesis.confidence === "low";
+    topHypothesis !== undefined && topHypothesis.confidence === 'low'
 
   if (sorted.length === 0) {
-    return null;
+    return null
   }
 
   return (
@@ -121,5 +121,5 @@ export const HypothesisList: React.FC<HypothesisListProps> = ({
         />
       ))}
     </Col>
-  );
-};
+  )
+}

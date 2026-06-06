@@ -1,126 +1,126 @@
-import { spawn } from "node:child_process";
-import path from "node:path";
-import { readFile } from "node:fs/promises";
+import { spawn } from 'node:child_process'
+import { readFile } from 'node:fs/promises'
+import path from 'node:path'
 
-import { Future, chain, fork, resolve, type FutureInstance } from "fluture";
+import { Future, chain, fork, resolve, type FutureInstance } from 'fluture'
 
 import type {
   ArtifactKind,
   DomainEvent,
   ItemDetail,
   RepoRef,
-} from "@repro/autobot-core";
+} from '@repro/autobot-core'
 import {
   createAutobotStore,
   type AutobotStore,
   type WorkerRecord,
-} from "@repro/autobot-store";
+} from '@repro/autobot-store'
 
 import {
   buildWorkerLogPaths,
   buildWorkerRunnerInvocation,
   type WorkerCommandInput,
-} from "./worker-runner";
+} from './worker-runner'
 
-import type { SingleTrackPhaseContractName } from "./phase-contracts";
-import { renderSingleTrackPhaseContract } from "./phase-contracts";
+import type { SingleTrackPhaseContractName } from './phase-contracts'
+import { renderSingleTrackPhaseContract } from './phase-contracts'
 
 type PlanningArtifactDraft = {
-  kind: ArtifactKind;
-  path: string;
-  description: string;
-  content: string;
-  content_hash: string;
-  persist?: boolean;
-};
+  kind: ArtifactKind
+  path: string
+  description: string
+  content: string
+  content_hash: string
+  persist?: boolean
+}
 
 export type PlanningSessionArtifactPaths = {
-  context: string;
-  testPlan: string;
-  contract: string;
-  runPlan: string;
-  prompt: string;
-};
+  context: string
+  testPlan: string
+  contract: string
+  runPlan: string
+  prompt: string
+}
 
 export type PlanningSessionInput = {
-  phase?: SingleTrackPhaseContractName;
-  repo: RepoRef;
-  issueId: string;
-  attempt: number;
-  runId: string;
-  executionId: string;
-  artifactPaths: PlanningSessionArtifactPaths;
-};
+  phase?: SingleTrackPhaseContractName
+  repo: RepoRef
+  issueId: string
+  attempt: number
+  runId: string
+  executionId: string
+  artifactPaths: PlanningSessionArtifactPaths
+}
 
 export type PlanningSessionCommand = {
-  command: string;
-  args: string[];
-};
+  command: string
+  args: string[]
+}
 
 export type PlanningSessionResult = PlanningSessionCommand & {
-  started_at: string;
-  finished_at: string;
-  exit_code: number | null;
-  signal: NodeJS.Signals | null;
-  stdout: string;
-  stderr: string;
-};
+  started_at: string
+  finished_at: string
+  exit_code: number | null
+  signal: NodeJS.Signals | null
+  stdout: string
+  stderr: string
+}
 
 export type PlanningSessionRunner = (
-  input: PlanningSessionInput,
-) => FutureInstance<unknown, PlanningSessionResult>;
+  input: PlanningSessionInput
+) => FutureInstance<unknown, PlanningSessionResult>
 
 export type PlanningWorkerStarter = (
-  input: PlanningSessionInput,
-) => FutureInstance<unknown, void>;
+  input: PlanningSessionInput
+) => FutureInstance<unknown, void>
 
 type PlanningPhaseFailure = {
-  state: "awaiting" | "failed" | "escalated";
-  code: string;
-  message: string;
-  occurred_at: string;
-};
+  state: 'awaiting' | 'failed' | 'escalated'
+  code: string
+  message: string
+  occurred_at: string
+}
 
 export type PlanningPhaseSequenceResult = {
-  artifacts: PlanningArtifactDraft[];
-  events: DomainEvent[];
-  finalSessionResult: PlanningSessionResult;
-  planningRunPlanValid: boolean;
-  planningRunPlanReady: boolean;
-  failure: PlanningPhaseFailure | null;
-};
+  artifacts: PlanningArtifactDraft[]
+  events: DomainEvent[]
+  finalSessionResult: PlanningSessionResult
+  planningRunPlanValid: boolean
+  planningRunPlanReady: boolean
+  failure: PlanningPhaseFailure | null
+}
 
 function buildPlanningSessionPrompt(input: PlanningSessionInput): string {
-  return renderSingleTrackPhaseContract(input.phase ?? "plan", {
+  return renderSingleTrackPhaseContract(input.phase ?? 'plan', {
     issueId: input.issueId,
     attempt: input.attempt,
-  });
+  })
 }
 
 export function buildOpenCodePlanningCommand(
-  input: PlanningSessionInput,
+  input: PlanningSessionInput
 ): PlanningSessionCommand {
   return {
-    command: "opencode",
+    command: 'opencode',
     args: [
-      "run",
-      "--agent",
-      "planner",
-      "--dir",
+      'run',
+      '--agent',
+      'planner',
+      '--dir',
       input.repo.path,
-      "--title",
-      `Autobot ${input.phase ?? "plan"} ${input.issueId}`,
+      '--title',
+      `Autobot ${input.phase ?? 'plan'} ${input.issueId}`,
       buildPlanningSessionPrompt(input),
-      "--file",
+      '--file',
       input.artifactPaths.context,
-      "--file",
+      '--file',
       input.artifactPaths.testPlan,
-      "--file",
+      '--file',
       input.artifactPaths.contract,
-      "--file",
+      '--file',
       input.artifactPaths.prompt,
     ],
-  };
+  }
 }
 
 function buildPlanningSessionResult(
@@ -130,7 +130,7 @@ function buildPlanningSessionResult(
   exitCode: number | null,
   signal: NodeJS.Signals | null,
   stdout: string,
-  stderr: string,
+  stderr: string
 ): PlanningSessionResult {
   return {
     ...command,
@@ -140,13 +140,13 @@ function buildPlanningSessionResult(
     signal,
     stdout,
     stderr,
-  };
+  }
 }
 
 function futureToPromise<T>(future: FutureInstance<unknown, T>): Promise<T> {
   return new Promise((resolvePromise, rejectPromise) => {
-    future.pipe(fork(rejectPromise)(resolvePromise));
-  });
+    future.pipe(fork(rejectPromise)(resolvePromise))
+  })
 }
 
 function buildPlanningSessionWorkerRecord(
@@ -154,16 +154,16 @@ function buildPlanningSessionWorkerRecord(
   command: PlanningSessionCommand,
   logPaths: ReturnType<typeof buildWorkerLogPaths>,
   startedAt: string,
-  overrides: Partial<WorkerRecord> = {},
+  overrides: Partial<WorkerRecord> = {}
 ): WorkerRecord {
   return {
     worker_id: `worker-${input.runId}`,
     issue_id: input.issueId,
     run_id: input.runId,
     flowcraft_execution_id: input.executionId,
-    workflow_node_id: input.phase ?? "plan",
-    phase: input.phase ?? "plan",
-    state: "starting",
+    workflow_node_id: input.phase ?? 'plan',
+    phase: input.phase ?? 'plan',
+    state: 'starting',
     pid: null,
     child_pid: null,
     process_group_id: null,
@@ -181,23 +181,23 @@ function buildPlanningSessionWorkerRecord(
     signal: null,
     finished_at: null,
     ...overrides,
-  };
+  }
 }
 
 function buildPlanningSessionWorkerCommand(input: PlanningSessionInput): {
-  command: PlanningSessionCommand;
-  workerId: string;
-  startedAt: string;
-  logPaths: ReturnType<typeof buildWorkerLogPaths>;
-  workerCommand: WorkerCommandInput;
+  command: PlanningSessionCommand
+  workerId: string
+  startedAt: string
+  logPaths: ReturnType<typeof buildWorkerLogPaths>
+  workerCommand: WorkerCommandInput
 } {
-  const command = buildOpenCodePlanningCommand(input);
-  const workerId = `worker-${input.runId}`;
-  const startedAt = new Date().toISOString();
+  const command = buildOpenCodePlanningCommand(input)
+  const workerId = `worker-${input.runId}`
+  const startedAt = new Date().toISOString()
   const logPaths = buildWorkerLogPaths({
     repo: input.repo,
     worker_id: workerId,
-  });
+  })
 
   return {
     command,
@@ -216,20 +216,20 @@ function buildPlanningSessionWorkerCommand(input: PlanningSessionInput): {
       stdout_log_path: logPaths.stdout_log_path,
       stderr_log_path: logPaths.stderr_log_path,
     },
-  };
+  }
 }
 
 export function startOpenCodePlanningSessionWorker(
-  input: PlanningSessionInput,
+  input: PlanningSessionInput
 ): FutureInstance<unknown, void> {
   return Future((reject, resolveFuture) => {
     const { command, startedAt, logPaths, workerCommand } =
-      buildPlanningSessionWorkerCommand(input);
-    let child: ReturnType<typeof spawn> | null = null;
-    let settled = false;
+      buildPlanningSessionWorkerCommand(input)
+    let child: ReturnType<typeof spawn> | null = null
+    let settled = false
 
     const recordFailure = async (error: unknown) => {
-      await withPlanningSessionStore(input.repo, async (store) => {
+      await withPlanningSessionStore(input.repo, async store => {
         await futureToPromise(
           store.workers.upsert(
             buildPlanningSessionWorkerRecord(
@@ -238,55 +238,55 @@ export function startOpenCodePlanningSessionWorker(
               logPaths,
               startedAt,
               {
-                state: "failed",
+                state: 'failed',
                 pid: child?.pid ?? null,
                 child_pid: child?.pid ?? null,
                 process_group_id: child?.pid ?? null,
                 last_heartbeat_at: startedAt,
                 spawn_error: toPlanningSessionSpawnError(error, startedAt),
                 finished_at: startedAt,
-              },
-            ),
-          ),
-        );
-      });
-    };
+              }
+            )
+          )
+        )
+      })
+    }
 
     void (async () => {
       try {
-        await withPlanningSessionStore(input.repo, async (store) => {
+        await withPlanningSessionStore(input.repo, async store => {
           await futureToPromise(
             store.workers.upsert(
               buildPlanningSessionWorkerRecord(
                 input,
                 command,
                 logPaths,
-                startedAt,
-              ),
-            ),
-          );
-        });
+                startedAt
+              )
+            )
+          )
+        })
 
-        const invocation = buildWorkerRunnerInvocation(workerCommand);
+        const invocation = buildWorkerRunnerInvocation(workerCommand)
         child = spawn(invocation.command, invocation.args, {
           cwd: input.repo.path,
           env: process.env,
-          stdio: ["ignore", "ignore", "ignore"],
+          stdio: ['ignore', 'ignore', 'ignore'],
           detached: true,
-        });
+        })
 
-        child.once("error", (error) => {
+        child.once('error', error => {
           if (settled) {
-            return;
+            return
           }
 
-          settled = true;
-          void recordFailure(error).then(() => reject(error), reject);
-        });
+          settled = true
+          void recordFailure(error).then(() => reject(error), reject)
+        })
 
-        child.unref();
+        child.unref()
 
-        await withPlanningSessionStore(input.repo, async (store) => {
+        await withPlanningSessionStore(input.repo, async store => {
           await futureToPromise(
             store.workers.upsert(
               buildPlanningSessionWorkerRecord(
@@ -299,83 +299,83 @@ export function startOpenCodePlanningSessionWorker(
                   child_pid: child?.pid ?? null,
                   process_group_id: child?.pid ?? null,
                   last_heartbeat_at: startedAt,
-                },
-              ),
-            ),
-          );
-        });
+                }
+              )
+            )
+          )
+        })
 
         if (!settled) {
-          settled = true;
-          resolveFuture(undefined);
+          settled = true
+          resolveFuture(undefined)
         }
       } catch (error) {
         if (!settled) {
-          settled = true;
-          await recordFailure(error).catch(() => undefined);
-          reject(error);
+          settled = true
+          await recordFailure(error).catch(() => undefined)
+          reject(error)
         }
       }
-    })();
+    })()
 
-    return () => undefined;
-  });
+    return () => undefined
+  })
 }
 
 function toPlanningSessionSpawnError(error: unknown, occurredAt: string) {
   return {
-    code: "AUTOBOT-WORKER-SPAWN-FAILED",
+    code: 'AUTOBOT-WORKER-SPAWN-FAILED',
     message:
       error instanceof Error && error.message.length > 0
         ? error.message
         : String(error),
     occurred_at: occurredAt,
-  };
+  }
 }
 
 async function withPlanningSessionStore<T>(
   repo: RepoRef,
-  handler: (store: AutobotStore) => Promise<T>,
+  handler: (store: AutobotStore) => Promise<T>
 ): Promise<T> {
-  const store = await futureToPromise(createAutobotStore({ repo }));
+  const store = await futureToPromise(createAutobotStore({ repo }))
 
   try {
-    return await handler(store);
+    return await handler(store)
   } finally {
-    await futureToPromise(store.close());
+    await futureToPromise(store.close())
   }
 }
 
 export function runOpenCodePlanningSession(
-  input: PlanningSessionInput,
+  input: PlanningSessionInput
 ): FutureInstance<unknown, PlanningSessionResult> {
   const { command, workerId, startedAt, logPaths, workerCommand } =
-    buildPlanningSessionWorkerCommand(input);
+    buildPlanningSessionWorkerCommand(input)
 
   return Future((reject, resolveFuture) => {
-    let settled = false;
-    let child: ReturnType<typeof spawn> | null = null;
+    let settled = false
+    let child: ReturnType<typeof spawn> | null = null
 
     const readLog = async (filePath: string) => {
       try {
-        return await readFile(filePath, "utf8");
+        return await readFile(filePath, 'utf8')
       } catch (error) {
-        const code = (error as { code?: unknown }).code;
+        const code = (error as { code?: unknown }).code
         if (
-          typeof error === "object" &&
+          typeof error === 'object' &&
           error !== null &&
-          "code" in error &&
-          code === "ENOENT"
+          'code' in error &&
+          code === 'ENOENT'
         ) {
-          return "";
+          return ''
         }
 
-        throw error;
+        throw error
       }
-    };
+    }
 
     const recordWrapperSpawnFailure = async (error: unknown) => {
-      await withPlanningSessionStore(input.repo, async (store) => {
+      await withPlanningSessionStore(input.repo, async store => {
         await futureToPromise(
           store.workers.upsert(
             buildPlanningSessionWorkerRecord(
@@ -384,35 +384,32 @@ export function runOpenCodePlanningSession(
               logPaths,
               startedAt,
               {
-                state: "failed",
+                state: 'failed',
                 pid: child?.pid ?? null,
                 last_heartbeat_at: startedAt,
                 spawn_error: toPlanningSessionSpawnError(error, startedAt),
                 finished_at: startedAt,
-              },
-            ),
-          ),
-        );
-      });
-    };
+              }
+            )
+          )
+        )
+      })
+    }
 
     const resolvePlanningSessionResult = async (
       exitCode: number | null,
-      signal: NodeJS.Signals | null,
+      signal: NodeJS.Signals | null
     ) => {
-      const worker = await withPlanningSessionStore(
-        input.repo,
-        async (store) => {
-          return await futureToPromise(store.workers.get(workerId));
-        },
-      );
+      const worker = await withPlanningSessionStore(input.repo, async store => {
+        return await futureToPromise(store.workers.get(workerId))
+      })
 
       const [stdout, stderr] = await Promise.all([
         readLog(logPaths.stdout_path),
         readLog(logPaths.stderr_path),
-      ]);
-      const finishedAt = worker?.finished_at ?? new Date().toISOString();
-      const workerSignal = (worker?.signal as NodeJS.Signals | null) ?? signal;
+      ])
+      const finishedAt = worker?.finished_at ?? new Date().toISOString()
+      const workerSignal = (worker?.signal as NodeJS.Signals | null) ?? signal
 
       resolveFuture(
         buildPlanningSessionResult(
@@ -422,129 +419,129 @@ export function runOpenCodePlanningSession(
           worker?.exit_code ?? exitCode,
           workerSignal,
           stdout,
-          stderr,
-        ),
-      );
-    };
+          stderr
+        )
+      )
+    }
 
     void (async () => {
       try {
-        const invocation = buildWorkerRunnerInvocation(workerCommand);
+        const invocation = buildWorkerRunnerInvocation(workerCommand)
         child = spawn(invocation.command, invocation.args, {
           cwd: input.repo.path,
           env: process.env,
-          stdio: ["ignore", "ignore", "ignore"],
-        });
+          stdio: ['ignore', 'ignore', 'ignore'],
+        })
 
-        child.once("error", (error) => {
+        child.once('error', error => {
           if (settled) {
-            return;
+            return
           }
 
-          settled = true;
+          settled = true
           void (async () => {
             try {
-              await recordWrapperSpawnFailure(error);
-              reject(error);
+              await recordWrapperSpawnFailure(error)
+              reject(error)
             } catch (recordError) {
-              reject(recordError);
+              reject(recordError)
             }
-          })();
-        });
+          })()
+        })
 
-        child.once("close", (exitCode, signal) => {
+        child.once('close', (exitCode, signal) => {
           if (settled) {
-            return;
+            return
           }
 
-          settled = true;
+          settled = true
           void (async () => {
             try {
-              await resolvePlanningSessionResult(exitCode, signal);
+              await resolvePlanningSessionResult(exitCode, signal)
             } catch (error) {
-              reject(error);
+              reject(error)
             }
-          })();
-        });
+          })()
+        })
       } catch (error) {
         if (!settled) {
-          settled = true;
+          settled = true
           void (async () => {
             try {
-              await recordWrapperSpawnFailure(error);
+              await recordWrapperSpawnFailure(error)
             } catch (recordError) {
-              reject(recordError);
-              return;
+              reject(recordError)
+              return
             }
 
-            reject(error);
-          })();
+            reject(error)
+          })()
         }
       }
-    })();
+    })()
 
     return () => {
       if (settled) {
-        return;
+        return
       }
 
-      settled = true;
-      child?.kill();
-    };
-  });
+      settled = true
+      child?.kill()
+    }
+  })
 }
 
 export function runPlanningPhaseSequence(input: {
-  store: AutobotStore;
-  item: ItemDetail;
-  runId: string;
-  executionId: string;
-  startedAt: string;
+  store: AutobotStore
+  item: ItemDetail
+  runId: string
+  executionId: string
+  startedAt: string
   artifactWriter: (input: {
-    path: string;
-    content: string;
-  }) => FutureInstance<unknown, void>;
-  artifactReader: (input: { path: string }) => FutureInstance<unknown, string>;
-  planningSessionRunner: PlanningSessionRunner;
+    path: string
+    content: string
+  }) => FutureInstance<unknown, void>
+  artifactReader: (input: { path: string }) => FutureInstance<unknown, string>
+  planningSessionRunner: PlanningSessionRunner
 }): FutureInstance<unknown, PlanningPhaseSequenceResult> {
   return Future((reject, resolveFuture) => {
-    void import("./services")
-      .then((services) => {
+    void import('./services')
+      .then(services => {
         const baseArtifacts = services.buildPlanningBaseArtifactDrafts({
           repoPath: input.store.repo.path,
           item: input.item,
           runId: input.runId,
           executionId: input.executionId,
           startedAt: input.startedAt,
-        });
-        const baseEvents = baseArtifacts.map((artifact) =>
+        })
+        const baseEvents = baseArtifacts.map(artifact =>
           services.createPlanningArtifactCreatedEvent({
             issueId: input.item.issue_id,
             runId: input.runId,
             executionId: input.executionId,
             artifact,
             occurredAt: input.startedAt,
-          }),
-        );
-        const contextArtifact = baseArtifacts[0]!;
-        const testPlanArtifact = baseArtifacts[1]!;
+          })
+        )
+        const contextArtifact = baseArtifacts[0]!
+        const testPlanArtifact = baseArtifacts[1]!
         const contextPath = path.join(
           input.store.repo.path,
-          contextArtifact.path,
-        );
-        const phaseOrder = ["plan"] as const;
+          contextArtifact.path
+        )
+        const phaseOrder = ['plan'] as const
 
         const sequence = services
           .persistPlanningArtifacts(
             baseArtifacts,
             input.artifactWriter,
-            input.store.repo.path,
+            input.store.repo.path
           )
           .pipe(
             chain(() =>
               Future((phaseReject, phaseResolve) => {
-                const artifacts = [...baseArtifacts];
-                const events = [...baseEvents];
+                const artifacts = [...baseArtifacts]
+                const events = [...baseEvents]
 
                 const runPhase = (index: number): void => {
                   if (index >= phaseOrder.length) {
@@ -552,30 +549,30 @@ export function runPlanningPhaseSequence(input: {
                       artifacts,
                       events,
                       finalSessionResult: {
-                        command: "opencode",
+                        command: 'opencode',
                         args: [],
                         started_at: input.startedAt,
                         finished_at: input.startedAt,
                         exit_code: 0,
                         signal: null,
-                        stdout: "",
-                        stderr: "",
+                        stdout: '',
+                        stderr: '',
                       },
                       planningRunPlanValid: true,
                       planningRunPlanReady: true,
                       failure: null,
-                    });
-                    return;
+                    })
+                    return
                   }
 
-                  const phase = phaseOrder[index];
+                  const phase = phaseOrder[index]
                   if (phase === undefined) {
                     phaseReject(
                       new Error(
-                        "planning phase order was exhausted unexpectedly",
-                      ),
-                    );
-                    return;
+                        'planning phase order was exhausted unexpectedly'
+                      )
+                    )
+                    return
                   }
 
                   const phaseDrafts = services.buildPlanningPhaseArtifactDrafts(
@@ -583,10 +580,10 @@ export function runPlanningPhaseSequence(input: {
                       issueId: input.item.issue_id,
                       attempt: input.item.attempt,
                       phase,
-                    },
-                  );
-                  const contractArtifact = phaseDrafts[0]!;
-                  const promptArtifact = phaseDrafts[1]!;
+                    }
+                  )
+                  const contractArtifact = phaseDrafts[0]!
+                  const promptArtifact = phaseDrafts[1]!
                   const phaseArtifacts =
                     services.buildPlanningSessionArtifactPaths({
                       repoPath: input.store.repo.path,
@@ -594,19 +591,19 @@ export function runPlanningPhaseSequence(input: {
                       testPlan: testPlanArtifact.path,
                       contract: contractArtifact.path,
                       prompt: promptArtifact.path,
-                    });
+                    })
                   const phaseOutputPath = services.buildPlanningPhaseOutputPath(
                     {
                       contextPath,
                       phase,
-                    },
-                  );
+                    }
+                  )
 
                   services
                     .persistPlanningArtifacts(
                       phaseDrafts,
                       input.artifactWriter,
-                      input.store.repo.path,
+                      input.store.repo.path
                     )
                     .pipe(
                       chain(() =>
@@ -618,11 +615,11 @@ export function runPlanningPhaseSequence(input: {
                           runId: input.runId,
                           executionId: input.executionId,
                           artifactPaths: phaseArtifacts,
-                        }),
-                      ),
+                        })
+                      )
                     )
                     .pipe(
-                      fork(phaseReject)((planningSessionResult) => {
+                      fork(phaseReject)(planningSessionResult => {
                         const startedEvent =
                           services.createPlanningSessionStartedEvent({
                             issueId: input.item.issue_id,
@@ -632,14 +629,14 @@ export function runPlanningPhaseSequence(input: {
                             args: planningSessionResult.args,
                             artifactPaths: phaseArtifacts,
                             occurredAt: planningSessionResult.started_at,
-                          });
+                          })
                         const outputEvents = [
                           planningSessionResult.stdout.length > 0
                             ? services.createPlanningSessionOutputEvent({
                                 issueId: input.item.issue_id,
                                 runId: input.runId,
                                 executionId: input.executionId,
-                                stream: "stdout",
+                                stream: 'stdout',
                                 output: planningSessionResult.stdout,
                                 occurredAt: planningSessionResult.finished_at,
                               })
@@ -649,27 +646,27 @@ export function runPlanningPhaseSequence(input: {
                                 issueId: input.item.issue_id,
                                 runId: input.runId,
                                 executionId: input.executionId,
-                                stream: "stderr",
+                                stream: 'stderr',
                                 output: planningSessionResult.stderr,
                                 occurredAt: planningSessionResult.finished_at,
                               })
                             : null,
                         ].filter(
-                          (event): event is DomainEvent => event !== null,
-                        );
+                          (event): event is DomainEvent => event !== null
+                        )
                         const finishedEvent =
                           services.createPlanningSessionFinishedEvent({
                             issueId: input.item.issue_id,
                             runId: input.runId,
                             executionId: input.executionId,
                             result: planningSessionResult,
-                          });
+                          })
 
                         events.push(
                           startedEvent,
                           ...outputEvents,
-                          finishedEvent,
-                        );
+                          finishedEvent
+                        )
 
                         if (
                           planningSessionResult.exit_code !== 0 ||
@@ -682,20 +679,20 @@ export function runPlanningPhaseSequence(input: {
                             planningRunPlanValid: false,
                             planningRunPlanReady: false,
                             failure: {
-                              state: "failed",
-                              code: "AUTOBOT-PLANNER-SESSION-FAILED",
+                              state: 'failed',
+                              code: 'AUTOBOT-PLANNER-SESSION-FAILED',
                               message: `planning session exited with code ${String(
-                                planningSessionResult.exit_code,
+                                planningSessionResult.exit_code
                               )}`,
                               occurred_at: planningSessionResult.finished_at,
                             },
-                          });
-                          return;
+                          })
+                          return
                         }
 
                         if (phaseOutputPath === null) {
-                          runPhase(index + 1);
-                          return;
+                          runPhase(index + 1)
+                          return
                         }
 
                         services
@@ -704,23 +701,23 @@ export function runPlanningPhaseSequence(input: {
                             reader: input.artifactReader,
                           })
                           .pipe(
-                            fork(phaseReject)((outputRead) => {
+                            fork(phaseReject)(outputRead => {
                               const assessment =
                                 outputRead.content !== null
                                   ? services.assessPlanningRunPlanContent(
-                                      outputRead.content,
+                                      outputRead.content
                                     )
                                   : {
-                                      errors: ["missing run-plan.md"],
+                                      errors: ['missing run-plan.md'],
                                       readiness: null,
-                                    };
+                                    }
 
                               if (
                                 outputRead.error !== null ||
                                 outputRead.content === null ||
                                 assessment.errors.length > 0 ||
                                 assessment.readiness === null ||
-                                assessment.readiness !== "ready_to_proceed"
+                                assessment.readiness !== 'ready_to_proceed'
                               ) {
                                 phaseResolve({
                                   artifacts,
@@ -730,31 +727,31 @@ export function runPlanningPhaseSequence(input: {
                                   planningRunPlanReady: false,
                                   failure: {
                                     state:
-                                      assessment.readiness === "not_ready" ||
-                                      assessment.readiness === "needs_research"
-                                        ? "awaiting"
-                                        : "failed",
+                                      assessment.readiness === 'not_ready' ||
+                                      assessment.readiness === 'needs_research'
+                                        ? 'awaiting'
+                                        : 'failed',
                                     code:
                                       outputRead.error !== null
-                                        ? "AUTOBOT-PLANNER-RUN-PLAN-READ-FAILED"
+                                        ? 'AUTOBOT-PLANNER-RUN-PLAN-READ-FAILED'
                                         : assessment.errors.length > 0
-                                        ? "AUTOBOT-PLANNER-RUN-PLAN-INVALID"
-                                        : "AUTOBOT-PLANNER-RUN-PLAN-NOT-READY",
+                                        ? 'AUTOBOT-PLANNER-RUN-PLAN-INVALID'
+                                        : 'AUTOBOT-PLANNER-RUN-PLAN-NOT-READY',
                                     message:
                                       outputRead.error !== null
                                         ? `planning session could not read run-plan.md: ${String(
-                                            outputRead.error,
+                                            outputRead.error
                                           )}`
                                         : assessment.errors.length > 0
                                         ? `planning session produced invalid run-plan.md: ${assessment.errors.join(
-                                            ", ",
+                                            ', '
                                           )}`
-                                        : "planning session produced a non-ready run-plan.md; route to research-refine before implementation",
+                                        : 'planning session produced a non-ready run-plan.md; route to research-refine before implementation',
                                     occurred_at:
                                       planningSessionResult.finished_at,
                                   },
-                                });
-                                return;
+                                })
+                                return
                               }
 
                               const runPlanArtifact =
@@ -762,9 +759,9 @@ export function runPlanningPhaseSequence(input: {
                                   phase,
                                   path: phaseOutputPath,
                                   content: outputRead.content,
-                                });
+                                })
                               if (runPlanArtifact !== null) {
-                                artifacts.push(runPlanArtifact);
+                                artifacts.push(runPlanArtifact)
                                 events.push(
                                   services.createPlanningArtifactCreatedEvent({
                                     issueId: input.item.issue_id,
@@ -773,8 +770,8 @@ export function runPlanningPhaseSequence(input: {
                                     artifact: runPlanArtifact,
                                     occurredAt:
                                       planningSessionResult.finished_at,
-                                  }),
-                                );
+                                  })
+                                )
                               }
 
                               phaseResolve({
@@ -784,34 +781,34 @@ export function runPlanningPhaseSequence(input: {
                                 planningRunPlanValid: true,
                                 planningRunPlanReady: true,
                                 failure: null,
-                              });
-                            }),
-                          );
-                      }),
-                    );
-                };
+                              })
+                            })
+                          )
+                      })
+                    )
+                }
 
-                runPhase(0);
+                runPhase(0)
 
-                return () => undefined;
-              }),
-            ),
-          ) as FutureInstance<unknown, PlanningPhaseSequenceResult>;
+                return () => undefined
+              })
+            )
+          ) as FutureInstance<unknown, PlanningPhaseSequenceResult>
 
         sequence.pipe(
           fork(reject as (reason: unknown) => void)(
-            resolveFuture as (value: PlanningPhaseSequenceResult) => void,
-          ),
-        );
+            resolveFuture as (value: PlanningPhaseSequenceResult) => void
+          )
+        )
       })
-      .catch(reject);
+      .catch(reject)
 
-    return () => undefined;
-  });
+    return () => undefined
+  })
 }
 
 export function createNoopPlanningSessionRunner(): PlanningSessionRunner {
-  return (input) =>
+  return input =>
     resolve(
       buildPlanningSessionResult(
         buildOpenCodePlanningCommand(input),
@@ -819,8 +816,8 @@ export function createNoopPlanningSessionRunner(): PlanningSessionRunner {
         new Date().toISOString(),
         0,
         null,
-        "",
-        "",
-      ),
-    );
+        '',
+        ''
+      )
+    )
 }

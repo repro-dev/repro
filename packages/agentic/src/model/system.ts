@@ -69,7 +69,7 @@ This is a collaborative debugging exercise. At the end of an investigation, offe
 
 ## When to ask
 Do not ask clarifying questions before investigating. Begin with \`orient\`. Ask only if the recording contains no relevant signals, or to offer a resolution path once the investigation is complete.
-`;
+`
 
 // System card for the capture extension context.
 // The user is typically a non-engineer reporting or triaging a bug.
@@ -83,7 +83,7 @@ You are running inside the capture extension. The user may not be an engineer. K
 - Confirming whether the bug is reproducible and real
 - Describing what went wrong in plain, non-technical terms
 - Offering to save the recording and file an issue in their issue tracker
-`;
+`
 
 // System card for the workspace context.
 // The user is typically an engineer doing a deeper investigation.
@@ -96,7 +96,7 @@ You are running in the workspace. The user is likely an engineer. You may:
 - Reference specific API endpoints, request payloads, stack trace frames, and console errors directly
 - Suggest probable code locations to investigate, if stack traces or error messages point to them
 - Offer to prepare a context bundle (recording link, error summary, stack traces, network evidence) for hand-off to a coding agent
-`;
+`
 
 // Default export for backwards compatibility — uses the workspace card.
-export const SYSTEM_CARD_MESSAGE = WORKSPACE_SYSTEM_CARD_MESSAGE;
+export const SYSTEM_CARD_MESSAGE = WORKSPACE_SYSTEM_CARD_MESSAGE

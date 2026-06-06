@@ -1,6 +1,6 @@
-import { Block, Col } from "@jsxstyle/react";
-import { useAtomValue } from "@repro/atom";
-import { buildInvestigationSummary } from "@repro/agentic";
+import { Block, Col } from '@jsxstyle/react'
+import { buildInvestigationSummary } from '@repro/agentic'
+import { useAtomValue } from '@repro/atom'
 import {
   AgenticInputFormState,
   color,
@@ -9,84 +9,84 @@ import {
   spacing,
   Tooltip,
   transition,
-} from "@repro/design";
-import { RotateCcwIcon } from "lucide-react";
-import React, { useEffect, useRef, useState } from "react";
-import { AgenticInputSection } from "./components/AgenticInputSection";
-import { HypothesisList } from "./components/HypothesisList";
-import { JumpToEndButton } from "./components/JumpToEndButton";
-import { LoadingIndicator } from "./components/LoadingIndicator";
-import { MessageList } from "./components/MessageList";
-import { useAgenticState } from "./context";
-import { useHistoryScroll } from "./hooks/useHistoryScroll";
+} from '@repro/design'
+import { RotateCcwIcon } from 'lucide-react'
+import React, { useEffect, useRef, useState } from 'react'
+import { AgenticInputSection } from './components/AgenticInputSection'
+import { HypothesisList } from './components/HypothesisList'
+import { JumpToEndButton } from './components/JumpToEndButton'
+import { LoadingIndicator } from './components/LoadingIndicator'
+import { MessageList } from './components/MessageList'
+import { useAgenticState } from './context'
+import { useHistoryScroll } from './hooks/useHistoryScroll'
 
 export const AgenticView: React.FC<{
-  onFeedback?: (sentiment: "positive" | "negative") => void;
-  onGoToTime?: (timeMs: number) => void;
-  onInvestigationComplete?: (summary: string) => void;
+  onFeedback?: (sentiment: 'positive' | 'negative') => void
+  onGoToTime?: (timeMs: number) => void
+  onInvestigationComplete?: (summary: string) => void
 }> = ({ onFeedback, onGoToTime, onInvestigationComplete }) => {
-  const [inputHasFocus, setInputHasFocus] = useState(false);
-  const lastSummaryRef = useRef("");
+  const [inputHasFocus, setInputHasFocus] = useState(false)
+  const lastSummaryRef = useRef('')
 
-  const agentic = useAgenticState();
-  const entries = useAtomValue(agentic.$entries);
-  const loading = useAtomValue(agentic.$loading);
-  const error = useAtomValue(agentic.$error);
-  const wasCancelled = useAtomValue(agentic.$wasCancelled);
-  const stage = useAtomValue(agentic.$stage);
-  const hypotheses = useAtomValue(agentic.$hypotheses);
+  const agentic = useAgenticState()
+  const entries = useAtomValue(agentic.$entries)
+  const loading = useAtomValue(agentic.$loading)
+  const error = useAtomValue(agentic.$error)
+  const wasCancelled = useAtomValue(agentic.$wasCancelled)
+  const stage = useAtomValue(agentic.$stage)
+  const hypotheses = useAtomValue(agentic.$hypotheses)
 
-  const lastPromptRef = useRef("");
+  const lastPromptRef = useRef('')
 
   const {
     scrollContainerRef,
     contentContainerRef,
     shouldShowJumpToEndAction,
     handleJumpToEnd,
-  } = useHistoryScroll(loading, entries);
+  } = useHistoryScroll(loading, entries)
 
-  const isActive = loading !== "none" && loading !== "cancelled";
-  const shouldRaiseInput = inputHasFocus || entries.length > 0;
+  const isActive = loading !== 'none' && loading !== 'cancelled'
+  const shouldRaiseInput = inputHasFocus || entries.length > 0
 
   function handleSubmit({ value }: AgenticInputFormState) {
-    lastPromptRef.current = value;
-    agentic.query(value);
-    setInputHasFocus(false);
+    lastPromptRef.current = value
+    agentic.query(value)
+    setInputHasFocus(false)
   }
 
   function handleRetry() {
-    agentic.query(lastPromptRef.current);
+    agentic.query(lastPromptRef.current)
   }
 
   function handleReset() {
-    lastSummaryRef.current = "";
-    agentic.reset();
-    setInputHasFocus(false);
+    lastSummaryRef.current = ''
+    agentic.reset()
+    setInputHasFocus(false)
   }
 
   // Fire onInvestigationComplete when the investigation reaches conclusion
   useEffect(() => {
     if (
-      stage === "conclusion" &&
+      stage === 'conclusion' &&
       hypotheses.length > 0 &&
       onInvestigationComplete
     ) {
-      const summary = buildInvestigationSummary(hypotheses);
+      const summary = buildInvestigationSummary(hypotheses)
       if (summary !== lastSummaryRef.current) {
-        lastSummaryRef.current = summary;
-        onInvestigationComplete(summary);
+        lastSummaryRef.current = summary
+        onInvestigationComplete(summary)
       }
     }
-  }, [stage, hypotheses, onInvestigationComplete]);
+  }, [stage, hypotheses, onInvestigationComplete])
 
   return (
     <Block
-      blockSize={`calc(100% + ${spacing["2xl"]}px + ${spacing["2xl"]}px)`}
+      blockSize={`calc(100% + ${spacing['2xl']}px + ${spacing['2xl']}px)`}
       containerType="size"
-      marginBlockStart={`-${spacing["2xl"]}px`}
+      marginBlockStart={`-${spacing['2xl']}px`}
       position="relative"
     >
-      <Col height="100%" overflow="hidden" marginInline={-spacing["2xl"]}>
+      <Col height="100%" overflow="hidden" marginInline={-spacing['2xl']}>
         <MessageList
           entries={entries}
           loading={loading}
@@ -97,12 +97,12 @@ export const AgenticView: React.FC<{
           wasCancelled={wasCancelled}
           onFeedback={onFeedback}
           onGoToTime={onGoToTime}
-          onSelectPrompt={(prompt) => {
-            lastPromptRef.current = prompt;
-            agentic.query(prompt);
+          onSelectPrompt={prompt => {
+            lastPromptRef.current = prompt
+            agentic.query(prompt)
           }}
         >
-          {stage === "conclusion" && hypotheses.length > 0 && (
+          {stage === 'conclusion' && hypotheses.length > 0 && (
             <HypothesisList hypotheses={hypotheses} />
           )}
         </MessageList>
@@ -145,10 +145,10 @@ export const AgenticView: React.FC<{
           top={spacing.sm}
           transition={transition.fast}
           hoverBackgroundColor={color.bg.hover}
-          {...focusRing("neutral")}
+          {...focusRing('neutral')}
           props={{
-            type: "button",
-            "aria-label": "Start new session",
+            type: 'button',
+            'aria-label': 'Start new session',
             onClick: handleReset,
           }}
         >
@@ -157,5 +157,5 @@ export const AgenticView: React.FC<{
         </Block>
       )}
     </Block>
-  );
-};
+  )
+}

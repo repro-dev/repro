@@ -1,23 +1,23 @@
-import { EmailMessage } from "../types";
-import { escapeHtml } from "./escapeHtml";
+import { EmailMessage } from '../types'
+import { escapeHtml } from './escapeHtml'
 
 interface InvitationEmailOptions {
-  invitationUrl: string;
-  workspaceName: string;
-  inviterName?: string;
+  invitationUrl: string
+  workspaceName: string
+  inviterName?: string
 }
 
 export function invitationEmail(
-  opts: InvitationEmailOptions,
-): Pick<EmailMessage, "subject" | "html" | "text"> {
+  opts: InvitationEmailOptions
+): Pick<EmailMessage, 'subject' | 'html' | 'text'> {
   const invitedBy = opts.inviterName
     ? `${opts.inviterName} has invited you`
-    : `You've been invited`;
+    : `You've been invited`
   const htmlInvitedBy = opts.inviterName
     ? `${escapeHtml(opts.inviterName)} has invited you`
-    : `You've been invited`;
-  const workspaceName = escapeHtml(opts.workspaceName);
-  const invitationUrl = escapeHtml(opts.invitationUrl);
+    : `You've been invited`
+  const workspaceName = escapeHtml(opts.workspaceName)
+  const invitationUrl = escapeHtml(opts.invitationUrl)
 
   const html = `<!DOCTYPE html>
 <html>
@@ -32,17 +32,17 @@ export function invitationEmail(
   <p>If the button doesn't work, copy and paste this URL into your browser:</p>
   <p style="word-break: break-all; color: #666;">${invitationUrl}</p>
 </body>
-</html>`;
+</html>`
 
   const text = `${invitedBy} to join the ${opts.workspaceName} workspace on Repro.
 
 Accept your invitation: ${opts.invitationUrl}
 
-If you weren't expecting this invitation, you can safely ignore this email.`;
+If you weren't expecting this invitation, you can safely ignore this email.`
 
   return {
     subject: `You're invited to join ${opts.workspaceName} on Repro`,
     html,
     text,
-  };
+  }
 }

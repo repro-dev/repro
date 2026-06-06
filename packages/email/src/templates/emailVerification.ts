@@ -1,19 +1,19 @@
-import { EmailMessage } from "../types";
-import { escapeHtml } from "./escapeHtml";
+import { EmailMessage } from '../types'
+import { escapeHtml } from './escapeHtml'
 
 interface EmailVerificationOptions {
-  verificationUrl: string;
-  userName?: string;
+  verificationUrl: string
+  userName?: string
 }
 
 export function emailVerificationEmail(
-  opts: EmailVerificationOptions,
-): Pick<EmailMessage, "subject" | "html" | "text"> {
-  const greeting = opts.userName ? `Hi ${opts.userName},` : "Hi,";
+  opts: EmailVerificationOptions
+): Pick<EmailMessage, 'subject' | 'html' | 'text'> {
+  const greeting = opts.userName ? `Hi ${opts.userName},` : 'Hi,'
   const htmlGreeting = opts.userName
     ? `Hi ${escapeHtml(opts.userName)},`
-    : "Hi,";
-  const verificationUrl = escapeHtml(opts.verificationUrl);
+    : 'Hi,'
+  const verificationUrl = escapeHtml(opts.verificationUrl)
 
   const html = `<!DOCTYPE html>
 <html>
@@ -29,7 +29,7 @@ export function emailVerificationEmail(
   <p>If the button doesn't work, copy and paste this URL into your browser:</p>
   <p style="word-break: break-all; color: #666;">${verificationUrl}</p>
 </body>
-</html>`;
+</html>`
 
   const text = `${greeting}
 
@@ -37,11 +37,11 @@ Thanks for signing up for Repro. Please verify your email address to get started
 
 Verify your email: ${opts.verificationUrl}
 
-If you didn't create a Repro account, you can safely ignore this email.`;
+If you didn't create a Repro account, you can safely ignore this email.`
 
   return {
-    subject: "Verify your Repro email address",
+    subject: 'Verify your Repro email address',
     html,
     text,
-  };
+  }
 }

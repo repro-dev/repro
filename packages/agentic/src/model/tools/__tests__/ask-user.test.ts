@@ -1,13 +1,13 @@
-import assert from "node:assert/strict";
-import test from "node:test";
-import { resolve } from "fluture";
+import { resolve } from 'fluture'
+import assert from 'node:assert/strict'
+import test from 'node:test'
 
-import { executeTool, tools } from "../index";
-import { runFuture } from "./helpers";
 import type {
   RecordingDataAccessor,
   ToolExecutionContext,
-} from "../../../types";
+} from '../../../types'
+import { executeTool, tools } from '../index'
+import { runFuture } from './helpers'
 
 function makeEmptyAccessor(): RecordingDataAccessor {
   return {
@@ -16,58 +16,58 @@ function makeEmptyAccessor(): RecordingDataAccessor {
     getResourceMap: () => ({}),
     getEventsByType: () => [],
     getEventsInRange: () => [],
-  };
+  }
 }
 
-const recording = makeEmptyAccessor();
+const recording = makeEmptyAccessor()
 
-test("registers askUser in the tool registry", () => {
-  assert.ok(tools.some((tool) => tool.function.name === "askUser"));
-});
+test('registers askUser in the tool registry', () => {
+  assert.ok(tools.some(tool => tool.function.name === 'askUser'))
+})
 
-test("returns a structured error when the host callback is missing", async () => {
+test('returns a structured error when the host callback is missing', async () => {
   const result = (await runFuture(
-    executeTool(recording, "askUser", {
-      prompt: "Choose a path",
-    }),
-  )) as { error: string };
+    executeTool(recording, 'askUser', {
+      prompt: 'Choose a path',
+    })
+  )) as { error: string }
 
-  assert.equal(result.error, "askUser is unavailable");
-});
+  assert.equal(result.error, 'askUser is unavailable')
+})
 
-test("delegates askUser prompts to the host callback", async () => {
-  let received: { prompt: string; toolCallId: string } | null = null;
+test('delegates askUser prompts to the host callback', async () => {
+  let received: { prompt: string; toolCallId: string } | null = null
 
   const context: ToolExecutionContext = {
     toolCall: {
-      id: "tool-call-1",
+      id: 'tool-call-1',
       index: 0,
       function: {
-        name: "askUser",
-        arguments: JSON.stringify({ prompt: "Choose", multiple: false }),
+        name: 'askUser',
+        arguments: JSON.stringify({ prompt: 'Choose', multiple: false }),
       },
     },
     askUser: (request, toolCallId) => {
-      received = { prompt: request.prompt, toolCallId };
-      return resolve({ answer: "yes" });
+      received = { prompt: request.prompt, toolCallId }
+      return resolve({ answer: 'yes' })
     },
-  };
+  }
 
   const result = (await runFuture(
     executeTool(
       recording,
-      "askUser",
+      'askUser',
       {
-        prompt: "Choose",
+        prompt: 'Choose',
         multiple: false,
       },
-      context,
-    ),
-  )) as { answer: string };
+      context
+    )
+  )) as { answer: string }
 
   assert.deepEqual(received, {
-    prompt: "Choose",
-    toolCallId: "tool-call-1",
-  });
-  assert.deepEqual(result, { answer: "yes" });
-});
+    prompt: 'Choose',
+    toolCallId: 'tool-call-1',
+  })
+  assert.deepEqual(result, { answer: 'yes' })
+})

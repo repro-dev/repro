@@ -1,60 +1,60 @@
-import { Block, Col, Row } from "@jsxstyle/react";
+import { Block, Col, Row } from '@jsxstyle/react'
 import {
   color,
   fontFamily,
-  fontWeight,
   fontSize,
+  fontWeight,
   spacing,
   textStyles,
-} from "@repro/design";
-import React from "react";
-import { ToolResultSemanticGrid } from "./ToolResultSemanticGrid";
-import { TOOL_RESULT_ROW_STYLES } from "./toolResultRowStyles";
+} from '@repro/design'
+import React from 'react'
+import { ToolResultSemanticGrid } from './ToolResultSemanticGrid'
+import { TOOL_RESULT_ROW_STYLES } from './toolResultRowStyles'
 
 export interface NetworkRequest {
-  timeMs: number;
-  type: string;
-  method?: string;
-  url: string;
-  status?: number;
-  durationMs?: number;
-  contentType?: string;
-  errorBody?: string;
-  requestBody?: string;
-  responseTimeMs?: number;
-  headers?: Record<string, string>;
+  timeMs: number
+  type: string
+  method?: string
+  url: string
+  status?: number
+  durationMs?: number
+  contentType?: string
+  errorBody?: string
+  requestBody?: string
+  responseTimeMs?: number
+  headers?: Record<string, string>
 }
 
 export interface NetworkRequestResult {
-  requests: NetworkRequest[];
-  hint?: string;
+  requests: NetworkRequest[]
+  hint?: string
 }
 
 interface NetworkRequestResultViewProps {
-  result: NetworkRequestResult;
-  onGoToTime?: (timeMs: number) => void;
+  result: NetworkRequestResult
+  onGoToTime?: (timeMs: number) => void
 }
 
-type BadgeContext = "neutral" | "info" | "success" | "warning" | "danger";
+type BadgeContext = 'neutral' | 'info' | 'success' | 'warning' | 'danger'
 
 // Returns a semantic colour for HTTP status codes.
 function statusToContext(status: number): BadgeContext {
-  if (status >= 500) return "danger";
-  if (status >= 400) return "warning";
-  if (status >= 200 && status < 300) return "success";
-  return "neutral";
+  if (status >= 500) return 'danger'
+  if (status >= 400) return 'warning'
+  if (status >= 200 && status < 300) return 'success'
+  return 'neutral'
 }
 
 // Truncate a URL for display. Long URLs are cut at 80 chars with an ellipsis.
 function truncateUrl(url: string, maxLen = 80): string {
-  if (url.length <= maxLen) return url;
-  return url.slice(0, maxLen - 1) + "…";
+  if (url.length <= maxLen) return url
+  return url.slice(0, maxLen - 1) + '…'
 }
 
 interface NetworkRequestResultRowProps {
-  request: NetworkRequest;
-  index: number;
-  onGoToTime?: (timeMs: number) => void;
+  request: NetworkRequest
+  index: number
+  onGoToTime?: (timeMs: number) => void
 }
 
 export const NetworkRequestResultRow: React.FC<
@@ -77,7 +77,7 @@ export const NetworkRequestResultRow: React.FC<
       color={color.text.secondary}
       whiteSpace="nowrap"
     >
-      {req.type === "ws" ? "WS" : req.type}
+      {req.type === 'ws' ? 'WS' : req.type}
     </Block>
 
     {req.status != null && (
@@ -86,11 +86,11 @@ export const NetworkRequestResultRow: React.FC<
         fontFamily={fontFamily.mono}
         fontWeight={fontWeight.semibold}
         color={
-          statusToContext(req.status) === "danger"
+          statusToContext(req.status) === 'danger'
             ? color.danger
-            : statusToContext(req.status) === "warning"
+            : statusToContext(req.status) === 'warning'
             ? color.warning
-            : statusToContext(req.status) === "success"
+            : statusToContext(req.status) === 'success'
             ? color.success
             : color.text.muted
         }
@@ -124,7 +124,7 @@ export const NetworkRequestResultRow: React.FC<
         gap={TOOL_RESULT_ROW_STYLES.gap}
         lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
       >
-        {req.method != null && req.type !== "ws" && (
+        {req.method != null && req.type !== 'ws' && (
           <Block
             flexShrink={0}
             fontSize={fontSize.xs}
@@ -165,12 +165,12 @@ export const NetworkRequestResultRow: React.FC<
       </Row>
     </Block>
   </ToolResultSemanticGrid>
-);
+)
 
 export const NetworkRequestResultView: React.FC<
   NetworkRequestResultViewProps
 > = ({ result, onGoToTime }) => {
-  const { requests, hint } = result;
+  const { requests, hint } = result
 
   if (requests.length === 0) {
     return (
@@ -184,7 +184,7 @@ export const NetworkRequestResultView: React.FC<
           </Block>
         )}
       </Col>
-    );
+    )
   }
 
   return (
@@ -198,5 +198,5 @@ export const NetworkRequestResultView: React.FC<
         />
       ))}
     </Col>
-  );
-};
+  )
+}
