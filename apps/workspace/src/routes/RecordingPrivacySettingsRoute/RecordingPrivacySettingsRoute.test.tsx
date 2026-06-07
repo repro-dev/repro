@@ -264,7 +264,9 @@ describe('RecordingPrivacySettingsRoute', () => {
     })
 
     // After save, should refresh data
-    assert.equal(loadCount, 2)
+    await waitFor(() => {
+      assert.equal(loadCount, 2)
+    })
   })
 
   it('shows error alert when loading fails', async () => {
