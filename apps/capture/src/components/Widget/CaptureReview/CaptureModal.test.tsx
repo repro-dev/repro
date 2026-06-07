@@ -157,6 +157,28 @@ mock.module('@repro/api-client', {
   },
 })
 
+/**
+ * Mock CaptureUploadProvider so it passes children through and provides
+ * a no-op context value. This keeps existing popover tests working
+ * without needing a real provider with a Playback instance.
+ */
+mock.module('./CaptureUploadProvider', {
+  namedExports: {
+    CaptureUploadProvider: ({ children }: { children: React.ReactNode }) =>
+      React.createElement(React.Fragment, null, children),
+    useCaptureUpload: () => ({
+      enqueueUpload: () => {},
+      uploadState: {
+        isUploading: false,
+        progress: null,
+        error: null,
+        uploadRef: null,
+        uploadProjectId: null,
+      },
+    }),
+  },
+})
+
 // Must require() after mock registration so the mocks take effect
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { CaptureModal } =

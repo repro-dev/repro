@@ -11,6 +11,7 @@ import React, { Fragment } from 'react'
 
 interface Props {
   progress: UploadProgress
+  projectId: string | null
   width?: string | number
   onClose: () => void
 }
@@ -55,13 +56,19 @@ const ListItem: React.FC<React.PropsWithChildren<{}>> = ({ children }) => (
 
 export const ProgressOverlay: React.FC<Props> = ({
   progress,
+  projectId,
   onClose,
   width = 240,
 }) => {
-  const recordingUrl = `${process.env.REPRO_APP_URL}/recordings/${progress.recordingId}`
+  const recordingUrl =
+    projectId && progress.recordingId
+      ? `${process.env.REPRO_APP_URL}/projects/${projectId}/recordings/${progress.recordingId}`
+      : null
 
   function copyToClipboard() {
-    navigator.clipboard.writeText(recordingUrl)
+    if (recordingUrl) {
+      navigator.clipboard.writeText(recordingUrl)
+    }
   }
 
   return (
@@ -98,38 +105,33 @@ export const ProgressOverlay: React.FC<Props> = ({
           <Col gap={10}>
             <Row alignItems="center" gap={10}>
               <CheckCircle2Icon size={32} color={colors.green['500']} />
-              <Block marginRight={10}>
-                <Block
-                  fontSize={11}
-                  fontWeight={700}
-                  color={color.text.default}
-                  textTransform="uppercase"
-                >
-                  Recording Created
-                </Block>
-
-                <Row
-                  component="a"
-                  gap={5}
-                  alignItems="center"
-                  fontSize={15}
-                  color={color.primary}
-                  marginTop={5}
-                  props={{
-                    href: recordingUrl,
-                    target: '_blank',
-                  }}
-                >
-                  {recordingUrl}
-                </Row>
+              <Block
+                fontSize={11}
+                fontWeight={700}
+                color={color.text.default}
+                textTransform="uppercase"
+              >
+                Recording Created
               </Block>
-
+            </Row>
+            <Row gap={8} justifyContent="center">
+              {recordingUrl && (
+                <Button
+                  variant="contained"
+                  size="small"
+                  onClick={() => window.open(recordingUrl, '_blank')}
+                >
+                  Open in Repro
+                </Button>
+              )}
               <Button
                 variant="outlined"
                 context="info"
+                size="small"
+                disabled={!recordingUrl}
                 onClick={copyToClipboard}
               >
-                <CopyIcon size={18} /> Copy
+                <CopyIcon size={18} />
               </Button>
             </Row>
             <Block alignSelf="center">
