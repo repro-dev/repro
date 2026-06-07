@@ -8,6 +8,7 @@ import React from 'react'
 import { AsideRegion, Layout, PlaybackRegion } from '../ReportForm/Layout'
 import { ProgressOverlay } from '../ReportForm/ProgressOverlay'
 import { AgenticSection } from './AgenticSection'
+import { useCaptureUpload } from './CaptureUploadProvider'
 import { RecordingActions } from './useRecordingActions'
 
 const DEFAULT_SELECTED_DURATION = 60_000
@@ -47,6 +48,8 @@ export const CaptureReview: React.FC<CaptureReviewProps> = ({
   React.useEffect(() => {
     setSelectedDuration(Math.min(DEFAULT_SELECTED_DURATION, maxTime))
   }, [maxTime, setSelectedDuration])
+
+  const { uploadState } = useCaptureUpload()
 
   return (
     <PlaybackProvider playback={playback}>
@@ -90,9 +93,10 @@ export const CaptureReview: React.FC<CaptureReviewProps> = ({
           <AgenticSection getSelectedRecording={actions.getSelectedRecording} />
         </AsideRegion>
 
-        {actions.uploadState.progress && (
+        {uploadState.progress && (
           <ProgressOverlay
-            progress={actions.uploadState.progress}
+            progress={uploadState.progress}
+            projectId={uploadState.uploadProjectId}
             onClose={onClose}
           />
         )}

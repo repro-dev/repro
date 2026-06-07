@@ -318,6 +318,8 @@ cmd_wt_create() {
     git worktree add -b "$branch" "$wt_path" || return $?
   fi
 
+  git push -u origin "$branch" 2>/dev/null || true
+
   if _wt_should_write_repro_lock "$branch"; then
     _wt_write_repro_lock "$wt_path" "$branch" || return $?
   fi

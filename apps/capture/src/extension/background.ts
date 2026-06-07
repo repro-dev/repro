@@ -44,7 +44,7 @@ const uploadWorker = createUploadWorker(apiClient, {
 const UploadEnqueuePayloadSchema = z.object({
   projectId: z.string(),
   title: z.string(),
-  description: z.string(),
+  description: z.string().nullable(),
   url: z.string(),
   mode: z.nativeEnum(RecordingMode),
   duration: z.number(),
@@ -61,6 +61,7 @@ agent.subscribeToIntent('upload:enqueue', (payload: UploadEnqueuePayload) => {
     map(input =>
       uploadWorker.enqueue({
         ...input,
+        description: input.description ?? '',
         events: input.events.map(data =>
           SourceEventView.over(new DataView(fromByteString(data).buffer))
         ),

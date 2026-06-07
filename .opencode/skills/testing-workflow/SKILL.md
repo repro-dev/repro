@@ -34,6 +34,15 @@ Use this skill when you need repo-specific guidance for writing, debugging, or v
 - Some modules require fuller mocks than their surface suggests. Mirror the shape used by nearby tests before trimming.
 - When a mock repeatedly needs the same fields or defaults, factor that into a shared helper rather than re-deriving it test-by-test.
 
+### Testing modules with module-level side effects
+
+Modules with module-level code (agent subscriptions, worker initialization, etc.) require special handling:
+
+- Use `mock.module()` with the `--experimental-test-module-mocks` flag to replace imported dependencies before the target module loads. Call `mock.module(...)` before `await import('./targetModule')`.
+- ESM caches modules by resolved URL — each test process can only mock a module once. If you need multiple test cases, consolidate all assertions into a single `it()` block after one `import()` call, or use separate test files.
+- For `mock.fn()` created mocks, call arguments are typed as `[]` by default. Use type assertions (`c.arguments as unknown as unknown[]`) when accessing arguments by index.
+- When mocks need to return `FutureInstance` values, use `resolve(val)` or `reject(err)` from fluture rather than plain values.
+
 ### Wrapped payloads and snapshots
 
 - Do not assume observer or recording payloads are plain objects. Check existing tests for wrapper types such as `Box` and use the same access pattern.
