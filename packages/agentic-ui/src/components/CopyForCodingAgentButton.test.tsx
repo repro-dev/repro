@@ -20,43 +20,6 @@ function setMockClipboard(writeText: (text: string) => Promise<void>) {
   })
 }
 
-// Mock @repro/design because @jsxstyle/core needs DOM at import time
-mock.module('@repro/design', {
-  namedExports: {
-    Button: ({
-      children,
-      variant,
-      size,
-      disabled,
-      onClick,
-      'aria-label': ariaLabel,
-    }: {
-      children: React.ReactNode
-      variant?: string
-      size?: string
-      disabled?: boolean
-      onClick?: () => void
-      'aria-label'?: string
-    }) =>
-      React.createElement(
-        'button',
-        {
-          'data-variant': variant,
-          'data-size': size,
-          disabled,
-          onClick,
-          'aria-label': ariaLabel,
-        },
-        children
-      ),
-    Tooltip: ({ children }: { children: React.ReactNode }) =>
-      React.createElement(React.Fragment, null, children),
-    spacing: { xs: 4, sm: 8, xl: 24 },
-    color: { text: { muted: '#888' } },
-    transition: { fast: '100ms' },
-  },
-})
-
 // Mock buildCodingAgentExport from @repro/agentic
 // Provide default implementation that returns mock markdown
 const mockBuildExport = mock.fn<
