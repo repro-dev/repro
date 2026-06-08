@@ -316,6 +316,31 @@ describe('buildCodingAgentExport', () => {
     assert.ok(md.includes('err'))
   })
 
+  it('does not exclude non-screenshot tool results with _tokenEstimate when toolName is unknown', () => {
+    // Regression test: _tokenEstimate is present in every successful tool result
+    // but is NOT a valid heuristic for identifying captureScreenshot results.
+    // Only 'dataUrl' in data should mark a result as a screenshot.
+    const entries: Array<Entry> = [
+      makeUserEntry('1', 'Check duration'),
+      makeAssistantEntry('2', '', [
+        {
+          id: 'tc1',
+          index: 0,
+          function: { name: 'getRecordingDuration', arguments: '{}' },
+        },
+      ]),
+      // Tool entry whose assistant match is absent, causing toolName to fall back to 'unknown'
+      makeToolEntry(
+        '3',
+        'nonexistent-call-id',
+        JSON.stringify({ durationMs: 10000, _tokenEstimate: 50 })
+      ),
+    ]
+    const md = buildCodingAgentExport(entries, [], null)
+    // The tool result should appear in Raw Tool Results despite having _tokenEstimate
+    assert.ok(md.includes('10000'))
+  })
+
   it('includes a prompt preamble at the end', () => {
     const entries: Array<Entry> = [
       makeUserEntry('1', 'What is wrong?'),
