@@ -1,52 +1,10 @@
 import { Col, Row } from '@jsxstyle/react'
 import { sortHypothesesByConfidence, type Hypothesis } from '@repro/agentic'
-import {
-  Alert,
-  Badge,
-  BadgeProps,
-  Collapsible,
-  color,
-  spacing,
-  Table,
-  Text,
-} from '@repro/design'
+import { Alert, Collapsible, color, spacing, Text } from '@repro/design'
 import { AlertTriangleIcon } from 'lucide-react'
 import React from 'react'
-
-type ConfidenceLevel = 'high' | 'medium' | 'low'
-
-const contextMap: Record<ConfidenceLevel, BadgeProps['context']> = {
-  high: 'danger',
-  medium: 'warning',
-  low: 'neutral',
-}
-
-const ConfidenceBadge: React.FC<{ level: 'high' | 'medium' | 'low' }> = ({
-  level,
-}) => {
-  return (
-    <Badge size="small" context={contextMap[level]}>
-      {level}
-    </Badge>
-  )
-}
-
-const EvidenceList: React.FC<{ evidence: Array<string> }> = ({ evidence }) => (
-  <Table density="compact">
-    {evidence.map((piece, i) => (
-      <Table.Row key={i}>
-        <Table.Cell>
-          <Text variant="caption" weight="semibold">
-            {i + 1}.
-          </Text>
-        </Table.Cell>
-        <Table.Cell>
-          <Text variant="caption">{piece}</Text>
-        </Table.Cell>
-      </Table.Row>
-    ))}
-  </Table>
-)
+import { ConfidenceBadge } from './ConfidenceBadge'
+import { EvidenceList } from './EvidenceList'
 
 interface HypothesisCardProps {
   hypothesis: Hypothesis

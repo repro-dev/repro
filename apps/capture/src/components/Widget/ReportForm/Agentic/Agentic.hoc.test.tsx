@@ -61,9 +61,15 @@ mock.module('@repro/agentic-ui', {
     AgenticView: ({
       onGoToTime,
       onInvestigationComplete: _onInvestigationComplete,
+      audience: _audience,
+      onAction: _onAction,
+      onFeedback: _onFeedback,
     }: {
       onGoToTime: (timestampMs: number) => void
       onInvestigationComplete?: (summary: string) => void
+      audience?: string
+      onAction?: (action: string) => void
+      onFeedback?: (sentiment: string) => void
     }) => (
       <button type="button" onClick={() => onGoToTime(5_000)}>
         Go to agentic time

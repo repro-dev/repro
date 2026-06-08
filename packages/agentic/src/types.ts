@@ -190,7 +190,6 @@ export interface NextAction {
     | 'file-issue'
     | 'prepare-context'
     | 'inspect-journey'
-    | 'check-network'
     | 'continue-investigating'
 }
 

@@ -1,66 +1,31 @@
 import { Block, Col, Row } from '@jsxstyle/react'
 import {
-  sortHypothesesByConfidence,
   type Audience,
   type DiagnosisContent,
   type Hypothesis,
-  type NextAction,
 } from '@repro/agentic'
 import {
-  Badge,
+  Alert,
   Card,
   Collapsible,
   color,
   focusRing,
   radius,
   spacing,
-  Table,
   Text,
   transition,
 } from '@repro/design'
 import {
+  AlertTriangleIcon,
   ArrowRightIcon,
-  BugIcon,
   Code2Icon,
   FileTextIcon,
   SearchIcon,
 } from 'lucide-react'
 import React from 'react'
+import { ConfidenceBadge } from './ConfidenceBadge'
+import { EvidenceList } from './EvidenceList'
 import { HypothesisList } from './HypothesisList'
-import { ResponseFeedback } from './ResponseFeedback'
-
-type ConfidenceLevel = 'high' | 'medium' | 'low'
-
-const contextMap: Record<ConfidenceLevel, 'danger' | 'warning' | 'neutral'> = {
-  high: 'danger',
-  medium: 'warning',
-  low: 'neutral',
-}
-
-const ConfidenceBadge: React.FC<{ level: ConfidenceLevel }> = ({ level }) => {
-  return (
-    <Badge size="small" context={contextMap[level]}>
-      {level}
-    </Badge>
-  )
-}
-
-const EvidenceTable: React.FC<{ evidence: Array<string> }> = ({ evidence }) => (
-  <Table density="compact">
-    {evidence.map((piece, i) => (
-      <Table.Row key={i}>
-        <Table.Cell>
-          <Text variant="caption" weight="semibold">
-            {i + 1}.
-          </Text>
-        </Table.Cell>
-        <Table.Cell>
-          <Text variant="caption">{piece}</Text>
-        </Table.Cell>
-      </Table.Row>
-    ))}
-  </Table>
-)
 
 interface ActionChipProps {
   icon: React.ReactNode
@@ -96,7 +61,7 @@ const ActionChip: React.FC<ActionChipProps> = ({ icon, label, onClick }) => (
 interface BuiltInAction {
   icon: React.ReactNode
   label: string
-  id: NextAction['action']
+  id: string
 }
 
 const EXTENSION_ACTIONS: BuiltInAction[] = [
@@ -135,21 +100,12 @@ const WORKSPACE_ACTIONS: BuiltInAction[] = [
   },
 ]
 
-const actionIconMap: Record<NextAction['action'], React.ReactNode> = {
-  'file-issue': <FileTextIcon size={14} />,
-  'prepare-context': <Code2Icon size={14} />,
-  'inspect-journey': <SearchIcon size={14} />,
-  'check-network': <BugIcon size={14} />,
-  'continue-investigating': <ArrowRightIcon size={14} />,
-}
-
 interface DiagnosisBlockProps {
   diagnosisContent: DiagnosisContent
   topHypothesis: Hypothesis | null
   allHypotheses: Hypothesis[]
   audience: Audience
-  onAction: (action: NextAction['action']) => void
-  onFeedback?: (sentiment: 'positive' | 'negative') => void
+  onAction: (action: string) => void
 }
 
 export const DiagnosisBlock: React.FC<DiagnosisBlockProps> = ({
@@ -158,10 +114,12 @@ export const DiagnosisBlock: React.FC<DiagnosisBlockProps> = ({
   allHypotheses,
   audience,
   onAction,
-  onFeedback,
 }) => {
-  const sortedHypotheses = sortHypothesesByConfidence(allHypotheses)
   const hasSecondaryHypotheses = allHypotheses.length > 1
+  const hasEvidence =
+    topHypothesis !== null && topHypothesis.evidence.length > 0
+  const hasInference = diagnosisContent.inference.length > 0
+  const hasContentBelow = hasEvidence || hasInference || hasSecondaryHypotheses
 
   const builtInActions =
     audience === 'extension' ? EXTENSION_ACTIONS : WORKSPACE_ACTIONS
@@ -174,7 +132,7 @@ export const DiagnosisBlock: React.FC<DiagnosisBlockProps> = ({
         )
     )
     .map((rec, i) => ({
-      id: `recommendation-${i}` as NextAction['action'],
+      id: `recommendation-${i}`,
       label: rec,
     }))
 
@@ -196,15 +154,25 @@ export const DiagnosisBlock: React.FC<DiagnosisBlockProps> = ({
             )}
           </Row>
 
-          {/* Section divider */}
-          <Block
-            borderBlockEnd={`1px solid ${color.border.default}`}
-            paddingBlockEnd={0}
-            marginBlockEnd={0}
-          />
+          {/* Low-confidence warning */}
+          {topHypothesis?.confidence === 'low' && (
+            <Alert type="warning" icon={<AlertTriangleIcon size={14} />}>
+              The top hypothesis has low confidence. More evidence may be needed
+              to reach a reliable conclusion.
+            </Alert>
+          )}
+
+          {/* Section divider — only when there is content below */}
+          {hasContentBelow && (
+            <Block
+              borderBlockEnd={`1px solid ${color.border.default}`}
+              paddingBlockEnd={0}
+              marginBlockEnd={0}
+            />
+          )}
 
           {/* 2. Evidence items — open by default for top hypothesis */}
-          {topHypothesis !== null && topHypothesis.evidence.length > 0 && (
+          {hasEvidence && (
             <Collapsible
               trigger={
                 <Text variant="label" weight="semibold">
@@ -213,12 +181,12 @@ export const DiagnosisBlock: React.FC<DiagnosisBlockProps> = ({
               }
               defaultOpen={true}
             >
-              <EvidenceTable evidence={topHypothesis.evidence} />
+              <EvidenceList evidence={topHypothesis.evidence} />
             </Collapsible>
           )}
 
           {/* 3. Inference — collapsed by default */}
-          {diagnosisContent.inference.length > 0 && (
+          {hasInference && (
             <Collapsible
               trigger={
                 <Text variant="label" weight="semibold">
@@ -227,7 +195,7 @@ export const DiagnosisBlock: React.FC<DiagnosisBlockProps> = ({
               }
               defaultOpen={false}
             >
-              <Text variant="caption" color={color.text.secondary}>
+              <Text variant="bodySmall" color={color.text.secondary}>
                 {diagnosisContent.inference}
               </Text>
             </Collapsible>
@@ -244,7 +212,7 @@ export const DiagnosisBlock: React.FC<DiagnosisBlockProps> = ({
               }
               defaultOpen={false}
             >
-              <HypothesisList hypotheses={sortedHypotheses.slice(1)} />
+              <HypothesisList hypotheses={allHypotheses.slice(1)} />
             </Collapsible>
           )}
 
@@ -261,17 +229,12 @@ export const DiagnosisBlock: React.FC<DiagnosisBlockProps> = ({
             {recommendationActions.map(action => (
               <ActionChip
                 key={action.id}
-                icon={actionIconMap[action.id] ?? <ArrowRightIcon size={14} />}
+                icon={<ArrowRightIcon size={14} />}
                 label={action.label}
                 onClick={() => onAction(action.id)}
               />
             ))}
           </Row>
-
-          {/* 6. Feedback */}
-          {onFeedback !== undefined && (
-            <ResponseFeedback onFeedback={onFeedback} />
-          )}
         </Col>
       </Card>
     </Block>

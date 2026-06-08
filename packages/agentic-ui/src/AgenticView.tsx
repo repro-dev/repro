@@ -3,7 +3,6 @@ import {
   type AssistantMessage,
   type Audience,
   buildInvestigationSummary,
-  type NextAction,
   parseDiagnosisFromAssistant,
   type RecordingMeta,
   sortHypothesesByConfidence,
@@ -35,7 +34,7 @@ export const AgenticView: React.FC<{
   onGoToTime?: (timeMs: number) => void
   onInvestigationComplete?: (summary: string) => void
   recordingMeta?: RecordingMeta | null
-  onAction?: (action: NextAction['action']) => void
+  onAction?: (action: string) => void
 }> = ({
   audience = 'extension',
   onFeedback,
@@ -67,6 +66,12 @@ export const AgenticView: React.FC<{
     () =>
       lastAssistant ? parseDiagnosisFromAssistant(lastAssistant.content) : null,
     [lastAssistant]
+  )
+
+  // Sort hypotheses once and reuse for both topHypothesis and DiagnosisBlock
+  const sortedHypotheses = useMemo(
+    () => sortHypothesesByConfidence(hypotheses),
+    [hypotheses]
   )
 
   const lastPromptRef = useRef('')
@@ -170,16 +175,17 @@ export const AgenticView: React.FC<{
           {stage === 'conclusion' && diagnosisContent !== null && (
             <DiagnosisBlock
               diagnosisContent={diagnosisContent}
-              topHypothesis={sortHypothesesByConfidence(hypotheses)[0] ?? null}
-              allHypotheses={hypotheses}
+              topHypothesis={sortedHypotheses[0] ?? null}
+              allHypotheses={sortedHypotheses}
               audience={audience}
               onAction={onAction ?? (() => {})}
-              onFeedback={onFeedback}
             />
           )}
           {stage === 'conclusion' &&
             diagnosisContent === null &&
-            hypotheses.length > 0 && <HypothesisList hypotheses={hypotheses} />}
+            hypotheses.length > 0 && (
+              <HypothesisList hypotheses={sortedHypotheses} />
+            )}
         </MessageList>
       </Col>
 

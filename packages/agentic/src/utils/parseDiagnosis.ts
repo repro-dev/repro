@@ -14,13 +14,13 @@ export function parseDiagnosisFromAssistant(
   content: string
 ): DiagnosisContent | null {
   const diagnosisMatch = content.match(
-    /##\s*Diagnosis\s*\n+([\s\S]*?)(?=\n##\s|\n*$)/i
+    /##\s*Diagnosis\s*\r?\n+([\s\S]*?)(?=\n##\s|\r?\n*$)/i
   )
   const inferenceMatch = content.match(
-    /##\s*How we got here\s*\n+([\s\S]*?)(?=\n##\s|\n*$)/i
+    /##\s*How we got here\s*\r?\n+([\s\S]*?)(?=\n##\s|\r?\n*$)/i
   )
   const recsMatch = content.match(
-    /##\s*Recommendations\s*\n+([\s\S]*?)(?=\n##\s|\n*$)/i
+    /##\s*Recommendations\s*\r?\n+([\s\S]*?)(?=\n##\s|\r?\n*$)/i
   )
 
   if (!diagnosisMatch?.[1]?.trim()) return null
@@ -31,7 +31,7 @@ export function parseDiagnosisFromAssistant(
     ? recsMatch[1]
         .trim()
         .split(/\n/)
-        .map(line => line.replace(/^[\s*\d.-]+\s*/, '').trim())
+        .map(line => line.replace(/^[\s*\d.-]+/, '').trim())
         .filter(Boolean)
     : []
 

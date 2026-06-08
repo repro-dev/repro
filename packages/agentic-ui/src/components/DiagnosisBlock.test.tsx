@@ -153,18 +153,33 @@ describe('DiagnosisBlock', () => {
     expect(actions).toEqual(['file-issue'])
   })
 
-  it('renders ResponseFeedback when onFeedback is provided', () => {
-    render(<DiagnosisBlock {...defaultProps} onFeedback={() => {}} />)
+  it('shows low-confidence warning when topHypothesis confidence is low', () => {
+    render(
+      <DiagnosisBlock
+        {...defaultProps}
+        topHypothesis={makeHypothesis({ confidence: 'low' })}
+      />
+    )
 
-    // Thumbs up button should be present
-    expect(screen.getByLabelText('Thumbs up')).toBeDefined()
-    expect(screen.getByLabelText('Thumbs down')).toBeDefined()
+    expect(
+      screen.getByText(
+        'The top hypothesis has low confidence. More evidence may be needed to reach a reliable conclusion.'
+      )
+    ).toBeDefined()
   })
 
-  it('does not render ResponseFeedback when onFeedback is not provided', () => {
-    render(<DiagnosisBlock {...defaultProps} />)
+  it('does not show low-confidence warning when confidence is high', () => {
+    render(
+      <DiagnosisBlock
+        {...defaultProps}
+        topHypothesis={makeHypothesis({ confidence: 'high' })}
+      />
+    )
 
-    expect(screen.queryByLabelText('Thumbs up')).toBeNull()
-    expect(screen.queryByLabelText('Thumbs down')).toBeNull()
+    expect(
+      screen.queryByText(
+        'The top hypothesis has low confidence. More evidence may be needed to reach a reliable conclusion.'
+      )
+    ).toBeNull()
   })
 })
