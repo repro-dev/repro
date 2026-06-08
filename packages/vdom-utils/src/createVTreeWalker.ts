@@ -4,6 +4,7 @@ import {
   VDocType,
   VDocument,
   VElement,
+  VShadowRoot,
   VText,
   VTree,
 } from '@repro/domain'
@@ -25,6 +26,11 @@ interface VNodeVisitor {
   ): void
   elementNode(
     node: VElement,
+    vtree: VTree,
+    controlContext: VTreeWalkerControlContext
+  ): void
+  shadowRootNode(
+    node: VShadowRoot,
     vtree: VTree,
     controlContext: VTreeWalkerControlContext
   ): void
@@ -72,6 +78,10 @@ export function createVTreeWalker(): VTreeWalker {
 
             case NodeType.Element:
               visitor.elementNode(node, vtree, controlContext)
+              break
+
+            case NodeType.ShadowRoot:
+              visitor.shadowRootNode(node, vtree, controlContext)
               break
 
             case NodeType.Text:

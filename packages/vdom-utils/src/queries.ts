@@ -12,6 +12,7 @@ export function findElementsByClassName(
     // Not implemented
     documentNode() {},
     docTypeNode() {},
+    shadowRootNode() {},
     textNode() {},
 
     elementNode(node) {
@@ -38,6 +39,7 @@ export function findElementById(vtree: VTree, id: string): VElement | null {
     // Not implemented
     documentNode() {},
     docTypeNode() {},
+    shadowRootNode() {},
     textNode() {},
 
     elementNode(needle, _, controlContext) {
