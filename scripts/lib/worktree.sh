@@ -9,6 +9,7 @@
 WT_DRY_RUN=false
 WT_FROM_ISSUE=""
 WT_NO_STATUS_UPDATE=false
+WT_OPEN=false
 WT_ISSUE_LINEAR_SYNCED=false
 WT_ISSUE_LINEAR_SYNC_ERROR=""
 
@@ -139,6 +140,54 @@ _copy_worktree_bootstrap_local_files() {
     cp -p "$MAIN_CHECKOUT/.envrc.local" "$wt_path/.envrc.local" ||
       die "Failed to copy $MAIN_CHECKOUT/.envrc.local into $wt_path/.envrc.local"
   fi
+}
+
+_herdr_is_running() {
+  herdr status &>/dev/null
+}
+
+_herdr_worktree_open() {
+  local wt_path="$1"
+  local label="${2:-}"
+
+  if ! _herdr_is_running; then
+    return 0
+  fi
+
+  local herdr_stderr
+  herdr_stderr="$(mktemp "$MAIN_CHECKOUT/tmp/herdr.XXXXXX")"
+
+  if herdr worktree open --cwd "$MAIN_CHECKOUT" --path "$wt_path" --label "$label" --no-focus --json 2>"$herdr_stderr"; then
+    rm -f "$herdr_stderr"
+    return 0
+  fi
+
+  rm -f "$herdr_stderr"
+  return 0
+}
+
+_herdr_workspace_close_for_path() {
+  local wt_path="$1"
+
+  if ! _herdr_is_running; then
+    return 0
+  fi
+
+  local list_output
+  list_output="$(herdr worktree list --cwd "$MAIN_CHECKOUT" --json 2>/dev/null)" || return 0
+
+  if [ -z "$list_output" ]; then
+    return 0
+  fi
+
+  local ws_id
+  ws_id="$(printf '%s' "$list_output" | jq -r --arg path "$wt_path" 'map(select(.path == $path)) | .[0].workspace_id // .[0].id // empty' 2>/dev/null)" || return 0
+
+  if [ -n "$ws_id" ] && [ "$ws_id" != "null" ]; then
+    herdr workspace close "$ws_id" 2>/dev/null || true
+  fi
+
+  return 0
 }
 
 _resolve_issue_worktree_metadata() {
@@ -351,6 +400,11 @@ cmd_wt_create() {
     else
       echo "  ${CLR_DIM}Skipped (not allowed in main checkout)${CLR_RESET}"
     fi
+  fi
+
+  if [[ "$WT_OPEN" == true ]]; then
+    local herdr_label="${WT_ISSUE_IDENTIFIER:-$slug}"
+    _herdr_worktree_open "$wt_path" "$herdr_label"
   fi
 
   echo ""
@@ -686,8 +740,9 @@ cmd_wt_remove() {
   if [ "$WT_DRY_RUN" = true ]; then
     echo ""
     echo "${CLR_DIM}[dry-run]${CLR_RESET} Would run: git worktree remove \"$wt_path\""
-  echo "${CLR_DIM}[dry-run]${CLR_RESET} Would run: git worktree prune"
-  echo ""
+    echo "${CLR_DIM}[dry-run]${CLR_RESET} Would run: git worktree prune"
+    echo "${CLR_DIM}[dry-run]${CLR_RESET} Would close: herdr workspace (if found)"
+    echo ""
   echo "${CLR_DIM}[dry-run] No changes were made.${CLR_RESET}"
   return 0
   fi
@@ -778,6 +833,8 @@ cmd_wt_remove() {
 
   _step 2 2 "Pruning stale entries..."
   git worktree prune
+
+  _herdr_workspace_close_for_path "$wt_path"
 
   echo ""
   _ok "Worktree removed: $wt_path"
@@ -1171,6 +1228,7 @@ Commands:
 
 Options (create):
   --from-issue, -i <id>   Fetch branch name from a Linear issue (e.g. REP-123)
+  --open                   Register the worktree as a herdr workspace
   --no-status-update      Skip setting the Linear issue to In Progress
   --dry-run               Preview what would be done without making changes
 
@@ -1274,6 +1332,10 @@ cmd_wt() {
         WT_FROM_ISSUE="$2"
         shift 2
         ;;
+      --open)
+        WT_OPEN=true
+        shift
+        ;;
       --no-status-update)
         WT_NO_STATUS_UPDATE=true
         shift
@@ -1314,6 +1376,10 @@ cmd_wt() {
 
   if [[ "${WT_JSON:-}" == true && "$subcmd" != "list" ]]; then
     die "--json can only be used with 'list'"
+  fi
+
+  if [[ "$WT_OPEN" == true && "$subcmd" != "create" ]]; then
+    die "--open can only be used with 'create'"
   fi
 
 
