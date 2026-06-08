@@ -1,9 +1,9 @@
 import { Block, Row } from '@jsxstyle/react'
 import { buildCodingAgentExport, type RecordingMeta } from '@repro/agentic'
 import { useAtomValue } from '@repro/atom'
-import { Button, spacing, Tooltip } from '@repro/design'
+import { Button, fontSize, spacing, Tooltip } from '@repro/design'
 import { CheckIcon, CopyIcon } from 'lucide-react'
-import React, { useCallback, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useAgenticState } from '../context'
 
 interface CopyForCodingAgentButtonProps {
@@ -18,6 +18,15 @@ export const CopyForCodingAgentButton: React.FC<
   const hypotheses = useAtomValue(agentic.$hypotheses)
   const [copied, setCopied] = useState(false)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Cleanup timer on unmount to prevent dangling timeout
+  useEffect(() => {
+    return () => {
+      if (timerRef.current !== null) {
+        clearTimeout(timerRef.current)
+      }
+    }
+  }, [])
 
   const hasAssistant = entries.some(e => e.role === 'assistant')
 
@@ -58,7 +67,7 @@ export const CopyForCodingAgentButton: React.FC<
       >
         <Row gap={spacing.xs} alignItems="center">
           {copied ? <CheckIcon size={14} /> : <CopyIcon size={14} />}
-          <Block component="span" fontSize={12}>
+          <Block component="span" fontSize={fontSize.xs}>
             {copied ? 'Copied!' : 'Copy for coding agent'}
           </Block>
         </Row>

@@ -347,7 +347,10 @@ describe('buildCodingAgentExport', () => {
       makeAssistantEntry('2', 'Bug found.'),
     ]
     const md = buildCodingAgentExport(entries, [], meta)
-    assert.ok(md.includes('You are a debugging assistant'))
-    assert.ok(md.includes('To reproduce this bug'))
+    assert.ok(
+      md.includes(
+        'Repro found the following issues in this recording. Please investigate the codebase and fix the root cause.'
+      )
+    )
   })
 })

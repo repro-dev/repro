@@ -313,12 +313,7 @@ export function buildCodingAgentExport(
   // ── Suggested Prompt Preamble ──────────────────────────────────────
   sections.push('## Suggested Prompt\n')
   sections.push(
-    `You are a debugging assistant. Use the information below to investigate and resolve the reported issue.
-
-To reproduce this bug:
-1. Open the recording in Repro
-2. Follow the evidence timeline above
-3. Apply the suggested fix based on root cause analysis`
+    `Repro found the following issues in this recording. Please investigate the codebase and fix the root cause.`
   )
   sections.push('')
 
