@@ -1,5 +1,13 @@
 import { Block, Col, Row } from '@jsxstyle/react'
-import { buildInvestigationSummary, type RecordingMeta } from '@repro/agentic'
+import {
+  type AssistantMessage,
+  type Audience,
+  buildInvestigationSummary,
+  type NextAction,
+  parseDiagnosisFromAssistant,
+  type RecordingMeta,
+  sortHypothesesByConfidence,
+} from '@repro/agentic'
 import { useAtomValue } from '@repro/atom'
 import {
   AgenticInputFormState,
@@ -10,9 +18,10 @@ import {
   Tooltip,
 } from '@repro/design'
 import { History, SquarePen } from 'lucide-react'
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { AgenticInputSection } from './components/AgenticInputSection'
 import { CopyForCodingAgentButton } from './components/CopyForCodingAgentButton'
+import { DiagnosisBlock } from './components/DiagnosisBlock'
 import { HypothesisList } from './components/HypothesisList'
 import { JumpToEndButton } from './components/JumpToEndButton'
 import { LoadingIndicator } from './components/LoadingIndicator'
@@ -21,15 +30,19 @@ import { useAgenticState } from './context'
 import { useHistoryScroll } from './hooks/useHistoryScroll'
 
 export const AgenticView: React.FC<{
+  audience?: Audience
   onFeedback?: (sentiment: 'positive' | 'negative') => void
   onGoToTime?: (timeMs: number) => void
   onInvestigationComplete?: (summary: string) => void
   recordingMeta?: RecordingMeta | null
+  onAction?: (action: NextAction['action']) => void
 }> = ({
+  audience = 'extension',
   onFeedback,
   onGoToTime,
   onInvestigationComplete,
   recordingMeta = null,
+  onAction,
 }) => {
   const [inputHasFocus, setInputHasFocus] = useState(false)
   const lastSummaryRef = useRef('')
@@ -41,6 +54,20 @@ export const AgenticView: React.FC<{
   const wasCancelled = useAtomValue(agentic.$wasCancelled)
   const stage = useAtomValue(agentic.$stage)
   const hypotheses = useAtomValue(agentic.$hypotheses)
+
+  // Find the last assistant message to parse diagnosis data
+  const lastAssistant = useMemo(() => {
+    const reversed = [...entries].reverse()
+    return reversed.find(
+      e => e.role === 'assistant' && e.content.length > 0
+    ) as AssistantMessage | undefined
+  }, [entries])
+
+  const diagnosisContent = useMemo(
+    () =>
+      lastAssistant ? parseDiagnosisFromAssistant(lastAssistant.content) : null,
+    [lastAssistant]
+  )
 
   const lastPromptRef = useRef('')
 
@@ -140,9 +167,19 @@ export const AgenticView: React.FC<{
             agentic.query(prompt)
           }}
         >
-          {stage === 'conclusion' && hypotheses.length > 0 && (
-            <HypothesisList hypotheses={hypotheses} />
+          {stage === 'conclusion' && diagnosisContent !== null && (
+            <DiagnosisBlock
+              diagnosisContent={diagnosisContent}
+              topHypothesis={sortHypothesesByConfidence(hypotheses)[0] ?? null}
+              allHypotheses={hypotheses}
+              audience={audience}
+              onAction={onAction ?? (() => {})}
+              onFeedback={onFeedback}
+            />
           )}
+          {stage === 'conclusion' &&
+            diagnosisContent === null &&
+            hypotheses.length > 0 && <HypothesisList hypotheses={hypotheses} />}
         </MessageList>
       </Col>
 

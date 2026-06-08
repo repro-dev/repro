@@ -176,6 +176,26 @@ export interface AdvanceStageError {
 
 export type AdvanceStageOutcome = AdvanceStageResult | AdvanceStageError
 
+export interface DiagnosisContent {
+  diagnosis: string
+  inference: string
+  recommendations: string[]
+}
+
+export interface NextAction {
+  id: string
+  label: string
+  description?: string
+  action:
+    | 'file-issue'
+    | 'prepare-context'
+    | 'inspect-journey'
+    | 'check-network'
+    | 'continue-investigating'
+}
+
+export type Audience = 'extension' | 'workspace'
+
 export interface AgenticError {
   message: string
   retryable: boolean

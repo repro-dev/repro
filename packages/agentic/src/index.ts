@@ -37,14 +37,17 @@ export type {
   AskUserResult,
   AssistantMessage,
   AssistantMessageContext,
+  Audience,
   ContentBlock,
   Context,
+  DiagnosisContent,
   Entry,
   Hypothesis,
   ImageUrlContentBlock,
   InvestigationReadiness,
   InvestigationStage,
   Loading,
+  NextAction,
   PendingAskUserInteraction,
   RecordingDataAccessor,
   RecordingMeta,
@@ -66,4 +69,5 @@ export type {
   ToolCallPair,
   TruncationIndicatorItem,
 } from './utils/groupToolCalls'
+export { parseDiagnosisFromAssistant } from './utils/parseDiagnosis'
 export { summarizeToolResult } from './utils/summarizeToolResult'

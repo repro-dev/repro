@@ -417,7 +417,7 @@ Runs the full critique pipeline after evals:
 | File                                                 | Key exports                                                                                                                |
 | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
 | `packages/agentic/src/createState.ts`                | `createAgenticState`, `executeToolCalls`, `buildToolMessageContent`, `MAX_TOOL_ITERATIONS`, `accumulateToolCalls`          |
-| `packages/agentic/src/types.ts`                      | All shared types: `Entry`, `Context`, `AgenticState`, `StreamProvider`, `RecordingDataAccessor`, `ContentBlock`, `Loading` |
+| `packages/agentic/src/types.ts`                      | All shared types: `Entry`, `Context`, `AgenticState`, `StreamProvider`, `RecordingDataAccessor`, `ContentBlock`, `Loading`, `DiagnosisContent`, `NextAction`, `Audience` |
 | `packages/agentic/src/index.ts`                      | Public barrel — everything exported from the package                                                                       |
 | `packages/agentic/src/model/system.ts`               | `EXTENSION_SYSTEM_CARD_MESSAGE`, `WORKSPACE_SYSTEM_CARD_MESSAGE`, `SYSTEM_CARD_MESSAGE`                                    |
 | `packages/agentic/src/model/context-window.ts`       | `computeContextBudget`, `truncateToContextBudget`                                                                          |
@@ -425,12 +425,15 @@ Runs the full critique pipeline after evals:
 | `packages/agentic/src/model/tools/common.ts`         | `ToolHandler` type, `createError()`, event type guards                                                                     |
 | `packages/agentic/src/recordingDataAccessor.ts`      | `makeAccessorFromEventList`, `EventList`                                                                                   |
 | `packages/agentic/src/utils/groupToolCalls.ts`       | `groupToolCalls`, `RenderItem` types                                                                                       |
+| `packages/agentic/src/utils/parseDiagnosis.ts`       | `parseDiagnosisFromAssistant` — parses `## Diagnosis` / `## How we got here` / `## Recommendations` sections from assistant markdown |
 | `packages/agentic/src/eval/index.ts`                 | CLI entry point, fixture lists, `buildPromptGroups`                                                                        |
 | `packages/agentic/src/eval/runner.ts`                | `runEval`, `runSingle`, `EvalFixture`, `EvalResult`                                                                        |
 | `packages/agentic/src/eval/regressions.ts`           | `findRegressions`, regression thresholds                                                                                   |
 | `packages/agentic/src/eval/streamProvider.ts`        | `createOpenRouterStreamProvider` (direct OpenRouter, bypasses API server)                                                  |
 | `packages/agentic-ui/src/context.tsx`                | `AgenticStateContext`, `useAgenticState`                                                                                   |
 | `packages/agentic-ui/src/components/MessageList.tsx` | Imports and uses `groupToolCalls` directly from `@repro/agentic`                                                           |
+| `packages/agentic-ui/src/components/DiagnosisBlock.tsx` | Structured diagnosis card with evidence, confidence badge, inference, secondary hypotheses, next actions, and feedback |
+| `packages/agentic-ui/src/AgenticView.tsx`            | Accepts `audience` prop; derives `DiagnosisContent` from last assistant message; renders `DiagnosisBlock` at conclusion stage |
 | `packages/domain/src/model-configs.ts`               | `AGENTIC_DEFAULT_MODEL`, `EVAL_JUDGE_MODEL`, `EVAL_REASONING_MODEL`, `MODEL_CONFIGS`, `getModelConfig`                     |
 | `apps/api-server/src/routers/agentic.ts`             | `POST /agentic/response`, `POST /agentic/feedback`                                                                         |
 | `apps/api-server/src/services/agentic.ts`            | `createAgenticService`, `getStreamingResponse`, `recordFeedback`                                                           |

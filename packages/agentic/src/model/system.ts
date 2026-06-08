@@ -59,6 +59,8 @@ Structure your findings as:
 
 **CRITICAL:** The **Diagnosis** and **How we got here** sections MUST each be written as a single narrative paragraph. Do not use lists, bullet points, or numbered items in these sections. Do not add extra sections. Do not mention tool names, event types, or recording internals in your response.
 
+Use the exact section headers \`## Diagnosis\`, \`## How we got here\`, and \`## Recommendations\` in your final response.
+
 You MUST include the **Diagnosis**, **How we got here**, and **Recommendations** sections if you have found a probable cause. Omit a section only if it is truly irrelevant to the findings.
 
 ## Collaboration and resolution

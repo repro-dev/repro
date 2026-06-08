@@ -112,6 +112,7 @@ export const Agentic: React.FC<AgenticProps> = ({
     <AgenticStateContext.Provider value={state}>
       <AgenticView
         recordingMeta={recordingMeta}
+        audience="extension"
         onInvestigationComplete={onInvestigationComplete}
         onGoToTime={timestampMs =>
           playback.seekToTime(selected.startTimeMs + timestampMs)
@@ -137,6 +138,19 @@ export const Agentic: React.FC<AgenticProps> = ({
               )
             )
           )
+        }}
+        onAction={action => {
+          // TODO: Wire actual action dispatching
+          // - 'file-issue': Trigger report-form issue filing flow
+          // - 'continue-investigating': Focus the agentic input with a pre-filled suggestion
+          switch (action) {
+            case 'file-issue':
+              break
+            case 'continue-investigating':
+              break
+            default:
+              break
+          }
         }}
       />
     </AgenticStateContext.Provider>

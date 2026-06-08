@@ -1,6 +1,7 @@
 export { AgenticView } from './AgenticView'
 export { AgenticInputSection } from './components/AgenticInputSection'
 export { CopyForCodingAgentButton } from './components/CopyForCodingAgentButton'
+export { DiagnosisBlock } from './components/DiagnosisBlock'
 export { ErrorMessage } from './components/ErrorMessage'
 export { HypothesisList } from './components/HypothesisList'
 export { JumpToEndButton } from './components/JumpToEndButton'
