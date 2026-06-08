@@ -1,6 +1,7 @@
 brew "agent-browser"
 brew "direnv"
 brew "fzf"
+brew "herdr"
 brew "jq"
 brew "kind"
 brew "pandoc"

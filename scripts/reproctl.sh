@@ -66,6 +66,7 @@ ${CLR_BOLD}INFRASTRUCTURE${CLR_RESET}
 ${CLR_BOLD}WORKTREES${CLR_RESET}
   wt create <branch>              Create a new worktree for a branch
   wt create --from-issue <id>     Create a worktree from a Linear issue
+                                  --open to also register as a herdr workspace
   wt remove <branch>              Remove the worktree for a branch
   wt list                         List active worktrees
   wt attach <branch>              Drop into a worktree subshell
