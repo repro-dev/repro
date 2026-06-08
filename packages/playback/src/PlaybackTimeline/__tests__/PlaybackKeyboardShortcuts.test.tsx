@@ -80,6 +80,9 @@ describe('PlaybackKeyboardShortcuts', () => {
     expect(end).toBeDefined()
 
     // --- Test 3: ArrowLeft seeks backward 5s (clamped to >= 0) ---
+    const { Analytics } = await import('@repro/analytics')
+    const analyticsTrack = Analytics.track as ReturnType<typeof mock.fn>
+    analyticsTrack.mock.resetCalls()
     seekToTime.mock.resetCalls()
 
     // elapsed = 10000, seek to 10000 - 5000 = 5000
@@ -87,14 +90,24 @@ describe('PlaybackKeyboardShortcuts', () => {
     arrowLeft!.handler()
     expect(seekToTime.mock.calls.length).toBe(1)
     expect(seekToTime.mock.calls[0]?.arguments[0]).toBe(5000)
+    expect(analyticsTrack.mock.calls.length).toBe(1)
+    expect(analyticsTrack.mock.calls[0]?.arguments[0]).toBe(
+      'playback:keyboard-seek-backward'
+    )
 
     // elapsed = 3000, seek to max(0, 3000 - 5000) = 0
+    analyticsTrack.mock.resetCalls()
     seekToTime.mock.resetCalls()
     getElapsed.mock.mockImplementation(() => 3000)
     arrowLeft!.handler()
     expect(seekToTime.mock.calls[0]?.arguments[0]).toBe(0)
+    expect(analyticsTrack.mock.calls.length).toBe(1)
+    expect(analyticsTrack.mock.calls[0]?.arguments[0]).toBe(
+      'playback:keyboard-seek-backward'
+    )
 
     // --- Test 4: ArrowRight seeks forward 5s (clamped to <= duration) ---
+    analyticsTrack.mock.resetCalls()
     seekToTime.mock.resetCalls()
     getElapsed.mock.mockImplementation(() => 10000)
     getDuration.mock.mockImplementation(() => 30000)
@@ -103,25 +116,44 @@ describe('PlaybackKeyboardShortcuts', () => {
     arrowRight!.handler()
     expect(seekToTime.mock.calls.length).toBe(1)
     expect(seekToTime.mock.calls[0]?.arguments[0]).toBe(15000)
+    expect(analyticsTrack.mock.calls.length).toBe(1)
+    expect(analyticsTrack.mock.calls[0]?.arguments[0]).toBe(
+      'playback:keyboard-seek-forward'
+    )
 
     // elapsed = 28000, seek to min(30000, 28000 + 5000) = 30000
+    analyticsTrack.mock.resetCalls()
     seekToTime.mock.resetCalls()
     getElapsed.mock.mockImplementation(() => 28000)
     arrowRight!.handler()
     expect(seekToTime.mock.calls[0]?.arguments[0]).toBe(30000)
+    expect(analyticsTrack.mock.calls.length).toBe(1)
+    expect(analyticsTrack.mock.calls[0]?.arguments[0]).toBe(
+      'playback:keyboard-seek-forward'
+    )
 
     // --- Test 5: Home seeks to 0 ---
+    analyticsTrack.mock.resetCalls()
     seekToTime.mock.resetCalls()
     home!.handler()
     expect(seekToTime.mock.calls.length).toBe(1)
     expect(seekToTime.mock.calls[0]?.arguments[0]).toBe(0)
+    expect(analyticsTrack.mock.calls.length).toBe(1)
+    expect(analyticsTrack.mock.calls[0]?.arguments[0]).toBe(
+      'playback:keyboard-seek-to-start'
+    )
 
     // --- Test 6: End seeks to duration ---
+    analyticsTrack.mock.resetCalls()
     seekToTime.mock.resetCalls()
     getDuration.mock.mockImplementation(() => 30000)
     end!.handler()
     expect(seekToTime.mock.calls.length).toBe(1)
     expect(seekToTime.mock.calls[0]?.arguments[0]).toBe(30000)
+    expect(analyticsTrack.mock.calls.length).toBe(1)
+    expect(analyticsTrack.mock.calls[0]?.arguments[0]).toBe(
+      'playback:keyboard-seek-to-end'
+    )
 
     // --- Test 7: Unmount calls shortcuts.reset() ---
     resetCalled = false
@@ -210,10 +242,36 @@ describe('PlaybackKeyboardShortcuts', () => {
     select.focus()
     expect(capturedShouldHandleEvent!(fakeEvent)).toBe(false)
 
+    // When active element is a non-form element (div), should handle
+    const div = document.createElement('div')
+    document.body.appendChild(div)
+    select.blur()
+    div.setAttribute('tabindex', '0')
+    div.focus()
+    expect(capturedShouldHandleEvent!(fakeEvent)).toBe(true)
+
+    // When active element is inside a shadow DOM and is an input, should NOT handle
+    div.blur()
+    const shadowHost = document.createElement('div')
+    document.body.appendChild(shadowHost)
+    const shadowInput = document.createElement('input')
+    // Simulate shadow DOM: host has shadowRoot with activeElement pointing to an input
+    Object.defineProperty(shadowHost, 'shadowRoot', {
+      get() {
+        return { activeElement: shadowInput }
+      },
+      configurable: true,
+    })
+    shadowHost.setAttribute('tabindex', '0')
+    shadowHost.focus()
+    expect(capturedShouldHandleEvent!(fakeEvent)).toBe(false)
+
     // Clean up
     document.body.removeChild(input)
     document.body.removeChild(textarea)
     document.body.removeChild(select)
+    document.body.removeChild(div)
+    document.body.removeChild(shadowHost)
     cleanup()
   })
 })
