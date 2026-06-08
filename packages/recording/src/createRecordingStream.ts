@@ -59,6 +59,7 @@ import { createViewportVisitor } from './interaction/visitor'
 import { createNetworkObserver } from './network'
 import { createPerformanceObserver } from './performance'
 import { observePeriodic } from './periodic'
+import { setRedactionConfig } from './redaction'
 import { createReactObserver } from './state/react'
 import { createReduxObserver } from './state/redux'
 import { RecordingOptions } from './types'
@@ -134,6 +135,9 @@ export function createRecordingStream(
     ...defaultOptions,
     ...customOptions,
   }
+
+  // Wire redaction config into the shared redaction module
+  setRedactionConfig(options.redaction)
 
   const [$started, setStarted, isStarted] = createAtom(false)
 
