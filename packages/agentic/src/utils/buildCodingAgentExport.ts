@@ -127,7 +127,7 @@ function isScreenshotTool(content: string): boolean {
   if (!parsed || typeof parsed !== 'object') return false
 
   const data = parsed as Record<string, unknown>
-  return 'dataUrl' in data || '_tokenEstimate' in data
+  return 'dataUrl' in data
 }
 
 /**
