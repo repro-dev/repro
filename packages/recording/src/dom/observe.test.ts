@@ -332,8 +332,10 @@ describe('libs/record: dom observers', () => {
     expect(values).toContain(redactStringPreservingWhitespace('secret'))
 
     const maskedTextValue = values.find(
-      value => typeof value === 'string'
-    ) as string
+      value =>
+        typeof value === 'string' &&
+        value === redactStringPreservingWhitespace('secret')
+    )
     expect(maskedTextValue).toBe(redactStringPreservingWhitespace('secret'))
 
     const optionNode = Object.values(vtree?.nodes ?? {})
