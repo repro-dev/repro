@@ -27,6 +27,8 @@ import { ConfidenceBadge } from './ConfidenceBadge'
 import { EvidenceList } from './EvidenceList'
 import { HypothesisList } from './HypothesisList'
 
+const ACTION_ICON_SIZE = 14
+
 interface ActionChipProps {
   icon: React.ReactNode
   label: string
@@ -46,7 +48,6 @@ const ActionChip: React.FC<ActionChipProps> = ({ icon, label, onClick }) => (
     paddingH={spacing.md}
     paddingV={spacing.sm}
     hoverBackgroundColor={color.bg.muted}
-    hoverColor={color.text.default}
     transition={transition.fast}
     {...focusRing('neutral')}
     props={{ type: 'button', onClick, 'aria-label': label }}
@@ -66,12 +67,12 @@ interface BuiltInAction {
 
 const EXTENSION_ACTIONS: BuiltInAction[] = [
   {
-    icon: <FileTextIcon size={14} />,
+    icon: <FileTextIcon size={ACTION_ICON_SIZE} />,
     label: 'File issue',
     id: 'file-issue',
   },
   {
-    icon: <ArrowRightIcon size={14} />,
+    icon: <ArrowRightIcon size={ACTION_ICON_SIZE} />,
     label: 'Continue investigating',
     id: 'continue-investigating',
   },
@@ -79,22 +80,22 @@ const EXTENSION_ACTIONS: BuiltInAction[] = [
 
 const WORKSPACE_ACTIONS: BuiltInAction[] = [
   {
-    icon: <FileTextIcon size={14} />,
+    icon: <FileTextIcon size={ACTION_ICON_SIZE} />,
     label: 'File issue',
     id: 'file-issue',
   },
   {
-    icon: <Code2Icon size={14} />,
+    icon: <Code2Icon size={ACTION_ICON_SIZE} />,
     label: 'Prepare dev context',
     id: 'prepare-context',
   },
   {
-    icon: <SearchIcon size={14} />,
+    icon: <SearchIcon size={ACTION_ICON_SIZE} />,
     label: 'Inspect user journey',
     id: 'inspect-journey',
   },
   {
-    icon: <ArrowRightIcon size={14} />,
+    icon: <ArrowRightIcon size={ACTION_ICON_SIZE} />,
     label: 'Continue investigating',
     id: 'continue-investigating',
   },
@@ -156,7 +157,10 @@ export const DiagnosisBlock: React.FC<DiagnosisBlockProps> = ({
 
           {/* Low-confidence warning */}
           {topHypothesis?.confidence === 'low' && (
-            <Alert type="warning" icon={<AlertTriangleIcon size={14} />}>
+            <Alert
+              type="warning"
+              icon={<AlertTriangleIcon size={ACTION_ICON_SIZE} />}
+            >
               The top hypothesis has low confidence. More evidence may be needed
               to reach a reliable conclusion.
             </Alert>
@@ -229,7 +233,7 @@ export const DiagnosisBlock: React.FC<DiagnosisBlockProps> = ({
             {recommendationActions.map(action => (
               <ActionChip
                 key={action.id}
-                icon={<ArrowRightIcon size={14} />}
+                icon={<ArrowRightIcon size={ACTION_ICON_SIZE} />}
                 label={action.label}
                 onClick={() => onAction(action.id)}
               />

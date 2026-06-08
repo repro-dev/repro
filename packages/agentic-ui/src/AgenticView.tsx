@@ -55,11 +55,13 @@ export const AgenticView: React.FC<{
   const hypotheses = useAtomValue(agentic.$hypotheses)
 
   // Find the last assistant message to parse diagnosis data
+  const isAssistantMessage = (
+    e: (typeof entries)[number]
+  ): e is AssistantMessage => e.role === 'assistant' && e.content.length > 0
+
   const lastAssistant = useMemo(() => {
     const reversed = [...entries].reverse()
-    return reversed.find(
-      e => e.role === 'assistant' && e.content.length > 0
-    ) as AssistantMessage | undefined
+    return reversed.find(isAssistantMessage)
   }, [entries])
 
   const diagnosisContent = useMemo(

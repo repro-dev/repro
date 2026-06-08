@@ -1,7 +1,8 @@
+import type { Hypothesis } from '@repro/agentic'
 import { Badge, type BadgeProps } from '@repro/design'
 import React from 'react'
 
-type ConfidenceLevel = 'high' | 'medium' | 'low'
+type ConfidenceLevel = Hypothesis['confidence']
 
 const contextMap: Record<ConfidenceLevel, BadgeProps['context']> = {
   high: 'danger',

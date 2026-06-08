@@ -47,7 +47,6 @@ export type {
   InvestigationReadiness,
   InvestigationStage,
   Loading,
-  NextAction,
   PendingAskUserInteraction,
   RecordingDataAccessor,
   RecordingMeta,

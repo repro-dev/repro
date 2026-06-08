@@ -182,17 +182,6 @@ export interface DiagnosisContent {
   recommendations: string[]
 }
 
-export interface NextAction {
-  id: string
-  label: string
-  description?: string
-  action:
-    | 'file-issue'
-    | 'prepare-context'
-    | 'inspect-journey'
-    | 'continue-investigating'
-}
-
 export type Audience = 'extension' | 'workspace'
 
 export interface AgenticError {

@@ -9,9 +9,7 @@ export const EvidenceList: React.FC<{ evidence: Array<string> }> = ({
     {evidence.map((piece, i) => (
       <Table.Row key={i}>
         <Table.Cell>
-          <Text variant="caption" color={color.text.muted}>
-            <CheckIcon size={12} />
-          </Text>
+          <CheckIcon size={12} color={color.text.muted} />
         </Table.Cell>
         <Table.Cell>
           <Text variant="caption">{piece}</Text>
