@@ -1,5 +1,5 @@
 import { Block, Col } from '@jsxstyle/react'
-import { buildInvestigationSummary } from '@repro/agentic'
+import { buildInvestigationSummary, type RecordingMeta } from '@repro/agentic'
 import { useAtomValue } from '@repro/atom'
 import {
   AgenticInputFormState,
@@ -13,6 +13,7 @@ import {
 import { RotateCcwIcon } from 'lucide-react'
 import React, { useEffect, useRef, useState } from 'react'
 import { AgenticInputSection } from './components/AgenticInputSection'
+import { CopyForCodingAgentButton } from './components/CopyForCodingAgentButton'
 import { HypothesisList } from './components/HypothesisList'
 import { JumpToEndButton } from './components/JumpToEndButton'
 import { LoadingIndicator } from './components/LoadingIndicator'
@@ -24,7 +25,13 @@ export const AgenticView: React.FC<{
   onFeedback?: (sentiment: 'positive' | 'negative') => void
   onGoToTime?: (timeMs: number) => void
   onInvestigationComplete?: (summary: string) => void
-}> = ({ onFeedback, onGoToTime, onInvestigationComplete }) => {
+  recordingMeta?: RecordingMeta | null
+}> = ({
+  onFeedback,
+  onGoToTime,
+  onInvestigationComplete,
+  recordingMeta = null,
+}) => {
   const [inputHasFocus, setInputHasFocus] = useState(false)
   const lastSummaryRef = useRef('')
 
@@ -127,6 +134,8 @@ export const AgenticView: React.FC<{
         loading={loading}
         onJumpToEnd={handleJumpToEnd}
       />
+
+      <CopyForCodingAgentButton recordingMeta={recordingMeta} />
 
       {entries.length > 0 && (
         <Block

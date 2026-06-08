@@ -59,6 +59,32 @@ Modules with module-level code (agent subscriptions, worker initialization, etc.
 - If a broad typecheck or test run fails in unrelated areas, rerun the narrow package-scoped command first and record the unrelated failure as external noise.
 - For DB-backed or infra-backed tests, distinguish a concrete product failure from an environment constraint before changing application code.
 
+### Mocking navigator.clipboard
+
+`navigator.clipboard` is read-only in strict TypeScript. Use `Object.defineProperty` to mock it:
+
+```ts
+function setMockClipboard(writeText: (text: string) => Promise<void>) {
+  Object.defineProperty(navigator, 'clipboard', {
+    value: { writeText },
+    writable: true,
+    configurable: true,
+  })
+}
+
+// Usage in a test
+const originalClipboard = navigator.clipboard
+setMockClipboard((text: string) => {
+  clipboardText = text
+  return Promise.resolve()
+})
+
+// Restore after test
+Object.defineProperty(navigator, 'clipboard', { value: originalClipboard, configurable: true })
+```
+
+Do NOT directly assign to `navigator.clipboard` — TypeScript strict mode rejects it as read-only, and TypeScript-compatible mocks require `Object.defineProperty`.
+
 ## 5. When to add helpers vs docs
 
 - Add docs when the pattern is stable but local to one package or harness.

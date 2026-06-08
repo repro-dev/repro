@@ -47,6 +47,7 @@ export type {
   Loading,
   PendingAskUserInteraction,
   RecordingDataAccessor,
+  RecordingMeta,
   StreamProvider,
   SystemMessage,
   SystemMessageContext,
@@ -59,6 +60,7 @@ export type {
   UserMessage,
   UserMessageContext,
 } from './types'
+export { buildCodingAgentExport } from './utils/buildCodingAgentExport'
 export { groupToolCalls } from './utils/groupToolCalls'
 export type {
   ToolCallPair,
