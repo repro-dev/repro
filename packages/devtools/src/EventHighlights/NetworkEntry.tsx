@@ -29,6 +29,8 @@ const icons = {
   [NetworkMessageType.WebSocketOpen]: (
     <WebSocketIcon size={16} color={color.border.focus} />
   ),
+
+  [NetworkMessageType.WebSocketError]: null,
 }
 
 export const NetworkEntry: React.FC<Props> = ({ eventIndex, event }) => {
@@ -75,6 +77,25 @@ export const NetworkEntry: React.FC<Props> = ({ eventIndex, event }) => {
               </Block>
 
               <Block>{data.url}</Block>
+            </Row>
+          )
+          break
+
+        case NetworkMessageType.WebSocketError:
+          content = (
+            <Row alignItems="center" gap={5}>
+              <Block
+                padding={5}
+                borderRadius={4}
+                backgroundColor={colors.red['100']}
+                color={colors.red['700']}
+                fontSize={13}
+                fontWeight={700}
+              >
+                WS Error
+              </Block>
+
+              <Block color={color.text.muted}>{data.message}</Block>
             </Row>
           )
           break
