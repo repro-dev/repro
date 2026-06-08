@@ -451,4 +451,99 @@ describe('Shadow DOM recording', () => {
       expect(discoveredShadows.length).toBe(0)
     })
   })
+
+  describe('slot assignments', () => {
+    it('captures slot assignedNodes', () => {
+      const options = createRecordingOptions()
+      const walkDOMTree = createDOMTreeWalker(options)
+      const visitor = createDOMVisitor(options)
+      walkDOMTree.acceptDOMVisitor(visitor)
+
+      const host = document.createElement('div')
+      const shadow = host.attachShadow({ mode: 'open' })
+      const slot = document.createElement('slot')
+      shadow.appendChild(slot)
+
+      // Light DOM children that will be assigned to the default slot
+      const lightChild1 = document.createElement('span')
+      lightChild1.textContent = 'light one'
+      const lightChild2 = document.createElement('span')
+      lightChild2.textContent = 'light two'
+      host.appendChild(lightChild1)
+      host.appendChild(lightChild2)
+
+      document.body.appendChild(host)
+
+      // Need to assign node IDs to light children before calling getNodeId
+      // so the factory can resolve them during the walk.
+      // getNodeId is idempotent — calling it now ensures IDs exist.
+      const lightChild1Id = getNodeId(lightChild1)
+      const lightChild2Id = getNodeId(lightChild2)
+
+      const vtree = walkDOMTree(document)
+      expect(vtree).not.toBeNull()
+
+      const nodes = Object.values(vtree!.nodes)
+      const slotNodes = nodes
+        .map(n => {
+          let val: any = null
+          ;(n as any).apply?.((v: any) => {
+            val = v
+          })
+          return val
+        })
+        .filter(
+          (n: any) => n && n.type === NodeType.Element && n.tagName === 'slot'
+        )
+
+      expect(slotNodes.length).toBe(1)
+      const slotVNode = slotNodes[0]
+
+      // The slot should have assigned nodes matching the light DOM children
+      expect(Array.isArray(slotVNode.slotAssignments)).toBe(true)
+      expect(slotVNode.slotAssignments.length).toBe(2)
+      expect(slotVNode.slotAssignments).toContain(lightChild1Id)
+      expect(slotVNode.slotAssignments).toContain(lightChild2Id)
+
+      document.body.removeChild(host)
+    })
+
+    it('non-slot elements have null slotAssignments', () => {
+      const options = createRecordingOptions()
+      const walkDOMTree = createDOMTreeWalker(options)
+      const visitor = createDOMVisitor(options)
+      walkDOMTree.acceptDOMVisitor(visitor)
+
+      const host = document.createElement('div')
+      const shadow = host.attachShadow({ mode: 'open' })
+      const paragraph = document.createElement('p')
+      paragraph.textContent = 'not a slot'
+      shadow.appendChild(paragraph)
+      document.body.appendChild(host)
+
+      const vtree = walkDOMTree(document)
+      expect(vtree).not.toBeNull()
+
+      const nodes = Object.values(vtree!.nodes)
+      const nonSlotElements = nodes
+        .map(n => {
+          let val: any = null
+          ;(n as any).apply?.((v: any) => {
+            val = v
+          })
+          return val
+        })
+        .filter(
+          (n: any) => n && n.type === NodeType.Element && n.tagName !== 'slot'
+        )
+
+      // Every non-slot element should have null slotAssignments
+      expect(nonSlotElements.length).toBeGreaterThan(0)
+      for (const el of nonSlotElements) {
+        expect(el.slotAssignments).toBeNull()
+      }
+
+      document.body.removeChild(host)
+    })
+  })
 })

@@ -36,6 +36,7 @@ type VElement: struct {
        2) selectedIndex: ?int16
      }
   7) shadowRoot: bool
+  8) slotAssignments: ?vector<NodeId>
 }
 
 type VText: struct {

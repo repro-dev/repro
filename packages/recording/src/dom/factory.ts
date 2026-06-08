@@ -131,6 +131,13 @@ export function createVElement(
     properties.selectedIndex = element.selectedIndex
   }
 
+  const slotAssignments =
+    element instanceof HTMLSlotElement
+      ? Array.from(element.assignedNodes())
+          .map(node => getNodeId(node))
+          .filter(Boolean)
+      : null
+
   return {
     id: getNodeId(element),
     parentId: element.parentNode ? getNodeId(element.parentNode) : null,
@@ -140,6 +147,7 @@ export function createVElement(
     properties,
     children: [],
     shadowRoot: element.shadowRoot != null,
+    slotAssignments,
   }
 }
 
@@ -233,6 +241,7 @@ export function createStyleSheetVTree(
     },
     children,
     shadowRoot: node.shadowRoot != null,
+    slotAssignments: null,
   })
 
   return vTree
