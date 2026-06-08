@@ -1,4 +1,9 @@
-import { NetworkMessageType, SourceEventView } from '@repro/domain'
+import {
+  NetworkMessageType,
+  SourceEventView,
+  WebSocketInbound,
+  WebSocketOutbound,
+} from '@repro/domain'
 import { List } from '@repro/tdl'
 import { WebSocketGroup } from '../types'
 import { findIndexedNetworkEvents } from './findIndexedNetworkEvents'
@@ -19,16 +24,12 @@ export function findWebSocketFramesForConnection(
 ): Array<{
   time: number
   index: number
-  data:
-    | import('@repro/domain').WebSocketInbound
-    | import('@repro/domain').WebSocketOutbound
+  data: WebSocketInbound | WebSocketOutbound
 }> {
   const frames: Array<{
     time: number
     index: number
-    data:
-      | import('@repro/domain').WebSocketInbound
-      | import('@repro/domain').WebSocketOutbound
+    data: WebSocketInbound | WebSocketOutbound
   }> = []
 
   for (const [event, index] of findIndexedNetworkEvents(events)) {
@@ -41,9 +42,7 @@ export function findWebSocketFramesForConnection(
         frames.push({
           time: event.time,
           index,
-          data: data as
-            | import('@repro/domain').WebSocketInbound
-            | import('@repro/domain').WebSocketOutbound,
+          data: data as WebSocketInbound | WebSocketOutbound,
         })
       }
     })
