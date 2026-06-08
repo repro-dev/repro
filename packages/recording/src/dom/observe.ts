@@ -233,7 +233,8 @@ export function internal__processMutationRecords(
   records: Array<MutationRecord>,
   walkDOMTree: DOMTreeWalker,
   options: RecordingOptions,
-  subscriber: (patch: DOMPatch) => void
+  subscriber: (patch: DOMPatch) => void,
+  onShadowRootDiscovered?: (shadowRoot: ShadowRoot) => void
 ) {
   const patches: Array<DOMPatch> = []
   const addedNodes = new Set<SyntheticId>()
@@ -407,6 +408,28 @@ export function internal__processMutationRecords(
           }
         }
 
+        // Discover and observe shadow roots in newly added elements.
+        if (onShadowRootDiscovered) {
+          record.addedNodes.forEach(addedNode => {
+            if (addedNode instanceof Element && addedNode.shadowRoot) {
+              const shadowRoot = addedNode.shadowRoot
+              if (shadowRoot.mode !== 'closed') {
+                const shadowVTree = walkDOMTree(shadowRoot)
+                if (shadowVTree) {
+                  patches.push(
+                    new Box({
+                      type: PatchType.AddShadowRoot,
+                      hostId: getNodeId(addedNode),
+                      shadowRoot: shadowVTree,
+                    })
+                  )
+                }
+                onShadowRootDiscovered(shadowRoot)
+              }
+            }
+          })
+        }
+
         break
     }
 
@@ -447,32 +470,109 @@ function createMutationObserver(
   options: RecordingOptions,
   subscriber: (patch: DOMPatch) => void
 ): ObserverLike<Document> {
-  const domObserver = new MutationObserver(records => {
-    Stats.time(
-      'DOMObserver~processMutationRecords',
-      () => {
-        internal__processMutationRecords(
-          records,
-          walkDOMTree,
-          options,
-          subscriber
-        )
-      },
-      StatsLevel.Debug
+  const observers: Array<MutationObserver> = []
+  let origAttachShadow: typeof Element.prototype.attachShadow | null = null
+
+  function createObserverForRoot(root: Node): MutationObserver {
+    const observer = new MutationObserver(records => {
+      Stats.time(
+        'DOMObserver~processMutationRecords',
+        () => {
+          internal__processMutationRecords(
+            records,
+            walkDOMTree,
+            options,
+            subscriber,
+            onShadowRootDiscovered
+          )
+        },
+        StatsLevel.Debug
+      )
+    })
+
+    observer.observe(root, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeOldValue: true,
+      characterData: true,
+      characterDataOldValue: true,
+    })
+
+    observers.push(observer)
+    return observer
+  }
+
+  // Walk the tree rooted at `root` and create MutationObservers for any
+  // open shadow roots discovered.
+  function discoverAndObserveShadows(root: Node) {
+    const walker = document.createTreeWalker(
+      root,
+      NodeFilter.SHOW_ELEMENT,
+      null
     )
-  })
+    let element: Element | null
+    while ((element = walker.nextNode() as Element | null)) {
+      if (element.shadowRoot && element.shadowRoot.mode !== 'closed') {
+        createObserverForRoot(element.shadowRoot)
+        // Recurse into the shadow root to find nested shadow roots
+        discoverAndObserveShadows(element.shadowRoot)
+      }
+    }
+  }
+
+  function onShadowRootDiscovered(shadowRoot: ShadowRoot) {
+    createObserverForRoot(shadowRoot)
+    discoverAndObserveShadows(shadowRoot)
+  }
 
   return {
-    disconnect: () => domObserver.disconnect(),
+    disconnect() {
+      for (const observer of observers) {
+        observer.disconnect()
+      }
+      observers.length = 0
+
+      if (origAttachShadow) {
+        Element.prototype.attachShadow = origAttachShadow
+        origAttachShadow = null
+      }
+    },
+
     observe(doc) {
-      domObserver.observe(doc, {
-        subtree: true,
-        childList: true,
-        attributes: true,
-        attributeOldValue: true,
-        characterData: true,
-        characterDataOldValue: true,
-      })
+      origAttachShadow = Element.prototype.attachShadow
+
+      // Monkey-patch Element.prototype.attachShadow to intercept open
+      // shadow root creation at runtime.
+      Element.prototype.attachShadow = function (
+        this: Element,
+        init: ShadowRootInit
+      ) {
+        const shadowRoot = origAttachShadow!.call(this, init)
+
+        if (init.mode === 'open' && shadowRoot) {
+          // Walk the shadow tree and emit an addShadowRoot patch.
+          const shadowVTree = walkDOMTree(shadowRoot)
+          if (shadowVTree) {
+            subscriber(
+              new Box({
+                type: PatchType.AddShadowRoot,
+                hostId: getNodeId(this),
+                shadowRoot: shadowVTree,
+              })
+            )
+          }
+
+          // Create observer for the new shadow root.
+          createObserverForRoot(shadowRoot)
+          discoverAndObserveShadows(shadowRoot)
+        }
+
+        return shadowRoot
+      }
+
+      createObserverForRoot(doc)
+      discoverAndObserveShadows(doc)
     },
   }
 }

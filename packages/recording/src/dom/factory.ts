@@ -15,6 +15,7 @@ import {
   VDocument,
   VElement,
   VNode,
+  VShadowRoot,
   VText,
   VTree,
 } from '@repro/domain'
@@ -41,6 +42,10 @@ export function createVNode(
 
   if (isDocTypeNode(node)) {
     return new Box(createVDocType(node))
+  }
+
+  if (node instanceof ShadowRoot) {
+    return new Box(createVShadowRoot(node))
   }
 
   if (isElementNode(node)) {
@@ -126,8 +131,6 @@ export function createVElement(
     properties.selectedIndex = element.selectedIndex
   }
 
-  // TODO: check if element is shadow root
-
   return {
     id: getNodeId(element),
     parentId: element.parentNode ? getNodeId(element.parentNode) : null,
@@ -153,6 +156,32 @@ export function createVText(
     value: isMaskedBySelector(text, maskedSelectors)
       ? redactStringPreservingWhitespace(text.data)
       : text.data,
+  }
+}
+
+export function createVShadowRoot(shadowRoot: ShadowRoot): VShadowRoot {
+  const children: Array<SyntheticId> = []
+  const sheets =
+    shadowRoot.adoptedStyleSheets && shadowRoot.adoptedStyleSheets.length
+      ? Array.from(shadowRoot.adoptedStyleSheets)
+      : []
+  const adoptedStyleSheets: Array<string> = sheets.map(sheet => {
+    try {
+      return Array.from(sheet.cssRules)
+        .map(r => r.cssText)
+        .join('\n')
+    } catch {
+      return ''
+    }
+  })
+
+  return {
+    id: getNodeId(shadowRoot),
+    hostId: getNodeId(shadowRoot.host),
+    type: NodeType.ShadowRoot,
+    children,
+    mode: shadowRoot.mode,
+    adoptedStyleSheets,
   }
 }
 
