@@ -2,6 +2,7 @@ import { Atom, createAtom } from '@repro/atom'
 import { Unsubscribe, createBuffer } from '@repro/buffer-utils'
 import { Stats, StatsLevel } from '@repro/diagnostics'
 import {
+  CapturedStyleSheet,
   ConsoleEvent,
   ConsoleMessage,
   CustomMark,
@@ -48,6 +49,7 @@ import {
 import { createConsoleObserver } from './console'
 import { createCustomMarkObserver } from './custom'
 import {
+  captureStyleSheets,
   createDOMObserver,
   createDOMTreeWalker,
   createDOMVisitor,
@@ -101,6 +103,7 @@ export interface RecordingStream {
   peek(nodeId: SyntheticId): VNode | null
   slice(start?: number, end?: number): List<SourceEventView>
   snapshot(): Snapshot
+  getCapturedCSSRules(): CapturedStyleSheet[]
   tail(signal: Subject<void>): Observable<SourceEvent>
 }
 
@@ -118,6 +121,7 @@ export const EMPTY_RECORDING_STREAM: RecordingStream = {
   peek: () => null,
   slice: () => new List(SourceEventView, []),
   snapshot: () => SnapshotView.from(createEmptySnapshot()),
+  getCapturedCSSRules: () => [],
   tail: () => NEVER,
 }
 
@@ -148,6 +152,7 @@ export function createRecordingStream(
   let leadingSnapshot = createEmptySnapshot()
   let trailingSnapshot = createEmptySnapshot()
   let sourceDocuments = [rootDocument]
+  let capturedCSSRules: CapturedStyleSheet[] = []
 
   // Detect frameworks once at stream creation time
   const frameworks = detectFrameworks()
@@ -224,6 +229,10 @@ export function createRecordingStream(
 
       Stats.time('RecordingStream#start: build VTree snapshot', () => {
         domTreeWalker(rootDocument)
+      })
+
+      Stats.time('RecordingStream#start: capture CSS rules', () => {
+        capturedCSSRules = captureStyleSheets(rootDocument)
       })
 
       const trailingVTree = trailingSnapshot.dom
@@ -758,6 +767,7 @@ export function createRecordingStream(
     peek,
     slice,
     snapshot,
+    getCapturedCSSRules: () => capturedCSSRules,
     tail,
   }
 }
