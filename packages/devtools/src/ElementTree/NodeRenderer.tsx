@@ -33,6 +33,9 @@ export const NodeRenderer: React.FC<Props> = ({ depth, nodeId }) => {
 
         case NodeType.Text:
           return <TextNodeRenderer nodeId={nodeId} depth={depth} />
+
+        case NodeType.ShadowRoot:
+          return null
       }
     })
     .orElse(null)
