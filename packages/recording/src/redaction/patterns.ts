@@ -6,9 +6,6 @@ export interface FieldPattern {
   category: PiiCategory
 }
 
-/** @deprecated Use ValuePatternEntry from types.ts */
-export type ValuePattern = ValuePatternEntry
-
 // Luhn check for credit card numbers
 function luhnCheck(digits: string): boolean {
   let sum = 0
@@ -89,7 +86,7 @@ export const sensitiveFieldPatterns: Array<FieldPattern> = [
   },
 ]
 
-export const sensitiveValuePatterns: Array<ValuePattern> = [
+export const sensitiveValuePatterns: Array<ValuePatternEntry> = [
   // Email
   {
     regex: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/,
@@ -115,10 +112,15 @@ export const sensitiveValuePatterns: Array<ValuePattern> = [
     regex: /\beyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/,
     category: PiiCategory.AuthToken,
   },
+  // Bearer token (inline in headers or text like "Authorization: Bearer <token>")
+  {
+    regex: /\bbearer\s+[A-Za-z0-9\-._~+/]+=*\b/i,
+    category: PiiCategory.AuthToken,
+  },
 ]
 
 // Export the flat combined mapping for lookup
-export const PII_PATTERNS: Array<ValuePattern> = sensitiveValuePatterns
+export const PII_PATTERNS: Array<ValuePatternEntry> = sensitiveValuePatterns
 
 // Luhn check exported for the credit card pattern validation
 export function validateCreditCard(value: string): boolean {

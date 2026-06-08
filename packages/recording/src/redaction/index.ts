@@ -5,6 +5,7 @@ export {
   sensitiveValuePatterns,
   validateCreditCard,
 } from './patterns'
+export type { FieldPattern } from './patterns'
 export {
   MASKED_VALUE,
   detectPii,
