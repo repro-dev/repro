@@ -8,31 +8,22 @@ import {
 import { ObserverLike } from '@repro/observer-utils'
 import { randomString } from '@repro/random-string'
 import { Box } from '@repro/tdl'
-import { redactHeaders, redactTextPayload } from '../redaction'
-import { WebSocketRecordingConfig } from '../types'
+import { redactHeaders } from '../redaction'
 
 type Subscriber = (message: NetworkMessage) => void
 
 const MAX_BODY_BYTE_LENGTH = 1_000_000
 const EMPTY_ARRAY_BUFFER = new ArrayBuffer(0)
 
-const DEFAULT_WS_CONFIG: WebSocketRecordingConfig = {
-  maxTextPayloadLength: 65_536,
-  maxBinaryPayloadLength: 1_048_576,
-  redactTextPayloads: false,
-  captureBinaryPreview: true,
-  captureTextPreview: true,
-  binaryPreviewLength: 256,
-}
+const MAX_TEXT_PAYLOAD_LENGTH = 65_536
+const MAX_BINARY_PAYLOAD_LENGTH = 1_048_576
 
 export function createNetworkObserver(
-  subscriber: Subscriber,
-  wsConfig?: WebSocketRecordingConfig
+  subscriber: Subscriber
 ): ObserverLike<Document> {
-  const config = { ...DEFAULT_WS_CONFIG, ...wsConfig }
   const xhrObserver = createXHRObserver(subscriber)
   const fetchObserver = createFetchObserver(subscriber)
-  const webSocketObserver = createWebSocketObserver(subscriber, config)
+  const webSocketObserver = createWebSocketObserver(subscriber)
 
   return {
     observe(doc, vtree) {
@@ -402,21 +393,10 @@ function createFetchObserver(subscriber: Subscriber): ObserverLike<Document> {
   }
 }
 
-interface ConnectionMeta {
-  correlationId: SyntheticId
-  url: string
-  messageCountSent: number
-  messageCountReceived: number
-  createdAt: number
-  handshakeCompleted: boolean
-}
-
 function createWebSocketObserver(
-  subscriber: Subscriber,
-  config: WebSocketRecordingConfig
+  subscriber: Subscriber
 ): ObserverLike<Document> {
   const correlationIds = new WeakMap<WebSocket, SyntheticId>()
-  const connectionMeta = new WeakMap<WebSocket, ConnectionMeta>()
 
   function hasCorrelationId(socket: WebSocket) {
     return correlationIds.has(socket)
@@ -431,10 +411,6 @@ function createWebSocketObserver(
     }
 
     return correlationId
-  }
-
-  function getConnectionMeta(socket: WebSocket): ConnectionMeta | undefined {
-    return connectionMeta.get(socket)
   }
 
   const textEncoder = new TextEncoder()
@@ -464,9 +440,9 @@ function createWebSocketObserver(
     truncated: string
     isTruncated: boolean
   } {
-    if (payload.length > config.maxTextPayloadLength) {
+    if (payload.length > MAX_TEXT_PAYLOAD_LENGTH) {
       return {
-        truncated: payload.slice(0, config.maxTextPayloadLength),
+        truncated: payload.slice(0, MAX_TEXT_PAYLOAD_LENGTH),
         isTruncated: true,
       }
     }
@@ -477,38 +453,11 @@ function createWebSocketObserver(
     truncated: ArrayBuffer
     byteLength: number
   } {
-    const isTruncated = data.byteLength > config.maxBinaryPayloadLength
+    const isTruncated = data.byteLength > MAX_BINARY_PAYLOAD_LENGTH
     return {
-      truncated: isTruncated
-        ? data.slice(0, config.maxBinaryPayloadLength)
-        : data,
+      truncated: isTruncated ? data.slice(0, MAX_BINARY_PAYLOAD_LENGTH) : data,
       byteLength: data.byteLength,
     }
-  }
-
-  function createBinaryPreview(data: ArrayBuffer): string {
-    const maxPreview = config.binaryPreviewLength
-    const view = new Uint8Array(
-      data.byteLength > maxPreview ? data.slice(0, maxPreview) : data
-    )
-    return (
-      Array.from(view)
-        .map(b => b.toString(16).padStart(2, '0'))
-        .join(' ') + (data.byteLength > maxPreview ? ' ...' : '')
-    )
-  }
-
-  function buildTextPreview(rawText: string): string | null {
-    if (!config.captureTextPreview) {
-      return null
-    }
-
-    const { truncated } = applyTextPayloadLimit(
-      config.redactTextPayloads ? redactTextPayload(rawText) : rawText
-    )
-
-    // Use first 200 chars as preview
-    return truncated.length > 200 ? truncated.slice(0, 200) + '...' : truncated
   }
 
   function handleClose(this: WebSocket) {
@@ -538,17 +487,6 @@ function createWebSocketObserver(
     socket.addEventListener('close', handleClose)
     socket.addEventListener('error', handleError)
 
-    const meta = getConnectionMeta(socket) ?? {
-      correlationId,
-      url,
-      messageCountSent: 0,
-      messageCountReceived: 0,
-      createdAt: performance.now(),
-      handshakeCompleted: false,
-    }
-    meta.handshakeCompleted = true
-    connectionMeta.set(socket, meta)
-
     subscriber(
       new Box({
         type: NetworkMessageType.WebSocketOpen,
@@ -556,6 +494,11 @@ function createWebSocketObserver(
         url,
       })
     )
+  }
+
+  // Event listener wrapper for WebSocket 'open' event
+  function onOpen(this: WebSocket) {
+    openEffect(this)
   }
 
   function closeEffect(socket: WebSocket) {
@@ -569,57 +512,9 @@ function createWebSocketObserver(
     )
 
     correlationIds.delete(socket)
-    connectionMeta.delete(socket)
+    socket.removeEventListener('open', onOpen)
     socket.removeEventListener('close', handleClose)
     socket.removeEventListener('error', handleError)
-  }
-
-  async function processWebSocketPayload(
-    rawData: ArrayBuffer,
-    isBinary: boolean,
-    rawText: string,
-    direction: 'outbound' | 'inbound',
-    correlationId: SyntheticId
-  ) {
-    if (isBinary) {
-      const { truncated } = applyBinaryPayloadLimit(rawData)
-      const preview = config.captureBinaryPreview
-        ? createBinaryPreview(truncated)
-        : null
-
-      subscriber(
-        new Box({
-          type:
-            direction === 'outbound'
-              ? NetworkMessageType.WebSocketOutbound
-              : NetworkMessageType.WebSocketInbound,
-          correlationId,
-          messageType: WebSocketMessageType.Binary,
-          data: truncated,
-          preview,
-        })
-      )
-    } else {
-      const processedText = config.redactTextPayloads
-        ? redactTextPayload(rawText)
-        : rawText
-      const { truncated, isTruncated } = applyTextPayloadLimit(processedText)
-      const payload = isTruncated ? truncated : processedText
-      const encoded = textEncoder.encode(payload).buffer
-
-      subscriber(
-        new Box({
-          type:
-            direction === 'outbound'
-              ? NetworkMessageType.WebSocketOutbound
-              : NetworkMessageType.WebSocketInbound,
-          correlationId,
-          messageType: WebSocketMessageType.Text,
-          data: encoded,
-          preview: buildTextPreview(rawText),
-        })
-      )
-    }
   }
 
   async function sendEffect(
@@ -627,28 +522,38 @@ function createWebSocketObserver(
     data: string | ArrayBufferLike | Blob | ArrayBufferView
   ) {
     const correlationId = getOrCreateCorrelationId(socket)
-    const meta = getConnectionMeta(socket)
-    if (meta) {
-      meta.messageCountSent++
-    }
 
     const isBinary =
       data instanceof ArrayBuffer ||
       data instanceof Blob ||
       ArrayBuffer.isView(data)
 
-    const rawData = isBinary
-      ? await dataToArrayBuffer(data)
-      : new ArrayBuffer(0)
-    const rawText = typeof data === 'string' ? data : ''
+    if (isBinary) {
+      const rawData = await dataToArrayBuffer(data)
+      const { truncated } = applyBinaryPayloadLimit(rawData)
 
-    await processWebSocketPayload(
-      rawData,
-      isBinary,
-      rawText,
-      'outbound',
-      correlationId
-    )
+      subscriber(
+        new Box({
+          type: NetworkMessageType.WebSocketOutbound,
+          correlationId,
+          messageType: WebSocketMessageType.Binary,
+          data: truncated,
+        })
+      )
+    } else {
+      const rawText = typeof data === 'string' ? data : ''
+      const { truncated } = applyTextPayloadLimit(rawText)
+      const encoded = textEncoder.encode(truncated).buffer
+
+      subscriber(
+        new Box({
+          type: NetworkMessageType.WebSocketOutbound,
+          correlationId,
+          messageType: WebSocketMessageType.Text,
+          data: encoded,
+        })
+      )
+    }
   }
 
   const messageEventObserver = createMessageEventObserver(ev => {
@@ -656,55 +561,41 @@ function createWebSocketObserver(
       const target = ev.currentTarget
 
       if (target && isWebSocket(target)) {
-        if (!hasCorrelationId(target)) {
-          const correlationId = randomString(4)
-          correlationIds.set(target, correlationId)
-          const url = target.url
-          connectionMeta.set(target, {
-            correlationId,
-            url,
-            messageCountSent: 0,
-            messageCountReceived: 0,
-            createdAt: performance.now(),
-            handshakeCompleted: false,
-          })
-
-          subscriber(
-            new Box({
-              type: NetworkMessageType.WebSocketCreated,
-              correlationId,
-              url,
-              protocols: null,
-            })
-          )
-
-          openEffect(target)
-        }
-
         const correlationId = getOrCreateCorrelationId(target)
-        const meta = getConnectionMeta(target)
-        if (meta) {
-          meta.messageCountReceived++
-        }
-
         const isBinary =
           ev.data instanceof ArrayBuffer ||
           ev.data instanceof Blob ||
           ArrayBuffer.isView(ev.data)
 
-        const rawData = await dataToArrayBuffer(ev.data)
-        const rawText =
-          typeof ev.data === 'string'
-            ? ev.data
-            : new TextDecoder().decode(rawData)
+        if (isBinary) {
+          const rawData = await dataToArrayBuffer(ev.data)
+          const { truncated } = applyBinaryPayloadLimit(rawData)
 
-        await processWebSocketPayload(
-          rawData,
-          isBinary,
-          rawText,
-          'inbound',
-          correlationId
-        )
+          subscriber(
+            new Box({
+              type: NetworkMessageType.WebSocketInbound,
+              correlationId,
+              messageType: WebSocketMessageType.Binary,
+              data: truncated,
+            })
+          )
+        } else {
+          const rawText =
+            typeof ev.data === 'string'
+              ? ev.data
+              : new TextDecoder().decode(await dataToArrayBuffer(ev.data))
+          const { truncated } = applyTextPayloadLimit(rawText)
+          const encoded = textEncoder.encode(truncated).buffer
+
+          subscriber(
+            new Box({
+              type: NetworkMessageType.WebSocketInbound,
+              correlationId,
+              messageType: WebSocketMessageType.Text,
+              data: encoded,
+            })
+          )
+        }
       }
     })()
   })
@@ -718,33 +609,7 @@ function createWebSocketObserver(
       const correlationId = randomString(4)
       correlationIds.set(ws, correlationId)
 
-      const url = typeof args[0] === 'string' ? args[0] : ''
-      const protocols =
-        args[1] != null
-          ? Array.isArray(args[1])
-            ? args[1].join(', ')
-            : String(args[1])
-          : null
-
-      connectionMeta.set(ws, {
-        correlationId,
-        url,
-        messageCountSent: 0,
-        messageCountReceived: 0,
-        createdAt: performance.now(),
-        handshakeCompleted: false,
-      })
-
-      subscriber(
-        new Box({
-          type: NetworkMessageType.WebSocketCreated,
-          correlationId,
-          url,
-          protocols,
-        })
-      )
-
-      openEffect(ws)
+      ws.addEventListener('open', onOpen)
 
       return ws
     },
@@ -761,26 +626,6 @@ function createWebSocketObserver(
         if (!hasCorrelationId(this)) {
           const correlationId = randomString(4)
           correlationIds.set(this, correlationId)
-          const url = this.url
-          connectionMeta.set(this, {
-            correlationId,
-            url,
-            messageCountSent: 0,
-            messageCountReceived: 0,
-            createdAt: performance.now(),
-            handshakeCompleted: this.readyState === WebSocket.OPEN,
-          })
-
-          subscriber(
-            new Box({
-              type: NetworkMessageType.WebSocketCreated,
-              correlationId,
-              url,
-              protocols: null,
-            })
-          )
-
-          openEffect(this)
         }
 
         sendEffect(this, ...args)

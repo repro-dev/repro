@@ -8,7 +8,6 @@ import {
   NodeType,
   RequestType,
   VTree,
-  WebSocketMessageType,
 } from '@repro/domain'
 import { ObserverLike } from '@repro/observer-utils'
 import { Box } from '@repro/tdl'
@@ -264,64 +263,12 @@ describe('libs/record: network observers', () => {
       observer = null
     })
 
-    it('emits WebSocketCreated at construction time', async () => {
+    it('captures WebSocket error events', async () => {
       const messages: Array<NetworkMessage> = []
 
       observer = createNetworkObserver(message => {
         messages.push(message)
       })
-      observer.observe(document, vtree)
-
-      new (globalThis.WebSocket as any)(
-        'wss://example.com/socket'
-      ) as unknown as MockWebSocket
-
-      await flush()
-
-      expect(messages.length).toBeGreaterThanOrEqual(1)
-
-      const firstMsg = messages[0] as any
-      expect(firstMsg.value.type).toBe(NetworkMessageType.WebSocketCreated)
-      expect(firstMsg.value.url).toBe('wss://example.com/socket')
-      expect(firstMsg.value.protocols).toBe(null)
-    })
-
-    it('emits WebSocketCreated with protocols when provided as string', async () => {
-      const messages: Array<NetworkMessage> = []
-
-      observer = createNetworkObserver(message => {
-        messages.push(message)
-      })
-      observer.observe(document, vtree)
-
-      new (globalThis.WebSocket as any)(
-        'wss://example.com/socket',
-        'chat-protocol'
-      ) as unknown as MockWebSocket
-
-      await flush()
-
-      const firstMsg = messages[0] as any
-      expect(firstMsg.value.type).toBe(NetworkMessageType.WebSocketCreated)
-      expect(firstMsg.value.protocols).toBe('chat-protocol')
-    })
-
-    it('tracks text truncation via config', async () => {
-      const messages: Array<NetworkMessage> = []
-
-      observer = createNetworkObserver(
-        message => {
-          messages.push(message)
-        },
-        {
-          maxTextPayloadLength: 10,
-          maxBinaryPayloadLength: 1_048_576,
-          redactTextPayloads: false,
-          captureBinaryPreview: true,
-          captureTextPreview: true,
-          binaryPreviewLength: 256,
-        }
-      )
       observer.observe(document, vtree)
 
       const mockWs = new (globalThis.WebSocket as any)(
@@ -329,175 +276,24 @@ describe('libs/record: network observers', () => {
       ) as unknown as MockWebSocket
 
       await flush()
-      messages.length = 0
 
-      mockWs.send('This is a long text payload that should be truncated')
-
-      await flush()
-
-      const wsMessages = messages.filter((m: any) => {
-        const t = m.value.type
-        return (
-          t === NetworkMessageType.WebSocketOutbound ||
-          t === NetworkMessageType.WebSocketInbound
-        )
-      })
-
-      expect(wsMessages.length).toBe(1)
-      const outbound = wsMessages[0] as any
-      expect(outbound.value.messageType).toBe(WebSocketMessageType.Text)
-
-      const decoder = new TextDecoder()
-      const decoded = decoder.decode(outbound.value.data)
-      expect(decoded.length).toBeLessThanOrEqual(10)
-      expect(decoded).toBe('This is a ')
-    })
-
-    it('applies redaction to text payloads', async () => {
-      const messages: Array<NetworkMessage> = []
-
-      observer = createNetworkObserver(
-        message => {
-          messages.push(message)
-        },
-        {
-          maxTextPayloadLength: 10000,
-          maxBinaryPayloadLength: 1_048_576,
-          redactTextPayloads: true,
-          captureBinaryPreview: true,
-          captureTextPreview: true,
-          binaryPreviewLength: 256,
-        }
-      )
-      observer.observe(document, vtree)
-
-      const ws = new (globalThis.WebSocket as any)(
-        'wss://example.com/socket'
-      ) as unknown as MockWebSocket
+      // open event triggers openEffect which registers the error listener
+      mockWs.dispatchEvent(new Event('open'))
 
       await flush()
-      messages.length = 0
 
-      ws.send(
-        JSON.stringify({
-          username: 'john',
-          password: 'super-secret-123',
-          data: 'hello',
-        })
+      mockWs.dispatchEvent(
+        new ErrorEvent('error', { message: 'Connection refused' })
       )
 
       await flush()
 
-      const outbound = messages.find((m: any) => {
-        const t = m.value.type
-        return t === NetworkMessageType.WebSocketOutbound
+      const errorMsg = messages.find((m: any) => {
+        return m.value.type === NetworkMessageType.WebSocketError
       }) as any
 
-      expect(outbound).toBeDefined()
-
-      const decoder = new TextDecoder()
-      const decoded = decoder.decode(outbound.value.data)
-      const parsed = JSON.parse(decoded)
-
-      expect(parsed.password).toBe('[MASKED]')
-      expect(parsed.username).toBe('john')
-      expect(parsed.data).toBe('hello')
-    })
-
-    it('truncates binary payloads', async () => {
-      const messages: Array<NetworkMessage> = []
-
-      observer = createNetworkObserver(
-        message => {
-          messages.push(message)
-        },
-        {
-          maxTextPayloadLength: 65_536,
-          maxBinaryPayloadLength: 5,
-          redactTextPayloads: false,
-          captureBinaryPreview: false,
-          captureTextPreview: true,
-          binaryPreviewLength: 256,
-        }
-      )
-      observer.observe(document, vtree)
-
-      const ws = new (globalThis.WebSocket as any)(
-        'wss://example.com/socket'
-      ) as unknown as MockWebSocket
-
-      await flush()
-      messages.length = 0
-
-      const largeBuffer = new ArrayBuffer(100)
-      new Uint8Array(largeBuffer).set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
-
-      ws.send(largeBuffer)
-
-      await flush()
-
-      const outbound = messages.find((m: any) => {
-        const t = m.value.type
-        return t === NetworkMessageType.WebSocketOutbound
-      }) as any
-
-      expect(outbound).toBeDefined()
-      expect(outbound.value.data.byteLength).toBeLessThanOrEqual(5)
-    })
-
-    it('handles ArrayBufferView with non-zero byteOffset', async () => {
-      const messages: Array<NetworkMessage> = []
-
-      observer = createNetworkObserver(
-        message => {
-          messages.push(message)
-        },
-        {
-          maxTextPayloadLength: 65_536,
-          maxBinaryPayloadLength: 1_048_576,
-          redactTextPayloads: false,
-          captureBinaryPreview: false,
-          captureTextPreview: true,
-          binaryPreviewLength: 256,
-        }
-      )
-      observer.observe(document, vtree)
-
-      const ws = new (globalThis.WebSocket as any)(
-        'wss://example.com/socket'
-      ) as unknown as MockWebSocket
-
-      await flush()
-      messages.length = 0
-
-      // Create a buffer with padding before our data
-      const buffer = new ArrayBuffer(20)
-      const full = new Uint8Array(buffer)
-      full.set([
-        0xff, 0xff, 0xff, 0xff, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
-        0x09, 0x0a, 0x0b, 0x0c,
-      ])
-      // Create a Uint8Array view with byteOffset=4, byteLength=8
-      const view = new Uint8Array(buffer, 4, 8)
-      expect(view.byteOffset).toBe(4)
-      expect(view.byteLength).toBe(8)
-      expect(view.length).toBe(8)
-
-      ws.send(view)
-
-      await flush()
-
-      const outbound = messages.find((m: any) => {
-        const t = m.value.type
-        return t === NetworkMessageType.WebSocketOutbound
-      }) as any
-
-      expect(outbound).toBeDefined()
-      // Should have captured exactly the 8 bytes from offset 4
-      expect(outbound.value.data.byteLength).toBe(8)
-      const decoder = new TextDecoder()
-      // view contains [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08]
-      expect(decoder.decode(outbound.value.data)).toBe(decoder.decode(view))
+      expect(errorMsg).toBeDefined()
+      expect(errorMsg.value.message).toBe('Connection refused')
     })
   })
 })

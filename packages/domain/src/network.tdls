@@ -5,8 +5,7 @@ type NetworkMessageType: enum<uint8> {
   WebSocketInbound: 3
   WebSocketOpen: 4
   WebSocketClose: 5
-  WebSocketCreated: 6
-  WebSocketError: 7
+  WebSocketError: 6
 }
 
 type RequestType: enum<uint8> {
@@ -50,13 +49,6 @@ type WebSocketClose: struct {
   1) correlationId: CorrelationId
 }
 
-type WebSocketCreated: struct {
-   0) type: NetworkMessageType.WebSocketCreated
-   1) correlationId: CorrelationId
-   2) url: string
-   3) protocols: ?string
-}
-
 type WebSocketError: struct {
    0) type: NetworkMessageType.WebSocketError
    1) correlationId: CorrelationId
@@ -68,7 +60,6 @@ type WebSocketInbound: struct {
    1) correlationId: CorrelationId
    2) messageType: WebSocketMessageType
    3) data: buffer
-   4) preview: ?string
 }
 
 type WebSocketOutbound: struct {
@@ -76,7 +67,6 @@ type WebSocketOutbound: struct {
    1) correlationId: CorrelationId
    2) messageType: WebSocketMessageType
    3) data: buffer
-   4) preview: ?string
 }
 
 type NetworkMessage: union(type) {
@@ -86,6 +76,5 @@ type NetworkMessage: union(type) {
   WebSocketClose
   WebSocketOutbound
   WebSocketInbound
-  WebSocketCreated
   WebSocketError
 }

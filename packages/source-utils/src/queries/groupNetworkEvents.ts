@@ -25,33 +25,12 @@ export function groupNetworkEvents(
             orderedGroupIds.push(data.correlationId)
             break
 
-          case NetworkMessageType.WebSocketCreated:
           case NetworkMessageType.WebSocketOpen:
             group = {
               type: 'ws',
-              createdTime: event.time,
-              createdIndex: index,
-              created:
-                data.type === NetworkMessageType.WebSocketCreated
-                  ? data
-                  : {
-                      type: NetworkMessageType.WebSocketCreated as NetworkMessageType.WebSocketCreated,
-                      correlationId: data.correlationId,
-                      url: data.url,
-                      protocols: null,
-                    },
-              openTime:
-                data.type === NetworkMessageType.WebSocketOpen
-                  ? event.time
-                  : undefined,
-              openIndex:
-                data.type === NetworkMessageType.WebSocketOpen
-                  ? index
-                  : undefined,
-              open:
-                data.type === NetworkMessageType.WebSocketOpen
-                  ? data
-                  : undefined,
+              openTime: event.time,
+              openIndex: index,
+              open: data,
               messageCountSent: 0,
               messageCountReceived: 0,
             }
@@ -79,12 +58,6 @@ export function groupNetworkEvents(
           break
 
         case NetworkMessageType.WebSocketOpen:
-          ;(group as WebSocketGroup).open = data
-          ;(group as WebSocketGroup).openTime = event.time
-          ;(group as WebSocketGroup).openIndex = index
-          break
-
-        case NetworkMessageType.WebSocketCreated:
           // Already handled in the initial creation above
           break
 

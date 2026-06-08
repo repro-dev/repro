@@ -78,14 +78,6 @@ const defaultOptions: RecordingOptions = {
     resize: 200,
     scroll: 100,
   },
-  webSocket: {
-    maxTextPayloadLength: 65_536,
-    maxBinaryPayloadLength: 1_048_576,
-    redactTextPayloads: false,
-    captureBinaryPreview: true,
-    captureTextPreview: true,
-    binaryPreviewLength: 256,
-  },
 }
 
 const MAX_EVENT_BUFFER_SIZE_BYTES = 32_000_000
@@ -648,7 +640,7 @@ export function createRecordingStream(
     observers.push(
       createNetworkObserver(message => {
         addEvent(createNetworkEvent(message))
-      }, options.webSocket)
+      })
     )
   }
 

@@ -57,18 +57,6 @@ function redactUnknown(value: unknown, seen: WeakSet<object>): unknown {
   return redacted
 }
 
-export function redactTextPayload(text: string): string {
-  // Try JSON-aware redaction first
-  try {
-    const parsed = JSON.parse(text)
-    const redacted = redactUnknown(parsed, new WeakSet<object>())
-    return JSON.stringify(redacted)
-  } catch {
-    // Not valid JSON — fall back to pattern-based redaction
-    return redactString(text)
-  }
-}
-
 export function redactHeaders(
   headers: Record<string, string>
 ): Record<string, string> {

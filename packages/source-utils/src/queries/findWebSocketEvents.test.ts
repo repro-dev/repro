@@ -34,19 +34,8 @@ describe('findWebSocketEvents', () => {
       assert.strictEqual(connections.length, 0)
     })
 
-    it('finds a WebSocket connection from WebSocketCreated + Open events', () => {
+    it('finds a WebSocket connection from WebSocketOpen events', () => {
       const events = new List(SourceEventView, [
-        SourceEventView.from(
-          createNetworkEvent(
-            {
-              type: NetworkMessageType.WebSocketCreated,
-              correlationId: 'ws1a',
-              url: 'wss://example.com/socket',
-              protocols: null,
-            },
-            0
-          )
-        ),
         SourceEventView.from(
           createNetworkEvent(
             {
@@ -54,7 +43,7 @@ describe('findWebSocketEvents', () => {
               correlationId: 'ws1a',
               url: 'wss://example.com/socket',
             },
-            10
+            0
           )
         ),
         SourceEventView.from(
@@ -64,7 +53,6 @@ describe('findWebSocketEvents', () => {
               correlationId: 'ws1a',
               messageType: 0,
               data: new ArrayBuffer(0),
-              preview: null,
             },
             20
           )
@@ -73,11 +61,8 @@ describe('findWebSocketEvents', () => {
 
       const connections = findWebSocketConnections(events)
       assert.strictEqual(connections.length, 1)
-      assert.strictEqual(connections[0]!.created.correlationId.trim(), 'ws1a')
-      assert.strictEqual(
-        connections[0]!.created.url,
-        'wss://example.com/socket'
-      )
+      assert.strictEqual(connections[0]!.open.correlationId.trim(), 'ws1a')
+      assert.strictEqual(connections[0]!.open.url, 'wss://example.com/socket')
     })
 
     it('returns multiple connections', () => {
@@ -85,10 +70,9 @@ describe('findWebSocketEvents', () => {
         SourceEventView.from(
           createNetworkEvent(
             {
-              type: NetworkMessageType.WebSocketCreated,
+              type: NetworkMessageType.WebSocketOpen,
               correlationId: 'ws1a',
               url: 'wss://example.com/chat',
-              protocols: null,
             },
             0
           )
@@ -96,10 +80,9 @@ describe('findWebSocketEvents', () => {
         SourceEventView.from(
           createNetworkEvent(
             {
-              type: NetworkMessageType.WebSocketCreated,
+              type: NetworkMessageType.WebSocketOpen,
               correlationId: 'ws2a',
               url: 'wss://example.com/events',
-              protocols: null,
             },
             100
           )
@@ -108,11 +91,8 @@ describe('findWebSocketEvents', () => {
 
       const connections = findWebSocketConnections(events)
       assert.strictEqual(connections.length, 2)
-      assert.strictEqual(connections[0]!.created.url, 'wss://example.com/chat')
-      assert.strictEqual(
-        connections[1]!.created.url,
-        'wss://example.com/events'
-      )
+      assert.strictEqual(connections[0]!.open.url, 'wss://example.com/chat')
+      assert.strictEqual(connections[1]!.open.url, 'wss://example.com/events')
     })
   })
 
@@ -122,10 +102,9 @@ describe('findWebSocketEvents', () => {
         SourceEventView.from(
           createNetworkEvent(
             {
-              type: NetworkMessageType.WebSocketCreated,
+              type: NetworkMessageType.WebSocketOpen,
               correlationId: 'ws1a',
               url: 'wss://example.com/socket',
-              protocols: null,
             },
             0
           )
@@ -137,7 +116,6 @@ describe('findWebSocketEvents', () => {
               correlationId: 'ws1a',
               messageType: 0,
               data: new ArrayBuffer(0),
-              preview: null,
             },
             10
           )
@@ -149,7 +127,6 @@ describe('findWebSocketEvents', () => {
               correlationId: 'ws1a',
               messageType: 0,
               data: new ArrayBuffer(0),
-              preview: null,
             },
             20
           )
@@ -161,7 +138,6 @@ describe('findWebSocketEvents', () => {
               correlationId: 'ws2a',
               messageType: 0,
               data: new ArrayBuffer(0),
-              preview: null,
             },
             30
           )
@@ -181,10 +157,9 @@ describe('findWebSocketEvents', () => {
         SourceEventView.from(
           createNetworkEvent(
             {
-              type: NetworkMessageType.WebSocketCreated,
+              type: NetworkMessageType.WebSocketOpen,
               correlationId: 'ws1a',
               url: 'wss://example.com/socket',
-              protocols: null,
             },
             0
           )

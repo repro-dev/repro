@@ -184,7 +184,6 @@ describe('findNetworkErrors', () => {
             correlationId: 'ws1',
             messageType: 0,
             data: new ArrayBuffer(0),
-            preview: null,
           }),
         })
       ),
