@@ -31,7 +31,8 @@ function shouldIncludeEvent(event: SourceEvent) {
         return event.data.match(
           data =>
             data.type === NetworkMessageType.FetchRequest ||
-            data.type === NetworkMessageType.WebSocketOpen
+            data.type === NetworkMessageType.WebSocketOpen ||
+            data.type === NetworkMessageType.WebSocketError
         )
     }
 

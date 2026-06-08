@@ -15,6 +15,9 @@ type Subscriber = (message: NetworkMessage) => void
 const MAX_BODY_BYTE_LENGTH = 1_000_000
 const EMPTY_ARRAY_BUFFER = new ArrayBuffer(0)
 
+const MAX_TEXT_PAYLOAD_LENGTH = 65_536
+const MAX_BINARY_PAYLOAD_LENGTH = 1_048_576
+
 export function createNetworkObserver(
   subscriber: Subscriber
 ): ObserverLike<Document> {
@@ -422,12 +425,39 @@ function createWebSocketObserver(
     } else if (data instanceof Blob) {
       encodedData = await data.arrayBuffer()
     } else if (ArrayBuffer.isView(data)) {
-      encodedData = data.buffer.slice(data.byteOffset, data.byteLength)
+      encodedData = data.buffer.slice(
+        data.byteOffset,
+        data.byteOffset + data.byteLength
+      )
     } else {
       encodedData = data
     }
 
     return encodedData
+  }
+
+  function applyTextPayloadLimit(payload: string): {
+    truncated: string
+    isTruncated: boolean
+  } {
+    if (payload.length > MAX_TEXT_PAYLOAD_LENGTH) {
+      return {
+        truncated: payload.slice(0, MAX_TEXT_PAYLOAD_LENGTH),
+        isTruncated: true,
+      }
+    }
+    return { truncated: payload, isTruncated: false }
+  }
+
+  function applyBinaryPayloadLimit(data: ArrayBuffer): {
+    truncated: ArrayBuffer
+    byteLength: number
+  } {
+    const isTruncated = data.byteLength > MAX_BINARY_PAYLOAD_LENGTH
+    return {
+      truncated: isTruncated ? data.slice(0, MAX_BINARY_PAYLOAD_LENGTH) : data,
+      byteLength: data.byteLength,
+    }
   }
 
   function handleClose(this: WebSocket) {
@@ -436,11 +466,26 @@ function createWebSocketObserver(
     }
   }
 
+  function handleError(this: WebSocket, event: Event) {
+    const correlationId = getOrCreateCorrelationId(this)
+    const message =
+      (event as ErrorEvent).message || 'WebSocket connection error'
+
+    subscriber(
+      new Box({
+        type: NetworkMessageType.WebSocketError,
+        correlationId,
+        message,
+      })
+    )
+  }
+
   function openEffect(socket: WebSocket) {
     const correlationId = getOrCreateCorrelationId(socket)
     const url = socket.url
 
     socket.addEventListener('close', handleClose)
+    socket.addEventListener('error', handleError)
 
     subscriber(
       new Box({
@@ -449,6 +494,11 @@ function createWebSocketObserver(
         url,
       })
     )
+  }
+
+  // Event listener wrapper for WebSocket 'open' event
+  function onOpen(this: WebSocket) {
+    openEffect(this)
   }
 
   function closeEffect(socket: WebSocket) {
@@ -462,7 +512,9 @@ function createWebSocketObserver(
     )
 
     correlationIds.delete(socket)
+    socket.removeEventListener('open', onOpen)
     socket.removeEventListener('close', handleClose)
+    socket.removeEventListener('error', handleError)
   }
 
   async function sendEffect(
@@ -476,16 +528,32 @@ function createWebSocketObserver(
       data instanceof Blob ||
       ArrayBuffer.isView(data)
 
-    subscriber(
-      new Box({
-        type: NetworkMessageType.WebSocketOutbound,
-        correlationId,
-        messageType: isBinary
-          ? WebSocketMessageType.Binary
-          : WebSocketMessageType.Text,
-        data: await dataToArrayBuffer(data),
-      })
-    )
+    if (isBinary) {
+      const rawData = await dataToArrayBuffer(data)
+      const { truncated } = applyBinaryPayloadLimit(rawData)
+
+      subscriber(
+        new Box({
+          type: NetworkMessageType.WebSocketOutbound,
+          correlationId,
+          messageType: WebSocketMessageType.Binary,
+          data: truncated,
+        })
+      )
+    } else {
+      const rawText = typeof data === 'string' ? data : ''
+      const { truncated } = applyTextPayloadLimit(rawText)
+      const encoded = textEncoder.encode(truncated).buffer
+
+      subscriber(
+        new Box({
+          type: NetworkMessageType.WebSocketOutbound,
+          correlationId,
+          messageType: WebSocketMessageType.Text,
+          data: encoded,
+        })
+      )
+    }
   }
 
   const messageEventObserver = createMessageEventObserver(ev => {
@@ -493,27 +561,41 @@ function createWebSocketObserver(
       const target = ev.currentTarget
 
       if (target && isWebSocket(target)) {
-        if (!hasCorrelationId(target)) {
-          openEffect(target)
-        }
-
         const correlationId = getOrCreateCorrelationId(target)
-
         const isBinary =
           ev.data instanceof ArrayBuffer ||
           ev.data instanceof Blob ||
           ArrayBuffer.isView(ev.data)
 
-        subscriber(
-          new Box({
-            type: NetworkMessageType.WebSocketInbound,
-            correlationId,
-            messageType: isBinary
-              ? WebSocketMessageType.Binary
-              : WebSocketMessageType.Text,
-            data: await dataToArrayBuffer(ev.data),
-          })
-        )
+        if (isBinary) {
+          const rawData = await dataToArrayBuffer(ev.data)
+          const { truncated } = applyBinaryPayloadLimit(rawData)
+
+          subscriber(
+            new Box({
+              type: NetworkMessageType.WebSocketInbound,
+              correlationId,
+              messageType: WebSocketMessageType.Binary,
+              data: truncated,
+            })
+          )
+        } else {
+          const rawText =
+            typeof ev.data === 'string'
+              ? ev.data
+              : new TextDecoder().decode(await dataToArrayBuffer(ev.data))
+          const { truncated } = applyTextPayloadLimit(rawText)
+          const encoded = textEncoder.encode(truncated).buffer
+
+          subscriber(
+            new Box({
+              type: NetworkMessageType.WebSocketInbound,
+              correlationId,
+              messageType: WebSocketMessageType.Text,
+              data: encoded,
+            })
+          )
+        }
       }
     })()
   })
@@ -523,7 +605,12 @@ function createWebSocketObserver(
   const WebSocketCtorProxy = new Proxy(_WebSocket, {
     construct(target, args, newTarget) {
       const ws = Reflect.construct(target, args, newTarget)
-      openEffect(ws)
+
+      const correlationId = randomString(4)
+      correlationIds.set(ws, correlationId)
+
+      ws.addEventListener('open', onOpen)
+
       return ws
     },
   })
@@ -537,7 +624,8 @@ function createWebSocketObserver(
 
       globalThis.WebSocket.prototype.send = function (this, ...args) {
         if (!hasCorrelationId(this)) {
-          openEffect(this)
+          const correlationId = randomString(4)
+          correlationIds.set(this, correlationId)
         }
 
         sendEffect(this, ...args)

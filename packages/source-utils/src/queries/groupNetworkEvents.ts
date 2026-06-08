@@ -31,6 +31,8 @@ export function groupNetworkEvents(
               openTime: event.time,
               openIndex: index,
               open: data,
+              messageCountSent: 0,
+              messageCountReceived: 0,
             }
 
             orderedGroupIds.push(data.correlationId)
@@ -55,6 +57,16 @@ export function groupNetworkEvents(
           ;(group as WebSocketGroup).closeIndex = index
           break
 
+        case NetworkMessageType.WebSocketOpen:
+          // Already handled in the initial creation above
+          break
+
+        case NetworkMessageType.WebSocketError:
+          ;(group as WebSocketGroup).error = data
+          ;(group as WebSocketGroup).errorTime = event.time
+          ;(group as WebSocketGroup).errorIndex = index
+          break
+
         case NetworkMessageType.WebSocketInbound:
         case NetworkMessageType.WebSocketOutbound:
           const messages = (group as WebSocketGroup).messages || []
@@ -64,6 +76,12 @@ export function groupNetworkEvents(
             data,
           })
           ;(group as WebSocketGroup).messages = messages
+
+          if (data.type === NetworkMessageType.WebSocketOutbound) {
+            ;(group as WebSocketGroup).messageCountSent++
+          } else {
+            ;(group as WebSocketGroup).messageCountReceived++
+          }
           break
       }
 

@@ -12,7 +12,7 @@ import {
 import { ObserverLike } from '@repro/observer-utils'
 import { Box } from '@repro/tdl'
 import expect from 'expect'
-import { afterEach, describe, it } from 'node:test'
+import { afterEach, before, describe, it } from 'node:test'
 import { createNetworkObserver } from './observe'
 
 class MockXHR {
@@ -202,6 +202,98 @@ describe('libs/record: network observers', () => {
         cookie: '[MASKED]',
         'set-cookie': '[MASKED]',
       },
+    })
+  })
+
+  describe('WebSocket observer', () => {
+    class MockWebSocket {
+      static CONNECTING = 0
+      static OPEN = 1
+      static CLOSING = 2
+      static CLOSED = 3
+
+      readyState: number = MockWebSocket.CONNECTING
+      url: string
+      private listeners = new Map<string, Set<Function>>()
+
+      constructor(url: string, _protocols?: string | string[]) {
+        this.url = url
+      }
+
+      addEventListener(event: string, listener: Function) {
+        if (!this.listeners.has(event)) {
+          this.listeners.set(event, new Set())
+        }
+        this.listeners.get(event)!.add(listener)
+      }
+
+      removeEventListener(event: string, listener: Function) {
+        this.listeners.get(event)?.delete(listener)
+      }
+
+      send(_data: string | ArrayBufferLike | Blob | ArrayBufferView) {}
+
+      close() {
+        this.readyState = MockWebSocket.CLOSED
+        this.dispatchEvent(new Event('close'))
+      }
+
+      dispatchEvent(event: Event): boolean {
+        const handlers = this.listeners.get(event.type)
+        if (handlers) {
+          for (const handler of handlers) {
+            handler.call(this, event)
+          }
+        }
+        return true
+      }
+    }
+
+    let originalWebSocket: typeof globalThis.WebSocket
+
+    before(() => {
+      originalWebSocket = globalThis.WebSocket
+      globalThis.WebSocket =
+        MockWebSocket as unknown as typeof globalThis.WebSocket
+    })
+
+    afterEach(() => {
+      globalThis.WebSocket = originalWebSocket
+      observer?.disconnect()
+      observer = null
+    })
+
+    it('captures WebSocket error events', async () => {
+      const messages: Array<NetworkMessage> = []
+
+      observer = createNetworkObserver(message => {
+        messages.push(message)
+      })
+      observer.observe(document, vtree)
+
+      const mockWs = new (globalThis.WebSocket as any)(
+        'wss://example.com/socket'
+      ) as unknown as MockWebSocket
+
+      await flush()
+
+      // open event triggers openEffect which registers the error listener
+      mockWs.dispatchEvent(new Event('open'))
+
+      await flush()
+
+      mockWs.dispatchEvent(
+        new ErrorEvent('error', { message: 'Connection refused' })
+      )
+
+      await flush()
+
+      const errorMsg = messages.find((m: any) => {
+        return m.value.type === NetworkMessageType.WebSocketError
+      }) as any
+
+      expect(errorMsg).toBeDefined()
+      expect(errorMsg.value.message).toBe('Connection refused')
     })
   })
 })
