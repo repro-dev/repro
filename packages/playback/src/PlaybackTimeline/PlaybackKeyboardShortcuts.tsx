@@ -1,12 +1,8 @@
 import { Analytics } from '@repro/analytics'
-import {
-  isInputElement,
-  isSelectElement,
-  isTextAreaElement,
-} from '@repro/dom-utils'
 import React, { useCallback, useEffect } from 'react'
-import { Shortcuts } from 'shortcuts'
+import { tinykeys } from 'tinykeys'
 import { usePlayback } from '../hooks'
+import { shouldIgnoreKeyboardEvent } from './keyboardIgnore'
 
 export const PlaybackKeyboardShortcuts: React.FC = () => {
   const playback = usePlayback()
@@ -34,47 +30,21 @@ export const PlaybackKeyboardShortcuts: React.FC = () => {
   }, [playback])
 
   useEffect(() => {
-    const shortcuts = new Shortcuts({
-      shouldHandleEvent() {
-        let target = document.activeElement
-
-        if (target?.shadowRoot) {
-          target = target.shadowRoot.activeElement
-        }
-
-        if (target) {
-          return (
-            !isInputElement(target) &&
-            !isTextAreaElement(target) &&
-            !isSelectElement(target)
-          )
-        }
-
-        return true
-      },
-    })
-
-    shortcuts.add([
+    const unsubscribe = tinykeys(
+      window,
       {
-        shortcut: 'left',
-        handler: seekBackward,
+        ArrowLeft: seekBackward,
+        ArrowRight: seekForward,
+        Home: seekToStart,
+        End: seekToEnd,
       },
       {
-        shortcut: 'right',
-        handler: seekForward,
-      },
-      {
-        shortcut: 'home',
-        handler: seekToStart,
-      },
-      {
-        shortcut: 'end',
-        handler: seekToEnd,
-      },
-    ])
+        ignore: shouldIgnoreKeyboardEvent,
+      }
+    )
 
     return () => {
-      shortcuts.reset()
+      unsubscribe()
     }
   }, [seekBackward, seekForward, seekToStart, seekToEnd])
 

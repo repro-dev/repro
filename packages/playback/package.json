@@ -33,7 +33,7 @@
     "lucide-react": "^0.277.0",
     "react": "^18.2.0",
     "rxjs": "^7.8.0",
-    "shortcuts": "^1.8.1"
+    "tinykeys": "^4.0.0"
   },
   "devDependencies": {
     "@repro/testing-utils": "workspace:*",

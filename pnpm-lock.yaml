@@ -2468,9 +2468,9 @@ importers:
       rxjs:
         specifier: ^7.8.0
         version: 7.8.0
-      shortcuts:
-        specifier: ^1.8.1
-        version: 1.8.1
+      tinykeys:
+        specifier: ^4.0.0
+        version: 4.0.0
     devDependencies:
       '@repro/testing-utils':
         specifier: workspace:*
@@ -5516,6 +5516,7 @@ packages:
 
   '@tsparticles/engine@4.0.2':
     resolution: {integrity: sha512-B7xggalqpi2mu+rkPAV4abMrsqkdayYmeg78SHrOjJy6ApTMcWD0U2/zvxAFnc1U8EnsRBX8vIiTwBHdNZmp0A==}
+    deprecated: Please update to version 4.1.1
 
   '@tsparticles/plugin-hex-color@4.0.2':
     resolution: {integrity: sha512-wobR2XD42kLHt2wgj2Hd5c8/urcBgIg2Cs+2zo5j8GQkpY3Na0ofPrpojQXrC663Q8lhaC1EJ5spEM8wT3EzEA==}
@@ -5539,6 +5540,7 @@ packages:
 
   '@tsparticles/preset-ambient@4.0.2':
     resolution: {integrity: sha512-kl3rf3a8XJfhT0aumcoMjiBi7h4cnrCSHPQsvXG77Xz62Bl4o0d3SlZcnGn2ySPgwuq1VyWV5z+HC8xhao/VWQ==}
+    deprecated: Please update to version 4.1.1
 
   '@tsparticles/shape-circle@4.0.2':
     resolution: {integrity: sha512-b64si1QRfj1wL27GIgdiKJzJb/iDuMnGRiEnuvnwxI7gL67qTjaDRmCS5+16QBqfrttcm0mXp+JMqFsCmcMD+Q==}
@@ -9173,9 +9175,6 @@ packages:
   shimmer@1.2.1:
     resolution: {integrity: sha512-sQTKC1Re/rM6XyFM6fIAGHRPVGvyXfgzIDvzoq608vM+jeyVD0Tu1E6Np0Kc2zAIFWIj963V2800iF/9LPieQw==}
 
-  shortcuts@1.8.1:
-    resolution: {integrity: sha512-2AURf/O3BbPHuzLtnnzrF/mXut8xZy3oneFTGjvXPQn1+apw1cBpy1+493NEKab+yO8ND3rbCdD7uVK+J2C93A==}
-
   side-channel-list@1.0.0:
     resolution: {integrity: sha512-FCLHtRD/gnpCiCHEiJLOwdmFP+wzCmDEkc9y7NsYxeF4u7Btsn1ZuwgwJGxImImHicJArLP4R0yX4c2KCrMrTA==}
     engines: {node: '>= 0.4'}
@@ -9557,6 +9556,10 @@ packages:
   tinyglobby@0.2.15:
     resolution: {integrity: sha512-j2Zq4NyQYG5XMST4cbs02Ak8iJUdxRM0XI5QyxXuZOzKOINmWurp3smXu3y5wDcJrptwpSjgXHzIQxR0omXljQ==}
     engines: {node: '>=12.0.0'}
+
+  tinykeys@4.0.0:
+    resolution: {integrity: sha512-z5bQRQHL1PSx3lGOZEAMM2oKp0EBtn5T5f7HJnaKPOzk6vEH0wUPvdHLeQ7F4tmkek8AgoTQISUFmn/5SNF2xA==}
+    engines: {node: '>=22'}
 
   tinyrainbow@2.0.0:
     resolution: {integrity: sha512-op4nsTR47R6p0vMUUoYl/a+ljLFVtlfaXkLQmqfLR1qHma1h/ysYk4hEXZ880bf2CYgTskvTa/e196Vd5dDQXw==}
@@ -17167,8 +17170,6 @@ snapshots:
 
   shimmer@1.2.1: {}
 
-  shortcuts@1.8.1: {}
-
   side-channel-list@1.0.0:
     dependencies:
       es-errors: 1.3.0
@@ -17666,6 +17667,8 @@ snapshots:
     dependencies:
       fdir: 6.5.0(picomatch@4.0.3)
       picomatch: 4.0.3
+
+  tinykeys@4.0.0: {}
 
   tinyrainbow@2.0.0: {}
 

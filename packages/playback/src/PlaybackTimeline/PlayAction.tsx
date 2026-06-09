@@ -1,17 +1,13 @@
 import { Row } from '@jsxstyle/react'
 import { Analytics } from '@repro/analytics'
 import { color } from '@repro/design'
-import {
-  isInputElement,
-  isSelectElement,
-  isTextAreaElement,
-} from '@repro/dom-utils'
 import { Pause as PauseIcon, Play as PlayIcon } from 'lucide-react'
 import React, { useCallback, useEffect } from 'react'
-import { Shortcuts } from 'shortcuts'
+import { tinykeys } from 'tinykeys'
 import { usePlaybackState } from '..'
 import { usePlayback } from '../hooks'
 import { PlaybackState } from '../types'
+import { shouldIgnoreKeyboardEvent } from './keyboardIgnore'
 
 export const PlayAction: React.FC = () => {
   const playback = usePlayback()
@@ -33,35 +29,18 @@ export const PlayAction: React.FC = () => {
   }, [playback, playing])
 
   useEffect(() => {
-    const shortcuts = new Shortcuts({
-      shouldHandleEvent() {
-        let target = document.activeElement
-
-        if (target?.shadowRoot) {
-          target = target.shadowRoot.activeElement
-        }
-
-        if (target) {
-          return (
-            !isInputElement(target) &&
-            !isTextAreaElement(target) &&
-            !isSelectElement(target)
-          )
-        }
-
-        return true
-      },
-    })
-
-    shortcuts.add([
+    const unsubscribe = tinykeys(
+      window,
       {
-        shortcut: 'Space',
-        handler: togglePlayback,
+        Space: togglePlayback,
       },
-    ])
+      {
+        ignore: shouldIgnoreKeyboardEvent,
+      }
+    )
 
     return () => {
-      shortcuts.reset()
+      unsubscribe()
     }
   }, [togglePlayback])
 
