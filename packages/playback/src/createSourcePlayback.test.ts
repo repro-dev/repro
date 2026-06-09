@@ -79,6 +79,7 @@ describe('createSourcePlayback', () => {
             dom: vtree,
             interaction: null,
             frameworkState: null,
+            cssRules: null,
           },
         })
       ),

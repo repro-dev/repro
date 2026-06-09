@@ -10,5 +10,6 @@ export function createEmptySnapshot(): Snapshot {
     dom: null,
     interaction: null,
     frameworkState: null,
+    cssRules: null,
   }
 }
