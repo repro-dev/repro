@@ -15,6 +15,7 @@ import {
 import { usePlayback } from '../hooks'
 import { PlaybackState } from '../types'
 import { PlayAction } from './PlayAction'
+import { PlaybackKeyboardShortcuts } from './PlaybackKeyboardShortcuts'
 import { SpeedControl } from './SpeedControl'
 
 export interface Props {
@@ -242,6 +243,7 @@ export const SimpleTimeline: React.FC<Props> = ({ children, min, max }) => {
     <Row alignItems="center" height="100%" gap={8}>
       <PlayAction />
       <SpeedControl />
+      <PlaybackKeyboardShortcuts />
 
       <Row alignItems="center" height="100%" width="100%" position="relative">
         <Block
