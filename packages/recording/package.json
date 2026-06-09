@@ -11,6 +11,7 @@
   "dependencies": {
     "@repro/atom": "workspace:*",
     "@repro/buffer-utils": "workspace:*",
+    "@repro/css-utils": "workspace:*",
     "@repro/diagnostics": "workspace:*",
     "@repro/dom-utils": "workspace:*",
     "@repro/domain": "workspace:*",

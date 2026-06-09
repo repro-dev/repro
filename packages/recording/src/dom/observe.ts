@@ -1,10 +1,13 @@
+import { computeSpecificity } from '@repro/css-utils'
 import { Stats, StatsLevel } from '@repro/diagnostics'
 import {
   isInputElement,
+  isLocalStylesheet,
   isSelectElement,
   isTextAreaElement,
 } from '@repro/dom-utils'
 import {
+  CapturedCSSRule,
   DOMPatch,
   NodeType,
   PatchType,
@@ -406,6 +409,32 @@ export function internal__processMutationRecords(
 
         break
     }
+
+    // Detect text mutations on <style> element children — emit CSS rule patches
+    if (
+      record.type === 'characterData' ||
+      (record.type === 'childList' &&
+        (record.addedNodes.length > 0 || record.removedNodes.length > 0))
+    ) {
+      const targetParent =
+        record.type === 'characterData'
+          ? (record.target as Text).parentNode
+          : record.target
+      if (
+        targetParent &&
+        targetParent instanceof Element &&
+        isLocalStylesheet(targetParent as Element)
+      ) {
+        const sheet = (targetParent as HTMLStyleElement).sheet
+        if (sheet) {
+          try {
+            emitTextBasedCSSPatch(subscriber, sheet)
+          } catch {
+            // sheet.cssRules may throw SecurityError for cross-origin sheets
+          }
+        }
+      }
+    }
   }
 
   for (const patch of patches) {
@@ -446,6 +475,140 @@ function createMutationObserver(
       })
     },
   }
+}
+
+const adoptedSheetIdsForObserver = new WeakMap<CSSStyleSheet, string>()
+const sheetRuleCounts = new WeakMap<CSSStyleSheet, number>()
+
+function getStyleSheetId(sheet: CSSStyleSheet): string {
+  if (sheet.ownerNode) {
+    return getNodeId(sheet.ownerNode)
+  }
+  let id = adoptedSheetIdsForObserver.get(sheet)
+  if (!id) {
+    id = createSyntheticId()
+    adoptedSheetIdsForObserver.set(sheet, id)
+  }
+  return id
+}
+
+function emitInsertRulePatch(
+  subscriber: (patch: DOMPatch) => void,
+  sheet: CSSStyleSheet,
+  index: number
+) {
+  const rule = sheet.cssRules[index]
+  if (!(rule instanceof CSSStyleRule)) return
+
+  const style = rule.style
+  const declarations: Record<string, string> = {}
+  const priorities: Record<string, string> = {}
+
+  for (let j = 0; j < style.length; j++) {
+    const prop = style[j]
+    if (!prop) continue
+    declarations[prop] = style.getPropertyValue(prop).trim()
+    const priority = style.getPropertyPriority(prop)
+    priorities[prop] = priority === 'important' ? 'important' : ''
+  }
+
+  const stylesheetId = getStyleSheetId(sheet)
+  const selectors = rule.selectorText.split(',').map(s => s.trim())
+
+  const capturedRules: CapturedCSSRule[] = selectors.map(selectorText => ({
+    selectorText,
+    declarations,
+    priorities,
+    specificity: computeSpecificity(selectorText),
+    stylesheetId,
+    ruleIndex: index,
+    mediaCondition: null,
+    supportsCondition: null,
+    isInline: false,
+    importInaccessible: false,
+  }))
+
+  subscriber(
+    new Box({
+      type: PatchType.StyleSheetMutation,
+      stylesheetId,
+      insertedRules: capturedRules,
+      deletedRuleIndex: null,
+    })
+  )
+}
+
+function emitDeleteRulePatch(
+  subscriber: (patch: DOMPatch) => void,
+  sheet: CSSStyleSheet,
+  index: number
+) {
+  const stylesheetId = getStyleSheetId(sheet)
+
+  subscriber(
+    new Box({
+      type: PatchType.StyleSheetMutation,
+      stylesheetId,
+      insertedRules: null,
+      deletedRuleIndex: index,
+    })
+  )
+}
+
+function emitTextBasedCSSPatch(
+  subscriber: (patch: DOMPatch) => void,
+  sheet: CSSStyleSheet
+) {
+  const stylesheetId = getStyleSheetId(sheet)
+  const currentCount = sheet.cssRules.length
+  const previousCount = sheetRuleCounts.get(sheet) ?? 0
+
+  if (currentCount > previousCount) {
+    // Emit only the newly added rules (not rules that were already present)
+    const newRules: CapturedCSSRule[] = []
+    for (let i = previousCount; i < currentCount; i++) {
+      const rule = sheet.cssRules[i]
+      if (rule instanceof CSSStyleRule) {
+        const style = rule.style
+        const declarations: Record<string, string> = {}
+        const priorities: Record<string, string> = {}
+        for (let j = 0; j < style.length; j++) {
+          const prop = style[j]
+          if (!prop) continue
+          declarations[prop] = style.getPropertyValue(prop).trim()
+          const priority = style.getPropertyPriority(prop)
+          priorities[prop] = priority === 'important' ? 'important' : ''
+        }
+        const selectors = rule.selectorText.split(',').map(s => s.trim())
+        selectors.forEach(selectorText => {
+          newRules.push({
+            selectorText,
+            declarations,
+            priorities,
+            specificity: computeSpecificity(selectorText),
+            stylesheetId,
+            ruleIndex: i,
+            mediaCondition: null,
+            supportsCondition: null,
+            isInline: false,
+            importInaccessible: false,
+          })
+        })
+      }
+    }
+    if (newRules.length > 0) {
+      subscriber(
+        new Box({
+          type: PatchType.StyleSheetMutation,
+          stylesheetId,
+          insertedRules: newRules,
+          deletedRuleIndex: null,
+        })
+      )
+    }
+  }
+
+  sheetRuleCounts.set(sheet, currentCount)
 }
 
 function createStyleSheetObserver(
@@ -555,11 +718,15 @@ function createStyleSheetObserver(
         targets.add(win)
 
         win.CSSStyleSheet.prototype.insertRule = function (this, ...args) {
+          const resultIndex = insertRule.call(this, ...args)
           insertRuleEffect(vtree, this, ...args)
-          return insertRule.call(this, ...args)
+          emitInsertRulePatch(subscriber, this, resultIndex)
+          return resultIndex
         }
 
         win.CSSStyleSheet.prototype.deleteRule = function (this, ...args) {
+          const index = args[0] ?? 0
+          emitDeleteRulePatch(subscriber, this, index)
           deleteRuleEffect(vtree, this, ...args)
           return deleteRule.call(this, ...args)
         }

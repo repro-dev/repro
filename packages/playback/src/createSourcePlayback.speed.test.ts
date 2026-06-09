@@ -40,7 +40,12 @@ describe('createSourcePlayback speed advancement', () => {
         new Box({
           type: SourceEventType.Snapshot,
           time: 0,
-          data: { dom: null, interaction: null, frameworkState: null },
+          data: {
+            dom: null,
+            interaction: null,
+            frameworkState: null,
+            cssRules: null,
+          },
         })
       ),
       SourceEventView.from(

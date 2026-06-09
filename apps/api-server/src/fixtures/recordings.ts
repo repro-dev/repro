@@ -131,6 +131,7 @@ function makeSnapshotEvent(time: number): SourceEvent {
       dom: makeVTree(),
       interaction: makeInteractionSnapshot(),
       frameworkState: null,
+      cssRules: null,
     },
   })
 }

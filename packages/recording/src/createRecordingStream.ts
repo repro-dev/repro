@@ -14,6 +14,7 @@ import {
   InteractionType,
   NetworkEvent,
   NetworkMessage,
+  PatchType,
   PerformanceEntry,
   PerformanceEvent,
   Point,
@@ -31,7 +32,11 @@ import {
   VNode,
 } from '@repro/domain'
 import { ObserverLike } from '@repro/observer-utils'
-import { applyEventToSnapshot, createEmptySnapshot } from '@repro/source-utils'
+import {
+  applyEventToSnapshot,
+  applyStyleSheetMutationToSnapshot,
+  createEmptySnapshot,
+} from '@repro/source-utils'
 import { copyObjectDeep } from '@repro/std'
 import { Box, List, copy as copyDataView } from '@repro/tdl'
 import { applyVTreePatch, getNodeId } from '@repro/vdom-utils'
@@ -48,6 +53,7 @@ import {
 import { createConsoleObserver } from './console'
 import { createCustomMarkObserver } from './custom'
 import {
+  captureStyleSheets,
   createDOMObserver,
   createDOMTreeWalker,
   createDOMVisitor,
@@ -224,6 +230,10 @@ export function createRecordingStream(
 
       Stats.time('RecordingStream#start: build VTree snapshot', () => {
         domTreeWalker(rootDocument)
+      })
+
+      Stats.time('RecordingStream#start: capture CSS rules', () => {
+        trailingSnapshot.cssRules = captureStyleSheets(rootDocument)
       })
 
       const trailingVTree = trailingSnapshot.dom
@@ -499,6 +509,13 @@ export function createRecordingStream(
         }
 
         applyVTreePatch(trailingVTree, patch)
+
+        patch.apply(p => {
+          if (p.type === PatchType.StyleSheetMutation) {
+            applyStyleSheetMutationToSnapshot(trailingSnapshot, p, false)
+          }
+        })
+
         addEvent(createPatchEvent(patch))
       })
     )

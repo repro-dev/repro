@@ -1746,6 +1746,9 @@ importers:
       '@repro/design':
         specifier: workspace:*
         version: link:../design
+      '@repro/domain':
+        specifier: workspace:*
+        version: link:../domain
       react:
         specifier: 18.3.1
         version: 18.3.1
@@ -1753,6 +1756,9 @@ importers:
       '@testing-library/react':
         specifier: ^16.3.2
         version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@18.3.0)(@types/react@18.3.10)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@types/expect':
+        specifier: 24.3.2
+        version: 24.3.2
       '@types/node':
         specifier: 22.14.0
         version: 22.14.0
@@ -1762,6 +1768,9 @@ importers:
       '@types/repro-shared-types':
         specifier: workspace:*
         version: link:../shared-types
+      expect:
+        specifier: 29.7.0
+        version: 29.7.0
       prettier:
         specifier: ^3.0.0
         version: 3.0.0
@@ -2590,6 +2599,9 @@ importers:
       '@repro/buffer-utils':
         specifier: workspace:*
         version: link:../buffer-utils
+      '@repro/css-utils':
+        specifier: workspace:*
+        version: link:../css-utils
       '@repro/diagnostics':
         specifier: workspace:*
         version: link:../diagnostics

@@ -1,3 +1,4 @@
+export { captureStyleSheets } from './capture'
 export { createDOMObserver } from './observe'
 export { createDOMTreeWalker } from './utils'
 export type { DOMTreeWalker } from './utils'

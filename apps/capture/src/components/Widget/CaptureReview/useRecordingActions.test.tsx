@@ -68,6 +68,7 @@ function createSnapshotEvent(time: number): DataView {
         dom: null,
         interaction: null,
         frameworkState: null,
+        cssRules: null,
       },
     })
   )
