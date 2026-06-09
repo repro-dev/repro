@@ -20,7 +20,6 @@ export * from '../generated/snapshot'
 export * from '../generated/state'
 export * from '../generated/storage'
 export * from '../generated/vdom'
-export * from './css'
 export { migrate } from './migrations'
 export type { CodecVersion }
 

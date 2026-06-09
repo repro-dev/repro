@@ -2,6 +2,7 @@ import interaction.{PointerState, ScrollMap}
 import point.Point
 import react.{ReactComponentTree}
 import vdom.VTree
+import vdom.CapturedStyleSheet
 
 type InteractionSnapshot: struct {
   0) pointer: Point
@@ -20,4 +21,5 @@ type Snapshot: struct {
   0) dom: ?VTree
   1) interaction: ?InteractionSnapshot
   2) frameworkState: ?FrameworkState
+  3) cssRules: ?vector<CapturedStyleSheet>
 }
