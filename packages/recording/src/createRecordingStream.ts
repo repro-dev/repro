@@ -14,6 +14,7 @@ import {
   InteractionType,
   NetworkEvent,
   NetworkMessage,
+  PatchType,
   PerformanceEntry,
   PerformanceEvent,
   Point,
@@ -504,6 +505,35 @@ export function createRecordingStream(
         }
 
         applyVTreePatch(trailingVTree, patch)
+
+        patch.apply(p => {
+          if (p.type === PatchType.StyleSheetMutation) {
+            if (!trailingSnapshot.cssRules) {
+              trailingSnapshot.cssRules = []
+            }
+            let sheet = trailingSnapshot.cssRules.find(
+              s => s.id === p.stylesheetId
+            )
+            if (!sheet) {
+              sheet = {
+                id: p.stylesheetId,
+                href: null,
+                rules: [],
+                inaccessible: false,
+              }
+              trailingSnapshot.cssRules.push(sheet)
+            }
+            if (p.insertedRules) {
+              sheet.rules.push(...p.insertedRules)
+            }
+            if (p.deletedRuleIndex !== null) {
+              sheet.rules = sheet.rules.filter(
+                r => r.ruleIndex !== p.deletedRuleIndex
+              )
+            }
+          }
+        })
+
         addEvent(createPatchEvent(patch))
       })
     )
