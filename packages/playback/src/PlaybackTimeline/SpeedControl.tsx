@@ -71,14 +71,37 @@ export const SpeedControl: React.FC = () => {
         shortcut: '=',
         handler: increaseSpeed,
       },
-      {
-        shortcut: '-',
-        handler: decreaseSpeed,
-      },
     ])
+
+    // The Shortcuts library treats '-' as a removal command, so
+    // the minus key must be bound via a raw keydown listener.
+    const handleMinus = (e: KeyboardEvent) => {
+      // Run the same focus filter as Shortcuts.shouldHandleEvent.
+      let target = document.activeElement
+      if (target?.shadowRoot) {
+        target = target.shadowRoot.activeElement
+      }
+      if (
+        target &&
+        (isInputElement(target) ||
+          isTextAreaElement(target) ||
+          isSelectElement(target))
+      ) {
+        return
+      }
+
+      if (e.key === '-' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault()
+        e.stopPropagation()
+        decreaseSpeed()
+      }
+    }
+
+    document.addEventListener('keydown', handleMinus, { capture: true })
 
     return () => {
       shortcuts.reset()
+      document.removeEventListener('keydown', handleMinus, { capture: true })
     }
   }, [increaseSpeed, decreaseSpeed])
 
