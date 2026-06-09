@@ -68,17 +68,11 @@ export const SpeedControl: React.FC = () => {
 
     shortcuts.add([
       {
-        // + or = key to increase speed
-        shortcut: 'Plus',
+        shortcut: '=',
         handler: increaseSpeed,
       },
       {
-        shortcut: 'Equal',
-        handler: increaseSpeed,
-      },
-      {
-        // - key to decrease speed
-        shortcut: 'Minus',
+        shortcut: '-',
         handler: decreaseSpeed,
       },
     ])
