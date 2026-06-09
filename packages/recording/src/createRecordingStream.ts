@@ -32,7 +32,11 @@ import {
   VNode,
 } from '@repro/domain'
 import { ObserverLike } from '@repro/observer-utils'
-import { applyEventToSnapshot, createEmptySnapshot } from '@repro/source-utils'
+import {
+  applyEventToSnapshot,
+  applyStyleSheetMutationToSnapshot,
+  createEmptySnapshot,
+} from '@repro/source-utils'
 import { copyObjectDeep } from '@repro/std'
 import { Box, List, copy as copyDataView } from '@repro/tdl'
 import { applyVTreePatch, getNodeId } from '@repro/vdom-utils'
@@ -508,29 +512,7 @@ export function createRecordingStream(
 
         patch.apply(p => {
           if (p.type === PatchType.StyleSheetMutation) {
-            if (!trailingSnapshot.cssRules) {
-              trailingSnapshot.cssRules = []
-            }
-            let sheet = trailingSnapshot.cssRules.find(
-              s => s.id === p.stylesheetId
-            )
-            if (!sheet) {
-              sheet = {
-                id: p.stylesheetId,
-                href: null,
-                rules: [],
-                inaccessible: false,
-              }
-              trailingSnapshot.cssRules.push(sheet)
-            }
-            if (p.insertedRules) {
-              sheet.rules.push(...p.insertedRules)
-            }
-            if (p.deletedRuleIndex !== null) {
-              sheet.rules = sheet.rules.filter(
-                r => r.ruleIndex !== p.deletedRuleIndex
-              )
-            }
+            applyStyleSheetMutationToSnapshot(trailingSnapshot, p, false)
           }
         })
 

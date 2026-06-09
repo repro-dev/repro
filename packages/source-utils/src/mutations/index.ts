@@ -13,7 +13,7 @@ import {
 import { applyVTreePatch } from '@repro/vdom-utils'
 import { interpolatePointFromSample } from '../queries/interpolatePointFromSample'
 
-function applyStyleSheetMutationToSnapshot(
+export function applyStyleSheetMutationToSnapshot(
   snapshot: Snapshot,
   patch: {
     stylesheetId: string
