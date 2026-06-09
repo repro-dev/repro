@@ -21,6 +21,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useRecordingMode } from '~/state'
 import { Modal } from '../Modal'
 import { CaptureReview } from './CaptureReview'
+import { CaptureUploadProvider } from './CaptureUploadProvider'
 import { useRecordingActions } from './useRecordingActions'
 
 const DEFAULT_SELECTED_DURATION = 60_000
@@ -341,14 +342,21 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
       onClose={onClose}
       headerActions={headerActions}
     >
-      <CaptureReview
-        onClose={onClose}
-        actions={actions}
+      <CaptureUploadProvider
+        open={open}
         playback={playback}
         recordingMode={recordingMode}
         selectedDuration={selectedDuration}
-        setSelectedDuration={setSelectedDuration}
-      />
+      >
+        <CaptureReview
+          onClose={onClose}
+          actions={actions}
+          playback={playback}
+          recordingMode={recordingMode}
+          selectedDuration={selectedDuration}
+          setSelectedDuration={setSelectedDuration}
+        />
+      </CaptureUploadProvider>
     </Modal>
   )
 }
