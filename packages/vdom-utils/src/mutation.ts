@@ -287,9 +287,7 @@ export function applyVTreePatch(
 
       case PatchType.RemoveShadowRoot: {
         if (revert) {
-          // Reverting a remove means we need the original shadow root VTree.
-          // The RemoveShadowRootPatch only carries hostId + shadowRootId,
-          // so we cannot fully reconstruct on revert. This is a no-op for now.
+          addShadowRootToVTree(vtree, patch.hostId, patch.shadowRoot)
         } else {
           removeShadowRootFromVTree(vtree, patch.hostId, patch.shadowRootId)
         }

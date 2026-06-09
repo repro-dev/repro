@@ -126,6 +126,14 @@ export function isIgnoredByNode(node: Node, ignoredNodes: Array<Node> = []) {
     if (node instanceof ShadowRoot) {
       return ignoredNode === node || ignoredNode.contains(node.host)
     }
+    // For a node inside a shadow root, traverse the shadow boundary
+    // to find the host element and check if the host is ignored.
+    const root = node.getRootNode()
+    if (root instanceof ShadowRoot) {
+      if (ignoredNode === root || ignoredNode.contains(root.host)) {
+        return true
+      }
+    }
     return ignoredNode.contains(node)
   })
 }

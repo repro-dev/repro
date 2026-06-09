@@ -4,8 +4,8 @@ import { getNodeId } from '@repro/vdom-utils'
 import expect from 'expect'
 import { describe, it } from 'node:test'
 import { createVShadowRoot } from './factory'
-import { internal__processMutationRecords } from './observe'
-import { createDOMTreeWalker } from './utils'
+import { createDOMObserver, internal__processMutationRecords } from './observe'
+import { createDOMTreeWalker, isIgnoredByNode } from './utils'
 import { createDOMVisitor } from './visitor'
 
 function createRecordingOptions() {
@@ -542,6 +542,133 @@ describe('Shadow DOM recording', () => {
       for (const el of nonSlotElements) {
         expect(el.slotAssignments).toBeNull()
       }
+
+      document.body.removeChild(host)
+    })
+  })
+
+  describe('attachShadow monkey-patch', () => {
+    it('intercepts open mode', () => {
+      const options = createRecordingOptions()
+      const walker = createDOMTreeWalker(options)
+      walker.acceptDOMVisitor(createDOMVisitor(options))
+
+      const patches: Array<DOMPatch> = []
+      const observer = createDOMObserver(walker, options, patch =>
+        patches.push(patch)
+      )
+
+      // Get an initial VTree to satisfy the ObserverLike contract.
+      const initialVTree = walker(document)
+      observer.observe(document, initialVTree!)
+
+      // Create an element with an open shadow root.
+      const host = document.createElement('div')
+      document.body.appendChild(host)
+      const shadow = host.attachShadow({ mode: 'open' })
+      const shadowChild = document.createElement('p')
+      shadowChild.textContent = 'dynamic shadow'
+      shadow.appendChild(shadowChild)
+
+      // Should emit an addShadowRoot patch for the open shadow root.
+      const addShadowPatches = patches
+        .map(p => {
+          let val: any = null
+          ;(p as any).apply?.((v: any) => {
+            val = v
+          })
+          return val
+        })
+        .filter((p: any) => p && p.type === PatchType.AddShadowRoot)
+
+      expect(addShadowPatches.length).toBe(1)
+      expect(addShadowPatches[0].hostId).toBe(getNodeId(host))
+      expect(addShadowPatches[0].shadowRoot).toBeTruthy()
+
+      observer.disconnect()
+      document.body.removeChild(host)
+    })
+
+    it('ignores closed mode', () => {
+      const options = createRecordingOptions()
+      const walker = createDOMTreeWalker(options)
+      walker.acceptDOMVisitor(createDOMVisitor(options))
+
+      const patches: Array<DOMPatch> = []
+      const observer = createDOMObserver(walker, options, patch =>
+        patches.push(patch)
+      )
+
+      const initialVTree = walker(document)
+      observer.observe(document, initialVTree!)
+
+      const host = document.createElement('div')
+      document.body.appendChild(host)
+      host.attachShadow({ mode: 'closed' })
+
+      // No addShadowRoot patch should be emitted for closed mode.
+      const addShadowPatches = patches
+        .map(p => {
+          let val: any = null
+          ;(p as any).apply?.((v: any) => {
+            val = v
+          })
+          return val
+        })
+        .filter((p: any) => p && p.type === PatchType.AddShadowRoot)
+
+      expect(addShadowPatches.length).toBe(0)
+
+      observer.disconnect()
+      document.body.removeChild(host)
+    })
+
+    it('restores original attachShadow on disconnect', () => {
+      const original = Element.prototype.attachShadow
+
+      const options = createRecordingOptions()
+      const walker = createDOMTreeWalker(options)
+      walker.acceptDOMVisitor(createDOMVisitor(options))
+
+      const observer = createDOMObserver(walker, options, () => {})
+
+      const initialVTree = walker(document)
+      observer.observe(document, initialVTree!)
+
+      // Should be patched
+      expect(Element.prototype.attachShadow).not.toBe(original)
+
+      observer.disconnect()
+
+      // Should be restored
+      expect(Element.prototype.attachShadow).toBe(original)
+    })
+  })
+
+  describe('isIgnoredByNode shadow containment', () => {
+    it('excludes ShadowRoot in ignoredNodes', () => {
+      const host = document.createElement('div')
+      const shadow = host.attachShadow({ mode: 'open' })
+      const shadowChild = document.createElement('p')
+      shadow.appendChild(shadowChild)
+      document.body.appendChild(host)
+
+      // Add the shadow root itself to ignoredNodes.
+      expect(isIgnoredByNode(shadowChild, [shadow])).toBe(true)
+
+      document.body.removeChild(host)
+    })
+
+    it('excludes shadow content when host is ignored', () => {
+      const host = document.createElement('div')
+      const shadow = host.attachShadow({ mode: 'open' })
+      const shadowChild = document.createElement('p')
+      shadow.appendChild(shadowChild)
+      document.body.appendChild(host)
+
+      // Add the host to ignoredNodes — shadow content should be excluded
+      // via cross-boundary containment.
+      expect(isIgnoredByNode(shadowChild, [host])).toBe(true)
 
       document.body.removeChild(host)
     })

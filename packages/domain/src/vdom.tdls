@@ -158,6 +158,13 @@ type StyleSheetMutationPatch: struct {
   3) deletedRuleIndex: ?int32
 }
 
+type RemoveShadowRootPatch: struct {
+  0) type: PatchType.RemoveShadowRoot
+  1) hostId: NodeId
+  2) shadowRootId: NodeId
+  3) shadowRoot: VTree
+}
+
 type DOMPatch: union(type) {
   AttributePatch
   TextPatch

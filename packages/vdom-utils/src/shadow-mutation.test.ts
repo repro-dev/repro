@@ -241,6 +241,13 @@ describe('VShadowRoot mutations', () => {
       const hostId = createNodeId()
       const shadowId = createNodeId()
 
+      const shadowVTree: VTree = {
+        rootId: shadowId,
+        nodes: {
+          [shadowId]: makeVShadowRoot(shadowId, hostId),
+        },
+      }
+
       const vtree = makeVTree(hostId, {
         [hostId]: makeVElement(hostId, [], true),
         [shadowId]: makeVShadowRoot(shadowId, hostId),
@@ -250,6 +257,7 @@ describe('VShadowRoot mutations', () => {
         type: PatchType.RemoveShadowRoot as any,
         hostId,
         shadowRootId: shadowId,
+        shadowRoot: shadowVTree,
       })
 
       applyVTreePatch(vtree, patch)
@@ -258,6 +266,43 @@ describe('VShadowRoot mutations', () => {
       const hostNode = vtree.nodes[hostId]
       hostNode!.apply(node => {
         expect((node as any).shadowRoot).toBe(false)
+      })
+    })
+
+    it('reverts RemoveShadowRoot patch (restores shadow root)', () => {
+      const hostId = createNodeId()
+      const shadowId = createNodeId()
+
+      const shadowVTree: VTree = {
+        rootId: shadowId,
+        nodes: {
+          [shadowId]: makeVShadowRoot(shadowId, hostId),
+        },
+      }
+
+      // Start with the shadow root already in the VTree.
+      const vtree = makeVTree(hostId, {
+        [hostId]: makeVElement(hostId, [], true),
+        [shadowId]: makeVShadowRoot(shadowId, hostId),
+      })
+
+      const patch = new Box({
+        type: PatchType.RemoveShadowRoot as any,
+        hostId,
+        shadowRootId: shadowId,
+        shadowRoot: shadowVTree,
+      })
+
+      applyVTreePatch(vtree, patch) // apply remove
+      expect(vtree.nodes[shadowId]).toBeUndefined()
+
+      applyVTreePatch(vtree, patch, true) // revert
+
+      // Shadow root should be restored
+      expect(vtree.nodes[shadowId]).toBeTruthy()
+      const hostNode = vtree.nodes[hostId]
+      hostNode!.apply(node => {
+        expect((node as any).shadowRoot).toBe(true)
       })
     })
   })
