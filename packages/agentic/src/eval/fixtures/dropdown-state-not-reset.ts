@@ -44,6 +44,7 @@ export function createFixture(): EvalFixture {
             attributes: {} as Record<string, string | null>,
             properties: { value: null, checked: null, selectedIndex: null },
             shadowRoot: false,
+            slotAssignments: null,
           }),
           'filter-bar': new Box({
             type: NodeType.Element as NodeType.Element,
@@ -54,6 +55,7 @@ export function createFixture(): EvalFixture {
             attributes: { id: 'filter-bar' } as Record<string, string | null>,
             properties: { value: null, checked: null, selectedIndex: null },
             shadowRoot: false,
+            slotAssignments: null,
           }),
           'sel-category': new Box({
             type: NodeType.Element as NodeType.Element,
@@ -68,6 +70,7 @@ export function createFixture(): EvalFixture {
             } as Record<string, string | null>,
             properties: { value: null, checked: null, selectedIndex: null },
             shadowRoot: false,
+            slotAssignments: null,
           }),
         },
       },
