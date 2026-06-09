@@ -56,19 +56,19 @@ export const PlaybackKeyboardShortcuts: React.FC = () => {
 
     shortcuts.add([
       {
-        shortcut: 'ArrowLeft',
+        shortcut: 'left',
         handler: seekBackward,
       },
       {
-        shortcut: 'ArrowRight',
+        shortcut: 'right',
         handler: seekForward,
       },
       {
-        shortcut: 'Home',
+        shortcut: 'home',
         handler: seekToStart,
       },
       {
-        shortcut: 'End',
+        shortcut: 'end',
         handler: seekToEnd,
       },
     ])

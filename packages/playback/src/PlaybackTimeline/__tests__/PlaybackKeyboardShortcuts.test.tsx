@@ -69,10 +69,10 @@ describe('PlaybackKeyboardShortcuts', () => {
     const findByShortcut = (shortcut: string) =>
       registeredShortcuts.find(s => s.shortcut === shortcut)
 
-    const arrowLeft = findByShortcut('ArrowLeft')
-    const arrowRight = findByShortcut('ArrowRight')
-    const home = findByShortcut('Home')
-    const end = findByShortcut('End')
+    const arrowLeft = findByShortcut('left')
+    const arrowRight = findByShortcut('right')
+    const home = findByShortcut('home')
+    const end = findByShortcut('end')
 
     expect(arrowLeft).toBeDefined()
     expect(arrowRight).toBeDefined()
