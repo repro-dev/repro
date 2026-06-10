@@ -6,6 +6,7 @@ import {
   Hypothesis,
   Loading,
   PendingAskUserInteraction,
+  RecordingMeta,
 } from '@repro/agentic'
 import { atom } from '@repro/atom'
 import { Card } from '@repro/design'
@@ -424,6 +425,55 @@ export const WithHypotheses: StoryObj = {
             description: 'Third-party script blocking main thread',
             evidence: ['Long task detected at 1.5s from analytics.js'],
             confidence: 'low',
+          },
+        ]
+      )
+    ),
+  ],
+}
+
+const recordingMeta: RecordingMeta = {
+  browser: 'Chrome 120',
+  durationMs: 45200,
+  recordingUrl: 'https://app.repro.dev/r/abc123',
+}
+
+export const WithRecordingMeta: StoryObj = {
+  args: {
+    recordingMeta,
+  },
+  decorators: [
+    withState(
+      makeState(
+        [
+          {
+            id: '1',
+            timestamp: new Date(),
+            role: 'user',
+            content: 'Why is the login button not working?',
+          },
+          {
+            id: '2',
+            timestamp: new Date(),
+            role: 'assistant',
+            content:
+              "I found several issues during the investigation. Here's what I discovered.",
+            toolCalls: [],
+          },
+        ],
+        'none',
+        null,
+        null,
+        'conclusion',
+        [
+          {
+            id: 'h1',
+            description: 'Network request to auth endpoint is failing silently',
+            evidence: [
+              'Network request to /api/auth/login returned 500 at 3.2s',
+              'No retry logic detected in the XHR handler',
+            ],
+            confidence: 'high',
           },
         ]
       )

@@ -220,6 +220,12 @@ export interface ToolDefinition {
   }
 }
 
+export interface RecordingMeta {
+  browser: string | null
+  durationMs: number | null
+  recordingUrl: string | null
+}
+
 export type StreamProvider = (
   context: Context,
   tools: ToolDefinition[],
