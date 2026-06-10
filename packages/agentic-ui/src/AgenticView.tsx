@@ -116,7 +116,7 @@ export const AgenticView: React.FC<{
               </Button>
             </Row>
             <Row>
-              <Tooltip>View history</Tooltip>
+              <Tooltip>Previous sessions</Tooltip>
               <Button
                 variant="text"
                 size="small"
