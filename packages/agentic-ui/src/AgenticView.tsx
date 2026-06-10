@@ -94,6 +94,43 @@ export const AgenticView: React.FC<{
       position="relative"
     >
       <Col height="100%" overflow="hidden" marginInline={-spacing['2xl']}>
+        {entries.length > 0 && (
+          <Row
+            position="sticky"
+            top={0}
+            zIndex={2}
+            justifyContent="space-between"
+            alignItems="center"
+            padding={spacing.sm}
+            paddingInline={spacing.xl}
+            background={color.bg.surface}
+          >
+            <Block
+              alignItems="center"
+              background="transparent"
+              border="none"
+              borderRadius={radius.sm}
+              color={color.text.muted}
+              component="button"
+              cursor="pointer"
+              display="flex"
+              justifyContent="center"
+              padding={spacing.sm}
+              transition={transition.fast}
+              hoverBackgroundColor={color.bg.hover}
+              {...focusRing('neutral')}
+              props={{
+                type: 'button',
+                'aria-label': 'Start new session',
+                onClick: handleReset,
+              }}
+            >
+              <Tooltip>Start new session</Tooltip>
+              <RotateCcwIcon size={14} />
+            </Block>
+            <CopyForCodingAgentButton recordingMeta={recordingMeta} />
+          </Row>
+        )}
         <MessageList
           entries={entries}
           loading={loading}
@@ -134,44 +171,6 @@ export const AgenticView: React.FC<{
         loading={loading}
         onJumpToEnd={handleJumpToEnd}
       />
-
-      {entries.length > 0 && (
-        <Row
-          position="sticky"
-          top={0}
-          zIndex={2}
-          justifyContent="space-between"
-          alignItems="center"
-          padding={spacing.sm}
-          paddingInline={spacing.xl}
-          background={color.bg.surface}
-        >
-          <Block
-            alignItems="center"
-            background="transparent"
-            border="none"
-            borderRadius={radius.sm}
-            color={color.text.muted}
-            component="button"
-            cursor="pointer"
-            display="flex"
-            justifyContent="center"
-            padding={spacing.sm}
-            transition={transition.fast}
-            hoverBackgroundColor={color.bg.hover}
-            {...focusRing('neutral')}
-            props={{
-              type: 'button',
-              'aria-label': 'Start new session',
-              onClick: handleReset,
-            }}
-          >
-            <Tooltip>Start new session</Tooltip>
-            <RotateCcwIcon size={14} />
-          </Block>
-          <CopyForCodingAgentButton recordingMeta={recordingMeta} />
-        </Row>
-      )}
     </Block>
   )
 }
