@@ -161,6 +161,7 @@ describe('CopyForCodingAgentButton', () => {
 
     // After copy, button label changes to indicate copied state
     expect(button.getAttribute('aria-label')).toBe('Copied to clipboard')
+    expect(button.textContent).toMatch(/Copied!/)
 
     Object.defineProperty(navigator, 'clipboard', {
       value: originalClipboard,
@@ -219,6 +220,31 @@ describe('CopyForCodingAgentButton', () => {
 
     // Button should still show original label after failure
     expect(button.getAttribute('aria-label')).toBe('Copy for coding agent')
+
+    Object.defineProperty(navigator, 'clipboard', {
+      value: originalClipboard,
+      configurable: true,
+    })
+  })
+
+  it('is disabled while in copied state', async () => {
+    const originalClipboard = navigator.clipboard
+    setMockClipboard(() => Promise.resolve())
+
+    renderWithState(
+      [createUserEntry('Hello'), createAssistantEntry('I found the bug.')],
+      [],
+      meta
+    )
+
+    const button = screen.getByRole('button', {
+      name: /copy for coding agent/i,
+    })
+    fireEvent.click(button)
+
+    await new Promise(resolve => setTimeout(resolve, 10))
+
+    expect((button as HTMLButtonElement).disabled).toBe(true)
 
     Object.defineProperty(navigator, 'clipboard', {
       value: originalClipboard,
