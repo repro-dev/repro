@@ -9,7 +9,7 @@ import {
   spacing,
   Tooltip,
 } from '@repro/design'
-import { SquarePen } from 'lucide-react'
+import { History, SquarePen } from 'lucide-react'
 import React, { useEffect, useRef, useState } from 'react'
 import { AgenticInputSection } from './components/AgenticInputSection'
 import { CopyForCodingAgentButton } from './components/CopyForCodingAgentButton'
@@ -113,6 +113,17 @@ export const AgenticView: React.FC<{
                 props={{ onClick: handleReset }}
               >
                 <SquarePen size={14} />
+              </Button>
+            </Row>
+            <Row>
+              <Tooltip>View history</Tooltip>
+              <Button
+                variant="text"
+                size="small"
+                disabled
+                aria-label="View history"
+              >
+                <History size={14} />
               </Button>
             </Row>
             <CopyForCodingAgentButton recordingMeta={recordingMeta} />
