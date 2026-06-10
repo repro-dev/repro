@@ -26,20 +26,6 @@ import {
 export function createDOMVisitor(
   options: Pick<DOMOptions, 'maskedSelectors'> = { maskedSelectors: [] }
 ) {
-  /**
-   * TODO
-   * [x] Flatten DocumentFragment nodes
-   * [x] Exclude scripts
-   * [x] Attempt to inline external stylesheets (as list of text nodes)
-   * [ ] Flatten CSS import rules
-   * [x] Insert cross-origin stylesheets as-is
-   * [x] Strip inline event listeners
-   * [x] Build nested VTree for same-origin iframes
-   * [x] Build nested VTree for Shadow DOM
-   * [ ] Convert same-origin images to data-uris
-   * [ ] Convert cross-origin images to data-uris via extension proxy
-   */
-
   let vtree: VTree | null = null
 
   function createOrUpdateVTree(node: VNode, parentId: SyntheticId | null) {
