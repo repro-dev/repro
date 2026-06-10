@@ -5,6 +5,7 @@ import {
   AgenticInputFormState,
   Button,
   color,
+  shadow,
   spacing,
   Tooltip,
 } from '@repro/design'
@@ -102,7 +103,7 @@ export const AgenticView: React.FC<{
             padding={spacing.sm}
             paddingInline={spacing.xl}
             background={color.bg.surface}
-            boxShadow="0 4px 8px rgba(0, 0, 0, 0.05)"
+            boxShadow={shadow.sm}
           >
             <Row>
               <Tooltip>Start new session</Tooltip>
