@@ -4,6 +4,7 @@ import {
   AgenticInput,
   AgenticInputFormState,
   color,
+  shadow,
   spacing,
 } from '@repro/design'
 import React from 'react'
@@ -48,7 +49,7 @@ export const AgenticInputSection: React.FC<AgenticInputSectionProps> = ({
       borderBlockStartWidth={1}
       borderRadius={shouldRaise ? 0 : 8}
       bottom={0}
-      boxShadow={shouldRaise ? '0 -4px 8px rgba(0, 0, 0, 0.05)' : 'none'}
+      boxShadow={shouldRaise ? shadow.invertedSm : 'none'}
       left={0}
       marginBlock={shouldRaise ? -spacing['2xl'] : 0}
       marginInline={shouldRaise ? -spacing['2xl'] : 0}
