@@ -1,4 +1,3 @@
-import { Block } from '@jsxstyle/react'
 import { buildCodingAgentExport, type RecordingMeta } from '@repro/agentic'
 import { useAtomValue } from '@repro/atom'
 import { Button, Tooltip } from '@repro/design'
@@ -56,17 +55,15 @@ export const CopyForCodingAgentButton: React.FC<
   }
 
   return (
-    <Block>
-      <Button
-        variant="text"
-        size="small"
-        onClick={handleCopy}
-        aria-label={copied ? 'Copied to clipboard' : 'Copy for coding agent'}
-        aria-live="polite"
-      >
-        {copied ? <CheckIcon size={14} /> : <CopyIcon size={14} />}
-      </Button>
+    <Button
+      variant="text"
+      size="small"
+      onClick={handleCopy}
+      aria-label={copied ? 'Copied to clipboard' : 'Copy for coding agent'}
+      aria-live="polite"
+    >
+      {copied ? <CheckIcon size={14} /> : <CopyIcon size={14} />}
       <Tooltip>Copy for coding agent</Tooltip>
-    </Block>
+    </Button>
   )
 }

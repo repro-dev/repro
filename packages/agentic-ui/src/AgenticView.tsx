@@ -104,28 +104,24 @@ export const AgenticView: React.FC<{
             background={color.bg.surface}
             boxShadow={shadow.sm}
           >
-            <Block>
-              <Button
-                variant="text"
-                size="small"
-                aria-label="Start new session"
-                props={{ onClick: handleReset }}
-              >
-                <SquarePen size={14} />
-              </Button>
+            <Button
+              variant="text"
+              size="small"
+              aria-label="Start new session"
+              props={{ onClick: handleReset }}
+            >
+              <SquarePen size={14} />
               <Tooltip>Start new session</Tooltip>
-            </Block>
-            <Block>
-              <Button
-                variant="text"
-                size="small"
-                disabled
-                aria-label="View history"
-              >
-                <History size={14} />
-              </Button>
+            </Button>
+            <Button
+              variant="text"
+              size="small"
+              disabled
+              aria-label="View history"
+            >
+              <History size={14} />
               <Tooltip>Previous sessions</Tooltip>
-            </Block>
+            </Button>
             <CopyForCodingAgentButton recordingMeta={recordingMeta} />
           </Row>
         )}
