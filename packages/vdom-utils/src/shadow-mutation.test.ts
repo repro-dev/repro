@@ -2,6 +2,7 @@ import { NodeType, PatchType, VTree } from '@repro/domain'
 import { Box } from '@repro/tdl'
 import expect from 'expect'
 import { describe, it } from 'node:test'
+import { createVTreeWalker } from './createVTreeWalker'
 import { createNodeId } from './id-factory'
 import { isShadowRootVNode } from './matchers'
 import {
@@ -320,5 +321,48 @@ describe('isShadowRootVNode matcher', () => {
     const id = createNodeId()
     const elementNode = makeVElement(id)
     expect(isShadowRootVNode(elementNode)).toBe(false)
+  })
+})
+
+describe('VTreeWalker shadow root traversal', () => {
+  it('visits VShadowRoot nodes via hostId', () => {
+    const hostId = createNodeId()
+    const shadowId = createNodeId()
+    const childId = createNodeId()
+
+    const vtree = makeVTree(hostId, {
+      [hostId]: makeVElement(hostId, [], true),
+      [shadowId]: makeVShadowRoot(shadowId, hostId, [childId]),
+      [childId]: new Box({
+        type: NodeType.Element as any,
+        id: childId,
+        parentId: shadowId,
+        tagName: 'p',
+        children: [],
+        attributes: {},
+        properties: { checked: null, selectedIndex: null, value: null },
+        shadowRoot: false,
+      }),
+    })
+
+    let shadowRootVisited = false
+    let visitedHostId: string | null = null
+
+    const walker = createVTreeWalker()
+    walker.accept({
+      documentNode() {},
+      docTypeNode() {},
+      elementNode() {},
+      shadowRootNode(node) {
+        shadowRootVisited = true
+        visitedHostId = node.hostId
+      },
+      textNode() {},
+    })
+
+    walker(vtree)
+
+    expect(shadowRootVisited).toBe(true)
+    expect(visitedHostId).toBe(hostId)
   })
 })

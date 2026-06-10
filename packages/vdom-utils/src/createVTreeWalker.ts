@@ -93,6 +93,28 @@ export function createVTreeWalker(): VTreeWalker {
         if ('children' in node) {
           queue.push(...node.children)
         }
+
+        // If the node is a VElement that hosts a shadow root, walk
+        // into the VShadowRoot linked via hostId.  VShadowRoot nodes are
+        // not reachable through any parent's children array, so without
+        // this step queries like findElementsByClassName would never
+        // see shadow DOM content.
+        if (node.type === NodeType.Element && node.shadowRoot) {
+          const elementId = node.id
+          for (const [, candidate] of Object.entries(vtree.nodes)) {
+            candidate.apply(candidateNode => {
+              if (
+                candidateNode.type === NodeType.ShadowRoot &&
+                candidateNode.hostId === elementId
+              ) {
+                for (const visitor of visitors) {
+                  visitor.shadowRootNode(candidateNode, vtree, controlContext)
+                }
+                queue.push(...candidateNode.children)
+              }
+            })
+          }
+        }
       })
 
       if (controlContext.exit) {

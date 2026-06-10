@@ -346,7 +346,7 @@ describe('Shadow DOM recording', () => {
   })
 
   describe('processMutationRecords discovers shadow roots in added nodes', () => {
-    it('emits addShadowRoot patch when an element with shadow root is added', () => {
+    it('does not emit duplicate AddShadowRoot when element with shadow root is added', () => {
       const options = createRecordingOptions()
       const walkDOMTree = createDOMTreeWalker(options)
       walkDOMTree.acceptDOMVisitor(createDOMVisitor(options))
@@ -383,7 +383,8 @@ describe('Shadow DOM recording', () => {
         shadow => discoveredShadows.push(shadow)
       )
 
-      // Should emit addShadowRoot patch
+      // Shadow content is already captured by walkDOMTree(addedNode) —
+      // no separate AddShadowRoot patch should be emitted.
       const addShadowPatches = patches
         .map(p => {
           let val: any = null
@@ -394,13 +395,35 @@ describe('Shadow DOM recording', () => {
         })
         .filter((p: any) => p && p.type === PatchType.AddShadowRoot)
 
-      expect(addShadowPatches.length).toBe(1)
-      expect(addShadowPatches[0].hostId).toBe(getNodeId(host))
-      expect(addShadowPatches[0].shadowRoot).toBeTruthy()
+      expect(addShadowPatches.length).toBe(0)
 
-      // Should call the shadow discovered callback
+      // The shadow discovered callback should still be called
+      // to set up MutationObserver on the shadow root.
       expect(discoveredShadows.length).toBe(1)
       expect(discoveredShadows[0]).toBe(shadow)
+
+      // The AddNodes patch from walkDOMTree(host) should contain
+      // the shadow root nodes.
+      const addNodesPatches = patches
+        .map(p => {
+          let val: any = null
+          ;(p as any).apply?.((v: any) => {
+            val = v
+          })
+          return val
+        })
+        .filter((p: any) => p && p.type === PatchType.AddNodes)
+
+      expect(addNodesPatches.length).toBeGreaterThan(0)
+      const hostVTree = addNodesPatches[0].nodes[0]
+      const hasShadowNode = Object.values(hostVTree.nodes).some((n: any) => {
+        let val: any = null
+        n.apply?.((v: any) => {
+          val = v
+        })
+        return val && val.type === NodeType.ShadowRoot
+      })
+      expect(hasShadowNode).toBe(true)
     })
 
     it('does not emit addShadowRoot for closed shadow roots', () => {

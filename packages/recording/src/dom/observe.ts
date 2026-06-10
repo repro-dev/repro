@@ -409,21 +409,15 @@ export function internal__processMutationRecords(
         }
 
         // Discover and observe shadow roots in newly added elements.
+        // The shadow content is already captured by walkDOMTree(addedNode)
+        // above — do NOT emit a second AddShadowRoot patch here.  We only
+        // need to create a MutationObserver for the shadow root so future
+        // mutations inside the shadow are tracked.
         if (onShadowRootDiscovered) {
           record.addedNodes.forEach(addedNode => {
             if (addedNode instanceof Element && addedNode.shadowRoot) {
               const shadowRoot = addedNode.shadowRoot
               if (shadowRoot.mode !== 'closed') {
-                const shadowVTree = walkDOMTree(shadowRoot)
-                if (shadowVTree) {
-                  patches.push(
-                    new Box({
-                      type: PatchType.AddShadowRoot,
-                      hostId: getNodeId(addedNode),
-                      shadowRoot: shadowVTree,
-                    })
-                  )
-                }
                 onShadowRootDiscovered(shadowRoot)
               }
             }
