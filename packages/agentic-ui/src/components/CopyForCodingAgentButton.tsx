@@ -30,7 +30,11 @@ export const CopyForCodingAgentButton: React.FC<
   const hasAssistant = entries.some(e => e.role === 'assistant')
 
   const handleCopy = useCallback(async () => {
-    const markdown = buildCodingAgentExport(entries, hypotheses, recordingMeta)
+    const markdown = await buildCodingAgentExport(
+      entries,
+      hypotheses,
+      recordingMeta
+    )
 
     try {
       await navigator.clipboard.writeText(markdown)

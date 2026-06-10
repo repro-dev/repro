@@ -23,8 +23,8 @@ function setMockClipboard(writeText: (text: string) => Promise<void>) {
 // Mock buildCodingAgentExport from @repro/agentic
 // Provide default implementation that returns mock markdown
 const mockBuildExport = mock.fn<
-  (entries: unknown, hypotheses: unknown, meta: unknown) => string
->(() => '# Mock Markdown')
+  (entries: unknown, hypotheses: unknown, meta: unknown) => Promise<string>
+>(() => Promise.resolve('# Mock Markdown'))
 mock.module('@repro/agentic', {
   namedExports: {
     buildCodingAgentExport: mockBuildExport,
