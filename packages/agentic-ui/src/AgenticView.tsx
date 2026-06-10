@@ -101,7 +101,6 @@ export const AgenticView: React.FC<{
             gap={spacing.sm}
             alignItems="center"
             padding={spacing.sm}
-            paddingInline={spacing.xl}
             background={color.bg.surface}
             boxShadow={shadow.sm}
           >
