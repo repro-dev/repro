@@ -31,15 +31,6 @@ export const shadow = {
   md: '0 2px 4px rgba(0, 0, 0, 0.06), 0 4px 8px rgba(0, 0, 0, 0.08)',
   /** Modal / overlay elevation */
   lg: '0 4px 8px rgba(0, 0, 0, 0.06), 0 8px 16px rgba(0, 0, 0, 0.10)',
-  /** Near-flush — inverted for bottom-attached surfaces */
-  invertedXs:
-    '0 -0.5px 1px rgba(0, 0, 0, 0.06), 0 -1px 2px rgba(0, 0, 0, 0.04)',
-  /** Subtle elevation — inverted for bottom-attached surfaces */
-  invertedSm: '0 -1px 2px rgba(0, 0, 0, 0.06), 0 -2px 4px rgba(0, 0, 0, 0.06)',
-  /** Default card elevation — inverted */
-  invertedMd: '0 -2px 4px rgba(0, 0, 0, 0.06), 0 -4px 8px rgba(0, 0, 0, 0.08)',
-  /** Modal / overlay elevation — inverted */
-  invertedLg: '0 -4px 8px rgba(0, 0, 0, 0.06), 0 -8px 16px rgba(0, 0, 0, 0.10)',
 } as const
 
 /**

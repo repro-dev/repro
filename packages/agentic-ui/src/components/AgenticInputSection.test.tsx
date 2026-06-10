@@ -27,9 +27,6 @@ mock.module('@repro/design', {
       border: { default: '#e2e8f0' },
     },
     spacing: { '2xl': 24 },
-    shadow: {
-      invertedSm: '0 -1px 2px rgba(0,0,0,0.06), 0 -2px 4px rgba(0,0,0,0.06)',
-    },
   },
 })
 
