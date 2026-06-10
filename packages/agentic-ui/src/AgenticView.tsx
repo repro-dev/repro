@@ -3,14 +3,12 @@ import { buildInvestigationSummary, type RecordingMeta } from '@repro/agentic'
 import { useAtomValue } from '@repro/atom'
 import {
   AgenticInputFormState,
+  Button,
   color,
-  focusRing,
-  radius,
   spacing,
   Tooltip,
-  transition,
 } from '@repro/design'
-import { RotateCcwIcon } from 'lucide-react'
+import { SquarePen } from 'lucide-react'
 import React, { useEffect, useRef, useState } from 'react'
 import { AgenticInputSection } from './components/AgenticInputSection'
 import { CopyForCodingAgentButton } from './components/CopyForCodingAgentButton'
@@ -99,35 +97,23 @@ export const AgenticView: React.FC<{
             position="sticky"
             top={0}
             zIndex={2}
-            justifyContent="space-between"
+            gap={spacing.sm}
             alignItems="center"
             padding={spacing.sm}
             paddingInline={spacing.xl}
             background={color.bg.surface}
           >
-            <Block
-              alignItems="center"
-              background="transparent"
-              border="none"
-              borderRadius={radius.sm}
-              color={color.text.muted}
-              component="button"
-              cursor="pointer"
-              display="flex"
-              justifyContent="center"
-              padding={spacing.sm}
-              transition={transition.fast}
-              hoverBackgroundColor={color.bg.hover}
-              {...focusRing('neutral')}
-              props={{
-                type: 'button',
-                'aria-label': 'Start new session',
-                onClick: handleReset,
-              }}
-            >
+            <Row>
               <Tooltip>Start new session</Tooltip>
-              <RotateCcwIcon size={14} />
-            </Block>
+              <Button
+                variant="text"
+                size="small"
+                aria-label="Start new session"
+                props={{ onClick: handleReset }}
+              >
+                <SquarePen size={14} />
+              </Button>
+            </Row>
             <CopyForCodingAgentButton recordingMeta={recordingMeta} />
           </Row>
         )}
