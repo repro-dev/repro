@@ -65,6 +65,7 @@ function makeDiffVTree() {
         attributes: { id: 'root-div', class: 'container' },
         properties: { value: null, checked: null, selectedIndex: null },
         shadowRoot: false,
+        slotAssignments: null,
       },
       child1: {
         type: NodeType.Element,
@@ -75,6 +76,7 @@ function makeDiffVTree() {
         attributes: { class: 'section' },
         properties: { value: null, checked: null, selectedIndex: null },
         shadowRoot: false,
+        slotAssignments: null,
       },
       grandchild1: {
         type: NodeType.Element,
@@ -85,6 +87,7 @@ function makeDiffVTree() {
         attributes: {},
         properties: { value: null, checked: null, selectedIndex: null },
         shadowRoot: false,
+        slotAssignments: null,
       },
       txt1: {
         type: NodeType.Text,
@@ -102,6 +105,7 @@ function makeDiffVTree() {
         attributes: {},
         properties: { value: null, checked: null, selectedIndex: null },
         shadowRoot: false,
+        slotAssignments: null,
       },
     },
     'doc'
@@ -657,6 +661,7 @@ describe('getDOMDiff edge cases', () => {
           attributes: { class: 'empty' },
           properties: { value: null, checked: null, selectedIndex: null },
           shadowRoot: false,
+          slotAssignments: null,
         },
       },
       'root'

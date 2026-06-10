@@ -40,6 +40,7 @@ function makeVTree() {
         attributes: { lang: 'en' },
         properties: { value: null, checked: null, selectedIndex: null },
         shadowRoot: false,
+        slotAssignments: null,
       }),
       DDDDD: new Box({
         type: NodeType.Element as const,
@@ -50,6 +51,7 @@ function makeVTree() {
         attributes: {},
         properties: { value: null, checked: null, selectedIndex: null },
         shadowRoot: false,
+        slotAssignments: null,
       }),
       FFFFF: new Box({
         type: NodeType.Element as const,
@@ -60,6 +62,7 @@ function makeVTree() {
         attributes: {},
         properties: { value: null, checked: null, selectedIndex: null },
         shadowRoot: false,
+        slotAssignments: null,
       }),
       GGGGG: new Box({
         type: NodeType.Text as const,
@@ -76,6 +79,7 @@ function makeVTree() {
         attributes: {},
         properties: { value: null, checked: null, selectedIndex: null },
         shadowRoot: false,
+        slotAssignments: null,
       }),
       HHHHH: new Box({
         type: NodeType.Element as const,
@@ -86,6 +90,7 @@ function makeVTree() {
         attributes: {},
         properties: { value: null, checked: null, selectedIndex: null },
         shadowRoot: false,
+        slotAssignments: null,
       }),
       JJJJJ: new Box({
         type: NodeType.Text as const,
@@ -102,6 +107,7 @@ function makeVTree() {
         attributes: { id: 'submit-btn', class: 'btn btn-primary' },
         properties: { value: null, checked: null, selectedIndex: null },
         shadowRoot: false,
+        slotAssignments: null,
       }),
       KKKKK: new Box({
         type: NodeType.Text as const,
@@ -209,6 +215,7 @@ export const simpleInteraction: FixtureRecording = {
             attributes: { id: 'submit-btn', class: 'btn btn-primary' },
             properties: { value: null, checked: null, selectedIndex: null },
             shadowRoot: false,
+            slotAssignments: null,
           },
           humanReadableLabel: 'Submit',
         },
