@@ -102,6 +102,7 @@ export const AgenticView: React.FC<{
             padding={spacing.sm}
             paddingInline={spacing.xl}
             background={color.bg.surface}
+            boxShadow="0 4px 8px rgba(0, 0, 0, 0.05)"
           >
             <Row>
               <Tooltip>Start new session</Tooltip>
