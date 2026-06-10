@@ -159,8 +159,8 @@ describe('CopyForCodingAgentButton', () => {
 
     await new Promise(resolve => setTimeout(resolve, 10))
 
-    // After copy, button text changes to "Copied!"
-    expect(button.textContent).toMatch(/Copied!/)
+    // After copy, button label changes to indicate copied state
+    expect(button.getAttribute('aria-label')).toBe('Copied to clipboard')
 
     Object.defineProperty(navigator, 'clipboard', {
       value: originalClipboard,
@@ -185,14 +185,14 @@ describe('CopyForCodingAgentButton', () => {
 
     await new Promise(resolve => setTimeout(resolve, 10))
 
-    // After copy, button text is "Copied!"
-    expect(button.textContent).toMatch(/Copied!/)
+    // After copy, button label is "Copied to clipboard"
+    expect(button.getAttribute('aria-label')).toBe('Copied to clipboard')
 
     // Wait for the 2s timeout to elapse
     await new Promise(resolve => setTimeout(resolve, 2100))
 
-    // After timeout, button text reverts
-    expect(button.textContent).toMatch(/Copy for coding agent/)
+    // After timeout, button label reverts
+    expect(button.getAttribute('aria-label')).toBe('Copy for coding agent')
 
     Object.defineProperty(navigator, 'clipboard', {
       value: originalClipboard,
@@ -217,8 +217,8 @@ describe('CopyForCodingAgentButton', () => {
 
     await new Promise(resolve => setTimeout(resolve, 10))
 
-    // Button should still show original text after failure
-    expect(button.textContent).toMatch(/Copy for coding agent/)
+    // Button should still show original label after failure
+    expect(button.getAttribute('aria-label')).toBe('Copy for coding agent')
 
     Object.defineProperty(navigator, 'clipboard', {
       value: originalClipboard,

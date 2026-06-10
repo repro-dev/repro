@@ -1,7 +1,7 @@
-import { Block, Row } from '@jsxstyle/react'
+import { Row } from '@jsxstyle/react'
 import { buildCodingAgentExport, type RecordingMeta } from '@repro/agentic'
 import { useAtomValue } from '@repro/atom'
-import { Button, fontSize, spacing, Tooltip } from '@repro/design'
+import { Button, Tooltip } from '@repro/design'
 import { CheckIcon, CopyIcon } from 'lucide-react'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useAgenticState } from '../context'
@@ -65,12 +65,7 @@ export const CopyForCodingAgentButton: React.FC<
         aria-label={copied ? 'Copied to clipboard' : 'Copy for coding agent'}
         aria-live="polite"
       >
-        <Row gap={spacing.xs} alignItems="center">
-          {copied ? <CheckIcon size={14} /> : <CopyIcon size={14} />}
-          <Block component="span" fontSize={fontSize.xs}>
-            {copied ? 'Copied!' : 'Copy for coding agent'}
-          </Block>
-        </Row>
+        {copied ? <CheckIcon size={14} /> : <CopyIcon size={14} />}
       </Button>
     </Row>
   )
