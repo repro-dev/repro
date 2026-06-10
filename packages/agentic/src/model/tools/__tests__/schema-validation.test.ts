@@ -39,6 +39,7 @@ function makeSnapshotAccessor() {
         attributes: {},
         properties: { value: null, checked: null, selectedIndex: null },
         shadowRoot: false,
+        slotAssignments: null,
       }),
     },
   }

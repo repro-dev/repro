@@ -1,4 +1,12 @@
-import { NodeId, NodeType, VElement, VNode, VText, VTree } from '@repro/domain'
+import {
+  NodeId,
+  NodeType,
+  VElement,
+  VNode,
+  VShadowRoot,
+  VText,
+  VTree,
+} from '@repro/domain'
 
 export type DiffChangeType =
   | 'added'
@@ -23,6 +31,8 @@ function getTagName(node: VNode): string | undefined {
   node.apply(n => {
     if (n.type === NodeType.Element) {
       tagName = n.tagName
+    } else if (n.type === NodeType.ShadowRoot) {
+      tagName = 'shadow-root'
     }
   })
   return tagName
@@ -40,6 +50,8 @@ function nodeLabel(node: VNode): string {
       label = attrs
         ? '<' + n.tagName + ' ' + attrs + '>'
         : '<' + n.tagName + '>'
+    } else if (n.type === NodeType.ShadowRoot) {
+      label = '<shadow-root mode="' + n.mode + '">'
     } else if (n.type === NodeType.Text) {
       label = JSON.stringify(n.value.slice(0, 40))
     }
@@ -189,20 +201,28 @@ export function diffVTrees(
     let aElem: VElement | null = null
     let bText: VText | null = null
     let aText: VText | null = null
+    let bShadow: VShadowRoot | null = null
+    let aShadow: VShadowRoot | null = null
 
     bNode.apply(n => {
       if (n.type === NodeType.Element) bElem = n
       else if (n.type === NodeType.Text) bText = n
+      else if (n.type === NodeType.ShadowRoot) bShadow = n
     })
     aNode.apply(n => {
       if (n.type === NodeType.Element) aElem = n
       else if (n.type === NodeType.Text) aText = n
+      else if (n.type === NodeType.ShadowRoot) aShadow = n
     })
 
     if (bElem && aElem) {
       allChanges.push(...compareElementNodes(id, bElem, aElem))
     } else if (bText && aText) {
       allChanges.push(...compareTextNodes(id, bText, aText))
+    } else if (bShadow && aShadow) {
+      // VShadowRoot comparison: currently a structural pass-through.
+      // Shadow root mode and children are compared via tree-level
+      // add/remove detection.
     }
   }
 

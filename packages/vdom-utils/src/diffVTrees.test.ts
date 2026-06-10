@@ -29,6 +29,7 @@ function makeElement(
       selectedIndex: props.selectedIndex ?? null,
     },
     shadowRoot: false,
+    slotAssignments: null,
   }
   return new Box(elem)
 }

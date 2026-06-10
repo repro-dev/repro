@@ -3,6 +3,7 @@ import React, { useContext } from 'react'
 import { DocTypeNodeRenderer } from './DocTypeNodeRenderer'
 import { DocumentNodeRenderer } from './DocumentNodeRenderer'
 import { ElementNodeRenderer } from './ElementNodeRenderer'
+import { ShadowRootNodeRenderer } from './ShadowRootNodeRenderer'
 import { TextNodeRenderer } from './TextNodeRenderer'
 import { VTreeContext } from './context'
 
@@ -33,6 +34,9 @@ export const NodeRenderer: React.FC<Props> = ({ depth, nodeId }) => {
 
         case NodeType.Text:
           return <TextNodeRenderer nodeId={nodeId} depth={depth} />
+
+        case NodeType.ShadowRoot:
+          return <ShadowRootNodeRenderer nodeId={nodeId} depth={depth} />
       }
     })
     .orElse(null)

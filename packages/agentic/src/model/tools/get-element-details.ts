@@ -87,7 +87,11 @@ function getParentChain(
     })
     if (!pushed) break
     node.apply(n => {
-      currentId = n.parentId ?? null
+      if (n.type === NodeType.ShadowRoot) {
+        currentId = n.hostId ?? null
+      } else {
+        currentId = (n as any).parentId ?? null
+      }
     })
     depth++
   }

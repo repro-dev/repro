@@ -53,6 +53,15 @@ function walkDOMTree(
       if (isIFrameElement(node) && node.contentDocument) {
         queue.push(node.contentDocument)
       }
+
+      // Traverse into open shadow roots
+      if (node.shadowRoot && node.shadowRoot.mode !== 'closed') {
+        queue.push(node.shadowRoot)
+      }
+    } else if (node instanceof ShadowRoot) {
+      for (const visitor of visitors) {
+        visitor.shadowRootNode(node)
+      }
     } else if (isTextNode(node)) {
       for (const visitor of visitors) {
         visitor.textNode(node)
@@ -112,6 +121,19 @@ export function createDOMTreeWalker(options: DOMOptions): DOMTreeWalker {
 
 export function isIgnoredByNode(node: Node, ignoredNodes: Array<Node> = []) {
   return ignoredNodes.some(ignoredNode => {
+    // `Node.contains()` does not pierce shadow boundaries.
+    // For a ShadowRoot, check whether its host element is contained.
+    if (node instanceof ShadowRoot) {
+      return ignoredNode === node || ignoredNode.contains(node.host)
+    }
+    // For a node inside a shadow root, traverse the shadow boundary
+    // to find the host element and check if the host is ignored.
+    const root = node.getRootNode()
+    if (root instanceof ShadowRoot) {
+      if (ignoredNode === root || ignoredNode.contains(root.host)) {
+        return true
+      }
+    }
     return ignoredNode.contains(node)
   })
 }

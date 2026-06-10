@@ -24,6 +24,7 @@ function makeElement(
       selectedIndex: null,
     },
     shadowRoot: false,
+    slotAssignments: null,
   })
 }
 

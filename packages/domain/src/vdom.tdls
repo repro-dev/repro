@@ -3,6 +3,7 @@ type NodeType: enum<uint8> {
   Document: 1
   Element: 2
   Text: 3
+  ShadowRoot: 4
 }
 
 type NodeId: char[5]
@@ -36,6 +37,7 @@ type VElement: struct {
        2) selectedIndex: ?int16
      }
   7) shadowRoot: bool
+  8) slotAssignments: ?vector<NodeId>
 }
 
 type VText: struct {
@@ -45,11 +47,21 @@ type VText: struct {
   3) value: string
 }
 
+type VShadowRoot: struct {
+  0) type: NodeType.ShadowRoot
+  1) id: NodeId
+  2) hostId: NodeId
+  3) children: vector<NodeId>
+  4) mode: string
+  5) adoptedStyleSheets: vector<string>
+}
+
 type VNode: union(type) {
   VDocType
   VDocument
   VElement
   VText
+  VShadowRoot
 }
 
 type VTree: struct {
@@ -65,6 +77,8 @@ type PatchType: enum<uint8> {
   TextProperty: 4
   NumberProperty: 5
   BooleanProperty: 6
+  AddShadowRoot: 7
+  RemoveShadowRoot: 8
   StyleSheetMutation: 9
 }
 
@@ -157,6 +171,19 @@ type StyleSheetMutationPatch: struct {
   3) deletedRuleIndex: ?int32
 }
 
+type AddShadowRootPatch: struct {
+  0) type: PatchType.AddShadowRoot
+  1) hostId: NodeId
+  2) shadowRoot: VTree
+}
+
+type RemoveShadowRootPatch: struct {
+  0) type: PatchType.RemoveShadowRoot
+  1) hostId: NodeId
+  2) shadowRootId: NodeId
+  3) shadowRoot: VTree
+}
+
 type DOMPatch: union(type) {
   AttributePatch
   TextPatch
@@ -165,5 +192,7 @@ type DOMPatch: union(type) {
   BooleanPropertyPatch
   AddNodesPatch
   RemoveNodesPatch
+  AddShadowRootPatch
+  RemoveShadowRootPatch
   StyleSheetMutationPatch
 }

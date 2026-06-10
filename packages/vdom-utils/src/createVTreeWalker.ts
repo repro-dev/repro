@@ -4,6 +4,7 @@ import {
   VDocType,
   VDocument,
   VElement,
+  VShadowRoot,
   VText,
   VTree,
 } from '@repro/domain'
@@ -25,6 +26,11 @@ interface VNodeVisitor {
   ): void
   elementNode(
     node: VElement,
+    vtree: VTree,
+    controlContext: VTreeWalkerControlContext
+  ): void
+  shadowRootNode(
+    node: VShadowRoot,
     vtree: VTree,
     controlContext: VTreeWalkerControlContext
   ): void
@@ -74,6 +80,10 @@ export function createVTreeWalker(): VTreeWalker {
               visitor.elementNode(node, vtree, controlContext)
               break
 
+            case NodeType.ShadowRoot:
+              visitor.shadowRootNode(node, vtree, controlContext)
+              break
+
             case NodeType.Text:
               visitor.textNode(node, vtree, controlContext)
               break
@@ -82,6 +92,28 @@ export function createVTreeWalker(): VTreeWalker {
 
         if ('children' in node) {
           queue.push(...node.children)
+        }
+
+        // If the node is a VElement that hosts a shadow root, walk
+        // into the VShadowRoot linked via hostId.  VShadowRoot nodes are
+        // not reachable through any parent's children array, so without
+        // this step queries like findElementsByClassName would never
+        // see shadow DOM content.
+        if (node.type === NodeType.Element && node.shadowRoot) {
+          const elementId = node.id
+          for (const [, candidate] of Object.entries(vtree.nodes)) {
+            candidate.apply(candidateNode => {
+              if (
+                candidateNode.type === NodeType.ShadowRoot &&
+                candidateNode.hostId === elementId
+              ) {
+                for (const visitor of visitors) {
+                  visitor.shadowRootNode(candidateNode, vtree, controlContext)
+                }
+                queue.push(...candidateNode.children)
+              }
+            })
+          }
         }
       })
 

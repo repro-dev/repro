@@ -1,5 +1,5 @@
 import { Block } from '@jsxstyle/react'
-import { NodeId, SyntheticId, VTree } from '@repro/domain'
+import { NodeId, NodeType, SyntheticId, VTree } from '@repro/domain'
 import React, {
   MutableRefObject,
   useCallback,
@@ -54,7 +54,12 @@ export const ElementTree: React.FC<Props> = ({
             break
           }
 
-          currentNodeId = node.map(node => node.parentId).orElse(null)
+          currentNodeId = node
+            .map(node => {
+              if (node.type === NodeType.ShadowRoot) return node.hostId
+              return (node as any).parentId
+            })
+            .orElse(null)
 
           if (currentNodeId) {
             nextOpenNodes.add(currentNodeId)
@@ -120,7 +125,12 @@ export const ElementTree: React.FC<Props> = ({
           break
         }
 
-        nodeId = node.map(node => node.parentId).orElse(null)
+        nodeId = node
+          .map(node => {
+            if (node.type === NodeType.ShadowRoot) return node.hostId
+            return (node as any).parentId
+          })
+          .orElse(null)
 
         if (nodeId) {
           nextVisibleNodes.add(nodeId)

@@ -39,6 +39,7 @@ function makeVTree(message: string) {
       attributes: { role: 'main' },
       properties: { value: null, checked: null, selectedIndex: null },
       shadowRoot: false,
+      slotAssignments: null,
     },
     text: {
       type: NodeType.Text,

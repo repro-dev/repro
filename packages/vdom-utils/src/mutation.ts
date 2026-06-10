@@ -9,7 +9,12 @@ import {
 import { logger } from '@repro/logger'
 import { copyObjectDeep } from '@repro/std'
 import { getVNodeById } from './id-factory'
-import { isElementVNode, isParentVNode, isTextVNode } from './matchers'
+import {
+  isElementVNode,
+  isParentVNode,
+  isShadowRootVNode,
+  isTextVNode,
+} from './matchers'
 
 export function createVTreeWithRoot(root: VNode): VTree {
   const rootId = root.map(root => root.id).unwrap()
@@ -115,6 +120,54 @@ export function removeSubTreesAtNode(
   }
 }
 
+export function addShadowRootToVTree(
+  vtree: VTree,
+  hostId: SyntheticId,
+  shadowVTree: VTree
+) {
+  const hostNode = getVNodeById(vtree, hostId)
+
+  if (hostNode && isElementVNode(hostNode)) {
+    hostNode.apply(host => {
+      host.shadowRoot = true
+    })
+
+    // Merge the shadow root VTree nodes into the parent VTree.
+    Object.assign(vtree.nodes, copyObjectDeep(shadowVTree.nodes))
+  }
+}
+
+export function removeShadowRootFromVTree(
+  vtree: VTree,
+  hostId: SyntheticId,
+  shadowRootId: SyntheticId
+) {
+  const hostNode = getVNodeById(vtree, hostId)
+
+  if (hostNode && isElementVNode(hostNode)) {
+    hostNode.apply(host => {
+      host.shadowRoot = false
+    })
+  }
+
+  // Remove shadow root node and all its descendants from the VTree.
+  const queue = [shadowRootId]
+  while (queue.length) {
+    const nodeId = queue.shift() as SyntheticId
+    const node = getVNodeById(vtree, nodeId)
+
+    if (node) {
+      delete vtree.nodes[nodeId]
+
+      if (isShadowRootVNode(node) || isElementVNode(node)) {
+        node.apply(n => {
+          queue.push(...(n as any).children)
+        })
+      }
+    }
+  }
+}
+
 // TODO: benchmark performance of mutable data structure
 export function applyVTreePatch(
   vtree: VTree,
@@ -213,6 +266,30 @@ export function applyVTreePatch(
 
           // TODO: move these to Debugger; stats will be published for monitoring
           // Stats.sample('VDOM: apply remove-nodes patch', performance.now() - start)
+        }
+
+        break
+      }
+
+      case PatchType.AddShadowRoot: {
+        if (revert) {
+          removeShadowRootFromVTree(
+            vtree,
+            patch.hostId,
+            patch.shadowRoot.rootId
+          )
+        } else {
+          addShadowRootToVTree(vtree, patch.hostId, patch.shadowRoot)
+        }
+
+        break
+      }
+
+      case PatchType.RemoveShadowRoot: {
+        if (revert) {
+          addShadowRootToVTree(vtree, patch.hostId, patch.shadowRoot)
+        } else {
+          removeShadowRootFromVTree(vtree, patch.hostId, patch.shadowRootId)
         }
 
         break

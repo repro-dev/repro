@@ -19,26 +19,13 @@ import {
   createVDocType,
   createVDocument,
   createVElement,
+  createVShadowRoot,
   createVText,
 } from './factory'
 
 export function createDOMVisitor(
   options: Pick<DOMOptions, 'maskedSelectors'> = { maskedSelectors: [] }
 ) {
-  /**
-   * TODO
-   * [x] Flatten DocumentFragment nodes
-   * [x] Exclude scripts
-   * [x] Attempt to inline external stylesheets (as list of text nodes)
-   * [ ] Flatten CSS import rules
-   * [x] Insert cross-origin stylesheets as-is
-   * [x] Strip inline event listeners
-   * [x] Build nested VTree for same-origin iframes
-   * [ ] Build nested VTree for Shadow DOM
-   * [ ] Convert same-origin images to data-uris
-   * [ ] Convert cross-origin images to data-uris via extension proxy
-   */
-
   let vtree: VTree | null = null
 
   function createOrUpdateVTree(node: VNode, parentId: SyntheticId | null) {
@@ -82,6 +69,28 @@ export function createDOMVisitor(
     },
 
     documentFragmentNode(_node) {},
+
+    shadowRootNode(node) {
+      const vNode = new Box(createVShadowRoot(node))
+      const hostId = getNodeId(node.host)
+
+      if (!vtree) {
+        vtree = createVTreeWithRoot(vNode)
+        return
+      }
+
+      if (!vtree.nodes[hostId]) {
+        throw new Error(
+          `VDOM: cannot add shadow root to tree; host node "${hostId}" not found in VTree`
+        )
+      }
+
+      // Add shadow root node directly to VTree.nodes — it is linked to the
+      // host via hostId, not as a child of the host element.
+      vNode.apply(node => {
+        vtree!.nodes[node.id] = vNode
+      })
+    },
 
     elementNode(node) {
       if (isLocalStylesheet(node) || isExternalStyleSheet(node)) {
@@ -179,6 +188,7 @@ export function createIFrameVisitor() {
     documentNode() {},
     documentTypeNode() {},
     documentFragmentNode() {},
+    shadowRootNode() {},
     textNode() {},
 
     done() {

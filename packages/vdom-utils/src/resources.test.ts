@@ -59,6 +59,7 @@ function makeElementNode(
     properties: { checked: null, selectedIndex: null, value: null },
     children,
     shadowRoot: false,
+    slotAssignments: null,
   })
 }
 

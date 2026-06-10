@@ -23,6 +23,7 @@ describe('utils: vdom', () => {
             },
             children: ['2', '3', '4'],
             shadowRoot: false,
+            slotAssignments: null,
           }),
 
           2: new Box({
@@ -38,6 +39,7 @@ describe('utils: vdom', () => {
             },
             children: ['5'],
             shadowRoot: false,
+            slotAssignments: null,
           }),
 
           3: new Box({
@@ -93,6 +95,7 @@ describe('utils: vdom', () => {
             },
             children: ['3', '4'],
             shadowRoot: false,
+            slotAssignments: null,
           }),
 
           3: new Box({
@@ -166,6 +169,7 @@ describe('utils: vdom', () => {
             },
             children: ['3', '4'],
             shadowRoot: false,
+            slotAssignments: null,
           }),
 
           3: new Box({

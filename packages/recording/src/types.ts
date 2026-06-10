@@ -2,6 +2,7 @@ export interface Visitor<T> {
   documentNode(node: Document): void
   documentFragmentNode(node: DocumentFragment): void
   documentTypeNode(node: DocumentType): void
+  shadowRootNode(node: ShadowRoot): void
   elementNode(node: Element): void
   textNode(node: Text): void
   done(): T | null
