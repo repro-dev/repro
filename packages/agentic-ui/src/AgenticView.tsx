@@ -1,4 +1,4 @@
-import { Block, Col } from '@jsxstyle/react'
+import { Block, Col, Row } from '@jsxstyle/react'
 import { buildInvestigationSummary, type RecordingMeta } from '@repro/agentic'
 import { useAtomValue } from '@repro/atom'
 import {
@@ -135,35 +135,42 @@ export const AgenticView: React.FC<{
         onJumpToEnd={handleJumpToEnd}
       />
 
-      <CopyForCodingAgentButton recordingMeta={recordingMeta} />
-
       {entries.length > 0 && (
-        <Block
+        <Row
+          position="sticky"
+          top={0}
+          zIndex={2}
+          justifyContent="space-between"
           alignItems="center"
-          background="transparent"
-          border="none"
-          borderRadius={radius.sm}
-          color={color.text.muted}
-          component="button"
-          cursor="pointer"
-          display="flex"
-          justifyContent="center"
           padding={spacing.sm}
-          position="absolute"
-          left={-(spacing.xl + spacing.sm)}
-          top={spacing.sm}
-          transition={transition.fast}
-          hoverBackgroundColor={color.bg.hover}
-          {...focusRing('neutral')}
-          props={{
-            type: 'button',
-            'aria-label': 'Start new session',
-            onClick: handleReset,
-          }}
+          paddingInline={spacing.xl}
+          background={color.bg.surface}
         >
-          <Tooltip>Start new session</Tooltip>
-          <RotateCcwIcon size={14} />
-        </Block>
+          <Block
+            alignItems="center"
+            background="transparent"
+            border="none"
+            borderRadius={radius.sm}
+            color={color.text.muted}
+            component="button"
+            cursor="pointer"
+            display="flex"
+            justifyContent="center"
+            padding={spacing.sm}
+            transition={transition.fast}
+            hoverBackgroundColor={color.bg.hover}
+            {...focusRing('neutral')}
+            props={{
+              type: 'button',
+              'aria-label': 'Start new session',
+              onClick: handleReset,
+            }}
+          >
+            <Tooltip>Start new session</Tooltip>
+            <RotateCcwIcon size={14} />
+          </Block>
+          <CopyForCodingAgentButton recordingMeta={recordingMeta} />
+        </Row>
       )}
     </Block>
   )

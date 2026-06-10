@@ -56,7 +56,7 @@ export const CopyForCodingAgentButton: React.FC<
   }
 
   return (
-    <Row position="absolute" top={spacing.sm} right={spacing.xl} zIndex={1}>
+    <Row>
       <Tooltip>Copy for coding agent</Tooltip>
       <Button
         variant="text"
