@@ -104,8 +104,7 @@ export const AgenticView: React.FC<{
             background={color.bg.surface}
             boxShadow={shadow.sm}
           >
-            <Row>
-              <Tooltip>Start new session</Tooltip>
+            <Block>
               <Button
                 variant="text"
                 size="small"
@@ -114,9 +113,9 @@ export const AgenticView: React.FC<{
               >
                 <SquarePen size={14} />
               </Button>
-            </Row>
-            <Row>
-              <Tooltip>Previous sessions</Tooltip>
+              <Tooltip>Start new session</Tooltip>
+            </Block>
+            <Block>
               <Button
                 variant="text"
                 size="small"
@@ -125,7 +124,8 @@ export const AgenticView: React.FC<{
               >
                 <History size={14} />
               </Button>
-            </Row>
+              <Tooltip>Previous sessions</Tooltip>
+            </Block>
             <CopyForCodingAgentButton recordingMeta={recordingMeta} />
           </Row>
         )}

@@ -1,4 +1,4 @@
-import { Row } from '@jsxstyle/react'
+import { Block } from '@jsxstyle/react'
 import { buildCodingAgentExport, type RecordingMeta } from '@repro/agentic'
 import { useAtomValue } from '@repro/atom'
 import { Button, Tooltip } from '@repro/design'
@@ -56,8 +56,7 @@ export const CopyForCodingAgentButton: React.FC<
   }
 
   return (
-    <Row>
-      <Tooltip>Copy for coding agent</Tooltip>
+    <Block>
       <Button
         variant="text"
         size="small"
@@ -67,6 +66,7 @@ export const CopyForCodingAgentButton: React.FC<
       >
         {copied ? <CheckIcon size={14} /> : <CopyIcon size={14} />}
       </Button>
-    </Row>
+      <Tooltip>Copy for coding agent</Tooltip>
+    </Block>
   )
 }
