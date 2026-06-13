@@ -150,7 +150,3 @@ export function redactHeaders(
 export function isSensitiveInputType(inputType: string): boolean {
   return currentConfig.sensitiveInputTypes.has(inputType)
 }
-
-// Backward-compat aliases for existing observer imports
-export const redactStringPreservingWhitespace = redactText
-export const redactConsoleValue = redactValue

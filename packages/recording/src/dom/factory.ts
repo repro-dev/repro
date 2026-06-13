@@ -20,7 +20,7 @@ import {
 } from '@repro/domain'
 import { Box } from '@repro/tdl'
 import { createSyntheticId, getNodeId } from '@repro/vdom-utils'
-import { redactStringPreservingWhitespace } from '../redaction'
+import { redactText } from '../redaction'
 import { isMaskedBySelector } from './utils'
 
 type MaskedSelectorOptions = {
@@ -88,9 +88,7 @@ export function createVElement(
   const isMasked = isMaskedBySelector(element, maskedSelectors)
 
   if (isMasked && 'value' in attributes) {
-    attributes.value = redactStringPreservingWhitespace(
-      String(attributes.value ?? '')
-    )
+    attributes.value = redactText(String(attributes.value ?? ''))
   }
 
   const properties: VElement['properties'] = {
@@ -105,9 +103,9 @@ export function createVElement(
     isSelectElement(element)
   ) {
     properties.value = isMasked
-      ? redactStringPreservingWhitespace(element.value)
+      ? redactText(element.value)
       : element.type === 'password'
-      ? redactStringPreservingWhitespace(element.value)
+      ? redactText(element.value)
       : element.value
 
     if ('value' in attributes) {
@@ -151,7 +149,7 @@ export function createVText(
     parentId: text.parentNode ? getNodeId(text.parentNode) : null,
     type: NodeType.Text,
     value: isMaskedBySelector(text, maskedSelectors)
-      ? redactStringPreservingWhitespace(text.data)
+      ? redactText(text.data)
       : text.data,
   }
 }
