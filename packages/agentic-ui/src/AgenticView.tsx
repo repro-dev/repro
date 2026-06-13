@@ -1,18 +1,18 @@
-import { Block, Col } from '@jsxstyle/react'
-import { buildInvestigationSummary } from '@repro/agentic'
+import { Block, Col, Row } from '@jsxstyle/react'
+import { buildInvestigationSummary, type RecordingMeta } from '@repro/agentic'
 import { useAtomValue } from '@repro/atom'
 import {
   AgenticInputFormState,
+  Button,
   color,
-  focusRing,
-  radius,
+  shadow,
   spacing,
   Tooltip,
-  transition,
 } from '@repro/design'
-import { RotateCcwIcon } from 'lucide-react'
+import { History, SquarePen } from 'lucide-react'
 import React, { useEffect, useRef, useState } from 'react'
 import { AgenticInputSection } from './components/AgenticInputSection'
+import { CopyForCodingAgentButton } from './components/CopyForCodingAgentButton'
 import { HypothesisList } from './components/HypothesisList'
 import { JumpToEndButton } from './components/JumpToEndButton'
 import { LoadingIndicator } from './components/LoadingIndicator'
@@ -24,7 +24,13 @@ export const AgenticView: React.FC<{
   onFeedback?: (sentiment: 'positive' | 'negative') => void
   onGoToTime?: (timeMs: number) => void
   onInvestigationComplete?: (summary: string) => void
-}> = ({ onFeedback, onGoToTime, onInvestigationComplete }) => {
+  recordingMeta?: RecordingMeta | null
+}> = ({
+  onFeedback,
+  onGoToTime,
+  onInvestigationComplete,
+  recordingMeta = null,
+}) => {
   const [inputHasFocus, setInputHasFocus] = useState(false)
   const lastSummaryRef = useRef('')
 
@@ -87,6 +93,38 @@ export const AgenticView: React.FC<{
       position="relative"
     >
       <Col height="100%" overflow="hidden" marginInline={-spacing['2xl']}>
+        {entries.length > 0 && (
+          <Row
+            position="sticky"
+            top={0}
+            zIndex={2}
+            gap={spacing.sm}
+            alignItems="center"
+            padding={spacing.sm}
+            background={color.bg.surface}
+            boxShadow={shadow.sm}
+          >
+            <Button
+              variant="text"
+              size="small"
+              aria-label="Start new session"
+              props={{ onClick: handleReset }}
+            >
+              <SquarePen size={14} />
+              <Tooltip>Start new session</Tooltip>
+            </Button>
+            <Button
+              variant="text"
+              size="small"
+              disabled
+              aria-label="View history"
+            >
+              <History size={14} />
+              <Tooltip>Previous sessions</Tooltip>
+            </Button>
+            <CopyForCodingAgentButton recordingMeta={recordingMeta} />
+          </Row>
+        )}
         <MessageList
           entries={entries}
           loading={loading}
@@ -127,35 +165,6 @@ export const AgenticView: React.FC<{
         loading={loading}
         onJumpToEnd={handleJumpToEnd}
       />
-
-      {entries.length > 0 && (
-        <Block
-          alignItems="center"
-          background="transparent"
-          border="none"
-          borderRadius={radius.sm}
-          color={color.text.muted}
-          component="button"
-          cursor="pointer"
-          display="flex"
-          justifyContent="center"
-          padding={spacing.sm}
-          position="absolute"
-          left={-(spacing.xl + spacing.sm)}
-          top={spacing.sm}
-          transition={transition.fast}
-          hoverBackgroundColor={color.bg.hover}
-          {...focusRing('neutral')}
-          props={{
-            type: 'button',
-            'aria-label': 'Start new session',
-            onClick: handleReset,
-          }}
-        >
-          <Tooltip>Start new session</Tooltip>
-          <RotateCcwIcon size={14} />
-        </Block>
-      )}
     </Block>
   )
 }

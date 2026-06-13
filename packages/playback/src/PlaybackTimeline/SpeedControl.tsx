@@ -1,16 +1,11 @@
 import { Block, Row } from '@jsxstyle/react'
 import { color, Tooltip, transition } from '@repro/design'
-import {
-  isInputElement,
-  isSelectElement,
-  isTextAreaElement,
-} from '@repro/dom-utils'
 import React, { useCallback, useEffect } from 'react'
-import { Shortcuts } from 'shortcuts'
+import { tinykeys } from 'tinykeys'
 import { usePlayback, useSpeed } from '../hooks'
 import { PlaybackSpeed, VALID_SPEEDS } from '../types'
+import { shouldIgnoreKeyboardEvent } from './keyboardIgnore'
 
-// Cycle through valid speeds in the given direction
 function getNextSpeed(
   current: PlaybackSpeed,
   direction: 'up' | 'down'
@@ -29,7 +24,6 @@ export const SpeedControl: React.FC = () => {
 
   const cycleSpeed = useCallback(() => {
     const next = getNextSpeed(speed, 'up')
-    // Wrap around to the start if at max speed
     if (next === speed) {
       playback.setSpeed(VALID_SPEEDS[0] ?? 1)
     } else {
@@ -46,45 +40,19 @@ export const SpeedControl: React.FC = () => {
   }, [playback, speed])
 
   useEffect(() => {
-    const shortcuts = new Shortcuts({
-      shouldHandleEvent() {
-        let target = document.activeElement
-
-        if (target?.shadowRoot) {
-          target = target.shadowRoot.activeElement
-        }
-
-        if (target) {
-          return (
-            !isInputElement(target) &&
-            !isTextAreaElement(target) &&
-            !isSelectElement(target)
-          )
-        }
-
-        return true
-      },
-    })
-
-    shortcuts.add([
+    const unsubscribe = tinykeys(
+      window,
       {
-        // + or = key to increase speed
-        shortcut: 'Plus',
-        handler: increaseSpeed,
+        '=': increaseSpeed,
+        '-': decreaseSpeed,
       },
       {
-        shortcut: 'Equal',
-        handler: increaseSpeed,
-      },
-      {
-        // - key to decrease speed
-        shortcut: 'Minus',
-        handler: decreaseSpeed,
-      },
-    ])
+        ignore: shouldIgnoreKeyboardEvent,
+      }
+    )
 
     return () => {
-      shortcuts.reset()
+      unsubscribe()
     }
   }, [increaseSpeed, decreaseSpeed])
 

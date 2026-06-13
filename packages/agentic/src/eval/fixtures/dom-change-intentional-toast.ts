@@ -49,6 +49,7 @@ export function createFixture(): EvalFixture {
             attributes: {} as Record<string, string | null>,
             properties: { value: null, checked: null, selectedIndex: null },
             shadowRoot: false,
+            slotAssignments: null,
           }),
           [FORM_ID]: new Box({
             type: NodeType.Element as NodeType.Element,
@@ -59,6 +60,7 @@ export function createFixture(): EvalFixture {
             attributes: {} as Record<string, string | null>,
             properties: { value: null, checked: null, selectedIndex: null },
             shadowRoot: false,
+            slotAssignments: null,
           }),
           [BUTTON_ID]: new Box({
             type: NodeType.Element as NodeType.Element,
@@ -71,11 +73,13 @@ export function createFixture(): EvalFixture {
             } as Record<string, string | null>,
             properties: { value: null, checked: null, selectedIndex: null },
             shadowRoot: false,
+            slotAssignments: null,
           }),
         },
       },
       interaction: null,
       frameworkState: null,
+      cssRules: null,
     }
   }
 

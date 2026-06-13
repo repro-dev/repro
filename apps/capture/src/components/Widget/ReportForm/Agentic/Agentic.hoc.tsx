@@ -4,12 +4,14 @@ import {
   extensionTools,
   makeAccessorFromEventList,
   type Context,
+  type RecordingMeta,
   type StreamProvider,
   type ToolDefinition,
 } from '@repro/agentic'
 import { AgenticStateContext, AgenticView } from '@repro/agentic-ui'
 import { useApiClient } from '@repro/api-client'
 import { createSourcePlayback, usePlayback } from '@repro/playback'
+import { detect } from 'detect-browser'
 import { parse } from 'event-stream-parser'
 import { attemptP, chain, fork } from 'fluture'
 import React, { useEffect, useMemo } from 'react'
@@ -38,6 +40,15 @@ export const Agentic: React.FC<AgenticProps> = ({
   const apiClient = useApiClient()
   const playback = usePlayback()
   const selected = useMemo(() => getSelectedRecording(), [getSelectedRecording])
+
+  const recordingMeta: RecordingMeta | null = useMemo(() => {
+    const browserInfo = detect()
+    return {
+      browser: browserInfo?.name ?? null,
+      durationMs: selected.duration,
+      recordingUrl: null,
+    }
+  }, [selected.duration])
 
   const streamProvider: StreamProvider = useMemo(
     () =>
@@ -100,6 +111,7 @@ export const Agentic: React.FC<AgenticProps> = ({
   return (
     <AgenticStateContext.Provider value={state}>
       <AgenticView
+        recordingMeta={recordingMeta}
         onInvestigationComplete={onInvestigationComplete}
         onGoToTime={timestampMs =>
           playback.seekToTime(selected.startTimeMs + timestampMs)

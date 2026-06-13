@@ -23,6 +23,7 @@ export function createScrollVisitor() {
     // Not implemented
     documentFragmentNode() {},
     documentTypeNode() {},
+    shadowRootNode() {},
     textNode() {},
 
     done() {
@@ -60,6 +61,7 @@ export function createViewportVisitor() {
     // Not implemented
     documentFragmentNode() {},
     documentTypeNode() {},
+    shadowRootNode() {},
     elementNode() {},
     textNode() {},
 

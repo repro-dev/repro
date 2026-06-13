@@ -10,7 +10,7 @@ src/*.tdls  →  tdlc  →  generated/*.ts
 
 - **Schema files** (`src/*.tdls`): the source of truth for all wire-format types. Every type that is serialised over the network or persisted to disk must be defined here.
 - **Generated files** (`generated/*.ts`): auto-produced by `tdlc`. Do not hand-write or patch these.
-- **Hand-written interface files** (`src/css.ts`, `src/account.ts`, etc.): domain types that are **not** serialised through TDL codecs. These are fine to edit.
+- **Hand-written interface files** (`src/account.ts`, `src/project.ts`, etc.): domain types that are **not** serialised through TDL codecs. These are fine to edit.
 - **Build command**: `pnpm run build` in this package = `tdlc src --outdir generated`.
 
 ## When adding new types

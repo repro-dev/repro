@@ -197,6 +197,7 @@ describe('libs/record: dom observers', () => {
                 },
                 children: [],
                 shadowRoot: false,
+                slotAssignments: null,
               },
             },
           },
@@ -224,6 +225,7 @@ describe('libs/record: dom observers', () => {
                 },
                 children: [],
                 shadowRoot: false,
+                slotAssignments: null,
               },
             },
           },
@@ -332,8 +334,8 @@ describe('libs/record: dom observers', () => {
     expect(values).toContain(redactText('secret'))
 
     const maskedTextValue = values.find(
-      value => typeof value === 'string'
-    ) as string
+      value => typeof value === 'string' && value === redactText('secret')
+    )
     expect(maskedTextValue).toBe(redactText('secret'))
 
     const optionNode = Object.values(vtree?.nodes ?? {})
@@ -350,5 +352,178 @@ describe('libs/record: dom observers', () => {
 
     document.body.removeChild(maskedRoot)
     document.body.removeChild(ignoredRoot)
+  })
+
+  it('emits StyleSheetMutationPatch when textContent is set on a <style> element', () => {
+    const patches: Array<DOMPatch> = []
+
+    const style = document.createElement('style')
+    document.head.appendChild(style)
+
+    // Setting textContent causes jsdom to parse CSS and populate sheet.cssRules
+    style.textContent = 'h1 { color: red; }'
+    const textNode = style.firstChild as Text
+
+    const records: Array<MutationRecord> = [
+      {
+        type: 'characterData',
+        attributeName: null,
+        attributeNamespace: null,
+        oldValue: '',
+        addedNodes: MockNodeList.empty(),
+        removedNodes: MockNodeList.empty(),
+        target: textNode,
+        nextSibling: null,
+        previousSibling: null,
+      },
+    ]
+
+    const options: RecordingOptions = {
+      types: new Set(['dom']),
+      snapshotInterval: 10_000,
+      ignoredNodes: [],
+      ignoredSelectors: [],
+      maskedSelectors: [],
+      eventSampling: {
+        pointerMove: 50,
+        resize: 250,
+        scroll: 100,
+      },
+    }
+
+    const walkDOMTree = createDOMTreeWalker(options)
+
+    const subscriber = (patch: DOMPatch) => {
+      patches.push(patch)
+    }
+
+    internal__processMutationRecords(records, walkDOMTree, options, subscriber)
+
+    const styleSheetPatches = deepUnbox(patches).filter(
+      (p: any): p is any => p.type === PatchType.StyleSheetMutation
+    ) as Array<any>
+
+    expect(styleSheetPatches.length).toBeGreaterThan(0)
+    const lastPatch = styleSheetPatches[styleSheetPatches.length - 1]!
+    expect(lastPatch.insertedRules).toBeDefined()
+    const h1Rules = lastPatch.insertedRules.filter(
+      (r: any) => r.selectorText === 'h1'
+    )
+    expect(h1Rules.length).toBe(1)
+    expect(h1Rules[0].declarations.color).toBe('red')
+
+    document.head.removeChild(style)
+  })
+
+  it('emits StyleSheetMutationPatch when text node is appended to a <style> element', () => {
+    const patches: Array<DOMPatch> = []
+
+    const style = document.createElement('style')
+    document.head.appendChild(style)
+
+    // Emotion/Glamor dev mode pattern: appendChild(createTextNode(rule))
+    const textNode = document.createTextNode('h1 { color: blue; }')
+    style.appendChild(textNode)
+
+    const records: Array<MutationRecord> = [
+      {
+        type: 'childList',
+        attributeName: null,
+        attributeNamespace: null,
+        oldValue: null,
+        addedNodes: MockNodeList.from([textNode]),
+        removedNodes: MockNodeList.from([]),
+        target: style,
+        nextSibling: null,
+        previousSibling: null,
+      },
+    ]
+
+    const options: RecordingOptions = {
+      types: new Set(['dom']),
+      snapshotInterval: 10_000,
+      ignoredNodes: [],
+      ignoredSelectors: [],
+      maskedSelectors: [],
+      eventSampling: {
+        pointerMove: 50,
+        resize: 250,
+        scroll: 100,
+      },
+    }
+
+    const walkDOMTree = createDOMTreeWalker(options)
+    walkDOMTree.acceptDOMVisitor(createDOMVisitor(options))
+
+    const subscriber = (patch: DOMPatch) => {
+      patches.push(patch)
+    }
+
+    internal__processMutationRecords(records, walkDOMTree, options, subscriber)
+
+    const styleSheetPatches = deepUnbox(patches).filter(
+      (p: any): p is any => p.type === PatchType.StyleSheetMutation
+    ) as Array<any>
+    expect(styleSheetPatches.length).toBeGreaterThan(0)
+    const lastPatch = styleSheetPatches[styleSheetPatches.length - 1]!
+    expect(lastPatch.insertedRules).toBeDefined()
+    const h1Rules = lastPatch.insertedRules.filter(
+      (r: any) => r.selectorText === 'h1'
+    )
+    expect(h1Rules.length).toBe(1)
+    expect(h1Rules[0].declarations.color).toBe('blue')
+
+    document.head.removeChild(style)
+  })
+
+  it('does not emit StyleSheetMutationPatch for text mutations outside <style> elements', () => {
+    const patches: Array<DOMPatch> = []
+
+    const div = document.createElement('div')
+    document.body.appendChild(div)
+    div.textContent = 'hello world'
+    const textNode = div.firstChild as Text
+
+    const records: Array<MutationRecord> = [
+      {
+        type: 'characterData',
+        attributeName: null,
+        attributeNamespace: null,
+        oldValue: '',
+        addedNodes: MockNodeList.empty(),
+        removedNodes: MockNodeList.empty(),
+        target: textNode,
+        nextSibling: null,
+        previousSibling: null,
+      },
+    ]
+
+    const options: RecordingOptions = {
+      types: new Set(['dom']),
+      snapshotInterval: 10_000,
+      ignoredNodes: [],
+      ignoredSelectors: [],
+      maskedSelectors: [],
+      eventSampling: {
+        pointerMove: 50,
+        resize: 250,
+        scroll: 100,
+      },
+    }
+
+    const walkDOMTree = createDOMTreeWalker(options)
+
+    const subscriber = (patch: DOMPatch) => {
+      patches.push(patch)
+    }
+
+    internal__processMutationRecords(records, walkDOMTree, options, subscriber)
+
+    const styleSheetPatches = deepUnbox(patches).filter(
+      (p: any) => p.type === PatchType.StyleSheetMutation
+    )
+    expect(styleSheetPatches.length).toBe(0)
+
+    document.body.removeChild(div)
   })
 })

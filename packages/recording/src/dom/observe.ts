@@ -1,10 +1,13 @@
+import { computeSpecificity } from '@repro/css-utils'
 import { Stats, StatsLevel } from '@repro/diagnostics'
 import {
   isInputElement,
+  isLocalStylesheet,
   isSelectElement,
   isTextAreaElement,
 } from '@repro/dom-utils'
 import {
+  CapturedCSSRule,
   DOMPatch,
   NodeType,
   PatchType,
@@ -230,7 +233,8 @@ export function internal__processMutationRecords(
   records: Array<MutationRecord>,
   walkDOMTree: DOMTreeWalker,
   options: RecordingOptions,
-  subscriber: (patch: DOMPatch) => void
+  subscriber: (patch: DOMPatch) => void,
+  onShadowRootDiscovered?: (shadowRoot: ShadowRoot) => void
 ) {
   const patches: Array<DOMPatch> = []
   const addedNodes = new Set<SyntheticId>()
@@ -404,7 +408,49 @@ export function internal__processMutationRecords(
           }
         }
 
+        // Discover and observe shadow roots in newly added elements.
+        // The shadow content is already captured by walkDOMTree(addedNode)
+        // above — do NOT emit a second AddShadowRoot patch here.  We only
+        // need to create a MutationObserver for the shadow root so future
+        // mutations inside the shadow are tracked.
+        if (onShadowRootDiscovered) {
+          record.addedNodes.forEach(addedNode => {
+            if (addedNode instanceof Element && addedNode.shadowRoot) {
+              const shadowRoot = addedNode.shadowRoot
+              if (shadowRoot.mode !== 'closed') {
+                onShadowRootDiscovered(shadowRoot)
+              }
+            }
+          })
+        }
+
         break
+    }
+
+    // Detect text mutations on <style> element children — emit CSS rule patches
+    if (
+      record.type === 'characterData' ||
+      (record.type === 'childList' &&
+        (record.addedNodes.length > 0 || record.removedNodes.length > 0))
+    ) {
+      const targetParent =
+        record.type === 'characterData'
+          ? (record.target as Text).parentNode
+          : record.target
+      if (
+        targetParent &&
+        targetParent instanceof Element &&
+        isLocalStylesheet(targetParent as Element)
+      ) {
+        const sheet = (targetParent as HTMLStyleElement).sheet
+        if (sheet) {
+          try {
+            emitTextBasedCSSPatch(subscriber, sheet)
+          } catch {
+            // sheet.cssRules may throw SecurityError for cross-origin sheets
+          }
+        }
+      }
     }
   }
 
@@ -418,34 +464,245 @@ function createMutationObserver(
   options: RecordingOptions,
   subscriber: (patch: DOMPatch) => void
 ): ObserverLike<Document> {
-  const domObserver = new MutationObserver(records => {
-    Stats.time(
-      'DOMObserver~processMutationRecords',
-      () => {
-        internal__processMutationRecords(
-          records,
-          walkDOMTree,
-          options,
-          subscriber
-        )
-      },
-      StatsLevel.Debug
+  const observers: Array<MutationObserver> = []
+  let origAttachShadow: typeof Element.prototype.attachShadow | null = null
+
+  function createObserverForRoot(root: Node): MutationObserver {
+    const observer = new MutationObserver(records => {
+      Stats.time(
+        'DOMObserver~processMutationRecords',
+        () => {
+          internal__processMutationRecords(
+            records,
+            walkDOMTree,
+            options,
+            subscriber,
+            onShadowRootDiscovered
+          )
+        },
+        StatsLevel.Debug
+      )
+    })
+
+    observer.observe(root, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeOldValue: true,
+      characterData: true,
+      characterDataOldValue: true,
+    })
+
+    observers.push(observer)
+    return observer
+  }
+
+  // Walk the tree rooted at `root` and create MutationObservers for any
+  // open shadow roots discovered.
+  function discoverAndObserveShadows(root: Node) {
+    const walker = document.createTreeWalker(
+      root,
+      NodeFilter.SHOW_ELEMENT,
+      null
     )
-  })
+    let element: Element | null
+    while ((element = walker.nextNode() as Element | null)) {
+      if (element.shadowRoot && element.shadowRoot.mode !== 'closed') {
+        createObserverForRoot(element.shadowRoot)
+        // Recurse into the shadow root to find nested shadow roots
+        discoverAndObserveShadows(element.shadowRoot)
+      }
+    }
+  }
+
+  function onShadowRootDiscovered(shadowRoot: ShadowRoot) {
+    createObserverForRoot(shadowRoot)
+    discoverAndObserveShadows(shadowRoot)
+  }
 
   return {
-    disconnect: () => domObserver.disconnect(),
+    disconnect() {
+      for (const observer of observers) {
+        observer.disconnect()
+      }
+      observers.length = 0
+
+      if (origAttachShadow) {
+        Element.prototype.attachShadow = origAttachShadow
+        origAttachShadow = null
+      }
+    },
+
     observe(doc) {
-      domObserver.observe(doc, {
-        subtree: true,
-        childList: true,
-        attributes: true,
-        attributeOldValue: true,
-        characterData: true,
-        characterDataOldValue: true,
-      })
+      origAttachShadow = Element.prototype.attachShadow
+
+      // Monkey-patch Element.prototype.attachShadow to intercept open
+      // shadow root creation at runtime.
+      Element.prototype.attachShadow = function (
+        this: Element,
+        init: ShadowRootInit
+      ) {
+        const shadowRoot = origAttachShadow!.call(this, init)
+
+        if (init.mode === 'open' && shadowRoot) {
+          // Walk the shadow tree and emit an addShadowRoot patch.
+          const shadowVTree = walkDOMTree(shadowRoot)
+          if (shadowVTree) {
+            subscriber(
+              new Box({
+                type: PatchType.AddShadowRoot,
+                hostId: getNodeId(this),
+                shadowRoot: shadowVTree,
+              })
+            )
+          }
+
+          // Create observer for the new shadow root.
+          createObserverForRoot(shadowRoot)
+          discoverAndObserveShadows(shadowRoot)
+        }
+
+        return shadowRoot
+      }
+
+      createObserverForRoot(doc)
+      discoverAndObserveShadows(doc)
     },
   }
+}
+
+const adoptedSheetIdsForObserver = new WeakMap<CSSStyleSheet, string>()
+const sheetRuleCounts = new WeakMap<CSSStyleSheet, number>()
+
+function getStyleSheetId(sheet: CSSStyleSheet): string {
+  if (sheet.ownerNode) {
+    return getNodeId(sheet.ownerNode)
+  }
+  let id = adoptedSheetIdsForObserver.get(sheet)
+  if (!id) {
+    id = createSyntheticId()
+    adoptedSheetIdsForObserver.set(sheet, id)
+  }
+  return id
+}
+
+function emitInsertRulePatch(
+  subscriber: (patch: DOMPatch) => void,
+  sheet: CSSStyleSheet,
+  index: number
+) {
+  const rule = sheet.cssRules[index]
+  if (!(rule instanceof CSSStyleRule)) return
+
+  const style = rule.style
+  const declarations: Record<string, string> = {}
+  const priorities: Record<string, string> = {}
+
+  for (let j = 0; j < style.length; j++) {
+    const prop = style[j]
+    if (!prop) continue
+    declarations[prop] = style.getPropertyValue(prop).trim()
+    const priority = style.getPropertyPriority(prop)
+    priorities[prop] = priority === 'important' ? 'important' : ''
+  }
+
+  const stylesheetId = getStyleSheetId(sheet)
+  const selectors = rule.selectorText.split(',').map(s => s.trim())
+
+  const capturedRules: CapturedCSSRule[] = selectors.map(selectorText => ({
+    selectorText,
+    declarations,
+    priorities,
+    specificity: computeSpecificity(selectorText),
+    stylesheetId,
+    ruleIndex: index,
+    mediaCondition: null,
+    supportsCondition: null,
+    isInline: false,
+    importInaccessible: false,
+  }))
+
+  subscriber(
+    new Box({
+      type: PatchType.StyleSheetMutation,
+      stylesheetId,
+      insertedRules: capturedRules,
+      deletedRuleIndex: null,
+    })
+  )
+}
+
+function emitDeleteRulePatch(
+  subscriber: (patch: DOMPatch) => void,
+  sheet: CSSStyleSheet,
+  index: number
+) {
+  const stylesheetId = getStyleSheetId(sheet)
+
+  subscriber(
+    new Box({
+      type: PatchType.StyleSheetMutation,
+      stylesheetId,
+      insertedRules: null,
+      deletedRuleIndex: index,
+    })
+  )
+}
+
+function emitTextBasedCSSPatch(
+  subscriber: (patch: DOMPatch) => void,
+  sheet: CSSStyleSheet
+) {
+  const stylesheetId = getStyleSheetId(sheet)
+  const currentCount = sheet.cssRules.length
+  const previousCount = sheetRuleCounts.get(sheet) ?? 0
+
+  if (currentCount > previousCount) {
+    // Emit only the newly added rules (not rules that were already present)
+    const newRules: CapturedCSSRule[] = []
+    for (let i = previousCount; i < currentCount; i++) {
+      const rule = sheet.cssRules[i]
+      if (rule instanceof CSSStyleRule) {
+        const style = rule.style
+        const declarations: Record<string, string> = {}
+        const priorities: Record<string, string> = {}
+        for (let j = 0; j < style.length; j++) {
+          const prop = style[j]
+          if (!prop) continue
+          declarations[prop] = style.getPropertyValue(prop).trim()
+          const priority = style.getPropertyPriority(prop)
+          priorities[prop] = priority === 'important' ? 'important' : ''
+        }
+        const selectors = rule.selectorText.split(',').map(s => s.trim())
+        selectors.forEach(selectorText => {
+          newRules.push({
+            selectorText,
+            declarations,
+            priorities,
+            specificity: computeSpecificity(selectorText),
+            stylesheetId,
+            ruleIndex: i,
+            mediaCondition: null,
+            supportsCondition: null,
+            isInline: false,
+            importInaccessible: false,
+          })
+        })
+      }
+    }
+    if (newRules.length > 0) {
+      subscriber(
+        new Box({
+          type: PatchType.StyleSheetMutation,
+          stylesheetId,
+          insertedRules: newRules,
+          deletedRuleIndex: null,
+        })
+      )
+    }
+  }
+
+  sheetRuleCounts.set(sheet, currentCount)
 }
 
 function createStyleSheetObserver(
@@ -555,11 +812,15 @@ function createStyleSheetObserver(
         targets.add(win)
 
         win.CSSStyleSheet.prototype.insertRule = function (this, ...args) {
+          const resultIndex = insertRule.call(this, ...args)
           insertRuleEffect(vtree, this, ...args)
-          return insertRule.call(this, ...args)
+          emitInsertRulePatch(subscriber, this, resultIndex)
+          return resultIndex
         }
 
         win.CSSStyleSheet.prototype.deleteRule = function (this, ...args) {
+          const index = args[0] ?? 0
+          emitDeleteRulePatch(subscriber, this, index)
           deleteRuleEffect(vtree, this, ...args)
           return deleteRule.call(this, ...args)
         }

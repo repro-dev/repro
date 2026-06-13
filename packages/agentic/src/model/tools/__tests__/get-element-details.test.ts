@@ -80,6 +80,7 @@ function makeStandardVTree() {
         attributes: { lang: 'en' },
         properties: { value: null, checked: null, selectedIndex: null },
         shadowRoot: false,
+        slotAssignments: null,
       },
       body: {
         type: NodeType.Element,
@@ -90,6 +91,7 @@ function makeStandardVTree() {
         attributes: {},
         properties: { value: null, checked: null, selectedIndex: null },
         shadowRoot: false,
+        slotAssignments: null,
       },
       div1: {
         type: NodeType.Element,
@@ -104,6 +106,7 @@ function makeStandardVTree() {
         },
         properties: { value: null, checked: null, selectedIndex: null },
         shadowRoot: false,
+        slotAssignments: null,
       },
       btn1: {
         type: NodeType.Element,
@@ -118,6 +121,7 @@ function makeStandardVTree() {
         },
         properties: { value: null, checked: null, selectedIndex: null },
         shadowRoot: false,
+        slotAssignments: null,
       },
       txt1: {
         type: NodeType.Text,
@@ -134,6 +138,7 @@ function makeStandardVTree() {
         attributes: { class: 'label' },
         properties: { value: null, checked: null, selectedIndex: null },
         shadowRoot: false,
+        slotAssignments: null,
       },
       txt2: {
         type: NodeType.Text,
@@ -343,6 +348,7 @@ describe('executeTool — getElementDetails — properties', () => {
           attributes: { type: 'checkbox' },
           properties: { value: 'hello', checked: true, selectedIndex: null },
           shadowRoot: false,
+          slotAssignments: null,
         },
       },
       'input1'
@@ -375,6 +381,7 @@ describe('executeTool — getElementDetails — properties', () => {
           attributes: { class: 'foo', style: null },
           properties: { value: null, checked: null, selectedIndex: null },
           shadowRoot: false,
+          slotAssignments: null,
         },
       },
       'div1'
@@ -408,6 +415,7 @@ describe('executeTool — getElementDetails — textContent', () => {
           attributes: {},
           properties: { value: null, checked: null, selectedIndex: null },
           shadowRoot: false,
+          slotAssignments: null,
         },
         txt1: {
           type: NodeType.Text,
@@ -442,6 +450,7 @@ describe('executeTool — getElementDetails — textContent', () => {
           attributes: {},
           properties: { value: null, checked: null, selectedIndex: null },
           shadowRoot: false,
+          slotAssignments: null,
         },
       },
       'div1'
@@ -477,6 +486,7 @@ function makeDeepVTree() {
         attributes: { id: 'root-div' },
         properties: { value: null, checked: null, selectedIndex: null },
         shadowRoot: false,
+        slotAssignments: null,
       },
       section1: {
         type: NodeType.Element,
@@ -487,6 +497,7 @@ function makeDeepVTree() {
         attributes: {},
         properties: { value: null, checked: null, selectedIndex: null },
         shadowRoot: false,
+        slotAssignments: null,
       },
       article1: {
         type: NodeType.Element,
@@ -497,6 +508,7 @@ function makeDeepVTree() {
         attributes: {},
         properties: { value: null, checked: null, selectedIndex: null },
         shadowRoot: false,
+        slotAssignments: null,
       },
       span1: {
         type: NodeType.Element,
@@ -507,6 +519,7 @@ function makeDeepVTree() {
         attributes: {},
         properties: { value: null, checked: null, selectedIndex: null },
         shadowRoot: false,
+        slotAssignments: null,
       },
       txt1: {
         type: NodeType.Text,

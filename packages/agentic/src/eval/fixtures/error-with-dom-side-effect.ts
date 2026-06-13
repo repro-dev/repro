@@ -49,6 +49,7 @@ export function createFixture(): EvalFixture {
         attributes: {} as Record<string, string | null>,
         properties: { value: null, checked: null, selectedIndex: null },
         shadowRoot: false,
+        slotAssignments: null,
       }),
       'checkout-form': new Box({
         type: NodeType.Element as NodeType.Element,
@@ -59,6 +60,7 @@ export function createFixture(): EvalFixture {
         attributes: { id: 'checkout-form' } as Record<string, string | null>,
         properties: { value: null, checked: null, selectedIndex: null },
         shadowRoot: false,
+        slotAssignments: null,
       }),
       'btn-submit': new Box({
         type: NodeType.Element as NodeType.Element,
@@ -73,6 +75,7 @@ export function createFixture(): EvalFixture {
         } as Record<string, string | null>,
         properties: { value: null, checked: null, selectedIndex: null },
         shadowRoot: false,
+        slotAssignments: null,
       }),
     }
 
@@ -86,6 +89,7 @@ export function createFixture(): EvalFixture {
         attributes: {} as Record<string, string | null>,
         properties: { value: null, checked: null, selectedIndex: null },
         shadowRoot: false,
+        slotAssignments: null,
       })
       nodes['error-banner'] = new Box({
         type: NodeType.Element as NodeType.Element,
@@ -101,6 +105,7 @@ export function createFixture(): EvalFixture {
         } as Record<string, string | null>,
         properties: { value: null, checked: null, selectedIndex: null },
         shadowRoot: false,
+        slotAssignments: null,
       })
     }
 
@@ -111,6 +116,7 @@ export function createFixture(): EvalFixture {
       },
       interaction: null,
       frameworkState: null,
+      cssRules: null,
     }
   }
 

@@ -168,6 +168,7 @@ export function createResourceMap(events: Array<SourceEvent>) {
     // Not implemented
     documentNode() {},
     docTypeNode() {},
+    shadowRootNode() {},
   })
 
   // Get initial page URL

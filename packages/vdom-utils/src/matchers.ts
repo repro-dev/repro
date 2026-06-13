@@ -4,6 +4,7 @@ import {
   VDocument,
   VElement,
   VNode,
+  VShadowRoot,
   VText,
 } from '@repro/domain'
 import { Box } from '@repro/tdl'
@@ -27,10 +28,20 @@ export function isElementVNode(
   return node.match(node => node.type === NodeType.Element)
 }
 
+export function isShadowRootVNode(
+  node: VNode | Immutable<VNode>
+): node is Box<VShadowRoot> | Immutable<Box<VShadowRoot>> {
+  return node.match(node => node.type === NodeType.ShadowRoot)
+}
+
 export function isParentVNode(
   node: VNode | Immutable<VNode>
-): node is Box<VDocument | VElement> | Immutable<Box<VDocument | VElement>> {
-  return isElementVNode(node) || isDocumentVNode(node)
+): node is
+  | Box<VDocument | VElement | VShadowRoot>
+  | Immutable<Box<VDocument | VElement | VShadowRoot>> {
+  return (
+    isElementVNode(node) || isDocumentVNode(node) || isShadowRootVNode(node)
+  )
 }
 
 // https://developer.mozilla.org/en-US/docs/Glossary/Empty_element

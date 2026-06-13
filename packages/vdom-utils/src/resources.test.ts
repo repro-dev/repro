@@ -18,6 +18,7 @@ function makeSnapshotEvent(dom: VTree): SourceEvent {
     data: {
       dom,
       frameworkState: null,
+      cssRules: null,
       interaction: null,
     },
   })
@@ -58,6 +59,7 @@ function makeElementNode(
     properties: { checked: null, selectedIndex: null, value: null },
     children,
     shadowRoot: false,
+    slotAssignments: null,
   })
 }
 

@@ -302,6 +302,7 @@ export function makeSimpleSnapshot(): Snapshot {
           attributes: { 'aria-label': 'Submit' },
           properties: { value: null, checked: null, selectedIndex: null },
           shadowRoot: false,
+          slotAssignments: null,
         }),
         txt: new Box({
           type: NodeType.Text as NodeType.Text,
@@ -313,6 +314,7 @@ export function makeSimpleSnapshot(): Snapshot {
     },
     interaction: null,
     frameworkState: null,
+    cssRules: null,
   }
 }
 
@@ -353,6 +355,7 @@ export function makeClickEvent(
         attributes: metaNode.attributes,
         properties: { value: null, checked: null, selectedIndex: null },
         shadowRoot: false,
+        slotAssignments: null,
       }
     : {
         type: NodeType.Element,
@@ -363,6 +366,7 @@ export function makeClickEvent(
         attributes: {},
         properties: { value: null, checked: null, selectedIndex: null },
         shadowRoot: false,
+        slotAssignments: null,
       }
   // Bypass SourceEventView.from() — see comment in makeFetchRequestEvent.
   return new Box({
@@ -400,6 +404,7 @@ export function makeDoubleClickEvent(
         attributes: metaNode.attributes,
         properties: { value: null, checked: null, selectedIndex: null },
         shadowRoot: false,
+        slotAssignments: null,
       }
     : {
         type: NodeType.Element,
@@ -410,6 +415,7 @@ export function makeDoubleClickEvent(
         attributes: {},
         properties: { value: null, checked: null, selectedIndex: null },
         shadowRoot: false,
+        slotAssignments: null,
       }
   // Bypass SourceEventView.from() — see comment in makeFetchRequestEvent.
   return new Box({
@@ -679,6 +685,7 @@ export function makeAddNodesPatchEvent(
         attributes: {} as Record<string, string | null>,
         properties: { value: null, checked: null, selectedIndex: null },
         shadowRoot: false,
+        slotAssignments: null,
       }),
     },
   }))
@@ -713,6 +720,7 @@ export function makeRemoveNodesPatchEvent(
         attributes: {} as Record<string, string | null>,
         properties: { value: null, checked: null, selectedIndex: null },
         shadowRoot: false,
+        slotAssignments: null,
       }),
     },
   }))
