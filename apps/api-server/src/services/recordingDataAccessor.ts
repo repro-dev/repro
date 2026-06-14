@@ -148,37 +148,55 @@ function readAndDecodeEvents(
     return resolve([])
   }
 
+  // byteOffset is BIGINT in the schema, so node-postgres returns it as a string.
+  // Coerce to number eagerly so all subsequent arithmetic (including string
+  // concatenation via +) works correctly.
+  const resolvedRows = indexRows.map(row => ({
+    eventIndex: row.eventIndex,
+    eventType: row.eventType,
+    timeMs: row.timeMs,
+    byteOffset: Number(row.byteOffset),
+    byteLength: Number(row.byteLength),
+  }))
+
   // Compute byte ranges (including 4-byte frame length prefix before each event)
-  const rawRanges = indexRows.map(row => ({
+  const rawRanges = resolvedRows.map(row => ({
     start: row.byteOffset - 4,
     end: row.byteOffset + row.byteLength,
   }))
 
   const mergedRanges = mergeRanges(rawRanges)
 
-  // Read each merged range and decode events
+  // Read each merged range, decode events and pair them with their range info.
+  // NOTE: .pipe() accepts exactly ONE argument, so chain and map need
+  // separate .pipe() calls.
+  type RangeAndBuffer = { rangeStart: number; buffer: Buffer }
   const readFutures = mergedRanges.map(range =>
-    storage.read(path, range).pipe(chain(stream => getObjectBytes(stream)))
+    storage
+      .read(path, range)
+      .pipe(chain(stream => getObjectBytes(stream)))
+      .pipe(
+        map(
+          buffer =>
+            ({ rangeStart: range.start, buffer }) satisfies RangeAndBuffer
+        )
+      )
   )
 
   return parallel(Infinity)(readFutures).pipe(
-    map(buffers => {
+    map(reads => {
       const events: Array<SourceEvent> = []
 
-      for (const buffer of buffers) {
-        for (const row of indexRows) {
-          // Check if this row falls within the current buffer's range
-          const bufferStart = buffer.byteOffset
-          const bufferEnd = bufferStart + buffer.byteLength
-          const rowStart = row.byteOffset - 4
-          const rowEnd = row.byteOffset + row.byteLength
+      for (const { rangeStart, buffer } of reads) {
+        for (const row of resolvedRows) {
+          // Translate absolute byte positions to buffer-relative offsets
+          const rowStartInBuffer = row.byteOffset - 4 - rangeStart
+          const rowEndInBuffer = row.byteOffset + row.byteLength - rangeStart
 
-          if (rowStart >= bufferStart && rowEnd <= bufferEnd) {
-            // Calculate offset within the buffer
-            const offsetInBuffer = rowStart - bufferStart
+          if (rowStartInBuffer >= 0 && rowEndInBuffer <= buffer.byteLength) {
             const eventData = buffer.subarray(
-              offsetInBuffer + 4,
-              offsetInBuffer + 4 + row.byteLength
+              rowStartInBuffer + 4,
+              rowStartInBuffer + 4 + row.byteLength
             )
 
             const dataView = new DataView(
@@ -316,13 +334,23 @@ export function createRecordingDataAccessor(
           return null
         }
 
-        // First event should be the snapshot
+        // First event should be the snapshot — unwrap the Box to get the
+        // underlying SnapshotEvent and extract its data (the actual Snapshot).
         const snapshotEvent = events[0]!
+        let snapshot: Snapshot | null = null
 
-        // Decode snapshot from the event
-        let snapshot = snapshotEvent as unknown as Snapshot
+        snapshotEvent.apply(event => {
+          if (event.type === SourceEventType.Snapshot) {
+            snapshot = event.data as Snapshot
+          }
+        })
 
-        // Apply subsequent events to reconstruct state at target time
+        if (snapshot == null) {
+          return null
+        }
+
+        // Apply subsequent events to reconstruct state at target time.
+        // applyEventToSnapshot uses event.apply() to unwrap Box values.
         for (let i = 1; i < events.length; i++) {
           const event = events[i]!
           const elapsed =
