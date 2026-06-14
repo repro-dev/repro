@@ -18,7 +18,7 @@ import { ObserverLike, createEventObserver } from '@repro/observer-utils'
 import { Box } from '@repro/tdl'
 import { Immutable } from '@repro/ts-utils'
 import { createSyntheticId, getNodeId, isElementVNode } from '@repro/vdom-utils'
-import { redactStringPreservingWhitespace } from '../redaction'
+import { redactText } from '../redaction'
 import { RecordingOptions } from '../types'
 import {
   DOMTreeWalker,
@@ -80,11 +80,11 @@ function createInputObserver(
       }
 
       if (isMasked) {
-        oldValue = redactStringPreservingWhitespace(oldValue)
-        value = redactStringPreservingWhitespace(value)
+        oldValue = redactText(oldValue)
+        value = redactText(value)
       } else if (maskedInputs.has(eventTarget)) {
-        oldValue = redactStringPreservingWhitespace(oldValue)
-        value = redactStringPreservingWhitespace(value)
+        oldValue = redactText(oldValue)
+        value = redactText(value)
       }
 
       if (eventTarget.value !== oldValue) {
@@ -272,13 +272,13 @@ export function internal__processMutationRecords(
               name,
               value: attribute
                 ? isMasked
-                  ? redactStringPreservingWhitespace(attribute.value)
+                  ? redactText(attribute.value)
                   : attribute.value
                 : null,
               oldValue: isMasked
                 ? record.oldValue === null
                   ? null
-                  : redactStringPreservingWhitespace(record.oldValue)
+                  : redactText(record.oldValue)
                 : record.oldValue,
             })
           )
@@ -298,10 +298,10 @@ export function internal__processMutationRecords(
             type: PatchType.Text,
             targetId: getNodeId(record.target),
             value: isMaskedBySelector(record.target, options.maskedSelectors)
-              ? redactStringPreservingWhitespace((record.target as Text).data)
+              ? redactText((record.target as Text).data)
               : (record.target as Text).data,
             oldValue: isMaskedBySelector(record.target, options.maskedSelectors)
-              ? redactStringPreservingWhitespace(record.oldValue || '')
+              ? redactText(record.oldValue || '')
               : record.oldValue || '',
             parentId: parentNode ? getNodeId(parentNode) : null,
           })

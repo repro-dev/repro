@@ -9,7 +9,7 @@ import { Box } from '@repro/tdl'
 import { isErrorLike, serializeError } from 'serialize-error'
 import StackTrace, { StackTraceOptions } from 'stacktrace-js'
 import { createVNode } from '../dom/factory'
-import { redactConsoleValue } from '../redaction'
+import { redactValue } from '../redaction'
 
 // FIXME: `serialize-errors` chokes on enriched errors
 // like `ApolloError`. We may want to write our own
@@ -52,9 +52,9 @@ export function createConsoleObserver(
         value = serializeError(value, { maxDepth: MAX_SERIALIZATION_DEPTH })
       }
 
-      return JSON.stringify(redactConsoleValue(value))
+      return JSON.stringify(redactValue(value))
     } catch {
-      return String(redactConsoleValue(value))
+      return String(redactValue(value))
     }
   }
 

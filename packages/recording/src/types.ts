@@ -1,3 +1,5 @@
+import type { RedactionConfig } from './redaction/types'
+
 export interface Visitor<T> {
   documentNode(node: Document): void
   documentFragmentNode(node: DocumentFragment): void
@@ -36,4 +38,5 @@ export interface RecordingOptions extends DOMOptions {
     resize: number
     scroll: number
   }
+  redaction?: Partial<RedactionConfig>
 }

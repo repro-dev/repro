@@ -4,7 +4,7 @@ import { Box } from '@repro/tdl'
 import assert from 'node:assert/strict'
 import { it } from 'node:test'
 import { createRecordingStream } from './createRecordingStream'
-import { redactStringPreservingWhitespace } from './redaction'
+import { redactText } from './redaction'
 
 function createSnapshotEvent(time: number, value: string) {
   return SourceEventView.encode(
@@ -174,18 +174,9 @@ it.skip('captures selector-masked snapshots and live input updates as layout-pre
 
     assert.equal(maskedTextValue.length, 'secret text\nmore secret'.length)
     assert.equal(maskedTextValue.includes('\n'), true)
-    assert.equal(
-      inputNode.properties.value,
-      redactStringPreservingWhitespace('secret value')
-    )
-    assert.equal(
-      inputNode.attributes.value,
-      redactStringPreservingWhitespace('secret value')
-    )
-    assert.equal(
-      optionNode.attributes.value,
-      redactStringPreservingWhitespace('secret option')
-    )
+    assert.equal(inputNode.properties.value, redactText('secret value'))
+    assert.equal(inputNode.attributes.value, redactText('secret value'))
+    assert.equal(optionNode.attributes.value, redactText('secret option'))
 
     maskedInput.value = 'changed secret value'
     const patches = stream
@@ -200,10 +191,7 @@ it.skip('captures selector-masked snapshots and live input updates as layout-pre
       .find((patch: any) => patch?.name === 'value')
 
     assert.ok(valuePatch)
-    assert.equal(
-      valuePatch.value,
-      redactStringPreservingWhitespace('changed secret value')
-    )
+    assert.equal(valuePatch.value, redactText('changed secret value'))
   } finally {
     stream.stop()
     document.body.removeChild(root)
