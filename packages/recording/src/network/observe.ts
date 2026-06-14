@@ -8,7 +8,7 @@ import {
 import { ObserverLike } from '@repro/observer-utils'
 import { randomString } from '@repro/random-string'
 import { Box } from '@repro/tdl'
-import { redactHeaders } from '../redaction'
+import { redactHeaders, redactValue } from '../redaction'
 
 type Subscriber = (message: NetworkMessage) => void
 
@@ -41,6 +41,23 @@ export function createNetworkObserver(
 }
 
 const textEncoder = new TextEncoder()
+const textDecoder = new TextDecoder()
+
+function redactJsonBody(buffer: ArrayBuffer): ArrayBuffer {
+  try {
+    const text = textDecoder.decode(buffer)
+    const parsed = JSON.parse(text)
+
+    if (typeof parsed === 'object' && parsed !== null) {
+      const redacted = redactValue(parsed)
+      return textEncoder.encode(JSON.stringify(redacted)).buffer
+    }
+
+    return buffer
+  } catch {
+    return buffer
+  }
+}
 
 function createXHRObserver(subscriber: Subscriber): ObserverLike<Document> {
   const requestParams = new WeakMap<
@@ -118,6 +135,8 @@ function createXHRObserver(subscriber: Subscriber): ObserverLike<Document> {
           break
       }
 
+      const redactedBody = redactJsonBody(body)
+
       subscriber(
         new Box({
           type: NetworkMessageType.FetchResponse,
@@ -125,7 +144,9 @@ function createXHRObserver(subscriber: Subscriber): ObserverLike<Document> {
           status: this.status,
           headers: redactHeaders(parseHeaders(this.getAllResponseHeaders())),
           body:
-            body.byteLength > MAX_BODY_BYTE_LENGTH ? EMPTY_ARRAY_BUFFER : body,
+            redactedBody.byteLength > MAX_BODY_BYTE_LENGTH
+              ? EMPTY_ARRAY_BUFFER
+              : redactedBody,
         })
       )
     })()
@@ -232,6 +253,8 @@ function createXHRObserver(subscriber: Subscriber): ObserverLike<Document> {
             }
           }
 
+          const redactedBody = redactJsonBody(body)
+
           subscriber(
             new Box({
               type: NetworkMessageType.FetchRequest,
@@ -241,9 +264,9 @@ function createXHRObserver(subscriber: Subscriber): ObserverLike<Document> {
               method: params.method,
               headers: redactHeaders(params.headers),
               body:
-                body.byteLength > MAX_BODY_BYTE_LENGTH
+                redactedBody.byteLength > MAX_BODY_BYTE_LENGTH
                   ? EMPTY_ARRAY_BUFFER
-                  : body,
+                  : redactedBody,
             })
           )
         }
@@ -298,6 +321,8 @@ function createFetchObserver(subscriber: Subscriber): ObserverLike<Document> {
 
       req.arrayBuffer().then(
         body => {
+          const redactedBody = redactJsonBody(body)
+
           subscriber(
             new Box({
               type: NetworkMessageType.FetchRequest,
@@ -307,9 +332,9 @@ function createFetchObserver(subscriber: Subscriber): ObserverLike<Document> {
               method: req.method,
               headers: createHeadersRecord(req.headers),
               body:
-                body.byteLength > MAX_BODY_BYTE_LENGTH
+                redactedBody.byteLength > MAX_BODY_BYTE_LENGTH
                   ? EMPTY_ARRAY_BUFFER
-                  : body,
+                  : redactedBody,
             })
           )
         },
@@ -350,6 +375,8 @@ function createFetchObserver(subscriber: Subscriber): ObserverLike<Document> {
                 cleanUpAbortController()
               }
 
+              const redactedBody = redactJsonBody(body)
+
               subscriber(
                 new Box({
                   type: NetworkMessageType.FetchResponse,
@@ -357,9 +384,9 @@ function createFetchObserver(subscriber: Subscriber): ObserverLike<Document> {
                   status: resCopy.status,
                   headers: createHeadersRecord(resCopy.headers),
                   body:
-                    body.byteLength > MAX_BODY_BYTE_LENGTH
+                    redactedBody.byteLength > MAX_BODY_BYTE_LENGTH
                       ? EMPTY_ARRAY_BUFFER
-                      : body,
+                      : redactedBody,
                 })
               )
             },
