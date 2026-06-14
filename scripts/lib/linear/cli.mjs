@@ -1905,6 +1905,10 @@ async function issueUpdateCommand(args, context) {
     "--remove-parent",
     "--assignee",
     "--mine",
+    "--related",
+    "--blocks",
+    "--blocked-by",
+    "--duplicate-of",
   ]);
   if (options.help)
     return {
@@ -1924,6 +1928,10 @@ async function issueUpdateCommand(args, context) {
         "  --remove-parent",
         "  --assignee <name|email>",
         "  --mine",
+        "  --related <issue-id> (repeatable)",
+        "  --blocks <issue-id> (repeatable)",
+        "  --blocked-by <issue-id> (repeatable)",
+        "  --duplicate-of <issue-id> (repeatable)",
         "  --json",
       ])}\n`,
       stderr: "",
@@ -1949,7 +1957,11 @@ async function issueUpdateCommand(args, context) {
     options.parent !== undefined ||
     options.removeParent ||
     options.assignee !== undefined ||
-    options.mine;
+    options.mine ||
+    options.related?.length ||
+    options.blocks?.length ||
+    options.blockedBy?.length ||
+    options.duplicateOf?.length;
 
   if (!hasUpdateFields) usageError("Missing update fields.");
   if (statusNames.length > 1) usageError("Missing --status <name>.");
@@ -2040,7 +2052,14 @@ async function issueUpdateCommand(args, context) {
   if (resolvedParent) input.parentId = resolvedParent.issue.id;
   else if (options.removeParent) input.parentId = null;
 
-  if (!Object.keys(input).length) usageError("Missing update fields.");
+  const hasRelationFlags =
+    options.related?.length ||
+    options.blocks?.length ||
+    options.blockedBy?.length ||
+    options.duplicateOf?.length;
+
+  if (!Object.keys(input).length && !hasRelationFlags)
+    usageError("Missing update fields.");
 
   const updatedIssueResult = await callBoundMethod(
     client,
@@ -2057,6 +2076,62 @@ async function issueUpdateCommand(args, context) {
           resolvedParent?.issue ?? null,
         )
       : updatedIssue;
+
+  if (issue?.id && hasRelationFlags) {
+    const relationSpecs = [
+      ...(options.related ?? []).map((issueId) => ({
+        sourceIssueId: issue.id,
+        targetIssueIdentifier: issueId,
+        type: "related",
+      })),
+      ...(options.blocks ?? []).map((issueId) => ({
+        sourceIssueId: issue.id,
+        targetIssueIdentifier: issueId,
+        type: "blocks",
+      })),
+      ...(options.blockedBy ?? []).map((issueId) => ({
+        sourceIssueIdentifier: issueId,
+        targetIssueId: issue.id,
+        type: "blocks",
+      })),
+      ...(options.duplicateOf ?? []).map((issueId) => ({
+        sourceIssueId: issue.id,
+        targetIssueIdentifier: issueId,
+        type: "duplicate",
+      })),
+    ];
+
+    for (const relationSpec of relationSpecs) {
+      const sourceIssueId = relationSpec.sourceIssueIdentifier
+        ? (
+            await resolveIssueByIdentifierOnTeam(
+              context,
+              client,
+              team,
+              relationSpec.sourceIssueIdentifier,
+              issueResolutionCache,
+            )
+          ).issue.id
+        : relationSpec.sourceIssueId;
+      const targetIssueId = relationSpec.targetIssueIdentifier
+        ? (
+            await resolveIssueByIdentifierOnTeam(
+              context,
+              client,
+              team,
+              relationSpec.targetIssueIdentifier,
+              issueResolutionCache,
+            )
+          ).issue.id
+        : relationSpec.targetIssueId;
+      await createIssueRelationWithFallback(client, {
+        issueId: sourceIssueId,
+        relatedIssueId: targetIssueId,
+        type: relationSpec.type,
+      });
+    }
+  }
+
   const updatedIssueLabels = teamLabels.length
     ? teamLabels
     : issueHasInlineLabels(verifiedUpdatedIssue ?? issue)
@@ -2755,6 +2830,10 @@ async function helpCommand(args) {
         "  --remove-parent",
         "  --assignee <name|email>",
         "  --mine",
+        "  --related <issue-id> (repeatable)",
+        "  --blocks <issue-id> (repeatable)",
+        "  --blocked-by <issue-id> (repeatable)",
+        "  --duplicate-of <issue-id> (repeatable)",
         "  --json",
       ])}\n`,
       stderr: "",

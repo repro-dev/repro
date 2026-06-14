@@ -128,6 +128,25 @@ function makeClient(records) {
   };
 
   return {
+    client: {
+      request: async (_query, variables) => {
+        if (variables?.number) {
+          const issues = await team.issues({
+            filter: { number: { eq: variables.number } },
+            first: 1,
+          });
+          return {
+            data: {
+              team: {
+                id: variables.teamId,
+                issues,
+              },
+            },
+          };
+        }
+        return { data: {} };
+      },
+    },
     viewer: async () => ({
       id: "viewer-1",
       name: "Test User",
@@ -864,6 +883,206 @@ test("issue update supports --mine and rejects conflicting assignee flags", asyn
 
   assert.equal(conflictResult.code, 2);
   assert.match(conflictResult.stderr, /cannot be combined/i);
+});
+
+test("issue update accepts --blocked-by flag and creates the relation", async () => {
+  const records = {
+    issueLookups: new Map([
+      [876, { id: "issue-2", identifier: "REP-876", title: "Blocker" }],
+    ]),
+  };
+
+  const result = await execute(
+    [
+      "issue",
+      "update",
+      "REP-875",
+      "--title",
+      "Updated",
+      "--blocked-by",
+      "REP-876",
+      "--json",
+    ],
+    {
+      env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+      clientFactory: async () => makeClient(records),
+    },
+  );
+
+  assert.equal(result.code, 0);
+  assert.equal(records.updateIssue[0].id, "issue-1");
+  assert.equal(records.updateIssue[0].input.title, "Updated");
+  assert.equal(records.issueRelationCreate.length, 1);
+  // For --blocked-by REP-876, source is REP-876 and target is the issue being updated
+  assert.equal(records.issueRelationCreate[0].issueId, "issue-2");
+  assert.equal(records.issueRelationCreate[0].relatedIssueId, "issue-1");
+  assert.equal(records.issueRelationCreate[0].type, "blocks");
+});
+
+test("issue update accepts --blocks flag and creates the relation", async () => {
+  const records = {
+    issueLookups: new Map([
+      [876, { id: "issue-2", identifier: "REP-876", title: "Blocked" }],
+    ]),
+  };
+
+  const result = await execute(
+    [
+      "issue",
+      "update",
+      "REP-875",
+      "--title",
+      "Updated",
+      "--blocks",
+      "REP-876",
+      "--json",
+    ],
+    {
+      env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+      clientFactory: async () => makeClient(records),
+    },
+  );
+
+  assert.equal(result.code, 0);
+  assert.equal(records.updateIssue[0].id, "issue-1");
+  assert.equal(records.issueRelationCreate.length, 1);
+  // For --blocks REP-876, source is the issue being updated and target is REP-876
+  assert.equal(records.issueRelationCreate[0].issueId, "issue-1");
+  assert.equal(records.issueRelationCreate[0].relatedIssueId, "issue-2");
+  assert.equal(records.issueRelationCreate[0].type, "blocks");
+});
+
+test("issue update accepts --related flag and creates the relation", async () => {
+  const records = {
+    issueLookups: new Map([
+      [876, { id: "issue-2", identifier: "REP-876", title: "Related" }],
+    ]),
+  };
+
+  const result = await execute(
+    [
+      "issue",
+      "update",
+      "REP-875",
+      "--title",
+      "Updated",
+      "--related",
+      "REP-876",
+      "--json",
+    ],
+    {
+      env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+      clientFactory: async () => makeClient(records),
+    },
+  );
+
+  assert.equal(result.code, 0);
+  assert.equal(records.issueRelationCreate.length, 1);
+  assert.equal(records.issueRelationCreate[0].issueId, "issue-1");
+  assert.equal(records.issueRelationCreate[0].relatedIssueId, "issue-2");
+  assert.equal(records.issueRelationCreate[0].type, "related");
+});
+
+test("issue update accepts --duplicate-of flag and creates the relation", async () => {
+  const records = {
+    issueLookups: new Map([
+      [876, { id: "issue-2", identifier: "REP-876", title: "Original" }],
+    ]),
+  };
+
+  const result = await execute(
+    [
+      "issue",
+      "update",
+      "REP-875",
+      "--title",
+      "Updated",
+      "--duplicate-of",
+      "REP-876",
+      "--json",
+    ],
+    {
+      env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+      clientFactory: async () => makeClient(records),
+    },
+  );
+
+  assert.equal(result.code, 0);
+  assert.equal(records.issueRelationCreate.length, 1);
+  assert.equal(records.issueRelationCreate[0].issueId, "issue-1");
+  assert.equal(records.issueRelationCreate[0].relatedIssueId, "issue-2");
+  assert.equal(records.issueRelationCreate[0].type, "duplicate");
+});
+
+test("issue update accepts multiple relation flags combined", async () => {
+  const records = {
+    issueLookups: new Map([
+      [876, { id: "issue-2", identifier: "REP-876", title: "Related" }],
+      [877, { id: "issue-3", identifier: "REP-877", title: "Blocked" }],
+    ]),
+  };
+
+  const result = await execute(
+    [
+      "issue",
+      "update",
+      "REP-875",
+      "--title",
+      "Updated",
+      "--related",
+      "REP-876",
+      "--blocks",
+      "REP-877",
+      "--json",
+    ],
+    {
+      env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+      clientFactory: async () => makeClient(records),
+    },
+  );
+
+  assert.equal(result.code, 0);
+  assert.equal(records.issueRelationCreate.length, 2);
+  assert.equal(records.issueRelationCreate[0].issueId, "issue-1");
+  assert.equal(records.issueRelationCreate[0].relatedIssueId, "issue-2");
+  assert.equal(records.issueRelationCreate[0].type, "related");
+  assert.equal(records.issueRelationCreate[1].issueId, "issue-1");
+  assert.equal(records.issueRelationCreate[1].relatedIssueId, "issue-3");
+  assert.equal(records.issueRelationCreate[1].type, "blocks");
+});
+
+test("issue update accepts relation flags as only update fields", async () => {
+  const records = {
+    issueLookups: new Map([
+      [876, { id: "issue-2", identifier: "REP-876", title: "Related" }],
+    ]),
+  };
+
+  const result = await execute(
+    [
+      "issue",
+      "update",
+      "REP-875",
+      "--related",
+      "REP-876",
+      "--json",
+    ],
+    {
+      env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+      clientFactory: async () => makeClient(records),
+    },
+  );
+
+  assert.equal(result.code, 0);
+  // Even with no field changes, updateIssue should still be called with an empty input
+  // because the relation flags bypass the "Missing update fields" guard
+  assert.equal(records.updateIssue.length, 1);
+  assert.equal(records.updateIssue[0].id, "issue-1");
+  assert.equal(Object.keys(records.updateIssue[0].input).length, 0);
+  assert.equal(records.issueRelationCreate.length, 1);
+  assert.equal(records.issueRelationCreate[0].type, "related");
+  assert.equal(records.issueRelationCreate[0].issueId, "issue-1");
+  assert.equal(records.issueRelationCreate[0].relatedIssueId, "issue-2");
 });
 
 test("issue start assigns the issue to self and moves it to In Progress", async () => {
