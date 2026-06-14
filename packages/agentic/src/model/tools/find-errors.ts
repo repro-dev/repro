@@ -1,10 +1,10 @@
+import { ConsoleEvent, LogLevel, SourceEventType } from '@repro/domain'
 import {
-  ConsoleEvent,
-  LogLevel,
-  NetworkEvent,
-  SourceEventType,
-} from '@repro/domain'
-import { groupNetworkEvents } from '@repro/source-utils'
+  extractConsoleText,
+  extractPathname,
+  groupNetworkEvents,
+  unwrapNetworkEvents,
+} from '@repro/source-utils'
 import { Box } from '@repro/tdl'
 import { resolve } from 'fluture'
 import { DetailLevel, estimateTokens, truncate } from '../token-optimization'
@@ -61,12 +61,11 @@ export const handler: ToolHandler = (recording, args) => {
 
   for (const event of consoleEvents) {
     const consoleEvent = event as Box<ConsoleEvent>
-    const time = consoleEvent.get('time').orElse(0)
-    const level = consoleEvent.get('data').get('level').orElse(LogLevel.Info)
+    const { time, level, text } = extractConsoleText(
+      consoleEvent,
+      serializeMessagePart
+    )
     if (level !== LogLevel.Error) continue
-
-    const parts = consoleEvent.get('data').get('parts').orElse([])
-    const text = parts.map(serializeMessagePart).join(' ')
 
     const maxLen = detail === 'full' ? 500 : detail === 'summary' ? 100 : 200
     const summary = truncate(text, maxLen)
@@ -97,11 +96,7 @@ export const handler: ToolHandler = (recording, args) => {
     startMs: timeStart,
     endMs: timeEnd,
   })
-  const indexed: Array<[NetworkEvent, number]> = []
-  for (const e of networkEvents) {
-    ;(e as Box<NetworkEvent>).apply(n => indexed.push([n, 0]))
-  }
-  const groups = groupNetworkEvents(indexed)
+  const groups = groupNetworkEvents(unwrapNetworkEvents(networkEvents))
 
   for (const group of groups) {
     if (group.type !== 'fetch') continue
@@ -109,12 +104,7 @@ export const handler: ToolHandler = (recording, args) => {
 
     const time = group.requestTime
 
-    let pathname: string
-    try {
-      pathname = new URL(group.request.url).pathname
-    } catch {
-      pathname = group.request.url
-    }
+    const pathname = extractPathname(group.request.url)
 
     errors.push({
       time,

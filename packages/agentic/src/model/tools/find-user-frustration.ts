@@ -3,9 +3,14 @@ import {
   InteractionEvent,
   InteractionType,
   LogLevel,
-  NetworkEvent,
 } from '@repro/domain'
-import { groupNetworkEvents } from '@repro/source-utils'
+import {
+  extractConsoleText,
+  extractPathname,
+  groupBySlidingWindow,
+  groupNetworkEvents,
+  unwrapNetworkEvents,
+} from '@repro/source-utils'
 import { Box } from '@repro/tdl'
 import { resolve } from 'fluture'
 import { estimateTokens } from '../token-optimization'
@@ -207,31 +212,24 @@ export const handler: ToolHandler = (recording, _args) => {
     pageTransitions.push({ time, to, from })
   }
 
-  let pi = 0
-  while (pi < pageTransitions.length) {
-    const anchor = pageTransitions[pi]!
-    const group: number[] = [pi]
-
-    for (let pj = pi + 1; pj < pageTransitions.length; pj++) {
-      const candidate = pageTransitions[pj]!
-      if (candidate.time - anchor.time > RAPID_NAV_WINDOW_MS) break
-      group.push(pj)
-    }
-
-    if (group.length >= RAPID_NAV_THRESHOLD) {
-      const lastInGroup = pageTransitions[group[group.length - 1]!]!
-      const windowMs = lastInGroup.time - anchor.time
-      const urls = group.map(idx => pageTransitions[idx]!.to).join(', ')
-      signals.push({
-        timeMs: anchor.time,
-        type: 'rapid_navigation',
-        summary: `${group.length} page transitions within ${windowMs}ms`,
-        details: urls,
-      })
-      pi = group[group.length - 1]! + 1
-    } else {
-      pi++
-    }
+  const navGroups = groupBySlidingWindow(
+    pageTransitions,
+    t => t.time,
+    RAPID_NAV_WINDOW_MS,
+    RAPID_NAV_THRESHOLD
+  )
+  for (const navGroup of navGroups) {
+    const windowMs = navGroup.endTime - navGroup.startTime
+    const urls = pageTransitions
+      .slice(navGroup.startIndex, navGroup.endIndex + 1)
+      .map(t => t.to)
+      .join(', ')
+    signals.push({
+      timeMs: navGroup.startTime,
+      type: 'rapid_navigation',
+      summary: `${navGroup.count} page transitions within ${windowMs}ms`,
+      details: urls,
+    })
   }
 
   // ─── Error loop detection ─────────────────────────────────────────────────
@@ -241,11 +239,12 @@ export const handler: ToolHandler = (recording, _args) => {
   for (const event of allEvents) {
     if (!isConsoleEvent(event)) continue
     const consoleEvent = event as Box<ConsoleEvent>
-    const level = consoleEvent.get('data').get('level').orElse(LogLevel.Info)
+    const {
+      time,
+      level,
+      text: message,
+    } = extractConsoleText(consoleEvent, serializeMessagePart)
     if (level !== LogLevel.Error) continue
-    const time = consoleEvent.get('time').orElse(0)
-    const parts = consoleEvent.get('data').get('parts').orElse([])
-    const message = parts.map(serializeMessagePart).join(' ')
     consoleErrors.push({ time, message })
   }
 
@@ -259,52 +258,40 @@ export const handler: ToolHandler = (recording, _args) => {
   }
 
   for (const [message, indices] of consoleByMessage) {
-    let li = 0
-    while (li < indices.length) {
-      const anchorTime = consoleErrors[indices[li]!]!.time
-      const group: number[] = [li]
-      for (let lj = li + 1; lj < indices.length; lj++) {
-        const candidateTime = consoleErrors[indices[lj]!]!.time
-        if (candidateTime - anchorTime > ERROR_LOOP_WINDOW_MS) break
-        group.push(lj)
-      }
-      if (group.length >= ERROR_LOOP_THRESHOLD) {
-        const lastTime = consoleErrors[indices[group[group.length - 1]!]!]!.time
-        const windowMs = lastTime - anchorTime
-        signals.push({
-          timeMs: anchorTime,
-          type: 'error_loop',
-          summary: `Error repeated ${
-            group.length
-          } times in ${windowMs}ms: ${message.slice(0, 100)}`,
-        })
-        li = group[group.length - 1]! + 1
-      } else {
-        li++
-      }
+    const errorItems = indices.map(idx => consoleErrors[idx]!)
+    const errorGroups = groupBySlidingWindow(
+      errorItems,
+      item => item.time,
+      ERROR_LOOP_WINDOW_MS,
+      ERROR_LOOP_THRESHOLD
+    )
+    for (const group of errorGroups) {
+      const windowMs = group.endTime - group.startTime
+      signals.push({
+        timeMs: group.startTime,
+        type: 'error_loop',
+        summary: `Error repeated ${
+          group.count
+        } times in ${windowMs}ms: ${message.slice(0, 100)}`,
+      })
     }
   }
 
   // Network error loops — group by method + pathname + status
   // Filter network events from allEvents to avoid a second full scan.
-  const indexed: Array<[NetworkEvent, number]> = []
+  const networkSourceEvents: import('@repro/domain').SourceEvent[] = []
   for (const e of allEvents) {
-    if (!isNetworkEvent(e)) continue
-    ;(e as Box<NetworkEvent>).apply(n => indexed.push([n, 0]))
+    if (isNetworkEvent(e))
+      networkSourceEvents.push(e as import('@repro/domain').SourceEvent)
   }
-  const groups = groupNetworkEvents(indexed)
+  const groups = groupNetworkEvents(unwrapNetworkEvents(networkSourceEvents))
 
   const networkErrors: Array<{ time: number; key: string }> = []
   for (const group of groups) {
     if (group.type !== 'fetch') continue
     if (!group.response || group.response.status < 400) continue
     const time = group.requestTime
-    let pathname: string
-    try {
-      pathname = new URL(group.request.url).pathname
-    } catch {
-      pathname = group.request.url
-    }
+    const pathname = extractPathname(group.request.url)
     const key = `${group.request.method} ${pathname} → ${group.response.status}`
     networkErrors.push({ time, key })
   }
@@ -320,27 +307,20 @@ export const handler: ToolHandler = (recording, _args) => {
   }
 
   for (const [key, indices] of networkByKey) {
-    let ni = 0
-    while (ni < indices.length) {
-      const anchorTime = networkErrors[indices[ni]!]!.time
-      const group: number[] = [ni]
-      for (let nj = ni + 1; nj < indices.length; nj++) {
-        const candidateTime = networkErrors[indices[nj]!]!.time
-        if (candidateTime - anchorTime > ERROR_LOOP_WINDOW_MS) break
-        group.push(nj)
-      }
-      if (group.length >= ERROR_LOOP_THRESHOLD) {
-        const lastTime = networkErrors[indices[group[group.length - 1]!]!]!.time
-        const windowMs = lastTime - anchorTime
-        signals.push({
-          timeMs: anchorTime,
-          type: 'error_loop',
-          summary: `Network failure repeated ${group.length} times in ${windowMs}ms: ${key}`,
-        })
-        ni = group[group.length - 1]! + 1
-      } else {
-        ni++
-      }
+    const errorItems = indices.map(idx => networkErrors[idx]!)
+    const errorGroups = groupBySlidingWindow(
+      errorItems,
+      item => item.time,
+      ERROR_LOOP_WINDOW_MS,
+      ERROR_LOOP_THRESHOLD
+    )
+    for (const group of errorGroups) {
+      const windowMs = group.endTime - group.startTime
+      signals.push({
+        timeMs: group.startTime,
+        type: 'error_loop',
+        summary: `Network failure repeated ${group.count} times in ${windowMs}ms: ${key}`,
+      })
     }
   }
 

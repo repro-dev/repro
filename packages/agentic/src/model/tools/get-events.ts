@@ -5,6 +5,7 @@ import {
   LogLevel,
   SourceEventType,
 } from '@repro/domain'
+import { filterNullAttributes } from '@repro/source-utils'
 import { Box } from '@repro/tdl'
 import { resolve } from 'fluture'
 import type { ToolHandler } from './common'
@@ -169,10 +170,7 @@ export const handler: ToolHandler = (recording, args) => {
             .get('node')
             .get('attributes')
             .orElse({}) as Record<string, string | null>
-          const attributes: Record<string, string> = {}
-          for (const [k, v] of Object.entries(rawAttributes)) {
-            if (v != null) attributes[k] = v
-          }
+          const attributes = filterNullAttributes(rawAttributes)
           const element = nodeId ? { nodeId, tagName, attributes } : null
           const targets = interactionData.get('targets').orElse([]) as string[]
           resultEvents.push({

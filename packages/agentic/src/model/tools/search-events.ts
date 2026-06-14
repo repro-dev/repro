@@ -3,14 +3,13 @@ import {
   InteractionEvent,
   InteractionType,
   LogLevel,
-  NetworkEvent,
   PageTransition,
   PatchType,
   PerformanceEntryType,
   PerformanceEvent,
   SourceEventType,
 } from '@repro/domain'
-import { groupNetworkEvents } from '@repro/source-utils'
+import { groupNetworkEvents, unwrapNetworkEvents } from '@repro/source-utils'
 import { Box } from '@repro/tdl'
 import { resolve } from 'fluture'
 import { estimateTokens } from '../token-optimization'
@@ -180,11 +179,7 @@ export const handler: ToolHandler = (recording, args) => {
       endMs:
         timeRangeEndMs === Number.MAX_SAFE_INTEGER ? undefined : timeRangeEndMs,
     })
-    const indexed: Array<[NetworkEvent, number]> = []
-    for (const e of networkEvents) {
-      ;(e as Box<NetworkEvent>).apply(n => indexed.push([n, 0]))
-    }
-    const groups = groupNetworkEvents(indexed)
+    const groups = groupNetworkEvents(unwrapNetworkEvents(networkEvents))
 
     for (const group of groups) {
       if (group.type !== 'fetch') continue

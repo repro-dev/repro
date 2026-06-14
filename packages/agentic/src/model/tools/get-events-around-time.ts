@@ -5,12 +5,12 @@ import {
   InteractionEvent,
   InteractionType,
   KeyDown,
-  LogLevel,
   PageTransition,
   Scroll,
   SourceEventType,
   ViewportResize,
 } from '@repro/domain'
+import { extractConsoleText, filterNullAttributes } from '@repro/source-utils'
 import { Box } from '@repro/tdl'
 import { resolve } from 'fluture'
 import type { ToolHandler } from './common'
@@ -81,10 +81,7 @@ function summarizeInteraction(
         .get('node')
         .get('attributes')
         .orElse({}) as Record<string, string | null>
-      const attributes: Record<string, string> = {}
-      for (const [k, v] of Object.entries(rawAttributes)) {
-        if (v != null) attributes[k] = v
-      }
+      const attributes = filterNullAttributes(rawAttributes)
       const element = nodeId ? { nodeId, tagName, attributes } : null
       const targets = clickEvent.get('targets').orElse([]) as string[]
       return {
@@ -187,9 +184,10 @@ export const handler: ToolHandler = (recording, args) => {
 
     if (isConsoleEvent(event)) {
       const consoleEvent: Box<ConsoleEvent> = event
-      const level = consoleEvent.get('data').get('level').orElse(LogLevel.Info)
-      const parts = consoleEvent.get('data').get('parts').orElse([])
-      const text = parts.map(serializeMessagePart).join(' ')
+      const { level, text } = extractConsoleText(
+        consoleEvent,
+        serializeMessagePart
+      )
       result.push({
         timeMs: time,
         type: 'console',

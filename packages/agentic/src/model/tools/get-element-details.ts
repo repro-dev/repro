@@ -1,4 +1,5 @@
 import { NodeType, SyntheticId, VElement, VTree } from '@repro/domain'
+import { filterNullAttributes } from '@repro/source-utils'
 import { resolve } from 'fluture'
 import { estimateTokens } from '../token-optimization'
 import type { ToolHandler } from './common'
@@ -77,10 +78,9 @@ function getParentChain(
     let pushed = false
     node.apply(n => {
       if (n.type === NodeType.Element) {
-        const attrs: Record<string, string> = {}
-        for (const [k, v] of Object.entries(n.attributes)) {
-          if (v != null) attrs[k] = v
-        }
+        const attrs = filterNullAttributes(
+          n.attributes as Record<string, string | null>
+        )
         parents.push({ nodeId: n.id, tagName: n.tagName, attributes: attrs })
         pushed = true
       }
@@ -169,10 +169,9 @@ function getSubtreeChildren(
     if (!childNode) continue
     childNode.apply(c => {
       if (c.type === NodeType.Element) {
-        const attrs: Record<string, string> = {}
-        for (const [k, v] of Object.entries(c.attributes)) {
-          if (v != null) attrs[k] = v
-        }
+        const attrs = filterNullAttributes(
+          c.attributes as Record<string, string | null>
+        )
         // Collect text content from direct VText children only
         let textContent: string | undefined
         for (const grandChildId of c.children) {
@@ -278,10 +277,9 @@ export const handler: ToolHandler = (recording, args) => {
     )
   }
 
-  const attrs: Record<string, string> = {}
-  for (const [k, v] of Object.entries(element.attributes)) {
-    if (v != null) attrs[k] = v
-  }
+  const attrs = filterNullAttributes(
+    element.attributes as Record<string, string | null>
+  )
 
   const properties: Record<string, unknown> = {}
   if (element.properties.value != null)
