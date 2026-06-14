@@ -308,7 +308,8 @@ function installReactHookStub() {
   return hook
 }
 
-export function installRuntime() {
+// Phase 0: lightweight installation (module load)
+export function installPhase0() {
   if (window.__REPRO_RUNTIME_INSTALLED__) {
     return
   }
@@ -317,11 +318,15 @@ export function installRuntime() {
   getInstalledTypes()
   installReactHookStub()
   installCustomMarkHook()
-  installNetworkObserver()
-  installPerformanceObserver()
-  installConsoleObserver()
 
   window.__REPRO_RUNTIME_INSTALLED__ = true
 }
 
-installRuntime()
+// Phase 1: heavy observers (called from connectedCallback)
+export function installPhase1Observers() {
+  installNetworkObserver()
+  installPerformanceObserver()
+  installConsoleObserver()
+}
+
+installPhase0()

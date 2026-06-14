@@ -2,7 +2,7 @@ import 'global-jsdom/register'
 
 import assert from 'node:assert/strict'
 import { it } from 'node:test'
-import { installRuntime } from './runtime'
+import { installPhase0, installPhase1Observers } from './runtime'
 import { appendRuntimeBuffer, clearRuntimeBuffer } from './runtimeBuffer'
 
 it('installs the runtime hook stub and stays idempotent', () => {
@@ -42,31 +42,45 @@ it('installs the runtime hook stub and stays idempotent', () => {
   const buffer = window.__REPRO_RUNTIME_BUFFER__
   const installedTypes = window.__REPRO_RUNTIME_INSTALLED_TYPES__
 
-  installRuntime()
+  installPhase0()
 
   assert.equal(window.__REPRO_RUNTIME_BUFFER__, buffer)
   assert.equal(window.__REPRO_RUNTIME_INSTALLED_TYPES__, installedTypes)
   assert.equal(window.__REPRO_RUNTIME_INSTALLED__, true)
 })
 
-it('registers runtime-installed observer types', () => {
+it('registers only custom observer type after Phase 0', () => {
   const installedTypes = window.__REPRO_RUNTIME_INSTALLED_TYPES__
+  assert.ok(installedTypes)
+  assert.ok(installedTypes.has('custom'))
+  assert.equal(installedTypes.size, 1)
+})
 
+it('installs Phase 1 observers: console, network, performance', () => {
+  const logBefore = console.log
+  const fetchBefore = globalThis.fetch
+
+  installPhase1Observers()
+
+  const installedTypes = window.__REPRO_RUNTIME_INSTALLED_TYPES__
   assert.ok(installedTypes)
   assert.ok(installedTypes.has('console'))
   assert.ok(installedTypes.has('network'))
   assert.ok(installedTypes.has('performance'))
   assert.ok(installedTypes.has('custom'))
   assert.equal(installedTypes.size, 4)
+
+  assert.notEqual(console.log, logBefore)
+  assert.notEqual(globalThis.fetch, fetchBefore)
 })
 
-it('does not re-wrap global patches on repeated installRuntime() calls', () => {
+it('does not re-wrap global patches on repeated installPhase1Observers() calls', () => {
   const installedTypes = window.__REPRO_RUNTIME_INSTALLED_TYPES__
   const logBefore = console.log
   const fetchBefore = globalThis.fetch
   const xhrBefore = globalThis.XMLHttpRequest
 
-  installRuntime()
+  installPhase1Observers()
 
   assert.equal(window.__REPRO_RUNTIME_INSTALLED_TYPES__, installedTypes)
   assert.equal(installedTypes?.size, 4)

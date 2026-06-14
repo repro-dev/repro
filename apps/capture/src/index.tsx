@@ -19,6 +19,7 @@ import {
   createRecordingTypes,
   type RuntimeInstalledType,
 } from './recordingTypes'
+import { installPhase1Observers } from './runtime'
 import { clearRuntimeBuffer } from './runtimeBuffer'
 import { StateProvider, createState } from './state'
 
@@ -159,6 +160,8 @@ class ReproCapture extends HTMLElement {
     if (document.currentScript) {
       ignoredNodes.push(document.currentScript)
     }
+
+    installPhase1Observers()
 
     const stream = createRecordingStream(document, {
       types: createRecordingTypes({
