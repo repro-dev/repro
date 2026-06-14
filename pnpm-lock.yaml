@@ -3087,9 +3087,15 @@ importers:
         specifier: workspace:*
         version: link:../vdom-utils
     devDependencies:
+      '@repro/tdl':
+        specifier: workspace:*
+        version: link:../tdl
       '@types/node':
         specifier: 22.14.0
         version: 22.14.0
+      global-jsdom:
+        specifier: 27.0.0
+        version: 27.0.0(jsdom@27.0.0(postcss@8.5.8))
       prettier:
         specifier: ^3.0.0
         version: 3.0.0

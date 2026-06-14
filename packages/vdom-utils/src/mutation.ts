@@ -4,10 +4,12 @@ import {
   SyntheticId,
   VElement,
   VNode,
+  VShadowRoot,
   VTree,
 } from '@repro/domain'
 import { logger } from '@repro/logger'
 import { copyObjectDeep } from '@repro/std'
+import { Box } from '@repro/tdl'
 import { getVNodeById } from './id-factory'
 import {
   isElementVNode,
@@ -135,6 +137,28 @@ export function addShadowRootToVTree(
     // Merge the shadow root VTree nodes into the parent VTree.
     Object.assign(vtree.nodes, copyObjectDeep(shadowVTree.nodes))
   }
+}
+
+function updateAdoptedStyleSheetsInVTree(
+  vtree: VTree,
+  _hostId: SyntheticId,
+  shadowRootId: SyntheticId,
+  adoptedStyleSheets: Array<string>
+) {
+  const existingRoot = vtree.nodes[shadowRootId]
+  if (!existingRoot || !isShadowRootVNode(existingRoot)) return
+
+  existingRoot.apply(er => {
+    const merged: VShadowRoot = {
+      id: er.id,
+      hostId: er.hostId,
+      type: er.type,
+      children: er.children,
+      mode: er.mode,
+      adoptedStyleSheets,
+    }
+    vtree.nodes[shadowRootId] = new Box(merged)
+  })
 }
 
 export function removeShadowRootFromVTree(
@@ -290,6 +314,19 @@ export function applyVTreePatch(
           addShadowRootToVTree(vtree, patch.hostId, patch.shadowRoot)
         } else {
           removeShadowRootFromVTree(vtree, patch.hostId, patch.shadowRootId)
+        }
+
+        break
+      }
+
+      case PatchType.UpdateAdoptedStyleSheets: {
+        if (!revert) {
+          updateAdoptedStyleSheetsInVTree(
+            vtree,
+            patch.hostId,
+            patch.shadowRootId,
+            patch.adoptedStyleSheets
+          )
         }
 
         break
