@@ -94,17 +94,18 @@ export function createRequestLogContext(req: RequestWithCorrelation) {
  *
  * ## HTTP request lifecycle fields (emitted by this function)
  *
- * | Field        | Present on        | Description                                      |
- * |--------------|-------------------|--------------------------------------------------|
- * | `event`      | start/complete/error | `"http.request.start"`, `"http.request.complete"`, or `"http.request.error"` |
- * | `requestId`  | always            | Fastify request ID (`req.id`)                    |
- * | `route`      | always            | Matched route pattern (`req.routeOptions.url`)   |
- * | `method`     | always            | HTTP method (`req.method`)                       |
- * | `statusCode` | complete only     | Response status code (`res.statusCode`)          |
- * | `accountId`  | when available    | From session context                             |
- * | `userId`     | when available    | From user-type session                           |
- * | `staffUserId`| when available    | From staff-type session                          |
- * | `err`        | error only        | The error object                                 |
+ * | Field               | Present on        | Description                                      |
+ * |---------------------|-------------------|--------------------------------------------------|
+ * | `event`             | start/complete/error | `"http.request.start"`, `"http.request.complete"`, or `"http.request.error"` |
+ * | `requestId`         | always            | Fastify request ID (`req.id`)                    |
+ * | `route`             | always            | Matched route pattern (`req.routeOptions.url`)   |
+ * | `method`            | always            | HTTP method (`req.method`)                       |
+ * | `statusCode`        | complete only     | Response status code (`res.statusCode`)          |
+ * | `sessionSubjectType`| when session      | Session subject type (e.g. `"user"`)             |
+ * | `sessionSubjectId`  | when session      | Session subject ID                               |
+ * | `userId`            | when user-type    | Authenticated user ID                            |
+ * | `staffUserId`       | when staff-type   | Authenticated staff user ID                      |
+ * | `err`               | error only        | The error object                                 |
  *
  * ## Transactional email failure fields (emitted by `sendEmailInBackground` in email.ts)
  *
