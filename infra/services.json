@@ -65,7 +65,8 @@
       "OUTBOX_WORKER_DEFAULT_MAX_ATTEMPTS": "3",
       "OUTBOX_WORKER_RETRY_BASE_MS": "1000",
       "OUTBOX_WORKER_RETRY_MAX_MS": "60000",
-      "OUTBOX_WORKER_STALE_AFTER_MS": "300000"
+      "OUTBOX_WORKER_STALE_AFTER_MS": "300000",
+      "STORAGE_PATH": "/tmp/repro-storage"
     },
     "resource_deps": ["dependencies", "database-ready"],
     "deps": []

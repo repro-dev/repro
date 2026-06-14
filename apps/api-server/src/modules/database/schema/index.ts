@@ -18,6 +18,7 @@ import { OutboxJobTable } from './OutboxJobTable'
 import { PasswordResetTokenTable } from './PasswordResetTokenTable'
 import { ProjectRecordingTable } from './ProjectRecordingTable'
 import { ProjectTable } from './ProjectTable'
+import { RecordingErrorTable } from './RecordingErrorTable'
 import { RecordingEventIndexTable } from './RecordingEventIndexTable'
 import { RecordingResourceTable } from './RecordingResourceTable'
 import { RecordingTable } from './RecordingTable'
@@ -45,6 +46,7 @@ export interface Schema {
   outbox_jobs: OutboxJobTable
   password_reset_tokens: PasswordResetTokenTable
   recordings: RecordingTable
+  recording_errors: RecordingErrorTable
   recording_event_index: RecordingEventIndexTable
   recording_resources: RecordingResourceTable
   projects: ProjectTable
@@ -60,6 +62,7 @@ export {
   OAuthClientTable,
   OAuthConnectionTable,
   OutboxJobTable,
+  RecordingErrorTable,
   RecordingEventIndexTable,
   RecordingResourceTable,
   RecordingTable,
@@ -67,6 +70,11 @@ export {
   asStaffUserDetail,
   asUser,
 }
+
+export type {
+  NewRecordingErrorRow,
+  RecordingErrorRow,
+} from './RecordingErrorTable'
 
 export type {
   OutboxJobRow,

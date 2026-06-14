@@ -1,8 +1,13 @@
 import { defaultEnv as env } from '~/config/env'
 import { createPostgresDatabaseClient } from '~/modules/database'
+import { createFileSystemStorageClient } from '~/modules/storage-fs'
 import { createOutboxService } from '~/services/outbox'
 import { createOutboxWorker } from '~/services/outboxWorker'
-import { createRecordingFinalizationService } from '~/services/recordingFinalization'
+import { createRecordingErrorIndexingService } from '~/services/recordingErrorIndexing'
+import {
+  createRecordingFinalizationService,
+  recordingIndexErrorsDerivedJob,
+} from '~/services/recordingFinalization'
 import { createDefaultOutboxRegistry } from './outboxRegistry'
 
 const database = createPostgresDatabaseClient({
@@ -14,15 +19,23 @@ const database = createPostgresDatabaseClient({
   ssl: env.DB_SSL,
 })
 
+const storage = createFileSystemStorageClient({ path: env.STORAGE_PATH })
+
 const outboxService = createOutboxService(database, {
   defaultMaxAttempts: env.OUTBOX_WORKER_DEFAULT_MAX_ATTEMPTS,
 })
 const recordingFinalizationService = createRecordingFinalizationService(
   database,
-  outboxService
+  outboxService,
+  { downstreamJobs: [recordingIndexErrorsDerivedJob] }
+)
+const recordingErrorIndexingService = createRecordingErrorIndexingService(
+  database,
+  storage
 )
 const outboxRegistry = createDefaultOutboxRegistry({
   recordingFinalizationService,
+  recordingErrorIndexingService,
 })
 const workerId = `${process.pid}-${Date.now()}`
 
