@@ -77,7 +77,7 @@ function isZeroPoint(point: Point) {
 const defaultOptions: RecordingOptions = {
   types: new Set(['dom', 'interaction']),
   ignoredNodes: [],
-  ignoredSelectors: [],
+  ignoredSelectors: ['.repro-ignore'],
   maskedSelectors: ['.repro-mask'],
   snapshotInterval: 10000,
   eventSampling: {
