@@ -13,8 +13,7 @@ import {
   WebSocketMessageType,
 } from '@repro/domain'
 import { Box } from '@repro/tdl'
-import type { FutureInstance } from 'fluture'
-import { fork } from 'fluture'
+import { FutureInstance, fork, resolve } from 'fluture'
 import { makeAccessorFromEventList } from '../../../recordingDataAccessor'
 import { RecordingDataAccessor } from '../../../types'
 
@@ -34,8 +33,9 @@ export function makeAccessor(
 ): RecordingDataAccessor {
   return {
     getDuration: () => duration ?? Number.MAX_SAFE_INTEGER,
-    getSnapshotAtTime: snapshotFn ?? (() => null),
-    getResourceMap: () => ({}),
+    getSnapshotAtTime: (timestampMs: number) =>
+      resolve(snapshotFn ? snapshotFn(timestampMs) : null),
+    getResourceMap: () => resolve({}),
     ...makeAccessorFromEventList({
       size: () => events.length,
       over: i => events[i] ?? null,

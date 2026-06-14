@@ -245,6 +245,9 @@ importers:
       '@repro/random-string':
         specifier: workspace:*
         version: link:../../packages/random-string
+      '@repro/source-utils':
+        specifier: workspace:*
+        version: link:../../packages/source-utils
       '@repro/tdl':
         specifier: workspace:*
         version: link:../../packages/tdl

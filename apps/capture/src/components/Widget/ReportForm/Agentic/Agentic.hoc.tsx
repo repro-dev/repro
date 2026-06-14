@@ -13,7 +13,7 @@ import { useApiClient } from '@repro/api-client'
 import { createSourcePlayback, usePlayback } from '@repro/playback'
 import { detect } from 'detect-browser'
 import { parse } from 'event-stream-parser'
-import { attemptP, chain, fork } from 'fluture'
+import { attemptP, chain, fork, resolve } from 'fluture'
 import React, { useEffect, useMemo } from 'react'
 import type { RecordingActions } from '../../CaptureReview/useRecordingActions'
 
@@ -88,15 +88,17 @@ export const Agentic: React.FC<AgenticProps> = ({
             selected.resourceMap
           )
           pb.seekToTime(timestampMs)
-          return pb.getSnapshot()
+          return resolve(pb.getSnapshot())
         },
         // Invert from Record<resourceId, absoluteURL> to
         // Record<absoluteURL, resourceId>. In the capture widget the resource
         // map is always empty (resources aren't fetched client-side), so this
         // produces {} in practice — see REP-XXX for the follow-up.
         getResourceMap: () =>
-          Object.fromEntries(
-            Object.entries(selected.resourceMap).map(([id, url]) => [url, id])
+          resolve(
+            Object.fromEntries(
+              Object.entries(selected.resourceMap).map(([id, url]) => [url, id])
+            )
           ),
         ...makeAccessorFromEventList(selected.events),
       },

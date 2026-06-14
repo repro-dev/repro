@@ -52,12 +52,20 @@ export function createFileSystemStorageClient(config: Config): Storage {
     })
   }
 
-  function read(filePath: string): FutureInstance<Error, Readable> {
+  function read(
+    filePath: string,
+    range?: { start: number; end: number }
+  ): FutureInstance<Error, Readable> {
     return exists(filePath).pipe(
       chain(pathExists =>
         pathExists
           ? attempt<Error, Readable>(() => {
-              return createReadStream(path.join(config.path, filePath))
+              const options: { start?: number; end?: number } = {}
+              if (range) {
+                options.start = range.start
+                options.end = range.end
+              }
+              return createReadStream(path.join(config.path, filePath), options)
             })
           : reject(notFound(`File does not exist: ${filePath}`))
       )

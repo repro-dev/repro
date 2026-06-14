@@ -1,5 +1,5 @@
 import { NodeType, SyntheticId, VElement, VTree } from '@repro/domain'
-import { resolve } from 'fluture'
+import { chain, resolve } from 'fluture'
 import { estimateTokens } from '../token-optimization'
 import type { ToolHandler } from './common'
 import { createError } from './common'
@@ -255,74 +255,77 @@ export const handler: ToolHandler = (recording, args) => {
     )
   }
 
-  const snapshot = recording.getSnapshotAtTime(timestampMs)
-  if (!snapshot || !snapshot.dom) {
-    return resolve(
-      createError(
-        'No DOM snapshot available at the specified time',
-        'The timestamp may be outside the recording range or no DOM snapshot was captured at this point',
-        'Call getRecordingDuration() to get the valid recording time range, then retry with a timestamp within that range'
+  return recording.getSnapshotAtTime(timestampMs).pipe(
+    chain(snapshot => {
+      if (!snapshot || !snapshot.dom) {
+        return resolve(
+          createError(
+            'No DOM snapshot available at the specified time',
+            'The timestamp may be outside the recording range or no DOM snapshot was captured at this point',
+            'Call getRecordingDuration() to get the valid recording time range, then retry with a timestamp within that range'
+          )
+        )
+      }
+
+      const vtree = snapshot.dom
+      const element = getVNodeById(vtree, nodeId as SyntheticId)
+      if (!element) {
+        return resolve(
+          createError(
+            `Element with nodeId "${nodeId}" not found`,
+            'The nodeId may be stale or from a different timestamp',
+            'Call getDOMState() at the same timestamp to get fresh nodeId values from the current DOM snapshot'
+          )
+        )
+      }
+
+      const attrs: Record<string, string> = {}
+      for (const [k, v] of Object.entries(element.attributes)) {
+        if (v != null) attrs[k] = v
+      }
+
+      const properties: Record<string, unknown> = {}
+      if (element.properties.value != null)
+        properties.value = element.properties.value
+      if (element.properties.checked != null)
+        properties.checked = element.properties.checked
+      if (element.properties.selectedIndex != null)
+        properties.selectedIndex = element.properties.selectedIndex
+
+      const maxParents = context === 'ancestry' ? 50 : 3
+      const parents = getParentChain(vtree, element.parentId, maxParents)
+      const siblings = getAdjacentSiblings(
+        vtree,
+        element.parentId,
+        nodeId as SyntheticId
       )
-    )
-  }
 
-  const vtree = snapshot.dom
-  const element = getVNodeById(vtree, nodeId as SyntheticId)
-  if (!element) {
-    return resolve(
-      createError(
-        `Element with nodeId "${nodeId}" not found`,
-        'The nodeId may be stale or from a different timestamp',
-        'Call getDOMState() at the same timestamp to get fresh nodeId values from the current DOM snapshot'
-      )
-    )
-  }
+      const result: Record<string, unknown> = {
+        element: {
+          nodeId: element.id,
+          tagName: element.tagName,
+          attributes: attrs,
+          ...(Object.keys(properties).length > 0 ? { properties } : {}),
+        },
+        parents,
+        siblings,
+      }
 
-  const attrs: Record<string, string> = {}
-  for (const [k, v] of Object.entries(element.attributes)) {
-    if (v != null) attrs[k] = v
-  }
+      if (context === 'subtree') {
+        result.children = getSubtreeChildren(vtree, element.children, 1, depth)
+        const textContent = collectTextContent(vtree, element.children, 200)
+        if (textContent.length > 0) {
+          result.textContent = textContent
+        }
+        return resolve({ ...result, _tokenEstimate: estimateTokens(result) })
+      }
 
-  const properties: Record<string, unknown> = {}
-  if (element.properties.value != null)
-    properties.value = element.properties.value
-  if (element.properties.checked != null)
-    properties.checked = element.properties.checked
-  if (element.properties.selectedIndex != null)
-    properties.selectedIndex = element.properties.selectedIndex
+      const textContent = collectTextContent(vtree, element.children, 200)
+      if (textContent.length > 0) {
+        result.textContent = textContent
+      }
 
-  const maxParents = context === 'ancestry' ? 50 : 3
-  const parents = getParentChain(vtree, element.parentId, maxParents)
-  const siblings = getAdjacentSiblings(
-    vtree,
-    element.parentId,
-    nodeId as SyntheticId
+      return resolve(result)
+    })
   )
-
-  const result: Record<string, unknown> = {
-    element: {
-      nodeId: element.id,
-      tagName: element.tagName,
-      attributes: attrs,
-      ...(Object.keys(properties).length > 0 ? { properties } : {}),
-    },
-    parents,
-    siblings,
-  }
-
-  if (context === 'subtree') {
-    result.children = getSubtreeChildren(vtree, element.children, 1, depth)
-    const textContent = collectTextContent(vtree, element.children, 200)
-    if (textContent.length > 0) {
-      result.textContent = textContent
-    }
-    return resolve({ ...result, _tokenEstimate: estimateTokens(result) })
-  }
-
-  const textContent = collectTextContent(vtree, element.children, 200)
-  if (textContent.length > 0) {
-    result.textContent = textContent
-  }
-
-  return resolve(result)
 }

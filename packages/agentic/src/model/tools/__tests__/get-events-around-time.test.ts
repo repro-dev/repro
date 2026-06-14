@@ -1,6 +1,6 @@
 import { InteractionType, LogLevel, SourceEventType } from '@repro/domain'
 import type { FutureInstance } from 'fluture'
-import { fork } from 'fluture'
+import { fork, resolve } from 'fluture'
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { makeAccessorFromEventList } from '../../../recordingDataAccessor'
@@ -166,8 +166,8 @@ function makeAccessor(
 ): RecordingDataAccessor {
   return {
     getDuration: () => duration,
-    getSnapshotAtTime: () => null,
-    getResourceMap: () => ({}),
+    getSnapshotAtTime: () => resolve(null),
+    getResourceMap: () => resolve({}),
     ...makeAccessorFromEventList({
       size: () => events.length,
       over: i =>
