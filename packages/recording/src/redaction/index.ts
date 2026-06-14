@@ -13,6 +13,7 @@ export {
   isSensitiveKey,
   redactHeaders,
   redactText,
+  redactUrl,
   redactValue,
   setRedactionConfig,
 } from './redact'

@@ -38,5 +38,6 @@ export interface RedactionContract {
   redactText(value: string): string
   redactValue(value: unknown): unknown
   redactHeaders(headers: Record<string, string>): Record<string, string>
+  redactUrl(url: string): string
   isSensitiveInputType(inputType: string): boolean
 }

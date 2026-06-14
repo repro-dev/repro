@@ -147,6 +147,39 @@ export function redactHeaders(
   )
 }
 
+export function redactUrl(url: string): string {
+  return Stats.time(
+    'Redaction~redactUrl',
+    () => {
+      try {
+        const parsed = new URL(url)
+
+        if (parsed.search) {
+          // Work at the string level rather than URLSearchParams to
+          // preserve original parameter ordering and encoding.
+          const parts = parsed.search.slice(1).split('&')
+          const redactedParts = parts.map(part => {
+            const eqIdx = part.indexOf('=')
+            if (eqIdx === -1) return part
+            const key = part.slice(0, eqIdx)
+            const decodedKey = decodeURIComponent(key)
+            if (isSensitiveKey(decodedKey)) {
+              return `${key}=${MASKED_VALUE}`
+            }
+            return part
+          })
+          parsed.search = redactedParts.join('&')
+        }
+
+        return parsed.toString()
+      } catch {
+        return url
+      }
+    },
+    StatsLevel.Debug
+  )
+}
+
 export function isSensitiveInputType(inputType: string): boolean {
   return currentConfig.sensitiveInputTypes.has(inputType)
 }
