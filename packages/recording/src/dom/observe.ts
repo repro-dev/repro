@@ -609,18 +609,21 @@ function emitInsertRulePatch(
   const stylesheetId = getStyleSheetId(sheet)
   const selectors = rule.selectorText.split(',').map(s => s.trim())
 
-  const capturedRules: CapturedCSSRule[] = selectors.map(selectorText => ({
-    selectorText,
-    declarations,
-    priorities,
-    specificity: computeSpecificity(selectorText),
-    stylesheetId,
-    ruleIndex: index,
-    mediaCondition: null,
-    supportsCondition: null,
-    isInline: false,
-    importInaccessible: false,
-  }))
+  const capturedRules: CapturedCSSRule[] = selectors.map(selectorText => {
+    const [a, b, c] = computeSpecificity(selectorText)
+    return {
+      selectorText,
+      declarations,
+      priorities,
+      specificity: { a, b, c },
+      stylesheetId,
+      ruleIndex: index,
+      mediaCondition: null,
+      supportsCondition: null,
+      isInline: false,
+      importInaccessible: false,
+    }
+  })
 
   subscriber(
     new Box({
@@ -675,11 +678,12 @@ function emitTextBasedCSSPatch(
         }
         const selectors = rule.selectorText.split(',').map(s => s.trim())
         selectors.forEach(selectorText => {
+          const [a, b, c] = computeSpecificity(selectorText)
           newRules.push({
             selectorText,
             declarations,
             priorities,
-            specificity: computeSpecificity(selectorText),
+            specificity: { a, b, c },
             stylesheetId,
             ruleIndex: i,
             mediaCondition: null,

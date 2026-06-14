@@ -1,5 +1,3 @@
-import type { Specificity } from '@repro/domain'
-
 // CSS selector token types for specificity counting
 const TOKEN = {
   ID: '#' as const,
@@ -24,7 +22,7 @@ function parseSelectorTokens(selector: string): Array<{
   let i = 0
 
   while (i < selector.length) {
-    const ch = selector[i]! // safe: i < selector.length
+    const ch = selector[i]!
 
     // Whitespace (combinator)
     if (ch === ' ' || ch === '\t' || ch === '\n' || ch === '\r') {
@@ -35,7 +33,6 @@ function parseSelectorTokens(selector: string): Array<{
     // Combinators
     if (ch === '>' || ch === '+' || ch === '~') {
       i++
-      // skip following whitespace
       while (i < selector.length && selector[i] === ' ') i++
       continue
     }
@@ -61,6 +58,26 @@ function parseSelectorTokens(selector: string): Array<{
         i++
       }
       tokens.push({ type: TOKEN.CLASS, value })
+      continue
+    }
+
+    // Escaped character sequence
+    if (ch === '\\') {
+      // Skip the backslash and the escaped char (or Unicode sequence)
+      i++
+      if (i < selector.length) {
+        if (selector[i] === '\\') {
+          // Double escape, just skip both
+          i++
+        } else {
+          // Read the escaped identifier
+          let value = ''
+          while (i < selector.length && /[\w-]/.test(selector[i]!)) {
+            value += selector[i]!
+            i++
+          }
+        }
+      }
       continue
     }
 
@@ -111,7 +128,6 @@ function parseSelectorTokens(selector: string): Array<{
             if (depth > 0) args += selector[i]!
             i++
           }
-          // Skip closing ')'
           tokens.push({
             type: TOKEN.FUNCTION,
             value: fnName,
@@ -156,17 +172,33 @@ function parseSelectorTokens(selector: string): Array<{
 }
 
 /**
+ * Compare two specificity tuples lexicographically.
+ * Returns -1 if a < b, 0 if equal, 1 if a > b.
+ */
+export function compareSpecificity(
+  a: [number, number, number],
+  b: [number, number, number]
+): -1 | 0 | 1 {
+  if (a[0] !== b[0]) return a[0] < b[0] ? -1 : 1
+  if (a[1] !== b[1]) return a[1] < b[1] ? -1 : 1
+  if (a[2] !== b[2]) return a[2] < b[2] ? -1 : 1
+  return 0
+}
+
+/**
  * Compute specificity for a CSS selector.
- * Returns { a, b, c } where:
+ * Returns [a, b, c] where:
  *   a = number of ID selectors
  *   b = number of class selectors, attribute selectors, and pseudo-classes
  *   c = number of type selectors and pseudo-elements
  */
-export function computeSpecificity(selectorText: string): Specificity {
+export function computeSpecificity(
+  selectorText: string
+): [number, number, number] {
   const trimmed = selectorText.trim()
 
   if (!trimmed || trimmed.length === 0) {
-    return { a: 0, b: 0, c: 0 }
+    return [0, 0, 0]
   }
 
   const tokens = parseSelectorTokens(trimmed)
@@ -195,19 +227,15 @@ export function computeSpecificity(selectorText: string): Specificity {
         c++
         break
       case TOKEN.FUNCTION: {
-        // Handle :not(), :is(), :has(), :where()
         if (token.args !== undefined) {
           if (token.value === ':not') {
-            // :not() counts specificity of its inner selector
-            const inner = computeSpecificity(token.args)
-            a += inner.a
-            b += inner.b
-            c += inner.c
+            const [ia, ib, ic] = computeSpecificity(token.args)
+            a += ia
+            b += ib
+            c += ic
           } else if (token.value === ':where') {
             // :where() contributes 0 specificity
-            // skip
           } else if (token.value === ':is' || token.value === ':has') {
-            // :is() and :has() take the most specific selector inside
             const innerSelectors = token.args.split(',').map(s => s.trim())
             let maxA = 0,
               maxB = 0,
@@ -215,13 +243,13 @@ export function computeSpecificity(selectorText: string): Specificity {
             for (const innerSel of innerSelectors) {
               const sp = computeSpecificity(innerSel)
               if (
-                sp.a > maxA ||
-                (sp.a === maxA && sp.b > maxB) ||
-                (sp.a === maxA && sp.b === maxB && sp.c > maxC)
+                sp[0] > maxA ||
+                (sp[0] === maxA && sp[1] > maxB) ||
+                (sp[0] === maxA && sp[1] === maxB && sp[2] > maxC)
               ) {
-                maxA = sp.a
-                maxB = sp.b
-                maxC = sp.c
+                maxA = sp[0]
+                maxB = sp[1]
+                maxC = sp[2]
               }
             }
             a += maxA
@@ -234,9 +262,8 @@ export function computeSpecificity(selectorText: string): Specificity {
         }
         break
       }
-      // UNIVERSAL and COMBINATOR are ignored
     }
   }
 
-  return { a, b, c }
+  return [a, b, c]
 }

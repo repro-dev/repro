@@ -207,18 +207,21 @@ function extractStyleRule(
   }
 
   const selectors = rule.selectorText.split(',').map(s => s.trim())
-  return selectors.map(selectorText => ({
-    selectorText,
-    declarations,
-    priorities,
-    specificity: computeSpecificity(selectorText),
-    stylesheetId: sheetId,
-    ruleIndex,
-    mediaCondition: mediaCondition ?? null,
-    supportsCondition: supportsCondition ?? null,
-    isInline: false,
-    importInaccessible: false,
-  }))
+  return selectors.map(selectorText => {
+    const [a, b, c] = computeSpecificity(selectorText)
+    return {
+      selectorText,
+      declarations,
+      priorities,
+      specificity: { a, b, c },
+      stylesheetId: sheetId,
+      ruleIndex,
+      mediaCondition: mediaCondition ?? null,
+      supportsCondition: supportsCondition ?? null,
+      isInline: false,
+      importInaccessible: false,
+    }
+  })
 }
 
 function captureInlineStyles(doc: Document): CapturedCSSRule[] {
