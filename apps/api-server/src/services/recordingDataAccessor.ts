@@ -339,11 +339,13 @@ export function createRecordingDataAccessor(
         const snapshotEvent = events[0]!
         let snapshot: Snapshot | null = null
 
-        snapshotEvent.apply(event => {
-          if (event.type === SourceEventType.Snapshot) {
-            snapshot = event.data as Snapshot
+        snapshotEvent.apply(
+          (event: { type: SourceEventType; time: number; data: unknown }) => {
+            if (event.type === SourceEventType.Snapshot) {
+              snapshot = event.data as Snapshot
+            }
           }
-        })
+        )
 
         if (snapshot == null) {
           return null

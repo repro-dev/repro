@@ -9,7 +9,7 @@ import {
 } from '@repro/domain'
 import { Box } from '@repro/tdl'
 import { toBinaryWireFormat } from '@repro/wire-formats'
-import { promise, resolve } from 'fluture'
+import { FutureInstance, promise, resolve } from 'fluture'
 import assert from 'node:assert/strict'
 import { Readable } from 'node:stream'
 import { after, before, describe, it } from 'node:test'
@@ -95,7 +95,7 @@ function encodeEvents(events: Array<SourceEvent>) {
   return { blob, indexRows }
 }
 
-async function runFuture<L, R>(future: FutureInstance<L, R>): Promise<R> {
+async function runFuture<R>(future: FutureInstance<Error, R>): Promise<R> {
   return promise(future)
 }
 
