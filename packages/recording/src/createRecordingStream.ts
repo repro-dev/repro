@@ -78,7 +78,7 @@ const defaultOptions: RecordingOptions = {
   types: new Set(['dom', 'interaction']),
   ignoredNodes: [],
   ignoredSelectors: [],
-  maskedSelectors: [],
+  maskedSelectors: ['.repro-mask'],
   snapshotInterval: 10000,
   eventSampling: {
     pointerMove: 50,
