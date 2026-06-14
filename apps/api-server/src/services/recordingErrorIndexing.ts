@@ -170,7 +170,7 @@ export function createRecordingErrorIndexingService(
                 .join('\n')
             )
             .digest('hex')
-          const occurredAt = new Date(sourceEvent.time * 1000) // time is in ms
+          const occurredAt = new Date(sourceEvent.time) // time is in ms
 
           errors.push({
             message,

@@ -10,13 +10,15 @@ import { Box } from '@repro/tdl'
 import { toBinaryWireFormat } from '@repro/wire-formats'
 import expect from 'expect'
 import { promise } from 'fluture'
-import { createHash } from 'node:crypto'
 import { Readable } from 'node:stream'
 import { after, before, beforeEach, describe, it } from 'node:test'
 import { Database, encodeId } from '~/modules/database'
 import { setUpTestDatabase } from '~/testing/database'
 import { setUpTestFileSystemStorage } from '~/testing/storage'
-import { createRecordingErrorIndexingService } from './recordingErrorIndexing'
+import {
+  computeFingerprint,
+  createRecordingErrorIndexingService,
+} from './recordingErrorIndexing'
 
 function createConsoleErrorEvent(
   message: string,
@@ -90,17 +92,6 @@ function encodeSourceEventsToBuffer(events: Array<Box<any>>): Buffer {
   const encoded = events.map(event => SourceEventView.encode(event))
   const wireFormat = toBinaryWireFormat(encoded)
   return Buffer.from(wireFormat.buffer)
-}
-
-function computeFingerprint(stack: Array<StackEntry>): string {
-  const normalized = stack
-    .map(frame => {
-      const fileName = frame.fileName.split('?')[0] ?? frame.fileName
-      const functionName = frame.functionName ?? ''
-      return `${fileName}:${functionName}`
-    })
-    .join('\n')
-  return createHash('sha256').update(normalized).digest('hex')
 }
 
 async function createRecording(
@@ -269,6 +260,7 @@ describe('Services > Recording error indexing', () => {
     expect(rows[0]?.message).toEqual('Something broke')
     expect(rows[0]?.fingerprint).toBeTruthy()
     expect(rows[0]?.stackHash).toBeTruthy()
+    expect(rows[0]?.occurredAt).toBeInstanceOf(Date)
   })
 
   it('does not index console Info or Warning events', async () => {
