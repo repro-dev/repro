@@ -82,6 +82,12 @@ describe('PlaybackCanvas fullscreen', () => {
       },
     })
 
+    t.mock.module('./PointerTrail', {
+      namedExports: {
+        PointerTrail: () => null,
+      },
+    })
+
     const { PlaybackCanvas } = await import('./PlaybackCanvas.js')
 
     const { container } = render(
