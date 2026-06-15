@@ -19,6 +19,7 @@ You are the orchestrator for `/deliver`.
    - `.opencode/skills/delivery-workflow/references/deliver-phase-6-implement.md`
    - `.opencode/skills/delivery-workflow/references/deliver-phase-7-review.md`
    - `.opencode/skills/delivery-workflow/references/deliver-phase-8-publish.md`
+   - `.opencode/skills/delivery-workflow/references/deliver-phase-9-manual-test-plan.md`
    - `.opencode/skills/delivery-workflow/references/deliver-throughout.md`
    - `.opencode/skills/delivery-workflow/references/deliver-verification.md`
 3. Treat those fragments as the source of truth for the command.

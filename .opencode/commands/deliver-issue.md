@@ -16,6 +16,7 @@ You are the orchestrator for `/deliver-issue`.
    - `.opencode/skills/delivery-workflow/references/deliver-phase-6-implement.md`
    - `.opencode/skills/delivery-workflow/references/deliver-phase-7-review.md`
    - `.opencode/skills/delivery-workflow/references/deliver-phase-8-publish.md`
+   - `.opencode/skills/delivery-workflow/references/deliver-phase-9-manual-test-plan.md`
    - `.opencode/skills/delivery-workflow/references/deliver-throughout.md`
    - `.opencode/skills/delivery-workflow/references/deliver-verification.md`
 3. Treat those fragments as the source of truth for the command.
@@ -52,6 +53,7 @@ This command runs in **single-track mode, same-worktree**. It delivers exactly o
 - **Skip Phase 1** (backlog scan and select) entirely.
 - **Skip Phase 2** (provisional sequencing) entirely.
 - **Skip Phase 3** (worktree creation) entirely — the current directory IS the worktree.
+- **Phase 9** (manual test plan) runs normally after publish. No override needed.
 
 ### Fragment overrides
 
