@@ -50,6 +50,10 @@ export function usePointerTrail(trailDuration: number): TrailPosition[] {
 
     const [x, y] = pointer
 
+    if (x === -100 && y === -100) {
+      return
+    }
+
     setTrail(current => {
       if (current.length > 0) {
         const last = current[current.length - 1]
