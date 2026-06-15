@@ -1,0 +1,17 @@
+id: repro
+language: typescript
+tasks:
+  pen-export:
+    command: pnpm run pen:export
+    inputs:
+    - glob: repro.pen
+      cache: true
+    - glob: scripts/pen-export.ts
+      cache: true
+    - glob: scripts/pen-export.json
+      cache: true
+    options:
+      cache: true
+      outputStyle: buffer-only-failure
+toolchains:
+  default: node
