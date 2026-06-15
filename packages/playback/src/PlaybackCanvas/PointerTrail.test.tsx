@@ -153,7 +153,7 @@ describe('PointerTrail', () => {
     expect(lastTrail[0]!.time).toBe(750)
 
     // --- 8. Seek clears trail AND blocks the seek-time snapshot position ---
-    mock.controlFrame = ControlFrame.SeekToTime
+    playback.$latestControlFrame.next(ControlFrame.SeekToTime)
     mock.snapshot = makeSnapshot([130, 140])
     mock.elapsed = 800
 
@@ -179,7 +179,7 @@ describe('PointerTrail', () => {
     await act(() => {})
     expect(lastTrail).toHaveLength(2)
 
-    mock.controlFrame = ControlFrame.Flush
+    playback.$latestControlFrame.next(ControlFrame.Flush)
     mock.snapshot = makeSnapshot([160, 170])
     mock.elapsed = 1100
 

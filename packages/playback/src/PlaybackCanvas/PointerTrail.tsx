@@ -1,7 +1,6 @@
 import { colors } from '@repro/design'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import {
-  useLatestControlFrame,
   usePlayback,
   usePlaybackState,
   useSnapshot,
@@ -24,17 +23,19 @@ interface PointerTrailProps {
 export function usePointerTrail(trailDuration: number): TrailPosition[] {
   const snapshot = useSnapshot()
   const playback = usePlayback()
-  const controlFrame = useLatestControlFrame()
 
   const [trail, setTrail] = useState<Array<TrailPosition>>([])
   const isSeekingRef = useRef(false)
 
   useEffect(() => {
-    if (controlFrame !== ControlFrame.Idle) {
-      setTrail([])
-      isSeekingRef.current = true
-    }
-  }, [controlFrame])
+    const sub = playback.$latestControlFrame.subscribe(frame => {
+      if (frame !== ControlFrame.Idle) {
+        setTrail([])
+        isSeekingRef.current = true
+      }
+    })
+    return () => sub.unsubscribe()
+  }, [playback])
 
   useEffect(() => {
     const pointer = snapshot.interaction?.pointer
