@@ -19,6 +19,7 @@ import {
   createRecordingTypes,
   type RuntimeInstalledType,
 } from './recordingTypes'
+import { installRuntimeObservers } from './runtime'
 import { clearRuntimeBuffer } from './runtimeBuffer'
 import { StateProvider, createState } from './state'
 
@@ -160,12 +161,16 @@ class ReproCapture extends HTMLElement {
       ignoredNodes.push(document.currentScript)
     }
 
+    const runtimeInstalledTypes =
+      window.__REPRO_RUNTIME_INSTALLED_TYPES__ ??
+      new Set<RuntimeInstalledType>()
+
+    installRuntimeObservers({
+      types: createRecordingTypes({ runtimeInstalledTypes }),
+    })
+
     const stream = createRecordingStream(document, {
-      types: createRecordingTypes({
-        runtimeInstalledTypes:
-          window.__REPRO_RUNTIME_INSTALLED_TYPES__ ??
-          new Set<RuntimeInstalledType>(),
-      }),
+      types: createRecordingTypes({ runtimeInstalledTypes }),
       ignoredNodes,
       ignoredSelectors,
     })
