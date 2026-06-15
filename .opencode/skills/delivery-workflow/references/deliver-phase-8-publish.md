@@ -74,4 +74,8 @@ After stopping, if this session will not immediately continue:
 
 - Run `/ledger` to capture a session handoff for the current wave. This allows a future session to resume triage or publish remaining waves without re-exploring.
 
+## Phase 9 follows
+
+After Phase 8 completes, proceed to Phase 9 (`deliver-phase-9-manual-test-plan.md`) to emit a manual test plan artifact for each published issue. Phase 9 is post-publish and non-blocking — it runs after the PR is created, as a final informational output step before the run stops.
+
 ---

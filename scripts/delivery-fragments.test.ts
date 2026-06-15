@@ -19,6 +19,7 @@ const fragmentPaths = [
   '.opencode/skills/delivery-workflow/references/deliver-phase-6-implement.md',
   '.opencode/skills/delivery-workflow/references/deliver-phase-7-review.md',
   '.opencode/skills/delivery-workflow/references/deliver-phase-8-publish.md',
+  '.opencode/skills/delivery-workflow/references/deliver-phase-9-manual-test-plan.md',
   '.opencode/skills/delivery-workflow/references/deliver-throughout.md',
   '.opencode/skills/delivery-workflow/references/deliver-verification.md',
 ]
@@ -85,6 +86,7 @@ describe('REP-1132 delivery fragment wiring', () => {
       deliverCommand,
       /## Phase 8: Publish the active ready wave and stop/
     )
+    assert.doesNotMatch(deliverCommand, /## Phase 9: Emit manual test plan/)
     assert.doesNotMatch(deliverCommand, /## Throughout/)
     assert.match(deliverCommand, /Read these canonical fragments in order:/)
   })
