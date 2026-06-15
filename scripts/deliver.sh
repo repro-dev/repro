@@ -48,4 +48,7 @@ if [[ -z "$workspace_id" ]]; then
   exit 1
 fi
 
-exec herdr agent start opencode --workspace "$workspace_id" --focus -- opencode run -i "/deliver-issue $issue_id"
+exec herdr agent start "opencode-${issue_id}" \
+    --workspace "$workspace_id" \
+    --focus \
+    -- env REPRO_OPENCODE_PROFILE="${REPRO_OPENCODE_PROFILE:-deepseek-v4}" "$SCRIPT_DIR/reproctl.sh" opencode --prompt "/deliver-issue $issue_id"
