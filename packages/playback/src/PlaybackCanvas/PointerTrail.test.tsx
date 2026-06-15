@@ -3,6 +3,7 @@ import { act, cleanup, render } from '@testing-library/react'
 import expect from 'expect'
 import { afterEach, describe, it } from 'node:test'
 import React from 'react'
+import { BehaviorSubject } from 'rxjs'
 import { ControlFrame, PlaybackState } from '../types'
 import type { TrailPosition } from './PointerTrail'
 
@@ -52,7 +53,11 @@ describe('PointerTrail', () => {
       controlFrame: ControlFrame.Idle,
     }
 
-    const playback = { getElapsed: () => mock.elapsed }
+    const playback = {
+      getElapsed: () => mock.elapsed,
+      $latestControlFrame: new BehaviorSubject(ControlFrame.Idle),
+      $playbackState: new BehaviorSubject(PlaybackState.Playing),
+    }
 
     t.mock.module('../hooks', {
       namedExports: {
@@ -188,6 +193,8 @@ describe('PointerTrail', () => {
       namedExports: {
         usePlayback: () => ({
           getElapsed: () => 0,
+          $latestControlFrame: new BehaviorSubject(ControlFrame.Idle),
+          $playbackState: new BehaviorSubject(PlaybackState.Playing),
         }),
         useSnapshot: () => makeSnapshot([100, 200]),
         useLatestControlFrame: () => ControlFrame.Idle,
@@ -211,6 +218,8 @@ describe('PointerTrail', () => {
       namedExports: {
         usePlayback: () => ({
           getElapsed: () => 0,
+          $latestControlFrame: new BehaviorSubject(ControlFrame.Idle),
+          $playbackState: new BehaviorSubject(PlaybackState.Playing),
         }),
         useSnapshot: () => makeSnapshot(null),
         useLatestControlFrame: () => ControlFrame.Idle,
