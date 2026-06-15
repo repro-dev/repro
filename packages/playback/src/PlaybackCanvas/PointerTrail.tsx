@@ -1,5 +1,5 @@
 import { colors } from '@repro/design'
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import {
   useLatestControlFrame,
   usePlayback,
@@ -8,7 +8,7 @@ import {
 } from '../hooks'
 import { ControlFrame } from '../types'
 
-interface TrailPosition {
+export interface TrailPosition {
   x: number
   y: number
   time: number
@@ -20,25 +20,17 @@ interface PointerTrailProps {
   trailWidth?: number
 }
 
-export const PointerTrail: React.FC<PointerTrailProps> = ({
-  trailDuration = 200,
-  trailColor = colors.pink['400'],
-  trailWidth = 2,
-}) => {
-  const trailRef = useRef<Array<TrailPosition>>([])
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const rafRef = useRef<number>(0)
-
+export function usePointerTrail(trailDuration: number): TrailPosition[] {
   const snapshot = useSnapshot()
   const playback = usePlayback()
   const controlFrame = useLatestControlFrame()
-  const viewport = useViewport()
-  const [vWidth, vHeight] = viewport
+
+  const [trail, setTrail] = useState<Array<TrailPosition>>([])
 
   // Clear trail on seek
   useEffect(() => {
     if (controlFrame !== ControlFrame.Idle) {
-      trailRef.current = []
+      setTrail([])
     }
   }, [controlFrame])
 
@@ -49,26 +41,50 @@ export const PointerTrail: React.FC<PointerTrailProps> = ({
       return
     }
 
-    const trail = trailRef.current
     const [x, y] = pointer
 
-    // Don't add duplicate positions
-    if (trail.length > 0) {
-      const last = trail[trail.length - 1]
-      if (last && last.x === x && last.y === y) {
-        return
+    setTrail(current => {
+      // Don't add duplicate positions
+      if (current.length > 0) {
+        const last = current[current.length - 1]
+        if (last && last.x === x && last.y === y) {
+          return current
+        }
       }
-    }
 
-    const elapsed = playback.getElapsed()
-    trail.push({ x, y, time: elapsed })
+      const elapsed = playback.getElapsed()
 
-    // Trim positions beyond trailDuration
-    const cutoff = elapsed - trailDuration
-    while (trail.length > 0 && trail[0]!.time < cutoff) {
-      trail.shift()
-    }
+      const updated = [...current, { x, y, time: elapsed }]
+
+      // Trim positions beyond trailDuration
+      const cutoff = elapsed - trailDuration
+      while (updated.length > 0 && updated[0]!.time < cutoff) {
+        updated.shift()
+      }
+
+      return updated
+    })
   }, [snapshot, playback, trailDuration])
+
+  return trail
+}
+
+export const PointerTrail: React.FC<PointerTrailProps> = ({
+  trailDuration = 200,
+  trailColor = colors.pink['400'],
+  trailWidth = 2,
+}) => {
+  const trailRef = useRef<Array<TrailPosition>>([])
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const rafRef = useRef<number>(0)
+
+  const trail = usePointerTrail(trailDuration)
+  const viewport = useViewport()
+  const playback = usePlayback()
+  const [vWidth, vHeight] = viewport
+
+  // Keep trailRef in sync with state for the render loop
+  trailRef.current = trail
 
   // Update canvas dimensions when viewport changes
   useEffect(() => {
