@@ -1,4 +1,5 @@
 import { colors } from '@repro/design'
+import { isPointOutOfBounds } from '@repro/source-utils'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import {
   usePlayback,
@@ -50,7 +51,7 @@ export function usePointerTrail(trailDuration: number): TrailPosition[] {
 
     const [x, y] = pointer
 
-    if (x === -100 && y === -100) {
+    if (isPointOutOfBounds(pointer)) {
       return
     }
 

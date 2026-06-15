@@ -1,5 +1,6 @@
 export * from './factories'
 export * from './mutations'
+export * from './point'
 export * from './queries/calculateDuration'
 export * from './queries/findConsoleErrors'
 export * from './queries/findIndexedNetworkEvents'
