@@ -65,4 +65,4 @@ Each Task prompt should include:
 - Use `git worktree prune` only as a fallback when `reproctl wt remove` cannot clean up a broken directory.
 - If `direnv` is blocked, re-run `direnv allow` or recreate the worktree.
 - If services do not start, check for missing `.env` files or `node_modules` in that worktree.
-- If `git rebase origin/main` reports `fatal: refusing to merge unrelated histories`, the main checkout may be in a shallow state. Check for `.git/shallow` in the main checkout and run `git -C <main-checkout> fetch --unshallow origin` to restore full history. Worktrees share the shallow state from the main checkout — running `git fetch --unshallow` in the main checkout fixes all worktrees.
+- If `git rebase origin/main` reports `fatal: refusing to merge unrelated histories`, the main checkout may be in a shallow state — check for `.git/shallow` in the main checkout and run `git -C <main-checkout> fetch --unshallow origin`. Worktrees share the shallow state from the main checkout.

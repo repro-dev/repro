@@ -59,12 +59,18 @@ This guidance applies only to non-interactive agent contexts. Human developers u
 ### Detection: Shallow Repository Check
 
 ```sh
+# Pre: running from main checkout
+# Post: shallow state is detected and reported
+#
 # Check if repo is shallow
 if [ -f .git/shallow ]; then
   echo "Repository is shallow (depth-limited). Git history may be incomplete."
-  cat .git/shallow | wc -l  # number of cut-points
+  wc -l < .git/shallow  # number of cut-points
 fi
 
+# Pre: .git/shallow exists (repo is shallow)
+# Post: full history is restored, shallow file is removed
+#
 # Fix: unshallow the repo
 git fetch --unshallow origin
 ```
@@ -84,12 +90,19 @@ Note: this must be run from the **main checkout**, not from a worktree (worktree
 ### Rebase Recovery
 
 ```sh
+# Pre: rebase is in progress and has conflicts
+# Post: working tree is restored to pre-rebase state
+#
 # Abort a failed rebase and return to pre-rebase state
 git rebase --abort
 
-# Skip the current conflicting commit (rarely desired — prefer abort+retry)
+# Pre: rebase stopped at a conflicting commit you want to drop
+# Post: the conflicting commit is skipped, rebase continues (rarely desired — prefer abort+retry)
 git rebase --skip
 
+# Pre: conflicts in <resolved-files> have been manually resolved
+# Post: rebase continues past the resolved commit
+#
 # After resolving a conflict during rebase
 git add <resolved-files>
 git rebase --continue
@@ -102,11 +115,17 @@ Note: `git rebase --abort` is always safe and returns you to exactly where you w
 ### Keeping Branches Close to origin/main
 
 ```sh
+# Pre: branch has local commits not yet on origin/main
+# Post: branch is rebased onto the latest origin/main tip
+#
 # Before starting work for the day
 git fetch origin main
 git rebase origin/main
 
-# Pre-push guard (referenced from deliver-phase-8-publish.md)
+# Pre: branch exists, working tree is clean
+# Post: if branch was behind origin/main, it is now rebased; if already ahead, no-op
+#
+# Pre-push guard (referenced from .opencode/skills/delivery-workflow/references/deliver-phase-8-publish.md)
 git fetch origin main
 if ! git merge-base --is-ancestor origin/main HEAD; then
   git rebase origin/main
@@ -120,15 +139,21 @@ Guidance: rebase onto `origin/main` frequently — at least before pushing and a
 Recommendation: check for `.git/shallow` before branch creation and periodically:
 
 ```sh
+# Pre: running from main checkout
+# Post: warning printed if shallow state is detected
+#
 # Run from main checkout
 test -f .git/shallow && echo "WARNING: shallow repo detected. Run: git fetch --unshallow origin"
 ```
 
-The `reproctl wt create` flow (in `scripts/lib/worktree.sh`) does `git fetch origin main` without `--depth`, but it preserves an existing shallow state. Consider adding a shallow-state check to `scripts/lib/worktree.sh` `_latest_main_ref()` or to the worktree creation pre-flight.
+The `reproctl wt create` flow (in `scripts/lib/worktree.sh`) does `git fetch origin main` without `--depth`, but it preserves an existing shallow state. Consider adding a shallow-state check to the worktree creation pre-flight in `scripts/lib/worktree.sh`.
 
 ### git rerere (Optional Proactive Measure)
 
 ```sh
+# Pre: none (global config change)
+# Post: rerere is enabled for all repos, future conflict resolutions are recorded and reused
+#
 # Enable rerere to record and reuse conflict resolutions
 git config --global rerere.enabled true
 ```
@@ -137,7 +162,7 @@ git config --global rerere.enabled true
 
 ### Cross-References
 
-- **`deliver-phase-8-publish.md`**: Contains the pre-push `origin/main` ancestor guard. This playbook provides the resolution strategies when that guard fails. Do not duplicate the guard here — reference it.
+- **`.opencode/skills/delivery-workflow/references/deliver-phase-8-publish.md`**: Contains the pre-push `origin/main` ancestor guard. This playbook provides the resolution strategies when that guard fails. Do not duplicate the guard here — reference it.
 - **`worktree-workflow` skill**: For worktree lifecycle guidance and the shallow-state troubleshooting entry added in this same change.
 
 ## Pull Requests
