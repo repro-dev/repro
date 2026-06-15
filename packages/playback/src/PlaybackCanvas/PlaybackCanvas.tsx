@@ -9,6 +9,7 @@ import { FullWidthViewport } from './FullWidthViewport'
 import { InteractionMask } from './InteractionMask'
 import { NativeDOMRenderer } from './NativeDOMRenderer'
 import { PointerOverlay } from './PointerOverlay'
+import { PointerTrail } from './PointerTrail'
 import { ScaleToFitViewport } from './ScaleToFitViewport'
 import { MutableNodeMap } from './types'
 
@@ -96,6 +97,7 @@ export const PlaybackCanvas = withPlaybackErrorBoundary(
           </Delay>
         </FrameRealm>
 
+        {trackPointer && <PointerTrail />}
         {trackPointer && <PointerOverlay />}
         {!interactive && <InteractionMask />}
         {children}

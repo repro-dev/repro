@@ -33,6 +33,7 @@ import {
 } from '@repro/domain'
 import { ObserverLike } from '@repro/observer-utils'
 import {
+  OUT_OF_BOUNDS_POINT,
   applyEventToSnapshot,
   applyStyleSheetMutationToSnapshot,
   createEmptySnapshot,
@@ -91,7 +92,7 @@ const MAX_EVENT_BUFFER_SIZE_BYTES = 32_000_000
 
 export function createEmptyInteractionSnapshot(): InteractionSnapshot {
   return {
-    pointer: [0, 0],
+    pointer: OUT_OF_BOUNDS_POINT,
     pointerState: PointerState.Up,
     scroll: {},
     viewport: [0, 0],
