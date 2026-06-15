@@ -3,7 +3,7 @@ import { act, cleanup, render } from '@testing-library/react'
 import expect from 'expect'
 import { afterEach, describe, it } from 'node:test'
 import React from 'react'
-import { ControlFrame } from '../types'
+import { ControlFrame, PlaybackState } from '../types'
 import type { TrailPosition } from './PointerTrail'
 
 interface MockSnapshot {
@@ -52,8 +52,6 @@ describe('PointerTrail', () => {
       controlFrame: ControlFrame.Idle,
     }
 
-    // Stable reference for playback — must NOT create a new object every render
-    // or the pointer-tracking useEffect re-fires on every re-render (including seek)
     const playback = { getElapsed: () => mock.elapsed }
 
     t.mock.module('../hooks', {
@@ -62,6 +60,7 @@ describe('PointerTrail', () => {
         useSnapshot: () => mock.snapshot,
         useLatestControlFrame: () => mock.controlFrame,
         useViewport: () => [1024, 768] as Point,
+        usePlaybackState: () => PlaybackState.Playing,
       },
     })
 
@@ -120,9 +119,6 @@ describe('PointerTrail', () => {
     expect(lastTrail).toHaveLength(3)
 
     // --- 5. Trim old positions (partial trim) ---
-    // elapsed=350, cutoff=350-200=150
-    // trail: time=0, 100, 150 → time=0<150 shift, time=100<150 shift, time=150<150 false
-    // After: time=150, time=350
     mock.snapshot = makeSnapshot([70, 80])
     mock.elapsed = 350
 
@@ -133,9 +129,6 @@ describe('PointerTrail', () => {
     expect(lastTrail[1]!.time).toBe(350)
 
     // --- 6. Trim all but newest ---
-    // elapsed=450, cutoff=450-200=250
-    // trail: time=150, 350 → time=150<250 shift, time=350<250 false
-    // After: time=350, time=450
     mock.snapshot = makeSnapshot([90, 100])
     mock.elapsed = 450
 
@@ -146,9 +139,6 @@ describe('PointerTrail', () => {
     expect(lastTrail[1]!.time).toBe(450)
 
     // --- 7. Trim all positions ---
-    // elapsed=750, cutoff=750-200=550
-    // trail: time=350, 450 → both < 550, both shifted
-    // After: time=750 only
     mock.snapshot = makeSnapshot([110, 120])
     mock.elapsed = 750
 
@@ -157,39 +147,36 @@ describe('PointerTrail', () => {
     expect(lastTrail).toHaveLength(1)
     expect(lastTrail[0]!.time).toBe(750)
 
-    // --- 8. Seek clears the trail ---
+    // --- 8. Seek clears trail AND blocks the seek-time snapshot position ---
     mock.controlFrame = ControlFrame.SeekToTime
-
-    rerender(<Harness duration={200} />)
-    await act(() => {})
-
-    // With stable playback reference, the pointer-tracking effect does NOT
-    // re-fire here (snapshot reference unchanged). Only the seek-clear effect
-    // fires, emptying the trail.
-    expect(lastTrail).toHaveLength(0)
-
-    // After seek, new positions can be added
     mock.snapshot = makeSnapshot([130, 140])
     mock.elapsed = 800
+
+    rerender(<Harness duration={200} />)
+    await act(() => {})
+    expect(lastTrail).toHaveLength(0)
+
+    // After returning to Idle, fresh positions are accumulated
     mock.controlFrame = ControlFrame.Idle
+    mock.snapshot = makeSnapshot([140, 150])
+    mock.elapsed = 900
 
     rerender(<Harness duration={200} />)
     await act(() => {})
     expect(lastTrail).toHaveLength(1)
-    expect(lastTrail[0]!.time).toBe(800)
+    expect(lastTrail[0]!.time).toBe(900)
 
-    // --- 9. Flush also clears the trail ---
-    // Add a position, then flush
+    // --- 9. Flush clears trail AND blocks the flush-time snapshot position ---
     mock.snapshot = makeSnapshot([150, 160])
-    mock.elapsed = 1100
+    mock.elapsed = 1000
 
     rerender(<Harness duration={200} />)
     await act(() => {})
-    // cutoff=1100-200=900. time=800 < 900 → trimmed. Only [1100] remains.
-    expect(lastTrail).toHaveLength(1)
-    expect(lastTrail[0]!.time).toBe(1100)
+    expect(lastTrail).toHaveLength(2)
 
     mock.controlFrame = ControlFrame.Flush
+    mock.snapshot = makeSnapshot([160, 170])
+    mock.elapsed = 1100
 
     rerender(<Harness duration={200} />)
     await act(() => {})
@@ -205,6 +192,7 @@ describe('PointerTrail', () => {
         useSnapshot: () => makeSnapshot([100, 200]),
         useLatestControlFrame: () => ControlFrame.Idle,
         useViewport: () => [1024, 768] as Point,
+        usePlaybackState: () => PlaybackState.Playing,
       },
     })
 
@@ -227,6 +215,7 @@ describe('PointerTrail', () => {
         useSnapshot: () => makeSnapshot(null),
         useLatestControlFrame: () => ControlFrame.Idle,
         useViewport: () => [1024, 768] as Point,
+        usePlaybackState: () => PlaybackState.Playing,
       },
     })
 

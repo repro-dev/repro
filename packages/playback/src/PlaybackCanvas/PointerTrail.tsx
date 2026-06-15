@@ -1,12 +1,13 @@
 import { colors } from '@repro/design'
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import {
   useLatestControlFrame,
   usePlayback,
+  usePlaybackState,
   useSnapshot,
   useViewport,
 } from '../hooks'
-import { ControlFrame } from '../types'
+import { ControlFrame, PlaybackState } from '../types'
 
 export interface TrailPosition {
   x: number
@@ -26,25 +27,29 @@ export function usePointerTrail(trailDuration: number): TrailPosition[] {
   const controlFrame = useLatestControlFrame()
 
   const [trail, setTrail] = useState<Array<TrailPosition>>([])
+  const isSeekingRef = useRef(false)
 
-  // Clear trail on seek
   useEffect(() => {
     if (controlFrame !== ControlFrame.Idle) {
       setTrail([])
+      isSeekingRef.current = true
     }
   }, [controlFrame])
 
-  // Track pointer position changes
   useEffect(() => {
     const pointer = snapshot.interaction?.pointer
     if (!pointer) {
       return
     }
 
+    if (isSeekingRef.current) {
+      isSeekingRef.current = false
+      return
+    }
+
     const [x, y] = pointer
 
     setTrail(current => {
-      // Don't add duplicate positions
       if (current.length > 0) {
         const last = current[current.length - 1]
         if (last && last.x === x && last.y === y) {
@@ -56,7 +61,6 @@ export function usePointerTrail(trailDuration: number): TrailPosition[] {
 
       const updated = [...current, { x, y, time: elapsed }]
 
-      // Trim positions beyond trailDuration
       const cutoff = elapsed - trailDuration
       while (updated.length > 0 && updated[0]!.time < cutoff) {
         updated.shift()
@@ -67,6 +71,30 @@ export function usePointerTrail(trailDuration: number): TrailPosition[] {
   }, [snapshot, playback, trailDuration])
 
   return trail
+}
+
+const catmullRomControlPoints = (
+  positions: Array<TrailPosition>,
+  tension: number,
+  i: number
+) => {
+  const p0 = positions[i - 2] ?? positions[0]!
+  const p1 = positions[i - 1]!
+  const p2 = positions[i]!
+  const p3 = positions[i + 1] ?? positions[positions.length - 1]!
+
+  return {
+    cp1: {
+      x: p1.x + ((p2.x - p0.x) * tension) / 6,
+      y: p1.y + ((p2.y - p0.y) * tension) / 6,
+    },
+    cp2: {
+      x: p2.x - ((p3.x - p1.x) * tension) / 6,
+      y: p2.y - ((p3.y - p1.y) * tension) / 6,
+    },
+    p1,
+    p2,
+  }
 }
 
 export const PointerTrail: React.FC<PointerTrailProps> = ({
@@ -81,12 +109,11 @@ export const PointerTrail: React.FC<PointerTrailProps> = ({
   const trail = usePointerTrail(trailDuration)
   const viewport = useViewport()
   const playback = usePlayback()
+  const playbackState = usePlaybackState()
   const [vWidth, vHeight] = viewport
 
-  // Keep trailRef in sync with state for the render loop
   trailRef.current = trail
 
-  // Update canvas dimensions when viewport changes
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) {
@@ -97,7 +124,39 @@ export const PointerTrail: React.FC<PointerTrailProps> = ({
     canvas.height = vHeight
   }, [vWidth, vHeight])
 
-  // Render loop
+  const drawTrailPath = useCallback(
+    (ctx: CanvasRenderingContext2D, positions: Array<TrailPosition>) => {
+      const n = positions.length
+      if (n < 2) return
+
+      const tension = 0.7
+
+      const {
+        cp1: firstCp1,
+        cp2: firstCp2,
+        p1: firstP1,
+        p2: firstP2,
+      } = catmullRomControlPoints(positions, tension, 1)
+
+      ctx.beginPath()
+      ctx.moveTo(firstP1.x, firstP1.y)
+      ctx.bezierCurveTo(
+        firstCp1.x,
+        firstCp1.y,
+        firstCp2.x,
+        firstCp2.y,
+        firstP2.x,
+        firstP2.y
+      )
+
+      for (let i = 2; i < n; i++) {
+        const { cp1, cp2, p2 } = catmullRomControlPoints(positions, tension, i)
+        ctx.bezierCurveTo(cp1.x, cp1.y, cp2.x, cp2.y, p2.x, p2.y)
+      }
+    },
+    []
+  )
+
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) {
@@ -111,9 +170,16 @@ export const PointerTrail: React.FC<PointerTrailProps> = ({
 
     const render = () => {
       const positions = trailRef.current
+
+      if (playbackState === PlaybackState.Paused) {
+        trailRef.current = []
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
+        rafRef.current = requestAnimationFrame(render)
+        return
+      }
+
       const elapsed = playback.getElapsed()
 
-      // Trim old positions continuously (handles paused playback)
       const cutoff = elapsed - trailDuration
       while (positions.length > 0 && positions[0]!.time < cutoff) {
         positions.shift()
@@ -127,39 +193,18 @@ export const PointerTrail: React.FC<PointerTrailProps> = ({
       }
 
       ctx.strokeStyle = trailColor
-      ctx.lineWidth = trailWidth
       ctx.lineCap = 'round'
       ctx.lineJoin = 'round'
 
-      // Draw Catmull-Rom to cubic Bezier segments with fading opacity
-      const n = positions.length
-      const tension = 0.5
+      ctx.globalAlpha = 0.15
+      ctx.lineWidth = trailWidth * 4
+      drawTrailPath(ctx, positions)
+      ctx.stroke()
 
-      for (let i = 1; i < n; i++) {
-        // Fading: oldest segment has alpha ≈ 0, newest has alpha = 1
-        ctx.globalAlpha = i / (n - 1)
-
-        // Catmull-Rom to cubic Bezier control points
-        const p0 = positions[i - 2] ?? positions[0]!
-        const p1 = positions[i - 1]!
-        const p2 = positions[i]!
-        const p3 = positions[i + 1] ?? positions[n - 1]!
-
-        const cp1 = {
-          x: p1.x + ((p2.x - p0.x) * tension) / 6,
-          y: p1.y + ((p2.y - p0.y) * tension) / 6,
-        }
-
-        const cp2 = {
-          x: p2.x - ((p3.x - p1.x) * tension) / 6,
-          y: p2.y - ((p3.y - p1.y) * tension) / 6,
-        }
-
-        ctx.beginPath()
-        ctx.moveTo(p1.x, p1.y)
-        ctx.bezierCurveTo(cp1.x, cp1.y, cp2.x, cp2.y, p2.x, p2.y)
-        ctx.stroke()
-      }
+      ctx.globalAlpha = 0.85
+      ctx.lineWidth = trailWidth
+      drawTrailPath(ctx, positions)
+      ctx.stroke()
 
       ctx.globalAlpha = 1
 
@@ -171,7 +216,14 @@ export const PointerTrail: React.FC<PointerTrailProps> = ({
     return () => {
       cancelAnimationFrame(rafRef.current)
     }
-  }, [trailColor, trailWidth, playback, trailDuration])
+  }, [
+    trailColor,
+    trailWidth,
+    playback,
+    trailDuration,
+    playbackState,
+    drawTrailPath,
+  ])
 
   return (
     <canvas
