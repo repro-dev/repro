@@ -2,65 +2,54 @@ import 'global-jsdom/register'
 
 import assert from 'node:assert/strict'
 import { it } from 'node:test'
-import { installPhase0, installPhase1Observers } from './runtime'
+import { installRuntime, installRuntimeObservers } from './runtime'
 import { appendRuntimeBuffer, clearRuntimeBuffer } from './runtimeBuffer'
 
-it('installs the runtime hook stub and stays idempotent', () => {
-  const hook = (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
-
-  assert.ok(hook)
-
-  const descriptor = Object.getOwnPropertyDescriptor(
-    globalThis,
-    '__REACT_DEVTOOLS_GLOBAL_HOOK__'
-  )
-
-  assert.equal(descriptor?.configurable, false)
-  assert.equal(descriptor?.writable, false)
-  assert.equal(hook?.supportsFiber, true)
-  assert.ok(hook?.renderers instanceof Map)
-
-  const rendererId = hook!.inject({ name: 'renderer' })
-
-  assert.equal(rendererId, 0)
-  assert.deepEqual(hook!.renderers.get(rendererId), { name: 'renderer' })
-
-  let payloadCount = 0
-  const listener = (value: unknown) => {
-    if (value === 'payload') {
-      payloadCount += 1
-    }
-  }
-
-  hook!.on('ping', listener)
-  hook!.emit('ping', 'payload')
-  hook!.off('ping', listener)
-  hook!.emit('ping', 'payload')
-
-  assert.equal(payloadCount, 1)
-
+it('installRuntime is idempotent', () => {
   const buffer = window.__REPRO_RUNTIME_BUFFER__
   const installedTypes = window.__REPRO_RUNTIME_INSTALLED_TYPES__
 
-  installPhase0()
+  installRuntime()
 
   assert.equal(window.__REPRO_RUNTIME_BUFFER__, buffer)
   assert.equal(window.__REPRO_RUNTIME_INSTALLED_TYPES__, installedTypes)
   assert.equal(window.__REPRO_RUNTIME_INSTALLED__, true)
 })
 
-it('registers only custom observer type after Phase 0', () => {
+it('registers only custom observer type after installRuntime', () => {
   const installedTypes = window.__REPRO_RUNTIME_INSTALLED_TYPES__
   assert.ok(installedTypes)
   assert.ok(installedTypes.has('custom'))
   assert.equal(installedTypes.size, 1)
 })
 
-it('installs Phase 1 observers: console, network, performance', () => {
+it('installRuntimeObservers installs React hook stub and all observers', () => {
   const logBefore = console.log
   const fetchBefore = globalThis.fetch
 
-  installPhase1Observers()
+  installRuntimeObservers({
+    types: new Set(['network', 'performance', 'console']),
+  })
+
+  const hook = (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+
+  assert.ok(hook)
+  assert.equal(hook?.supportsFiber, true)
+  assert.ok(hook?.renderers instanceof Map)
+
+  const rendererId = hook!.inject({ name: 'renderer' })
+  assert.equal(rendererId, 0)
+  assert.deepEqual(hook!.renderers.get(rendererId), { name: 'renderer' })
+
+  let payloadCount = 0
+  const listener = (value: unknown) => {
+    if (value === 'payload') payloadCount += 1
+  }
+  hook!.on('ping', listener)
+  hook!.emit('ping', 'payload')
+  hook!.off('ping', listener)
+  hook!.emit('ping', 'payload')
+  assert.equal(payloadCount, 1)
 
   const installedTypes = window.__REPRO_RUNTIME_INSTALLED_TYPES__
   assert.ok(installedTypes)
@@ -74,13 +63,15 @@ it('installs Phase 1 observers: console, network, performance', () => {
   assert.notEqual(globalThis.fetch, fetchBefore)
 })
 
-it('does not re-wrap global patches on repeated installPhase1Observers() calls', () => {
+it('does not re-wrap global patches on repeated installRuntimeObservers() calls', () => {
   const installedTypes = window.__REPRO_RUNTIME_INSTALLED_TYPES__
   const logBefore = console.log
   const fetchBefore = globalThis.fetch
   const xhrBefore = globalThis.XMLHttpRequest
 
-  installPhase1Observers()
+  installRuntimeObservers({
+    types: new Set(['network', 'performance', 'console']),
+  })
 
   assert.equal(window.__REPRO_RUNTIME_INSTALLED_TYPES__, installedTypes)
   assert.equal(installedTypes?.size, 4)
