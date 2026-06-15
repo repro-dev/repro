@@ -1,3 +1,4 @@
+export * from './checkpoint'
 export * from './context'
 export {
   InterruptSignal,
