@@ -345,6 +345,10 @@ test("issue update help advertises label merge and mine flags", async () => {
   assert.match(result.stdout, /--parent <issue-id>/);
   assert.match(result.stdout, /--remove-parent/);
   assert.match(result.stdout, /--mine/);
+  assert.match(result.stdout, /--related <issue-id>/);
+  assert.match(result.stdout, /--blocks <issue-id>/);
+  assert.match(result.stdout, /--blocked-by <issue-id>/);
+  assert.match(result.stdout, /--duplicate-of <issue-id>/);
 });
 
 test("version output remains available for bootstrap checks", async () => {
