@@ -20,6 +20,7 @@ import {
   isDocumentVNode,
   isElementVNode,
   isParentVNode,
+  isShadowRootVNode,
   isStyleElementVNode,
   isTextVNode,
 } from '@repro/vdom-utils'
@@ -28,6 +29,20 @@ export type MutableNodeMap = Record<SyntheticId, Node>
 
 export const HOVER_CLASS = '-repro-hover'
 export const HOVER_SELECTOR = `.${HOVER_CLASS}`
+
+function applyAdoptedStyleSheets(
+  doc: Document,
+  shadowRoot: ShadowRoot,
+  styles: Array<string>
+) {
+  if (styles.length === 0) return
+
+  for (const cssText of styles) {
+    const style = doc.createElement('style')
+    style.textContent = cssText
+    shadowRoot.prepend(style)
+  }
+}
 
 export function clearDocument(doc: Document) {
   while (doc.documentElement.firstChild) {
@@ -261,6 +276,50 @@ export function applyDOMPatchEvent(
 
           break
         }
+
+        case PatchType.AddShadowRoot: {
+          const host = nodeMap[data.hostId]
+          if (host && isElementNode(host) && !host.shadowRoot) {
+            const [, newNodeMap] = createDOMFromVTree({
+              vtree: data.shadowRoot,
+              doc,
+              rootNodeMap: nodeMap,
+              currentPageURL,
+              resourceBaseURL,
+              resourceMap,
+              isUnderStyleRoot: false,
+            })
+            Object.assign(nodeMap, newNodeMap)
+          }
+          break
+        }
+
+        case PatchType.RemoveShadowRoot: {
+          const host = nodeMap[data.hostId]
+          if (host && isElementNode(host)) {
+            if (host.shadowRoot) {
+              while (host.shadowRoot.firstChild) {
+                host.shadowRoot.removeChild(host.shadowRoot.firstChild)
+              }
+            }
+            for (const nodeId of Object.keys(data.shadowRoot.nodes)) {
+              delete nodeMap[nodeId]
+            }
+          }
+          break
+        }
+
+        case PatchType.UpdateAdoptedStyleSheets: {
+          const host = nodeMap[data.hostId]
+          if (host && isElementNode(host) && host.shadowRoot) {
+            applyAdoptedStyleSheets(
+              doc,
+              host.shadowRoot,
+              data.adoptedStyleSheets
+            )
+          }
+          break
+        }
       }
     }
   })
@@ -284,6 +343,28 @@ export function createDOMFromVTree({
   isUnderStyleRoot: boolean
 }): [Node | null, MutableNodeMap] {
   const nodeMap: MutableNodeMap = {}
+
+  // Pre-build shadow root hostId index for O(1) lookup during element creation
+  const shadowRootByHostId = new Map<
+    SyntheticId,
+    {
+      mode: string
+      children: Array<SyntheticId>
+      adoptedStyleSheets: Array<string>
+    }
+  >()
+
+  for (const vNode of Object.values(vtree.nodes)) {
+    if (isShadowRootVNode(vNode)) {
+      vNode.apply(shadow => {
+        shadowRootByHostId.set(shadow.hostId, {
+          mode: shadow.mode,
+          children: shadow.children,
+          adoptedStyleSheets: shadow.adoptedStyleSheets,
+        })
+      })
+    }
+  }
 
   const createNode = (
     nodeId: SyntheticId,
@@ -341,6 +422,23 @@ export function createDOMFromVTree({
       node = doc.createTextNode(value)
     } else if (isDocTypeVNode(vNode)) {
       node = doc.createDocumentFragment()
+    } else if (isShadowRootVNode(vNode)) {
+      vNode.apply(vNode => {
+        const host = nodeMap[vNode.hostId] || rootNodeMap[vNode.hostId]
+        if (host && isElementNode(host)) {
+          const shadowRoot = host.attachShadow({
+            mode: vNode.mode as ShadowRootMode,
+          })
+
+          applyAdoptedStyleSheets(doc, shadowRoot, vNode.adoptedStyleSheets)
+
+          for (const childId of vNode.children) {
+            shadowRoot.appendChild(createNode(childId, nodeId, svgContext))
+          }
+
+          node = shadowRoot
+        }
+      })
     } else if (
       isDocumentVNode(vNode) ||
       (isElementVNode(vNode) && vNode.match(vNode => vNode.tagName === 'html'))
@@ -485,6 +583,22 @@ export function createDOMFromVTree({
 
             for (const childId of vNode.children) {
               element.appendChild(createNode(childId, nodeId, svgContext))
+            }
+
+            // Attach shadow root from pre-built hostId index (O(1) lookup)
+            const shadow = shadowRootByHostId.get(nodeId)
+            if (shadow) {
+              const shadowRoot = element.attachShadow({
+                mode: shadow.mode as ShadowRootMode,
+              })
+              applyAdoptedStyleSheets(
+                doc,
+                shadowRoot,
+                shadow.adoptedStyleSheets
+              )
+              for (const childId of shadow.children) {
+                shadowRoot.appendChild(createNode(childId, nodeId, svgContext))
+              }
             }
 
             node = element

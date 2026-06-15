@@ -415,10 +415,20 @@ export function internal__processMutationRecords(
         // mutations inside the shadow are tracked.
         if (onShadowRootDiscovered) {
           record.addedNodes.forEach(addedNode => {
-            if (addedNode instanceof Element && addedNode.shadowRoot) {
-              const shadowRoot = addedNode.shadowRoot
-              if (shadowRoot.mode !== 'closed') {
-                onShadowRootDiscovered(shadowRoot)
+            if (addedNode instanceof Element) {
+              const walker = document.createTreeWalker(
+                addedNode,
+                NodeFilter.SHOW_ELEMENT,
+                null
+              )
+              let element: Element | null
+              while ((element = walker.nextNode() as Element | null)) {
+                if (
+                  element.shadowRoot &&
+                  element.shadowRoot.mode !== 'closed'
+                ) {
+                  onShadowRootDiscovered(element.shadowRoot)
+                }
               }
             }
           })
@@ -466,6 +476,7 @@ function createMutationObserver(
 ): ObserverLike<Document> {
   const observers: Array<MutationObserver> = []
   let origAttachShadow: typeof Element.prototype.attachShadow | null = null
+  const adoptedStyleSheetCleanups = new Set<() => void>()
 
   function createObserverForRoot(root: Node): MutationObserver {
     const observer = new MutationObserver(records => {
@@ -508,6 +519,7 @@ function createMutationObserver(
     let element: Element | null
     while ((element = walker.nextNode() as Element | null)) {
       if (element.shadowRoot && element.shadowRoot.mode !== 'closed') {
+        observeAdoptedStyleSheets(element.shadowRoot)
         createObserverForRoot(element.shadowRoot)
         // Recurse into the shadow root to find nested shadow roots
         discoverAndObserveShadows(element.shadowRoot)
@@ -516,8 +528,59 @@ function createMutationObserver(
   }
 
   function onShadowRootDiscovered(shadowRoot: ShadowRoot) {
+    observeAdoptedStyleSheets(shadowRoot)
     createObserverForRoot(shadowRoot)
     discoverAndObserveShadows(shadowRoot)
+  }
+
+  function observeAdoptedStyleSheets(shadowRoot: ShadowRoot) {
+    const descriptor = Object.getOwnPropertyDescriptor(
+      ShadowRoot.prototype,
+      'adoptedStyleSheets'
+    )
+    if (!descriptor?.set) return
+
+    const origSetter = descriptor.set
+    Object.defineProperty(shadowRoot, 'adoptedStyleSheets', {
+      configurable: descriptor.configurable,
+      enumerable: descriptor.enumerable,
+      get: descriptor.get,
+      set(this: ShadowRoot, sheets: StyleSheetList) {
+        origSetter.call(this, sheets)
+
+        const adoptedStyleSheets: Array<string> = Array.from(sheets)
+          .map(sheet => {
+            try {
+              return Array.from(sheet.cssRules)
+                .map(r => r.cssText)
+                .join('\n')
+            } catch {
+              return ''
+            }
+          })
+          .filter(Boolean)
+
+        if (adoptedStyleSheets.length > 0) {
+          subscriber(
+            new Box({
+              type: PatchType.UpdateAdoptedStyleSheets,
+              hostId: getNodeId(this.host),
+              shadowRootId: getNodeId(this),
+              adoptedStyleSheets,
+            })
+          )
+        }
+      },
+    })
+
+    adoptedStyleSheetCleanups.add(() => {
+      Object.defineProperty(shadowRoot, 'adoptedStyleSheets', {
+        configurable: descriptor.configurable,
+        enumerable: descriptor.enumerable,
+        get: descriptor.get,
+        set: descriptor.set,
+      })
+    })
   }
 
   return {
@@ -531,6 +594,11 @@ function createMutationObserver(
         Element.prototype.attachShadow = origAttachShadow
         origAttachShadow = null
       }
+
+      for (const cleanup of adoptedStyleSheetCleanups) {
+        cleanup()
+      }
+      adoptedStyleSheetCleanups.clear()
     },
 
     observe(doc) {
@@ -558,6 +626,7 @@ function createMutationObserver(
           }
 
           // Create observer for the new shadow root.
+          observeAdoptedStyleSheets(shadowRoot)
           createObserverForRoot(shadowRoot)
           discoverAndObserveShadows(shadowRoot)
         }
@@ -631,6 +700,7 @@ function emitInsertRulePatch(
       stylesheetId,
       insertedRules: capturedRules,
       deletedRuleIndex: null,
+      replaceText: null,
     })
   )
 }
@@ -648,6 +718,7 @@ function emitDeleteRulePatch(
       stylesheetId,
       insertedRules: null,
       deletedRuleIndex: index,
+      replaceText: null,
     })
   )
 }
@@ -701,6 +772,7 @@ function emitTextBasedCSSPatch(
           stylesheetId,
           insertedRules: newRules,
           deletedRuleIndex: null,
+          replaceText: null,
         })
       )
     }
@@ -798,6 +870,8 @@ function createStyleSheetObserver(
 
   const insertRule = window.CSSStyleSheet.prototype.insertRule
   const deleteRule = window.CSSStyleSheet.prototype.deleteRule
+  const replaceSync = window.CSSStyleSheet.prototype.replaceSync
+  const replace = window.CSSStyleSheet.prototype.replace
 
   const targets = new Set<Window & typeof globalThis>()
 
@@ -806,6 +880,12 @@ function createStyleSheetObserver(
       for (const win of targets) {
         win.CSSStyleSheet.prototype.insertRule = insertRule
         win.CSSStyleSheet.prototype.deleteRule = deleteRule
+        if (replaceSync) {
+          win.CSSStyleSheet.prototype.replaceSync = replaceSync
+        }
+        if (replace) {
+          win.CSSStyleSheet.prototype.replace = replace
+        }
       }
     },
 
@@ -827,6 +907,46 @@ function createStyleSheetObserver(
           emitDeleteRulePatch(subscriber, this, index)
           deleteRuleEffect(vtree, this, ...args)
           return deleteRule.call(this, ...args)
+        }
+
+        if (replaceSync) {
+          win.CSSStyleSheet.prototype.replaceSync = function (
+            this: CSSStyleSheet,
+            text: string
+          ) {
+            const stylesheetId = getStyleSheetId(this)
+            replaceSync!.call(this, text)
+            subscriber(
+              new Box({
+                type: PatchType.StyleSheetMutation,
+                stylesheetId,
+                insertedRules: null,
+                deletedRuleIndex: null,
+                replaceText: text,
+              })
+            )
+          }
+        }
+
+        if (replace) {
+          win.CSSStyleSheet.prototype.replace = function (
+            this: CSSStyleSheet,
+            text: string
+          ): Promise<CSSStyleSheet> {
+            const stylesheetId = getStyleSheetId(this)
+            return replace!.call(this, text).then(sheet => {
+              subscriber(
+                new Box({
+                  type: PatchType.StyleSheetMutation,
+                  stylesheetId,
+                  insertedRules: null,
+                  deletedRuleIndex: null,
+                  replaceText: text,
+                })
+              )
+              return sheet
+            })
+          }
         }
       }
     },

@@ -80,6 +80,7 @@ type PatchType: enum<uint8> {
   AddShadowRoot: 7
   RemoveShadowRoot: 8
   StyleSheetMutation: 9
+  UpdateAdoptedStyleSheets: 10
 }
 
 type AttributePatch: struct {
@@ -169,6 +170,7 @@ type StyleSheetMutationPatch: struct {
   1) stylesheetId: string
   2) insertedRules: ?vector<CapturedCSSRule>
   3) deletedRuleIndex: ?int32
+  4) replaceText: ?string
 }
 
 type AddShadowRootPatch: struct {
@@ -184,6 +186,13 @@ type RemoveShadowRootPatch: struct {
   3) shadowRoot: VTree
 }
 
+type UpdateAdoptedStyleSheetsPatch: struct {
+  0) type: PatchType.UpdateAdoptedStyleSheets
+  1) hostId: NodeId
+  2) shadowRootId: NodeId
+  3) adoptedStyleSheets: vector<string>
+}
+
 type DOMPatch: union(type) {
   AttributePatch
   TextPatch
@@ -195,4 +204,5 @@ type DOMPatch: union(type) {
   AddShadowRootPatch
   RemoveShadowRootPatch
   StyleSheetMutationPatch
+  UpdateAdoptedStyleSheetsPatch
 }

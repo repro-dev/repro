@@ -171,15 +171,17 @@ export function createVShadowRoot(shadowRoot: ShadowRoot): VShadowRoot {
     shadowRoot.adoptedStyleSheets && shadowRoot.adoptedStyleSheets.length
       ? Array.from(shadowRoot.adoptedStyleSheets)
       : []
-  const adoptedStyleSheets: Array<string> = sheets.map(sheet => {
-    try {
-      return Array.from(sheet.cssRules)
-        .map(r => r.cssText)
-        .join('\n')
-    } catch {
-      return ''
-    }
-  })
+  const adoptedStyleSheets: Array<string> = sheets
+    .map(sheet => {
+      try {
+        return Array.from(sheet.cssRules)
+          .map(r => r.cssText)
+          .join('\n')
+      } catch {
+        return ''
+      }
+    })
+    .filter(Boolean)
 
   return {
     id: getNodeId(shadowRoot),

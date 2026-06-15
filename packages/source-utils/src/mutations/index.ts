@@ -19,6 +19,7 @@ export function applyStyleSheetMutationToSnapshot(
     stylesheetId: string
     insertedRules: Array<CapturedCSSRule> | null
     deletedRuleIndex: number | null
+    replaceText?: string | null
   },
   revert: boolean
 ) {
@@ -40,6 +41,15 @@ export function applyStyleSheetMutationToSnapshot(
   }
 
   if (!revert) {
+    // Forward: replace entire sheet text
+    if (patch.replaceText != null) {
+      sheet.rules = []
+      if (patch.insertedRules) {
+        for (const rule of patch.insertedRules) {
+          sheet.rules.push(rule)
+        }
+      }
+    }
     // Forward: insert rules
     if (patch.insertedRules) {
       for (const rule of patch.insertedRules) {
