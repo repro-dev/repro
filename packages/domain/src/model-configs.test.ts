@@ -58,10 +58,50 @@ describe('MODEL_CONFIGS', () => {
     assert.equal(config.tier, 'reasoning')
   })
 
+  it('contains minimax/minimax-m3 with correct values', () => {
+    const config = MODEL_CONFIGS['minimax/minimax-m3']
+    assert.ok(config)
+    assert.equal(config.contextWindow, 1_048_576)
+    assert.equal(config.creditMultiplier, 1)
+    assert.equal(config.tier, 'base')
+  })
+
+  it('contains xiaomi/mimo-v2.5-pro with correct values', () => {
+    const config = MODEL_CONFIGS['xiaomi/mimo-v2.5-pro']
+    assert.ok(config)
+    assert.equal(config.contextWindow, 1_048_576)
+    assert.equal(config.creditMultiplier, 1)
+    assert.equal(config.tier, 'base')
+  })
+
+  it('contains google/gemini-3.1-flash-lite with correct values', () => {
+    const config = MODEL_CONFIGS['google/gemini-3.1-flash-lite']
+    assert.ok(config)
+    assert.equal(config.contextWindow, 1_048_576)
+    assert.equal(config.creditMultiplier, 1)
+    assert.equal(config.tier, 'base')
+  })
+
   it('contains anthropic/claude-haiku-4-5 with correct values', () => {
     const config = MODEL_CONFIGS['anthropic/claude-haiku-4-5']
     assert.ok(config)
     assert.equal(config.contextWindow, 200_000)
+    assert.equal(config.creditMultiplier, 1)
+    assert.equal(config.tier, 'base')
+  })
+
+  it('contains deepseek/deepseek-v4-pro with correct values', () => {
+    const config = MODEL_CONFIGS['deepseek/deepseek-v4-pro']
+    assert.ok(config)
+    assert.equal(config.contextWindow, 1_048_576)
+    assert.equal(config.creditMultiplier, 1)
+    assert.equal(config.tier, 'base')
+  })
+
+  it('contains deepseek/deepseek-v4-flash with correct values', () => {
+    const config = MODEL_CONFIGS['deepseek/deepseek-v4-flash']
+    assert.ok(config)
+    assert.equal(config.contextWindow, 1_048_576)
     assert.equal(config.creditMultiplier, 1)
     assert.equal(config.tier, 'base')
   })

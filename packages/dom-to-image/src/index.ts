@@ -37,7 +37,7 @@ export interface Options {
 // Internal state
 // ---------------------------------------------------------------------------
 
-const ELEMENT_NODE = Node.ELEMENT_NODE
+const ELEMENT_NODE = 1 // Node.ELEMENT_NODE — inlined to avoid DOM import in Node.js
 
 // URL cache — cleared after each toPng call
 let urlCache: Array<{ url: string; promise: Promise<string> }> = []

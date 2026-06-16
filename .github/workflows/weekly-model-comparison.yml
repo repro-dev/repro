@@ -6,9 +6,9 @@ on:
   workflow_dispatch:
     inputs:
       models:
-        description: "Comma-separated model IDs to compare (leave blank for defaults)"
+        description: 'JSON array of model IDs (leave blank for defaults)'
         required: false
-        default: ""
+        default: '["google/gemini-2.5-flash","google/gemini-3.1-flash-lite","deepseek/deepseek-v4-flash","xiaomi/mimo-v2.5-pro","minimax/minimax-m3"]'
 
 jobs:
   compare:
@@ -17,13 +17,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        model:
-          - google/gemini-2.5-flash
-          - openai/gpt-5-mini
-          - anthropic/claude-haiku-4-5
-          - minimax/minimax-m2.7
+        model: ${{ fromJSON(github.event.inputs.models || '["google/gemini-2.5-flash","google/gemini-3.1-flash-lite","deepseek/deepseek-v4-flash","xiaomi/mimo-v2.5-pro","minimax/minimax-m3"]') }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: moonrepo/setup-toolchain@v0
         with:
           auto-install: true
@@ -42,17 +40,19 @@ jobs:
         if: always()
         run: |
           MODEL="${{ matrix.model }}"
-          if [ ! -f tmp/agentic-eval-results.json ]; then
+          RESULTS_PATH=$(ls -t tmp/agentic-evals/*/results.json 2>/dev/null | head -1)
+          if [ -z "$RESULTS_PATH" ] || [ ! -f "$RESULTS_PATH" ]; then
             echo "## Model: \`${MODEL}\`" >> "$GITHUB_STEP_SUMMARY"
             echo "No results file found — eval harness may have crashed before writing output." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
           echo "## Model: \`${MODEL}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "Results: \`${RESULTS_PATH}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "| Fixture | Result | Correctness | Avg tool calls | Avg error rate | Avg quality |" >> "$GITHUB_STEP_SUMMARY"
           echo "| --- | --- | --- | --- | --- | --- |" >> "$GITHUB_STEP_SUMMARY"
           node -e "
-            const results = JSON.parse(require('fs').readFileSync('tmp/agentic-eval-results.json', 'utf8'));
+            const results = JSON.parse(require('fs').readFileSync('${RESULTS_PATH}', 'utf8'));
             for (const r of results) {
               const result = r.majorityCorrect ? '✅ PASS' : '❌ FAIL';
               const correctness = (r.correctnessRate * 100).toFixed(1) + '%';
@@ -71,7 +71,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: eval-results-${{ github.run_number }}-${{ env.MODEL_SLUG }}
-          path: tmp/agentic-eval-results.json
+          path: tmp/agentic-evals
+          if-no-files-found: ignore
 
   summarise:
     name: Cross-model summary

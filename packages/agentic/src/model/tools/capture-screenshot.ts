@@ -47,11 +47,23 @@ export const handler: ToolHandler = (
       const [viewportWidth, viewportHeight] = snapshot.interaction
         ?.viewport ?? [1280, 720]
 
+      // captureScreenshot relies on browser DOM APIs (document, Canvas) that don't
+      // exist in Node.js eval environments. Return a descriptive error instead of
+      // crashing so the agent can recover and use alternative tools.
+      if (typeof document === 'undefined') {
+        return resolve({
+          ...createError(
+            'Screenshot capture is not available in this environment',
+            'The captureScreenshot tool requires browser DOM APIs (document, Canvas) which are not available in the current runtime',
+            'Use getDOMState and getDOMDiff to inspect the DOM structure instead'
+          ),
+          _tokenEstimate: estimateTokens({ error: true }),
+        })
+      }
+
       return recording.getResourceMap().pipe(
         chain(resourceMap => {
           return attemptP(async () => {
-            // Dynamic imports keep browser-only packages out of the module graph at
-            // initialization time so this file is safe to import in Node.js test envs.
             const { captureDocument, createOffscreenDocument } = await import(
               '@repro/dom-to-image'
             )
