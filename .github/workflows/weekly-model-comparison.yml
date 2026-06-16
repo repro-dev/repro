@@ -6,9 +6,9 @@ on:
   workflow_dispatch:
     inputs:
       models:
-        description: "Comma-separated model IDs to compare (leave blank for defaults)"
+        description: 'JSON array of model IDs (leave blank for defaults)'
         required: false
-        default: ""
+        default: '["google/gemini-2.5-flash","google/gemini-3.1-flash-lite","deepseek/deepseek-v4-flash","xiaomi/mimo-v2.5-pro","minimax/minimax-m3"]'
 
 jobs:
   compare:
@@ -17,12 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        model:
-          - google/gemini-2.5-flash
-          - google/gemini-3.1-flash-lite
-          - deepseek/deepseek-v4-flash
-          - xiaomi/mimo-v2.5-pro
-          - minimax/minimax-m3
+        model: ${{ fromJSON(github.event.inputs.models || '["google/gemini-2.5-flash","google/gemini-3.1-flash-lite","deepseek/deepseek-v4-flash","xiaomi/mimo-v2.5-pro","minimax/minimax-m3"]') }}
     steps:
       - uses: actions/checkout@v4
         with:
