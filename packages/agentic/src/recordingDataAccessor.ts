@@ -1,12 +1,10 @@
-import { SourceEvent, SourceEventType, SourceEventView } from '@repro/domain'
+import { SourceEvent, SourceEventType } from '@repro/domain'
 import { resolve } from 'fluture'
 import { RecordingDataAccessor } from './types'
 
-type SourceEventItem = ReturnType<typeof SourceEventView.from>
-
 export interface EventList {
   size(): number
-  over(index: number): SourceEventItem | null
+  over(index: number): SourceEvent | null
 }
 
 export function makeAccessorFromEventList(
@@ -40,7 +38,7 @@ export function makeAccessorFromEventList(
           continue
         }
         if (count >= limit) break
-        results.push(event as unknown as SourceEvent)
+        results.push(event)
         count++
       }
       return resolve(results)
@@ -75,7 +73,7 @@ export function makeAccessorFromEventList(
           continue
         }
         if (count >= limit) break
-        results.push(event as unknown as SourceEvent)
+        results.push(event)
         count++
       }
       return resolve(results)
