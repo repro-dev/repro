@@ -19,9 +19,12 @@ jobs:
       matrix:
         model:
           - google/gemini-2.5-flash
+          - google/gemini-3.1-flash-lite
           - openai/gpt-5-mini
           - anthropic/claude-haiku-4-5
           - minimax/minimax-m2.7
+          - deepseek/deepseek-v4-pro
+          - deepseek/deepseek-v4-flash
     steps:
       - uses: actions/checkout@v4
       - uses: moonrepo/setup-toolchain@v0
