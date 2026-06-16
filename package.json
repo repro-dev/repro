@@ -12,6 +12,7 @@
     "@commitlint/config-conventional": "^20.4.2",
     "@jsxstyle/core": "^3.0.1",
     "@linear/sdk": "^82.0.0",
+    "@pencil.dev/cli": "^0.2.7",
     "@playwright/test": "^1.58.2",
     "@types/pngjs": "^6.0.0",
     "@types/trusted-types": "^2.0.7",
@@ -22,7 +23,8 @@
     "pixelmatch": "^5.3.0",
     "pngjs": "^7.0.0",
     "prettier": "^3.0.0",
-    "prettier-plugin-organize-imports": "^3.2.3"
+    "prettier-plugin-organize-imports": "^3.2.3",
+    "tsx": "4.19.3"
   },
   "pnpm": {
     "overrides": {
@@ -60,7 +62,8 @@
     "lint": "oxlint .",
     "fmt:check": "prettier --check \"**/*.{ts,tsx}\" --ignore-path .gitignore",
     "test:tooling-config": "node --test scripts/tooling-config.test.ts scripts/delivery-fragments.test.ts scripts/gtm-strategy-artifacts.test.ts",
-    "check:test-file-size": "bash scripts/check-test-file-size.sh"
+    "check:test-file-size": "bash scripts/check-test-file-size.sh",
+    "pen:export": "tsx scripts/pen-export.ts"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
