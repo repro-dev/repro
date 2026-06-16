@@ -13,8 +13,6 @@ tasks:
       - src/eval/**/*.ts
     env:
       OPENROUTER_API_KEY: $OPENROUTER_API_KEY
-    options:
-      runInCI: false
   apply-prompt-suggestions:
     command: tsx src/eval/applyPromptSuggestions.ts
     deps:
