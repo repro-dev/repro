@@ -89,6 +89,7 @@ export function createRequestLogContext(req: RequestWithCorrelation) {
   return context
 }
 
+// Downstream logging field contract: see apps/api-server/AGENTS.md (Structured Logging Contract)
 export function registerRequestLoggingHooks(
   app: FastifyInstance<any, any, any, any, any>
 ) {
