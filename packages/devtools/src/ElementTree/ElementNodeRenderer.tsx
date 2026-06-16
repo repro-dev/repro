@@ -2,7 +2,7 @@ import { Block } from '@jsxstyle/react'
 import { IfGate } from '@repro/auth'
 import { NodeId, NodeType, VElement } from '@repro/domain'
 import { isEmptyElementVNode, isParentVNode } from '@repro/vdom-utils'
-import React, { useContext } from 'react'
+import React, { useContext, useMemo } from 'react'
 import { ElementR } from '../DOM'
 import { BreakpointAction } from './BreakpointAction'
 import { NodeRenderer } from './NodeRenderer'
@@ -42,6 +42,19 @@ export const ElementNodeRenderer: React.FC<Props> = ({ nodeId, depth }) => {
     isParentVNode(rootNode) &&
     rootNode.match(rootNode => rootNode.children.includes(nodeId))
 
+  const shadowRootByHostId = useMemo(() => {
+    const map = new Map<NodeId, NodeId>()
+    if (!vtree) return map
+    for (const vNode of Object.values(vtree.nodes)) {
+      vNode.apply(vNode => {
+        if (vNode.type === NodeType.ShadowRoot) {
+          map.set((vNode as any).hostId, vNode.id)
+        }
+      })
+    }
+    return map
+  }, [vtree])
+
   return node
     .filter<VElement>(node => node.type === NodeType.Element)
     .map(node => {
@@ -74,6 +87,14 @@ export const ElementNodeRenderer: React.FC<Props> = ({ nodeId, depth }) => {
                 />
               ))}
             </Block>
+          )}
+
+          {isVisible && node.shadowRoot && shadowRootByHostId.has(nodeId) && (
+            <NodeRenderer
+              key={shadowRootByHostId.get(nodeId)!}
+              nodeId={shadowRootByHostId.get(nodeId)!}
+              depth={depth + 1}
+            />
           )}
 
           {!isEmptyElement && isVisible && (

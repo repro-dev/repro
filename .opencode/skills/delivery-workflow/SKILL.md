@@ -19,6 +19,7 @@ Use this skill when you are starting a feature or fix. Keep it thin: it coordina
 - `.opencode/skills/delivery-workflow/references/deliver-phase-6-implement.md`
 - `.opencode/skills/delivery-workflow/references/deliver-phase-7-review.md`
 - `.opencode/skills/delivery-workflow/references/deliver-phase-8-publish.md`
+- `.opencode/skills/delivery-workflow/references/deliver-phase-9-manual-test-plan.md`
 - `.opencode/skills/delivery-workflow/references/deliver-throughout.md`
 - `.opencode/skills/delivery-workflow/references/deliver-verification.md`
 

@@ -43,10 +43,11 @@ function walkDOMTree(
         visitor.elementNode(node)
       }
 
-      // Local stylesheets may contain style rules as text nodes, but these will
-      // already have been processed from sheet.cssRules.
-      // TODO: lift this condition/exclusion into the DOM visitor
-      if (isLocalStylesheet(node)) {
+      // When the sheet is accessible, rules are captured from sheet.cssRules
+      // via createStyleSheetVTree; skip child traversal to avoid duplicates.
+      // When the sheet is null (not yet parsed, cross-origin, or constructed),
+      // fall back to capturing the raw text content from child text nodes.
+      if (isLocalStylesheet(node) && node.sheet) {
         continue
       }
 

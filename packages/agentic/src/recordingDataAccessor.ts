@@ -1,4 +1,5 @@
 import { SourceEvent, SourceEventType, SourceEventView } from '@repro/domain'
+import { resolve } from 'fluture'
 import { RecordingDataAccessor } from './types'
 
 type SourceEventItem = ReturnType<typeof SourceEventView.from>
@@ -20,7 +21,7 @@ export function makeAccessorFromEventList(
         limit?: number
         offset?: number
       }
-    ): Array<SourceEvent> {
+    ) {
       const results: Array<SourceEvent> = []
       const offset = opts?.offset ?? 0
       const limit = opts?.limit ?? Infinity
@@ -42,7 +43,7 @@ export function makeAccessorFromEventList(
         results.push(event as unknown as SourceEvent)
         count++
       }
-      return results
+      return resolve(results)
     },
 
     getEventsInRange(
@@ -53,7 +54,7 @@ export function makeAccessorFromEventList(
         limit?: number
         offset?: number
       }
-    ): Array<SourceEvent> {
+    ) {
       const results: Array<SourceEvent> = []
       const offset = opts?.offset ?? 0
       const limit = opts?.limit ?? Infinity
@@ -77,7 +78,7 @@ export function makeAccessorFromEventList(
         results.push(event as unknown as SourceEvent)
         count++
       }
-      return results
+      return resolve(results)
     },
   }
 }

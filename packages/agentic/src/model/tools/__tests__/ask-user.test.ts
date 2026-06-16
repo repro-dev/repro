@@ -12,10 +12,10 @@ import { runFuture } from './helpers'
 function makeEmptyAccessor(): RecordingDataAccessor {
   return {
     getDuration: () => 0,
-    getSnapshotAtTime: () => null,
-    getResourceMap: () => ({}),
-    getEventsByType: () => [],
-    getEventsInRange: () => [],
+    getSnapshotAtTime: () => resolve(null),
+    getResourceMap: () => resolve({}),
+    getEventsByType: () => resolve([]),
+    getEventsInRange: () => resolve([]),
   }
 }
 

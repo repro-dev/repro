@@ -315,13 +315,16 @@ export function installRuntime() {
 
   window.__REPRO_RUNTIME_BUFFER__ ??= []
   getInstalledTypes()
-  installReactHookStub()
   installCustomMarkHook()
-  installNetworkObserver()
-  installPerformanceObserver()
-  installConsoleObserver()
 
   window.__REPRO_RUNTIME_INSTALLED__ = true
+}
+
+export function installRuntimeObservers(options: { types: Set<string> }) {
+  installReactHookStub()
+  if (options.types.has('network')) installNetworkObserver()
+  if (options.types.has('performance')) installPerformanceObserver()
+  if (options.types.has('console')) installConsoleObserver()
 }
 
 installRuntime()

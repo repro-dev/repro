@@ -7,7 +7,7 @@ import {
 } from '@repro/domain'
 import { filterNullAttributes } from '@repro/source-utils'
 import { Box } from '@repro/tdl'
-import { resolve } from 'fluture'
+import { chain, resolve, type FutureInstance } from 'fluture'
 import type { ToolHandler } from './common'
 import {
   isConsoleEvent,
@@ -114,229 +114,243 @@ export const handler: ToolHandler = (recording, args) => {
       : duration > 0
       ? duration
       : Number.MAX_SAFE_INTEGER
-  const events = recording.getEventsInRange(startTime ?? 0, effectiveEnd)
+  return recording.getEventsInRange(startTime ?? 0, effectiveEnd).pipe(
+    chain((events): FutureInstance<never, Record<string, unknown>> => {
+      for (const event of events) {
+        const time = event.get('time').orElse(0)
 
-  for (const event of events) {
-    const time = event.get('time').orElse(0)
+        if (isInteractionEvent(event)) {
+          const interactionData = (event as Box<InteractionEvent>)
+            .get('data')
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .orElse(null) as Box<any> | null
+          if (!interactionData) continue
+          const interactionType = interactionData
+            .get('type')
+            .orElse(-1 as InteractionType)
 
-    if (isInteractionEvent(event)) {
-      const interactionData = (event as Box<InteractionEvent>)
-        .get('data')
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .orElse(null) as Box<any> | null
-      if (!interactionData) continue
-      const interactionType = interactionData
-        .get('type')
-        .orElse(-1 as InteractionType)
+          if (
+            interactionType === InteractionType.PointerMove ||
+            interactionType === InteractionType.PointerDown ||
+            interactionType === InteractionType.PointerUp
+          ) {
+            continue
+          }
 
-      if (
-        interactionType === InteractionType.PointerMove ||
-        interactionType === InteractionType.PointerDown ||
-        interactionType === InteractionType.PointerUp
-      ) {
-        continue
+          const typeNameMap: Record<number, string> = {
+            [InteractionType.Click]: 'click',
+            [InteractionType.DoubleClick]: 'doubleClick',
+            [InteractionType.KeyDown]: 'keyDown',
+            [InteractionType.KeyUp]: 'keyUp',
+            [InteractionType.Scroll]: 'scroll',
+            [InteractionType.PageTransition]: 'pageTransition',
+            [InteractionType.ViewportResize]: 'viewportResize',
+          }
+          const typeName = typeNameMap[interactionType]
+          if (
+            typeName &&
+            eventTypeFilter &&
+            !eventTypeFilter.includes(typeName)
+          )
+            continue
+
+          if (
+            interactionType === InteractionType.Click ||
+            interactionType === InteractionType.DoubleClick
+          ) {
+            flushKeystrokes()
+            const label = interactionData
+              .get('meta')
+              .get('humanReadableLabel')
+              .orElse(null)
+            const at = interactionData.get('at').orElse([0, 0])
+            const eventType =
+              interactionType === InteractionType.Click
+                ? 'click'
+                : 'doubleClick'
+            if (detail === 'full') {
+              const meta = interactionData.get('meta')
+              const nodeId = meta.get('node').get('id').orElse(null)
+              const tagName = meta.get('node').get('tagName').orElse('')
+              const rawAttributes = meta
+                .get('node')
+                .get('attributes')
+                .orElse({}) as Record<string, string | null>
+              const attributes = filterNullAttributes(rawAttributes)
+              const element = nodeId ? { nodeId, tagName, attributes } : null
+              const targets = interactionData
+                .get('targets')
+                .orElse([]) as string[]
+              resultEvents.push({
+                time,
+                type: eventType,
+                ...(label ? { label } : {}),
+                at: { x: at[0], y: at[1] },
+                ...(element ? { element } : {}),
+                ...(targets.length > 0 ? { targets } : {}),
+              })
+            } else {
+              resultEvents.push({
+                time,
+                type: eventType,
+                ...(label ? { label } : {}),
+              })
+            }
+          } else if (interactionType === InteractionType.KeyDown) {
+            if (detail === 'summary') continue
+            const key = interactionData.get('key').orElse('')
+            pendingKeys.push({ time, key })
+          } else if (interactionType === InteractionType.KeyUp) {
+            continue
+          } else if (interactionType === InteractionType.Scroll) {
+            flushKeystrokes()
+            if (detail === 'summary') continue
+            const target = interactionData.get('target').orElse('')
+            const to = interactionData.get('to').orElse([0, 0])
+            if (detail === 'full') {
+              const from = interactionData.get('from').orElse([0, 0])
+              resultEvents.push({
+                time,
+                type: 'scroll',
+                target,
+                from: { x: from[0], y: from[1] },
+                to: { x: to[0], y: to[1] },
+              })
+            } else {
+              resultEvents.push({
+                time,
+                type: 'scroll',
+                target,
+                to: { x: to[0], y: to[1] },
+              })
+            }
+          } else if (interactionType === InteractionType.PageTransition) {
+            flushKeystrokes()
+            const from = interactionData.get('from').orElse(null)
+            const to = interactionData.get('to').orElse('')
+            resultEvents.push({
+              time,
+              type: 'pageTransition',
+              ...(from ? { from } : {}),
+              to,
+            })
+          } else if (interactionType === InteractionType.ViewportResize) {
+            flushKeystrokes()
+            if (detail === 'summary') continue
+            const to = interactionData.get('to').orElse([0, 0])
+            if (detail === 'full') {
+              const from = interactionData.get('from').orElse([0, 0])
+              resultEvents.push({
+                time,
+                type: 'viewportResize',
+                from: { width: from[0], height: from[1] },
+                to: { width: to[0], height: to[1] },
+              })
+            } else {
+              resultEvents.push({
+                time,
+                type: 'viewportResize',
+                to: { width: to[0], height: to[1] },
+              })
+            }
+          }
+          continue
+        }
+
+        if (isDOMPatchEvent(event)) {
+          if (eventTypeFilter && !eventTypeFilter.includes('domPatch')) continue
+          const bucket = Math.floor(time / 1000)
+          domPatchBuckets[bucket] = (domPatchBuckets[bucket] ?? 0) + 1
+          continue
+        }
+
+        if (event.match(e => e.type === SourceEventType.Snapshot)) continue
+
+        if (isNetworkEvent(event)) {
+          if (eventTypeFilter && !eventTypeFilter.includes('network')) continue
+          flushKeystrokes()
+          resultEvents.push({ time, type: 'network' })
+          continue
+        }
+
+        if (isConsoleEvent(event)) {
+          if (eventTypeFilter && !eventTypeFilter.includes('console')) continue
+          flushKeystrokes()
+          const consoleEvent: Box<ConsoleEvent> = event
+          const level = consoleEvent
+            .get('data')
+            .get('level')
+            .orElse(LogLevel.Info)
+          resultEvents.push({
+            time,
+            type: 'console',
+            level: LOG_LEVEL_NAMES[level] ?? 'info',
+          })
+          continue
+        }
+
+        if (event.match(e => e.type === SourceEventType.Performance)) {
+          if (eventTypeFilter && !eventTypeFilter.includes('performance'))
+            continue
+          flushKeystrokes()
+          resultEvents.push({ time, type: 'performance' })
+          continue
+        }
       }
 
-      const typeNameMap: Record<number, string> = {
-        [InteractionType.Click]: 'click',
-        [InteractionType.DoubleClick]: 'doubleClick',
-        [InteractionType.KeyDown]: 'keyDown',
-        [InteractionType.KeyUp]: 'keyUp',
-        [InteractionType.Scroll]: 'scroll',
-        [InteractionType.PageTransition]: 'pageTransition',
-        [InteractionType.ViewportResize]: 'viewportResize',
-      }
-      const typeName = typeNameMap[interactionType]
-      if (typeName && eventTypeFilter && !eventTypeFilter.includes(typeName))
-        continue
+      flushKeystrokes()
 
-      if (
-        interactionType === InteractionType.Click ||
-        interactionType === InteractionType.DoubleClick
-      ) {
-        flushKeystrokes()
-        const label = interactionData
-          .get('meta')
-          .get('humanReadableLabel')
-          .orElse(null)
-        const at = interactionData.get('at').orElse([0, 0])
-        const eventType =
-          interactionType === InteractionType.Click ? 'click' : 'doubleClick'
-        if (detail === 'full') {
-          const meta = interactionData.get('meta')
-          const nodeId = meta.get('node').get('id').orElse(null)
-          const tagName = meta.get('node').get('tagName').orElse('')
-          const rawAttributes = meta
-            .get('node')
-            .get('attributes')
-            .orElse({}) as Record<string, string | null>
-          const attributes = filterNullAttributes(rawAttributes)
-          const element = nodeId ? { nodeId, tagName, attributes } : null
-          const targets = interactionData.get('targets').orElse([]) as string[]
-          resultEvents.push({
-            time,
-            type: eventType,
-            ...(label ? { label } : {}),
-            at: { x: at[0], y: at[1] },
-            ...(element ? { element } : {}),
-            ...(targets.length > 0 ? { targets } : {}),
-          })
-        } else {
-          resultEvents.push({
-            time,
-            type: eventType,
-            ...(label ? { label } : {}),
-          })
+      let limitedEvents = resultEvents
+      if (resultEvents.length > limit) {
+        limitedEvents = resultEvents.slice(0, limit)
+        hasMore = true
+      }
+
+      if (detail === 'summary') {
+        const counts: Record<string, number> = {}
+        for (const ev of resultEvents) {
+          const t = ev['type'] as string
+          counts[t] = (counts[t] ?? 0) + 1
         }
-      } else if (interactionType === InteractionType.KeyDown) {
-        if (detail === 'summary') continue
-        const key = interactionData.get('key').orElse('')
-        pendingKeys.push({ time, key })
-      } else if (interactionType === InteractionType.KeyUp) {
-        continue
-      } else if (interactionType === InteractionType.Scroll) {
-        flushKeystrokes()
-        if (detail === 'summary') continue
-        const target = interactionData.get('target').orElse('')
-        const to = interactionData.get('to').orElse([0, 0])
-        if (detail === 'full') {
-          const from = interactionData.get('from').orElse([0, 0])
-          resultEvents.push({
-            time,
-            type: 'scroll',
-            target,
-            from: { x: from[0], y: from[1] },
-            to: { x: to[0], y: to[1] },
-          })
-        } else {
-          resultEvents.push({
-            time,
-            type: 'scroll',
-            target,
-            to: { x: to[0], y: to[1] },
-          })
+        const totalDomPatches = Object.values(domPatchBuckets).reduce(
+          (a, b) => a + b,
+          0
+        )
+        if (totalDomPatches > 0) {
+          counts['domPatch'] = totalDomPatches
         }
-      } else if (interactionType === InteractionType.PageTransition) {
-        flushKeystrokes()
-        const from = interactionData.get('from').orElse(null)
-        const to = interactionData.get('to').orElse('')
-        resultEvents.push({
-          time,
-          type: 'pageTransition',
-          ...(from ? { from } : {}),
-          to,
+        const totalEvents = Object.values(counts).reduce((a, b) => a + b, 0)
+        return resolve({
+          totalEvents,
+          counts,
+          durationMs: recording.getDuration(),
+          _tokenEstimate: Math.ceil(JSON.stringify(counts).length / 4) + 20,
         })
-      } else if (interactionType === InteractionType.ViewportResize) {
-        flushKeystrokes()
-        if (detail === 'summary') continue
-        const to = interactionData.get('to').orElse([0, 0])
-        if (detail === 'full') {
-          const from = interactionData.get('from').orElse([0, 0])
-          resultEvents.push({
-            time,
-            type: 'viewportResize',
-            from: { width: from[0], height: from[1] },
-            to: { width: to[0], height: to[1] },
-          })
-        } else {
-          resultEvents.push({
-            time,
-            type: 'viewportResize',
-            to: { width: to[0], height: to[1] },
-          })
-        }
       }
-      continue
-    }
 
-    if (isDOMPatchEvent(event)) {
-      if (eventTypeFilter && !eventTypeFilter.includes('domPatch')) continue
-      const bucket = Math.floor(time / 1000)
-      domPatchBuckets[bucket] = (domPatchBuckets[bucket] ?? 0) + 1
-      continue
-    }
+      const domActivity: Array<{ window: string; patchCount: number }> = []
+      const bucketKeys = Object.keys(domPatchBuckets)
+        .map(Number)
+        .sort((a, b) => a - b)
+      for (const bucket of bucketKeys) {
+        const count = domPatchBuckets[bucket]!
+        domActivity.push({
+          window: `${bucket}-${bucket + 1}s`,
+          patchCount: count,
+        })
+      }
 
-    if (event.match(e => e.type === SourceEventType.Snapshot)) continue
-
-    if (isNetworkEvent(event)) {
-      if (eventTypeFilter && !eventTypeFilter.includes('network')) continue
-      flushKeystrokes()
-      resultEvents.push({ time, type: 'network' })
-      continue
-    }
-
-    if (isConsoleEvent(event)) {
-      if (eventTypeFilter && !eventTypeFilter.includes('console')) continue
-      flushKeystrokes()
-      const consoleEvent: Box<ConsoleEvent> = event
-      const level = consoleEvent.get('data').get('level').orElse(LogLevel.Info)
-      resultEvents.push({
-        time,
-        type: 'console',
-        level: LOG_LEVEL_NAMES[level] ?? 'info',
+      return resolve({
+        events: limitedEvents,
+        ...(domActivity.length > 0 ? { domActivity } : {}),
+        ...(hasMore ? { hasMore: true } : {}),
+        _tokenEstimate:
+          Math.ceil(JSON.stringify(limitedEvents).length / 4) +
+          (domActivity.length > 0
+            ? Math.ceil(JSON.stringify(domActivity).length / 4)
+            : 0) +
+          10,
       })
-      continue
-    }
-
-    if (event.match(e => e.type === SourceEventType.Performance)) {
-      if (eventTypeFilter && !eventTypeFilter.includes('performance')) continue
-      flushKeystrokes()
-      resultEvents.push({ time, type: 'performance' })
-      continue
-    }
-  }
-
-  flushKeystrokes()
-
-  let limitedEvents = resultEvents
-  if (resultEvents.length > limit) {
-    limitedEvents = resultEvents.slice(0, limit)
-    hasMore = true
-  }
-
-  if (detail === 'summary') {
-    const counts: Record<string, number> = {}
-    for (const ev of resultEvents) {
-      const t = ev['type'] as string
-      counts[t] = (counts[t] ?? 0) + 1
-    }
-    const totalDomPatches = Object.values(domPatchBuckets).reduce(
-      (a, b) => a + b,
-      0
-    )
-    if (totalDomPatches > 0) {
-      counts['domPatch'] = totalDomPatches
-    }
-    const totalEvents = Object.values(counts).reduce((a, b) => a + b, 0)
-    return resolve({
-      totalEvents,
-      counts,
-      durationMs: recording.getDuration(),
-      _tokenEstimate: Math.ceil(JSON.stringify(counts).length / 4) + 20,
     })
-  }
-
-  const domActivity: Array<{ window: string; patchCount: number }> = []
-  const bucketKeys = Object.keys(domPatchBuckets)
-    .map(Number)
-    .sort((a, b) => a - b)
-  for (const bucket of bucketKeys) {
-    const count = domPatchBuckets[bucket]!
-    domActivity.push({
-      window: `${bucket}-${bucket + 1}s`,
-      patchCount: count,
-    })
-  }
-
-  return resolve({
-    events: limitedEvents,
-    ...(domActivity.length > 0 ? { domActivity } : {}),
-    ...(hasMore ? { hasMore: true } : {}),
-    _tokenEstimate:
-      Math.ceil(JSON.stringify(limitedEvents).length / 4) +
-      (domActivity.length > 0
-        ? Math.ceil(JSON.stringify(domActivity).length / 4)
-        : 0) +
-      10,
-  })
+  )
 }

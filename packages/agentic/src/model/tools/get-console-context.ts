@@ -1,7 +1,7 @@
-import { ConsoleEvent, SourceEventType } from '@repro/domain'
+import { ConsoleEvent, LogLevel, SourceEventType } from '@repro/domain'
 import { extractConsoleText } from '@repro/source-utils'
 import { Box } from '@repro/tdl'
-import { resolve } from 'fluture'
+import { chain, resolve } from 'fluture'
 import { estimateTokens, truncate } from '../token-optimization'
 import type { ToolHandler } from './common'
 import { LOG_LEVEL_NAMES, serializeMessagePart } from './common'
@@ -59,74 +59,81 @@ export const handler: ToolHandler = (recording, args) => {
   )
   const linesAfter = clampWindowCount(args.linesAfter as number | undefined, 5)
 
-  const events = recording.getEventsByType([SourceEventType.Console])
+  return recording.getEventsByType([SourceEventType.Console]).pipe(
+    chain(events => {
+      if (events.length === 0) {
+        const empty = { messages: [] }
+        return resolve({ ...empty, _tokenEstimate: estimateTokens(empty) })
+      }
 
-  if (events.length === 0) {
-    const empty = { messages: [] }
-    return resolve({ ...empty, _tokenEstimate: estimateTokens(empty) })
-  }
+      // Serialize all console events to message objects
+      type StackFrame = {
+        functionName?: string
+        fileName: string
+        line: number
+        column: number
+      }
 
-  // Serialize all console events to message objects
-  type StackFrame = {
-    functionName?: string
-    fileName: string
-    line: number
-    column: number
-  }
+      type ConsoleMessage = {
+        timeMs: number
+        level: string
+        text: string
+        stack?: StackFrame[]
+      }
 
-  type ConsoleMessage = {
-    timeMs: number
-    level: string
-    text: string
-    stack?: StackFrame[]
-  }
+      const allMessages: ConsoleMessage[] = events.map(event => {
+        const consoleEvent: Box<ConsoleEvent> = event as Box<ConsoleEvent>
+        const time = consoleEvent.get('time').orElse(0)
+        const level = consoleEvent
+          .get('data')
+          .get('level')
+          .orElse(LogLevel.Info)
+        const levelName = LOG_LEVEL_NAMES[level] ?? 'info'
 
-  const allMessages: ConsoleMessage[] = events.map(event => {
-    const consoleEvent: Box<ConsoleEvent> = event as Box<ConsoleEvent>
-    const {
-      time,
-      level,
-      text: rawText,
-    } = extractConsoleText(consoleEvent, serializeMessagePart)
-    const levelName = LOG_LEVEL_NAMES[level] ?? 'info'
-    const text = truncate(rawText, 500)
+        const { text: rawText } = extractConsoleText(
+          consoleEvent,
+          serializeMessagePart
+        )
+        const text = truncate(rawText, 500)
 
-    const stackEntries = consoleEvent.get('data').get('stack').orElse([])
-    const stack: StackFrame[] = stackEntries
-      .slice(0, MAX_STACK_FRAMES)
-      .map(entry => {
-        const frame: StackFrame = {
-          fileName: entry.fileName,
-          line: entry.lineNumber,
-          column: entry.columnNumber,
-        }
-        // Only include functionName if it is a non-null, non-undefined string
-        if (entry.functionName != null) {
-          frame.functionName = entry.functionName
-        }
-        return frame
+        const stackEntries = consoleEvent.get('data').get('stack').orElse([])
+        const stack: StackFrame[] = stackEntries
+          .slice(0, MAX_STACK_FRAMES)
+          .map(entry => {
+            const frame: StackFrame = {
+              fileName: entry.fileName,
+              line: entry.lineNumber,
+              column: entry.columnNumber,
+            }
+            // Only include functionName if it is a non-null, non-undefined string
+            if (entry.functionName != null) {
+              frame.functionName = entry.functionName
+            }
+            return frame
+          })
+
+        const msg: ConsoleMessage = { timeMs: time, level: levelName, text }
+        if (stack.length > 0) msg.stack = stack
+        return msg
       })
 
-    const msg: ConsoleMessage = { timeMs: time, level: levelName, text }
-    if (stack.length > 0) msg.stack = stack
-    return msg
-  })
+      // Find the pivot: index of the message nearest to timestampMs
+      let pivotIndex = 0
+      let minDiff = Math.abs(allMessages[0]!.timeMs - timestampMs)
+      for (let i = 1; i < allMessages.length; i++) {
+        const diff = Math.abs(allMessages[i]!.timeMs - timestampMs)
+        if (diff < minDiff) {
+          minDiff = diff
+          pivotIndex = i
+        }
+      }
 
-  // Find the pivot: index of the message nearest to timestampMs
-  let pivotIndex = 0
-  let minDiff = Math.abs(allMessages[0]!.timeMs - timestampMs)
-  for (let i = 1; i < allMessages.length; i++) {
-    const diff = Math.abs(allMessages[i]!.timeMs - timestampMs)
-    if (diff < minDiff) {
-      minDiff = diff
-      pivotIndex = i
-    }
-  }
+      // Slice the window around the pivot
+      const startIndex = Math.max(0, pivotIndex - linesBefore)
+      const endIndex = Math.min(allMessages.length - 1, pivotIndex + linesAfter)
+      const messages = allMessages.slice(startIndex, endIndex + 1)
 
-  // Slice the window around the pivot
-  const startIndex = Math.max(0, pivotIndex - linesBefore)
-  const endIndex = Math.min(allMessages.length - 1, pivotIndex + linesAfter)
-  const messages = allMessages.slice(startIndex, endIndex + 1)
-
-  return resolve({ messages, _tokenEstimate: estimateTokens({ messages }) })
+      return resolve({ messages, _tokenEstimate: estimateTokens({ messages }) })
+    })
+  )
 }

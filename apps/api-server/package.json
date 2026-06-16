@@ -34,6 +34,7 @@
     "@repro/email": "workspace:*",
     "@repro/future-utils": "workspace:*",
     "@repro/random-string": "workspace:*",
+    "@repro/source-utils": "workspace:*",
     "@repro/tdl": "workspace:*",
     "@repro/validation": "workspace:*",
     "@repro/wire-formats": "workspace:*",

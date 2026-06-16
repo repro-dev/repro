@@ -4,6 +4,7 @@
   "main": "src/index.ts",
   "scripts": {
     "fmt": "prettier --write src",
+    "test": "tsx --experimental-test-module-mocks --import global-jsdom/register --test --test-timeout=30000 --test-force-exit src/**/*.test.ts{,x}",
     "typecheck": "tsc --noEmit"
   },
   "license": "UNLICENSED",
@@ -14,7 +15,9 @@
     "@repro/vdom-utils": "workspace:*"
   },
   "devDependencies": {
+    "@repro/tdl": "workspace:*",
     "@types/node": "22.14.0",
+    "global-jsdom": "overridden",
     "prettier": "^3.0.0",
     "prettier-plugin-organize-imports": "^3.2.3",
     "tsx": "4.19.3",

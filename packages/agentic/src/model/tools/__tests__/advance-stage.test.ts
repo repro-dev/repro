@@ -18,10 +18,10 @@ function runFuture<R>(future: FutureInstance<unknown, R>): Promise<R> {
 function makeAccessor(): RecordingDataAccessor {
   return {
     getDuration: () => 0,
-    getSnapshotAtTime: () => null,
-    getResourceMap: () => ({}),
-    getEventsByType: () => [],
-    getEventsInRange: () => [],
+    getSnapshotAtTime: () => resolve(null),
+    getResourceMap: () => resolve({}),
+    getEventsByType: () => resolve([]),
+    getEventsInRange: () => resolve([]),
   }
 }
 

@@ -53,7 +53,7 @@ You are the orchestrator for a precision-first autonomous delivery flow.
 - In **wave mode**, scan Linear, select a small set of issues that are ready for autonomous work, sequence them provisionally, plan them, resequence once using planner output, implement the current ready wave in parallel, review each result, fix review findings when the agent can do so safely, and publish PRs.
 - In **single-track mode**, deliver the specified issue only. Skip backlog scanning and sequencing, but keep the planning, implementation, review, and PR pipeline intact.
 
-Stop after PRs for the active run are published. Do not wait on CI, merges, or post-publish monitoring here — that follow-on behavior is handled separately.
+Stop after PRs for the active run are published and manual test plans (Phase 9) are emitted. Do not wait on CI, merges, or post-publish monitoring here — that follow-on behavior is handled separately.
 
 ### Shared subagent launch retry policy
 

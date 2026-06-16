@@ -1,7 +1,7 @@
 import { PatchType, SourceEventType, SyntheticId, VTree } from '@repro/domain'
 import { Box } from '@repro/tdl'
 import { normalizeId } from '@repro/vdom-utils'
-import { resolve } from 'fluture'
+import { chain, resolve, type FutureInstance } from 'fluture'
 import { DetailLevel, estimateTokens, truncate } from '../token-optimization'
 import type { ToolHandler } from './common'
 import { createError, isDOMPatchEvent } from './common'
@@ -116,217 +116,244 @@ export const handler: ToolHandler = (recording, args) => {
     )
   }
 
-  const snapshot = recording.getSnapshotAtTime(fromTimestampMs)
-  if (!snapshot || !snapshot.dom) {
-    return resolve(
-      createError(
-        'No DOM snapshot available at the specified time',
-        'The timestamp may be outside the recording range or no DOM snapshot was captured at this point',
-        'Call getRecordingDuration() to get the valid recording time range, then retry with a timestamp within that range'
-      )
-    )
-  }
+  return recording.getSnapshotAtTime(fromTimestampMs).pipe(
+    chain((snapshot): FutureInstance<Error, Record<string, unknown>> => {
+      if (!snapshot || !snapshot.dom) {
+        return resolve(
+          createError(
+            'No DOM snapshot available at the specified time',
+            'The timestamp may be outside the recording range or no DOM snapshot was captured at this point',
+            'Call getRecordingDuration() to get the valid recording time range, then retry with a timestamp within that range'
+          )
+        )
+      }
 
-  const vtree = snapshot.dom as VTree
+      const vtree = snapshot.dom as VTree
 
-  // Verify the target node exists in the snapshot
-  if (!vtree.nodes[nodeId as SyntheticId]) {
-    return resolve(
-      createError(
-        `Element with nodeId "${nodeId}" not found in the DOM snapshot`,
-        'The nodeId may be stale, from a different timestamp, or the element may not yet exist at this point in the recording',
-        'Call getDOMState() at the same timestamp to get fresh nodeId values from the current DOM snapshot'
-      )
-    )
-  }
+      // Verify the target node exists in the snapshot
+      if (!vtree.nodes[nodeId as SyntheticId]) {
+        return resolve(
+          createError(
+            `Element with nodeId "${nodeId}" not found in the DOM snapshot`,
+            'The nodeId may be stale, from a different timestamp, or the element may not yet exist at this point in the recording',
+            'Call getDOMState() at the same timestamp to get fresh nodeId values from the current DOM snapshot'
+          )
+        )
+      }
 
-  // Build initial set of node IDs in the target subtree
-  const scopeIds = collectSubtreeNodeIds(vtree, nodeId as SyntheticId)
+      // Build initial set of node IDs in the target subtree
+      const scopeIds = collectSubtreeNodeIds(vtree, nodeId as SyntheticId)
 
-  // Fetch DOMPatch events in the time range
-  const patchEvents = recording.getEventsByType([SourceEventType.DOMPatch], {
-    startMs: fromTimestampMs,
-    endMs: toTimestampMs,
-  })
-
-  // Counters and change accumulation
-  let attributeChanges = 0
-  let textChanges = 0
-  let propertyChanges = 0
-  let nodesAdded = 0
-  let nodesRemoved = 0
-  const changes: DOMChange[] = []
-  const addedNodeIds: string[] = []
-  const removedNodeIds: string[] = []
-
-  for (const event of patchEvents) {
-    if (!isDOMPatchEvent(event)) continue
-
-    // DOMPatchEvent.data is a union type, so after encoding/decoding it is
-    // double-wrapped as Box<Box<DOMPatch>>. Use .flat() to unwrap the outer
-    // Box and get a Box<DOMPatch> whose .get() calls work correctly.
-    const eventBox = event as Box<{
-      type: number
-      time: number
-      data: Box<{ type: PatchType }>
-    }>
-    const dataBox = eventBox.get('data').flat() as Box<{
-      type: PatchType
-      targetId?: SyntheticId
-      parentId?: SyntheticId
-      name?: string
-      value?: string | null
-      oldValue?: string | null
-      nodes?: Array<{ rootId: SyntheticId; nodes: Record<string, unknown> }>
-    }>
-
-    const patchType = dataBox.get('type').orElse(-1 as PatchType)
-
-    if (patchType === PatchType.Attribute) {
-      // Null-terminate strings are stripped: binary codec pads fixed-width
-      // string fields with null bytes that must be removed for Set membership.
-      const targetId = normalizeId(
-        dataBox.get('targetId').orElse('' as SyntheticId) as string
-      )
-      if (!scopeIds.has(targetId)) continue
-      attributeChanges++
-      if (detail !== 'summary') {
-        const name = dataBox.get('name').orElse('')
-        const rawValue = dataBox.get('value').orElse(null)
-        const rawOldValue = dataBox.get('oldValue').orElse(null)
-        const value =
-          typeof rawValue === 'string' && detail === 'normal'
-            ? truncate(rawValue, 100)
-            : rawValue ?? null
-        const oldValue =
-          typeof rawOldValue === 'string' && detail === 'normal'
-            ? truncate(rawOldValue, 100)
-            : rawOldValue ?? null
-        changes.push({
-          type: 'attribute',
-          nodeId: targetId,
-          name,
-          value,
-          oldValue,
+      // Fetch DOMPatch events in the time range
+      return recording
+        .getEventsByType([SourceEventType.DOMPatch], {
+          startMs: fromTimestampMs,
+          endMs: toTimestampMs,
         })
-      }
-    } else if (patchType === PatchType.Text) {
-      const targetId = normalizeId(
-        dataBox.get('targetId').orElse('' as SyntheticId) as string
-      )
-      if (!scopeIds.has(targetId)) continue
-      textChanges++
-      if (detail !== 'summary') {
-        const rawValue = dataBox.get('value').orElse(null) as string | null
-        const rawOldValue = dataBox.get('oldValue').orElse(null) as
-          | string
-          | null
-        const value =
-          typeof rawValue === 'string' && detail === 'normal'
-            ? truncate(rawValue, 100)
-            : rawValue
-        const oldValue =
-          typeof rawOldValue === 'string' && detail === 'normal'
-            ? truncate(rawOldValue, 100)
-            : rawOldValue
-        changes.push({ type: 'text', nodeId: targetId, value, oldValue })
-      }
-    } else if (
-      patchType === PatchType.TextProperty ||
-      patchType === PatchType.BooleanProperty ||
-      patchType === PatchType.NumberProperty
-    ) {
-      const targetId = normalizeId(
-        dataBox.get('targetId').orElse('' as SyntheticId) as string
-      )
-      if (!scopeIds.has(targetId)) continue
-      propertyChanges++
-      if (detail !== 'summary') {
-        const name = dataBox.get('name').orElse('')
-        const rawValue = dataBox.get('value').orElse(null)
-        const rawOldValue = dataBox.get('oldValue').orElse(null)
-        const value =
-          typeof rawValue === 'string' && detail === 'normal'
-            ? truncate(rawValue, 100)
-            : rawValue != null
-            ? String(rawValue)
-            : null
-        const oldValue =
-          typeof rawOldValue === 'string' && detail === 'normal'
-            ? truncate(rawOldValue, 100)
-            : rawOldValue != null
-            ? String(rawOldValue)
-            : null
-        changes.push({
-          type: 'property',
-          nodeId: targetId,
-          name,
-          value,
-          oldValue,
-        })
-      }
-    } else if (patchType === PatchType.AddNodes) {
-      const parentId = normalizeId(
-        dataBox.get('parentId').orElse('' as SyntheticId) as string
-      )
-      // Only track additions under nodes in our scope
-      if (!scopeIds.has(parentId)) continue
-      const addedNodes = dataBox.get('nodes').orElse([]) as Array<{
-        rootId: string
-      }>
-      for (const vt of addedNodes) {
-        const addedId = normalizeId(vt.rootId as string)
-        nodesAdded++
-        // Expand scope to include newly added nodes so subsequent patches on
-        // them are also tracked within this diff window
-        scopeIds.add(addedId)
-        if (detail === 'full') {
-          addedNodeIds.push(addedId)
-        }
-      }
-    } else if (patchType === PatchType.RemoveNodes) {
-      const parentId = normalizeId(
-        dataBox.get('parentId').orElse('' as SyntheticId) as string
-      )
-      if (!scopeIds.has(parentId)) continue
-      const removedNodes = dataBox.get('nodes').orElse([]) as Array<{
-        rootId: string
-      }>
-      for (const vt of removedNodes) {
-        const removedId = normalizeId(vt.rootId as string)
-        nodesRemoved++
-        scopeIds.delete(removedId)
-        if (detail === 'full') {
-          removedNodeIds.push(removedId)
-        }
-      }
-    }
-  }
+        .pipe(
+          chain(
+            (patchEvents): FutureInstance<never, Record<string, unknown>> => {
+              // Counters and change accumulation
+              let attributeChanges = 0
+              let textChanges = 0
+              let propertyChanges = 0
+              let nodesAdded = 0
+              let nodesRemoved = 0
+              const changes: DOMChange[] = []
+              const addedNodeIds: string[] = []
+              const removedNodeIds: string[] = []
 
-  if (detail === 'summary') {
-    const result = {
-      attributeChanges,
-      textChanges,
-      propertyChanges,
-      nodesAdded,
-      nodesRemoved,
-    }
-    return resolve({ ...result, _tokenEstimate: estimateTokens(result) })
-  }
+              for (const event of patchEvents) {
+                if (!isDOMPatchEvent(event)) continue
 
-  const result: Record<string, unknown> = {
-    attributeChanges,
-    textChanges,
-    propertyChanges,
-    nodesAdded,
-    nodesRemoved,
-    changes,
-  }
+                // DOMPatchEvent.data is a union type, so after encoding/decoding it is
+                // double-wrapped as Box<Box<DOMPatch>>. Use .flat() to unwrap the outer
+                // Box and get a Box<DOMPatch> whose .get() calls work correctly.
+                const eventBox = event as Box<{
+                  type: number
+                  time: number
+                  data: Box<{ type: PatchType }>
+                }>
+                const dataBox = eventBox.get('data').flat() as Box<{
+                  type: PatchType
+                  targetId?: SyntheticId
+                  parentId?: SyntheticId
+                  name?: string
+                  value?: string | null
+                  oldValue?: string | null
+                  nodes?: Array<{
+                    rootId: SyntheticId
+                    nodes: Record<string, unknown>
+                  }>
+                }>
 
-  if (detail === 'full') {
-    result.addedNodeIds = addedNodeIds
-    result.removedNodeIds = removedNodeIds
-  }
+                const patchType = dataBox.get('type').orElse(-1 as PatchType)
 
-  return resolve({ ...result, _tokenEstimate: estimateTokens(result) })
+                if (patchType === PatchType.Attribute) {
+                  // Null-terminate strings are stripped: binary codec pads fixed-width
+                  // string fields with null bytes that must be removed for Set membership.
+                  const targetId = normalizeId(
+                    dataBox.get('targetId').orElse('' as SyntheticId) as string
+                  )
+                  if (!scopeIds.has(targetId)) continue
+                  attributeChanges++
+                  if (detail !== 'summary') {
+                    const name = dataBox.get('name').orElse('')
+                    const rawValue = dataBox.get('value').orElse(null)
+                    const rawOldValue = dataBox.get('oldValue').orElse(null)
+                    const value =
+                      typeof rawValue === 'string' && detail === 'normal'
+                        ? truncate(rawValue, 100)
+                        : rawValue ?? null
+                    const oldValue =
+                      typeof rawOldValue === 'string' && detail === 'normal'
+                        ? truncate(rawOldValue, 100)
+                        : rawOldValue ?? null
+                    changes.push({
+                      type: 'attribute',
+                      nodeId: targetId,
+                      name,
+                      value,
+                      oldValue,
+                    })
+                  }
+                } else if (patchType === PatchType.Text) {
+                  const targetId = normalizeId(
+                    dataBox.get('targetId').orElse('' as SyntheticId) as string
+                  )
+                  if (!scopeIds.has(targetId)) continue
+                  textChanges++
+                  if (detail !== 'summary') {
+                    const rawValue = dataBox.get('value').orElse(null) as
+                      | string
+                      | null
+                    const rawOldValue = dataBox.get('oldValue').orElse(null) as
+                      | string
+                      | null
+                    const value =
+                      typeof rawValue === 'string' && detail === 'normal'
+                        ? truncate(rawValue, 100)
+                        : rawValue
+                    const oldValue =
+                      typeof rawOldValue === 'string' && detail === 'normal'
+                        ? truncate(rawOldValue, 100)
+                        : rawOldValue
+                    changes.push({
+                      type: 'text',
+                      nodeId: targetId,
+                      value,
+                      oldValue,
+                    })
+                  }
+                } else if (
+                  patchType === PatchType.TextProperty ||
+                  patchType === PatchType.BooleanProperty ||
+                  patchType === PatchType.NumberProperty
+                ) {
+                  const targetId = normalizeId(
+                    dataBox.get('targetId').orElse('' as SyntheticId) as string
+                  )
+                  if (!scopeIds.has(targetId)) continue
+                  propertyChanges++
+                  if (detail !== 'summary') {
+                    const name = dataBox.get('name').orElse('')
+                    const rawValue = dataBox.get('value').orElse(null)
+                    const rawOldValue = dataBox.get('oldValue').orElse(null)
+                    const value =
+                      typeof rawValue === 'string' && detail === 'normal'
+                        ? truncate(rawValue, 100)
+                        : rawValue != null
+                        ? String(rawValue)
+                        : null
+                    const oldValue =
+                      typeof rawOldValue === 'string' && detail === 'normal'
+                        ? truncate(rawOldValue, 100)
+                        : rawOldValue != null
+                        ? String(rawOldValue)
+                        : null
+                    changes.push({
+                      type: 'property',
+                      nodeId: targetId,
+                      name,
+                      value,
+                      oldValue,
+                    })
+                  }
+                } else if (patchType === PatchType.AddNodes) {
+                  const parentId = normalizeId(
+                    dataBox.get('parentId').orElse('' as SyntheticId) as string
+                  )
+                  // Only track additions under nodes in our scope
+                  if (!scopeIds.has(parentId)) continue
+                  const addedNodes = dataBox.get('nodes').orElse([]) as Array<{
+                    rootId: string
+                  }>
+                  for (const vt of addedNodes) {
+                    const addedId = normalizeId(vt.rootId as string)
+                    nodesAdded++
+                    // Expand scope to include newly added nodes so subsequent patches on
+                    // them are also tracked within this diff window
+                    scopeIds.add(addedId)
+                    if (detail === 'full') {
+                      addedNodeIds.push(addedId)
+                    }
+                  }
+                } else if (patchType === PatchType.RemoveNodes) {
+                  const parentId = normalizeId(
+                    dataBox.get('parentId').orElse('' as SyntheticId) as string
+                  )
+                  if (!scopeIds.has(parentId)) continue
+                  const removedNodes = dataBox
+                    .get('nodes')
+                    .orElse([]) as Array<{
+                    rootId: string
+                  }>
+                  for (const vt of removedNodes) {
+                    const removedId = normalizeId(vt.rootId as string)
+                    nodesRemoved++
+                    scopeIds.delete(removedId)
+                    if (detail === 'full') {
+                      removedNodeIds.push(removedId)
+                    }
+                  }
+                }
+              }
+
+              if (detail === 'summary') {
+                const result: Record<string, unknown> = {
+                  attributeChanges,
+                  textChanges,
+                  propertyChanges,
+                  nodesAdded,
+                  nodesRemoved,
+                }
+                return resolve({
+                  ...result,
+                  _tokenEstimate: estimateTokens(result),
+                })
+              }
+
+              const result: Record<string, unknown> = {
+                attributeChanges,
+                textChanges,
+                propertyChanges,
+                nodesAdded,
+                nodesRemoved,
+                changes,
+              }
+
+              if (detail === 'full') {
+                result.addedNodeIds = addedNodeIds
+                result.removedNodeIds = removedNodeIds
+              }
+
+              return resolve({
+                ...result,
+                _tokenEstimate: estimateTokens(result),
+              })
+            }
+          )
+        )
+    })
+  )
 }

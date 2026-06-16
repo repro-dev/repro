@@ -8,6 +8,7 @@
 // using a dynamic import() inside the test body (after mock.module), we
 // guarantee that createState.ts is first evaluated with the spy in place.
 import { resolve } from 'fluture'
+
 import assert from 'node:assert'
 import { describe, it, mock } from 'node:test'
 
@@ -101,10 +102,10 @@ describe('createAgenticState — token estimate cache hit', () => {
 
     const accessor: RecordingDataAccessor = {
       getDuration: () => 0,
-      getSnapshotAtTime: () => null,
-      getEventsByType: () => [],
-      getEventsInRange: () => [],
-      getResourceMap: () => ({}),
+      getSnapshotAtTime: () => resolve(null),
+      getEventsByType: () => resolve([]),
+      getEventsInRange: () => resolve([]),
+      getResourceMap: () => resolve({}),
     }
 
     let callCount = 0

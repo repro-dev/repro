@@ -6,7 +6,7 @@ import {
   unwrapNetworkEvents,
 } from '@repro/source-utils'
 import { Box } from '@repro/tdl'
-import { resolve } from 'fluture'
+import { chain, resolve } from 'fluture'
 import { DetailLevel, estimateTokens, truncate } from '../token-optimization'
 import type { ToolHandler } from './common'
 import { serializeMessagePart } from './common'
@@ -54,84 +54,118 @@ export const handler: ToolHandler = (recording, args) => {
   }> = []
 
   // Console errors
-  const consoleEvents = recording.getEventsByType([SourceEventType.Console], {
-    startMs: timeStart,
-    endMs: timeEnd,
-  })
+  return recording
+    .getEventsByType([SourceEventType.Console], {
+      startMs: timeStart,
+      endMs: timeEnd,
+    })
+    .pipe(
+      chain(consoleEvents => {
+        for (const event of consoleEvents) {
+          const consoleEvent = event as Box<ConsoleEvent>
+          const time = consoleEvent.get('time').orElse(0)
+          const level = consoleEvent
+            .get('data')
+            .get('level')
+            .orElse(LogLevel.Info)
+          if (level !== LogLevel.Error) continue
 
-  for (const event of consoleEvents) {
-    const consoleEvent = event as Box<ConsoleEvent>
-    const { time, level, text } = extractConsoleText(
-      consoleEvent,
-      serializeMessagePart
-    )
-    if (level !== LogLevel.Error) continue
+          const { text: rawText } = extractConsoleText(
+            consoleEvent,
+            serializeMessagePart
+          )
 
-    const maxLen = detail === 'full' ? 500 : detail === 'summary' ? 100 : 200
-    const summary = truncate(text, maxLen)
+          const maxLen =
+            detail === 'full' ? 500 : detail === 'summary' ? 100 : 200
+          const summary = truncate(rawText, maxLen)
 
-    const stackEntries = consoleEvent.get('data').get('stack').orElse([])
+          const stackEntries = consoleEvent.get('data').get('stack').orElse([])
 
-    let stack: string[] | undefined
-    if (detail !== 'summary') {
-      const maxFrames = detail === 'full' ? 10 : 3
-      const frames = stackEntries.slice(0, maxFrames).map(entry => {
-        const fileName = entry.fileName
-        const basename = fileName.split('/').pop() ?? fileName
-        return `${basename}:${entry.lineNumber}:${entry.columnNumber}`
+          let stack: string[] | undefined
+          if (detail !== 'summary') {
+            const maxFrames = detail === 'full' ? 10 : 3
+            const frames = stackEntries.slice(0, maxFrames).map(entry => {
+              const fileName = entry.fileName
+              const basename = fileName.split('/').pop() ?? fileName
+              return `${basename}:${entry.lineNumber}:${entry.columnNumber}`
+            })
+            if (frames.length > 0) stack = frames
+          }
+
+          errors.push({
+            time,
+            source: 'console',
+            summary,
+            ...(stack ? { stack } : {}),
+          })
+        }
+
+        // Network errors — pass time range to avoid iterating all events
+        return recording
+          .getEventsByType([SourceEventType.Network], {
+            startMs: timeStart,
+            endMs: timeEnd,
+          })
+          .pipe(
+            chain(networkEvents => {
+              const groups = groupNetworkEvents(
+                unwrapNetworkEvents(networkEvents)
+              )
+
+              for (const group of groups) {
+                if (group.type !== 'fetch') continue
+                if (!group.response || group.response.status < 400) continue
+
+                const time = group.requestTime
+                const pathname = extractPathname(group.request.url)
+
+                errors.push({
+                  time,
+                  source: 'network',
+                  summary: `${group.request.method} ${pathname} → ${group.response.status}`,
+                })
+              }
+
+              errors.sort((a, b) => a.time - b.time)
+
+              const consoleCount = errors.filter(
+                e => e.source === 'console'
+              ).length
+              const networkCount = errors.filter(
+                e => e.source === 'network'
+              ).length
+              const summaryStats = {
+                console: consoleCount,
+                network: networkCount,
+                total: consoleCount + networkCount,
+              }
+
+              if (detail === 'summary') {
+                const representativeErrors = (['console', 'network'] as const)
+                  .map(src => errors.find(e => e.source === src))
+                  .filter((e): e is NonNullable<typeof e> => e !== undefined)
+                  .map(({ time, source, summary }) => ({
+                    time,
+                    source,
+                    summary,
+                  }))
+                const result = {
+                  errors: representativeErrors,
+                  summary: summaryStats,
+                }
+                return resolve({
+                  ...result,
+                  _tokenEstimate: estimateTokens(result),
+                })
+              }
+
+              const result = { errors, summary: summaryStats }
+              return resolve({
+                ...result,
+                _tokenEstimate: estimateTokens(result),
+              })
+            })
+          )
       })
-      if (frames.length > 0) stack = frames
-    }
-
-    errors.push({
-      time,
-      source: 'console',
-      summary,
-      ...(stack ? { stack } : {}),
-    })
-  }
-
-  // Network errors — pass time range to avoid iterating all events
-  const networkEvents = recording.getEventsByType([SourceEventType.Network], {
-    startMs: timeStart,
-    endMs: timeEnd,
-  })
-  const groups = groupNetworkEvents(unwrapNetworkEvents(networkEvents))
-
-  for (const group of groups) {
-    if (group.type !== 'fetch') continue
-    if (!group.response || group.response.status < 400) continue
-
-    const time = group.requestTime
-
-    const pathname = extractPathname(group.request.url)
-
-    errors.push({
-      time,
-      source: 'network',
-      summary: `${group.request.method} ${pathname} → ${group.response.status}`,
-    })
-  }
-
-  errors.sort((a, b) => a.time - b.time)
-
-  const consoleCount = errors.filter(e => e.source === 'console').length
-  const networkCount = errors.filter(e => e.source === 'network').length
-  const summaryStats = {
-    console: consoleCount,
-    network: networkCount,
-    total: consoleCount + networkCount,
-  }
-
-  if (detail === 'summary') {
-    const representativeErrors = (['console', 'network'] as const)
-      .map(src => errors.find(e => e.source === src))
-      .filter((e): e is NonNullable<typeof e> => e !== undefined)
-      .map(({ time, source, summary }) => ({ time, source, summary }))
-    const result = { errors: representativeErrors, summary: summaryStats }
-    return resolve({ ...result, _tokenEstimate: estimateTokens(result) })
-  }
-
-  const result = { errors, summary: summaryStats }
-  return resolve({ ...result, _tokenEstimate: estimateTokens(result) })
+    )
 }
