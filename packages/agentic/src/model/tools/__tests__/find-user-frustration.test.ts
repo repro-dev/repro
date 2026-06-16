@@ -1,4 +1,5 @@
-import { InteractionType, SourceEventType } from '@repro/domain'
+import { InteractionType, SourceEvent, SourceEventType } from '@repro/domain'
+import { resolve } from 'fluture'
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import type { RecordingDataAccessor } from '../../../types'
@@ -79,11 +80,10 @@ function makeCountingDeadClickAccessor(
 
   return {
     getDuration: () => clickCount * 10,
-    getSnapshotAtTime: () => null,
-    getResourceMap: () => ({}),
-    getEventsByType: () => [],
-    getEventsInRange: () =>
-      events as ReturnType<RecordingDataAccessor['getEventsInRange']>,
+    getSnapshotAtTime: () => resolve(null),
+    getResourceMap: () => resolve({}),
+    getEventsByType: () => resolve([]),
+    getEventsInRange: () => resolve(events as unknown as SourceEvent[]),
     getTimeReadCount: () => timeReadCount,
   }
 }

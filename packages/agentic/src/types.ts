@@ -4,11 +4,11 @@ import { FutureInstance } from 'fluture'
 
 export interface RecordingDataAccessor {
   getDuration(): number
-  getSnapshotAtTime(timestampMs: number): Snapshot | null
+  getSnapshotAtTime(timestampMs: number): FutureInstance<Error, Snapshot | null>
   // Returns a map of absolute original URL → resolved URL (blob URL or proxied
   // API URL) ready to pass directly to createDOMFromVTree as its resourceMap
   // argument. Inversion and base-URL construction are the caller's responsibility.
-  getResourceMap(): Record<string, string>
+  getResourceMap(): FutureInstance<Error, Record<string, string>>
   getEventsByType(
     types: Array<SourceEventType>,
     opts?: {
@@ -17,12 +17,12 @@ export interface RecordingDataAccessor {
       limit?: number
       offset?: number
     }
-  ): Array<SourceEvent>
+  ): FutureInstance<Error, Array<SourceEvent>>
   getEventsInRange(
     startMs: number,
     endMs: number,
     opts?: { types?: Array<SourceEventType>; limit?: number; offset?: number }
-  ): Array<SourceEvent>
+  ): FutureInstance<Error, Array<SourceEvent>>
 }
 
 export interface UserMessage {

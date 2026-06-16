@@ -12,7 +12,7 @@ import {
   ViewportResize,
 } from '@repro/domain'
 import { Box } from '@repro/tdl'
-import { resolve } from 'fluture'
+import { chain, resolve } from 'fluture'
 import type { ToolHandler } from './common'
 import {
   createError,
@@ -155,62 +155,68 @@ export const handler: ToolHandler = (recording, args) => {
   const startTime = Math.max(0, timestampMs - halfWindow)
   const endTime = Math.min(recording.getDuration(), timestampMs + halfWindow)
 
-  const events = recording.getEventsInRange(startTime, endTime)
-  const result: Array<{
-    timeMs: number
-    type: string
-    [key: string]: unknown
-  }> = []
+  return recording.getEventsInRange(startTime, endTime).pipe(
+    chain(events => {
+      const result: Array<{
+        timeMs: number
+        type: string
+        [key: string]: unknown
+      }> = []
 
-  for (const event of events) {
-    const time = event.get('time').orElse(0)
+      for (const event of events) {
+        const time = event.get('time').orElse(0)
 
-    if (isInteractionEvent(event)) {
-      const summary = summarizeInteraction(event)
-      if (!summary) continue
-      result.push({ timeMs: time, ...summary })
-      continue
-    }
+        if (isInteractionEvent(event)) {
+          const summary = summarizeInteraction(event)
+          if (!summary) continue
+          result.push({ timeMs: time, ...summary })
+          continue
+        }
 
-    if (isDOMPatchEvent(event)) {
-      continue
-    }
+        if (isDOMPatchEvent(event)) {
+          continue
+        }
 
-    if (event.match(e => e.type === SourceEventType.Snapshot)) {
-      continue
-    }
+        if (event.match(e => e.type === SourceEventType.Snapshot)) {
+          continue
+        }
 
-    if (isNetworkEvent(event)) {
-      result.push({ timeMs: time, type: 'network' })
-      continue
-    }
+        if (isNetworkEvent(event)) {
+          result.push({ timeMs: time, type: 'network' })
+          continue
+        }
 
-    if (isConsoleEvent(event)) {
-      const consoleEvent: Box<ConsoleEvent> = event
-      const level = consoleEvent.get('data').get('level').orElse(LogLevel.Info)
-      const parts = consoleEvent.get('data').get('parts').orElse([])
-      const text = parts.map(serializeMessagePart).join(' ')
-      result.push({
-        timeMs: time,
-        type: 'console',
-        level: LOG_LEVEL_NAMES[level] ?? 'info',
-        text,
+        if (isConsoleEvent(event)) {
+          const consoleEvent: Box<ConsoleEvent> = event
+          const level = consoleEvent
+            .get('data')
+            .get('level')
+            .orElse(LogLevel.Info)
+          const parts = consoleEvent.get('data').get('parts').orElse([])
+          const text = parts.map(serializeMessagePart).join(' ')
+          result.push({
+            timeMs: time,
+            type: 'console',
+            level: LOG_LEVEL_NAMES[level] ?? 'info',
+            text,
+          })
+          continue
+        }
+
+        if (event.match(e => e.type === SourceEventType.Performance)) {
+          result.push({ timeMs: time, type: 'performance' })
+          continue
+        }
+      }
+
+      return resolve({
+        centerMs: timestampMs,
+        windowMs,
+        rangeStartMs: startTime,
+        rangeEndMs: endTime,
+        events: result,
+        _tokenEstimate: Math.ceil(JSON.stringify(result).length / 4) + 20,
       })
-      continue
-    }
-
-    if (event.match(e => e.type === SourceEventType.Performance)) {
-      result.push({ timeMs: time, type: 'performance' })
-      continue
-    }
-  }
-
-  return resolve({
-    centerMs: timestampMs,
-    windowMs,
-    rangeStartMs: startTime,
-    rangeEndMs: endTime,
-    events: result,
-    _tokenEstimate: Math.ceil(JSON.stringify(result).length / 4) + 20,
-  })
+    })
+  )
 }

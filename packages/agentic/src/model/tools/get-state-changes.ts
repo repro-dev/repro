@@ -9,7 +9,7 @@ import {
   VuexMutationEvent,
 } from '@repro/domain'
 import { Box } from '@repro/tdl'
-import { resolve } from 'fluture'
+import { chain, resolve } from 'fluture'
 import { estimateTokens } from '../token-optimization'
 import type { ToolHandler } from './common'
 import { createError } from './common'
@@ -93,201 +93,207 @@ export const handler: ToolHandler = (recording, args) => {
   const framework = frameworkArg as Framework | undefined
 
   // Delegate time-range filtering to getEventsByType — avoids a second scan.
-  const sourceEvents = recording.getEventsByType([SourceEventType.State], {
-    startMs: timeRangeStartMs,
-    endMs: timeRangeEndMs,
-  })
-
-  const events: Array<Record<string, unknown>> = []
-  let total = 0
-
-  for (const sourceEvent of sourceEvents) {
-    const time = (sourceEvent as Box<{ time: number }>).get('time').orElse(0)
-
-    // The SourceEvent data field is itself a Box (StateEvent = Box<...>).
-    // .get("data") returns Box<Box<StateEventData>>; .flat() unwraps one level
-    // so that .apply() receives the plain state event object.
-    const dataBox = (sourceEvent as Box<{ data: Box<unknown> }>)
-      .get('data')
-      .flat() as Box<
-      | ReactCommitEvent
-      | ReduxDispatchEvent
-      | VueComponentUpdateEvent
-      | VuexMutationEvent
-      | VuexActionEvent
-      | PiniaActionEvent
-    >
-
-    let entry: Record<string, unknown> | null = null
-
-    dataBox.apply(stateEvent => {
-      const eventType = stateEvent.type
-
-      if (eventType === StateEventType.ReactCommit) {
-        const e = stateEvent as ReactCommitEvent
-
-        // Framework filter: react covers ReactCommit
-        if (framework === 'redux') return
-
-        // componentName substring filter
-        if (
-          componentNameFilter !== undefined &&
-          !e.componentName.includes(componentNameFilter)
-        )
-          return
-
-        entry = {
-          time,
-          framework: 'react',
-          eventType: 'ReactCommit',
-          componentName: e.componentName,
-          propsDelta: truncateLargeValue(e.propsDelta),
-          hooksDelta: truncateLargeValue(e.hooksDelta),
-          fiberNodeId: e.fiberNodeId,
-          ...(e.parentFiberId !== null
-            ? { parentFiberId: e.parentFiberId }
-            : {}),
-          ...(e.commitBatchId !== null
-            ? { commitBatchId: e.commitBatchId }
-            : {}),
-        }
-      } else if (eventType === StateEventType.VueComponentUpdate) {
-        const e = stateEvent as VueComponentUpdateEvent
-
-        // Framework filter: react covers VueComponentUpdate
-        if (framework === 'redux') return
-
-        // componentName substring filter
-        if (
-          componentNameFilter !== undefined &&
-          !e.componentName.includes(componentNameFilter)
-        )
-          return
-
-        entry = {
-          time,
-          framework: 'react',
-          eventType: 'VueComponentUpdate',
-          componentName: e.componentName,
-          uid: e.uid,
-          propsDelta: truncateLargeValue(e.propsDelta),
-          setupStateDelta: truncateLargeValue(e.setupStateDelta),
-        }
-      } else if (eventType === StateEventType.ReduxDispatch) {
-        const e = stateEvent as ReduxDispatchEvent
-
-        // Framework filter: redux covers ReduxDispatch
-        if (framework === 'react') return
-
-        // actionType substring filter
-        if (
-          actionTypeFilter !== undefined &&
-          !e.actionType.includes(actionTypeFilter)
-        )
-          return
-
-        entry = {
-          time,
-          framework: 'redux',
-          eventType: 'ReduxDispatch',
-          actionType: e.actionType,
-          actionPayload: truncateLargeValue(e.actionPayload),
-          stateDiff: truncateLargeValue(e.stateDiff),
-        }
-      } else if (eventType === StateEventType.VuexMutation) {
-        const e = stateEvent as VuexMutationEvent
-
-        // Framework filter: redux covers VuexMutation
-        if (framework === 'react') return
-
-        // actionType filter applies to mutationType
-        if (
-          actionTypeFilter !== undefined &&
-          !e.mutationType.includes(actionTypeFilter)
-        )
-          return
-
-        entry = {
-          time,
-          framework: 'redux',
-          eventType: 'VuexMutation',
-          mutationType: e.mutationType,
-          payload: truncateLargeValue(e.payload),
-          stateDiff: truncateLargeValue(e.stateDiff),
-        }
-      } else if (eventType === StateEventType.VuexAction) {
-        const e = stateEvent as VuexActionEvent
-
-        // Framework filter: redux covers VuexAction
-        if (framework === 'react') return
-
-        // actionType filter applies to actionType
-        if (
-          actionTypeFilter !== undefined &&
-          !e.actionType.includes(actionTypeFilter)
-        )
-          return
-
-        entry = {
-          time,
-          framework: 'redux',
-          eventType: 'VuexAction',
-          actionType: e.actionType,
-          payload: truncateLargeValue(e.payload),
-        }
-      } else if (eventType === StateEventType.PiniaAction) {
-        const e = stateEvent as PiniaActionEvent
-
-        // Framework filter: redux covers PiniaAction
-        if (framework === 'react') return
-
-        // actionType filter applies to actionName
-        if (
-          actionTypeFilter !== undefined &&
-          !e.actionName.includes(actionTypeFilter)
-        )
-          return
-
-        entry = {
-          time,
-          framework: 'redux',
-          eventType: 'PiniaAction',
-          storeId: e.storeId,
-          actionName: e.actionName,
-          args: truncateLargeValue(e.args),
-          stateDiff: truncateLargeValue(e.stateDiff),
-        }
-      }
+  return recording
+    .getEventsByType([SourceEventType.State], {
+      startMs: timeRangeStartMs,
+      endMs: timeRangeEndMs,
     })
+    .pipe(
+      chain(sourceEvents => {
+        const events: Array<Record<string, unknown>> = []
+        let total = 0
 
-    if (entry !== null) {
-      total++
-      if (events.length < limit) {
-        events.push(entry)
-      }
-    }
-  }
+        for (const sourceEvent of sourceEvents) {
+          const time = (sourceEvent as Box<{ time: number }>)
+            .get('time')
+            .orElse(0)
 
-  const hasFilters =
-    framework !== undefined ||
-    componentNameFilter !== undefined ||
-    actionTypeFilter !== undefined ||
-    timeRangeStartMs !== undefined ||
-    timeRangeEndMs !== undefined
+          // The SourceEvent data field is itself a Box (StateEvent = Box<...>).
+          // .get("data") returns Box<Box<StateEventData>>; .flat() unwraps one level
+          // so that .apply() receives the plain state event object.
+          const dataBox = (sourceEvent as Box<{ data: Box<unknown> }>)
+            .get('data')
+            .flat() as Box<
+            | ReactCommitEvent
+            | ReduxDispatchEvent
+            | VueComponentUpdateEvent
+            | VuexMutationEvent
+            | VuexActionEvent
+            | PiniaActionEvent
+          >
 
-  if (events.length === 0) {
-    const hint =
-      total === 0 && !hasFilters
-        ? 'No state change events found in this recording. The app may not use React, Redux, Vue, or Pinia, or the state observer may not have been active. Call getEvents(detail="summary") to inspect which event types are present.'
-        : 'No state changes matched the provided filters. Call getStateChanges() without filters to see all available state events.'
-    return resolve({
-      events: [],
-      total: 0,
-      _hint: hint,
-      _tokenEstimate: estimateTokens({ events: [], total: 0 }),
-    })
-  }
+          let entry: Record<string, unknown> | null = null
 
-  const result = { events, total }
-  return resolve({ ...result, _tokenEstimate: estimateTokens(result) })
+          dataBox.apply(stateEvent => {
+            const eventType = stateEvent.type
+
+            if (eventType === StateEventType.ReactCommit) {
+              const e = stateEvent as ReactCommitEvent
+
+              // Framework filter: react covers ReactCommit
+              if (framework === 'redux') return
+
+              // componentName substring filter
+              if (
+                componentNameFilter !== undefined &&
+                !e.componentName.includes(componentNameFilter)
+              )
+                return
+
+              entry = {
+                time,
+                framework: 'react',
+                eventType: 'ReactCommit',
+                componentName: e.componentName,
+                propsDelta: truncateLargeValue(e.propsDelta),
+                hooksDelta: truncateLargeValue(e.hooksDelta),
+                fiberNodeId: e.fiberNodeId,
+                ...(e.parentFiberId !== null
+                  ? { parentFiberId: e.parentFiberId }
+                  : {}),
+                ...(e.commitBatchId !== null
+                  ? { commitBatchId: e.commitBatchId }
+                  : {}),
+              }
+            } else if (eventType === StateEventType.VueComponentUpdate) {
+              const e = stateEvent as VueComponentUpdateEvent
+
+              // Framework filter: react covers VueComponentUpdate
+              if (framework === 'redux') return
+
+              // componentName substring filter
+              if (
+                componentNameFilter !== undefined &&
+                !e.componentName.includes(componentNameFilter)
+              )
+                return
+
+              entry = {
+                time,
+                framework: 'react',
+                eventType: 'VueComponentUpdate',
+                componentName: e.componentName,
+                uid: e.uid,
+                propsDelta: truncateLargeValue(e.propsDelta),
+                setupStateDelta: truncateLargeValue(e.setupStateDelta),
+              }
+            } else if (eventType === StateEventType.ReduxDispatch) {
+              const e = stateEvent as ReduxDispatchEvent
+
+              // Framework filter: redux covers ReduxDispatch
+              if (framework === 'react') return
+
+              // actionType substring filter
+              if (
+                actionTypeFilter !== undefined &&
+                !e.actionType.includes(actionTypeFilter)
+              )
+                return
+
+              entry = {
+                time,
+                framework: 'redux',
+                eventType: 'ReduxDispatch',
+                actionType: e.actionType,
+                actionPayload: truncateLargeValue(e.actionPayload),
+                stateDiff: truncateLargeValue(e.stateDiff),
+              }
+            } else if (eventType === StateEventType.VuexMutation) {
+              const e = stateEvent as VuexMutationEvent
+
+              // Framework filter: redux covers VuexMutation
+              if (framework === 'react') return
+
+              // actionType filter applies to mutationType
+              if (
+                actionTypeFilter !== undefined &&
+                !e.mutationType.includes(actionTypeFilter)
+              )
+                return
+
+              entry = {
+                time,
+                framework: 'redux',
+                eventType: 'VuexMutation',
+                mutationType: e.mutationType,
+                payload: truncateLargeValue(e.payload),
+                stateDiff: truncateLargeValue(e.stateDiff),
+              }
+            } else if (eventType === StateEventType.VuexAction) {
+              const e = stateEvent as VuexActionEvent
+
+              // Framework filter: redux covers VuexAction
+              if (framework === 'react') return
+
+              // actionType filter applies to actionType
+              if (
+                actionTypeFilter !== undefined &&
+                !e.actionType.includes(actionTypeFilter)
+              )
+                return
+
+              entry = {
+                time,
+                framework: 'redux',
+                eventType: 'VuexAction',
+                actionType: e.actionType,
+                payload: truncateLargeValue(e.payload),
+              }
+            } else if (eventType === StateEventType.PiniaAction) {
+              const e = stateEvent as PiniaActionEvent
+
+              // Framework filter: redux covers PiniaAction
+              if (framework === 'react') return
+
+              // actionType filter applies to actionName
+              if (
+                actionTypeFilter !== undefined &&
+                !e.actionName.includes(actionTypeFilter)
+              )
+                return
+
+              entry = {
+                time,
+                framework: 'redux',
+                eventType: 'PiniaAction',
+                storeId: e.storeId,
+                actionName: e.actionName,
+                args: truncateLargeValue(e.args),
+                stateDiff: truncateLargeValue(e.stateDiff),
+              }
+            }
+          })
+
+          if (entry !== null) {
+            total++
+            if (events.length < limit) {
+              events.push(entry)
+            }
+          }
+        }
+
+        const hasFilters =
+          framework !== undefined ||
+          componentNameFilter !== undefined ||
+          actionTypeFilter !== undefined ||
+          timeRangeStartMs !== undefined ||
+          timeRangeEndMs !== undefined
+
+        if (events.length === 0) {
+          const hint =
+            total === 0 && !hasFilters
+              ? 'No state change events found in this recording. The app may not use React, Redux, Vue, or Pinia, or the state observer may not have been active. Call getEvents(detail="summary") to inspect which event types are present.'
+              : 'No state changes matched the provided filters. Call getStateChanges() without filters to see all available state events.'
+          return resolve({
+            events: [],
+            total: 0,
+            _hint: hint,
+            _tokenEstimate: estimateTokens({ events: [], total: 0 }),
+          })
+        }
+
+        const result = { events, total }
+        return resolve({ ...result, _tokenEstimate: estimateTokens(result) })
+      })
+    )
 }

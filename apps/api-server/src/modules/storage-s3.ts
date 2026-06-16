@@ -59,14 +59,25 @@ export function createS3StorageClient(config: Config): Storage {
     )
   }
 
-  function read(path: string): FutureInstance<Error, Readable> {
+  function read(
+    path: string,
+    range?: { start: number; end: number }
+  ): FutureInstance<Error, Readable> {
+    const input: {
+      Bucket: string
+      Key: string
+      Range?: string
+    } = {
+      Bucket: config.bucket,
+      Key: path,
+    }
+
+    if (range) {
+      input.Range = `bytes=${range.start}-${range.end}`
+    }
+
     const res = attemptP<Error, GetObjectCommandOutput>(() =>
-      s3.send(
-        new GetObjectCommand({
-          Bucket: config.bucket,
-          Key: path,
-        })
-      )
+      s3.send(new GetObjectCommand(input))
     )
 
     return res.pipe(

@@ -1,6 +1,6 @@
-import { NodeType, Snapshot, SourceEvent } from '@repro/domain'
+import { NodeType, Snapshot } from '@repro/domain'
 import type { FutureInstance } from 'fluture'
-import { fork } from 'fluture'
+import { fork, resolve } from 'fluture'
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { RecordingDataAccessor } from '../../../types'
@@ -45,20 +45,21 @@ function makeAccessorWithSnapshot(
 ): RecordingDataAccessor {
   return {
     getDuration: () => 5000,
-    getSnapshotAtTime: snapshotFn,
-    getEventsByType: () => [] as Array<SourceEvent>,
-    getEventsInRange: () => [] as Array<SourceEvent>,
-    getResourceMap: () => ({}),
+    getSnapshotAtTime: (timestampMs: number) =>
+      resolve(snapshotFn(timestampMs)),
+    getEventsByType: () => resolve([]),
+    getEventsInRange: () => resolve([]),
+    getResourceMap: () => resolve({}),
   }
 }
 
 function makeEmptyAccessor(): RecordingDataAccessor {
   return {
     getDuration: () => 0,
-    getSnapshotAtTime: () => null,
-    getEventsByType: () => [] as Array<SourceEvent>,
-    getEventsInRange: () => [] as Array<SourceEvent>,
-    getResourceMap: () => ({}),
+    getSnapshotAtTime: () => resolve(null),
+    getEventsByType: () => resolve([]),
+    getEventsInRange: () => resolve([]),
+    getResourceMap: () => resolve({}),
   }
 }
 

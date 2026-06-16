@@ -1,4 +1,5 @@
 import { NodeId } from '@repro/domain'
+import { resolve } from 'fluture'
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { makeAccessorFromEventList } from '../../../recordingDataAccessor'
@@ -457,8 +458,8 @@ describe('executeTool — getEvents — endTimeMs and duration fallback', () => 
     ]
     const accessor: RecordingDataAccessor = {
       getDuration: () => 0,
-      getSnapshotAtTime: () => null,
-      getResourceMap: () => ({}),
+      getSnapshotAtTime: () => resolve(null),
+      getResourceMap: () => resolve({}),
       ...makeAccessorFromEventList({
         size: () => events.length,
         over: i => events[i] ?? null,
@@ -480,8 +481,8 @@ describe('executeTool — getEvents — endTimeMs and duration fallback', () => 
     ]
     const accessor: RecordingDataAccessor = {
       getDuration: () => 0,
-      getSnapshotAtTime: () => null,
-      getResourceMap: () => ({}),
+      getSnapshotAtTime: () => resolve(null),
+      getResourceMap: () => resolve({}),
       ...makeAccessorFromEventList({
         size: () => events.length,
         over: i => events[i] ?? null,
@@ -504,8 +505,8 @@ describe('executeTool — getEvents — endTimeMs and duration fallback', () => 
     ]
     const accessor: RecordingDataAccessor = {
       getDuration: () => 700,
-      getSnapshotAtTime: () => null,
-      getResourceMap: () => ({}),
+      getSnapshotAtTime: () => resolve(null),
+      getResourceMap: () => resolve({}),
       ...makeAccessorFromEventList({
         size: () => events.length,
         over: i => events[i] ?? null,

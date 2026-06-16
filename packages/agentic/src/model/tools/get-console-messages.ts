@@ -1,6 +1,6 @@
 import { ConsoleEvent, LogLevel, SourceEventType } from '@repro/domain'
 import { Box } from '@repro/tdl'
-import { resolve } from 'fluture'
+import { chain, resolve } from 'fluture'
 import {
   DetailLevel,
   estimateTokens,
@@ -84,105 +84,115 @@ export const handler: ToolHandler = (recording, args) => {
 
   const collected: CollectedMessage[] = []
 
-  const events = recording.getEventsByType([SourceEventType.Console], {
-    startMs: timeStart,
-    endMs: timeEnd,
-  })
-
-  for (const event of events) {
-    const consoleEvent: Box<ConsoleEvent> = event as Box<ConsoleEvent>
-
-    const time = consoleEvent.get('time').orElse(0)
-
-    const level = consoleEvent.get('data').get('level').orElse(LogLevel.Info)
-    if (level < userMinLevel) continue
-
-    const levelName = LOG_LEVEL_NAMES[level] ?? 'info'
-    if (levelName === 'verbose') levelSummary.verbose++
-    else if (levelName === 'info') levelSummary.info++
-    else if (levelName === 'warning') levelSummary.warning++
-    else if (levelName === 'error') levelSummary.error++
-
-    if (level < tierMinLevel) continue
-
-    const parts = consoleEvent.get('data').get('parts').orElse([])
-    const rawText = parts.map(serializeMessagePart).join(' ')
-    const text = truncate(rawText, TEXT_MAX[detail])
-
-    const stackEntries = consoleEvent.get('data').get('stack').orElse([])
-    const maxFrames = STACK_MAX[detail]
-    const stack =
-      maxFrames === 0
-        ? []
-        : stackEntries
-            .slice(0, maxFrames)
-            .map(entry =>
-              shortenStackFrame(
-                `${entry.fileName}:${entry.lineNumber}:${entry.columnNumber}`
-              )
-            )
-
-    collected.push({ timeMs: time, levelName, text, stack })
-  }
-
-  type OutputMessage = {
-    timeMs: number
-    level: string
-    text: string
-    stack?: string[]
-    count?: number
-  }
-
-  let messages: OutputMessage[]
-
-  if (detail === 'full') {
-    messages = collected.map(m => {
-      const msg: OutputMessage = {
-        timeMs: m.timeMs,
-        level: m.levelName,
-        text: m.text,
-      }
-      if (m.stack.length > 0) msg.stack = m.stack
-      return msg
+  return recording
+    .getEventsByType([SourceEventType.Console], {
+      startMs: timeStart,
+      endMs: timeEnd,
     })
-  } else {
-    const dedupMap = new Map<string, OutputMessage>()
-    for (const m of collected) {
-      const existing = dedupMap.get(m.text)
-      if (existing) {
-        existing.count = (existing.count ?? 1) + 1
-      } else {
-        const msg: OutputMessage = {
-          timeMs: m.timeMs,
-          level: m.levelName,
-          text: m.text,
-          count: 1,
+    .pipe(
+      chain(events => {
+        for (const event of events) {
+          const consoleEvent: Box<ConsoleEvent> = event as Box<ConsoleEvent>
+
+          const time = consoleEvent.get('time').orElse(0)
+
+          const level = consoleEvent
+            .get('data')
+            .get('level')
+            .orElse(LogLevel.Info)
+          if (level < userMinLevel) continue
+
+          const levelName = LOG_LEVEL_NAMES[level] ?? 'info'
+          if (levelName === 'verbose') levelSummary.verbose++
+          else if (levelName === 'info') levelSummary.info++
+          else if (levelName === 'warning') levelSummary.warning++
+          else if (levelName === 'error') levelSummary.error++
+
+          if (level < tierMinLevel) continue
+
+          const parts = consoleEvent.get('data').get('parts').orElse([])
+          const rawText = parts.map(serializeMessagePart).join(' ')
+          const text = truncate(rawText, TEXT_MAX[detail])
+
+          const stackEntries = consoleEvent.get('data').get('stack').orElse([])
+          const maxFrames = STACK_MAX[detail]
+          const stack =
+            maxFrames === 0
+              ? []
+              : stackEntries
+                  .slice(0, maxFrames)
+                  .map(entry =>
+                    shortenStackFrame(
+                      `${entry.fileName}:${entry.lineNumber}:${entry.columnNumber}`
+                    )
+                  )
+
+          collected.push({ timeMs: time, levelName, text, stack })
         }
-        if (m.stack.length > 0) msg.stack = m.stack
-        dedupMap.set(m.text, msg)
-      }
-    }
-    messages = Array.from(dedupMap.values())
-    if (detail === 'summary') {
-      messages = messages.slice(0, 3)
-    }
-  }
 
-  const response = {
-    messages,
-    summary: levelSummary,
-  }
+        type OutputMessage = {
+          timeMs: number
+          level: string
+          text: string
+          stack?: string[]
+          count?: number
+        }
 
-  const logLevelFilterProvided = args.logLevel !== undefined
+        let messages: OutputMessage[]
 
-  if (messages.length === 0 && logLevelFilterProvided) {
-    return resolve({
-      ...response,
-      _hint:
-        'No console messages matched the provided filter. Call getConsoleMessages() without filters to see all available messages.',
-      _tokenEstimate: estimateTokens(response),
-    })
-  }
+        if (detail === 'full') {
+          messages = collected.map(m => {
+            const msg: OutputMessage = {
+              timeMs: m.timeMs,
+              level: m.levelName,
+              text: m.text,
+            }
+            if (m.stack.length > 0) msg.stack = m.stack
+            return msg
+          })
+        } else {
+          const dedupMap = new Map<string, OutputMessage>()
+          for (const m of collected) {
+            const existing = dedupMap.get(m.text)
+            if (existing) {
+              existing.count = (existing.count ?? 1) + 1
+            } else {
+              const msg: OutputMessage = {
+                timeMs: m.timeMs,
+                level: m.levelName,
+                text: m.text,
+                count: 1,
+              }
+              if (m.stack.length > 0) msg.stack = m.stack
+              dedupMap.set(m.text, msg)
+            }
+          }
+          messages = Array.from(dedupMap.values())
+          if (detail === 'summary') {
+            messages = messages.slice(0, 3)
+          }
+        }
 
-  return resolve({ ...response, _tokenEstimate: estimateTokens(response) })
+        const response = {
+          messages,
+          summary: levelSummary,
+        }
+
+        const logLevelFilterProvided = args.logLevel !== undefined
+
+        if (messages.length === 0 && logLevelFilterProvided) {
+          return resolve({
+            ...response,
+            _hint:
+              'No console messages matched the provided filter. Call getConsoleMessages() without filters to see all available messages.',
+            _tokenEstimate: estimateTokens(response),
+          })
+        }
+
+        return resolve({
+          ...response,
+          _tokenEstimate: estimateTokens(response),
+        })
+      })
+    )
 }

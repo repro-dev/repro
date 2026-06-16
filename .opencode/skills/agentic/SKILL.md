@@ -248,19 +248,44 @@ The token estimator (`packages/agentic/src/model/token-optimization.ts`) uses a 
 
 **Location**: `packages/agentic/src/types.ts`
 
+The `RecordingDataAccessor` interface uses async (Future-based) methods for I/O operations. Sync callers wrap results with `resolve()`:
+
 ```ts
 interface RecordingDataAccessor {
   getDuration(): number;
-  getSnapshotAtTime(timestampMs: number): Snapshot | null;
-  getResourceMap(): Record<string, string>; // absoluteURL → resolved URL
-  getEventsByType(types: SourceEventType[], opts?): SourceEvent[];
-  getEventsInRange(startMs: number, endMs: number, opts?): SourceEvent[];
+  getSnapshotAtTime(
+    timestampMs: number,
+  ): FutureInstance<Error, Snapshot | null>;
+  getResourceMap(): FutureInstance<Error, Record<string, string>>;
+  getEventsByType(
+    types: SourceEventType[],
+    opts?: { startMs?: number; endMs?: number; limit?: number; offset?: number },
+  ): FutureInstance<Error, SourceEvent[]>;
+  getEventsInRange(
+    startMs: number,
+    endMs: number,
+    opts?: { types?: SourceEventType[]; limit?: number; offset?: number },
+  ): FutureInstance<Error, SourceEvent[]>;
 }
 ```
 
-The shared implementation factory (`makeAccessorFromEventList`) lives in `packages/agentic/src/recordingDataAccessor.ts` and implements `getEventsByType` and `getEventsInRange` over an `EventList` interface. Callers must provide `getDuration`, `getSnapshotAtTime`, and `getResourceMap` themselves.
+The shared implementation factory (`makeAccessorFromEventList`) lives in `packages/agentic/src/recordingDataAccessor.ts` and implements `getEventsByType` and `getEventsInRange` over an `EventList` interface, wrapping sync results in `resolve(...)`. Callers must provide `getDuration`, `getSnapshotAtTime`, and `getResourceMap` themselves.
 
-In the extension (`Agentic.hoc.tsx`), the accessor is built by spreading `makeAccessorFromEventList(playback.getSourceEvents())` with the three remaining methods implemented inline from `playback.*`.
+In the extension (`Agentic.hoc.tsx`), the accessor is built by spreading `makeAccessorFromEventList(playback.getSourceEvents())` with the three remaining methods implemented inline from `playback.*` — each wrapping its return value in `resolve()`.
+
+### Server-side accessor
+
+A server-side `RecordingDataAccessor` implementation lives in `apps/api-server/src/services/recordingDataAccessor.ts` and is created via:
+
+```ts
+createRecordingDataAccessor(
+  database: Database,
+  storage: Storage,
+  recordingId: string,
+): RecordingDataAccessor
+```
+
+It queries the `recording_event_index` PostgreSQL table (from REP-591) and performs byte-range reads on the S3/FS data blob to decode only the needed events. It implements `getDuration` and `getResourceMap` via cached DB queries, and uses `applyEventToSnapshot` from `@repro/source-utils` for snapshot reconstruction.
 
 ---
 

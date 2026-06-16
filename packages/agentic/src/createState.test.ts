@@ -32,10 +32,10 @@ import {
 function makeEmptyAccessor(): RecordingDataAccessor {
   return {
     getDuration: () => 0,
-    getSnapshotAtTime: () => null,
-    getEventsByType: () => [],
-    getEventsInRange: () => [],
-    getResourceMap: () => ({}),
+    getSnapshotAtTime: () => resolve(null),
+    getEventsByType: () => resolve([]),
+    getEventsInRange: () => resolve([]),
+    getResourceMap: () => resolve({}),
   }
 }
 
@@ -592,10 +592,10 @@ describe('buildIterationLimitMessage', () => {
 function makeEmptyAccessorNew(): RecordingDataAccessor {
   return {
     getDuration: () => 0,
-    getSnapshotAtTime: () => null,
-    getEventsByType: () => [],
-    getEventsInRange: () => [],
-    getResourceMap: () => ({}),
+    getSnapshotAtTime: () => resolve(null),
+    getEventsByType: () => resolve([]),
+    getEventsInRange: () => resolve([]),
+    getResourceMap: () => resolve({}),
   }
 }
 
@@ -1375,10 +1375,10 @@ describe('token estimate caching', () => {
   function makeEmptyAccessorLocal(): RecordingDataAccessor {
     return {
       getDuration: () => 0,
-      getSnapshotAtTime: () => null,
-      getEventsByType: () => [],
-      getEventsInRange: () => [],
-      getResourceMap: () => ({}),
+      getSnapshotAtTime: () => resolve(null),
+      getEventsByType: () => resolve([]),
+      getEventsInRange: () => resolve([]),
+      getResourceMap: () => resolve({}),
     }
   }
 
@@ -1570,10 +1570,10 @@ describe('createAgenticState — options.tools override', () => {
   function makeEmptyAccessor(): RecordingDataAccessor {
     return {
       getDuration: () => 0,
-      getSnapshotAtTime: () => null,
-      getEventsByType: () => [],
-      getEventsInRange: () => [],
-      getResourceMap: () => ({}),
+      getSnapshotAtTime: () => resolve(null),
+      getEventsByType: () => resolve([]),
+      getEventsInRange: () => resolve([]),
+      getResourceMap: () => resolve({}),
     }
   }
 
@@ -1627,10 +1627,10 @@ describe('reset()', () => {
   function makeEmptyAccessorNew(): RecordingDataAccessor {
     return {
       getDuration: () => 0,
-      getSnapshotAtTime: () => null,
-      getEventsByType: () => [],
-      getEventsInRange: () => [],
-      getResourceMap: () => ({}),
+      getSnapshotAtTime: () => resolve(null),
+      getEventsByType: () => resolve([]),
+      getEventsInRange: () => resolve([]),
+      getResourceMap: () => resolve({}),
     }
   }
 
