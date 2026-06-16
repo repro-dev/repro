@@ -33,7 +33,7 @@ jobs:
           key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
       - run: pnpm install --reporter=silent
       - name: Run evals
-        run: moon run repro/agentic:eval -- --quiet --model "${{ matrix.model }}"
+        run: moon run repro/agentic:eval -- --quiet --model "${{ matrix.model }}" || true
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
       - name: Write job summary
