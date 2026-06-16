@@ -38,6 +38,16 @@ export interface ModelConfig {
 //   per 1M tokens. Retained for monitoring; re-evaluate if OpenRouter restores
 //   function-calling support for this model.
 //
+// deepseek/deepseek-v4-pro — Mixture-of-Experts, 1.6T total / 49B active
+//   params. 1,048,576-token context window. Pricing: $0.435/$0.87 per 1M
+//   tokens via OpenRouter. Does NOT support reasoning.effort — the existing
+//   guard (modelId.startsWith('openai/')) already handles this correctly.
+//
+// deepseek/deepseek-v4-flash — MoE, 284B total / 13B active params.
+//   1,048,576-token context window. Pricing: $0.098/$0.196 per 1M tokens
+//   via OpenRouter (30% cheaper on OpenRouter vs direct DeepSeek API).
+//   Does NOT support reasoning.effort — same guard as v4-pro above.
+//
 // REASONING TIER
 //
 // google/gemini-2.5-pro — retained as the primary reasoning-tier option.
@@ -83,6 +93,16 @@ export const MODEL_CONFIGS: Record<string, ModelConfig> = {
   },
   'anthropic/claude-haiku-4-5': {
     contextWindow: 200_000,
+    creditMultiplier: 1,
+    tier: 'base',
+  },
+  'deepseek/deepseek-v4-flash': {
+    contextWindow: 1_048_576,
+    creditMultiplier: 1,
+    tier: 'base',
+  },
+  'deepseek/deepseek-v4-pro': {
+    contextWindow: 1_048_576,
     creditMultiplier: 1,
     tier: 'base',
   },

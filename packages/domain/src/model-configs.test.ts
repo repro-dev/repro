@@ -65,6 +65,22 @@ describe('MODEL_CONFIGS', () => {
     assert.equal(config.creditMultiplier, 1)
     assert.equal(config.tier, 'base')
   })
+
+  it('contains deepseek/deepseek-v4-pro with correct values', () => {
+    const config = MODEL_CONFIGS['deepseek/deepseek-v4-pro']
+    assert.ok(config)
+    assert.equal(config.contextWindow, 1_048_576)
+    assert.equal(config.creditMultiplier, 1)
+    assert.equal(config.tier, 'base')
+  })
+
+  it('contains deepseek/deepseek-v4-flash with correct values', () => {
+    const config = MODEL_CONFIGS['deepseek/deepseek-v4-flash']
+    assert.ok(config)
+    assert.equal(config.contextWindow, 1_048_576)
+    assert.equal(config.creditMultiplier, 1)
+    assert.equal(config.tier, 'base')
+  })
 })
 
 describe('exported model constants', () => {
