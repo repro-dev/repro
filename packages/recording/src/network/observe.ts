@@ -135,8 +135,6 @@ function createXHRObserver(subscriber: Subscriber): ObserverLike<Document> {
           break
       }
 
-      const redactedBody = redactJsonBody(body)
-
       subscriber(
         new Box({
           type: NetworkMessageType.FetchResponse,
@@ -144,9 +142,9 @@ function createXHRObserver(subscriber: Subscriber): ObserverLike<Document> {
           status: this.status,
           headers: redactHeaders(parseHeaders(this.getAllResponseHeaders())),
           body:
-            redactedBody.byteLength > MAX_BODY_BYTE_LENGTH
+            body.byteLength > MAX_BODY_BYTE_LENGTH
               ? EMPTY_ARRAY_BUFFER
-              : redactedBody,
+              : redactJsonBody(body),
         })
       )
     })()
@@ -253,8 +251,6 @@ function createXHRObserver(subscriber: Subscriber): ObserverLike<Document> {
             }
           }
 
-          const redactedBody = redactJsonBody(body)
-
           subscriber(
             new Box({
               type: NetworkMessageType.FetchRequest,
@@ -264,9 +260,9 @@ function createXHRObserver(subscriber: Subscriber): ObserverLike<Document> {
               method: params.method,
               headers: redactHeaders(params.headers),
               body:
-                redactedBody.byteLength > MAX_BODY_BYTE_LENGTH
+                body.byteLength > MAX_BODY_BYTE_LENGTH
                   ? EMPTY_ARRAY_BUFFER
-                  : redactedBody,
+                  : redactJsonBody(body),
             })
           )
         }
@@ -321,8 +317,6 @@ function createFetchObserver(subscriber: Subscriber): ObserverLike<Document> {
 
       req.arrayBuffer().then(
         body => {
-          const redactedBody = redactJsonBody(body)
-
           subscriber(
             new Box({
               type: NetworkMessageType.FetchRequest,
@@ -332,9 +326,9 @@ function createFetchObserver(subscriber: Subscriber): ObserverLike<Document> {
               method: req.method,
               headers: createHeadersRecord(req.headers),
               body:
-                redactedBody.byteLength > MAX_BODY_BYTE_LENGTH
+                body.byteLength > MAX_BODY_BYTE_LENGTH
                   ? EMPTY_ARRAY_BUFFER
-                  : redactedBody,
+                  : redactJsonBody(body),
             })
           )
         },
@@ -375,8 +369,6 @@ function createFetchObserver(subscriber: Subscriber): ObserverLike<Document> {
                 cleanUpAbortController()
               }
 
-              const redactedBody = redactJsonBody(body)
-
               subscriber(
                 new Box({
                   type: NetworkMessageType.FetchResponse,
@@ -384,9 +376,9 @@ function createFetchObserver(subscriber: Subscriber): ObserverLike<Document> {
                   status: resCopy.status,
                   headers: createHeadersRecord(resCopy.headers),
                   body:
-                    redactedBody.byteLength > MAX_BODY_BYTE_LENGTH
+                    body.byteLength > MAX_BODY_BYTE_LENGTH
                       ? EMPTY_ARRAY_BUFFER
-                      : redactedBody,
+                      : redactJsonBody(body),
                 })
               )
             },
