@@ -46,10 +46,7 @@ function makeNetworkEvent(time: number): MockEvent {
 function makeEventSource(events: MockEvent[]): EventList {
   return {
     size: () => events.length,
-    over: (i: number) =>
-      events[i] as unknown as ReturnType<
-        typeof import('@repro/domain').SourceEventView.from
-      > | null,
+    over: (i: number) => events[i] as unknown as SourceEvent | null,
   }
 }
 
@@ -320,9 +317,7 @@ describe('makeAccessorFromEventList — getEventsByType early exit', () => {
       size: () => events.length,
       over: (i: number) => {
         if (i > maxIndexVisited) maxIndexVisited = i
-        return events[i] as unknown as ReturnType<
-          typeof import('@repro/domain').SourceEventView.from
-        > | null
+        return events[i] as unknown as SourceEvent | null
       },
     }
     const accessor = makeAccessorFromEventList(eventSource)

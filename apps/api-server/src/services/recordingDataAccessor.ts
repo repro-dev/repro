@@ -21,6 +21,7 @@ import { notFound } from '~/utils/errors'
 
 // Inline the RecordingDataAccessor interface to avoid pulling @repro/agentic
 // (which includes browser-only packages) into the server-side dependency graph.
+// Canonical source: packages/agentic/src/types.ts — keep in sync.
 interface RecordingDataAccessor {
   getDuration(): number
   getSnapshotAtTime(timestampMs: number): FutureInstance<Error, Snapshot | null>
@@ -206,15 +207,15 @@ function readAndDecodeEvents(
             )
 
             const decoded = SourceEventView.decode(dataView)
-            events.push(decoded as unknown as SourceEvent)
+            events.push(decoded)
           }
         }
       }
 
       // Sort by timeMs to maintain event order
       events.sort((a, b) => {
-        const timeA = (a as unknown as { time: number }).time ?? 0
-        const timeB = (b as unknown as { time: number }).time ?? 0
+        const timeA = a.get('time').orElse(0)
+        const timeB = b.get('time').orElse(0)
         return timeA - timeB
       })
 
@@ -355,8 +356,7 @@ export function createRecordingDataAccessor(
         // applyEventToSnapshot uses event.apply() to unwrap Box values.
         for (let i = 1; i < events.length; i++) {
           const event = events[i]!
-          const elapsed =
-            (event as unknown as { time: number }).time ?? timestampMs
+          const elapsed = timestampMs
           applyEventToSnapshot(snapshot, event, elapsed)
         }
 
