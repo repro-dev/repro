@@ -89,33 +89,7 @@ export function createRequestLogContext(req: RequestWithCorrelation) {
   return context
 }
 
-/**
- * Stable field contract for downstream collectors (REP-1251).
- *
- * ## HTTP request lifecycle fields (emitted by this function)
- *
- * | Field               | Present on        | Description                                      |
- * |---------------------|-------------------|--------------------------------------------------|
- * | `event`             | start/complete/error | `"http.request.start"`, `"http.request.complete"`, or `"http.request.error"` |
- * | `requestId`         | always            | Fastify request ID (`req.id`)                    |
- * | `route`             | always            | Matched route pattern (`req.routeOptions.url`)   |
- * | `method`            | always            | HTTP method (`req.method`)                       |
- * | `statusCode`        | complete only     | Response status code (`res.statusCode`)          |
- * | `sessionSubjectType`| when session      | Session subject type (e.g. `"user"`)             |
- * | `sessionSubjectId`  | when session      | Session subject ID                               |
- * | `userId`            | when user-type    | Authenticated user ID                            |
- * | `staffUserId`       | when staff-type   | Authenticated staff user ID                      |
- * | `err`               | error only        | The error object                                 |
- *
- * ## Transactional email failure fields (emitted by `sendEmailInBackground` in email.ts)
- *
- * | Field       | Always?           | Description                                      |
- * |-------------|-------------------|--------------------------------------------------|
- * | `event`     | always            | `"transactional_email.send_failed"`              |
- * | `emailKind` | when supplied     | e.g. `"verification"`, `"invitation"`, `"password_reset"` |
- * | `err`       | always            | The error object from the failed send            |
- * | `context.*` | when supplied     | Caller-supplied context fields (no PII)          |
- */
+// Downstream logging field contract: see apps/api-server/AGENTS.md (Structured Logging Contract)
 export function registerRequestLoggingHooks(
   app: FastifyInstance<any, any, any, any, any>
 ) {
