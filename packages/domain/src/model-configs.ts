@@ -37,6 +37,13 @@ export interface ModelConfig {
 //   and structured outputs. Does NOT support reasoning.effort — the existing
 //   guard (modelId.startsWith('openai/')) already handles this correctly.
 //
+// minimax/minimax-m3 — added as a base-tier option. Released May 2026.
+//   1,048,576-token context window. Pricing: $0.30/$1.20 per 1M tokens.
+//   ~428B total / ~23B active (MoE). Built with MiniMax Sparse Attention
+//   for efficient long-context. Supports tool calling with interleaved
+//   thinking between invocations. Does NOT support reasoning.effort — the
+//   existing guard (modelId.startsWith('openai/')) already handles this.
+//
 // minimax/minimax-m2.7 — retained as a registered base-tier option. Previously
 //   the default (2026-03-28 to 2026-06-04) due to perfect correctness on all
 //   fixtures. Demoted after losing function-calling (tool_calls) support through
@@ -53,6 +60,13 @@ export interface ModelConfig {
 // deepseek/deepseek-v4-flash — MoE, 284B total / 13B active params.
 //   1,048,576-token context window. Pricing: $0.098/$0.196 per 1M tokens
 //   via OpenRouter (30% cheaper on OpenRouter vs direct DeepSeek API).
+//   Does NOT support reasoning.effort — same guard as v4-pro above.
+//
+// xiaomi/mimo-v2.5-pro — added as a base-tier option. Released April 2026.
+//   1,048,576-token context window. Pricing: $0.435/$0.87 per 1M tokens.
+//   MoE, 1.02T total / 42B active params. Designed and benchmarked for
+//   agentic tasks and complex software engineering. Supports tool calling
+//   natively; confirmed via official SGLang deployment (--tool-call-parser mimo).
 //   Does NOT support reasoning.effort — same guard as v4-pro above.
 //
 // REASONING TIER
@@ -120,6 +134,16 @@ export const MODEL_CONFIGS: Record<string, ModelConfig> = {
   },
   'minimax/minimax-m2.7': {
     contextWindow: 204_800,
+    creditMultiplier: 1,
+    tier: 'base',
+  },
+  'minimax/minimax-m3': {
+    contextWindow: 1_048_576,
+    creditMultiplier: 1,
+    tier: 'base',
+  },
+  'xiaomi/mimo-v2.5-pro': {
+    contextWindow: 1_048_576,
     creditMultiplier: 1,
     tier: 'base',
   },
