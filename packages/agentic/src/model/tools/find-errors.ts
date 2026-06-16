@@ -1,10 +1,10 @@
+import { ConsoleEvent, LogLevel, SourceEventType } from '@repro/domain'
 import {
-  ConsoleEvent,
-  LogLevel,
-  NetworkEvent,
-  SourceEventType,
-} from '@repro/domain'
-import { groupNetworkEvents } from '@repro/source-utils'
+  extractConsoleText,
+  extractPathname,
+  groupNetworkEvents,
+  unwrapNetworkEvents,
+} from '@repro/source-utils'
 import { Box } from '@repro/tdl'
 import { chain, resolve } from 'fluture'
 import { DetailLevel, estimateTokens, truncate } from '../token-optimization'
@@ -70,12 +70,14 @@ export const handler: ToolHandler = (recording, args) => {
             .orElse(LogLevel.Info)
           if (level !== LogLevel.Error) continue
 
-          const parts = consoleEvent.get('data').get('parts').orElse([])
-          const text = parts.map(serializeMessagePart).join(' ')
+          const { text: rawText } = extractConsoleText(
+            consoleEvent,
+            serializeMessagePart
+          )
 
           const maxLen =
             detail === 'full' ? 500 : detail === 'summary' ? 100 : 200
-          const summary = truncate(text, maxLen)
+          const summary = truncate(rawText, maxLen)
 
           const stackEntries = consoleEvent.get('data').get('stack').orElse([])
 
@@ -106,24 +108,16 @@ export const handler: ToolHandler = (recording, args) => {
           })
           .pipe(
             chain(networkEvents => {
-              const indexed: Array<[NetworkEvent, number]> = []
-              for (const e of networkEvents) {
-                ;(e as Box<NetworkEvent>).apply(n => indexed.push([n, 0]))
-              }
-              const groups = groupNetworkEvents(indexed)
+              const groups = groupNetworkEvents(
+                unwrapNetworkEvents(networkEvents)
+              )
 
               for (const group of groups) {
                 if (group.type !== 'fetch') continue
                 if (!group.response || group.response.status < 400) continue
 
                 const time = group.requestTime
-
-                let pathname: string
-                try {
-                  pathname = new URL(group.request.url).pathname
-                } catch {
-                  pathname = group.request.url
-                }
+                const pathname = extractPathname(group.request.url)
 
                 errors.push({
                   time,

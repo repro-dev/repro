@@ -1,11 +1,13 @@
 import {
-  NetworkEvent,
   NetworkMessageType,
   SourceEventType,
   WebSocketMessageType,
 } from '@repro/domain'
-import { groupNetworkEvents } from '@repro/source-utils'
-import { Box } from '@repro/tdl'
+import {
+  extractPathname,
+  groupNetworkEvents,
+  unwrapNetworkEvents,
+} from '@repro/source-utils'
 import { chain, resolve } from 'fluture'
 import {
   DetailLevel,
@@ -87,12 +89,7 @@ export const TOOL_DEFINITION = {
 export const handler: ToolHandler = (recording, args) => {
   return recording.getEventsByType([SourceEventType.Network]).pipe(
     chain(events => {
-      const indexed: Array<[NetworkEvent, number]> = []
-      for (const e of events) {
-        // Use a dummy index here because this path only groups network events; replay indices are not needed.
-        ;(e as Box<NetworkEvent>).apply(n => indexed.push([n, 0]))
-      }
-      const groups = groupNetworkEvents(indexed)
+      const groups = groupNetworkEvents(unwrapNetworkEvents(events))
 
       const detail = (args.detail as DetailLevel | undefined) ?? 'normal'
       const statusMin = args.statusMin as number | undefined
@@ -148,11 +145,7 @@ export const handler: ToolHandler = (recording, args) => {
           const rawUrl = group.request.url
           let url: string
           if (detail === 'summary') {
-            try {
-              url = new URL(rawUrl).pathname
-            } catch {
-              url = rawUrl
-            }
+            url = extractPathname(rawUrl)
           } else if (detail === 'normal') {
             url = truncate(shortenUrl(rawUrl, 'pathname'), 100)
           } else {
@@ -234,11 +227,7 @@ export const handler: ToolHandler = (recording, args) => {
           const rawUrl = group.open.url
           let url: string
           if (detail === 'summary') {
-            try {
-              url = new URL(rawUrl).pathname
-            } catch {
-              url = rawUrl
-            }
+            url = extractPathname(rawUrl)
           } else if (detail === 'normal') {
             url = truncate(shortenUrl(rawUrl, 'pathname'), 100)
           } else {

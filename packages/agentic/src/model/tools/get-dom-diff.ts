@@ -1,16 +1,10 @@
 import { PatchType, SourceEventType, SyntheticId, VTree } from '@repro/domain'
 import { Box } from '@repro/tdl'
+import { normalizeId } from '@repro/vdom-utils'
 import { chain, resolve, type FutureInstance } from 'fluture'
 import { DetailLevel, estimateTokens, truncate } from '../token-optimization'
 import type { ToolHandler } from './common'
 import { createError, isDOMPatchEvent } from './common'
-
-// Binary codec encodes strings with fixed-width null-byte padding. Strip trailing
-// null bytes so IDs from encoded events can be matched against plain-string IDs
-// in the VTree snapshot.
-function normalizeId(id: string): string {
-  return id.replace(/\0+$/, '')
-}
 
 export const TOOL_DEFINITION = {
   type: 'function',

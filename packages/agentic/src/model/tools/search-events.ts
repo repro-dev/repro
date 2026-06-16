@@ -3,7 +3,6 @@ import {
   InteractionEvent,
   InteractionType,
   LogLevel,
-  NetworkEvent,
   PageTransition,
   PatchType,
   PerformanceEntryType,
@@ -11,7 +10,7 @@ import {
   SourceEventType,
   SourceEventView,
 } from '@repro/domain'
-import { groupNetworkEvents } from '@repro/source-utils'
+import { groupNetworkEvents, unwrapNetworkEvents } from '@repro/source-utils'
 import { Box } from '@repro/tdl'
 import { chain, type FutureInstance, parallel, resolve } from 'fluture'
 import { estimateTokens } from '../token-optimization'
@@ -217,11 +216,7 @@ export const handler: ToolHandler = (recording, args) => {
         const networkEvents = results[idx++] as Array<
           ReturnType<typeof SourceEventView.from>
         >
-        const indexed: Array<[NetworkEvent, number]> = []
-        for (const e of networkEvents) {
-          ;(e as Box<NetworkEvent>).apply(n => indexed.push([n, 0]))
-        }
-        const groups = groupNetworkEvents(indexed)
+        const groups = groupNetworkEvents(unwrapNetworkEvents(networkEvents))
 
         for (const group of groups) {
           if (group.type !== 'fetch') continue

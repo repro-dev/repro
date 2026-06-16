@@ -1,4 +1,5 @@
 import { ConsoleEvent, LogLevel, SourceEventType } from '@repro/domain'
+import { extractConsoleText } from '@repro/source-utils'
 import { Box } from '@repro/tdl'
 import { chain, resolve } from 'fluture'
 import { estimateTokens, truncate } from '../token-optimization'
@@ -89,8 +90,10 @@ export const handler: ToolHandler = (recording, args) => {
           .orElse(LogLevel.Info)
         const levelName = LOG_LEVEL_NAMES[level] ?? 'info'
 
-        const parts = consoleEvent.get('data').get('parts').orElse([])
-        const rawText = parts.map(serializeMessagePart).join(' ')
+        const { text: rawText } = extractConsoleText(
+          consoleEvent,
+          serializeMessagePart
+        )
         const text = truncate(rawText, 500)
 
         const stackEntries = consoleEvent.get('data').get('stack').orElse([])

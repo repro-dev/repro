@@ -1,4 +1,5 @@
 import { ConsoleEvent, LogLevel, SourceEventType } from '@repro/domain'
+import { extractConsoleText } from '@repro/source-utils'
 import { Box } from '@repro/tdl'
 import { chain, resolve } from 'fluture'
 import {
@@ -110,8 +111,10 @@ export const handler: ToolHandler = (recording, args) => {
 
           if (level < tierMinLevel) continue
 
-          const parts = consoleEvent.get('data').get('parts').orElse([])
-          const rawText = parts.map(serializeMessagePart).join(' ')
+          const { text: rawText } = extractConsoleText(
+            consoleEvent,
+            serializeMessagePart
+          )
           const text = truncate(rawText, TEXT_MAX[detail])
 
           const stackEntries = consoleEvent.get('data').get('stack').orElse([])
