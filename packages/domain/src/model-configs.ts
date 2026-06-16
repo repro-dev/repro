@@ -30,6 +30,13 @@ export interface ModelConfig {
 //   3× more tool calls than gemini-2.5-flash. Suitable for users who need the
 //   highest reliability and don't mind higher token spend.
 //
+// google/gemini-3.1-flash-lite — added as a base-tier option. Released
+//   May 2026. 1,048,576-token context window (same as 2.5-flash), 65,536 max
+//   output tokens. Pricing: $0.25/$1.50 per 1M tokens — cheaper on both
+//   input and output vs gemini-2.5-flash at $0.30/$2.50. Supports tool calling
+//   and structured outputs. Does NOT support reasoning.effort — the existing
+//   guard (modelId.startsWith('openai/')) already handles this correctly.
+//
 // minimax/minimax-m2.7 — retained as a registered base-tier option. Previously
 //   the default (2026-03-28 to 2026-06-04) due to perfect correctness on all
 //   fixtures. Demoted after losing function-calling (tool_calls) support through
@@ -87,6 +94,11 @@ export const MODEL_CONFIGS: Record<string, ModelConfig> = {
     tier: 'base',
   },
   'google/gemini-2.5-flash': {
+    contextWindow: 1_048_576,
+    creditMultiplier: 1,
+    tier: 'base',
+  },
+  'google/gemini-3.1-flash-lite': {
     contextWindow: 1_048_576,
     creditMultiplier: 1,
     tier: 'base',

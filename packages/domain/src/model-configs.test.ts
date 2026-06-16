@@ -58,6 +58,14 @@ describe('MODEL_CONFIGS', () => {
     assert.equal(config.tier, 'reasoning')
   })
 
+  it('contains google/gemini-3.1-flash-lite with correct values', () => {
+    const config = MODEL_CONFIGS['google/gemini-3.1-flash-lite']
+    assert.ok(config)
+    assert.equal(config.contextWindow, 1_048_576)
+    assert.equal(config.creditMultiplier, 1)
+    assert.equal(config.tier, 'base')
+  })
+
   it('contains anthropic/claude-haiku-4-5 with correct values', () => {
     const config = MODEL_CONFIGS['anthropic/claude-haiku-4-5']
     assert.ok(config)
