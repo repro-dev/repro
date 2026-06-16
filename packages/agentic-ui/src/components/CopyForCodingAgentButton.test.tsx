@@ -6,7 +6,13 @@ import type {
   RecordingMeta,
 } from '@repro/agentic'
 import { atom } from '@repro/atom'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react'
 import expect from 'expect'
 import { afterEach, describe, it, mock } from 'node:test'
 import React from 'react'
@@ -131,10 +137,9 @@ describe('CopyForCodingAgentButton', () => {
     })
     fireEvent.click(button)
 
-    // Wait for microtask (clipboard writeText is async)
-    await new Promise(resolve => setTimeout(resolve, 10))
-
-    expect(clipboardText).toBe('# Mock Markdown')
+    await waitFor(() => {
+      expect(clipboardText).toBe('# Mock Markdown')
+    })
 
     Object.defineProperty(navigator, 'clipboard', {
       value: originalClipboard,
@@ -157,11 +162,10 @@ describe('CopyForCodingAgentButton', () => {
     })
     fireEvent.click(button)
 
-    await new Promise(resolve => setTimeout(resolve, 10))
-
-    // After copy, button label changes to indicate copied state
-    expect(button.getAttribute('aria-label')).toBe('Copied to clipboard')
-    expect(button.textContent).toMatch(/Copied!/)
+    await waitFor(() => {
+      expect(button.getAttribute('aria-label')).toBe('Copied to clipboard')
+      expect(button.textContent).toMatch(/Copied!/)
+    })
 
     Object.defineProperty(navigator, 'clipboard', {
       value: originalClipboard,
@@ -184,16 +188,17 @@ describe('CopyForCodingAgentButton', () => {
     })
     fireEvent.click(button)
 
-    await new Promise(resolve => setTimeout(resolve, 10))
-
-    // After copy, button label is "Copied to clipboard"
-    expect(button.getAttribute('aria-label')).toBe('Copied to clipboard')
+    await waitFor(() => {
+      expect(button.getAttribute('aria-label')).toBe('Copied to clipboard')
+    })
 
     // Wait for the 2s timeout to elapse
-    await new Promise(resolve => setTimeout(resolve, 2100))
-
-    // After timeout, button label reverts
-    expect(button.getAttribute('aria-label')).toBe('Copy for coding agent')
+    await waitFor(
+      () => {
+        expect(button.getAttribute('aria-label')).toBe('Copy for coding agent')
+      },
+      { timeout: 3000 }
+    )
 
     Object.defineProperty(navigator, 'clipboard', {
       value: originalClipboard,
@@ -216,10 +221,9 @@ describe('CopyForCodingAgentButton', () => {
     })
     fireEvent.click(button)
 
-    await new Promise(resolve => setTimeout(resolve, 10))
-
-    // Button should still show original label after failure
-    expect(button.getAttribute('aria-label')).toBe('Copy for coding agent')
+    await waitFor(() => {
+      expect(button.getAttribute('aria-label')).toBe('Copy for coding agent')
+    })
 
     Object.defineProperty(navigator, 'clipboard', {
       value: originalClipboard,
@@ -242,9 +246,9 @@ describe('CopyForCodingAgentButton', () => {
     })
     fireEvent.click(button)
 
-    await new Promise(resolve => setTimeout(resolve, 10))
-
-    expect((button as HTMLButtonElement).disabled).toBe(true)
+    await waitFor(() => {
+      expect((button as HTMLButtonElement).disabled).toBe(true)
+    })
 
     Object.defineProperty(navigator, 'clipboard', {
       value: originalClipboard,
