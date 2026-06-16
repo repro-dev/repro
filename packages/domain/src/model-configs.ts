@@ -30,6 +30,11 @@ export interface ModelConfig {
 //   3× more tool calls than gemini-2.5-flash. Suitable for users who need the
 //   highest reliability and don't mind higher token spend.
 //
+// anthropic/claude-sonnet-4.6 — added as a base-tier calibration option.
+//   1M context, $3.00/$15.00 per 1M tokens. Mid-tier frontier model for
+//   benchmarking against cheaper alternatives. Not intended as a default
+//   candidate due to cost (15× gemini-2.5-flash per session).
+//
 // google/gemini-3.1-flash-lite — added as a base-tier option. Released
 //   May 2026. 1,048,576-token context window (same as 2.5-flash), 65,536 max
 //   output tokens. Pricing: $0.25/$1.50 per 1M tokens — cheaper on both
@@ -119,6 +124,11 @@ export const MODEL_CONFIGS: Record<string, ModelConfig> = {
   },
   'anthropic/claude-haiku-4-5': {
     contextWindow: 200_000,
+    creditMultiplier: 1,
+    tier: 'base',
+  },
+  'anthropic/claude-sonnet-4.6': {
+    contextWindow: 1_048_576,
     creditMultiplier: 1,
     tier: 'base',
   },
