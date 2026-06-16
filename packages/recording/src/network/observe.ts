@@ -8,7 +8,7 @@ import {
 import { ObserverLike } from '@repro/observer-utils'
 import { randomString } from '@repro/random-string'
 import { Box } from '@repro/tdl'
-import { redactHeaders } from '../redaction'
+import { redactHeaders, redactValue } from '../redaction'
 
 type Subscriber = (message: NetworkMessage) => void
 
@@ -41,6 +41,23 @@ export function createNetworkObserver(
 }
 
 const textEncoder = new TextEncoder()
+const textDecoder = new TextDecoder()
+
+function redactJsonBody(buffer: ArrayBuffer): ArrayBuffer {
+  try {
+    const text = textDecoder.decode(buffer)
+    const parsed = JSON.parse(text)
+
+    if (typeof parsed === 'object' && parsed !== null) {
+      const redacted = redactValue(parsed)
+      return textEncoder.encode(JSON.stringify(redacted)).buffer
+    }
+
+    return buffer
+  } catch {
+    return buffer
+  }
+}
 
 function createXHRObserver(subscriber: Subscriber): ObserverLike<Document> {
   const requestParams = new WeakMap<
@@ -125,7 +142,9 @@ function createXHRObserver(subscriber: Subscriber): ObserverLike<Document> {
           status: this.status,
           headers: redactHeaders(parseHeaders(this.getAllResponseHeaders())),
           body:
-            body.byteLength > MAX_BODY_BYTE_LENGTH ? EMPTY_ARRAY_BUFFER : body,
+            body.byteLength > MAX_BODY_BYTE_LENGTH
+              ? EMPTY_ARRAY_BUFFER
+              : redactJsonBody(body),
         })
       )
     })()
@@ -243,7 +262,7 @@ function createXHRObserver(subscriber: Subscriber): ObserverLike<Document> {
               body:
                 body.byteLength > MAX_BODY_BYTE_LENGTH
                   ? EMPTY_ARRAY_BUFFER
-                  : body,
+                  : redactJsonBody(body),
             })
           )
         }
@@ -309,7 +328,7 @@ function createFetchObserver(subscriber: Subscriber): ObserverLike<Document> {
               body:
                 body.byteLength > MAX_BODY_BYTE_LENGTH
                   ? EMPTY_ARRAY_BUFFER
-                  : body,
+                  : redactJsonBody(body),
             })
           )
         },
@@ -359,7 +378,7 @@ function createFetchObserver(subscriber: Subscriber): ObserverLike<Document> {
                   body:
                     body.byteLength > MAX_BODY_BYTE_LENGTH
                       ? EMPTY_ARRAY_BUFFER
-                      : body,
+                      : redactJsonBody(body),
                 })
               )
             },

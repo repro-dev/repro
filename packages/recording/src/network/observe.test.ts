@@ -13,6 +13,7 @@ import { ObserverLike } from '@repro/observer-utils'
 import { Box } from '@repro/tdl'
 import expect from 'expect'
 import { afterEach, before, describe, it } from 'node:test'
+import { MASKED_VALUE } from '../redaction'
 import { createNetworkObserver } from './observe'
 
 class MockXHR {
@@ -54,7 +55,7 @@ class MockXHR {
     return this.responseHeaders
   }
 
-  send() {
+  send(_body?: Document | XMLHttpRequestBodyInit | null) {
     this.readyState = MockXHR.DONE
 
     queueMicrotask(() => {
@@ -294,6 +295,160 @@ describe('libs/record: network observers', () => {
 
       expect(errorMsg).toBeDefined()
       expect(errorMsg.value.message).toBe('Connection refused')
+    })
+  })
+
+  describe('JSON body redaction', () => {
+    it('redacts sensitive keys in XHR request body', async () => {
+      global.XMLHttpRequest = MockXHR as unknown as typeof XMLHttpRequest
+
+      const messages: Array<NetworkMessage> = []
+
+      observer = createNetworkObserver(message => {
+        messages.push(message)
+      })
+      observer.observe(document, vtree)
+
+      const xhr = new XMLHttpRequest() as unknown as MockXHR
+      xhr.open('POST', 'https://example.text/xhr')
+      xhr.send(JSON.stringify({ password: 's3cret', name: 'test' }))
+
+      await flush()
+
+      expect(messages.length).toBeGreaterThanOrEqual(1)
+
+      const bodyText = new TextDecoder().decode((messages[0] as any).value.body)
+      const parsedBody = JSON.parse(bodyText)
+      expect(parsedBody.password).toBe(MASKED_VALUE)
+      expect(parsedBody.name).toBe('test')
+    })
+
+    it('redacts sensitive keys in XHR response body', async () => {
+      global.XMLHttpRequest = MockXHR as unknown as typeof XMLHttpRequest
+
+      const messages: Array<NetworkMessage> = []
+
+      observer = createNetworkObserver(message => {
+        messages.push(message)
+      })
+      observer.observe(document, vtree)
+
+      const xhr = new XMLHttpRequest() as unknown as MockXHR
+      xhr.responseType = 'text'
+      xhr.responseText = JSON.stringify({ token: 'abc123', data: 'ok' })
+      xhr.open('POST', 'https://example.text/xhr')
+      xhr.send()
+
+      await flush()
+
+      expect(messages).toHaveLength(2)
+
+      const bodyText = new TextDecoder().decode((messages[1] as any).value.body)
+      const parsedBody = JSON.parse(bodyText)
+      expect(parsedBody.token).toBe(MASKED_VALUE)
+      expect(parsedBody.data).toBe('ok')
+    })
+
+    it('passes non-JSON XHR body through unmodified', async () => {
+      global.XMLHttpRequest = MockXHR as unknown as typeof XMLHttpRequest
+
+      const messages: Array<NetworkMessage> = []
+
+      observer = createNetworkObserver(message => {
+        messages.push(message)
+      })
+      observer.observe(document, vtree)
+
+      const xhr = new XMLHttpRequest() as unknown as MockXHR
+      xhr.open('POST', 'https://example.text/xhr')
+      xhr.send('plain text not json')
+
+      await flush()
+
+      expect(messages.length).toBeGreaterThanOrEqual(1)
+
+      const bodyText = new TextDecoder().decode((messages[0] as any).value.body)
+      expect(bodyText).toBe('plain text not json')
+    })
+
+    it('redacts sensitive keys in Fetch request body', async () => {
+      global.fetch = (async () =>
+        new Response('ok', {
+          status: 200,
+        })) as typeof fetch
+
+      const messages: Array<NetworkMessage> = []
+
+      observer = createNetworkObserver(message => {
+        messages.push(message)
+      })
+      observer.observe(document, vtree)
+
+      await fetch('https://example.text/fetch', {
+        method: 'POST',
+        body: JSON.stringify({ apiKey: 'key123', public: 'data' }),
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+      await flush()
+
+      expect(messages).toHaveLength(2)
+
+      const bodyText = new TextDecoder().decode((messages[0] as any).value.body)
+      const parsedBody = JSON.parse(bodyText)
+      expect(parsedBody.apiKey).toBe(MASKED_VALUE)
+      expect(parsedBody.public).toBe('data')
+    })
+
+    it('redacts sensitive keys in Fetch response body', async () => {
+      global.fetch = (async () =>
+        new Response(JSON.stringify({ secret: 'val', ok: true }), {
+          status: 200,
+        })) as typeof fetch
+
+      const messages: Array<NetworkMessage> = []
+
+      observer = createNetworkObserver(message => {
+        messages.push(message)
+      })
+      observer.observe(document, vtree)
+
+      await fetch('https://example.text/fetch', {
+        method: 'GET',
+      })
+
+      await flush()
+
+      expect(messages).toHaveLength(2)
+
+      const bodyText = new TextDecoder().decode((messages[1] as any).value.body)
+      const parsedBody = JSON.parse(bodyText)
+      expect(parsedBody.secret).toBe(MASKED_VALUE)
+      expect(parsedBody.ok).toBe(true)
+    })
+
+    it('passes empty ArrayBuffer through redactJsonBody unchanged', async () => {
+      global.XMLHttpRequest = MockXHR as unknown as typeof XMLHttpRequest
+
+      const messages: Array<NetworkMessage> = []
+
+      observer = createNetworkObserver(message => {
+        messages.push(message)
+      })
+      observer.observe(document, vtree)
+
+      const xhr = new XMLHttpRequest() as unknown as MockXHR
+      xhr.responseType = 'text'
+      xhr.responseText = ''
+      xhr.open('POST', 'https://example.text/xhr')
+      xhr.send()
+
+      await flush()
+
+      expect(messages).toHaveLength(2)
+
+      // Empty response body should remain empty (0-length ArrayBuffer)
+      expect((messages[1] as any).value.body.byteLength).toBe(0)
     })
   })
 })
