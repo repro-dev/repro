@@ -2,7 +2,6 @@ import { Block, Col, Grid, Row } from '@jsxstyle/react'
 import { useApiClient } from '@repro/api-client'
 import { useSession, useSessionLoading } from '@repro/auth'
 import {
-  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   Alert,
   Avatar,
   Button,
@@ -262,7 +261,7 @@ export function AccountSettingsRoute({
     return (
       <PageFrame>
         <PageFrame.Body>
-          <Block width="100%" maxWidth={1440} margin="0 auto">
+          <Block width="100%" maxWidth={1440} margin={`${spacing.none} auto`}>
             <Alert type="danger">
               Failed to load account settings. Please refresh the page and try
               again.
@@ -276,7 +275,7 @@ export function AccountSettingsRoute({
   return (
     <PageFrame>
       <PageFrame.Body>
-        <Block width="100%" maxWidth={1440} margin="0 auto">
+        <Block width="100%" maxWidth={1440} margin={`${spacing.none} auto`}>
           <Col gap={spacing.xl} width="100%">
             <Block
               component="header"
@@ -500,7 +499,7 @@ export function AccountSettingsRoute({
                   </Text>
                 </Col>
 
-                <Card context="danger" padding={0}>
+                <Card context="danger" padding={spacing.none}>
                   <Block padding={spacing.lg}>
                     <ActionRow
                       label="Delete account"
@@ -587,4 +586,3 @@ export function AccountSettingsRouteConnected() {
 }
 
 export default AccountSettingsRouteConnected
-/* eslint-enable */

@@ -1,7 +1,6 @@
 import { Block } from '@jsxstyle/react'
-import { color } from '@repro/design'
+import { color, spacing } from '@repro/design'
 import React from 'react'
-/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 
 interface Props {
   active: boolean
@@ -11,7 +10,7 @@ interface Props {
 
 export const Tab: React.FC<Props> = ({ active, label, onClick }) => (
   <Block
-    paddingV={8}
+    paddingV={spacing.md}
     fontSize={11}
     color={active ? color.primary : color.text.muted}
     borderBottom={`2px solid ${active ? color.primary : 'transparent'}`}
@@ -21,4 +20,3 @@ export const Tab: React.FC<Props> = ({ active, label, onClick }) => (
     {label}
   </Block>
 )
-/* eslint-enable */

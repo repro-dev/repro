@@ -1,10 +1,9 @@
 import { Inline } from '@jsxstyle/react'
-import { color, colors } from '@repro/design'
+import { color } from '@repro/design'
 import { VElement } from '@repro/domain'
 import React, { Fragment } from 'react'
 import { FONT_SIZE } from './constants'
 import { Container } from './Container'
-/* eslint-disable @repro/oxlint-plugin-design/no-raw-palette */
 
 interface Props {
   node: VElement
@@ -39,7 +38,7 @@ const Syntax: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
 )
 
 const TagName: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
-  <Inline color={colors.pink['700']}>{children}</Inline>
+  <Inline color={color.danger}>{children}</Inline>
 )
 
 const Attribute: React.FC<{ name: string; value?: string }> = ({
@@ -47,15 +46,14 @@ const Attribute: React.FC<{ name: string; value?: string }> = ({
   value,
 }) => (
   <Inline marginLeft={FONT_SIZE / 2}>
-    <Inline color={colors.amber['700']}>{name}</Inline>
+    <Inline color={color.warning}>{name}</Inline>
 
     {value && (
       <Fragment>
         <Syntax>{'="'}</Syntax>
-        <Inline color={colors.indigo['700']}>{value}</Inline>
+        <Inline color={color.info}>{value}</Inline>
         <Syntax>{'"'}</Syntax>
       </Fragment>
     )}
   </Inline>
 )
-/* eslint-enable */

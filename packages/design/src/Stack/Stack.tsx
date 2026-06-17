@@ -4,7 +4,7 @@ import { spacing, type SpacingToken } from '../tokens/spacing'
 
 export interface StackProps {
   /** Vertical gap between children, constrained to the spacing token scale. */
-  gap: SpacingToken
+  gap: SpacingToken | number
   /** HTML element to render. Defaults to `div`. */
   component?: keyof JSX.IntrinsicElements
   children?: React.ReactNode
@@ -33,7 +33,11 @@ export interface StackProps {
 export const Stack = forwardRef<HTMLElement, StackProps>(
   ({ gap, component, children }, ref) => {
     return (
-      <Col component={component} gap={spacing[gap]} props={{ ref }}>
+      <Col
+        component={component}
+        gap={typeof gap === 'string' ? spacing[gap] : gap}
+        props={{ ref }}
+      >
         {children}
       </Col>
     )

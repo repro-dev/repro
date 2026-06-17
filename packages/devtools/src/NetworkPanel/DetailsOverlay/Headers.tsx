@@ -1,10 +1,8 @@
 import { Block, Grid, Row } from '@jsxstyle/react'
-import { colors, DefinitionList } from '@repro/design'
+import { color, DefinitionList, spacing } from '@repro/design'
 import { FetchGroup } from '@repro/source-utils'
 import { getReasonPhrase } from 'http-status-codes'
 import React from 'react'
-/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing, @repro/oxlint-plugin-design/no-raw-palette */
-
 interface Props {
   group: FetchGroup
 }
@@ -21,13 +19,13 @@ function getStatusValue(status: number | undefined) {
   let indicatorColor: string
 
   if (status < 200) {
-    indicatorColor = colors.slate['500']
+    indicatorColor = color.text.muted
   } else if (status < 300) {
-    indicatorColor = colors.emerald['500']
+    indicatorColor = color.success
   } else if (status < 400) {
-    indicatorColor = colors.amber['500']
+    indicatorColor = color.warning
   } else {
-    indicatorColor = colors.rose['500']
+    indicatorColor = color.danger
   }
 
   const statusIndicator = (
@@ -41,7 +39,7 @@ function getStatusValue(status: number | undefined) {
 
   try {
     return (
-      <Row alignItems="center" gap={5}>
+      <Row alignItems="center" gap={spacing.sm}>
         {statusIndicator}
         <Block>{status}</Block>
         <Block>{getReasonPhrase(status)}</Block>
@@ -80,4 +78,3 @@ export const Headers: React.FC<Props> = ({ group }) => {
     </Grid>
   )
 }
-/* eslint-enable */

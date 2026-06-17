@@ -1,12 +1,10 @@
 import { Block, Inline, Row } from '@jsxstyle/react'
 import { formatTime } from '@repro/date-utils'
-import { color, colors } from '@repro/design'
+import { color, spacing } from '@repro/design'
 import { ReduxDispatchEvent } from '@repro/domain'
 import { usePlayback } from '@repro/playback'
 import React, { useState } from 'react'
 import { JSONView } from '../JSONView/JSONView'
-/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing, @repro/oxlint-plugin-design/no-raw-palette */
-
 interface Props {
   event: ReduxDispatchEvent
   index: number
@@ -55,15 +53,15 @@ export const ActionRow: React.FC<Props> = ({
     >
       <Row
         alignItems="center"
-        gap={8}
-        padding={8}
+        gap={spacing.md}
+        padding={spacing.md}
         cursor="pointer"
         userSelect="none"
         props={{ onClick: handleClick }}
       >
         <Inline
           fontSize={10}
-          color={colors.slate['400']}
+          color={color.text.muted}
           fontFamily="monospace"
           flexShrink={0}
         >
@@ -92,12 +90,12 @@ export const ActionRow: React.FC<Props> = ({
       </Row>
 
       {expanded && (
-        <Block padding={8} paddingTop={0}>
+        <Block padding={spacing.md} paddingTop={spacing.none}>
           <Block
             fontSize={10}
             fontWeight={600}
             color={color.text.muted}
-            marginBottom={4}
+            marginBottom={spacing.sm}
           >
             Payload
           </Block>
@@ -107,8 +105,8 @@ export const ActionRow: React.FC<Props> = ({
             fontSize={10}
             fontWeight={600}
             color={color.text.muted}
-            marginTop={8}
-            marginBottom={4}
+            marginTop={spacing.md}
+            marginBottom={spacing.sm}
           >
             State diff
           </Block>
@@ -118,4 +116,3 @@ export const ActionRow: React.FC<Props> = ({
     </Block>
   )
 }
-/* eslint-enable */

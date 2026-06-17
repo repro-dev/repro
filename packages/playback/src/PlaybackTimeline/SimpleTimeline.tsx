@@ -1,11 +1,10 @@
 import { Block, Row } from '@jsxstyle/react'
 import { Analytics } from '@repro/analytics'
 import { formatTime } from '@repro/date-utils'
-import { color } from '@repro/design'
+import { color, spacing } from '@repro/design'
 import React, { useEffect, useRef } from 'react'
 import { NEVER, Observable, Subscription, combineLatest, fromEvent } from 'rxjs'
 import {
-  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   distinctUntilChanged,
   map,
   startWith,
@@ -241,7 +240,7 @@ export const SimpleTimeline: React.FC<Props> = ({ children, min, max }) => {
   }, [playback, elapsedTimeRef, progressRef, min, max])
 
   return (
-    <Row alignItems="center" height="100%" gap={8}>
+    <Row alignItems="center" height="100%" gap={spacing.md}>
       <PlayAction />
       <SpeedControl />
       <PlaybackKeyboardShortcuts />
@@ -269,7 +268,7 @@ export const SimpleTimeline: React.FC<Props> = ({ children, min, max }) => {
       </Row>
 
       <Row
-        gap={3}
+        gap={spacing.xs}
         alignItems="center"
         fontFamily="monospace"
         fontSize={11}

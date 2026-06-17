@@ -1,15 +1,14 @@
 import { Grid } from '@jsxstyle/react'
-import { Card, color, shadow } from '@repro/design'
+import { Card, color, shadow, spacing } from '@repro/design'
 import React from 'react'
 import { MAX_INT32 } from '~/constants'
-/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 
 export const Layout: React.FC<React.PropsWithChildren<{}>> = ({ children }) => (
   <Grid
     gridTemplateColumns="1fr 420px"
     gridTemplateRows="100%"
     gridTemplateAreas="'playback aside'"
-    gap={10}
+    gap={spacing.lg}
     position="relative"
     height="100%"
     width="100%"
@@ -52,4 +51,3 @@ export const AsideRegion: React.FC<React.PropsWithChildren<{}>> = ({
     </Card>
   </Grid>
 )
-/* eslint-enable */

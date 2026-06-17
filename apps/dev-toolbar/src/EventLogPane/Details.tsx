@@ -1,10 +1,9 @@
 import { Block, Grid, Row } from '@jsxstyle/react'
 import { formatTime } from '@repro/date-utils'
-import { Button, color } from '@repro/design'
+import { Button, color, spacing } from '@repro/design'
 import { JSONView } from '@repro/devtools'
 import { SourceEventType } from '@repro/domain'
 import {
-  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   createSourcePlayback,
   EMPTY_PLAYBACK,
   PlaybackCanvas,
@@ -49,7 +48,7 @@ export const Details: React.FC = () => {
   return (
     <Grid gridTemplateRows="auto auto 1fr" height="100%" overflow="hidden">
       <Row
-        padding={10}
+        padding={spacing.lg}
         alignItems="center"
         justifyContent="space-between"
         backgroundColor={color.bg.subtle}
@@ -68,7 +67,7 @@ export const Details: React.FC = () => {
           </Block>
         </Block>
 
-        <Row gap={10}>
+        <Row gap={spacing.lg}>
           <Button
             context="neutral"
             size="small"
@@ -91,7 +90,7 @@ export const Details: React.FC = () => {
         </Row>
       </Row>
 
-      <Block padding={10} overflow="hidden">
+      <Block padding={spacing.lg} overflow="hidden">
         <Block
           height={480}
           borderColor={color.text.muted}
@@ -109,10 +108,9 @@ export const Details: React.FC = () => {
         </Block>
       </Block>
 
-      <Block padding={10} overflow="scroll">
+      <Block padding={spacing.lg} overflow="scroll">
         <JSONView data={selectedEvent} />
       </Block>
     </Grid>
   )
 }
-/* eslint-enable */

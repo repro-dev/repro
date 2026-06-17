@@ -1,11 +1,10 @@
 import { Block, Grid } from '@jsxstyle/react'
-import { Card, color, DefinitionList } from '@repro/design'
+import { Card, color, DefinitionList, spacing } from '@repro/design'
 import { EventHighlights } from '@repro/devtools'
 import { RecordingInfo } from '@repro/domain'
 import { ucfirst } from '@repro/string-utils'
 import React from 'react'
 import { Summary } from './Summary'
-/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 
 interface Props {
   info: RecordingInfo
@@ -16,7 +15,7 @@ export const Sidebar: React.FC<Props> = ({ info }) => (
     <Grid
       gridTemplateRows="auto 1fr auto"
       height="100%"
-      marginH={-20}
+      marginH={-spacing.xl}
       overflow="hidden"
     >
       <Summary info={info} />
@@ -27,7 +26,7 @@ export const Sidebar: React.FC<Props> = ({ info }) => (
 
       <Grid
         isolation="isolate"
-        paddingH={10}
+        paddingH={spacing.lg}
         gridTemplateColumns="max-content 1fr"
         fontSize={13}
         backgroundColor={color.bg.surface}
@@ -50,4 +49,3 @@ export const Sidebar: React.FC<Props> = ({ info }) => (
     </Grid>
   </Card>
 )
-/* eslint-enable */

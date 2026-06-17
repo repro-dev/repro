@@ -1,6 +1,7 @@
 import { Block } from '@jsxstyle/react'
 import React, { forwardRef } from 'react'
 import { color } from '../tokens/colors'
+import { spacing } from '../tokens/spacing'
 import { textStyles } from '../tokens/typography'
 
 export interface EmptyStateDescriptionProps {
@@ -24,18 +25,16 @@ export const EmptyStateDescription = forwardRef<
   EmptyStateDescriptionProps
 >(({ children }, ref) => {
   return (
-    /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
     <Block
       component="p"
       {...textStyles.body}
       color={color.text.muted}
       maxWidth={400}
-      margin="0 auto"
+      margin={`${spacing.none} auto`}
       props={{ ref }}
     >
       {children}
     </Block>
-    /* eslint-enable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   )
 })
 

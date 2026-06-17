@@ -1,6 +1,5 @@
-/* eslint-disable @repro/oxlint-plugin-design/no-raw-palette */
 /* eslint-disable react/forbid-dom-props */
-import { colors } from '@repro/design'
+import { color } from '@repro/design'
 import { isPointOutOfBounds } from '@repro/source-utils'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import {
@@ -107,7 +106,7 @@ const catmullRomControlPoints = (
 
 export const PointerTrail: React.FC<PointerTrailProps> = ({
   trailDuration = 200,
-  trailColor = colors.pink['400'],
+  trailColor = color.danger,
   trailWidth = 2,
 }) => {
   const trailRef = useRef<Array<TrailPosition>>([])

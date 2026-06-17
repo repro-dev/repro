@@ -1,12 +1,11 @@
 import { Block } from '@jsxstyle/react'
-import { colors } from '@repro/design'
+import { color } from '@repro/design'
 import { isIFrameElement } from '@repro/dom-utils'
 import React, { MutableRefObject, useEffect, useRef, useState } from 'react'
 import { Subscription, fromEvent } from 'rxjs'
 import { distinctUntilChanged, map, share } from 'rxjs/operators'
 import { MAX_INT32 } from '../constants'
 import {
-  /* eslint-disable @repro/oxlint-plugin-design/no-raw-palette */
   useCurrentDocument,
   useDevToolsView,
   useElementPicker,
@@ -167,7 +166,7 @@ export const PickerOverlay: React.FC = React.memo(() => {
               x2={boundingBox.x}
               y1={0}
               y2="100%"
-              stroke={colors.pink['500']}
+              stroke={color.dangerBorder}
               strokeDasharray="5 5"
               strokeWidth={1}
             />
@@ -176,7 +175,7 @@ export const PickerOverlay: React.FC = React.memo(() => {
               x2={boundingBox.x + boundingBox.width}
               y1={0}
               y2="100%"
-              stroke={colors.pink['500']}
+              stroke={color.dangerBorder}
               strokeDasharray="5 5"
               strokeWidth={1}
             />
@@ -185,7 +184,7 @@ export const PickerOverlay: React.FC = React.memo(() => {
               x2="100%"
               y1={boundingBox.y}
               y2={boundingBox.y}
-              stroke={colors.pink['500']}
+              stroke={color.dangerBorder}
               strokeDasharray="5 5"
               strokeWidth={1}
             />
@@ -194,7 +193,7 @@ export const PickerOverlay: React.FC = React.memo(() => {
               x2="100%"
               y1={boundingBox.y + boundingBox.height}
               y2={boundingBox.y + boundingBox.height}
-              stroke={colors.pink['500']}
+              stroke={color.dangerBorder}
               strokeDasharray="5 5"
               strokeWidth={1}
             />
@@ -203,9 +202,9 @@ export const PickerOverlay: React.FC = React.memo(() => {
               y={boundingBox.y}
               width={boundingBox.width}
               height={boundingBox.height}
-              fill={colors.pink['500']}
+              fill={color.dangerBorder}
               fillOpacity={0.2}
-              stroke={colors.pink['500']}
+              stroke={color.dangerBorder}
               strokeWidth={2}
             />
           </g>
@@ -214,4 +213,3 @@ export const PickerOverlay: React.FC = React.memo(() => {
     </Block>
   )
 })
-/* eslint-enable */

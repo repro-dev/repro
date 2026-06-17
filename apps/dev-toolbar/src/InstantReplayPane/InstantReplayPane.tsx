@@ -1,8 +1,7 @@
 import { Block, Row } from '@jsxstyle/react'
-import { Button, color } from '@repro/design'
+import { Button, color, spacing } from '@repro/design'
 import { DevTools } from '@repro/devtools'
 import {
-  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   PlaybackProvider,
   RangeTimeline,
   createSourcePlayback,
@@ -68,8 +67,8 @@ export const InstantReplayPane: React.FC = () => {
       >
         <Row
           alignItems="center"
-          gap={5}
-          padding={10}
+          gap={spacing.sm}
+          padding={spacing.lg}
           borderColor={color.border.strong}
           borderStyle="solid"
           borderWidth="0 0 1px"
@@ -81,6 +80,7 @@ export const InstantReplayPane: React.FC = () => {
             Instant Replay
           </Block>
 
+          {/* eslint-disable-next-line @repro/oxlint-plugin-design/no-hardcoded-spacing -- auto is a flex keyword */}
           <Block marginLeft="auto">
             <Button
               context="neutral"
@@ -106,4 +106,3 @@ export const InstantReplayPane: React.FC = () => {
     </PlaybackProvider>
   )
 }
-/* eslint-enable */

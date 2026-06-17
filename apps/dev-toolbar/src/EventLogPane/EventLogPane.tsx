@@ -1,5 +1,5 @@
 import { Block, Grid, Row } from '@jsxstyle/react'
-import { color } from '@repro/design'
+import { color, spacing } from '@repro/design'
 import { SourceEventType } from '@repro/domain'
 import { InterruptSignal, useRecordingStream } from '@repro/recording'
 import { TablePropertiesIcon } from 'lucide-react'
@@ -15,7 +15,6 @@ import { NetworkRow } from './NetworkRow'
 import { PerformanceRow } from './PerformanceRow'
 import { LogItem } from './types'
 import { collapseItemsIntoGroups, unpackFirstEvent } from './utils'
-/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 
 const ItemRow: React.FC<ListChildComponentProps<LogItem[]>> = ({
   index,
@@ -107,8 +106,8 @@ export const EventLogPane: React.FC = () => {
       <Row
         gridColumn="1 / span 2"
         alignItems="center"
-        gap={5}
-        padding={10}
+        gap={spacing.sm}
+        padding={spacing.lg}
         borderColor={color.border.strong}
         borderStyle="solid"
         borderWidth="0 0 1px"
@@ -145,4 +144,3 @@ export const EventLogPane: React.FC = () => {
     </Grid>
   )
 }
-/* eslint-enable */

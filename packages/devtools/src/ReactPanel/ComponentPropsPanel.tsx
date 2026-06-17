@@ -1,10 +1,8 @@
 import { Block } from '@jsxstyle/react'
-import { color, colors } from '@repro/design'
+import { color, spacing } from '@repro/design'
 import { ReactComponentNode } from '@repro/domain'
 import React from 'react'
 import { JSONView } from '../JSONView/JSONView'
-/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing, @repro/oxlint-plugin-design/no-raw-palette */
-
 interface Props {
   node: ReactComponentNode | null
 }
@@ -12,7 +10,7 @@ interface Props {
 export const ComponentPropsPanel: React.FC<Props> = ({ node }) => {
   if (!node) {
     return (
-      <Block padding={16} fontSize={12} color={colors.slate['400']}>
+      <Block padding={spacing.xl} fontSize={12} color={color.text.muted}>
         Select a component to view its props.
       </Block>
     )
@@ -27,13 +25,13 @@ export const ComponentPropsPanel: React.FC<Props> = ({ node }) => {
   }
 
   return (
-    <Block padding={8}>
+    <Block padding={spacing.md}>
       <Block
         fontSize={11}
         fontWeight={600}
-        color={colors.violet['700']}
-        marginBottom={8}
-        paddingBottom={4}
+        color={color.primary}
+        marginBottom={spacing.md}
+        paddingBottom={spacing.sm}
         borderBottom={`1px solid ${color.border.default}`}
       >
         &lt;{node.componentName}&gt;
@@ -42,4 +40,3 @@ export const ComponentPropsPanel: React.FC<Props> = ({ node }) => {
     </Block>
   )
 }
-/* eslint-enable */

@@ -1,7 +1,6 @@
 import { Col, Row } from '@jsxstyle/react'
 import { ApiClient, useApiClient } from '@repro/api-client'
 import {
-  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   Alert,
   Badge,
   Button,
@@ -156,7 +155,7 @@ export function ProfileSettingsRoute({
       </PageFrame.Header>
 
       <PageFrame.Body maxWidth={720}>
-        <Stack gap="lg">
+        <Stack gap={spacing.lg}>
           <Card>
             <Col padding={spacing.xl} gap={spacing.lg}>
               <Row alignItems="center" gap={spacing.md}>
@@ -260,4 +259,3 @@ export function ProfileSettingsRoute({
 export function ProfileSettingsRouteConnected() {
   return <ProfileSettingsRoute />
 }
-/* eslint-enable */

@@ -1,9 +1,8 @@
 import { Block, Row } from '@jsxstyle/react'
 import { IfGate } from '@repro/auth'
-import { color } from '@repro/design'
+import { color, spacing } from '@repro/design'
 import { PlaybackNavigation, SimpleTimeline } from '@repro/playback'
 import {
-  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   Maximize2 as EnterFullscreenIcon,
   Minimize2 as ExitFullscreenIcon,
 } from 'lucide-react'
@@ -64,7 +63,7 @@ const Separator: React.FC<{}> = () => (
 const TimelineRegion: React.FC<{ children?: React.ReactNode }> = ({
   children,
 }) => (
-  <Block flex={1} marginV={5} marginH={16}>
+  <Block flex={1} marginV={spacing.sm} marginH={spacing.xl}>
     {children}
   </Block>
 )
@@ -76,7 +75,12 @@ const FullscreenToggle: React.FC<{
   const label = fullscreen ? 'Exit fullscreen' : 'Enter fullscreen'
 
   return (
-    <Row position="relative" alignItems="center" cursor="pointer" paddingH={4}>
+    <Row
+      position="relative"
+      alignItems="center"
+      cursor="pointer"
+      paddingH={spacing.sm}
+    >
       <Row
         alignItems="center"
         justifyContent="center"

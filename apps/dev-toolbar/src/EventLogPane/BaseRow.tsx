@@ -1,12 +1,11 @@
 import { Block, Col, Row } from '@jsxstyle/react'
 import { formatTime } from '@repro/date-utils'
-import { color, transition } from '@repro/design'
+import { color, spacing, transition } from '@repro/design'
 import { SourceEventType } from '@repro/domain'
 import { Unboxed, isLens, unwrapLens } from '@repro/tdl'
 import prettyBytes from 'pretty-bytes'
 import React from 'react'
 import { useSelectedEvent } from '~/hooks'
-/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 
 interface Props {
   event: Unboxed<any>
@@ -25,8 +24,8 @@ export const BaseRow: React.FC<React.PropsWithChildren<Props>> = ({
   return (
     <Row
       alignItems="center"
-      gap={10}
-      paddingInline={10}
+      gap={spacing.lg}
+      paddingInline={spacing.lg}
       backgroundColor={index % 2 ? color.bg.surface : color.bg.subtle}
       borderColor={color.border.default}
       borderStyle="solid"
@@ -43,7 +42,7 @@ export const BaseRow: React.FC<React.PropsWithChildren<Props>> = ({
         width={80}
         alignSelf="stretch"
         justifyContent="center"
-        gap={5}
+        gap={spacing.sm}
         borderColor={color.border.default}
         borderStyle="solid"
         borderWidth="0 1px 0 0"
@@ -57,6 +56,7 @@ export const BaseRow: React.FC<React.PropsWithChildren<Props>> = ({
       <Block>{children}</Block>
 
       {isLens(event) && (
+        /* eslint-disable-next-line @repro/oxlint-plugin-design/no-hardcoded-spacing -- auto is a flex keyword */
         <Block marginLeft="auto" color={color.text.muted}>
           {prettyBytes(unwrapLens(event).byteLength)}
         </Block>
@@ -64,4 +64,3 @@ export const BaseRow: React.FC<React.PropsWithChildren<Props>> = ({
     </Row>
   )
 }
-/* eslint-enable */

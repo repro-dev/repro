@@ -1,7 +1,6 @@
 import React from 'react'
 import legalStyles from './LegalPageShell.module.css'
 import sharedStyles from './MarketingShell.module.css'
-/* eslint-disable @repro/oxlint-plugin-design/no-classname-prop */
 
 interface LegalPageShellProps {
   title: string

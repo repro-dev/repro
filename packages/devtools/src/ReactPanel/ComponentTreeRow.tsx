@@ -1,12 +1,10 @@
 import { Block, Row } from '@jsxstyle/react'
-import { colors } from '@repro/design'
+import { color, spacing } from '@repro/design'
 import { ReactComponentNode } from '@repro/domain'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import React from 'react'
 import { TreeRowBase } from '../ElementTree'
 import { ComponentR } from './ComponentR'
-/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing, @repro/oxlint-plugin-design/no-raw-palette */
-
 interface Props {
   node: ReactComponentNode
   depth: number
@@ -28,11 +26,11 @@ export const ComponentTreeRow: React.FC<Props> = ({
 }) => {
   return (
     <TreeRowBase depth={depth} isSelected={isSelected} onClick={onSelect}>
-      <Row alignItems="center" paddingV={2}>
+      <Row alignItems="center" paddingV={spacing.xs}>
         <Block
           width={14}
           flexShrink={0}
-          color={colors.slate['400']}
+          color={color.text.muted}
           props={{
             onClick: (e: React.MouseEvent) => {
               if (hasChildren) {
@@ -55,4 +53,3 @@ export const ComponentTreeRow: React.FC<Props> = ({
     </TreeRowBase>
   )
 }
-/* eslint-enable */

@@ -1,8 +1,6 @@
 import { Row } from '@jsxstyle/react'
-import { color, colors } from '@repro/design'
+import { color, spacing } from '@repro/design'
 import React from 'react'
-/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing, @repro/oxlint-plugin-design/no-raw-palette */
-
 interface ButtonProps {
   active?: boolean
   disabled?: boolean
@@ -22,18 +20,12 @@ export const Button: React.FC<ButtonProps & { children?: React.ReactNode }> = ({
     appearance="none"
     alignItems="center"
     justifyContent="center"
-    paddingInline={8}
+    paddingInline={spacing.md}
     height={32}
-    color={
-      disabled
-        ? color.border.strong
-        : active
-        ? colors.pink['500']
-        : color.primary
-    }
+    color={disabled ? color.border.strong : color.primary}
     border="none"
     borderRadius={4}
-    backgroundColor={active ? colors.pink['100'] : 'transparent'}
+    backgroundColor={active ? color.primarySubtle : 'transparent'}
     hoverBackgroundColor={disabled || active ? null : color.infoTint}
     cursor="pointer"
     pointerEvents={disabled ? 'none' : 'auto'}
@@ -43,4 +35,3 @@ export const Button: React.FC<ButtonProps & { children?: React.ReactNode }> = ({
     {children}
   </Row>
 )
-/* eslint-enable */

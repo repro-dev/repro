@@ -1,9 +1,8 @@
 import { Inline } from '@jsxstyle/react'
-import { color, colors } from '@repro/design'
+import { color } from '@repro/design'
 import { ReactComponentNode } from '@repro/domain'
 import React from 'react'
 import { Container } from '../DOM/Container'
-/* eslint-disable @repro/oxlint-plugin-design/no-raw-palette */
 
 interface Props {
   node: ReactComponentNode
@@ -37,8 +36,7 @@ const Syntax: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
 const ComponentName: React.FC<{ children?: React.ReactNode }> = ({
   children,
 }) => (
-  <Inline color={colors.violet['700']} fontWeight={500}>
+  <Inline color={color.primary} fontWeight={500}>
     {children}
   </Inline>
 )
-/* eslint-enable */

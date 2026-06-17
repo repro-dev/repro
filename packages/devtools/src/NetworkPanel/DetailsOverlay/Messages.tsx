@@ -1,9 +1,8 @@
 import { Block, Grid, Inline, Row } from '@jsxstyle/react'
 import { formatTime } from '@repro/date-utils'
-import { colors } from '@repro/design'
+import { color, spacing } from '@repro/design'
 import { Stats } from '@repro/diagnostics'
 import {
-  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing, @repro/oxlint-plugin-design/no-raw-palette */
   NetworkMessageType,
   WebSocketInbound,
   WebSocketMessageType,
@@ -138,15 +137,15 @@ const MessageRow: React.FC<ListChildComponentProps<MessageListProps>> = ({
 
   const bgColor =
     message.type === NetworkMessageType.WebSocketOutbound
-      ? colors.emerald['100']
-      : colors.white
+      ? color.successSubtle
+      : color.bg.surface
 
   const hoverBgColor =
     message.type === NetworkMessageType.WebSocketOutbound
-      ? colors.emerald['200']
-      : colors.slate['100']
+      ? color.successSubtle
+      : color.bg.subtle
 
-  const selectedBgColor = colors.blue['100']
+  const selectedBgColor = color.infoSubtle
 
   const nextIndex = rows[index + 1]?.index ?? Number.MAX_SAFE_INTEGER
 
@@ -160,7 +159,7 @@ const MessageRow: React.FC<ListChildComponentProps<MessageListProps>> = ({
       style={style}
       props={{ onClick: () => onSelect(index) }}
     >
-      <Cell position="relative" color={colors.slate['500']} borderLeft="none">
+      <Cell position="relative" color={color.text.muted} borderLeft="none">
         {formatTime(time, 'millis')}
 
         <Block position="absolute" top={1} left={5}>
@@ -170,9 +169,9 @@ const MessageRow: React.FC<ListChildComponentProps<MessageListProps>> = ({
 
       <Cell>
         {message.type === NetworkMessageType.WebSocketOutbound ? (
-          <OutboundIcon color={colors.emerald['700']} size={14} />
+          <OutboundIcon color={color.success} size={14} />
         ) : (
-          <InboundIcon color={colors.rose['700']} size={14} />
+          <InboundIcon color={color.danger} size={14} />
         )}
       </Cell>
 
@@ -182,7 +181,7 @@ const MessageRow: React.FC<ListChildComponentProps<MessageListProps>> = ({
           : binaryToString(message.data)}
       </Cell>
 
-      <Cell color={colors.slate['500']}>
+      <Cell color={color.text.muted}>
         {prettyBytes(message.data.byteLength)}
       </Cell>
 
@@ -199,8 +198,8 @@ const Cell: React.FC<PropsWithChildren<JsxstyleProps<false>>> = ({
 }) => (
   <Row
     alignItems="center"
-    paddingH={10}
-    borderLeft={`1px solid ${colors.slate['200']}`}
+    paddingH={spacing.lg}
+    borderLeft={`1px solid ${color.border.default}`}
     lineHeight={1.25}
     {...props}
   >
@@ -222,17 +221,17 @@ const Body: React.FC<BodyProps> = ({ message, onClose }) => (
     height="calc(100% + 20px)"
     width="75%"
     overflow="auto"
-    backgroundColor={colors.white}
-    borderLeft={`1px solid ${colors.slate['200']}`}
+    backgroundColor={color.bg.surface}
+    borderLeft={`1px solid ${color.border.default}`}
     boxShadow={`
       0 4px 16px rgba(0, 0, 0, 0.1),
       0 1px 2px rgba(0, 0, 0, 0.1)
     `}
   >
     <Block
-      paddingH={20}
-      paddingTop={50}
-      paddingBottom={20}
+      paddingH={spacing['2xl']}
+      paddingTop={spacing['4xl']}
+      paddingBottom={spacing['2xl']}
       whiteSpace="pre-wrap"
       lineHeight={1.5}
     >
@@ -249,7 +248,7 @@ const Body: React.FC<BodyProps> = ({ message, onClose }) => (
       height={32}
       alignItems="center"
       justifyContent="center"
-      hoverBackgroundColor={colors.slate['100']}
+      hoverBackgroundColor={color.bg.subtle}
       borderRadius="99rem"
       cursor="pointer"
       props={{ onClick: onClose }}
@@ -258,4 +257,3 @@ const Body: React.FC<BodyProps> = ({ message, onClose }) => (
     </Row>
   </Block>
 )
-/* eslint-enable */

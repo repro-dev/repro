@@ -3,7 +3,6 @@ import { Block, Col, Grid, Row } from '@jsxstyle/react'
 import { useApiClient } from '@repro/api-client'
 import { useSession } from '@repro/auth'
 import {
-  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   Alert,
   Avatar,
   Badge,
@@ -166,7 +165,7 @@ function ProjectSettingsBody({
 }: ProjectSettingsBodyProps) {
   return (
     <PageFrame.Body>
-      <Block width="100%" maxWidth={1440} margin="0 auto">
+      <Block width="100%" maxWidth={1440} margin={`${spacing.none} auto`}>
         <Col gap={spacing.xl} width="100%">
           <Block
             component="header"
@@ -668,7 +667,7 @@ export function ProjectSettingsRoute({
                 description="Archiving a project is permanent and removes access for the team."
               />
 
-              <Card context="danger" padding={0}>
+              <Card context="danger" padding={spacing.none}>
                 <Block padding={spacing.lg}>
                   <ActionRow
                     label="Archive project"
@@ -787,4 +786,3 @@ export function ProjectSettingsRouteConnected() {
     />
   )
 }
-/* eslint-enable */

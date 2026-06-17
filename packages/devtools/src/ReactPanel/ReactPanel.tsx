@@ -1,13 +1,11 @@
 import { Block, Grid } from '@jsxstyle/react'
 import { useAtomValue } from '@repro/atom'
-import { color, colors } from '@repro/design'
+import { color, spacing } from '@repro/design'
 import { SourceEventType, SourceEventView, StateEventType } from '@repro/domain'
 import { usePlayback, useSnapshot } from '@repro/playback'
 import React, { useMemo, useState } from 'react'
 import { ComponentPropsPanel } from './ComponentPropsPanel'
 import { ComponentTree } from './ComponentTree'
-/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing, @repro/oxlint-plugin-design/no-raw-palette */
-
 export const ReactPanel: React.FC = () => {
   const playback = usePlayback()
   const snapshot = useSnapshot()
@@ -95,7 +93,7 @@ export const ReactPanel: React.FC = () => {
 
   if (componentMap.size === 0 && !isProductionBuild) {
     return (
-      <Block padding={16} fontSize={12} color={color.text.muted}>
+      <Block padding={spacing.xl} fontSize={12} color={color.text.muted}>
         No component data yet. Scrub the timeline to see the React component
         tree.
       </Block>
@@ -107,11 +105,11 @@ export const ReactPanel: React.FC = () => {
       <Block height="100%" overflow="auto">
         {isProductionBuild && (
           <Block
-            padding={8}
+            padding={spacing.md}
             fontSize={11}
-            color={colors.orange['700']}
-            backgroundColor={colors.orange['50']}
-            borderBottom={`1px solid ${colors.orange['200']}`}
+            color={color.warning}
+            backgroundColor={color.warningSubtle}
+            borderBottom={`1px solid ${color.warningBorder}`}
           >
             Component hierarchy is only available in development builds. Showing
             flat list.
@@ -135,4 +133,3 @@ export const ReactPanel: React.FC = () => {
     </Grid>
   )
 }
-/* eslint-enable */

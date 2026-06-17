@@ -1,8 +1,7 @@
 import { Block, Row } from '@jsxstyle/react'
-import { color, colors } from '@repro/design'
+import { color, spacing } from '@repro/design'
 import { NetworkEvent, NetworkMessageType } from '@repro/domain'
 import {
-  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing, @repro/oxlint-plugin-design/no-raw-palette */
   ArrowUp as FetchRequestIcon,
   ArrowUpDown as WebSocketIcon,
 } from 'lucide-react'
@@ -24,7 +23,7 @@ const icons = {
   [NetworkMessageType.WebSocketOutbound]: null,
 
   [NetworkMessageType.FetchRequest]: (
-    <FetchRequestIcon size={16} color={colors.emerald['500']} />
+    <FetchRequestIcon size={16} color={color.success} />
   ),
 
   [NetworkMessageType.WebSocketOpen]: (
@@ -45,9 +44,9 @@ export const NetworkEntry: React.FC<Props> = ({ eventIndex, event }) => {
       switch (data.type) {
         case NetworkMessageType.FetchRequest:
           content = (
-            <Row alignItems="center" gap={5}>
+            <Row alignItems="center" gap={spacing.sm}>
               <Block
-                padding={5}
+                padding={spacing.sm}
                 borderRadius={4}
                 backgroundColor={color.bg.hover}
                 color={color.text.secondary}
@@ -65,9 +64,9 @@ export const NetworkEntry: React.FC<Props> = ({ eventIndex, event }) => {
 
         case NetworkMessageType.WebSocketOpen:
           content = (
-            <Row alignItems="center" gap={5}>
+            <Row alignItems="center" gap={spacing.sm}>
               <Block
-                padding={5}
+                padding={spacing.sm}
                 borderRadius={4}
                 backgroundColor={color.bg.hover}
                 color={color.text.secondary}
@@ -84,12 +83,12 @@ export const NetworkEntry: React.FC<Props> = ({ eventIndex, event }) => {
 
         case NetworkMessageType.WebSocketError:
           content = (
-            <Row alignItems="center" gap={5}>
+            <Row alignItems="center" gap={spacing.sm}>
               <Block
-                padding={5}
+                padding={spacing.sm}
                 borderRadius={4}
-                backgroundColor={colors.red['100']}
-                color={colors.red['700']}
+                backgroundColor={color.dangerSubtle}
+                color={color.danger}
                 fontSize={13}
                 fontWeight={700}
               >
@@ -119,4 +118,3 @@ export const NetworkEntry: React.FC<Props> = ({ eventIndex, event }) => {
     })
     .orElse(null)
 }
-/* eslint-enable */

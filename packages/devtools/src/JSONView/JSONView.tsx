@@ -1,7 +1,7 @@
 import { Block } from '@jsxstyle/react'
+import { spacing } from '@repro/design'
 import React from 'react'
 import { getRendererForType } from './getRendererForType'
-/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 
 interface Props {
   data: any
@@ -10,7 +10,7 @@ interface Props {
 export const JSONView: React.FC<Props> = ({ data }) => {
   return (
     <Block
-      marginLeft={15}
+      marginLeft={spacing.xl}
       fontFamily="monospace"
       fontSize={11}
       lineHeight={1.25}
@@ -19,4 +19,3 @@ export const JSONView: React.FC<Props> = ({ data }) => {
     </Block>
   )
 }
-/* eslint-enable */

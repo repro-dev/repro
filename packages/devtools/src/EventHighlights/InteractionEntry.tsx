@@ -1,8 +1,7 @@
 import { Block, Row } from '@jsxstyle/react'
-import { color } from '@repro/design'
+import { color, spacing } from '@repro/design'
 import { Click, InteractionEvent, InteractionType } from '@repro/domain'
 import {
-  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   MousePointerClick as ClickIcon,
   Link2 as LinkIcon,
   Scaling as ViewportResizeIcon,
@@ -85,9 +84,9 @@ function createClickLabel(interaction: Click): React.ReactNode {
     content = (
       <Row
         alignItems="center"
-        gap={5}
-        paddingH={6}
-        paddingV={3}
+        gap={spacing.sm}
+        paddingH={spacing.sm}
+        paddingV={spacing.xs}
         borderRadius={4}
         backgroundColor={color.primarySubtle}
         color={color.infoFg}
@@ -100,8 +99,8 @@ function createClickLabel(interaction: Click): React.ReactNode {
     content = (
       <Row
         alignItems="center"
-        paddingH={6}
-        paddingV={3}
+        paddingH={spacing.sm}
+        paddingV={spacing.xs}
         fontFamily="monospace"
         backgroundColor={color.infoTint}
         borderRadius={4}
@@ -112,7 +111,7 @@ function createClickLabel(interaction: Click): React.ReactNode {
   }
 
   return (
-    <Row alignItems="center" gap={5}>
+    <Row alignItems="center" gap={spacing.sm}>
       <Block>Clicked</Block>
       {content}
     </Row>

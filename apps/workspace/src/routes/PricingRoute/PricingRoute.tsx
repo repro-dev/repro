@@ -3,7 +3,6 @@ import { useApiClient } from '@repro/api-client'
 import { useSession, useSessionLoading } from '@repro/auth'
 import { useBillingClient } from '@repro/billing'
 import {
-  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   Badge,
   Button,
   Card,
@@ -141,22 +140,22 @@ export const PricingRoute: React.FC = () => {
 
             return (
               <Card key={plan.id}>
-                <Stack gap="xl">
-                  <Stack gap="sm">
+                <Stack gap={spacing.xl}>
+                  <Stack gap={spacing.sm}>
                     <Text variant="heading2">{plan.name}</Text>
                     <Badge context="neutral">
                       {plan.interval === 'month' ? 'Monthly' : 'Yearly'}
                     </Badge>
                   </Stack>
 
-                  <Stack gap="md">
+                  <Stack gap={spacing.md}>
                     {features.map(feature => {
                       const entitlement = entitlementMap.get(feature)
                       const meta = getEntitlementMeta(feature)
                       const formattedValue = meta.valueFormatter(entitlement)
 
                       return (
-                        <Stack key={feature} gap="xs">
+                        <Stack key={feature} gap={spacing.xs}>
                           <Text variant="caption" weight="semibold">
                             {meta.label}
                           </Text>
@@ -200,4 +199,3 @@ export const PricingRoute: React.FC = () => {
     </PageFrame>
   )
 }
-/* eslint-enable */
