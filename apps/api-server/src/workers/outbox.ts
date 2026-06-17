@@ -1,8 +1,9 @@
+import pino from 'pino'
 import { defaultEnv as env } from '~/config/env'
 import { createPostgresDatabaseClient } from '~/modules/database'
 import { createFileSystemStorageClient } from '~/modules/storage-fs'
 import { createOutboxService } from '~/services/outbox'
-import { createOutboxWorker } from '~/services/outboxWorker'
+import { createOutboxWorker, OutboxWorkerLogger } from '~/services/outboxWorker'
 import { createRecordingErrorIndexingService } from '~/services/recordingErrorIndexing'
 import {
   createRecordingFinalizationService,
@@ -39,6 +40,33 @@ const outboxRegistry = createDefaultOutboxRegistry({
 })
 const workerId = `${process.pid}-${Date.now()}`
 
+const pinoLogger = pino({
+  level: env.NODE_ENV === 'test' ? 'silent' : 'info',
+  ...(env.NODE_ENV !== 'production' && {
+    transport: { target: 'pino-pretty' },
+  }),
+})
+
+function createStructuredLogger(
+  base: pino.Logger,
+  workerId: string
+): OutboxWorkerLogger {
+  const child = base.child({ workerId })
+  return {
+    info(message, metadata) {
+      child.info({ ...metadata, event: message }, message)
+    },
+    warn(message, metadata) {
+      child.warn({ ...metadata, event: message }, message)
+    },
+    error(message, metadata) {
+      child.error({ ...metadata, event: message }, message)
+    },
+  }
+}
+
+const logger = createStructuredLogger(pinoLogger, workerId)
+
 const worker = createOutboxWorker({
   outboxService,
   registry: outboxRegistry,
@@ -50,7 +78,7 @@ const worker = createOutboxWorker({
     maxDelayMs: env.OUTBOX_WORKER_RETRY_MAX_MS,
     staleAfterMs: env.OUTBOX_WORKER_STALE_AFTER_MS,
   },
-  logger: console,
+  logger,
 })
 
 const polling = worker.startPolling()

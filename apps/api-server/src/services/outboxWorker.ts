@@ -151,6 +151,16 @@ export function createOutboxWorker({
       }
 
       promise(runOnce())
+        .then(result => {
+          if (result.claimed > 0) {
+            logger.info('outbox batch complete', {
+              claimed: result.claimed,
+              succeeded: result.succeeded,
+              retried: result.retried,
+              failed: result.failed,
+            })
+          }
+        })
         .catch(error => {
           logger.error('outbox polling failed', {
             error: error instanceof Error ? error.message : String(error),
