@@ -61,6 +61,15 @@ const ISSUE_BY_NUMBER_SUMMARY_FIELDS = [
   "assignee { id name displayName email }",
 ].join("\n            ");
 
+const BATCH_ISSUE_FIELDS = [
+  "id",
+  "identifier",
+  "title",
+  "url",
+  "state { id name type }",
+  "assignee { id name displayName email }",
+].join("\n              ");
+
 const ISSUE_BY_NUMBER_QUERY = [
   "query IssueByNumber($teamId: String!, $number: Float!) {",
   "  team(id: $teamId) {",
@@ -328,6 +337,72 @@ export async function fetchIssueByNumber(client, team, number) {
   });
 
   return response?.team?.issues;
+}
+
+export async function fetchIssuesByIdentifiers(client, team, issueIdentifiers) {
+  // Deduplicate by teamKey-number
+  const seen = new Set();
+  const deduped = [];
+  for (const ident of issueIdentifiers) {
+    const key = `${ident.teamKey}-${ident.number}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      deduped.push(ident);
+    }
+  }
+
+  // Empty input: return empty map without making any API call
+  if (deduped.length === 0) {
+    return new Map();
+  }
+
+  // Single identifier: delegate to existing single-lookup path (no overhead)
+  if (deduped.length === 1) {
+    const { teamKey, number } = deduped[0];
+    const response = await fetchIssueByNumber(client, team, number);
+    const issue = response?.nodes?.[0] ?? null;
+    const result = new Map();
+    result.set(`${teamKey}-${number}`, issue);
+    return result;
+  }
+
+  // Multiple identifiers: build aliased batch query
+  const aliasNodes = deduped
+    .map(
+      ({ number }, index) =>
+        `      n${index}: issues(filter: { number: { eq: ${number} } }, first: 1) {
+        nodes {
+          ${BATCH_ISSUE_FIELDS}
+        }
+      }`,
+    )
+    .join("\n");
+
+  const query = [
+    "query BatchIssues($teamId: String!) {",
+    "  team(id: $teamId) {",
+    aliasNodes,
+    "  }",
+    "}",
+  ].join("\n");
+
+  const response = await requestLinearGraphQL(client, query, {
+    teamId: team.id,
+  });
+
+  const teamData = response?.team;
+  if (!teamData) return new Map();
+
+  const result = new Map();
+  for (let i = 0; i < deduped.length; i++) {
+    const { teamKey, number } = deduped[i];
+    const alias = `n${i}`;
+    const nodes = teamData[alias]?.nodes;
+    const issue = nodes?.[0] ?? null;
+    result.set(`${teamKey}-${number}`, issue);
+  }
+
+  return result;
 }
 
 export async function fetchProjectMilestones(receiver, source, variables) {
