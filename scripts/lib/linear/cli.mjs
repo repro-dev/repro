@@ -16,6 +16,7 @@ import {
   callBoundMethod,
   fetchIssueByNumber,
   fetchIssues,
+  fetchIssuesByIdentifiers,
   fetchProjectMilestones,
   normalizeText,
   resolveDefaultBacklogStates,
@@ -682,9 +683,19 @@ async function resolveIssueByIdentifierOnTeam(
   team,
   issueId,
   cache,
+  batchResult,
 ) {
   const cacheKey = normalizeText(issueId);
   if (cache?.has(cacheKey)) return cache.get(cacheKey);
+
+  // If a batch result map was provided and the issue was pre-resolved, use it
+  if (batchResult?.has(issueId)) {
+    const issue = batchResult.get(issueId);
+    if (!issue) runtimeError(`Issue ${issueId} not found.`);
+    const resolved = { team, issue };
+    if (cache) cache.set(cacheKey, resolved);
+    return resolved;
+  }
 
   const { teamKey, number } = parseIssueIdentifier(issueId);
   const activeTeamKey = normalizeText(team.key ?? team.name ?? "");
@@ -1800,6 +1811,24 @@ async function issueCreateCommand(args, context) {
   }
 
   if (createdIssue?.id) {
+    // Collect all unique relation identifiers for batch resolution
+    const relationIdentifiers = [
+      ...(options.related ?? []),
+      ...(options.blocks ?? []),
+      ...(options.blockedBy ?? []),
+      ...(options.duplicateOf ?? []),
+    ];
+    const uniqueIdentifiers = [...new Set(relationIdentifiers)];
+    let batchRelationResult = null;
+    if (uniqueIdentifiers.length >= 2) {
+      const parsed = uniqueIdentifiers.map((id) => parseIssueIdentifier(id));
+      batchRelationResult = await fetchIssuesByIdentifiers(
+        client,
+        team,
+        parsed,
+      );
+    }
+
     const relationSpecs = [
       ...(options.related ?? []).map((issueId) => ({
         sourceIssueId: createdIssue.id,
@@ -1832,6 +1861,7 @@ async function issueCreateCommand(args, context) {
               team,
               relationSpec.sourceIssueIdentifier,
               issueResolutionCache,
+              batchRelationResult,
             )
           ).issue.id
         : relationSpec.sourceIssueId;
@@ -1843,6 +1873,7 @@ async function issueCreateCommand(args, context) {
               team,
               relationSpec.targetIssueIdentifier,
               issueResolutionCache,
+              batchRelationResult,
             )
           ).issue.id
         : relationSpec.targetIssueId;
@@ -2078,6 +2109,24 @@ async function issueUpdateCommand(args, context) {
       : updatedIssue;
 
   if (issue?.id && hasRelationFlags) {
+    // Collect all unique relation identifiers for batch resolution
+    const relationIdentifiers = [
+      ...(options.related ?? []),
+      ...(options.blocks ?? []),
+      ...(options.blockedBy ?? []),
+      ...(options.duplicateOf ?? []),
+    ];
+    const uniqueIdentifiers = [...new Set(relationIdentifiers)];
+    let batchRelationResult = null;
+    if (uniqueIdentifiers.length >= 2) {
+      const parsed = uniqueIdentifiers.map((id) => parseIssueIdentifier(id));
+      batchRelationResult = await fetchIssuesByIdentifiers(
+        client,
+        team,
+        parsed,
+      );
+    }
+
     const relationSpecs = [
       ...(options.related ?? []).map((issueId) => ({
         sourceIssueId: issue.id,
@@ -2110,6 +2159,7 @@ async function issueUpdateCommand(args, context) {
               team,
               relationSpec.sourceIssueIdentifier,
               issueResolutionCache,
+              batchRelationResult,
             )
           ).issue.id
         : relationSpec.sourceIssueId;
@@ -2121,6 +2171,7 @@ async function issueUpdateCommand(args, context) {
               team,
               relationSpec.targetIssueIdentifier,
               issueResolutionCache,
+              batchRelationResult,
             )
           ).issue.id
         : relationSpec.targetIssueId;
@@ -2496,8 +2547,71 @@ async function documentLinkCommand(args, context) {
   if (!options.issues?.length) usageError("Missing --issue <id>.");
 
   const { client } = await resolveLinearContext(context);
+
+  // Batch-resolve issues if there are multiple unique identifiers
+  const uniqueIssueIds = [...new Set(options.issues)];
+  let batchDocResult = null;
+  if (uniqueIssueIds.length >= 2) {
+    // Group identifiers by team key so we can batch per-team
+    const byTeam = new Map();
+    for (const issueId of uniqueIssueIds) {
+      const { teamKey, number } = parseIssueIdentifier(issueId);
+      if (!byTeam.has(teamKey)) byTeam.set(teamKey, []);
+      byTeam.get(teamKey).push({ teamKey, number, originalId: issueId });
+    }
+
+    batchDocResult = new Map();
+    for (const [teamKey, entries] of byTeam) {
+      if (entries.length >= 2) {
+        const { config } = await resolveLinearContext(context);
+        const resolveTeamKey =
+          config.team &&
+          normalizeText(config.team) === normalizeText(teamKey)
+            ? config.team
+            : teamKey;
+        const docTeam = await resolveTeam(client, resolveTeamKey);
+        const parsed = entries.map((e) => ({
+          teamKey: e.teamKey,
+          number: e.number,
+        }));
+        const teamResult = await fetchIssuesByIdentifiers(
+          client,
+          docTeam,
+          parsed,
+        );
+        for (const [key, issue] of teamResult) {
+          batchDocResult.set(key, issue);
+        }
+      }
+    }
+  }
+
   const items = [];
   for (const issueId of options.issues) {
+    // Check batch result first
+    if (batchDocResult?.has(issueId)) {
+      const issue = batchDocResult.get(issueId);
+      if (!issue)
+        runtimeError(`Issue ${issueId} not found.`);
+      const createdAttachment = await resolveAttachmentMutationValue(
+        await createAttachmentWithFallback(client, {
+          issueId: issue.id,
+          title: options.title ?? "Linear document",
+          url,
+        }),
+      );
+      items.push(
+        await serializeAttachment(
+          createdAttachment ?? {
+            issueId: issue.id,
+            title: options.title ?? "Linear document",
+            url,
+          },
+        ),
+      );
+      continue;
+    }
+
     const { issue } = await resolveIssueByIdentifier(context, issueId);
     const createdAttachment = await resolveAttachmentMutationValue(
       await createAttachmentWithFallback(client, {
