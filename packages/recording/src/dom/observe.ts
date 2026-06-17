@@ -239,6 +239,22 @@ export function internal__processMutationRecords(
   const patches: Array<DOMPatch> = []
   const addedNodes = new Set<SyntheticId>()
 
+  if (onShadowRootDiscovered) {
+    walkDOMTree.accept({
+      elementNode(element) {
+        if (element.shadowRoot && element.shadowRoot.mode !== 'closed') {
+          onShadowRootDiscovered(element.shadowRoot)
+        }
+      },
+      textNode() {},
+      shadowRootNode() {},
+      documentNode() {},
+      documentTypeNode() {},
+      documentFragmentNode() {},
+      done() {},
+    })
+  }
+
   for (const record of records) {
     if (isIgnoredByNode(record.target, options.ignoredNodes)) {
       continue
@@ -408,27 +424,6 @@ export function internal__processMutationRecords(
           }
         }
 
-        // Discover and observe shadow roots in newly added elements.
-        // The shadow content is already captured by walkDOMTree(addedNode)
-        // above — do NOT emit a second AddShadowRoot patch here.  We only
-        // need to create a MutationObserver for the shadow root so future
-        // mutations inside the shadow are tracked.
-        if (onShadowRootDiscovered) {
-          const findShadowRoots = (element: Element) => {
-            if (element.shadowRoot && element.shadowRoot.mode !== 'closed') {
-              onShadowRootDiscovered(element.shadowRoot)
-            }
-            for (const child of Array.from(element.children)) {
-              findShadowRoots(child)
-            }
-          }
-          record.addedNodes.forEach(addedNode => {
-            if (addedNode instanceof Element) {
-              findShadowRoots(addedNode)
-            }
-          })
-        }
-
         break
     }
 
@@ -472,19 +467,42 @@ function createMutationObserver(
   const observers: Array<MutationObserver> = []
   let origAttachShadow: typeof Element.prototype.attachShadow | null = null
   const adoptedStyleSheetCleanups = new Set<() => void>()
+  let isProcessingMutations = false
+
+  walkDOMTree.accept({
+    elementNode(element) {
+      if (
+        isProcessingMutations &&
+        element.shadowRoot &&
+        element.shadowRoot.mode !== 'closed'
+      ) {
+        onShadowRootDiscovered(element.shadowRoot)
+      }
+    },
+    textNode() {},
+    shadowRootNode() {},
+    documentNode() {},
+    documentTypeNode() {},
+    documentFragmentNode() {},
+    done() {},
+  })
 
   function createObserverForRoot(root: Node): MutationObserver {
     const observer = new MutationObserver(records => {
       Stats.time(
         'DOMObserver~processMutationRecords',
         () => {
-          internal__processMutationRecords(
-            records,
-            walkDOMTree,
-            options,
-            subscriber,
-            onShadowRootDiscovered
-          )
+          isProcessingMutations = true
+          try {
+            internal__processMutationRecords(
+              records,
+              walkDOMTree,
+              options,
+              subscriber
+            )
+          } finally {
+            isProcessingMutations = false
+          }
         },
         StatsLevel.Debug
       )
