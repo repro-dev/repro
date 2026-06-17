@@ -97,17 +97,41 @@ describe('REP-642 tooling wiring', () => {
     assert.equal(forbidDomProps[0], 'error')
     assert.deepEqual(forbidDomProps[1].forbid, ['style'])
 
-    // Overrides exist and disable rules for excluded files
+    // Two overrides: (1) test/story/token files — all rules off,
+    // (2) design package — only react rules off, design rules enforced.
     assert.ok(
-      oxlintConfig.overrides.length > 0,
-      'at least one override must exist'
+      oxlintConfig.overrides.length >= 2,
+      'at least two overrides must exist'
     )
+
     const exclusionOverride = oxlintConfig.overrides[0]!
     assert.ok(exclusionOverride.files.includes('*.test.tsx'))
     assert.ok(exclusionOverride.files.includes('*.stories.tsx'))
-    assert.ok(exclusionOverride.files.includes('packages/design/src/**'))
+    assert.ok(exclusionOverride.files.includes('packages/design/src/tokens/**'))
     assert.equal(exclusionOverride.rules['react/forbid-elements'], 'off')
     assert.equal(exclusionOverride.rules['react/forbid-dom-props'], 'off')
+
+    const designOverride = oxlintConfig.overrides[1]!
+    assert.ok(designOverride.files.includes('packages/design/src/**'))
+    assert.equal(designOverride.rules['react/forbid-elements'], 'off')
+    assert.equal(designOverride.rules['react/forbid-dom-props'], 'off')
+    // Design rules are NOT disabled for the design package override
+    assert.equal(
+      designOverride.rules['@repro/oxlint-plugin-design/no-hardcoded-color'],
+      undefined
+    )
+    assert.equal(
+      designOverride.rules['@repro/oxlint-plugin-design/no-hardcoded-spacing'],
+      undefined
+    )
+    assert.equal(
+      designOverride.rules['@repro/oxlint-plugin-design/no-raw-palette'],
+      undefined
+    )
+    assert.equal(
+      designOverride.rules['@repro/oxlint-plugin-design/no-classname-prop'],
+      undefined
+    )
   })
 
   it('runs oxlint before the Prettier check in CI', () => {
