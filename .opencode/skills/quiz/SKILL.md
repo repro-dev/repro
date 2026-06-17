@@ -89,7 +89,7 @@ Draw from available source material across these categories. Skip any category w
 - **Multiple-choice** (use `question` tool with `question` + `options`): For concrete details — function names, file paths, specific values, parameter types. Use `multiple: false` for single-select.
 - **Free-text** (print the question, wait for user response): For understanding — design rationale, tradeoff analysis, conceptual understanding.
 - Aim for roughly 60% multiple-choice, 40% free-text, adjusted based on available material.
-- Shuffle the question order before presenting.
+- Shuffle both the question order and the answer options within each multiple-choice question. Never present the correct answer as the first option more than once consecutively.
 
 ## Phase 4 — Quiz loop
 
