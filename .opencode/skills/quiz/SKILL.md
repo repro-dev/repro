@@ -20,9 +20,9 @@ Collect all available evidence about the delivered change before generating ques
 The command may provide an `issueId` (REP-NNN), a `prNumber` (digits), or neither. Determine the mode:
 
 - **Issue mode**: `issueId` provided, or detected from branch name. Use local git + Linear + tmp/ artifacts.
-- **PR mode**: `prNumber` provided. Use `gh` CLI to fetch PR details and diff. tmp/ artifacts are not available locally — skip artifact-dependent categories.
+- **PR mode**: `prNumber` provided (e.g. `#1077` — the `#` is stripped by the command). Use `gh` CLI to fetch PR details and diff. tmp/ artifacts are not available locally — skip artifact-dependent categories.
 
-If neither mode applies (no issue ID, no PR number, and no branch match), ask: "Which issue or PR do you want to quiz on? (e.g., REP-123 or 1234)"
+If neither mode applies (no issue ID, no PR number, and no branch match), ask: "Which issue or PR do you want to quiz on? (e.g., REP-123 or #1234)"
 
 ### 2. Issue mode — gather local context
 
