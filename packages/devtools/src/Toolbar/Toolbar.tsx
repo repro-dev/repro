@@ -3,6 +3,7 @@ import { IfGate } from '@repro/auth'
 import { color } from '@repro/design'
 import { PlaybackNavigation, SimpleTimeline } from '@repro/playback'
 import {
+  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   Maximize2 as EnterFullscreenIcon,
   Minimize2 as ExitFullscreenIcon,
 } from 'lucide-react'
@@ -99,3 +100,4 @@ const FullscreenToggle: React.FC<{
     </Row>
   )
 }
+/* eslint-enable */

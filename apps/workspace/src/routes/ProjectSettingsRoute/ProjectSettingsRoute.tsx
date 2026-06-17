@@ -3,6 +3,7 @@ import { Block, Col, Grid, Row } from '@jsxstyle/react'
 import { useApiClient } from '@repro/api-client'
 import { useSession } from '@repro/auth'
 import {
+  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   Alert,
   Avatar,
   Badge,
@@ -786,3 +787,4 @@ export function ProjectSettingsRouteConnected() {
     />
   )
 }
+/* eslint-enable */

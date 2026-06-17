@@ -1,3 +1,4 @@
+/* eslint-disable @repro/oxlint-plugin-design/no-raw-palette */
 /* eslint-disable react/forbid-dom-props */
 import { colors } from '@repro/design'
 import { isPointOutOfBounds } from '@repro/source-utils'
@@ -282,3 +283,4 @@ export const PointerTrail: React.FC<PointerTrailProps> = ({
     />
   )
 }
+/* eslint-enable */

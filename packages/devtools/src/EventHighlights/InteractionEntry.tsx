@@ -2,6 +2,7 @@ import { Block, Row } from '@jsxstyle/react'
 import { color } from '@repro/design'
 import { Click, InteractionEvent, InteractionType } from '@repro/domain'
 import {
+  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   MousePointerClick as ClickIcon,
   Link2 as LinkIcon,
   Scaling as ViewportResizeIcon,
@@ -117,3 +118,4 @@ function createClickLabel(interaction: Click): React.ReactNode {
     </Row>
   )
 }
+/* eslint-enable */

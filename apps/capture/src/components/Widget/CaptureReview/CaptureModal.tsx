@@ -10,6 +10,7 @@ import { CaptureReview } from './CaptureReview'
 import { CaptureUploadProvider } from './CaptureUploadProvider'
 import { SaveRecordingPopover } from './SaveRecordingPopover'
 import { useRecordingActions } from './useRecordingActions'
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-color, @repro/oxlint-plugin-design/no-hardcoded-spacing */
 
 const DEFAULT_SELECTED_DURATION = 60_000
 
@@ -108,3 +109,4 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
     </CaptureUploadProvider>
   )
 }
+/* eslint-enable */

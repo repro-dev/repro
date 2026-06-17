@@ -1,3 +1,4 @@
+/* eslint-disable @repro/oxlint-plugin-design/no-classname-prop */
 /* eslint-disable react/forbid-elements */
 import { HeroSection } from './HeroSection'
 import routeStyles from './HighIntentRoutePage.module.css'
@@ -131,3 +132,4 @@ export function HomePageContent() {
     </div>
   )
 }
+/* eslint-enable */

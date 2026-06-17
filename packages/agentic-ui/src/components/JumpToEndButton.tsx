@@ -4,6 +4,7 @@ import { color } from '@repro/design'
 import { ArrowDownIcon } from 'lucide-react'
 import React from 'react'
 import {
+  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   GUTTER_PX,
   INPUT_CONTAINER_OFFSET_PX,
   LOADING_CONTAINER_OFFSET_PX,
@@ -48,3 +49,4 @@ export const JumpToEndButton: React.FC<JumpToEndButtonProps> = ({
     </Block>
   )
 }
+/* eslint-enable */

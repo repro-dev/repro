@@ -2,6 +2,7 @@ import { Block } from '@jsxstyle/react'
 import { color, colors } from '@repro/design'
 import React from 'react'
 import { JSONView } from '../JSONView/JSONView'
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing, @repro/oxlint-plugin-design/no-raw-palette */
 
 interface Props {
   state: Record<string, unknown>
@@ -32,3 +33,4 @@ export const StateTreePane: React.FC<Props> = ({ state }) => {
     </Block>
   )
 }
+/* eslint-enable */

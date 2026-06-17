@@ -4,6 +4,7 @@ import { color, Tooltip, transition } from '@repro/design'
 import { SourceEventType, SourceEventView, StateEventType } from '@repro/domain'
 import { usePlayback } from '@repro/playback'
 import {
+  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   AlertTriangle as ConsoleIcon,
   Code as ElementsIcon,
   Globe as NetworkIcon,
@@ -167,3 +168,4 @@ const Item: React.FC<ItemProps> = ({ disabled, icon, label, view }) => {
     </Row>
   )
 }
+/* eslint-enable */

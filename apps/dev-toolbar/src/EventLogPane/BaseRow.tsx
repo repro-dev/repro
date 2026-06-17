@@ -6,6 +6,7 @@ import { Unboxed, isLens, unwrapLens } from '@repro/tdl'
 import prettyBytes from 'pretty-bytes'
 import React from 'react'
 import { useSelectedEvent } from '~/hooks'
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 
 interface Props {
   event: Unboxed<any>
@@ -63,3 +64,4 @@ export const BaseRow: React.FC<React.PropsWithChildren<Props>> = ({
     </Row>
   )
 }
+/* eslint-enable */

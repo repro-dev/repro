@@ -3,6 +3,7 @@ import { color } from '@repro/design'
 import { usePlayback } from '@repro/playback'
 import { SkipForward } from 'lucide-react'
 import React, { useCallback } from 'react'
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 
 interface Props {
   eventIndex: number
@@ -35,3 +36,4 @@ export const SeekAction: React.FC<Props> = ({ eventIndex }) => {
     </Row>
   )
 }
+/* eslint-enable */

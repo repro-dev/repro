@@ -4,6 +4,7 @@ import { LogLevel } from '@repro/domain'
 import { CheckCircle, Circle } from 'lucide-react'
 import React from 'react'
 import { enumToBitField } from './util'
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 
 interface Props {
   value: number
@@ -93,3 +94,4 @@ const Toggle: React.FC<React.PropsWithChildren<ToggleProps>> = ({
     </Row>
   )
 }
+/* eslint-enable */

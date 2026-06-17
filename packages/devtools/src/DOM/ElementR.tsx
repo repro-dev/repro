@@ -4,6 +4,7 @@ import { VElement } from '@repro/domain'
 import React, { Fragment } from 'react'
 import { FONT_SIZE } from './constants'
 import { Container } from './Container'
+/* eslint-disable @repro/oxlint-plugin-design/no-raw-palette */
 
 interface Props {
   node: VElement
@@ -57,3 +58,4 @@ const Attribute: React.FC<{ name: string; value?: string }> = ({
     )}
   </Inline>
 )
+/* eslint-enable */

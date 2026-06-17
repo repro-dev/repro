@@ -1,6 +1,7 @@
 import { Block } from '@jsxstyle/react'
 import React, { PropsWithChildren } from 'react'
 import { JSONView } from '../../JSONView'
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 
 interface Props {
   body: ArrayBuffer
@@ -48,3 +49,4 @@ const Container: React.FC<PropsWithChildren> = ({ children }) => (
     {children}
   </Block>
 )
+/* eslint-enable */

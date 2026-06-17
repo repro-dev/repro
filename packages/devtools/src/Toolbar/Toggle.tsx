@@ -3,6 +3,7 @@ import { color, transition } from '@repro/design'
 import { ChevronDownIcon, ChevronUpIcon } from 'lucide-react'
 import React from 'react'
 import { useInspecting } from '../hooks'
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 
 export const Toggle: React.FC = () => {
   const [inspecting, setInspecting] = useInspecting()
@@ -31,3 +32,4 @@ export const Toggle: React.FC = () => {
     </Row>
   )
 }
+/* eslint-enable */

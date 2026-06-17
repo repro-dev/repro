@@ -2,6 +2,7 @@ import { Block, Row } from '@jsxstyle/react'
 import { Button, color } from '@repro/design'
 import { DevTools } from '@repro/devtools'
 import {
+  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   PlaybackProvider,
   RangeTimeline,
   createSourcePlayback,
@@ -105,3 +106,4 @@ export const InstantReplayPane: React.FC = () => {
     </PlaybackProvider>
   )
 }
+/* eslint-enable */

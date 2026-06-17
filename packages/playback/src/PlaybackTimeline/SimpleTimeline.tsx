@@ -5,6 +5,7 @@ import { color } from '@repro/design'
 import React, { useEffect, useRef } from 'react'
 import { NEVER, Observable, Subscription, combineLatest, fromEvent } from 'rxjs'
 import {
+  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   distinctUntilChanged,
   map,
   startWith,
@@ -460,3 +461,4 @@ function showTooltip(target: HTMLElement) {
 function hideTooltip(target: HTMLElement) {
   target.style.display = 'none'
 }
+/* eslint-enable */

@@ -6,6 +6,7 @@ import { AlertCircle, AlertTriangle } from 'lucide-react'
 import React from 'react'
 import { SeekAction } from '../SeekAction'
 import { PartRenderer } from './PartRenderer'
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing, @repro/oxlint-plugin-design/no-raw-palette */
 
 const bgColors = {
   [LogLevel.Error]: colors.rose['100'],
@@ -86,3 +87,4 @@ const StackReference: React.FC<StackReferenceProps> = ({ entry }) => (
     {entry.fileName}:{entry.lineNumber}
   </InlineBlock>
 )
+/* eslint-enable */

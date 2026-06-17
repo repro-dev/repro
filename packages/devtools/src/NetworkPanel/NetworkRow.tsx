@@ -4,6 +4,7 @@ import { color } from '@repro/design'
 import { RequestType } from '@repro/domain'
 import { FetchGroup, WebSocketGroup } from '@repro/source-utils'
 import prettyBytes from 'pretty-bytes'
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 // FIXME: Re-export `JsxstyleProps`
 // @ts-expect-error Cannot find declaration in npm-forks
 import { JsxstyleProps } from 'jsxstyle/lib/types'
@@ -165,3 +166,4 @@ const Cell: React.FC<React.PropsWithChildren<JsxstyleProps<false>>> = ({
     {children}
   </Row>
 )
+/* eslint-enable */

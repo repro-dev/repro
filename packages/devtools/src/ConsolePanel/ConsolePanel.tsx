@@ -12,6 +12,7 @@ import { ConsoleRow } from './ConsoleRow'
 import { LevelFilter } from './LevelFilter'
 import { SearchForm } from './SearchForm'
 import { enumToBitField } from './util'
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 
 export const ConsolePanel: React.FC = () => {
   const playback = usePlayback()
@@ -145,3 +146,4 @@ export const ConsolePanel: React.FC = () => {
     </Grid>
   )
 }
+/* eslint-enable */

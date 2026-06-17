@@ -1,6 +1,7 @@
 import { Block } from '@jsxstyle/react'
 import { color } from '@repro/design'
 import React from 'react'
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 
 interface Props {
   active: boolean
@@ -20,3 +21,4 @@ export const Tab: React.FC<Props> = ({ active, label, onClick }) => (
     {label}
   </Block>
 )
+/* eslint-enable */

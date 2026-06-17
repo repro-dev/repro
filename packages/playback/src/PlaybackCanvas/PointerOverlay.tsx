@@ -3,6 +3,7 @@ import { colors } from '@repro/design'
 import { PointerState } from '@repro/domain'
 import React from 'react'
 import { usePointer, usePointerState } from '../hooks'
+/* eslint-disable @repro/oxlint-plugin-design/no-raw-palette */
 
 const Cursor: React.FC<{ color: string; size?: number }> = ({
   color,
@@ -73,3 +74,4 @@ export const PointerOverlay: React.FC = () => {
     </Block>
   )
 }
+/* eslint-enable */

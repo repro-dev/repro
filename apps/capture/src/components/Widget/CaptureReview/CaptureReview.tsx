@@ -10,6 +10,7 @@ import { ProgressOverlay } from '../ReportForm/ProgressOverlay'
 import { AgenticSection } from './AgenticSection'
 import { useCaptureUpload } from './CaptureUploadProvider'
 import { RecordingActions } from './useRecordingActions'
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 
 const DEFAULT_SELECTED_DURATION = 60_000
 
@@ -104,3 +105,4 @@ export const CaptureReview: React.FC<CaptureReviewProps> = ({
     </PlaybackProvider>
   )
 }
+/* eslint-enable */

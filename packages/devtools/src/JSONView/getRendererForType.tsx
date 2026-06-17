@@ -7,6 +7,7 @@ import { NumberRenderer } from './NumberRenderer'
 import { ObjectRenderer } from './ObjectRenderer'
 import { StringRenderer } from './StringRenderer'
 import { UndefinedRenderer } from './UndefinedRenderer'
+/* eslint-disable @repro/oxlint-plugin-design/no-raw-palette */
 
 export function getRendererForType(
   objectKey: string | null,
@@ -47,3 +48,4 @@ export function getRendererForType(
     )
   }
 }
+/* eslint-enable */

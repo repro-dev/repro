@@ -3,6 +3,7 @@ import { colors, DefinitionList } from '@repro/design'
 import { FetchGroup } from '@repro/source-utils'
 import { getReasonPhrase } from 'http-status-codes'
 import React from 'react'
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing, @repro/oxlint-plugin-design/no-raw-palette */
 
 interface Props {
   group: FetchGroup
@@ -79,3 +80,4 @@ export const Headers: React.FC<Props> = ({ group }) => {
     </Grid>
   )
 }
+/* eslint-enable */

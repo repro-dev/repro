@@ -15,6 +15,7 @@ import { NetworkRow } from './NetworkRow'
 import { PerformanceRow } from './PerformanceRow'
 import { LogItem } from './types'
 import { collapseItemsIntoGroups, unpackFirstEvent } from './utils'
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 
 const ItemRow: React.FC<ListChildComponentProps<LogItem[]>> = ({
   index,
@@ -144,3 +145,4 @@ export const EventLogPane: React.FC = () => {
     </Grid>
   )
 }
+/* eslint-enable */

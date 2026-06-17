@@ -1,6 +1,7 @@
 import { Row } from '@jsxstyle/react'
 import { color, colors } from '@repro/design'
 import React from 'react'
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing, @repro/oxlint-plugin-design/no-raw-palette */
 
 interface ButtonProps {
   active?: boolean
@@ -42,3 +43,4 @@ export const Button: React.FC<ButtonProps & { children?: React.ReactNode }> = ({
     {children}
   </Row>
 )
+/* eslint-enable */

@@ -5,6 +5,7 @@ import { ReduxDispatchEvent } from '@repro/domain'
 import { usePlayback } from '@repro/playback'
 import React, { useState } from 'react'
 import { JSONView } from '../JSONView/JSONView'
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing, @repro/oxlint-plugin-design/no-raw-palette */
 
 interface Props {
   event: ReduxDispatchEvent
@@ -117,3 +118,4 @@ export const ActionRow: React.FC<Props> = ({
     </Block>
   )
 }
+/* eslint-enable */

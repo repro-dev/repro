@@ -1,6 +1,7 @@
 import { Col, Row } from '@jsxstyle/react'
 import { ApiClient, useApiClient } from '@repro/api-client'
 import {
+  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   Alert,
   Button,
   Card,
@@ -267,3 +268,4 @@ export function BillingSettingsRoute({
 export function BillingSettingsRouteConnected() {
   return <BillingSettingsRoute />
 }
+/* eslint-enable */

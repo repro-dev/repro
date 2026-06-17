@@ -7,6 +7,7 @@ import { Body } from './Body'
 import { Headers } from './Headers'
 import { Messages } from './Messages'
 import { Tab } from './Tab'
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 
 interface Props {
   group: FetchGroup | WebSocketGroup
@@ -137,3 +138,4 @@ export const DetailsOverlay: React.FC<Props> = ({ group, onClose }) => {
     </Grid>
   )
 }
+/* eslint-enable */

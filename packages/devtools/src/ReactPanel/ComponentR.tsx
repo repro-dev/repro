@@ -3,6 +3,7 @@ import { color, colors } from '@repro/design'
 import { ReactComponentNode } from '@repro/domain'
 import React from 'react'
 import { Container } from '../DOM/Container'
+/* eslint-disable @repro/oxlint-plugin-design/no-raw-palette */
 
 interface Props {
   node: ReactComponentNode
@@ -40,3 +41,4 @@ const ComponentName: React.FC<{ children?: React.ReactNode }> = ({
     {children}
   </Inline>
 )
+/* eslint-enable */

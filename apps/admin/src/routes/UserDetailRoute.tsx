@@ -1,6 +1,7 @@
 import { Block, Col, Grid } from '@jsxstyle/react'
 import { useApiClient } from '@repro/api-client'
 import {
+  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   Alert,
   Breadcrumbs,
   Button,
@@ -386,3 +387,4 @@ export const UserDetailRoute: React.FC = () => {
     </PageFrame>
   )
 }
+/* eslint-enable */

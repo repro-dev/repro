@@ -2,6 +2,7 @@ import { Block, Grid } from '@jsxstyle/react'
 import { useAtomValue } from '@repro/atom'
 import { color } from '@repro/design'
 import {
+  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   ReduxDispatchEvent,
   SourceEventType,
   SourceEventView,
@@ -126,3 +127,4 @@ export const ReduxPanel: React.FC = () => {
     </Grid>
   )
 }
+/* eslint-enable */

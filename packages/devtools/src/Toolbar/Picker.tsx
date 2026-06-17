@@ -3,6 +3,7 @@ import { color, colors, Tooltip, transition } from '@repro/design'
 import { Inspect as PickerIcon } from 'lucide-react'
 import React, { useCallback, useEffect } from 'react'
 import { useElementPicker, useInspecting } from '../hooks'
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing, @repro/oxlint-plugin-design/no-raw-palette */
 
 export const Picker: React.FC = () => {
   const [picker, setPicker] = useElementPicker()
@@ -40,3 +41,4 @@ export const Picker: React.FC = () => {
     </Row>
   )
 }
+/* eslint-enable */

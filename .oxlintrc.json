@@ -16,10 +16,10 @@
   "rules": {
     "react/forbid-elements": ["error", { "forbid": ["div", "span"] }],
     "react/forbid-dom-props": ["error", { "forbid": ["style"] }],
-    "@repro/oxlint-plugin-design/no-hardcoded-color": "warn",
-    "@repro/oxlint-plugin-design/no-hardcoded-spacing": "warn",
-    "@repro/oxlint-plugin-design/no-raw-palette": "warn",
-    "@repro/oxlint-plugin-design/no-classname-prop": "warn"
+    "@repro/oxlint-plugin-design/no-hardcoded-color": "error",
+    "@repro/oxlint-plugin-design/no-hardcoded-spacing": "error",
+    "@repro/oxlint-plugin-design/no-raw-palette": "error",
+    "@repro/oxlint-plugin-design/no-classname-prop": "error"
   },
   "overrides": [
     {
@@ -33,7 +33,11 @@
       ],
       "rules": {
         "react/forbid-elements": "off",
-        "react/forbid-dom-props": "off"
+        "react/forbid-dom-props": "off",
+        "@repro/oxlint-plugin-design/no-hardcoded-color": "off",
+        "@repro/oxlint-plugin-design/no-hardcoded-spacing": "off",
+        "@repro/oxlint-plugin-design/no-raw-palette": "off",
+        "@repro/oxlint-plugin-design/no-classname-prop": "off"
       }
     }
   ]

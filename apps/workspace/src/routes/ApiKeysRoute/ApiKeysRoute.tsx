@@ -1,6 +1,7 @@
 import { Block, Col, Row } from '@jsxstyle/react'
 import { useApiClient } from '@repro/api-client'
 import {
+  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   Alert,
   Button,
   Card,
@@ -392,3 +393,4 @@ export const ApiKeysRoute: React.FC = () => {
     </PageFrame>
   )
 }
+/* eslint-enable */

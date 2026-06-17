@@ -1,3 +1,4 @@
+/* eslint-disable @repro/oxlint-plugin-design/no-classname-prop */
 'use client'
 /* eslint-disable react/forbid-elements */
 
@@ -166,3 +167,4 @@ export function Header() {
     </header>
   )
 }
+/* eslint-enable */

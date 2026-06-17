@@ -3,6 +3,7 @@ import { color, colors } from '@repro/design'
 import { ReactComponentNode } from '@repro/domain'
 import React from 'react'
 import { JSONView } from '../JSONView/JSONView'
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing, @repro/oxlint-plugin-design/no-raw-palette */
 
 interface Props {
   node: ReactComponentNode | null
@@ -41,3 +42,4 @@ export const ComponentPropsPanel: React.FC<Props> = ({ node }) => {
     </Block>
   )
 }
+/* eslint-enable */

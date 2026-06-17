@@ -1,6 +1,7 @@
 import { Block } from '@jsxstyle/react'
 import { NodeId, NodeType, SyntheticId, VTree } from '@repro/domain'
 import React, {
+  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   MutableRefObject,
   useCallback,
   useEffect,
@@ -212,3 +213,4 @@ export const ElementTree: React.FC<Props> = ({
     </NodeStateContext.Provider>
   )
 }
+/* eslint-enable */

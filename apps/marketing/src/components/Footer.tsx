@@ -1,6 +1,7 @@
 import footerStyles from './Footer.module.css'
 import { footerGroups } from './marketingShell'
 import sharedStyles from './MarketingShell.module.css'
+/* eslint-disable @repro/oxlint-plugin-design/no-classname-prop */
 
 const cx = (...classes: Array<string | undefined>) =>
   classes.filter(Boolean).join(' ')
@@ -59,3 +60,4 @@ export function Footer() {
     </footer>
   )
 }
+/* eslint-enable */

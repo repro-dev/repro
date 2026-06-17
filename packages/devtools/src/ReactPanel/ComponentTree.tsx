@@ -4,6 +4,7 @@ import React, { useMemo, useState } from 'react'
 import { TreeRowBase } from '../ElementTree'
 import { ComponentR } from './ComponentR'
 import { ComponentTreeRow } from './ComponentTreeRow'
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 
 interface Props {
   nodes: Map<number, ReactComponentNode>
@@ -102,3 +103,4 @@ export const ComponentTree: React.FC<Props> = ({
 
   return <Block>{roots.map(root => renderNode(root.fiberNodeId, 0))}</Block>
 }
+/* eslint-enable */

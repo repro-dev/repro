@@ -5,6 +5,7 @@ import { ChevronDown, ChevronRight } from 'lucide-react'
 import React from 'react'
 import { TreeRowBase } from '../ElementTree'
 import { ComponentR } from './ComponentR'
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing, @repro/oxlint-plugin-design/no-raw-palette */
 
 interface Props {
   node: ReactComponentNode
@@ -54,3 +55,4 @@ export const ComponentTreeRow: React.FC<Props> = ({
     </TreeRowBase>
   )
 }
+/* eslint-enable */

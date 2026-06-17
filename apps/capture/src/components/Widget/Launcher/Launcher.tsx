@@ -5,6 +5,7 @@ import { RecordingMode } from '@repro/domain'
 import { XIcon } from 'lucide-react'
 import React from 'react'
 import { ReadyState, useReadyState, useRecordingMode } from '~/state'
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing, @repro/oxlint-plugin-design/no-raw-palette */
 
 interface DevBadgeProps {
   branch: string
@@ -123,3 +124,4 @@ export const Launcher: React.FC = () => {
     </Row>
   )
 }
+/* eslint-enable */

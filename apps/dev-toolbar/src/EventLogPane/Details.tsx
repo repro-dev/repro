@@ -4,6 +4,7 @@ import { Button, color } from '@repro/design'
 import { JSONView } from '@repro/devtools'
 import { SourceEventType } from '@repro/domain'
 import {
+  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   createSourcePlayback,
   EMPTY_PLAYBACK,
   PlaybackCanvas,
@@ -114,3 +115,4 @@ export const Details: React.FC = () => {
     </Grid>
   )
 }
+/* eslint-enable */
