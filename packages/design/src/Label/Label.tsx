@@ -20,7 +20,7 @@ const defaultIcon = null
 const labelFontSizes: Record<SizeVariant, number> = {
   small: fontSize.xs,
   medium: fontSize.sm,
-  large: fontSize.base,
+  large: fontSize.md,
 }
 
 const requiredIconSizes: Record<SizeVariant, number> = {

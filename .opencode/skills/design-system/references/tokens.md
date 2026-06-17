@@ -72,11 +72,11 @@ The raw `colors` palette (Tailwind) is available for product-specific edge cases
 | `textStyles.display` | 32 | 700 | 1.25 | sans-serif |
 | `textStyles.heading1` | 24 | 700 | 1.25 | sans-serif |
 | `textStyles.heading2` | 20 | 600 | 1.25 | sans-serif |
-| `textStyles.heading3` | 14 | 600 | 1.25 | sans-serif |
-| `textStyles.heading4` | 13 | 600 | 1.25 | sans-serif |
+| `textStyles.heading3` | 18 | 600 | 1.25 | sans-serif |
+| `textStyles.heading4` | 14 | 600 | 1.25 | sans-serif |
 | `textStyles.heading5` | 12 | 600 | 1.25 | sans-serif |
 | `textStyles.heading6` | 11 | 600 | 1.25 | sans-serif |
-| `textStyles.body` | 13 | 400 | 1.5 | sans-serif |
+| `textStyles.body` | 14 | 400 | 1.5 | sans-serif |
 | `textStyles.bodySmall` | 12 | 400 | 1.5 | sans-serif |
 | `textStyles.caption` | 11 | 400 | 1.5 | sans-serif |
 | `textStyles.label` | 12 | 600 | 1 | sans-serif |
@@ -89,7 +89,7 @@ Spread presets onto jsxstyle components: `<Block {...textStyles.body}>`.
 
 | Scale | Tokens |
 |-------|--------|
-| `fontSize` | `xs` (11), `sm` (12), `base` (13), `md` (14), `lg` (20), `xl` (24), `2xl` (32) |
+| `fontSize` | `xs` (11), `sm` (12), `md` (14), `lg` (18), `xl` (20), `2xl` (24), `3xl` (32) |
 | `fontWeight` | `normal` (400), `semibold` (600), `bold` (700) |
 | `lineHeight` | `none` (0), `tight` (1), `normal` (1.25), `relaxed` (1.5) |
 | `fontFamily` | `sans` (sans-serif), `mono` (monospace) |
