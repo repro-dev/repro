@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc",
     "fmt": "prettier --write src",
-    "test": "tsx --experimental-test-module-mocks --test --test-timeout=30000 --test-force-exit src/__tests__/*.test.ts",
+    "test": "tsx --test --test-timeout=30000 --test-force-exit src/__tests__/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "license": "UNLICENSED",

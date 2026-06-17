@@ -55,6 +55,34 @@ describe('no-raw-palette', () => {
     assert.strictEqual(reports[0]?.messageId, 'rawPalette')
   })
 
+  it('reports colors.blue[700] when colors is imported with an alias', () => {
+    const { context, reports } = createMockContext('/app/src/SomeComponent.tsx')
+    const visitor = noRawPalette.create(context)
+
+    // import { colors as palette } from '@repro/design'
+    visitor.ImportDeclaration?.({
+      type: 'ImportDeclaration',
+      specifiers: [
+        {
+          type: 'ImportSpecifier',
+          imported: { type: 'Identifier', name: 'colors' },
+          local: { type: 'Identifier', name: 'palette' },
+        },
+      ],
+      source: { type: 'Literal', value: '@repro/design' },
+    })
+
+    // palette.blue[700]
+    visitor.MemberExpression?.({
+      type: 'MemberExpression',
+      object: { type: 'Identifier', name: 'palette' },
+      property: { type: 'Literal', value: 700 },
+    })
+
+    assert.strictEqual(reports.length, 1)
+    assert.strictEqual(reports[0]?.messageId, 'rawPalette')
+  })
+
   it('does not report color.primary usage', () => {
     const { context, reports } = createMockContext('/app/src/SomeComponent.tsx')
     const visitor = noRawPalette.create(context)

@@ -44,7 +44,7 @@ export const noRawPalette: RuleModule = {
       return {}
     }
 
-    let hasColorsImport = false
+    let colorsLocalName: string | null = null
 
     return {
       ImportDeclaration(node: any) {
@@ -59,19 +59,19 @@ export const noRawPalette: RuleModule = {
               specifier.imported &&
               specifier.imported.name === 'colors'
             ) {
-              hasColorsImport = true
+              colorsLocalName = specifier.local?.name ?? 'colors'
               return
             }
           }
         }
       },
       MemberExpression(node: any) {
-        if (!hasColorsImport) return
+        if (!colorsLocalName) return
 
         if (
           node.object &&
           node.object.type === 'Identifier' &&
-          node.object.name === 'colors'
+          node.object.name === colorsLocalName
         ) {
           const propertyName = getPropertyName(node.property)
           context.report({
