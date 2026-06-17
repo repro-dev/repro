@@ -1,8 +1,7 @@
 import { Inline } from '@jsxstyle/react'
-import { color } from '@repro/design'
+import { color, fontSize } from '@repro/design'
 import { VElement } from '@repro/domain'
 import React, { Fragment } from 'react'
-import { FONT_SIZE } from './constants'
 import { Container } from './Container'
 
 interface Props {
@@ -45,7 +44,7 @@ const Attribute: React.FC<{ name: string; value?: string }> = ({
   name,
   value,
 }) => (
-  <Inline marginLeft={FONT_SIZE / 2}>
+  <Inline marginLeft={fontSize.xs / 2}>
     <Inline color={color.warning}>{name}</Inline>
 
     {value && (

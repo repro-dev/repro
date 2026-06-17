@@ -12,6 +12,7 @@ import {
   Stack,
   Text,
   color,
+  lineHeight,
   radius,
   spacing,
   textStyles,
@@ -208,9 +209,9 @@ export function RecordingPrivacySettingsRoute({
                       disabled={saving || saved || !hasUnsavedChanges}
                     >
                       {saving ? (
-                        /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing -- lineHeight=0 for icon-only layout */
+                        /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
                         <InlineBlock
-                          lineHeight={0}
+                          lineHeight={lineHeight.none}
                           animation={{
                             from: { transform: 'rotate(0deg)' },
                             to: { transform: 'rotate(360deg)' },

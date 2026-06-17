@@ -20,7 +20,7 @@ export const HomeRoute: React.FC = () => {
         {result.data.items.map(recording => (
           <Block
             key={recording.id}
-            fontSize={fontSize.base}
+            fontSize={fontSize.md}
             lineHeight={lineHeight.relaxed}
           >
             <Link to={`/recordings/${recording.id}`}>{recording.title}</Link>

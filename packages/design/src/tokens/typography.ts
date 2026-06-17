@@ -19,24 +19,26 @@
 
 /**
  * Font size scale in px.
- * 15 (body) and 16 (UI/headings) are intentionally kept separate — they map
- * to distinct use cases despite the 1px difference.
+ * md (14px) is the primary body text. Steps are intentional:
+ * 11 (xs) → 12 (sm) → 14 (md) → 18 (lg) → 20 (xl) → 24 (2xl) → 32 (3xl).
+ * The gap between md and lg reflects the transition from UI/badge sizes
+ * to heading sizes.
  */
 export const fontSize = {
-  /** 11px — captions, timestamps */
+  /** 11px — captions, timestamps, minimal UI */
   xs: 11,
-  /** 13px — secondary body, labels, code */
-  sm: 13,
-  /** 15px — primary body text */
-  base: 15,
-  /** 16px — heading3 / small UI text */
-  md: 16,
+  /** 12px — small UI text, labels, secondary body */
+  sm: 12,
+  /** 14px — primary body text */
+  md: 14,
+  /** 18px — bridge heading, heading3 */
+  lg: 18,
   /** 20px — heading2 */
-  lg: 20,
+  xl: 20,
   /** 24px — heading1 */
-  xl: 24,
+  '2xl': 24,
   /** 32px — display / page titles */
-  '2xl': 32,
+  '3xl': 32,
 } as const
 
 export type FontSizeToken = keyof typeof fontSize
@@ -61,6 +63,8 @@ export type FontWeightValue = (typeof fontWeight)[FontWeightToken]
 // ---------------------------------------------------------------------------
 
 export const lineHeight = {
+  /** 0 — icon-only alignment */
+  none: 0,
   /** 1 — single-line UI labels, badges */
   tight: 1,
   /** 1.25 — headings */
@@ -97,31 +101,31 @@ export type FontFamilyValue = (typeof fontFamily)[FontFamilyToken]
  */
 export const textStyles = {
   display: {
-    fontSize: fontSize['2xl'],
+    fontSize: fontSize['3xl'],
     fontWeight: fontWeight.bold,
     lineHeight: lineHeight.normal,
     fontFamily: fontFamily.sans,
   },
   heading1: {
-    fontSize: fontSize.xl,
+    fontSize: fontSize['2xl'],
     fontWeight: fontWeight.bold,
     lineHeight: lineHeight.normal,
     fontFamily: fontFamily.sans,
   },
   heading2: {
-    fontSize: fontSize.lg,
+    fontSize: fontSize.xl,
     fontWeight: fontWeight.semibold,
     lineHeight: lineHeight.normal,
     fontFamily: fontFamily.sans,
   },
   heading3: {
-    fontSize: fontSize.md,
+    fontSize: fontSize.lg,
     fontWeight: fontWeight.semibold,
     lineHeight: lineHeight.normal,
     fontFamily: fontFamily.sans,
   },
   heading4: {
-    fontSize: fontSize.base,
+    fontSize: fontSize.md,
     fontWeight: fontWeight.semibold,
     lineHeight: lineHeight.normal,
     fontFamily: fontFamily.sans,
@@ -139,7 +143,7 @@ export const textStyles = {
     fontFamily: fontFamily.sans,
   },
   body: {
-    fontSize: fontSize.base,
+    fontSize: fontSize.md,
     fontWeight: fontWeight.normal,
     lineHeight: lineHeight.relaxed,
     fontFamily: fontFamily.sans,

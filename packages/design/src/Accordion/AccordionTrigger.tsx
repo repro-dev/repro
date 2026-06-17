@@ -6,7 +6,7 @@ import { color } from '../tokens/colors'
 import { focusRing } from '../tokens/interaction'
 import { transition } from '../tokens/motion'
 import { spacing } from '../tokens/spacing'
-import { textStyles } from '../tokens/typography'
+import { lineHeight, textStyles } from '../tokens/typography'
 import { useAccordionContext } from './AccordionContext'
 import { useAccordionItemContext } from './AccordionItemContext'
 
@@ -87,7 +87,7 @@ export const AccordionTrigger = forwardRef<
       <Block {...textStyles.label}>{children}</Block>
       <Block
         aria-hidden="true"
-        lineHeight={0}
+        lineHeight={lineHeight.none}
         transform={isOpen ? 'rotate(180deg)' : 'rotate(0deg)'}
         transition={transition.transform}
         color={disabled ? color.text.muted : color.text.secondary}

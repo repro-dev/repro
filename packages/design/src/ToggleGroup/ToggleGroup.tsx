@@ -136,7 +136,10 @@ const Toggle: React.FC<ToggleProps> = ({ active, label, onClick }) => (
     }}
     {...focusRing()}
   >
-    <Block lineHeight={0} color={active ? color.text.inverse : color.primary}>
+    <Block
+      lineHeight={lineHeight.none}
+      color={active ? color.text.inverse : color.primary}
+    >
       {active ? <CheckCircle size={14} /> : <Circle size={14} />}
     </Block>
 

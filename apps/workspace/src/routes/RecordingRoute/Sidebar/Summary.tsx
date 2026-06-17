@@ -103,7 +103,7 @@ export const Summary: React.FC<Props> = ({ info }) => {
               <Block
                 component="a"
                 marginTop={spacing['2xl']}
-                fontSize={fontSize.base}
+                fontSize={fontSize.md}
                 textDecoration="underline"
                 color={color.primary}
                 cursor="pointer"
@@ -114,7 +114,7 @@ export const Summary: React.FC<Props> = ({ info }) => {
 
               <Block
                 marginTop={spacing.lg}
-                fontSize={fontSize.base}
+                fontSize={fontSize.md}
                 lineHeight={lineHeight.normal}
                 color={color.text.secondary}
               >

@@ -104,7 +104,7 @@ export const ProgressOverlay: React.FC<Props> = ({
                 <Row
                   gap={spacing.sm}
                   alignItems="center"
-                  fontSize={fontSize.base}
+                  fontSize={fontSize.md}
                   marginTop={spacing.lg}
                 >
                   {progress.error.message}
