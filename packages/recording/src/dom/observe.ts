@@ -55,6 +55,7 @@ function createInputObserver(
   subscriber: (patch: DOMPatch) => void,
   options: RecordingOptions
 ): ObserverLike<Document> {
+  const observedDocs = new Set<Document>()
   let prevChangeMap = new WeakMap<EventTarget, string>()
   let prevCheckedMap = new WeakMap<EventTarget, boolean>()
   let prevSelectedIndexMap = new WeakMap<EventTarget, number>()
@@ -184,6 +185,8 @@ function createInputObserver(
 
   return {
     disconnect() {
+      observedDocs.clear()
+
       propertyOverrides.forEach(([obj, name], i) => {
         const descriptor = originalPropertyDescriptors[i]
 
@@ -204,6 +207,8 @@ function createInputObserver(
     },
 
     observe(doc, vtree) {
+      if (observedDocs.has(doc)) return
+      observedDocs.add(doc)
       // TODO: make vtree available to enclosing scope
       // changeObserver.observe(doc, vtree)
       inputObserver.observe(doc, vtree)
@@ -467,6 +472,7 @@ function createMutationObserver(
   const observers: Array<MutationObserver> = []
   let origAttachShadow: typeof Element.prototype.attachShadow | null = null
   const adoptedStyleSheetCleanups = new Set<() => void>()
+  const observedDocs = new Set<Document>()
   let isProcessingMutations = false
 
   walkDOMTree.accept({
@@ -612,9 +618,13 @@ function createMutationObserver(
         cleanup()
       }
       adoptedStyleSheetCleanups.clear()
+      observedDocs.clear()
     },
 
     observe(doc) {
+      if (observedDocs.has(doc)) return
+      observedDocs.add(doc)
+
       if (origAttachShadow === null) {
         origAttachShadow = Element.prototype.attachShadow
 
@@ -647,10 +657,6 @@ function createMutationObserver(
 
           return shadowRoot
         }
-      } else {
-        console.warn(
-          'MutationObserver.observe() called while already observing shadow roots. Skipping attachShadow monkey-patch reinstall.'
-        )
       }
 
       createObserverForRoot(doc)
@@ -906,35 +912,56 @@ function createStyleSheetObserver(
           win.CSSStyleSheet.prototype.replace = replace
         }
       }
+
+      targets.clear()
     },
 
     observe(doc, vtree) {
       const win = doc.defaultView
 
-      if (win) {
-        targets.add(win)
+      if (!win || targets.has(win)) return
+      targets.add(win)
 
-        win.CSSStyleSheet.prototype.insertRule = function (this, ...args) {
-          const resultIndex = insertRule.call(this, ...args)
-          insertRuleEffect(vtree, this, ...args)
-          emitInsertRulePatch(subscriber, this, resultIndex)
-          return resultIndex
+      win.CSSStyleSheet.prototype.insertRule = function (this, ...args) {
+        const resultIndex = insertRule.call(this, ...args)
+        insertRuleEffect(vtree, this, ...args)
+        emitInsertRulePatch(subscriber, this, resultIndex)
+        return resultIndex
+      }
+
+      win.CSSStyleSheet.prototype.deleteRule = function (this, ...args) {
+        const index = args[0] ?? 0
+        emitDeleteRulePatch(subscriber, this, index)
+        deleteRuleEffect(vtree, this, ...args)
+        return deleteRule.call(this, ...args)
+      }
+
+      if (replaceSync) {
+        win.CSSStyleSheet.prototype.replaceSync = function (
+          this: CSSStyleSheet,
+          text: string
+        ) {
+          const stylesheetId = getStyleSheetId(this)
+          replaceSync!.call(this, text)
+          subscriber(
+            new Box({
+              type: PatchType.StyleSheetMutation,
+              stylesheetId,
+              insertedRules: null,
+              deletedRuleIndex: null,
+              replaceText: text,
+            })
+          )
         }
+      }
 
-        win.CSSStyleSheet.prototype.deleteRule = function (this, ...args) {
-          const index = args[0] ?? 0
-          emitDeleteRulePatch(subscriber, this, index)
-          deleteRuleEffect(vtree, this, ...args)
-          return deleteRule.call(this, ...args)
-        }
-
-        if (replaceSync) {
-          win.CSSStyleSheet.prototype.replaceSync = function (
-            this: CSSStyleSheet,
-            text: string
-          ) {
-            const stylesheetId = getStyleSheetId(this)
-            replaceSync!.call(this, text)
+      if (replace) {
+        win.CSSStyleSheet.prototype.replace = function (
+          this: CSSStyleSheet,
+          text: string
+        ): Promise<CSSStyleSheet> {
+          const stylesheetId = getStyleSheetId(this)
+          return replace!.call(this, text).then(sheet => {
             subscriber(
               new Box({
                 type: PatchType.StyleSheetMutation,
@@ -944,28 +971,8 @@ function createStyleSheetObserver(
                 replaceText: text,
               })
             )
-          }
-        }
-
-        if (replace) {
-          win.CSSStyleSheet.prototype.replace = function (
-            this: CSSStyleSheet,
-            text: string
-          ): Promise<CSSStyleSheet> {
-            const stylesheetId = getStyleSheetId(this)
-            return replace!.call(this, text).then(sheet => {
-              subscriber(
-                new Box({
-                  type: PatchType.StyleSheetMutation,
-                  stylesheetId,
-                  insertedRules: null,
-                  deletedRuleIndex: null,
-                  replaceText: text,
-                })
-              )
-              return sheet
-            })
-          }
+            return sheet
+          })
         }
       }
     },

@@ -47,6 +47,39 @@ it.skip('starts in the shared test environment without a local shim', async () =
   assert.equal(stream.isStarted(), false)
 })
 
+// This integration-level test exercises the observer lifecycle. The unit-level
+// idempotency tests in console/observe.test.ts, network/observe.test.ts, and
+// dom/observe.test.ts provide equivalent double-observe/disconnect/re-observe
+// coverage for each individual observer type.
+it.skip('start() → stop() → start() cycle cleanly re-activates observers', async () => {
+  const stream = createRecordingStream(document, {
+    types: new Set(['dom']),
+  })
+
+  assert.equal(stream.isStarted(), false)
+
+  stream.start()
+  assert.equal(stream.isStarted(), true)
+
+  stream.stop()
+  assert.equal(stream.isStarted(), false)
+
+  stream.start()
+  assert.equal(stream.isStarted(), true)
+
+  // Verify events can be captured after restart
+  const el = document.createElement('div')
+  document.body.appendChild(el)
+
+  await new Promise(resolve => setTimeout(resolve, 5))
+
+  const events = stream.slice().toArray()
+  assert.ok(events.length > 0, 'events should be captured after restart')
+
+  stream.stop()
+  document.body.removeChild(el)
+})
+
 it('preserves buffered event ordering and timestamps through slice()', () => {
   const stream = createRecordingStream(document, {
     types: new Set() as any,

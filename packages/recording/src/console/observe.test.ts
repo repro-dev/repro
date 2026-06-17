@@ -134,6 +134,58 @@ describe('libs/record: console observers', () => {
     })
   })
 
+  it('does not double-register window error listener when observe() is called twice', async () => {
+    // Without the idempotency guard, calling observe() twice would register
+    // duplicate window 'error' event listeners, causing the subscriber to
+    // fire twice per error event.
+    const messages: Array<ConsoleMessage> = []
+
+    observer = createConsoleObserver(message => {
+      messages.push(message)
+    })
+    observer.observe(document, { rootId: 'foo', nodes: {} } as any)
+    observer.observe(document, { rootId: 'foo', nodes: {} } as any)
+
+    // Dispatch an error event — without guard, subscriber fires twice
+    window.dispatchEvent(
+      new ErrorEvent('error', {
+        message: 'test-error',
+        error: new Error('test'),
+      })
+    )
+
+    await waitForMessages(messages, 1, 500)
+
+    expect(messages).toHaveLength(1)
+    const firstMessage = messages[0] as any
+    expect(firstMessage.level).toBe(LogLevel.Error)
+  })
+
+  it('supports disconnect() → observe() cycle after double observe()', async () => {
+    const messages: Array<ConsoleMessage> = []
+
+    observer = createConsoleObserver(message => {
+      messages.push(message)
+    })
+    observer.observe(document, { rootId: 'foo', nodes: {} } as any)
+    observer.observe(document, { rootId: 'foo', nodes: {} } as any)
+    observer.disconnect()
+
+    // Re-observe should work fresh
+    observer.observe(document, { rootId: 'foo', nodes: {} } as any)
+    console.log('test-message')
+
+    await waitForMessages(messages, 1)
+
+    expect(messages).toHaveLength(1)
+    const firstMessage = messages[0] as any
+    expect(firstMessage.level).toBe(LogLevel.Info)
+    expect((firstMessage.parts[0] as any).value).toMatchObject({
+      type: MessagePartType.String,
+      value: JSON.stringify('test-message'),
+    })
+  })
+
   it('redacts masked DOM nodes without collapsing whitespace', async () => {
     silenceConsole()
 

@@ -60,6 +60,8 @@ function redactJsonBody(buffer: ArrayBuffer): ArrayBuffer {
 }
 
 function createXHRObserver(subscriber: Subscriber): ObserverLike<Document> {
+  let isObserving = false
+
   const requestParams = new WeakMap<
     XMLHttpRequest,
     {
@@ -272,6 +274,9 @@ function createXHRObserver(subscriber: Subscriber): ObserverLike<Document> {
 
   return {
     observe() {
+      if (isObserving) return
+      isObserving = true
+
       globalThis.XMLHttpRequest = XHRCtorProxy
       globalThis.XMLHttpRequest.prototype.open = openProxy
       globalThis.XMLHttpRequest.prototype.setRequestHeader =
@@ -280,6 +285,8 @@ function createXHRObserver(subscriber: Subscriber): ObserverLike<Document> {
     },
 
     disconnect() {
+      isObserving = false
+
       globalThis.XMLHttpRequest = XMLHttpRequest
       globalThis.XMLHttpRequest.prototype.open = open
       globalThis.XMLHttpRequest.prototype.setRequestHeader = setRequestHeader
@@ -289,6 +296,8 @@ function createXHRObserver(subscriber: Subscriber): ObserverLike<Document> {
 }
 
 function createFetchObserver(subscriber: Subscriber): ObserverLike<Document> {
+  let isObserving = false
+
   function createCorrelationId() {
     return randomString(4)
   }
@@ -403,10 +412,15 @@ function createFetchObserver(subscriber: Subscriber): ObserverLike<Document> {
 
   return {
     observe() {
+      if (isObserving) return
+      isObserving = true
+
       globalThis.fetch = fetchProxy
     },
 
     disconnect() {
+      isObserving = false
+
       globalThis.fetch = _fetch
     },
   }
@@ -415,6 +429,8 @@ function createFetchObserver(subscriber: Subscriber): ObserverLike<Document> {
 function createWebSocketObserver(
   subscriber: Subscriber
 ): ObserverLike<Document> {
+  let isObserving = false
+
   const correlationIds = new WeakMap<WebSocket, SyntheticId>()
 
   function hasCorrelationId(socket: WebSocket) {
@@ -639,6 +655,9 @@ function createWebSocketObserver(
 
   return {
     observe(doc, vtree) {
+      if (isObserving) return
+      isObserving = true
+
       globalThis.WebSocket = WebSocketCtorProxy
 
       globalThis.WebSocket.prototype.send = function (this, ...args) {
@@ -663,6 +682,8 @@ function createWebSocketObserver(
     },
 
     disconnect() {
+      isObserving = false
+
       globalThis.WebSocket = _WebSocket
       globalThis.WebSocket.prototype.send = send
       globalThis.WebSocket.prototype.close = close
@@ -674,6 +695,8 @@ function createWebSocketObserver(
 function createMessageEventObserver(
   callback: (ev: MessageEvent) => void
 ): ObserverLike<Document> {
+  let isObserving = false
+
   const events = new WeakSet<MessageEvent>()
 
   const originalDescriptor = Object.getOwnPropertyDescriptor(
@@ -704,12 +727,17 @@ function createMessageEventObserver(
 
   return {
     observe() {
+      if (isObserving) return
+      isObserving = true
+
       if (newDescriptor) {
         Object.defineProperty(MessageEvent.prototype, 'data', newDescriptor)
       }
     },
 
     disconnect() {
+      isObserving = false
+
       if (originalDescriptor) {
         Object.defineProperty(
           MessageEvent.prototype,
