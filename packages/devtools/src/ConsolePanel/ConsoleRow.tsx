@@ -41,7 +41,11 @@ export const ConsoleRow: React.FC<Props> = ({
   index,
 }) => {
   return (
-    <Block props={{ 'data-target': 'console-row' }}>
+    <Block
+      props={
+        { 'data-target': 'console-row' } as React.HTMLAttributes<HTMLDivElement>
+      }
+    >
       <Grid
         gridTemplateColumns="auto auto 1fr auto"
         columnGap={10}
