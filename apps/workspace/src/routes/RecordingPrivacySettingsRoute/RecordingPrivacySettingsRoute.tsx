@@ -1,4 +1,3 @@
-/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 import { Block, Col, Inline, InlineBlock, Row } from '@jsxstyle/react'
 import { useApiClient } from '@repro/api-client'
 import { useSession, useSessionLoading } from '@repro/auth'
@@ -209,6 +208,7 @@ export function RecordingPrivacySettingsRoute({
                       disabled={saving || saved || !hasUnsavedChanges}
                     >
                       {saving ? (
+                        /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing -- lineHeight=0 for icon-only layout */
                         <InlineBlock
                           lineHeight={0}
                           animation={{

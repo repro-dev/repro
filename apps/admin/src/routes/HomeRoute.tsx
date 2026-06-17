@@ -1,7 +1,6 @@
-/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 import { Block } from '@jsxstyle/react'
 import { useApiClient } from '@repro/api-client'
-import { Card } from '@repro/design'
+import { Card, fontSize, lineHeight } from '@repro/design'
 import { ListResponse, RecordingInfo } from '@repro/domain'
 import { useFuture } from '@repro/future-utils'
 import React from 'react'
@@ -19,7 +18,11 @@ export const HomeRoute: React.FC = () => {
     return (
       <Card>
         {result.data.items.map(recording => (
-          <Block key={recording.id} fontSize={15} lineHeight={1.5}>
+          <Block
+            key={recording.id}
+            fontSize={fontSize.base}
+            lineHeight={lineHeight.relaxed}
+          >
             <Link to={`/recordings/${recording.id}`}>{recording.title}</Link>
           </Block>
         ))}
