@@ -24,7 +24,7 @@ export const AppShellContent = forwardRef<HTMLDivElement, AppShellContentProps>(
         border={`1px solid ${color.border.default}`}
         borderRadius={radius.sm}
         margin={spacing.md}
-        marginInlineStart={0}
+        marginInlineStart={spacing.none}
         props={{ ref }}
       >
         {children}

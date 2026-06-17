@@ -29,7 +29,7 @@
         "**/__tests__/**",
         "*.stories.tsx",
         "*.stories.ts",
-        "packages/design/src/**"
+        "packages/design/src/tokens/**"
       ],
       "rules": {
         "react/forbid-elements": "off",
@@ -38,6 +38,15 @@
         "@repro/oxlint-plugin-design/no-hardcoded-spacing": "off",
         "@repro/oxlint-plugin-design/no-raw-palette": "off",
         "@repro/oxlint-plugin-design/no-classname-prop": "off"
+      }
+    },
+    {
+      "files": [
+        "packages/design/src/**"
+      ],
+      "rules": {
+        "react/forbid-elements": "off",
+        "react/forbid-dom-props": "off"
       }
     }
   ]

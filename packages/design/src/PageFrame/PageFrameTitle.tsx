@@ -1,5 +1,6 @@
 import { Block } from '@jsxstyle/react'
 import React, { forwardRef } from 'react'
+import { spacing } from '../tokens/spacing'
 import { textStyles } from '../tokens/typography'
 
 export interface PageFrameTitleProps {
@@ -17,7 +18,12 @@ export const PageFrameTitle = forwardRef<
   PageFrameTitleProps
 >(({ children }, ref) => {
   return (
-    <Block component="h1" {...textStyles.heading2} margin={0} props={{ ref }}>
+    <Block
+      component="h1"
+      {...textStyles.heading2}
+      margin={spacing.none}
+      props={{ ref }}
+    >
       {children}
     </Block>
   )

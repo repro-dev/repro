@@ -1,5 +1,6 @@
 import { Block, InlineBlock } from '@jsxstyle/react'
 import React from 'react'
+import { spacing } from '../tokens/spacing'
 import type { TextStyleToken } from '../tokens/typography'
 import {
   fontWeight as fontWeightTokens,
@@ -104,8 +105,8 @@ export const Text = React.forwardRef<HTMLElement, TextProps>(
     return (
       <Component
         component={element}
-        margin={0}
-        padding={0}
+        margin={spacing.none}
+        padding={spacing.none}
         {...style}
         color={colorProp ?? 'currentColor'}
         {...(weight != null && { fontWeight: fontWeightTokens[weight] })}

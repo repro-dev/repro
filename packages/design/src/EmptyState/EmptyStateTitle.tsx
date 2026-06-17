@@ -1,6 +1,7 @@
 import { Block } from '@jsxstyle/react'
 import React, { forwardRef } from 'react'
 import { color } from '../tokens/colors'
+import { spacing } from '../tokens/spacing'
 import { textStyles } from '../tokens/typography'
 
 export interface EmptyStateTitleProps {
@@ -24,7 +25,7 @@ export const EmptyStateTitle = forwardRef<
       component="h3"
       {...textStyles.heading3}
       color={color.text.default}
-      margin={0}
+      margin={spacing.none}
       props={{ ref }}
     >
       {children}

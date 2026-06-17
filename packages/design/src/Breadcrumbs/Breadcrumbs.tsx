@@ -32,8 +32,8 @@ export const Breadcrumbs = forwardRef<HTMLElement, BreadcrumbsProps>(
           alignItems="center"
           gap={spacing.sm}
           listStyle="none"
-          margin={0}
-          padding={0}
+          margin={spacing.none}
+          padding={spacing.none}
           {...textStyles.bodySmall}
         >
           {items.map((child, i) =>

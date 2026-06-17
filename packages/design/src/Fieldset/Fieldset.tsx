@@ -14,8 +14,8 @@ export const Fieldset = forwardRef<HTMLFieldSetElement, FieldsetProps>(
       <Col
         component="fieldset"
         border="none"
-        margin={0}
-        padding={0}
+        margin={spacing.none}
+        padding={spacing.none}
         gap={spacing.xl}
         props={{ ref }}
       >

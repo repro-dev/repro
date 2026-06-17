@@ -16,7 +16,7 @@ export const DropdownMenuSeparator: React.FC = () => {
       backgroundColor={color.border.default}
       border="none"
       height={1}
-      margin={0}
+      margin={spacing.none}
       marginTop={spacing.sm}
       marginBottom={spacing.sm}
       props={{
