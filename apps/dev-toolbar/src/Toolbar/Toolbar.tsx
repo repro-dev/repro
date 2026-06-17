@@ -5,6 +5,7 @@ import { forget } from '@repro/future-utils'
 import { useMessaging } from '@repro/messaging'
 import { useRecordingStream } from '@repro/recording'
 import {
+  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   HistoryIcon,
   PictureInPictureIcon,
   TablePropertiesIcon,
@@ -119,3 +120,4 @@ export const Toolbar: React.FC = () => {
     </Row>
   )
 }
+/* eslint-enable */

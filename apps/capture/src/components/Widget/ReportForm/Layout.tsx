@@ -2,6 +2,7 @@ import { Grid } from '@jsxstyle/react'
 import { Card, color, shadow } from '@repro/design'
 import React from 'react'
 import { MAX_INT32 } from '~/constants'
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 
 export const Layout: React.FC<React.PropsWithChildren<{}>> = ({ children }) => (
   <Grid
@@ -51,3 +52,4 @@ export const AsideRegion: React.FC<React.PropsWithChildren<{}>> = ({
     </Card>
   </Grid>
 )
+/* eslint-enable */

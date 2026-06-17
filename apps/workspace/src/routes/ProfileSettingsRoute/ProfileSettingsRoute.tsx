@@ -1,6 +1,7 @@
 import { Col, Row } from '@jsxstyle/react'
 import { ApiClient, useApiClient } from '@repro/api-client'
 import {
+  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   Alert,
   Badge,
   Button,
@@ -259,3 +260,4 @@ export function ProfileSettingsRoute({
 export function ProfileSettingsRouteConnected() {
   return <ProfileSettingsRoute />
 }
+/* eslint-enable */

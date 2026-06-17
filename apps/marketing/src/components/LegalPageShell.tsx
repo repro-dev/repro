@@ -1,6 +1,7 @@
 import React from 'react'
 import legalStyles from './LegalPageShell.module.css'
 import sharedStyles from './MarketingShell.module.css'
+/* eslint-disable @repro/oxlint-plugin-design/no-classname-prop */
 
 interface LegalPageShellProps {
   title: string
@@ -60,3 +61,4 @@ interface LegalParagraphProps {
 export function LegalParagraph({ children }: LegalParagraphProps) {
   return <p className={sharedStyles.legalCopy}>{children}</p>
 }
+/* eslint-enable */

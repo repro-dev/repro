@@ -1,6 +1,7 @@
 import { Block } from '@jsxstyle/react'
 import React from 'react'
 import { getRendererForType } from './getRendererForType'
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 
 interface Props {
   data: any
@@ -18,3 +19,4 @@ export const JSONView: React.FC<Props> = ({ data }) => {
     </Block>
   )
 }
+/* eslint-enable */

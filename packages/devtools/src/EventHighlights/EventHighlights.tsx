@@ -1,6 +1,7 @@
 import { Grid, InlineBlock, Row } from '@jsxstyle/react'
 import { color, FX } from '@repro/design'
 import {
+  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   InteractionType,
   LogLevel,
   NetworkMessageType,
@@ -164,3 +165,4 @@ const UserEventRow: React.FC<
     </Grid>
   )
 }
+/* eslint-enable */

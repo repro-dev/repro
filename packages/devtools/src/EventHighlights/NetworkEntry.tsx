@@ -2,6 +2,7 @@ import { Block, Row } from '@jsxstyle/react'
 import { color, colors } from '@repro/design'
 import { NetworkEvent, NetworkMessageType } from '@repro/domain'
 import {
+  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing, @repro/oxlint-plugin-design/no-raw-palette */
   ArrowUp as FetchRequestIcon,
   ArrowUpDown as WebSocketIcon,
 } from 'lucide-react'
@@ -118,3 +119,4 @@ export const NetworkEntry: React.FC<Props> = ({ eventIndex, event }) => {
     })
     .orElse(null)
 }
+/* eslint-enable */

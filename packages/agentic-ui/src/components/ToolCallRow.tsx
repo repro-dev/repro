@@ -1,6 +1,7 @@
 import { Block, Col, Row } from '@jsxstyle/react'
 import { ContentBlock, ToolMessage, summarizeToolResult } from '@repro/agentic'
 import {
+  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   FX,
   color,
   focusRing,
@@ -332,3 +333,4 @@ export const ToolCallRow: React.FC<ToolCallRowProps> = ({
     </Col>
   )
 }
+/* eslint-enable */

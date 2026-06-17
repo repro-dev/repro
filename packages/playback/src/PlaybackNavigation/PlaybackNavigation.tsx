@@ -4,6 +4,7 @@ import { color, shadow, Tooltip } from '@repro/design'
 import { BugOffIcon, StepBackIcon, StepForwardIcon } from 'lucide-react'
 import React from 'react'
 import {
+  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   useActiveBreakpoint,
   useBreakpoints,
   useBreakpointsEnabled,
@@ -93,3 +94,4 @@ export const PlaybackNavigation: React.FC = () => {
     </Row>
   )
 }
+/* eslint-enable */

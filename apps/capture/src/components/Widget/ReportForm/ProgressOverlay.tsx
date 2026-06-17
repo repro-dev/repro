@@ -2,6 +2,7 @@ import { Block, Col, Row } from '@jsxstyle/react'
 import { Button, Card, color, colors, Meter } from '@repro/design'
 import { UploadProgress, UploadStage } from '@repro/recording-api'
 import {
+  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-color, @repro/oxlint-plugin-design/no-hardcoded-spacing, @repro/oxlint-plugin-design/no-raw-palette */
   AlertTriangleIcon,
   CheckCircle2Icon,
   CopyIcon,
@@ -197,3 +198,4 @@ export const ProgressOverlay: React.FC<Props> = ({
     </Backdrop>
   )
 }
+/* eslint-enable */

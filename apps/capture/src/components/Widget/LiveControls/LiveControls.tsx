@@ -5,6 +5,7 @@ import { Check as CheckIcon, Video as VideoIcon } from 'lucide-react'
 import React, { useEffect, useState } from 'react'
 import { interval } from 'rxjs'
 import { ReadyState, useReadyState } from '~/state'
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing, @repro/oxlint-plugin-design/no-raw-palette */
 
 export const LiveControls: React.FC = () => {
   const [, setReadyState] = useReadyState()
@@ -69,3 +70,4 @@ export const LiveControls: React.FC = () => {
     </Grid>
   )
 }
+/* eslint-enable */

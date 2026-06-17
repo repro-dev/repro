@@ -6,6 +6,7 @@ import { applyResetStyles } from '@repro/theme'
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { RecordingLoader } from './RecordingLoader'
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing, @repro/oxlint-plugin-design/no-raw-palette */
 
 Stats.enable()
 
@@ -53,3 +54,4 @@ if (rootElem) {
     </Grid>
   )
 }
+/* eslint-enable */

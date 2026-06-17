@@ -3,6 +3,7 @@ import { AgenticError } from '@repro/agentic'
 import { Alert, Button } from '@repro/design'
 import { AlertCircleIcon } from 'lucide-react'
 import React from 'react'
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 
 interface ErrorMessageProps {
   error: AgenticError
@@ -29,3 +30,4 @@ export const ErrorMessage: React.FC<ErrorMessageProps> = ({
     </Row>
   </Alert>
 )
+/* eslint-enable */

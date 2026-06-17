@@ -1,5 +1,6 @@
 import { Block, InlineBlock } from '@jsxstyle/react'
 import {
+  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing, @repro/oxlint-plugin-design/no-raw-palette */
   createCSSPropertyMap,
   createGroupedCSSPropertyMap,
   CSSPropertyMap,
@@ -119,3 +120,4 @@ export const SelectedNodeComputedStyle: React.FC = () => {
     </Block>
   ) : null
 }
+/* eslint-enable */

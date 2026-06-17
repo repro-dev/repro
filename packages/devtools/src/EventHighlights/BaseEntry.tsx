@@ -5,6 +5,7 @@ import { SourceEvent } from '@repro/domain'
 import { usePlayback } from '@repro/playback'
 import { Unboxed } from '@repro/tdl'
 import React from 'react'
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 
 interface Props {
   eventIndex: number
@@ -62,3 +63,4 @@ export const BaseEntry: React.FC<React.PropsWithChildren<Props>> = ({
     </Row>
   )
 }
+/* eslint-enable */

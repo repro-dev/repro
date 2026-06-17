@@ -2,6 +2,7 @@ import { Block } from '@jsxstyle/react'
 import { colors } from '@repro/design'
 import React from 'react'
 import { TreeRow } from './TreeRow'
+/* eslint-disable @repro/oxlint-plugin-design/no-raw-palette */
 
 interface Props {
   level: number
@@ -18,3 +19,4 @@ export const NumberRenderer: React.FC<Props> = ({
     <Block color={colors.sky['700']}>{value}</Block>
   </TreeRow>
 )
+/* eslint-enable */

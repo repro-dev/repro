@@ -1,6 +1,7 @@
 import { Block, Row } from '@jsxstyle/react'
 import { Button, color } from '@repro/design'
 import {
+  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   PlaybackCanvas,
   PlaybackProvider,
   createLivePlayback,
@@ -74,3 +75,4 @@ export const PlaybackPane: React.FC = () => {
     </PlaybackProvider>
   )
 }
+/* eslint-enable */

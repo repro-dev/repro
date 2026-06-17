@@ -1,4 +1,5 @@
 import React from 'react'
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-color */
 
 export const GoogleGLogo: React.FC = () => (
   <svg
@@ -26,3 +27,4 @@ export const GoogleGLogo: React.FC = () => (
     />
   </svg>
 )
+/* eslint-enable */

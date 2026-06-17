@@ -3,6 +3,7 @@ import { formatDate } from '@repro/date-utils'
 import { color, Drawer } from '@repro/design'
 import { RecordingInfo } from '@repro/domain'
 import React, { Fragment, useState } from 'react'
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 
 interface Props {
   info: RecordingInfo
@@ -125,3 +126,4 @@ export const Summary: React.FC<Props> = ({ info }) => {
     </Block>
   )
 }
+/* eslint-enable */

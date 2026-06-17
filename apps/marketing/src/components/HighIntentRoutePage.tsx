@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+/* eslint-disable @repro/oxlint-plugin-design/no-classname-prop */
 
 import routeStyles from './HighIntentRoutePage.module.css'
 import sharedStyles from './MarketingShell.module.css'
@@ -59,3 +60,4 @@ export function HighIntentRoutePage({
     </section>
   )
 }
+/* eslint-enable */

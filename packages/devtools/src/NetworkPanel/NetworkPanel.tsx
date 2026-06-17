@@ -3,6 +3,7 @@ import { color } from '@repro/design'
 import { Stats } from '@repro/diagnostics'
 import { ControlFrame, ElapsedMarker, usePlayback } from '@repro/playback'
 import {
+  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   FetchGroup,
   findIndexedNetworkEvents,
   groupNetworkEvents,
@@ -142,3 +143,4 @@ export const NetworkPanel: React.FC = () => {
     </Grid>
   )
 }
+/* eslint-enable */

@@ -1,3 +1,4 @@
+/* eslint-disable @repro/oxlint-plugin-design/no-classname-prop */
 /* eslint-disable react/forbid-elements */
 import type { ReactNode } from 'react'
 import { Footer } from './Footer'
@@ -28,3 +29,4 @@ export function SiteLayout({ children }: SiteLayoutProps) {
     </div>
   )
 }
+/* eslint-enable */

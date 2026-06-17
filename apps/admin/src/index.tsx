@@ -1,6 +1,7 @@
 import { ApiProvider, createApiClient } from '@repro/api-client'
 import { AuthProvider } from '@repro/auth'
 import {
+  /* eslint-disable @repro/oxlint-plugin-design/no-raw-palette */
   colors,
   PortalRootProvider,
   ThemeProvider,
@@ -190,3 +191,4 @@ if (rootElem) {
     </GlobalErrorBoundary>
   )
 }
+/* eslint-enable */

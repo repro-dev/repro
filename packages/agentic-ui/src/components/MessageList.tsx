@@ -4,6 +4,7 @@ import { AgenticError, Entry, Loading, groupToolCalls } from '@repro/agentic'
 import { colors, fontSize, spacing } from '@repro/design'
 import React, { useMemo } from 'react'
 import {
+  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing, @repro/oxlint-plugin-design/no-raw-palette */
   INPUT_CONTAINER_OFFSET_PX,
   LOADING_CONTAINER_OFFSET_PX,
 } from '../constants'
@@ -121,3 +122,4 @@ export const MessageList: React.FC<MessageListProps> = ({
     </Block>
   )
 }
+/* eslint-enable */

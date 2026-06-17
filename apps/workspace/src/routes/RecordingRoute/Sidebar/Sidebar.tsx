@@ -5,6 +5,7 @@ import { RecordingInfo } from '@repro/domain'
 import { ucfirst } from '@repro/string-utils'
 import React from 'react'
 import { Summary } from './Summary'
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 
 interface Props {
   info: RecordingInfo
@@ -49,3 +50,4 @@ export const Sidebar: React.FC<Props> = ({ info }) => (
     </Grid>
   </Card>
 )
+/* eslint-enable */

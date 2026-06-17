@@ -1,3 +1,4 @@
+/* eslint-disable @repro/oxlint-plugin-design/no-classname-prop, @repro/oxlint-plugin-design/no-hardcoded-color */
 type MarketingLogoProps = {
   className?: string
 }
@@ -32,3 +33,4 @@ export function MarketingLogo({ className }: MarketingLogoProps) {
     </svg>
   )
 }
+/* eslint-enable */

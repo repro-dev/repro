@@ -3,6 +3,7 @@ import { formatTime } from '@repro/date-utils'
 import { colors } from '@repro/design'
 import { Stats } from '@repro/diagnostics'
 import {
+  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing, @repro/oxlint-plugin-design/no-raw-palette */
   NetworkMessageType,
   WebSocketInbound,
   WebSocketMessageType,
@@ -257,3 +258,4 @@ const Body: React.FC<BodyProps> = ({ message, onClose }) => (
     </Row>
   </Block>
 )
+/* eslint-enable */

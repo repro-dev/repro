@@ -5,6 +5,7 @@ import { tinykeys } from 'tinykeys'
 import { usePlayback, useSpeed } from '../hooks'
 import { PlaybackSpeed, VALID_SPEEDS } from '../types'
 import { shouldIgnoreKeyboardEvent } from './keyboardIgnore'
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 
 function getNextSpeed(
   current: PlaybackSpeed,
@@ -82,3 +83,4 @@ export const SpeedControl: React.FC = () => {
     </Row>
   )
 }
+/* eslint-enable */

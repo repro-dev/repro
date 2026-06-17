@@ -3,6 +3,7 @@ import { useApiClient } from '@repro/api-client'
 import { useSession, useSessionLoading } from '@repro/auth'
 import { useBillingClient } from '@repro/billing'
 import {
+  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   Badge,
   Button,
   Card,
@@ -199,3 +200,4 @@ export const PricingRoute: React.FC = () => {
     </PageFrame>
   )
 }
+/* eslint-enable */

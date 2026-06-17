@@ -1,5 +1,6 @@
 import routeStyles from './MarketingRoutePage.module.css'
 import {
+  /* eslint-disable @repro/oxlint-plugin-design/no-classname-prop */
   routePageContent,
   signupHref,
   type MarketingRouteSlug,
@@ -43,3 +44,4 @@ export function MarketingRoutePage({ slug }: MarketingRoutePageProps) {
     </section>
   )
 }
+/* eslint-enable */

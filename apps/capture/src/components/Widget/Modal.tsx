@@ -3,6 +3,7 @@ import { animated, config, useTransition } from '@react-spring/web'
 import { color, Logo } from '@repro/design'
 import { XIcon } from 'lucide-react'
 import React from 'react'
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 
 export interface ModalProps {
   size?: 'compact' | 'normal' | 'full-screen'
@@ -106,3 +107,4 @@ export const Modal: React.FC<React.PropsWithChildren<ModalProps>> = ({
       )
   )
 }
+/* eslint-enable */

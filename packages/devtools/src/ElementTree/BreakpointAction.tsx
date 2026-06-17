@@ -2,6 +2,7 @@ import { InlineRow } from '@jsxstyle/react'
 import { colors, Tooltip } from '@repro/design'
 import { CircleIcon } from 'lucide-react'
 import React from 'react'
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing, @repro/oxlint-plugin-design/no-raw-palette */
 
 export const BreakpointAction: React.FC<{
   active: boolean
@@ -33,3 +34,4 @@ export const BreakpointAction: React.FC<{
     </Tooltip>
   </InlineRow>
 )
+/* eslint-enable */

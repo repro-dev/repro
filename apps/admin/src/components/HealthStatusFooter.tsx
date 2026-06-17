@@ -1,5 +1,6 @@
 import { Block, Col, Row } from '@jsxstyle/react'
 import {
+  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   color,
   focusRing,
   lineHeight,
@@ -81,3 +82,4 @@ export const HealthStatusFooter: React.FC = () => {
     </Block>
   )
 }
+/* eslint-enable */

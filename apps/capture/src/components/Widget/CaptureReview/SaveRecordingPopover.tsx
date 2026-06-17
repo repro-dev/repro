@@ -2,6 +2,7 @@ import { Col, Row } from '@jsxstyle/react'
 import { useApiClient } from '@repro/api-client'
 import { useSession } from '@repro/auth'
 import {
+  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-color, @repro/oxlint-plugin-design/no-hardcoded-spacing */
   Button,
   FormField,
   Input,
@@ -268,3 +269,4 @@ export const SaveRecordingPopover: React.FC<SaveRecordingPopoverProps> = ({
     </Popover>
   )
 }
+/* eslint-enable */

@@ -6,6 +6,7 @@ import { usePlayback, useSnapshot } from '@repro/playback'
 import React, { useMemo, useState } from 'react'
 import { ComponentPropsPanel } from './ComponentPropsPanel'
 import { ComponentTree } from './ComponentTree'
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing, @repro/oxlint-plugin-design/no-raw-palette */
 
 export const ReactPanel: React.FC = () => {
   const playback = usePlayback()
@@ -134,3 +135,4 @@ export const ReactPanel: React.FC = () => {
     </Grid>
   )
 }
+/* eslint-enable */

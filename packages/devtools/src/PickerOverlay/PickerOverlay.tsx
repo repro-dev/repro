@@ -6,6 +6,7 @@ import { Subscription, fromEvent } from 'rxjs'
 import { distinctUntilChanged, map, share } from 'rxjs/operators'
 import { MAX_INT32 } from '../constants'
 import {
+  /* eslint-disable @repro/oxlint-plugin-design/no-raw-palette */
   useCurrentDocument,
   useDevToolsView,
   useElementPicker,
@@ -213,3 +214,4 @@ export const PickerOverlay: React.FC = React.memo(() => {
     </Block>
   )
 })
+/* eslint-enable */

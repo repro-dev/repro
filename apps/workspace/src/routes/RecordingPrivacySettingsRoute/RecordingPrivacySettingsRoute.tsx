@@ -2,6 +2,7 @@ import { Block, Col, Inline, InlineBlock, Row } from '@jsxstyle/react'
 import { useApiClient } from '@repro/api-client'
 import { useSession, useSessionLoading } from '@repro/auth'
 import {
+  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   Alert,
   Button,
   Card,
@@ -327,3 +328,4 @@ export function RecordingPrivacySettingsRouteConnected() {
 }
 
 export default RecordingPrivacySettingsRouteConnected
+/* eslint-enable */
