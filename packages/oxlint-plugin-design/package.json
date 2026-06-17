@@ -1,0 +1,20 @@
+{
+  "name": "@repro/oxlint-plugin-design",
+  "version": "1.0.0",
+  "private": true,
+  "main": "dist/plugin.js",
+  "scripts": {
+    "build": "tsc",
+    "fmt": "prettier --write src",
+    "test": "tsx --experimental-test-module-mocks --test --test-timeout=30000 --test-force-exit src/__tests__/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@types/node": "overridden",
+    "prettier": "^3.0.0",
+    "prettier-plugin-organize-imports": "^3.2.3",
+    "tsx": "^4.19.3",
+    "typescript": "overridden"
+  }
+}
