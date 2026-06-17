@@ -124,6 +124,28 @@ describe('no-hardcoded-color', () => {
     assert.strictEqual(reports.length, 1)
   })
 
+  it('reports named color rebeccapurple', () => {
+    const { context, reports } = createMockContext()
+    const visitor = noHardcodedColor.create(context)
+    visitor.JSXAttribute?.({
+      type: 'JSXAttribute',
+      name: { type: 'JSXIdentifier', name: 'color' },
+      value: { type: 'Literal', value: 'rebeccapurple' },
+    })
+    assert.strictEqual(reports.length, 1)
+  })
+
+  it('does not report transparent as a named color', () => {
+    const { context, reports } = createMockContext()
+    const visitor = noHardcodedColor.create(context)
+    visitor.JSXAttribute?.({
+      type: 'JSXAttribute',
+      name: { type: 'JSXIdentifier', name: 'backgroundColor' },
+      value: { type: 'Literal', value: 'transparent' },
+    })
+    assert.strictEqual(reports.length, 0)
+  })
+
   it('does not report token usage color={color.primary}', () => {
     const { context, reports } = createMockContext()
     const visitor = noHardcodedColor.create(context)
