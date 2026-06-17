@@ -24,8 +24,8 @@ export const Summary: React.FC<Props> = ({ info }) => {
   return (
     <Block
       isolation="isolate"
-      paddingH={spacing.xl}
-      paddingBottom={spacing.xl}
+      paddingH={spacing['2xl']}
+      paddingBottom={spacing['2xl']}
       boxShadow={`0 4px 16px ${color.border.default}`}
       borderBottom={`1px solid ${color.border.default}`}
     >
@@ -91,7 +91,7 @@ export const Summary: React.FC<Props> = ({ info }) => {
 
               <Block
                 component="a"
-                marginTop={spacing.xl}
+                marginTop={spacing['2xl']}
                 fontSize={15}
                 textDecoration="underline"
                 color={color.primary}
@@ -111,7 +111,7 @@ export const Summary: React.FC<Props> = ({ info }) => {
               </Block>
 
               <Block
-                marginTop={spacing.xl}
+                marginTop={spacing['2xl']}
                 fontSize={13}
                 lineHeight={1.5}
                 whiteSpace="pre-wrap"

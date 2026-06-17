@@ -229,9 +229,9 @@ const Body: React.FC<BodyProps> = ({ message, onClose }) => (
     `}
   >
     <Block
-      paddingH={spacing.xl}
+      paddingH={spacing['2xl']}
       paddingTop={spacing['4xl']}
-      paddingBottom={spacing.xl}
+      paddingBottom={spacing['2xl']}
       whiteSpace="pre-wrap"
       lineHeight={1.5}
     >

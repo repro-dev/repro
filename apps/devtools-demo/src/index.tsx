@@ -26,7 +26,7 @@ if (rootElem) {
       backgroundColor={color.bg.surface}
     >
       <Block
-        padding={spacing.xl}
+        padding={spacing['2xl']}
         height={120}
         backgroundColor={color.border.focus}
         backgroundImage={`linear-gradient(to bottom right, ${color.infoFg}, ${color.primary})`}
