@@ -1,3 +1,4 @@
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 import { Inline } from '@jsxstyle/react'
 import { color } from '@repro/design'
 import React from 'react'

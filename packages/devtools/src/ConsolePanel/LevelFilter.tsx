@@ -1,5 +1,5 @@
 import { Block, Row } from '@jsxstyle/react'
-import { color, shadow, spacing, transition } from '@repro/design'
+import { color, fontSize, shadow, spacing, transition } from '@repro/design'
 import { LogLevel } from '@repro/domain'
 import { CheckCircle, Circle } from 'lucide-react'
 import React from 'react'
@@ -65,7 +65,7 @@ const Toggle: React.FC<React.PropsWithChildren<ToggleProps>> = ({
       gap={spacing.lg}
       paddingV={spacing.sm}
       paddingH={spacing.lg}
-      fontSize={11}
+      fontSize={fontSize.xs}
       backgroundColor={active ? color.text.muted : color.bg.hover}
       backgroundImage={
         active

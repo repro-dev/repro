@@ -1,7 +1,7 @@
 import { Block, Col } from '@jsxstyle/react'
 import { Md } from '@m2d/react-markdown'
 import { AgenticError, Entry, Loading, groupToolCalls } from '@repro/agentic'
-import { color, fontSize, spacing } from '@repro/design'
+import { color, fontSize, lineHeight, spacing } from '@repro/design'
 import React, { useMemo } from 'react'
 import {
   INPUT_CONTAINER_OFFSET_PX,
@@ -76,7 +76,7 @@ export const MessageList: React.FC<MessageListProps> = ({
 
           if (item.type === 'user-message') {
             return (
-              <Col key={item.entry.id} lineHeight={1.5}>
+              <Col key={item.entry.id} lineHeight={lineHeight.relaxed}>
                 <Block
                   marginInlineStart={spacing['3xl']}
                   paddingInline={spacing.lg}
@@ -95,7 +95,7 @@ export const MessageList: React.FC<MessageListProps> = ({
 
           if (item.type === 'assistant-message') {
             return (
-              <Col key={item.entry.id} lineHeight={1.5}>
+              <Col key={item.entry.id} lineHeight={lineHeight.relaxed}>
                 <Block>
                   <Md>{item.entry.content}</Md>
                 </Block>

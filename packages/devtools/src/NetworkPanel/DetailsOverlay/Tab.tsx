@@ -1,5 +1,5 @@
 import { Block } from '@jsxstyle/react'
-import { color, spacing } from '@repro/design'
+import { color, fontSize, spacing } from '@repro/design'
 import React from 'react'
 
 interface Props {
@@ -11,7 +11,7 @@ interface Props {
 export const Tab: React.FC<Props> = ({ active, label, onClick }) => (
   <Block
     paddingV={spacing.md}
-    fontSize={11}
+    fontSize={fontSize.xs}
     color={active ? color.primary : color.text.muted}
     borderBottom={`2px solid ${active ? color.primary : 'transparent'}`}
     cursor="pointer"

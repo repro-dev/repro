@@ -1,10 +1,11 @@
 import { Block, Row } from '@jsxstyle/react'
 import { Loading } from '@repro/agentic'
 import {
+  FX,
   color,
   fontFamily,
   fontSize,
-  FX,
+  lineHeight,
   spacing,
   transition,
 } from '@repro/design'
@@ -145,7 +146,7 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
                 cursor="pointer"
                 display="flex"
                 justifyContent="center"
-                lineHeight={1}
+                lineHeight={lineHeight.tight}
                 paddingBlock={spacing.md}
                 paddingInline={spacing.lg}
                 transition={transition.fast}

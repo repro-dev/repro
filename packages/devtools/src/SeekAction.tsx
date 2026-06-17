@@ -1,5 +1,5 @@
 import { Block, Row } from '@jsxstyle/react'
-import { color, spacing } from '@repro/design'
+import { color, fontSize, spacing } from '@repro/design'
 import { usePlayback } from '@repro/playback'
 import { SkipForward } from 'lucide-react'
 import React, { useCallback } from 'react'
@@ -31,7 +31,7 @@ export const SeekAction: React.FC<Props> = ({ eventIndex }) => {
       props={{ onClick }}
     >
       <SkipForward size={13} />
-      <Block fontSize={11}>Go To Time</Block>
+      <Block fontSize={fontSize.xs}>Go To Time</Block>
     </Row>
   )
 }

@@ -1,5 +1,5 @@
 import { Block, Grid, Row } from '@jsxstyle/react'
-import { color, spacing } from '@repro/design'
+import { color, fontWeight, spacing } from '@repro/design'
 import { Stats } from '@repro/diagnostics'
 import { ControlFrame, ElapsedMarker, usePlayback } from '@repro/playback'
 import {
@@ -87,7 +87,7 @@ export const NetworkPanel: React.FC = () => {
         gridTemplateColumns={columnTracks}
         overflow="auto"
       >
-        <Block display="contents" fontWeight={700}>
+        <Block display="contents" fontWeight={fontWeight.bold}>
           {['Time', 'URL', 'Status', 'Type', 'Size', 'Duration', ''].map(
             (label, i) => (
               <Row

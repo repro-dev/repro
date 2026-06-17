@@ -11,6 +11,7 @@ import {
   Text,
   Tooltip,
   color,
+  lineHeight,
   spacing,
 } from '@repro/design'
 import { type Cancel, fork } from 'fluture'
@@ -155,7 +156,7 @@ export const SaveRecordingPopover: React.FC<SaveRecordingPopoverProps> = ({
           }
           borderRadius={2}
           transition="all 100ms ease-in-out"
-          lineHeight={1}
+          lineHeight={lineHeight.tight}
           userSelect="none"
           cursor={isAuthed && !isUploading ? 'pointer' : 'not-allowed'}
           opacity={!isAuthed || isUploading ? 0.4 : 1}

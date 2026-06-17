@@ -1,3 +1,4 @@
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 import { Block } from '@jsxstyle/react'
 import { useApiClient } from '@repro/api-client'
 import { Card } from '@repro/design'

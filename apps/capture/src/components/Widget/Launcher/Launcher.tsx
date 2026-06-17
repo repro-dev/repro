@@ -1,6 +1,13 @@
 import { Block, Row } from '@jsxstyle/react'
 import { animated, useTransition } from '@react-spring/web'
-import { color, Logo, spacing, Tooltip } from '@repro/design'
+import {
+  Logo,
+  Tooltip,
+  color,
+  fontSize,
+  fontWeight,
+  spacing,
+} from '@repro/design'
 import { RecordingMode } from '@repro/domain'
 import { XIcon } from 'lucide-react'
 import React from 'react'
@@ -24,8 +31,8 @@ const DevBadge: React.FC<DevBadgeProps> = ({ branch }) => {
       transform="translateX(-50%)"
       backgroundColor={color.warningEmphasis}
       color={color.text.default}
-      fontSize={9}
-      fontWeight={700}
+      fontSize={fontSize.xs}
+      fontWeight={fontWeight.bold}
       fontFamily="monospace"
       paddingH={spacing.sm}
       paddingV={spacing.xs}

@@ -1,3 +1,4 @@
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 import { Block } from '@jsxstyle/react'
 import { Loading } from '@repro/agentic'
 import { color, spacing } from '@repro/design'

@@ -1,5 +1,5 @@
 import { Grid, InlineBlock, Row } from '@jsxstyle/react'
-import { color, FX, spacing } from '@repro/design'
+import { FX, color, fontSize, spacing } from '@repro/design'
 import {
   InteractionType,
   LogLevel,
@@ -89,7 +89,7 @@ export const EventHighlights: React.FC = () => {
           <LoaderIcon size={16} />
         </FX.Spin>
 
-        <InlineBlock fontSize={13}>Loading events...</InlineBlock>
+        <InlineBlock fontSize={fontSize.sm}>Loading events...</InlineBlock>
       </Row>
     )
   }

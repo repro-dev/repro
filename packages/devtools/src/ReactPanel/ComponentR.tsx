@@ -1,5 +1,5 @@
 import { Inline } from '@jsxstyle/react'
-import { color } from '@repro/design'
+import { color, fontWeight } from '@repro/design'
 import { ReactComponentNode } from '@repro/domain'
 import React from 'react'
 import { Container } from '../DOM/Container'
@@ -36,7 +36,7 @@ const Syntax: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
 const ComponentName: React.FC<{ children?: React.ReactNode }> = ({
   children,
 }) => (
-  <Inline color={color.primary} fontWeight={500}>
+  <Inline color={color.primary} fontWeight={fontWeight.semibold}>
     {children}
   </Inline>
 )

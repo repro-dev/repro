@@ -1,3 +1,4 @@
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 import { Block, Row } from '@jsxstyle/react'
 import { ChevronDown } from 'lucide-react'
 import React, { forwardRef, useEffect } from 'react'

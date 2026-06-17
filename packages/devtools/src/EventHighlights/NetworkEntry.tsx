@@ -1,5 +1,5 @@
 import { Block, Row } from '@jsxstyle/react'
-import { color, spacing } from '@repro/design'
+import { color, fontSize, fontWeight, spacing } from '@repro/design'
 import { NetworkEvent, NetworkMessageType } from '@repro/domain'
 import {
   ArrowUp as FetchRequestIcon,
@@ -50,8 +50,8 @@ export const NetworkEntry: React.FC<Props> = ({ eventIndex, event }) => {
                 borderRadius={4}
                 backgroundColor={color.bg.hover}
                 color={color.text.secondary}
-                fontSize={13}
-                fontWeight={700}
+                fontSize={fontSize.sm}
+                fontWeight={fontWeight.bold}
                 textTransform="uppercase"
               >
                 {data.method}
@@ -70,8 +70,8 @@ export const NetworkEntry: React.FC<Props> = ({ eventIndex, event }) => {
                 borderRadius={4}
                 backgroundColor={color.bg.hover}
                 color={color.text.secondary}
-                fontSize={13}
-                fontWeight={700}
+                fontSize={fontSize.sm}
+                fontWeight={fontWeight.bold}
               >
                 WS
               </Block>
@@ -89,8 +89,8 @@ export const NetworkEntry: React.FC<Props> = ({ eventIndex, event }) => {
                 borderRadius={4}
                 backgroundColor={color.dangerSubtle}
                 color={color.danger}
-                fontSize={13}
-                fontWeight={700}
+                fontSize={fontSize.sm}
+                fontWeight={fontWeight.bold}
               >
                 WS Error
               </Block>

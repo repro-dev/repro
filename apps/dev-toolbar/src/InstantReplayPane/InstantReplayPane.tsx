@@ -1,5 +1,5 @@
 import { Block, Row } from '@jsxstyle/react'
-import { Button, color, spacing } from '@repro/design'
+import { Button, color, fontSize, spacing } from '@repro/design'
 import { DevTools } from '@repro/devtools'
 import {
   PlaybackProvider,
@@ -76,7 +76,7 @@ export const InstantReplayPane: React.FC = () => {
         >
           <HistoryIcon size={24} color={color.text.secondary} />
 
-          <Block color={color.text.secondary} fontSize={16}>
+          <Block color={color.text.secondary} fontSize={fontSize.md}>
             Instant Replay
           </Block>
 

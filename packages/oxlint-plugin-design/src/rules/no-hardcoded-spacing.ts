@@ -23,7 +23,7 @@ interface RuleModule {
   ) => Record<string, ((node: any) => void) | undefined>
 }
 
-const SPACING_PROP_PATTERN = /^(padding|margin|gap)/
+const PROP_PATTERN = /^(padding|margin|gap|fontSize|lineHeight|fontWeight)/
 
 /**
  * Returns true if the literal value represents a raw spacing value
@@ -58,11 +58,11 @@ export const noHardcodedSpacing: RuleModule = {
     type: 'problem',
     docs: {
       description:
-        'Forbid hardcoded spacing values in padding/margin/gap props. Use spacing.* tokens instead.',
+        'Forbid hardcoded spacing/typography values in props. Use design tokens instead.',
     },
     messages: {
       hardcodedSpacing:
-        "Hardcoded spacing value '{{value}}' in '{{prop}}'. Use a spacing.* token instead.",
+        "Hardcoded value '{{value}}' in '{{prop}}'. Use a design token instead.",
     },
     schema: [],
   },
@@ -71,7 +71,7 @@ export const noHardcodedSpacing: RuleModule = {
       JSXAttribute(node: any) {
         if (!node.name || node.name.type !== 'JSXIdentifier') return
         const propName: string = node.name.name
-        if (!SPACING_PROP_PATTERN.test(propName)) return
+        if (!PROP_PATTERN.test(propName)) return
 
         if (!node.value) return
 

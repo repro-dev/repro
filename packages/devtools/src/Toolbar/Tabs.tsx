@@ -1,6 +1,6 @@
 import { Block, Inline, Row } from '@jsxstyle/react'
 import { useAtomValue } from '@repro/atom'
-import { color, spacing, Tooltip, transition } from '@repro/design'
+import { Tooltip, color, fontSize, spacing, transition } from '@repro/design'
 import { SourceEventType, SourceEventView, StateEventType } from '@repro/domain'
 import { usePlayback } from '@repro/playback'
 import {
@@ -146,7 +146,7 @@ const Item: React.FC<ItemProps> = ({ disabled, icon, label, view }) => {
       hoverBackgroundColor={active ? color.infoTint : color.bg.hover}
       color={tabColor}
       cursor="pointer"
-      fontSize={11}
+      fontSize={fontSize.xs}
       gap={spacing.sm}
       paddingH={spacing.md}
       blockSize={32}

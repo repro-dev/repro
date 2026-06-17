@@ -1,5 +1,5 @@
 import { Block, Row } from '@jsxstyle/react'
-import { Button, color, spacing } from '@repro/design'
+import { Button, color, fontSize, spacing } from '@repro/design'
 import {
   PlaybackCanvas,
   PlaybackProvider,
@@ -45,7 +45,7 @@ export const PlaybackPane: React.FC = () => {
         >
           <PictureInPictureIcon size={24} color={color.text.secondary} />
 
-          <Block color={color.text.secondary} fontSize={16}>
+          <Block color={color.text.secondary} fontSize={fontSize.md}>
             Live Playback
           </Block>
 

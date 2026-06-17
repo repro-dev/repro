@@ -1,5 +1,5 @@
 import { Block, Grid } from '@jsxstyle/react'
-import { Card, color, DefinitionList, spacing } from '@repro/design'
+import { Card, DefinitionList, color, fontSize, spacing } from '@repro/design'
 import { EventHighlights } from '@repro/devtools'
 import { RecordingInfo } from '@repro/domain'
 import { ucfirst } from '@repro/string-utils'
@@ -28,7 +28,7 @@ export const Sidebar: React.FC<Props> = ({ info }) => (
         isolation="isolate"
         paddingH={spacing.lg}
         gridTemplateColumns="max-content 1fr"
-        fontSize={13}
+        fontSize={fontSize.sm}
         backgroundColor={color.bg.surface}
         borderTop={`1px solid ${color.border.default}`}
         boxShadow={`0 -4px 16px ${color.bg.hover}`}

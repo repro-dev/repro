@@ -1,6 +1,6 @@
 import { Block, Inline, Row } from '@jsxstyle/react'
 import { formatTime } from '@repro/date-utils'
-import { color, spacing } from '@repro/design'
+import { color, fontSize, fontWeight, spacing } from '@repro/design'
 import { ReduxDispatchEvent } from '@repro/domain'
 import { usePlayback } from '@repro/playback'
 import React, { useState } from 'react'
@@ -60,7 +60,7 @@ export const ActionRow: React.FC<Props> = ({
         props={{ onClick: handleClick }}
       >
         <Inline
-          fontSize={10}
+          fontSize={fontSize.xs}
           color={color.text.muted}
           fontFamily="monospace"
           flexShrink={0}
@@ -69,16 +69,16 @@ export const ActionRow: React.FC<Props> = ({
         </Inline>
 
         <Inline
-          fontSize={11}
+          fontSize={fontSize.xs}
           color={color.primary}
-          fontWeight={500}
+          fontWeight={fontWeight.semibold}
           flexShrink={0}
         >
           {event.actionType}
         </Inline>
 
         <Inline
-          fontSize={10}
+          fontSize={fontSize.xs}
           color={color.text.muted}
           fontFamily="monospace"
           overflow="hidden"
@@ -92,8 +92,8 @@ export const ActionRow: React.FC<Props> = ({
       {expanded && (
         <Block padding={spacing.md} paddingTop={spacing.none}>
           <Block
-            fontSize={10}
-            fontWeight={600}
+            fontSize={fontSize.xs}
+            fontWeight={fontWeight.semibold}
             color={color.text.muted}
             marginBottom={spacing.sm}
           >
@@ -102,8 +102,8 @@ export const ActionRow: React.FC<Props> = ({
           <JSONView data={payloadData} />
 
           <Block
-            fontSize={10}
-            fontWeight={600}
+            fontSize={fontSize.xs}
+            fontWeight={fontWeight.semibold}
             color={color.text.muted}
             marginTop={spacing.md}
             marginBottom={spacing.sm}

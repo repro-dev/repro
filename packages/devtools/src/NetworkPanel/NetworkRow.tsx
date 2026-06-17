@@ -1,6 +1,6 @@
 import { Block, Row } from '@jsxstyle/react'
 import { formatTime } from '@repro/date-utils'
-import { color, spacing } from '@repro/design'
+import { color, fontSize, lineHeight, spacing } from '@repro/design'
 import { RequestType } from '@repro/domain'
 import { FetchGroup, WebSocketGroup } from '@repro/source-utils'
 import prettyBytes from 'pretty-bytes'
@@ -89,7 +89,7 @@ export const NetworkRow: React.FC<Props> = ({
       display="contents"
       paddingH={spacing.xl}
       overflowX="hidden"
-      fontSize={11}
+      fontSize={fontSize.xs}
       color={
         status !== null && status > 399 ? color.danger : color.text.secondary
       }
@@ -102,7 +102,7 @@ export const NetworkRow: React.FC<Props> = ({
         position="relative"
         backgroundColor={bgColor}
         color={color.text.muted}
-        lineHeight={1.25}
+        lineHeight={lineHeight.normal}
         cursor="pointer"
       >
         {formatTime(startTime, 'millis')}
@@ -160,7 +160,7 @@ const Cell: React.FC<React.PropsWithChildren<JsxstyleProps<false>>> = ({
     paddingV={spacing.lg}
     paddingH={spacing.lg}
     borderLeft={`1px solid ${color.border.default}`}
-    lineHeight={1.25}
+    lineHeight={lineHeight.normal}
     {...props}
   >
     {children}

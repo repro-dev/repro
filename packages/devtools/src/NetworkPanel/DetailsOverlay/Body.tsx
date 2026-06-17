@@ -1,5 +1,5 @@
 import { Block } from '@jsxstyle/react'
-import { spacing } from '@repro/design'
+import { fontSize, lineHeight, spacing } from '@repro/design'
 import React, { PropsWithChildren } from 'react'
 import { JSONView } from '../../JSONView'
 
@@ -47,8 +47,8 @@ export const Body: React.FC<Props> = ({ body, contentType }) => {
 const Container: React.FC<PropsWithChildren> = ({ children }) => (
   <Block
     padding={spacing.lg}
-    fontSize={11}
-    lineHeight={1.25}
+    fontSize={fontSize.xs}
+    lineHeight={lineHeight.normal}
     wordBreak="break-all"
   >
     {children}

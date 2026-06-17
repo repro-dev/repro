@@ -1,6 +1,6 @@
 import { Block, Grid } from '@jsxstyle/react'
 import { useAtomValue } from '@repro/atom'
-import { color, spacing } from '@repro/design'
+import { color, fontSize, spacing } from '@repro/design'
 import {
   ReduxDispatchEvent,
   SourceEventType,
@@ -100,7 +100,11 @@ export const ReduxPanel: React.FC = () => {
 
   if (dispatchEvents.length === 0) {
     return (
-      <Block padding={spacing.xl} fontSize={12} color={color.text.muted}>
+      <Block
+        padding={spacing.xl}
+        fontSize={fontSize.sm}
+        color={color.text.muted}
+      >
         No Redux actions recorded.
       </Block>
     )

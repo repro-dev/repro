@@ -1,6 +1,6 @@
 import { Row } from '@jsxstyle/react'
 import { useSession } from '@repro/auth'
-import { Tooltip, color, spacing } from '@repro/design'
+import { Tooltip, color, lineHeight, spacing } from '@repro/design'
 import { usePlayback } from '@repro/playback'
 import { DownloadIcon } from 'lucide-react'
 import React, { useCallback, useState } from 'react'
@@ -54,7 +54,7 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
         hoverBackgroundColor={actions.isEmpty ? undefined : color.infoFg}
         borderRadius={2}
         transition="all 100ms ease-in-out"
-        lineHeight={1}
+        lineHeight={lineHeight.tight}
         cursor={actions.isEmpty ? 'not-allowed' : 'pointer'}
         opacity={actions.isEmpty ? 0.4 : 1}
         userSelect="none"
