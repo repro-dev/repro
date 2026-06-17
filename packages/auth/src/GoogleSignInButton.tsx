@@ -19,6 +19,6 @@ export const GoogleSignInButton: React.FC<Props> = ({
     onClick={onClick}
   >
     <GoogleGLogo />
-    <span>Continue with Google</span>
+    Continue with Google
   </Button>
 )

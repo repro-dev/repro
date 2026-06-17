@@ -232,7 +232,7 @@ export const ApiKeysRoute: React.FC = () => {
                     <Table.HeaderCell>Last used</Table.HeaderCell>
                     <Table.HeaderCell>Status</Table.HeaderCell>
                     <Table.HeaderCell>
-                      <span aria-hidden="true" />
+                      <Block aria-hidden={true} />
                     </Table.HeaderCell>
                   </Table.Row>
                 </Table.Header>

@@ -66,6 +66,50 @@ describe('REP-642 tooling wiring', () => {
     }
   })
 
+  it('enforces design-system conventions via forbid-elements and forbid-dom-props', () => {
+    const oxlintConfig = JSON.parse(readText('.oxlintrc.json')) as {
+      rules: Record<string, unknown>
+      plugins: string[]
+      overrides: Array<{ files: string[]; rules: Record<string, string> }>
+    }
+
+    // Plugins include react for the new rules
+    assert.ok(
+      oxlintConfig.plugins.includes('react'),
+      'react plugin must be configured'
+    )
+
+    // Rules exist and are set to error
+    const forbidElements = oxlintConfig.rules['react/forbid-elements'] as [
+      string,
+      { forbid: string[] },
+    ]
+    const forbidDomProps = oxlintConfig.rules['react/forbid-dom-props'] as [
+      string,
+      { forbid: string[] },
+    ]
+
+    assert.ok(forbidElements, 'react/forbid-elements rule must be configured')
+    assert.equal(forbidElements[0], 'error')
+    assert.deepEqual(forbidElements[1].forbid, ['div', 'span'])
+
+    assert.ok(forbidDomProps, 'react/forbid-dom-props rule must be configured')
+    assert.equal(forbidDomProps[0], 'error')
+    assert.deepEqual(forbidDomProps[1].forbid, ['style'])
+
+    // Overrides exist and disable rules for excluded files
+    assert.ok(
+      oxlintConfig.overrides.length > 0,
+      'at least one override must exist'
+    )
+    const exclusionOverride = oxlintConfig.overrides[0]!
+    assert.ok(exclusionOverride.files.includes('*.test.tsx'))
+    assert.ok(exclusionOverride.files.includes('*.stories.tsx'))
+    assert.ok(exclusionOverride.files.includes('packages/design/src/**'))
+    assert.equal(exclusionOverride.rules['react/forbid-elements'], 'off')
+    assert.equal(exclusionOverride.rules['react/forbid-dom-props'], 'off')
+  })
+
   it('runs oxlint before the Prettier check in CI', () => {
     const ci = readText('.github/workflows/ci.yml')
     const toolingTestStep = ci.indexOf(

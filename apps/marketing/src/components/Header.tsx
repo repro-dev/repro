@@ -1,4 +1,5 @@
 'use client'
+/* eslint-disable react/forbid-elements */
 
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import headerStyles from './Header.module.css'

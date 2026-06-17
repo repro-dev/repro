@@ -1,3 +1,4 @@
+/* eslint-disable react/forbid-elements */
 import { HeroSection } from './HeroSection'
 import routeStyles from './HighIntentRoutePage.module.css'
 import homeStyles from './HomePageContent.module.css'

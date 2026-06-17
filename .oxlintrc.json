@@ -1,5 +1,6 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["eslint", "unicorn", "typescript", "oxc", "react"],
   "ignorePatterns": [
     "**/dist",
     "**/storybook-static",
@@ -8,5 +9,25 @@
     "packages/wire-formats/generated",
     "packages/wire-formats/src/generated",
     "packages/tdl/src/cli/*.ohm-bundle.*"
+  ],
+  "rules": {
+    "react/forbid-elements": ["error", { "forbid": ["div", "span"] }],
+    "react/forbid-dom-props": ["error", { "forbid": ["style"] }]
+  },
+  "overrides": [
+    {
+      "files": [
+        "*.test.tsx",
+        "*.test.ts",
+        "**/__tests__/**",
+        "*.stories.tsx",
+        "*.stories.ts",
+        "packages/design/src/**"
+      ],
+      "rules": {
+        "react/forbid-elements": "off",
+        "react/forbid-dom-props": "off"
+      }
+    }
   ]
 }

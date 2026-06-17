@@ -66,7 +66,13 @@ export const TreeRow: React.FC<TreeRowProps> = ({
   const { isSelected, onFocusNode, onSelectNode } = useNodeState(nodeId, tag)
 
   return (
-    <div data-tree-node={`${nodeId}~${tag}`}>
+    <Block
+      props={
+        {
+          'data-tree-node': `${nodeId}~${tag}`,
+        } as React.HTMLAttributes<HTMLDivElement>
+      }
+    >
       <TreeRowBase
         depth={depth}
         isSelected={isSelected}
@@ -76,6 +82,6 @@ export const TreeRow: React.FC<TreeRowProps> = ({
       >
         {children}
       </TreeRowBase>
-    </div>
+    </Block>
   )
 }

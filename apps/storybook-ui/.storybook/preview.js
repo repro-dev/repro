@@ -36,6 +36,7 @@ const preview = {
           createElement(
             ConfirmDialogProvider,
             null,
+            // eslint-disable-next-line react/forbid-elements
             createElement("div", { style: { padding: "1rem" } }, createElement(Story))
           )
         )

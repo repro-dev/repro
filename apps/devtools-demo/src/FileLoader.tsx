@@ -1,3 +1,4 @@
+/* eslint-disable react/forbid-dom-props */
 import { Col } from '@jsxstyle/react'
 import { Button, Card, Text, color, radius, spacing } from '@repro/design'
 import React, { useRef, useState } from 'react'

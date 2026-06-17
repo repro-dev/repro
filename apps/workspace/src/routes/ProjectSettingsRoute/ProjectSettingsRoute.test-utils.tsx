@@ -1,3 +1,4 @@
+/* eslint-disable react/forbid-elements */
 import { ApiProvider, createApiClient } from '@repro/api-client'
 import { createAtom } from '@repro/atom'
 import { ConfirmDialogProvider, PortalRootProvider } from '@repro/design'

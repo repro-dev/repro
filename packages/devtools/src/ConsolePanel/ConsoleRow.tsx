@@ -41,7 +41,11 @@ export const ConsoleRow: React.FC<Props> = ({
   index,
 }) => {
   return (
-    <div data-target="console-row">
+    <Block
+      props={
+        { 'data-target': 'console-row' } as React.HTMLAttributes<HTMLDivElement>
+      }
+    >
       <Grid
         gridTemplateColumns="auto auto 1fr auto"
         columnGap={10}
@@ -69,7 +73,7 @@ export const ConsoleRow: React.FC<Props> = ({
 
         {stack[0] ? <StackReference entry={stack[0]} /> : <Block />}
       </Grid>
-    </div>
+    </Block>
   )
 }
 

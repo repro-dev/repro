@@ -22,6 +22,7 @@ export default function ComingSoonPage() {
           and will open the doors soon.
         </p>
 
+        {/* eslint-disable-next-line react/forbid-elements */}
         <div className={routeStyles.actions}>
           <a
             className={`${sharedStyles.button} ${sharedStyles.secondaryCta}`}
