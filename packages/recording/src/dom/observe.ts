@@ -414,22 +414,17 @@ export function internal__processMutationRecords(
         // need to create a MutationObserver for the shadow root so future
         // mutations inside the shadow are tracked.
         if (onShadowRootDiscovered) {
+          const findShadowRoots = (element: Element) => {
+            if (element.shadowRoot && element.shadowRoot.mode !== 'closed') {
+              onShadowRootDiscovered(element.shadowRoot)
+            }
+            for (const child of Array.from(element.children)) {
+              findShadowRoots(child)
+            }
+          }
           record.addedNodes.forEach(addedNode => {
             if (addedNode instanceof Element) {
-              const walker = document.createTreeWalker(
-                addedNode,
-                NodeFilter.SHOW_ELEMENT,
-                null
-              )
-              let element: Element | null
-              while ((element = walker.nextNode() as Element | null)) {
-                if (
-                  element.shadowRoot &&
-                  element.shadowRoot.mode !== 'closed'
-                ) {
-                  onShadowRootDiscovered(element.shadowRoot)
-                }
-              }
+              findShadowRoots(addedNode)
             }
           })
         }
