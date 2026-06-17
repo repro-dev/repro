@@ -22,7 +22,7 @@ const DevBadge: React.FC<DevBadgeProps> = ({ branch }) => {
       bottom={-8}
       left="50%"
       transform="translateX(-50%)"
-      backgroundColor={color.warning}
+      backgroundColor={color.warningEmphasis}
       color={color.text.default}
       fontSize={9}
       fontWeight={700}

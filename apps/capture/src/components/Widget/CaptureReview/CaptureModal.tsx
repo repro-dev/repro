@@ -48,7 +48,8 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
         alignItems="center"
         paddingH={spacing.lg}
         paddingV={spacing.md}
-        backgroundColor={color.bg.subtle}
+        // eslint-disable-next-line @repro/oxlint-plugin-design/no-hardcoded-color -- transparent white glass tint over header, no exact token equivalent
+        backgroundColor="rgba(255, 255, 255, 0.1)"
         color={color.infoTint}
         hoverBackgroundColor={actions.isEmpty ? undefined : color.infoFg}
         borderRadius={2}

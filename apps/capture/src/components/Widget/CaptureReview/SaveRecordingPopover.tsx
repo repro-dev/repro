@@ -147,7 +147,8 @@ export const SaveRecordingPopover: React.FC<SaveRecordingPopoverProps> = ({
           gap={spacing.sm}
           paddingH={spacing.lg}
           paddingV={spacing.md}
-          backgroundColor={color.bg.subtle}
+          // eslint-disable-next-line @repro/oxlint-plugin-design/no-hardcoded-color -- transparent white glass tint over header, no exact token equivalent
+          backgroundColor="rgba(255, 255, 255, 0.1)"
           color={color.infoTint}
           hoverBackgroundColor={
             isAuthed && !isUploading ? color.infoFg : undefined
