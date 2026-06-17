@@ -1,5 +1,4 @@
 import type { Metadata } from 'next'
-/* eslint-disable @repro/oxlint-plugin-design/no-classname-prop */
 
 import { HighIntentRoutePage } from '~/components/HighIntentRoutePage'
 import routeStyles from '~/components/HighIntentRoutePage.module.css'

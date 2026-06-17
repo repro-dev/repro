@@ -1,10 +1,8 @@
 import { Block, Row } from '@jsxstyle/react'
-import { color, colors, Tooltip, transition } from '@repro/design'
+import { color, spacing, Tooltip, transition } from '@repro/design'
 import { Inspect as PickerIcon } from 'lucide-react'
 import React, { useCallback, useEffect } from 'react'
 import { useElementPicker, useInspecting } from '../hooks'
-/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing, @repro/oxlint-plugin-design/no-raw-palette */
-
 export const Picker: React.FC = () => {
   const [picker, setPicker] = useElementPicker()
   const [inspecting] = useInspecting()
@@ -20,15 +18,20 @@ export const Picker: React.FC = () => {
   }, [inspecting, setPicker])
 
   return (
-    <Row position="relative" alignItems="center" cursor="pointer" paddingH={4}>
+    <Row
+      position="relative"
+      alignItems="center"
+      cursor="pointer"
+      paddingH={spacing.sm}
+    >
       <Row
         alignItems="center"
         justifyContent="center"
         width={32}
         height={32}
-        color={picker ? colors.pink['500'] : color.primary}
-        backgroundColor={picker ? colors.pink['100'] : 'transparent'}
-        hoverBackgroundColor={picker ? colors.pink['100'] : color.bg.hover}
+        color={color.primary}
+        backgroundColor={picker ? color.primarySubtle : 'transparent'}
+        hoverBackgroundColor={picker ? color.primarySubtle : color.bg.hover}
         borderRadius={4}
         transition={transition.default}
         props={{ onClick: togglePicker }}
@@ -41,4 +44,3 @@ export const Picker: React.FC = () => {
     </Row>
   )
 }
-/* eslint-enable */

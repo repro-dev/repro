@@ -1,10 +1,9 @@
 import { Row } from '@jsxstyle/react'
 import { Analytics } from '@repro/analytics'
-import { color, shadow, Tooltip } from '@repro/design'
+import { color, shadow, spacing, Tooltip } from '@repro/design'
 import { BugOffIcon, StepBackIcon, StepForwardIcon } from 'lucide-react'
 import React from 'react'
 import {
-  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   useActiveBreakpoint,
   useBreakpoints,
   useBreakpointsEnabled,
@@ -57,14 +56,14 @@ export const PlaybackNavigation: React.FC = () => {
   }
 
   return (
-    <Row paddingH={10} position="relative">
+    <Row paddingH={spacing.lg} position="relative">
       {showFloatingControls && (
         <Row
           position="absolute"
           top={0}
           right={0}
           transform="translate(-10px, calc(-100% - 10px))"
-          padding={5}
+          padding={spacing.sm}
           backgroundColor={color.bg.surface}
           borderWidth={1}
           borderStyle="solid"

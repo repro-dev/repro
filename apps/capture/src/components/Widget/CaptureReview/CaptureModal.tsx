@@ -1,6 +1,6 @@
 import { Row } from '@jsxstyle/react'
 import { useSession } from '@repro/auth'
-import { Tooltip, color } from '@repro/design'
+import { Tooltip, color, spacing } from '@repro/design'
 import { usePlayback } from '@repro/playback'
 import { DownloadIcon } from 'lucide-react'
 import React, { useCallback, useState } from 'react'
@@ -10,8 +10,6 @@ import { CaptureReview } from './CaptureReview'
 import { CaptureUploadProvider } from './CaptureUploadProvider'
 import { SaveRecordingPopover } from './SaveRecordingPopover'
 import { useRecordingActions } from './useRecordingActions'
-/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-color, @repro/oxlint-plugin-design/no-hardcoded-spacing */
-
 const DEFAULT_SELECTED_DURATION = 60_000
 
 interface CaptureModalProps {
@@ -48,9 +46,9 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
     <>
       <Row
         alignItems="center"
-        paddingH={12}
-        paddingV={8}
-        backgroundColor="rgba(255, 255, 255, 0.1)"
+        paddingH={spacing.lg}
+        paddingV={spacing.md}
+        backgroundColor={color.bg.subtle}
         color={color.infoTint}
         hoverBackgroundColor={actions.isEmpty ? undefined : color.infoFg}
         borderRadius={2}
@@ -109,4 +107,3 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
     </CaptureUploadProvider>
   )
 }
-/* eslint-enable */

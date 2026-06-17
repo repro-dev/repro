@@ -1,10 +1,10 @@
 import { Block, Row } from '@jsxstyle/react'
+import { spacing } from '@repro/design'
 import { ReactComponentNode } from '@repro/domain'
 import React, { useMemo, useState } from 'react'
 import { TreeRowBase } from '../ElementTree'
 import { ComponentR } from './ComponentR'
 import { ComponentTreeRow } from './ComponentTreeRow'
-/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 
 interface Props {
   nodes: Map<number, ReactComponentNode>
@@ -91,7 +91,7 @@ export const ComponentTree: React.FC<Props> = ({
             isSelected={isSelected}
             onClick={() => onSelect(fiberId)}
           >
-            <Row alignItems="center" paddingV={2}>
+            <Row alignItems="center" paddingV={spacing.xs}>
               <Block width={14} flexShrink={0} />
               <ComponentR.Close node={node} />
             </Row>
@@ -103,4 +103,3 @@ export const ComponentTree: React.FC<Props> = ({
 
   return <Block>{roots.map(root => renderNode(root.fiberNodeId, 0))}</Block>
 }
-/* eslint-enable */

@@ -1,9 +1,8 @@
 import { Block, InlineBlock, Row } from '@jsxstyle/react'
 import { animated, config, useTransition } from '@react-spring/web'
-import { color, Logo } from '@repro/design'
+import { color, Logo, spacing } from '@repro/design'
 import { XIcon } from 'lucide-react'
 import React from 'react'
-/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 
 export interface ModalProps {
   size?: 'compact' | 'normal' | 'full-screen'
@@ -55,13 +54,13 @@ export const Modal: React.FC<React.PropsWithChildren<ModalProps>> = ({
             >
               {size !== 'compact' && (
                 <Block
-                  paddingBlock={10}
-                  paddingInline={20}
+                  paddingBlock={spacing.lg}
+                  paddingInline={spacing.xl}
                   height={120}
                   backgroundColor={color.primaryHover}
                   backgroundImage={`linear-gradient(to bottom right, ${color.infoFg}, ${color.primary})`}
                 >
-                  <Row alignItems="center" gap={10}>
+                  <Row alignItems="center" gap={spacing.lg}>
                     <Logo size={24} inverted={true} />
 
                     {title && (
@@ -70,13 +69,14 @@ export const Modal: React.FC<React.PropsWithChildren<ModalProps>> = ({
                       </InlineBlock>
                     )}
 
-                    <Row alignItems="center" gap={16} marginLeft="auto">
+                    {/* eslint-disable-next-line @repro/oxlint-plugin-design/no-hardcoded-spacing -- auto is a flex keyword, not a pixel value */}
+                    <Row alignItems="center" gap={spacing.xl} marginLeft="auto">
                       {headerActions}
 
                       {onClose && (
                         <Row
                           alignItems="center"
-                          padding={5}
+                          padding={spacing.sm}
                           transform="translateX(10px)"
                           color={color.infoTint}
                           hoverBackgroundColor={color.infoFg}
@@ -95,8 +95,12 @@ export const Modal: React.FC<React.PropsWithChildren<ModalProps>> = ({
               )}
 
               <Block
-                marginTop={size !== 'compact' ? -75 : 'auto'}
-                padding={15}
+                marginTop={
+                  size !== 'compact'
+                    ? -(spacing['4xl'] + spacing['2xl'] + spacing.sm)
+                    : 'auto'
+                }
+                padding={spacing.xl}
                 height="calc(100% - 45px)"
               >
                 {children}
@@ -107,4 +111,3 @@ export const Modal: React.FC<React.PropsWithChildren<ModalProps>> = ({
       )
   )
 }
-/* eslint-enable */

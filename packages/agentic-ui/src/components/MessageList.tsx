@@ -1,10 +1,9 @@
 import { Block, Col } from '@jsxstyle/react'
 import { Md } from '@m2d/react-markdown'
 import { AgenticError, Entry, Loading, groupToolCalls } from '@repro/agentic'
-import { colors, fontSize, spacing } from '@repro/design'
+import { color, fontSize, spacing } from '@repro/design'
 import React, { useMemo } from 'react'
 import {
-  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing, @repro/oxlint-plugin-design/no-raw-palette */
   INPUT_CONTAINER_OFFSET_PX,
   LOADING_CONTAINER_OFFSET_PX,
 } from '../constants'
@@ -63,7 +62,11 @@ export const MessageList: React.FC<MessageListProps> = ({
       transition="block-size 250ms ease-in-out"
       props={{ ref: scrollContainerRef }}
     >
-      <Col gap={10} minBlockSize="100%" props={{ ref: contentContainerRef }}>
+      <Col
+        gap={spacing.lg}
+        minBlockSize="100%"
+        props={{ ref: contentContainerRef }}
+      >
         {entries.length === 0 && <EmptyState onSelectPrompt={onSelectPrompt} />}
 
         {renderItems.map((item, index) => {
@@ -77,8 +80,8 @@ export const MessageList: React.FC<MessageListProps> = ({
                 <Block
                   marginInlineStart={spacing['3xl']}
                   paddingInline={spacing.lg}
-                  backgroundColor={colors.blue['50']}
-                  borderColor={colors.blue['100']}
+                  backgroundColor={color.infoSubtle}
+                  borderColor={color.infoBorder}
                   borderStyle="solid"
                   borderWidth={0}
                   borderBlockEndWidth={3}
@@ -122,4 +125,3 @@ export const MessageList: React.FC<MessageListProps> = ({
     </Block>
   )
 }
-/* eslint-enable */

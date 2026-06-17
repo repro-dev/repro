@@ -1,13 +1,12 @@
 import { Block, InlineBlock } from '@jsxstyle/react'
 import {
-  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing, @repro/oxlint-plugin-design/no-raw-palette */
   createCSSPropertyMap,
   createGroupedCSSPropertyMap,
   CSSPropertyMap,
   GroupedCSSPropertyMap,
   useReferenceStyle,
 } from '@repro/css-utils'
-import { color, colors } from '@repro/design'
+import { color, spacing } from '@repro/design'
 import { isElementNode } from '@repro/dom-utils'
 import { useElapsed, useLatestControlFrame } from '@repro/playback'
 import React, { useEffect, useState } from 'react'
@@ -68,7 +67,7 @@ export const SelectedNodeComputedStyle: React.FC = () => {
   }, [styleMaps, elapsed])
 
   return styleMaps ? (
-    <Block padding={16}>
+    <Block padding={spacing.xl}>
       {styleMaps.map(({ name, propertyMap }, i) => {
         const propertyKeys = Object.keys(propertyMap).sort((a, b) =>
           a < b ? -1 : 1
@@ -82,15 +81,15 @@ export const SelectedNodeComputedStyle: React.FC = () => {
           <Block
             key={name}
             component="details"
-            paddingTop={i > 0 ? 16 : 0}
-            paddingBottom={16}
+            paddingTop={i > 0 ? spacing.xl : spacing.none}
+            paddingBottom={spacing.xl}
             borderTop={i > 0 ? `1px solid ${color.border.default}` : ''}
             props={{ open: true }}
           >
             <Block
               component="summary"
               display="list-item"
-              paddingBottom={8}
+              paddingBottom={spacing.md}
               textTransform="uppercase"
               fontSize={11}
               fontWeight={700}
@@ -108,8 +107,11 @@ export const SelectedNodeComputedStyle: React.FC = () => {
                 fontSize={11}
                 lineHeight={1.5}
               >
-                <InlineBlock color={colors.rose['500']}>{key}:</InlineBlock>
-                <InlineBlock color={color.text.secondary} marginLeft={8}>
+                <InlineBlock color={color.danger}>{key}:</InlineBlock>
+                <InlineBlock
+                  color={color.text.secondary}
+                  marginLeft={spacing.md}
+                >
                   {propertyMap[key]};
                 </InlineBlock>
               </Block>
@@ -120,4 +122,3 @@ export const SelectedNodeComputedStyle: React.FC = () => {
     </Block>
   ) : null
 }
-/* eslint-enable */

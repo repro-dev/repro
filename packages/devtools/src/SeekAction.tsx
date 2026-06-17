@@ -1,9 +1,8 @@
 import { Block, Row } from '@jsxstyle/react'
-import { color } from '@repro/design'
+import { color, spacing } from '@repro/design'
 import { usePlayback } from '@repro/playback'
 import { SkipForward } from 'lucide-react'
 import React, { useCallback } from 'react'
-/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 
 interface Props {
   eventIndex: number
@@ -19,8 +18,8 @@ export const SeekAction: React.FC<Props> = ({ eventIndex }) => {
   return (
     <Row
       alignItems="center"
-      gap={5}
-      padding={5}
+      gap={spacing.sm}
+      padding={spacing.sm}
       whiteSpace="nowrap"
       color={color.text.inverse}
       backgroundColor={color.border.focus}
@@ -36,4 +35,3 @@ export const SeekAction: React.FC<Props> = ({ eventIndex }) => {
     </Row>
   )
 }
-/* eslint-enable */

@@ -1,6 +1,6 @@
 import { Block, Row } from '@jsxstyle/react'
 import { formatTime } from '@repro/date-utils'
-import { color, shadow, ToggleGroup } from '@repro/design'
+import { color, shadow, spacing, ToggleGroup } from '@repro/design'
 import { DevTools } from '@repro/devtools'
 import { RecordingMode } from '@repro/domain'
 import { Playback, PlaybackProvider, SimpleTimeline } from '@repro/playback'
@@ -10,7 +10,6 @@ import { ProgressOverlay } from '../ReportForm/ProgressOverlay'
 import { AgenticSection } from './AgenticSection'
 import { useCaptureUpload } from './CaptureUploadProvider'
 import { RecordingActions } from './useRecordingActions'
-/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 
 const DEFAULT_SELECTED_DURATION = 60_000
 
@@ -59,10 +58,10 @@ export const CaptureReview: React.FC<CaptureReviewProps> = ({
           {recordingMode === RecordingMode.Replay &&
           durationOptions.length > 1 ? (
             <Row
-              gap={8}
+              gap={spacing.md}
               alignItems="center"
               justifyContent="flex-end"
-              padding={8}
+              padding={spacing.md}
               zIndex={1}
               boxShadow={shadow.md}
             >
@@ -105,4 +104,3 @@ export const CaptureReview: React.FC<CaptureReviewProps> = ({
     </PlaybackProvider>
   )
 }
-/* eslint-enable */

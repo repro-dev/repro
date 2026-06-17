@@ -1,4 +1,4 @@
-import { color, colors } from '@repro/design'
+import { color } from '@repro/design'
 import React from 'react'
 import { ArrayRenderer } from './ArrayRenderer'
 import { BooleanRenderer } from './BooleanRenderer'
@@ -7,7 +7,6 @@ import { NumberRenderer } from './NumberRenderer'
 import { ObjectRenderer } from './ObjectRenderer'
 import { StringRenderer } from './StringRenderer'
 import { UndefinedRenderer } from './UndefinedRenderer'
-/* eslint-disable @repro/oxlint-plugin-design/no-raw-palette */
 
 export function getRendererForType(
   objectKey: string | null,
@@ -24,7 +23,7 @@ export function getRendererForType(
         level={level}
         objectKey={objectKey}
         value={`Date(${value.toLocaleString()})`}
-        color={colors.sky['700']}
+        color={color.info}
       />
     )
   } else if (Array.isArray(value)) {
@@ -48,4 +47,3 @@ export function getRendererForType(
     )
   }
 }
-/* eslint-enable */

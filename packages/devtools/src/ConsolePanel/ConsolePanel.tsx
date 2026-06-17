@@ -1,5 +1,5 @@
 import { Block, Grid } from '@jsxstyle/react'
-import { color } from '@repro/design'
+import { color, spacing } from '@repro/design'
 import { Stats } from '@repro/diagnostics'
 import { ConsoleEvent, MessagePartType, SourceEventView } from '@repro/domain'
 import { ControlFrame, ElapsedMarker, usePlayback } from '@repro/playback'
@@ -12,7 +12,6 @@ import { ConsoleRow } from './ConsoleRow'
 import { LevelFilter } from './LevelFilter'
 import { SearchForm } from './SearchForm'
 import { enumToBitField } from './util'
-/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 
 export const ConsolePanel: React.FC = () => {
   const playback = usePlayback()
@@ -114,8 +113,8 @@ export const ConsolePanel: React.FC = () => {
     <Grid gridTemplateRows="auto 1fr" height="100%">
       <Grid
         alignItems="center"
-        gap={16}
-        padding={8}
+        gap={spacing.xl}
+        padding={spacing.md}
         gridTemplateColumns="2fr 2fr 1fr"
         borderBottom={`1px solid ${color.border.default}`}
       >
@@ -146,4 +145,3 @@ export const ConsolePanel: React.FC = () => {
     </Grid>
   )
 }
-/* eslint-enable */

@@ -1,10 +1,10 @@
 import { Block, Row } from '@jsxstyle/react'
 import { formatTime } from '@repro/date-utils'
-import { color } from '@repro/design'
+import { color, spacing } from '@repro/design'
 import { RequestType } from '@repro/domain'
 import { FetchGroup, WebSocketGroup } from '@repro/source-utils'
 import prettyBytes from 'pretty-bytes'
-/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
+
 // FIXME: Re-export `JsxstyleProps`
 // @ts-expect-error Cannot find declaration in npm-forks
 import { JsxstyleProps } from 'jsxstyle/lib/types'
@@ -87,7 +87,7 @@ export const NetworkRow: React.FC<Props> = ({
   return (
     <Block
       display="contents"
-      paddingH={15}
+      paddingH={spacing.xl}
       overflowX="hidden"
       fontSize={11}
       color={
@@ -97,8 +97,8 @@ export const NetworkRow: React.FC<Props> = ({
       props={{ onClick: onSelect, onMouseEnter, onMouseLeave }}
     >
       <Block
-        paddingV={10}
-        paddingH={10}
+        paddingV={spacing.lg}
+        paddingH={spacing.lg}
         position="relative"
         backgroundColor={bgColor}
         color={color.text.muted}
@@ -157,8 +157,8 @@ const Cell: React.FC<React.PropsWithChildren<JsxstyleProps<false>>> = ({
   <Row
     alignSelf="stretch"
     alignItems="center"
-    paddingV={10}
-    paddingH={10}
+    paddingV={spacing.lg}
+    paddingH={spacing.lg}
     borderLeft={`1px solid ${color.border.default}`}
     lineHeight={1.25}
     {...props}
@@ -166,4 +166,3 @@ const Cell: React.FC<React.PropsWithChildren<JsxstyleProps<false>>> = ({
     {children}
   </Row>
 )
-/* eslint-enable */

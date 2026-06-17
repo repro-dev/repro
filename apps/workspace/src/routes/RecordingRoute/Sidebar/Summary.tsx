@@ -1,9 +1,8 @@
 import { Block, InlineBlock } from '@jsxstyle/react'
 import { formatDate } from '@repro/date-utils'
-import { color, Drawer } from '@repro/design'
+import { color, Drawer, spacing } from '@repro/design'
 import { RecordingInfo } from '@repro/domain'
 import React, { Fragment, useState } from 'react'
-/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 
 interface Props {
   info: RecordingInfo
@@ -25,8 +24,8 @@ export const Summary: React.FC<Props> = ({ info }) => {
   return (
     <Block
       isolation="isolate"
-      paddingH={20}
-      paddingBottom={20}
+      paddingH={spacing.xl}
+      paddingBottom={spacing.xl}
       boxShadow={`0 4px 16px ${color.border.default}`}
       borderBottom={`1px solid ${color.border.default}`}
     >
@@ -36,7 +35,7 @@ export const Summary: React.FC<Props> = ({ info }) => {
 
       <Block
         component="a"
-        marginTop={10}
+        marginTop={spacing.lg}
         fontSize={13}
         textDecoration="underline"
         lineHeight={1.25}
@@ -52,7 +51,7 @@ export const Summary: React.FC<Props> = ({ info }) => {
       </Block>
 
       <Block
-        marginTop={10}
+        marginTop={spacing.lg}
         fontSize={13}
         lineHeight={1.25}
         color={color.text.secondary}
@@ -61,7 +60,7 @@ export const Summary: React.FC<Props> = ({ info }) => {
       </Block>
 
       <Block
-        marginTop={10}
+        marginTop={spacing.lg}
         lineHeight={1.5}
         fontSize={13}
         textOverflow="ellipsis"
@@ -71,7 +70,7 @@ export const Summary: React.FC<Props> = ({ info }) => {
 
         {shouldTruncateDescription && (
           <InlineBlock
-            marginLeft={5}
+            marginLeft={spacing.sm}
             fontWeight={700}
             color={color.primary}
             cursor="pointer"
@@ -92,7 +91,7 @@ export const Summary: React.FC<Props> = ({ info }) => {
 
               <Block
                 component="a"
-                marginTop={20}
+                marginTop={spacing.xl}
                 fontSize={15}
                 textDecoration="underline"
                 color={color.primary}
@@ -103,7 +102,7 @@ export const Summary: React.FC<Props> = ({ info }) => {
               </Block>
 
               <Block
-                marginTop={10}
+                marginTop={spacing.lg}
                 fontSize={15}
                 lineHeight={1.25}
                 color={color.text.secondary}
@@ -112,7 +111,7 @@ export const Summary: React.FC<Props> = ({ info }) => {
               </Block>
 
               <Block
-                marginTop={20}
+                marginTop={spacing.xl}
                 fontSize={13}
                 lineHeight={1.5}
                 whiteSpace="pre-wrap"
@@ -126,4 +125,3 @@ export const Summary: React.FC<Props> = ({ info }) => {
     </Block>
   )
 }
-/* eslint-enable */

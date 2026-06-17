@@ -1,12 +1,10 @@
 import { Block, Grid, Inline, Row } from '@jsxstyle/react'
-import { Button, color, colors } from '@repro/design'
+import { Button, color, spacing } from '@repro/design'
 import { interrupt } from '@repro/recording'
 import { Check as CheckIcon, Video as VideoIcon } from 'lucide-react'
 import React, { useEffect, useState } from 'react'
 import { interval } from 'rxjs'
 import { ReadyState, useReadyState } from '~/state'
-/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing, @repro/oxlint-plugin-design/no-raw-palette */
-
 export const LiveControls: React.FC = () => {
   const [, setReadyState] = useReadyState()
   const [time, setTime] = useState(0)
@@ -38,7 +36,7 @@ export const LiveControls: React.FC = () => {
       transform="translate(calc(100% + 15px), -20px)"
       alignItems="center"
       gridTemplateColumns="1fr auto auto"
-      gap={10}
+      gap={spacing.lg}
       backgroundColor={color.bg.surface}
       borderColor={color.infoFg}
       borderStyle="solid"
@@ -49,7 +47,7 @@ export const LiveControls: React.FC = () => {
         <CheckIcon size={16} />
       </Button>
 
-      <Row alignItems="center" gap={8} lineHeight={1}>
+      <Row alignItems="center" gap={spacing.md} lineHeight={1}>
         <Row
           alignItems="center"
           justifyContent="center"
@@ -61,7 +59,7 @@ export const LiveControls: React.FC = () => {
           <VideoIcon color={color.primary} size={16} />
         </Row>
 
-        <Block fontFamily="monospace" fontSize={14} color={colors.slate['800']}>
+        <Block fontFamily="monospace" fontSize={14} color={color.text.default}>
           <Inline>{minutes.toString().padStart(2, '0')}</Inline>
           <Inline color={color.border.focus}>:</Inline>
           <Inline>{seconds.toString().padStart(2, '0')}</Inline>
@@ -70,4 +68,3 @@ export const LiveControls: React.FC = () => {
     </Grid>
   )
 }
-/* eslint-enable */

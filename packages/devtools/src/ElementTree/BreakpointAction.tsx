@@ -1,9 +1,7 @@
 import { InlineRow } from '@jsxstyle/react'
-import { colors, Tooltip } from '@repro/design'
+import { color, spacing, Tooltip } from '@repro/design'
 import { CircleIcon } from 'lucide-react'
 import React from 'react'
-/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing, @repro/oxlint-plugin-design/no-raw-palette */
-
 export const BreakpointAction: React.FC<{
   active: boolean
   onClick: () => void
@@ -13,10 +11,10 @@ export const BreakpointAction: React.FC<{
     top={0}
     left={0}
     alignItems="center"
-    padding={3}
-    backgroundColor={active ? colors.pink['500'] : 'transparent'}
-    color={active ? colors.pink['50'] : colors.blue['300']}
-    hoverColor={active ? colors.pink['50'] : colors.blue['700']}
+    padding={spacing.xs}
+    backgroundColor={active ? color.primary : 'transparent'}
+    color={active ? color.primarySubtle : color.infoBorder}
+    hoverColor={active ? color.primarySubtle : color.info}
     borderStartEndRadius={4}
     borderEndEndRadius={4}
     lineHeight={1.25}
@@ -34,4 +32,3 @@ export const BreakpointAction: React.FC<{
     </Tooltip>
   </InlineRow>
 )
-/* eslint-enable */

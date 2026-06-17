@@ -1,10 +1,9 @@
 import { Block, Inline, Row } from '@jsxstyle/react'
 import { useAtomValue } from '@repro/atom'
-import { color, Tooltip, transition } from '@repro/design'
+import { color, spacing, Tooltip, transition } from '@repro/design'
 import { SourceEventType, SourceEventView, StateEventType } from '@repro/domain'
 import { usePlayback } from '@repro/playback'
 import {
-  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   AlertTriangle as ConsoleIcon,
   Code as ElementsIcon,
   Globe as NetworkIcon,
@@ -84,7 +83,7 @@ export const Tabs: React.FC<{}> = () => {
   const hasReduxEvents = useHasReduxEvents()
 
   return (
-    <Row alignItems="center" gap={4} marginH={4}>
+    <Row alignItems="center" gap={spacing.sm} marginH={spacing.sm}>
       <Item
         view={View.Elements}
         icon={<ElementsIcon size={14} />}
@@ -148,8 +147,8 @@ const Item: React.FC<ItemProps> = ({ disabled, icon, label, view }) => {
       color={tabColor}
       cursor="pointer"
       fontSize={11}
-      gap={4}
-      paddingH={8}
+      gap={spacing.sm}
+      paddingH={spacing.md}
       blockSize={32}
       borderRadius={4}
       position="relative"
@@ -168,4 +167,3 @@ const Item: React.FC<ItemProps> = ({ disabled, icon, label, view }) => {
     </Row>
   )
 }
-/* eslint-enable */

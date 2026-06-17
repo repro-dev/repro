@@ -1,7 +1,6 @@
 import { Block, Row } from '@jsxstyle/react'
 import { Loading } from '@repro/agentic'
 import {
-  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-color */
   color,
   fontFamily,
   fontSize,
@@ -132,7 +131,7 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
               {/* Faint separator */}
               <Block
                 alignSelf="stretch"
-                backgroundColor="rgba(255, 255, 255, 0.25)"
+                backgroundColor={color.border.default}
                 width={1}
               />
 
@@ -166,4 +165,3 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
     </Row>
   )
 }
-/* eslint-enable */

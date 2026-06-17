@@ -1,11 +1,10 @@
 import { Block, Row } from '@jsxstyle/react'
 import { formatTime } from '@repro/date-utils'
-import { color } from '@repro/design'
+import { color, spacing } from '@repro/design'
 import { SourceEvent } from '@repro/domain'
 import { usePlayback } from '@repro/playback'
 import { Unboxed } from '@repro/tdl'
 import React from 'react'
-/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 
 interface Props {
   eventIndex: number
@@ -35,9 +34,9 @@ export const BaseEntry: React.FC<React.PropsWithChildren<Props>> = ({
 
   return (
     <Row
-      paddingH={15}
+      paddingH={spacing.xl}
       alignItems="center"
-      gap={5}
+      gap={spacing.sm}
       overflow="hidden"
       fontSize={13}
       backgroundColor={color.bg.surface}
@@ -53,7 +52,7 @@ export const BaseEntry: React.FC<React.PropsWithChildren<Props>> = ({
       <Block>{icon}</Block>
 
       <Block
-        paddingV={5}
+        paddingV={spacing.sm}
         overflow="hidden"
         textOverflow="ellipsis"
         whiteSpace="nowrap"
@@ -63,4 +62,3 @@ export const BaseEntry: React.FC<React.PropsWithChildren<Props>> = ({
     </Row>
   )
 }
-/* eslint-enable */

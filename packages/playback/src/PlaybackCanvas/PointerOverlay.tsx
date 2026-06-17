@@ -1,12 +1,11 @@
 import { Block } from '@jsxstyle/react'
-import { colors } from '@repro/design'
+import { color } from '@repro/design'
 import { PointerState } from '@repro/domain'
 import React from 'react'
 import { usePointer, usePointerState } from '../hooks'
-/* eslint-disable @repro/oxlint-plugin-design/no-raw-palette */
 
 const Cursor: React.FC<{ color: string; size?: number }> = ({
-  color,
+  color: cursorColor,
   size = 24,
 }) => (
   <svg
@@ -17,16 +16,19 @@ const Cursor: React.FC<{ color: string; size?: number }> = ({
   >
     <path
       d="M0.199997 16.9V0.900024L11.8 12.5H5L4.6 12.6L0.199997 16.9Z"
-      fill={colors.white}
+      fill={color.bg.surface}
     />
-    <path d="M9.3 17.6L5.7 19.1L1 8L4.7 6.5L9.3 17.6Z" fill={colors.white} />
+    <path
+      d="M9.3 17.6L5.7 19.1L1 8L4.7 6.5L9.3 17.6Z"
+      fill={color.bg.surface}
+    />
     <path
       d="M4.8745 9.51852L3.0303 10.2927L6.1271 17.6695L7.9713 16.8953L4.8745 9.51852Z"
-      fill={color}
+      fill={cursorColor}
     />
     <path
       d="M1.2 3.29999V14.5L4.2 11.6L4.6 11.5H9.4L1.2 3.29999Z"
-      fill={color}
+      fill={cursorColor}
     />
   </svg>
 )
@@ -60,7 +62,7 @@ export const PointerOverlay: React.FC = () => {
           left={0}
           width={30}
           height={30}
-          backgroundColor={colors.pink['200']}
+          backgroundColor={color.dangerSubtle}
           borderRadius={30}
           opacity={pointerState === PointerState.Up ? 0 : 0.75}
           transform="translate(-10px, -10px)"
@@ -68,10 +70,9 @@ export const PointerOverlay: React.FC = () => {
         />
 
         <Block isolation="isolate">
-          <Cursor color={colors.pink['700']} />
+          <Cursor color={color.danger} />
         </Block>
       </Block>
     </Block>
   )
 }
-/* eslint-enable */

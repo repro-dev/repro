@@ -1,7 +1,6 @@
 import { Block, Col, Grid } from '@jsxstyle/react'
 import { useApiClient } from '@repro/api-client'
 import {
-  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   Alert,
   Breadcrumbs,
   Button,
@@ -180,7 +179,7 @@ export const UserDetailRoute: React.FC = () => {
   return (
     <PageFrame>
       <PageFrame.Body>
-        <Block width="100%" maxWidth={1440} margin="0 auto">
+        <Block width="100%" maxWidth={1440} margin={`${spacing.none} auto`}>
           <Col gap={spacing.xl} width="100%">
             <Block
               component="header"
@@ -273,8 +272,8 @@ export const UserDetailRoute: React.FC = () => {
                           </Text>
                         </Col>
 
-                        <Card context="danger" padding={0}>
-                          <Col gap={0}>
+                        <Card context="danger" padding={spacing.none}>
+                          <Col gap={spacing.none}>
                             {[
                               {
                                 label: 'Deactivate user',
@@ -387,4 +386,3 @@ export const UserDetailRoute: React.FC = () => {
     </PageFrame>
   )
 }
-/* eslint-enable */

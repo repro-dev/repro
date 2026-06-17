@@ -1,7 +1,6 @@
 import { Block, Row } from '@jsxstyle/react'
-import { color } from '@repro/design'
+import { color, spacing } from '@repro/design'
 import React from 'react'
-/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 
 const INDENT_SIZE = 15
 
@@ -17,7 +16,11 @@ export const TreeRow: React.FC<React.PropsWithChildren<Props>> = ({
 }) => (
   <Row position="relative" marginLeft={level * INDENT_SIZE}>
     {objectKey && (
-      <Block marginRight={5} color={color.text.secondary} fontWeight={700}>
+      <Block
+        marginRight={spacing.sm}
+        color={color.text.secondary}
+        fontWeight={700}
+      >
         {objectKey}:
       </Block>
     )}
@@ -25,4 +28,3 @@ export const TreeRow: React.FC<React.PropsWithChildren<Props>> = ({
     {children}
   </Row>
 )
-/* eslint-enable */

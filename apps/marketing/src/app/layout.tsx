@@ -3,7 +3,6 @@ import { IBM_Plex_Mono, Noto_Sans, Sora } from 'next/font/google'
 import type { ReactNode } from 'react'
 import { SiteLayout } from '~/components/SiteLayout'
 import './globals.css'
-/* eslint-disable @repro/oxlint-plugin-design/no-classname-prop */
 
 const display = Sora({
   display: 'swap',

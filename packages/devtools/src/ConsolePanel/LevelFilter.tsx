@@ -1,10 +1,9 @@
 import { Block, Row } from '@jsxstyle/react'
-import { color, shadow, transition } from '@repro/design'
+import { color, shadow, spacing, transition } from '@repro/design'
 import { LogLevel } from '@repro/domain'
 import { CheckCircle, Circle } from 'lucide-react'
 import React from 'react'
 import { enumToBitField } from './util'
-/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 
 interface Props {
   value: number
@@ -18,7 +17,7 @@ export const LevelFilter: React.FC<Props> = ({ value, onChange }) => {
   }
 
   return (
-    <Row alignItems="center" gap={8}>
+    <Row alignItems="center" gap={spacing.md}>
       <Toggle
         active={!!(value & enumToBitField(LogLevel.Error))}
         onClick={() => toggleLevel(LogLevel.Error)}
@@ -63,9 +62,9 @@ const Toggle: React.FC<React.PropsWithChildren<ToggleProps>> = ({
   return (
     <Row
       alignItems="center"
-      gap={10}
-      paddingV={6}
-      paddingH={12}
+      gap={spacing.lg}
+      paddingV={spacing.sm}
+      paddingH={spacing.lg}
       fontSize={11}
       backgroundColor={active ? color.text.muted : color.bg.hover}
       backgroundImage={
@@ -94,4 +93,3 @@ const Toggle: React.FC<React.PropsWithChildren<ToggleProps>> = ({
     </Row>
   )
 }
-/* eslint-enable */

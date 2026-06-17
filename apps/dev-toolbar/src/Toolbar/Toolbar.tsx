@@ -1,11 +1,10 @@
 import { Block, Row } from '@jsxstyle/react'
 import { useAtomValue } from '@repro/atom'
-import { Button, color, Logo, Toggle } from '@repro/design'
+import { Button, color, Logo, spacing, Toggle } from '@repro/design'
 import { forget } from '@repro/future-utils'
 import { useMessaging } from '@repro/messaging'
 import { useRecordingStream } from '@repro/recording'
 import {
-  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   HistoryIcon,
   PictureInPictureIcon,
   TablePropertiesIcon,
@@ -57,7 +56,7 @@ export const Toolbar: React.FC = () => {
       position="absolute"
       right={20}
       bottom={0}
-      paddingInline={10}
+      paddingInline={spacing.lg}
       height={50}
       alignItems="center"
       backgroundColor={color.bg.hover}
@@ -68,7 +67,7 @@ export const Toolbar: React.FC = () => {
       fontSize={16}
       pointerEvents="auto"
     >
-      <Row alignItems="center" gap={10}>
+      <Row alignItems="center" gap={spacing.lg}>
         <Logo size={24} />
 
         <Block
@@ -120,4 +119,3 @@ export const Toolbar: React.FC = () => {
     </Row>
   )
 }
-/* eslint-enable */

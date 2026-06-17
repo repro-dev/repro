@@ -2,7 +2,6 @@ import { Col, Row } from '@jsxstyle/react'
 import { useApiClient } from '@repro/api-client'
 import { useSession } from '@repro/auth'
 import {
-  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-color, @repro/oxlint-plugin-design/no-hardcoded-spacing */
   Button,
   FormField,
   Input,
@@ -145,10 +144,10 @@ export const SaveRecordingPopover: React.FC<SaveRecordingPopoverProps> = ({
       <Popover.Trigger>
         <Row
           alignItems="center"
-          gap={4}
-          paddingH={12}
-          paddingV={8}
-          backgroundColor="rgba(255, 255, 255, 0.1)"
+          gap={spacing.sm}
+          paddingH={spacing.lg}
+          paddingV={spacing.md}
+          backgroundColor={color.bg.subtle}
           color={color.infoTint}
           hoverBackgroundColor={
             isAuthed && !isUploading ? color.infoFg : undefined
@@ -164,7 +163,7 @@ export const SaveRecordingPopover: React.FC<SaveRecordingPopoverProps> = ({
             {isAuthed ? (
               'Save recording to project'
             ) : (
-              <Row alignItems="center" gap={4} display="inline-flex">
+              <Row alignItems="center" gap={spacing.sm} display="inline-flex">
                 <LockIcon size={12} /> Sign in to save
               </Row>
             )}
@@ -269,4 +268,3 @@ export const SaveRecordingPopover: React.FC<SaveRecordingPopoverProps> = ({
     </Popover>
   )
 }
-/* eslint-enable */

@@ -1,7 +1,7 @@
 import { Block } from '@jsxstyle/react'
+import { spacing } from '@repro/design'
 import { NodeId, NodeType, SyntheticId, VTree } from '@repro/domain'
 import React, {
-  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   MutableRefObject,
   useCallback,
   useEffect,
@@ -204,7 +204,7 @@ export const ElementTree: React.FC<Props> = ({
   return (
     <NodeStateContext.Provider value={nodeStateContext}>
       <Block
-        paddingV={8}
+        paddingV={spacing.md}
         userSelect="none"
         props={{ onPointerLeave: () => onFocusNode(null), ref: containerRef }}
       >
@@ -213,4 +213,3 @@ export const ElementTree: React.FC<Props> = ({
     </NodeStateContext.Provider>
   )
 }
-/* eslint-enable */

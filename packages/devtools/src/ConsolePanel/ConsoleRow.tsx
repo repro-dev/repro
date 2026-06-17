@@ -1,31 +1,30 @@
 import { Block, Grid, InlineBlock, Row } from '@jsxstyle/react'
 import { formatTime } from '@repro/date-utils'
-import { color, colors } from '@repro/design'
+import { color, spacing } from '@repro/design'
 import { ConsoleEvent, LogLevel, StackEntry } from '@repro/domain'
 import { AlertCircle, AlertTriangle } from 'lucide-react'
 import React from 'react'
 import { SeekAction } from '../SeekAction'
 import { PartRenderer } from './PartRenderer'
-/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing, @repro/oxlint-plugin-design/no-raw-palette */
 
 const bgColors = {
-  [LogLevel.Error]: colors.rose['100'],
-  [LogLevel.Info]: colors.white,
-  [LogLevel.Warning]: colors.amber['50'],
-  [LogLevel.Verbose]: colors.white,
+  [LogLevel.Error]: color.dangerSubtle,
+  [LogLevel.Info]: color.bg.surface,
+  [LogLevel.Warning]: color.warningSubtle,
+  [LogLevel.Verbose]: color.bg.surface,
 }
 
 const textColors = {
-  [LogLevel.Error]: colors.rose['700'],
+  [LogLevel.Error]: color.danger,
   [LogLevel.Info]: color.text.secondary,
-  [LogLevel.Warning]: colors.amber['700'],
+  [LogLevel.Warning]: color.warning,
   [LogLevel.Verbose]: color.text.secondary,
 }
 
 const icons = {
-  [LogLevel.Error]: <AlertTriangle size={14} color={colors.rose['700']} />,
-  [LogLevel.Info]: <AlertCircle size={14} color={colors.blue['700']} />,
-  [LogLevel.Warning]: <AlertTriangle size={14} color={colors.amber['700']} />,
+  [LogLevel.Error]: <AlertTriangle size={14} color={color.danger} />,
+  [LogLevel.Info]: <AlertCircle size={14} color={color.info} />,
+  [LogLevel.Warning]: <AlertTriangle size={14} color={color.warning} />,
   [LogLevel.Verbose]: <AlertCircle size={14} color={color.text.muted} />,
 }
 
@@ -49,9 +48,9 @@ export const ConsoleRow: React.FC<Props> = ({
     >
       <Grid
         gridTemplateColumns="auto auto 1fr auto"
-        columnGap={10}
-        paddingV={6}
-        paddingH={15}
+        columnGap={spacing.lg}
+        paddingV={spacing.sm}
+        paddingH={spacing.xl}
         fontSize={11}
         color={textColors[level]}
         backgroundColor={bgColors[level]}
@@ -66,7 +65,7 @@ export const ConsoleRow: React.FC<Props> = ({
 
         <Block>{icons[level]}</Block>
 
-        <Row flexWrap="wrap" gap={10}>
+        <Row flexWrap="wrap" gap={spacing.lg}>
           {parts.map((part, j) => {
             return <PartRenderer part={part} key={j} />
           })}
@@ -87,4 +86,3 @@ const StackReference: React.FC<StackReferenceProps> = ({ entry }) => (
     {entry.fileName}:{entry.lineNumber}
   </InlineBlock>
 )
-/* eslint-enable */

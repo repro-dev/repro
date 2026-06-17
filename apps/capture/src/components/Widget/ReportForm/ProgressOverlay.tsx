@@ -1,8 +1,7 @@
 import { Block, Col, Row } from '@jsxstyle/react'
-import { Button, Card, color, colors, Meter } from '@repro/design'
+import { Button, Card, color, Meter, spacing } from '@repro/design'
 import { UploadProgress, UploadStage } from '@repro/recording-api'
 import {
-  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-color, @repro/oxlint-plugin-design/no-hardcoded-spacing, @repro/oxlint-plugin-design/no-raw-palette */
   AlertTriangleIcon,
   CheckCircle2Icon,
   CopyIcon,
@@ -26,7 +25,7 @@ const Backdrop: React.FC<React.PropsWithChildren<{}>> = ({ children }) => (
     left={0}
     bottom={0}
     right={0}
-    backgroundColor="rgba(255, 255, 255, 0.15)"
+    backgroundColor={color.bg.overlay}
     backdropFilter="blur(5px)"
     borderRadius={4}
   >
@@ -36,7 +35,7 @@ const Backdrop: React.FC<React.PropsWithChildren<{}>> = ({ children }) => (
 
 const Label: React.FC<React.PropsWithChildren<{}>> = ({ children }) => {
   return (
-    <Block marginBottom={8} fontSize={13} lineHeight={1}>
+    <Block marginBottom={spacing.md} fontSize={13} lineHeight={1}>
       {children}
     </Block>
   )
@@ -46,7 +45,7 @@ const List: React.FC<React.PropsWithChildren<{ width?: string | number }>> = ({
   children,
   width,
 }) => (
-  <Col gap={16} width={width}>
+  <Col gap={spacing.xl} width={width}>
     {children}
   </Col>
 )
@@ -76,9 +75,9 @@ export const ProgressOverlay: React.FC<Props> = ({
     <Backdrop>
       <Card shadow="md">
         {progress.error && (
-          <Col gap={10}>
-            <Row alignItems="center" gap={10}>
-              <AlertTriangleIcon size={32} color={colors.red['500']} />
+          <Col gap={spacing.lg}>
+            <Row alignItems="center" gap={spacing.lg}>
+              <AlertTriangleIcon size={32} color={color.danger} />
               <Block>
                 <Block
                   fontSize={11}
@@ -89,7 +88,12 @@ export const ProgressOverlay: React.FC<Props> = ({
                   Could not create recording
                 </Block>
 
-                <Row gap={5} alignItems="center" fontSize={15} marginTop={10}>
+                <Row
+                  gap={spacing.sm}
+                  alignItems="center"
+                  fontSize={15}
+                  marginTop={spacing.lg}
+                >
                   {progress.error.message}
                 </Row>
               </Block>
@@ -103,9 +107,9 @@ export const ProgressOverlay: React.FC<Props> = ({
         )}
 
         {progress.completed && !progress.error && (
-          <Col gap={10}>
-            <Row alignItems="center" gap={10}>
-              <CheckCircle2Icon size={32} color={colors.green['500']} />
+          <Col gap={spacing.lg}>
+            <Row alignItems="center" gap={spacing.lg}>
+              <CheckCircle2Icon size={32} color={color.success} />
               <Block
                 fontSize={11}
                 fontWeight={700}
@@ -115,7 +119,7 @@ export const ProgressOverlay: React.FC<Props> = ({
                 Recording Created
               </Block>
             </Row>
-            <Row gap={8} justifyContent="center">
+            <Row gap={spacing.md} justifyContent="center">
               {recordingUrl && (
                 <Button
                   variant="contained"
@@ -153,7 +157,7 @@ export const ProgressOverlay: React.FC<Props> = ({
             >
               Uploading Recording
             </Block>
-            <Block marginTop={15}>
+            <Block marginTop={spacing.xl}>
               <List width={width}>
                 <ListItem>
                   <Label>Saving recording details</Label>
@@ -198,4 +202,3 @@ export const ProgressOverlay: React.FC<Props> = ({
     </Backdrop>
   )
 }
-/* eslint-enable */

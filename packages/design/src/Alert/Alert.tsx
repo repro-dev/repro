@@ -131,12 +131,11 @@ export const Alert: React.FC<Props> = ({ children, icon, type, onDismiss }) => {
         </Block>
       )}
       <Block flex={onDismiss ? 1 : undefined}>{children}</Block>
-      {/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */}
+      {/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing -- auto is a flex keyword */}
       {onDismiss && (
         <Row
           component="button"
           marginLeft="auto"
-          width={spacing['2xl']}
           height={spacing['2xl']}
           alignItems="center"
           justifyContent="center"

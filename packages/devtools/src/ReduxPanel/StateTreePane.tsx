@@ -1,9 +1,7 @@
 import { Block } from '@jsxstyle/react'
-import { color, colors } from '@repro/design'
+import { color, spacing } from '@repro/design'
 import React from 'react'
 import { JSONView } from '../JSONView/JSONView'
-/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing, @repro/oxlint-plugin-design/no-raw-palette */
-
 interface Props {
   state: Record<string, unknown>
 }
@@ -11,20 +9,20 @@ interface Props {
 export const StateTreePane: React.FC<Props> = ({ state }) => {
   if (Object.keys(state).length === 0) {
     return (
-      <Block padding={16} fontSize={12} color={colors.slate['400']}>
+      <Block padding={spacing.xl} fontSize={12} color={color.text.muted}>
         Redux state not yet available.
       </Block>
     )
   }
 
   return (
-    <Block padding={8}>
+    <Block padding={spacing.md}>
       <Block
         fontSize={11}
         fontWeight={600}
         color={color.text.label}
-        marginBottom={8}
-        paddingBottom={4}
+        marginBottom={spacing.md}
+        paddingBottom={spacing.sm}
         borderBottom={`1px solid ${color.border.default}`}
       >
         Current State
@@ -33,4 +31,3 @@ export const StateTreePane: React.FC<Props> = ({ state }) => {
     </Block>
   )
 }
-/* eslint-enable */

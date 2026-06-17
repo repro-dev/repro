@@ -1,7 +1,6 @@
 import { Grid, InlineBlock, Row } from '@jsxstyle/react'
-import { color, FX } from '@repro/design'
+import { color, FX, spacing } from '@repro/design'
 import {
-  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   InteractionType,
   LogLevel,
   NetworkMessageType,
@@ -80,9 +79,9 @@ export const EventHighlights: React.FC = () => {
     return (
       <Row
         alignItems="center"
-        gap={5}
-        paddingBlock={10}
-        paddingInline={15}
+        gap={spacing.sm}
+        paddingBlock={spacing.lg}
+        paddingInline={spacing.xl}
         borderTop={`1px solid ${color.border.default}`}
         backgroundColor={color.bg.subtle}
       >
@@ -165,4 +164,3 @@ const UserEventRow: React.FC<
     </Grid>
   )
 }
-/* eslint-enable */

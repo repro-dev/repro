@@ -1,12 +1,10 @@
 import { Block, Row } from '@jsxstyle/react'
 import { animated, useTransition } from '@react-spring/web'
-import { color, colors, Logo, Tooltip } from '@repro/design'
+import { color, Logo, spacing, Tooltip } from '@repro/design'
 import { RecordingMode } from '@repro/domain'
 import { XIcon } from 'lucide-react'
 import React from 'react'
 import { ReadyState, useReadyState, useRecordingMode } from '~/state'
-/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing, @repro/oxlint-plugin-design/no-raw-palette */
-
 interface DevBadgeProps {
   branch: string
 }
@@ -24,13 +22,13 @@ const DevBadge: React.FC<DevBadgeProps> = ({ branch }) => {
       bottom={-8}
       left="50%"
       transform="translateX(-50%)"
-      backgroundColor={colors.amber['400']}
-      color={colors.gray['900']}
+      backgroundColor={color.warning}
+      color={color.text.default}
       fontSize={9}
       fontWeight={700}
       fontFamily="monospace"
-      paddingH={4}
-      paddingV={1}
+      paddingH={spacing.sm}
+      paddingV={spacing.xs}
       borderRadius={3}
       whiteSpace="nowrap"
       pointerEvents="none"
@@ -79,7 +77,7 @@ export const Launcher: React.FC = () => {
       position="relative"
       alignItems="center"
       justifyContent="center"
-      gap={10}
+      gap={spacing.lg}
       height={60}
       width={60}
       backgroundColor={color.primaryHover}
@@ -124,4 +122,3 @@ export const Launcher: React.FC = () => {
     </Row>
   )
 }
-/* eslint-enable */

@@ -1,9 +1,8 @@
 import { Block, Grid, Row } from '@jsxstyle/react'
-import { color } from '@repro/design'
+import { color, spacing } from '@repro/design'
 import { Stats } from '@repro/diagnostics'
 import { ControlFrame, ElapsedMarker, usePlayback } from '@repro/playback'
 import {
-  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   FetchGroup,
   findIndexedNetworkEvents,
   groupNetworkEvents,
@@ -95,7 +94,7 @@ export const NetworkPanel: React.FC = () => {
                 key={i}
                 alignSelf="stretch"
                 alignItems="center"
-                padding={10}
+                padding={spacing.lg}
                 borderLeft={
                   i !== 0 ? `1px solid ${color.border.default}` : null
                 }
@@ -143,4 +142,3 @@ export const NetworkPanel: React.FC = () => {
     </Grid>
   )
 }
-/* eslint-enable */

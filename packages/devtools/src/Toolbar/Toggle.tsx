@@ -1,15 +1,19 @@
 import { Row } from '@jsxstyle/react'
-import { color, transition } from '@repro/design'
+import { color, spacing, transition } from '@repro/design'
 import { ChevronDownIcon, ChevronUpIcon } from 'lucide-react'
 import React from 'react'
 import { useInspecting } from '../hooks'
-/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 
 export const Toggle: React.FC = () => {
   const [inspecting, setInspecting] = useInspecting()
 
   return (
-    <Row position="relative" alignItems="center" cursor="pointer" paddingH={4}>
+    <Row
+      position="relative"
+      alignItems="center"
+      cursor="pointer"
+      paddingH={spacing.sm}
+    >
       <Row
         alignItems="center"
         justifyContent="center"
@@ -32,4 +36,3 @@ export const Toggle: React.FC = () => {
     </Row>
   )
 }
-/* eslint-enable */

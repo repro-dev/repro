@@ -1,11 +1,10 @@
 import { Block, Row } from '@jsxstyle/react'
-import { color, Tooltip, transition } from '@repro/design'
+import { color, spacing, Tooltip, transition } from '@repro/design'
 import React, { useCallback, useEffect } from 'react'
 import { tinykeys } from 'tinykeys'
 import { usePlayback, useSpeed } from '../hooks'
 import { PlaybackSpeed, VALID_SPEEDS } from '../types'
 import { shouldIgnoreKeyboardEvent } from './keyboardIgnore'
-/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 
 function getNextSpeed(
   current: PlaybackSpeed,
@@ -63,7 +62,7 @@ export const SpeedControl: React.FC = () => {
       justifyContent="center"
       height={32}
       minWidth={40}
-      paddingH={6}
+      paddingH={spacing.sm}
       color={color.primary}
       hoverBackgroundColor={color.bg.hover}
       borderRadius={4}
@@ -83,4 +82,3 @@ export const SpeedControl: React.FC = () => {
     </Row>
   )
 }
-/* eslint-enable */

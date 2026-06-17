@@ -1,8 +1,7 @@
 import { Block, Grid } from '@jsxstyle/react'
 import { useAtomValue } from '@repro/atom'
-import { color } from '@repro/design'
+import { color, spacing } from '@repro/design'
 import {
-  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   ReduxDispatchEvent,
   SourceEventType,
   SourceEventView,
@@ -101,7 +100,7 @@ export const ReduxPanel: React.FC = () => {
 
   if (dispatchEvents.length === 0) {
     return (
-      <Block padding={16} fontSize={12} color={color.text.muted}>
+      <Block padding={spacing.xl} fontSize={12} color={color.text.muted}>
         No Redux actions recorded.
       </Block>
     )
@@ -127,4 +126,3 @@ export const ReduxPanel: React.FC = () => {
     </Grid>
   )
 }
-/* eslint-enable */

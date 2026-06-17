@@ -1,10 +1,9 @@
 import { Block } from '@jsxstyle/react'
-import { color, colors } from '@repro/design'
+import { color } from '@repro/design'
 import React, { useEffect, useRef } from 'react'
 import { Subscription, fromEvent, map, switchMap, take, takeUntil } from 'rxjs'
 import { usePlayback } from '../hooks'
 import { SimpleTimeline } from './SimpleTimeline'
-/* eslint-disable @repro/oxlint-plugin-design/no-raw-palette */
 
 export interface Props {
   onChange?: (min: number, max: number) => void
@@ -209,7 +208,7 @@ export const RangeTimeline: React.FC<Props> = ({ onChange }) => {
 
 function createBoundBackgroundElement(anchor: 'left' | 'right') {
   return createElement([
-    ['backgroundColor', colors.slate['400']],
+    ['backgroundColor', color.text.muted],
     ['height', '100%'],
     [anchor, '0'],
     ['pointerEvents', 'auto'],
@@ -271,4 +270,3 @@ function updateUpperBoundOffset(target: HTMLElement, offset: number) {
 function updateBackgroundOffset(target: HTMLElement, offset: number) {
   target.style.scale = `${offset} 1`
 }
-/* eslint-enable */

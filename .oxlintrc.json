@@ -48,6 +48,14 @@
         "react/forbid-elements": "off",
         "react/forbid-dom-props": "off"
       }
+    },
+    {
+      "files": [
+        "apps/marketing/**"
+      ],
+      "rules": {
+        "@repro/oxlint-plugin-design/no-classname-prop": "off"
+      }
     }
   ]
 }

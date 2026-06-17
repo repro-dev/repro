@@ -1,5 +1,5 @@
 import { Block, Grid, Row } from '@jsxstyle/react'
-import { color, shadow } from '@repro/design'
+import { color, shadow, spacing } from '@repro/design'
 import { FetchGroup, WebSocketGroup } from '@repro/source-utils'
 import { X as CloseIcon } from 'lucide-react'
 import React, { Fragment, useState } from 'react'
@@ -7,7 +7,6 @@ import { Body } from './Body'
 import { Headers } from './Headers'
 import { Messages } from './Messages'
 import { Tab } from './Tab'
-/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 
 interface Props {
   group: FetchGroup | WebSocketGroup
@@ -61,9 +60,9 @@ export const DetailsOverlay: React.FC<Props> = ({ group, onClose }) => {
       boxShadow={shadow.md}
     >
       <Row
-        gap={10}
+        gap={spacing.lg}
         alignItems="center"
-        padding={10}
+        padding={spacing.lg}
         backgroundColor={color.bg.subtle}
         borderBottom={`1px solid ${color.border.default}`}
       >
@@ -116,7 +115,7 @@ export const DetailsOverlay: React.FC<Props> = ({ group, onClose }) => {
         )}
       </Row>
 
-      <Block overflow="auto" padding={10}>
+      <Block overflow="auto" padding={spacing.lg}>
         {group.type === 'fetch' && (
           <Fragment>
             {view === 'headers' && <Headers group={group} />}
@@ -138,4 +137,3 @@ export const DetailsOverlay: React.FC<Props> = ({ group, onClose }) => {
     </Grid>
   )
 }
-/* eslint-enable */

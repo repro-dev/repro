@@ -1,5 +1,4 @@
 import type { Metadata } from 'next'
-/* eslint-disable @repro/oxlint-plugin-design/no-classname-prop */
 
 import routeStyles from '~/components/HighIntentRoutePage.module.css'
 import sharedStyles from '~/components/MarketingShell.module.css'

@@ -1,10 +1,9 @@
 import { Block } from '@jsxstyle/react'
 import { Loading } from '@repro/agentic'
-import { color } from '@repro/design'
+import { color, spacing } from '@repro/design'
 import { ArrowDownIcon } from 'lucide-react'
 import React from 'react'
 import {
-  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   GUTTER_PX,
   INPUT_CONTAINER_OFFSET_PX,
   LOADING_CONTAINER_OFFSET_PX,
@@ -35,7 +34,7 @@ export const JumpToEndButton: React.FC<JumpToEndButtonProps> = ({
       backgroundImage={`linear-gradient(to bottom right, ${color.text.default}, ${color.text.secondary})`}
       boxShadow="0 0 16px rgba(0, 0, 0, 0.15)"
       color={color.text.inverse}
-      padding={10}
+      padding={spacing.lg}
       borderRadius="99rem"
       cursor="pointer"
       lineHeight={0}
@@ -49,4 +48,3 @@ export const JumpToEndButton: React.FC<JumpToEndButtonProps> = ({
     </Block>
   )
 }
-/* eslint-enable */

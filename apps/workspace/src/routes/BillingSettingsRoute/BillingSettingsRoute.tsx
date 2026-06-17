@@ -1,7 +1,6 @@
 import { Col, Row } from '@jsxstyle/react'
 import { ApiClient, useApiClient } from '@repro/api-client'
 import {
-  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   Alert,
   Button,
   Card,
@@ -182,7 +181,7 @@ export function BillingSettingsRoute({
       </PageFrame.Header>
 
       <PageFrame.Body maxWidth={720}>
-        <Stack gap="lg">
+        <Stack gap={spacing.lg}>
           {subscription?.status === 'past_due' && (
             <Alert type="warning">
               Your payment is past due. Please update your payment method to
@@ -268,4 +267,3 @@ export function BillingSettingsRoute({
 export function BillingSettingsRouteConnected() {
   return <BillingSettingsRoute />
 }
-/* eslint-enable */

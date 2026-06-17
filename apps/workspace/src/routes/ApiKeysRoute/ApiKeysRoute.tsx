@@ -1,7 +1,6 @@
 import { Block, Col, Row } from '@jsxstyle/react'
 import { useApiClient } from '@repro/api-client'
 import {
-  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   Alert,
   Button,
   Card,
@@ -202,7 +201,7 @@ export const ApiKeysRoute: React.FC = () => {
       </PageFrame.Header>
 
       <PageFrame.Body>
-        <Stack gap="lg">
+        <Stack gap={spacing.lg}>
           <Text variant="body" color={color.text.muted}>
             Personal access tokens authenticate API requests on your behalf.
             Treat them like passwords — never share them publicly.
@@ -302,7 +301,7 @@ export const ApiKeysRoute: React.FC = () => {
 
             {newKeyValue ? (
               // Show the key once after creation — never shown again
-              <Stack gap="lg">
+              <Stack gap={spacing.lg}>
                 <Alert type="success">
                   Your new API key has been created. Copy it now — you
                   won&apos;t be able to see it again.
@@ -349,7 +348,7 @@ export const ApiKeysRoute: React.FC = () => {
               </Stack>
             ) : (
               <form onSubmit={handleSubmit(handleCreate)}>
-                <Stack gap="lg">
+                <Stack gap={spacing.lg}>
                   {createError && <Alert type="danger">{createError}</Alert>}
 
                   <TextField
@@ -393,4 +392,3 @@ export const ApiKeysRoute: React.FC = () => {
     </PageFrame>
   )
 }
-/* eslint-enable */

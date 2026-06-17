@@ -1,7 +1,6 @@
 import { Block, Col, Row } from '@jsxstyle/react'
 import { useApiClient } from '@repro/api-client'
 import {
-  /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   Alert,
   FormField,
   FullPageError,
@@ -250,7 +249,7 @@ export const AccountsRoute: React.FC = () => {
         <PageFrame.Title>Accounts</PageFrame.Title>
       </PageFrame.Header>
       <PageFrame.Body>
-        <Block width="100%" maxWidth={1440} margin="0 auto">
+        <Block width="100%" maxWidth={1440} margin={`${spacing.none} auto`}>
           <Col gap={spacing.xl} width="100%">
             <Block
               marginTop={-spacing.xl}
@@ -437,4 +436,3 @@ export const AccountsRoute: React.FC = () => {
     </PageFrame>
   )
 }
-/* eslint-enable */
