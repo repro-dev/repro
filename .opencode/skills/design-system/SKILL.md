@@ -249,7 +249,7 @@ For full token tables with every value, read `references/tokens.md`.
 
 Design-system conventions are now CI-gated via oxlint. The skill describes *why* a convention exists; the lint rules enforce *that* it's followed. Each rule runs at `error` level in CI via `pnpm run lint` (which runs `oxlint .`).
 
-See [REP-1418](https://linear.app/repro/issue/REP-1418) for the tracker and rationale.
+These rules close the gap between documented convention and actual code: without them, hardcoded colors, raw spacing values, inline styles, and bare DOM elements accumulate over time, silently eroding the two-layer architecture. CI-gating means violations are caught at build time rather than during review, where they are easy to miss.
 
 | Violation | Lint rule |
 | -- | -- |
