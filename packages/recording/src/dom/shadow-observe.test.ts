@@ -750,7 +750,7 @@ describe('Shadow DOM recording', () => {
     })
   })
 
-  describe('walkDOMOnly', () => {
+  describe('dom-only visitors option', () => {
     it('produces correct VTree without firing passive visitors', () => {
       const options = createRecordingOptions()
       const walkDOMTree = createDOMTreeWalker(options)
@@ -781,8 +781,8 @@ describe('Shadow DOM recording', () => {
       shadow.appendChild(shadowChild)
       document.body.appendChild(host)
 
-      // Call walkDOMOnly on the host element
-      const vtree = walkDOMTree.walkDOMOnly(host)
+      // Call walkDOMTree with dom-only visitors option
+      const vtree = walkDOMTree(host, { visitors: 'dom-only' })
       expect(vtree).not.toBeNull()
 
       // Verify VTree contains shadow root node with expected children
@@ -816,12 +816,12 @@ describe('Shadow DOM recording', () => {
       // Intentionally NOT setting a DOM visitor
 
       expect(() => {
-        walkDOMTree.walkDOMOnly(document.createElement('div'))
+        walkDOMTree(document.createElement('div'), { visitors: 'dom-only' })
       }).toThrow('DOMTreeWalker: missing DOM visitor')
     })
   })
 
-  describe('attachShadow monkey-patch with walkDOMOnly', () => {
+  describe('attachShadow monkey-patch with dom-only visitors option', () => {
     it('emits AddShadowRoot without firing passive visitors for shadow root walk', () => {
       const options = createRecordingOptions()
       const walker = createDOMTreeWalker(options)
@@ -860,7 +860,7 @@ describe('Shadow DOM recording', () => {
       // microtask-scheduled and haven't fired yet).
       const preAttachCount = spyElementNodes.length
 
-      // Trigger attachShadow — monkey-patch uses walkDOMOnly
+      // Trigger attachShadow — monkey-patch uses dom-only visitors option
       host.attachShadow({ mode: 'open' })
       // Intentionally NOT appending children to the shadow root here:
       // doing so would trigger a MutationObserver walk that includes
@@ -876,7 +876,7 @@ describe('Shadow DOM recording', () => {
       expect(addShadowPatches[0]!.shadowRoot).toBeTruthy()
 
       // Verify spy passive visitor was NOT called for shadow root nodes
-      // (walkDOMOnly skips all passive visitors, so the spy should not have
+      // (dom-only option skips all passive visitors, so the spy should not have
       // seen any elements inside the shadow root).
       expect(spyElementNodes.length).toBe(preAttachCount)
 

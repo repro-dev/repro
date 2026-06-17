@@ -92,8 +92,7 @@ function walkDOMTree(
 }
 
 export interface DOMTreeWalker {
-  (root: Node): VTree | null
-  walkDOMOnly(root: Node): VTree | null
+  (root: Node, opts?: { visitors?: 'all' | 'dom-only' }): VTree | null
   accept(visitor: Visitor<any>): void
   acceptDOMVisitor(visitor: Visitor<VTree>): void
 }
@@ -102,12 +101,18 @@ export function createDOMTreeWalker(options: DOMOptions): DOMTreeWalker {
   let domVisitor: Visitor<VTree> | null = null
   const passiveVisitors: Array<Visitor<any>> = []
 
-  const walk = (root: Node) => {
+  const walk = (root: Node, opts?: { visitors?: 'all' | 'dom-only' }) => {
     if (!domVisitor) {
       throw new Error('DOMTreeWalker: missing DOM visitor')
     }
 
-    return walkDOMTree(root, domVisitor, passiveVisitors, options)
+    const usePassiveVisitors = opts?.visitors !== 'dom-only'
+    return walkDOMTree(
+      root,
+      domVisitor,
+      usePassiveVisitors ? passiveVisitors : [],
+      options
+    )
   }
 
   walk.acceptDOMVisitor = (visitor: Visitor<VTree>) => {
@@ -116,13 +121,6 @@ export function createDOMTreeWalker(options: DOMOptions): DOMTreeWalker {
 
   walk.accept = (visitor: Visitor<any>) => {
     passiveVisitors.push(visitor)
-  }
-
-  walk.walkDOMOnly = (root: Node) => {
-    if (!domVisitor) {
-      throw new Error('DOMTreeWalker: missing DOM visitor')
-    }
-    return walkDOMTree(root, domVisitor, [], options)
   }
 
   return walk
