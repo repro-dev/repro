@@ -5,6 +5,7 @@ import {
 import { ObserverLike } from '@repro/observer-utils'
 import { randomString } from '@repro/random-string'
 import { Box } from '@repro/tdl'
+import { redactUrl } from '../redaction'
 
 function isResourceTimingEntry(
   entry: PerformanceEntry
@@ -39,7 +40,7 @@ function createResourceTimingObserver(
             type: PerformanceEntryType.ResourceTiming,
             id: randomString(4),
             initiatorType: entry.initiatorType,
-            url: entry.name,
+            url: redactUrl(entry.name),
             startTime: entry.startTime,
             domainLookupStart: entry.domainLookupStart,
             domainLookupEnd: entry.domainLookupEnd,

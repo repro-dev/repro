@@ -8,6 +8,7 @@ import {
   isSensitiveKey,
   redactHeaders,
   redactText,
+  redactUrl,
   redactValue,
 } from './redact'
 
@@ -191,6 +192,85 @@ describe('redact functions', () => {
       assert.equal(isSensitiveInputType('text'), false)
       assert.equal(isSensitiveInputType('email'), false)
       assert.equal(isSensitiveInputType(''), false)
+    })
+  })
+
+  describe('redactUrl', () => {
+    it('redacts sensitive query params and preserves non-sensitive ones', () => {
+      const result = redactUrl('https://example.com/api?token=abc123&name=test')
+      assert.equal(result, 'https://example.com/api?token=[MASKED]&name=test')
+    })
+
+    it('redacts all sensitive param patterns', () => {
+      const url =
+        'https://example.com?' +
+        'password=secret&' +
+        'token=jwt123&' +
+        'secret=hidden&' +
+        'api-key=key123&' +
+        'access-token=at123&' +
+        'refresh-token=rt123&' +
+        'cookie=abc123&' +
+        'authorization=Bearer+x&' +
+        'credit_card=4111111111111111&' +
+        'ssn=123-45-6789&' +
+        'iban=DE89370400440532013000&' +
+        'phone=%2B1234567890&' +
+        'email=test%40example.com'
+      const result = redactUrl(url)
+      const params = new URL(result).searchParams
+      for (const [key, value] of params) {
+        assert.equal(value, '[MASKED]', `expected param "${key}" to be masked`)
+      }
+    })
+
+    it('preserves non-sensitive params unchanged', () => {
+      const result = redactUrl('https://example.com/api?page=1&sort=asc')
+      assert.equal(result, 'https://example.com/api?page=1&sort=asc')
+    })
+
+    it('preserves URL structure including hash', () => {
+      const result = redactUrl(
+        'https://example.com/path/to/page?token=abc&name=test#section'
+      )
+      assert.ok(result.startsWith('https://example.com/path/to/page?'))
+      assert.ok(result.endsWith('#section'))
+      assert.ok(result.includes('token=[MASKED]'))
+      assert.ok(result.includes('name=test'))
+    })
+
+    it('handles URLs without query strings', () => {
+      const result = redactUrl('https://example.com/page')
+      assert.equal(result, 'https://example.com/page')
+    })
+
+    it('handles malformed URLs by returning the original string', () => {
+      const malformed = 'not a url at all'
+      assert.equal(redactUrl(malformed), malformed)
+    })
+
+    it('handles empty string', () => {
+      assert.equal(redactUrl(''), '')
+    })
+
+    it('handles WebSocket URLs', () => {
+      const result = redactUrl('ws://example.com/ws?token=xyz&room=general')
+      assert.equal(result, 'ws://example.com/ws?token=[MASKED]&room=general')
+    })
+
+    it('handles secure WebSocket URLs', () => {
+      const result = redactUrl('wss://example.com/ws?secret=top&id=1')
+      assert.equal(result, 'wss://example.com/ws?secret=[MASKED]&id=1')
+    })
+
+    it('handles URLs with no sensitive params but with query string', () => {
+      const result = redactUrl('https://example.com/?q=search&page=2')
+      assert.equal(result, 'https://example.com/?q=search&page=2')
+    })
+
+    it('handles URL with only sensitive params', () => {
+      const result = redactUrl('https://example.com/auth?token=abc')
+      assert.equal(result, 'https://example.com/auth?token=[MASKED]')
     })
   })
 

@@ -14,7 +14,7 @@ import {
   isIgnoredBySelector,
   isMaskedBySelector,
 } from '../dom/utils'
-import { MASKED_VALUE } from '../redaction'
+import { MASKED_VALUE, redactUrl } from '../redaction'
 import { RecordingOptions } from '../types'
 import { sampleEventsByKey } from './sample'
 
@@ -418,8 +418,8 @@ function createPageTransitionObserver(callback: Callback): ObserverLike {
       callback(
         new Box({
           type: InteractionType.PageTransition,
-          from: currentPageURL,
-          to: nextPageURL,
+          from: currentPageURL && redactUrl(currentPageURL),
+          to: redactUrl(nextPageURL),
         })
       )
 

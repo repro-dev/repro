@@ -8,7 +8,7 @@ import {
 import { ObserverLike } from '@repro/observer-utils'
 import { randomString } from '@repro/random-string'
 import { Box } from '@repro/tdl'
-import { redactHeaders, redactValue } from '../redaction'
+import { redactHeaders, redactUrl, redactValue } from '../redaction'
 
 type Subscriber = (message: NetworkMessage) => void
 
@@ -256,7 +256,7 @@ function createXHRObserver(subscriber: Subscriber): ObserverLike<Document> {
               type: NetworkMessageType.FetchRequest,
               correlationId: params.correlationId,
               requestType: RequestType.XHR,
-              url: params.url,
+              url: redactUrl(params.url),
               method: params.method,
               headers: redactHeaders(params.headers),
               body:
@@ -322,7 +322,7 @@ function createFetchObserver(subscriber: Subscriber): ObserverLike<Document> {
               type: NetworkMessageType.FetchRequest,
               correlationId,
               requestType: RequestType.Fetch,
-              url: req.url,
+              url: redactUrl(req.url),
               method: req.method,
               headers: createHeadersRecord(req.headers),
               body:
@@ -510,7 +510,7 @@ function createWebSocketObserver(
       new Box({
         type: NetworkMessageType.WebSocketOpen,
         correlationId,
-        url,
+        url: redactUrl(url),
       })
     )
   }
