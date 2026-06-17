@@ -32,25 +32,18 @@ export function createDOMObserver(
   options: RecordingOptions,
   subscriber: (patch: DOMPatch) => void
 ): ObserverLike {
-  let isObserving = false
-
   const domObserver = createMutationObserver(walkDOMTree, options, subscriber)
   const styleSheetObserver = createStyleSheetObserver(subscriber)
   const inputObserver = createInputObserver(subscriber, options)
 
   return {
     disconnect() {
-      isObserving = false
-
       domObserver.disconnect()
       styleSheetObserver.disconnect()
       inputObserver.disconnect()
     },
 
     observe(doc, vtree) {
-      if (isObserving) return
-      isObserving = true
-
       domObserver.observe(doc, vtree)
       styleSheetObserver.observe(doc, vtree)
       inputObserver.observe(doc, vtree)
@@ -62,7 +55,7 @@ function createInputObserver(
   subscriber: (patch: DOMPatch) => void,
   options: RecordingOptions
 ): ObserverLike<Document> {
-  let isObserving = false
+  const observedDocs = new Set<Document>()
   let prevChangeMap = new WeakMap<EventTarget, string>()
   let prevCheckedMap = new WeakMap<EventTarget, boolean>()
   let prevSelectedIndexMap = new WeakMap<EventTarget, number>()
@@ -192,7 +185,7 @@ function createInputObserver(
 
   return {
     disconnect() {
-      isObserving = false
+      observedDocs.clear()
 
       propertyOverrides.forEach(([obj, name], i) => {
         const descriptor = originalPropertyDescriptors[i]
@@ -214,8 +207,8 @@ function createInputObserver(
     },
 
     observe(doc, vtree) {
-      if (isObserving) return
-      isObserving = true
+      if (observedDocs.has(doc)) return
+      observedDocs.add(doc)
       // TODO: make vtree available to enclosing scope
       // changeObserver.observe(doc, vtree)
       inputObserver.observe(doc, vtree)
