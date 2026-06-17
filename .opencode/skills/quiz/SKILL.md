@@ -17,7 +17,9 @@ Collect all available evidence about the delivered change before generating ques
 
 ### 1. Detect Linear issue ID
 
-Run `git branch --show-current` and extract the first match of `REP-\d+`.
+If an issue ID was already provided via the command (e.g. `/quiz REP-1430`), use it directly and skip the detection steps below.
+
+Otherwise, run `git branch --show-current` and extract the first match of `REP-\d+`.
 
 - If no match found, use the `question` tool: "Which issue did you just deliver? (e.g., REP-123)"
 - If the user provides a blank answer, proceed with whatever source material is available and skip issue-based question categories.
@@ -84,7 +86,7 @@ Draw from available source material across these categories. Skip any category w
 
 ### Format rules
 
-- **Multiple-choice** (use `question` tool with `question` + `options`): For concrete details — function names, file paths, specific values, parameter types. `allow_multiple=false`, `max_attempts=1`.
+- **Multiple-choice** (use `question` tool with `question` + `options`): For concrete details — function names, file paths, specific values, parameter types. Use `multiple: false` for single-select.
 - **Free-text** (print the question, wait for user response): For understanding — design rationale, tradeoff analysis, conceptual understanding.
 - Aim for roughly 60% multiple-choice, 40% free-text, adjusted based on available material.
 - Shuffle the question order before presenting.
@@ -95,8 +97,7 @@ Present questions one at a time. Do not reveal the next question until the curre
 
 ### For multiple-choice questions
 
-1. Configure: `question` tool with `question` string and `options` array.
-2. Set `allow_multiple=false` and `max_attempts=1`.
+1. Configure: `question` tool with `header`, `question` string, `options` array, and `multiple: false`.
 3. After the user answers, evaluate against the known correct answer chosen during generation.
 4. Print: "Correct!" or "Incorrect." followed by the correct answer and a brief explanation tied to the source material.
 5. Score: 1 point for correct, 0 for incorrect.
@@ -119,7 +120,7 @@ Present questions one at a time. Do not reveal the next question until the curre
 Maintain ephemeral state:
 - `currentScore` (float, accumulates points)
 - `totalQuestions` (integer)
-- `perCategoryScore` — map of category name -> { correct, total }
+- `perCategoryScore` — map of category name -> { points, total }
 
 ## Phase 5 — End-of-quiz summary
 
@@ -127,14 +128,14 @@ After the last question, print:
 
 === Quiz Summary ===
 Score: X/Y (Z%)
-Strong areas: <categories where ≥80% correct>
-Weak areas: <categories where <60% correct>
+Strong areas: <categories where ≥80% score>
+Weak areas: <categories where <60% score>
 
 Tip: <suggested review material>
 
 ### Strong/weak logic
 
-- Compute per-category percentage: `category.correct / category.total`.
+- Compute per-category percentage: `category.points / category.total`.
 - Categories with 0 questions attempted should not appear in strong/weak areas.
 - Round percentages to the nearest whole number.
 
