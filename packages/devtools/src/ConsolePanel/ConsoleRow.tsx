@@ -1,4 +1,3 @@
-/* eslint-disable react/forbid-elements */
 import { Block, Grid, InlineBlock, Row } from '@jsxstyle/react'
 import { formatTime } from '@repro/date-utils'
 import { color, colors } from '@repro/design'
@@ -42,7 +41,7 @@ export const ConsoleRow: React.FC<Props> = ({
   index,
 }) => {
   return (
-    <div data-target="console-row">
+    <Block props={{ 'data-target': 'console-row' }}>
       <Grid
         gridTemplateColumns="auto auto 1fr auto"
         columnGap={10}
@@ -70,7 +69,7 @@ export const ConsoleRow: React.FC<Props> = ({
 
         {stack[0] ? <StackReference entry={stack[0]} /> : <Block />}
       </Grid>
-    </div>
+    </Block>
   )
 }
 

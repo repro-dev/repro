@@ -1,4 +1,4 @@
-/* eslint-disable react/forbid-elements, react/forbid-dom-props */
+import { Block } from '@jsxstyle/react'
 import { Button, FullPageError } from '@repro/design'
 import React from 'react'
 
@@ -23,7 +23,7 @@ export class GlobalErrorBoundary extends React.Component<
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ height: '100vh' }}>
+        <Block height="100vh">
           <FullPageError
             title="Something went wrong"
             description="An unexpected error occurred. Please reload the page to continue."
@@ -33,7 +33,7 @@ export class GlobalErrorBoundary extends React.Component<
               </Button>
             }
           />
-        </div>
+        </Block>
       )
     }
     return this.props.children

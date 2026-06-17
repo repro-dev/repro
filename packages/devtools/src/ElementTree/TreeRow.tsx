@@ -1,4 +1,3 @@
-/* eslint-disable react/forbid-elements */
 import { Block } from '@jsxstyle/react'
 import { color } from '@repro/design'
 import React, { PropsWithChildren } from 'react'
@@ -67,7 +66,7 @@ export const TreeRow: React.FC<TreeRowProps> = ({
   const { isSelected, onFocusNode, onSelectNode } = useNodeState(nodeId, tag)
 
   return (
-    <div data-tree-node={`${nodeId}~${tag}`}>
+    <Block props={{ 'data-tree-node': `${nodeId}~${tag}` }}>
       <TreeRowBase
         depth={depth}
         isSelected={isSelected}
@@ -77,6 +76,6 @@ export const TreeRow: React.FC<TreeRowProps> = ({
       >
         {children}
       </TreeRowBase>
-    </div>
+    </Block>
   )
 }

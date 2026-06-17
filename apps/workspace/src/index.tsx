@@ -1,3 +1,4 @@
+import { Block } from '@jsxstyle/react'
 import { Analytics } from '@repro/analytics'
 import { createMixpanelBrowserConsumer } from '@repro/analytics-provider-mixpanel'
 import { ApiProvider, createApiClient } from '@repro/api-client'
@@ -97,8 +98,7 @@ if (rootElem) {
                             path="account/register"
                             element={<RegisterRoute />}
                           />
-                          {/* eslint-disable-next-line react/forbid-elements */}
-                          <Route path="account/verify" element={<div />} />
+                          <Route path="account/verify" element={<Block />} />
                           <Route
                             path="account/reset-password/:token"
                             element={<ResetPasswordRoute />}
