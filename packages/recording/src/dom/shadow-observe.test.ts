@@ -740,4 +740,156 @@ describe('Shadow DOM recording', () => {
       document.body.removeChild(host)
     })
   })
+
+  describe('walkDOMOnly', () => {
+    it('produces correct VTree without firing passive visitors', () => {
+      const options = createRecordingOptions()
+      const walkDOMTree = createDOMTreeWalker(options)
+      const visitor = createDOMVisitor(options)
+      walkDOMTree.acceptDOMVisitor(visitor)
+
+      // Register a spy passive visitor that counts elementNode calls
+      let spyCallCount = 0
+      walkDOMTree.accept({
+        elementNode() {
+          spyCallCount++
+        },
+        textNode() {},
+        shadowRootNode() {},
+        documentNode() {},
+        documentTypeNode() {},
+        documentFragmentNode() {},
+        done() {
+          return null
+        },
+      })
+
+      // Create a host with an open shadow root
+      const host = document.createElement('div')
+      const shadow = host.attachShadow({ mode: 'open' })
+      const shadowChild = document.createElement('p')
+      shadowChild.textContent = 'shadow content'
+      shadow.appendChild(shadowChild)
+      document.body.appendChild(host)
+
+      // Call walkDOMOnly on the host element
+      const vtree = walkDOMTree.walkDOMOnly(host)
+      expect(vtree).not.toBeNull()
+
+      // Verify VTree contains shadow root node with expected children
+      const nodes = Object.values(vtree!.nodes)
+      const shadowVNodes = nodes
+        .map(n => {
+          let val: any = null
+          ;(n as any).apply?.((v: any) => {
+            val = v
+          })
+          return val
+        })
+        .filter((n: any) => n && n.type === NodeType.ShadowRoot)
+
+      expect(shadowVNodes.length).toBeGreaterThanOrEqual(1)
+      expect(shadowVNodes[0]!.hostId).toBe(getNodeId(host))
+      expect(shadowVNodes[0]!.mode).toBe('open')
+
+      // Shadow child text should be present
+      const textValues = nodes
+        .map(n => {
+          let val: any = null
+          ;(n as any).apply?.((v: any) => {
+            val = v
+          })
+          return val
+        })
+        .filter(
+          (n: any) =>
+            n && n.type === NodeType.Text && n.value === 'shadow content'
+        )
+      expect(textValues.length).toBe(1)
+
+      // Spy passive visitor should NOT have been called
+      expect(spyCallCount).toBe(0)
+
+      document.body.removeChild(host)
+    })
+
+    it('throws when DOM visitor is missing', () => {
+      const options = createRecordingOptions()
+      const walkDOMTree = createDOMTreeWalker(options)
+      // Intentionally NOT setting a DOM visitor
+
+      expect(() => {
+        walkDOMTree.walkDOMOnly(document.createElement('div'))
+      }).toThrow('DOMTreeWalker: missing DOM visitor')
+    })
+  })
+
+  describe('attachShadow monkey-patch with walkDOMOnly', () => {
+    it('emits AddShadowRoot without firing passive visitors for shadow root walk', () => {
+      const options = createRecordingOptions()
+      const walker = createDOMTreeWalker(options)
+      walker.acceptDOMVisitor(createDOMVisitor(options))
+
+      const patches: Array<DOMPatch> = []
+      const observer = createDOMObserver(walker, options, patch =>
+        patches.push(patch)
+      )
+
+      // Register a spy passive visitor to detect unwanted side effects
+      const spyElementNodes: Array<Element> = []
+      walker.accept({
+        elementNode(node: Element) {
+          spyElementNodes.push(node)
+        },
+        textNode() {},
+        shadowRootNode() {},
+        documentNode() {},
+        documentTypeNode() {},
+        documentFragmentNode() {},
+        done() {
+          return null
+        },
+      })
+
+      const initialVTree = walker(document)
+      observer.observe(document, initialVTree!)
+
+      const host = document.createElement('div')
+      document.body.appendChild(host)
+
+      // Record spy count after observer setup but before attachShadow
+      // (includes elements from the initial document walk and the host
+      // element added via appendChild which triggers a mutation walk)
+      const preAttachCount = spyElementNodes.length
+
+      // Trigger attachShadow — monkey-patch uses walkDOMOnly
+      host.attachShadow({ mode: 'open' })
+      // Intentionally NOT appending children to the shadow root here:
+      // doing so would trigger a MutationObserver walk that includes
+      // passive visitors, making the spy count check ambiguous.
+
+      // Verify AddShadowRoot patch is still emitted (existing behavior preserved)
+      const addShadowPatches = patches
+        .map(p => {
+          let val: any = null
+          ;(p as any).apply?.((v: any) => {
+            val = v
+          })
+          return val
+        })
+        .filter((p: any) => p && p.type === PatchType.AddShadowRoot)
+
+      expect(addShadowPatches.length).toBe(1)
+      expect(addShadowPatches[0]!.hostId).toBe(getNodeId(host))
+      expect(addShadowPatches[0]!.shadowRoot).toBeTruthy()
+
+      // Verify spy passive visitor was NOT called for shadow root nodes
+      // (walkDOMOnly skips all passive visitors, so the spy should not have
+      // seen any elements inside the shadow root).
+      expect(spyElementNodes.length).toBe(preAttachCount)
+
+      observer.disconnect()
+      document.body.removeChild(host)
+    })
+  })
 })
