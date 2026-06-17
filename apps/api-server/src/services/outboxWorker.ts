@@ -20,6 +20,7 @@ export interface OutboxWorkerLogger {
   info(message: string, metadata?: Record<string, unknown>): void
   warn(message: string, metadata?: Record<string, unknown>): void
   error(message: string, metadata?: Record<string, unknown>): void
+  debug(message: string, metadata?: Record<string, unknown>): void
 }
 
 export interface OutboxWorkerService {
@@ -45,6 +46,7 @@ const defaultLogger: OutboxWorkerLogger = {
   info: () => {},
   warn: () => {},
   error: () => {},
+  debug: () => {},
 }
 
 function missingHandlerError(job: OutboxJobRow): Error {
@@ -115,6 +117,7 @@ export function createOutboxWorker({
 
   function runOnce(): FutureInstance<Error, OutboxWorkerRunResult> {
     return attemptP(async () => {
+      const pollStartedAt = Date.now()
       const jobs = await promise(
         outboxService.claimPendingJobs({
           workerId: config.workerId,
@@ -122,6 +125,15 @@ export function createOutboxWorker({
           staleAfterMs: config.staleAfterMs,
         })
       )
+
+      logger.debug('outbox claim complete', {
+        claimed: jobs.length,
+        pollDurationMs: Date.now() - pollStartedAt,
+      })
+
+      if (jobs.length === 0) {
+        return { claimed: 0, succeeded: 0, retried: 0, failed: 0 }
+      }
 
       const result: OutboxWorkerRunResult = {
         claimed: jobs.length,
@@ -159,6 +171,8 @@ export function createOutboxWorker({
               retried: result.retried,
               failed: result.failed,
             })
+          } else {
+            logger.debug('outbox polling cycle complete (no work)', {})
           }
         })
         .catch(error => {

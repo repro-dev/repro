@@ -41,7 +41,7 @@ const outboxRegistry = createDefaultOutboxRegistry({
 const workerId = `${process.pid}-${Date.now()}`
 
 const pinoOptions: pino.LoggerOptions = {
-  level: env.NODE_ENV === 'test' ? 'silent' : 'info',
+  level: env.NODE_ENV === 'test' ? 'silent' : 'debug',
 }
 if (env.NODE_ENV !== 'production') {
   try {
@@ -78,6 +78,9 @@ function createStructuredLogger(
     },
     warn(message, metadata) {
       child.warn({ ...metadata, event: message }, message)
+    },
+    debug(message, metadata) {
+      child.debug({ ...metadata, event: message }, message)
     },
     error(message, metadata) {
       const enriched = { ...metadata }
