@@ -245,6 +245,27 @@ For full token tables with every value, read `references/tokens.md`.
 
 ---
 
+## Lint Enforcement
+
+Design-system conventions are now CI-gated via oxlint. The skill describes *why* a convention exists; the lint rules enforce *that* it's followed. Each rule runs at `error` level in CI via `pnpm run lint` (which runs `oxlint .`).
+
+See [REP-1418](https://linear.app/repro/issue/REP-1418) for the tracker and rationale.
+
+| Violation | Lint rule |
+| -- | -- |
+| Hardcoded hex/rgb colors (`"#fff"`, `"#ffffff"`, `"rgb(...)"`) | `@repro/oxlint-plugin-design/no-hardcoded-color` |
+| Raw pixel/number values in padding, margin, gap, fontSize, etc. | `@repro/oxlint-plugin-design/no-hardcoded-spacing` |
+| Raw `<div>` or `<span>` elements | `react/forbid-elements` |
+| Inline `style={{}}` prop | `react/forbid-dom-props` |
+| `className` prop | `@repro/oxlint-plugin-design/no-classname-prop` |
+| Direct `colors.*` imports | `@repro/oxlint-plugin-design/no-raw-palette` |
+
+**Exclusions**: Test files (`*.test.ts*`, `**/__tests__/**`), story files (`*.stories.ts*`), and `packages/design/src/**` are excluded from these rules via `.oxlintrc.json` overrides.
+
+**Suppressing violations**: Existing violations are suppressed with `/* eslint-disable @repro/oxlint-plugin-design/<rule> */` block comments. New violations must use the same block-level format. Per-line `// oxlint-disable-next-line` comments are not recognized by oxlint for JS plugin rules inside JSX elements.
+
+---
+
 ## Do / Don't
 
 **Do:**
@@ -270,6 +291,8 @@ For full token tables with every value, read `references/tokens.md`.
   </Block>
 </Block>
 ```
+
+(`no-hardcoded-spacing` catches `padding={16}`, `borderRadius={8}`; `no-hardcoded-color` catches `"#ffffff"` and `"#0f172a"`.)
 
 **Do:**
 
@@ -306,6 +329,8 @@ Before writing any code, audit the target component(s) across all eight normalis
 7. Accessibility — missing `aria-*` attributes or keyboard handlers, plus accessibility-as-UX failures like missing focus indicators, hover-only affordances, color-only state, weak contrast, or keyboard traps
 8. Type safety — `any` usages or `noUncheckedIndexedAccess` violations
 
+Many spacing, colour, layout, and prop-hygiene issues (dimensions 1–4 and 6) are now caught by the CI lint rules before review. See [Lint Enforcement](#lint-enforcement) for the full rule set.
+
 ### Execute
 
 Work through each dimension in order:
@@ -313,7 +338,7 @@ Work through each dimension in order:
 **1. Spacing** — replace hardcoded pixel values with `spacing.*` tokens.
 
 ```tsx
-// Before
+// Before — lint: no-hardcoded-spacing
 <Col padding={16} gap={8}>
 
 // After
@@ -324,7 +349,7 @@ import { spacing } from '@repro/design'
 **2. Colour** — replace hardcoded hex/rgb with named colour tokens. Match the token category to the CSS property.
 
 ```tsx
-// Before
+// Before — lint: no-hardcoded-color
 <Block color="#333" backgroundColor="#f5f5f5">
 
 // After
@@ -335,7 +360,7 @@ import { color } from '@repro/design'
 **3. Typography** — spread `textStyles.*` instead of raw `<p>`/`<h*>` with style props. Treat raw `fontSize`, `fontWeight`, and `lineHeight` as edge-case exceptions for constrained internals, not the default way to establish hierarchy.
 
 ```tsx
-// Before
+// Before — lint: react/forbid-elements, react/forbid-dom-props
 <p style={{ fontSize: "14px", lineHeight: 1.5 }}>Caption text</p>;
 
 // After
@@ -348,7 +373,7 @@ import { textStyles } from "@repro/design";
 **4. Layout** — replace raw flex/grid divs with jsxstyle primitives.
 
 ```tsx
-// Before
+// Before — lint: react/forbid-elements, react/forbid-dom-props
 <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
 
 // After
@@ -358,7 +383,7 @@ import { textStyles } from "@repro/design";
 **5. Component substitution** — replace hand-rolled controls with `@repro/design` equivalents. Consult the Component Selection Guide above.
 
 ```tsx
-// Before
+// Before — lint: no-classname-prop
 <button onClick={handleSubmit} className="btn-primary">Save</button>
 
 // After
@@ -368,7 +393,7 @@ import { textStyles } from "@repro/design";
 **6. Prop hygiene** — remove all inline `style={{}}` props; use design tokens for values and jsxstyle layout props only for structure, not for recreating component appearance in app code.
 
 ```tsx
-// Before
+// Before — lint: react/forbid-dom-props
 <Row style={{ gap: 8, borderRadius: 4 }}>
 
 // After
@@ -407,7 +432,7 @@ function process(data: unknown) {
 
 1. Run `moon run repro/<package>:typecheck` to verify no regressions. Do not use `tsc` directly.
 2. DRYness check: if a normalised pattern appears 3+ times, extract it to a shared helper or component. If a new component is warranted, read `references/design-package.md` for component-authoring conventions.
-3. Confirm no inline `style={{}}` props remain in the modified files (`git diff` is the fastest check).
+3. Run `pnpm run lint` to confirm no design-system lint violations remain. Inline `style={{}}` props are caught by `react/forbid-dom-props`.
 
 ---
 
