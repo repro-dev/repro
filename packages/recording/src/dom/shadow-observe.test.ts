@@ -1,4 +1,5 @@
 import { DOMPatch, NodeType, PatchType } from '@repro/domain'
+import { Box } from '@repro/tdl'
 import { MockNodeList } from '@repro/testing-utils'
 import { getNodeId } from '@repro/vdom-utils'
 import expect from 'expect'
@@ -7,15 +8,6 @@ import { createVShadowRoot } from './factory'
 import { createDOMObserver, internal__processMutationRecords } from './observe'
 import { createDOMTreeWalker, isIgnoredByNode } from './utils'
 import { createDOMVisitor } from './visitor'
-
-/** Unwrap a Box-wrapped TDL union value via its `apply` method. */
-function unwrapBox<T>(box: unknown): T | null {
-  let val: T | null = null
-  ;(box as any).apply?.((v: T) => {
-    val = v
-  })
-  return val
-}
 
 function createRecordingOptions() {
   return {
@@ -788,7 +780,7 @@ describe('Shadow DOM recording', () => {
       // Verify VTree contains shadow root node with expected children
       const nodes = Object.values(vtree!.nodes)
       const shadowVNodes = nodes
-        .map(n => unwrapBox<any>(n))
+        .map(n => (n as unknown as Box<any>).orElse(null))
         .filter((n: any) => n && n.type === NodeType.ShadowRoot)
 
       expect(shadowVNodes.length).toBeGreaterThanOrEqual(1)
@@ -797,7 +789,7 @@ describe('Shadow DOM recording', () => {
 
       // Shadow child text should be present
       const textValues = nodes
-        .map(n => unwrapBox<any>(n))
+        .map(n => (n as unknown as Box<any>).orElse(null))
         .filter(
           (n: any) =>
             n && n.type === NodeType.Text && n.value === 'shadow content'
@@ -868,7 +860,7 @@ describe('Shadow DOM recording', () => {
 
       // Verify AddShadowRoot patch is still emitted (existing behavior preserved)
       const addShadowPatches = patches
-        .map(p => unwrapBox<any>(p))
+        .map(p => (p as unknown as Box<any>).orElse(null))
         .filter((p: any) => p && p.type === PatchType.AddShadowRoot)
 
       expect(addShadowPatches.length).toBe(1)
