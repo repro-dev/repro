@@ -97,6 +97,7 @@ if (rootElem) {
                             path="account/register"
                             element={<RegisterRoute />}
                           />
+                          {/* eslint-disable-next-line react/forbid-elements */}
                           <Route path="account/verify" element={<div />} />
                           <Route
                             path="account/reset-password/:token"

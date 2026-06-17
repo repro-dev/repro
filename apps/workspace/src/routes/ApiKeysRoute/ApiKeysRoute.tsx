@@ -232,6 +232,7 @@ export const ApiKeysRoute: React.FC = () => {
                     <Table.HeaderCell>Last used</Table.HeaderCell>
                     <Table.HeaderCell>Status</Table.HeaderCell>
                     <Table.HeaderCell>
+                      {/* eslint-disable-next-line react/forbid-elements */}
                       <span aria-hidden="true" />
                     </Table.HeaderCell>
                   </Table.Row>

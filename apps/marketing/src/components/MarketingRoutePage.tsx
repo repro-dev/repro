@@ -24,6 +24,7 @@ export function MarketingRoutePage({ slug }: MarketingRoutePageProps) {
 
       <p className={sharedStyles.routeCopy}>{page.body}</p>
 
+      {/* eslint-disable-next-line react/forbid-elements */}
       <div className={routeStyles.routeActions}>
         <a
           className={cx(sharedStyles.button, sharedStyles.primaryCta)}

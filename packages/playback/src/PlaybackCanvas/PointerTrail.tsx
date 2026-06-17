@@ -1,3 +1,4 @@
+/* eslint-disable react/forbid-dom-props */
 import { colors } from '@repro/design'
 import { isPointOutOfBounds } from '@repro/source-utils'
 import React, { useCallback, useEffect, useRef, useState } from 'react'

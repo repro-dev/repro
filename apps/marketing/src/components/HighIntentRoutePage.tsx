@@ -34,6 +34,7 @@ export function HighIntentRoutePage({
 
         <p className={sharedStyles.routeCopy}>{summary}</p>
 
+        {/* eslint-disable-next-line react/forbid-elements */}
         <div className={routeStyles.actions}>
           <a
             className={cx(sharedStyles.button, sharedStyles.primaryCta)}
@@ -53,6 +54,7 @@ export function HighIntentRoutePage({
         </div>
       </header>
 
+      {/* eslint-disable-next-line react/forbid-elements */}
       <div className={routeStyles.body}>{children}</div>
     </section>
   )

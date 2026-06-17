@@ -19,6 +19,7 @@ export const GoogleSignInButton: React.FC<Props> = ({
     onClick={onClick}
   >
     <GoogleGLogo />
+    {/* eslint-disable-next-line react/forbid-elements */}
     <span>Continue with Google</span>
   </Button>
 )

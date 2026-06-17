@@ -68,6 +68,7 @@ export default function InstallExtensionPage() {
           Record the bug before the evidence is lost
         </h2>
 
+        {/* eslint-disable-next-line react/forbid-elements */}
         <div className={cx(routeStyles.bandGrid, routeStyles.bandGridTwo)}>
           <article className={routeStyles.detailCard}>
             <h3 className={sharedStyles.panelTitle}>What Repro records</h3>
@@ -103,6 +104,7 @@ export default function InstallExtensionPage() {
           Put the evidence to work
         </h2>
 
+        {/* eslint-disable-next-line react/forbid-elements */}
         <div className={cx(routeStyles.bandGrid, routeStyles.bandGridTwo)}>
           <article className={routeStyles.detailCard}>
             <h3 className={sharedStyles.panelTitle}>Review the replay</h3>

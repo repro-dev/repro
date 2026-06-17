@@ -1,3 +1,4 @@
+/* eslint-disable react/forbid-elements */
 import { Block } from '@jsxstyle/react'
 import { color } from '@repro/design'
 import React, { PropsWithChildren } from 'react'

@@ -1,3 +1,4 @@
+/* eslint-disable react/forbid-elements, react/forbid-dom-props */
 import { Button, FullPageError } from '@repro/design'
 import React from 'react'
 

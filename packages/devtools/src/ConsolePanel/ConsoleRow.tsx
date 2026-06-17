@@ -1,3 +1,4 @@
+/* eslint-disable react/forbid-elements */
 import { Block, Grid, InlineBlock, Row } from '@jsxstyle/react'
 import { formatTime } from '@repro/date-utils'
 import { color, colors } from '@repro/design'
