@@ -1,11 +1,6 @@
 import { ApiProvider, createApiClient } from '@repro/api-client'
 import { AuthProvider } from '@repro/auth'
-import {
-  color,
-  PortalRootProvider,
-  ThemeProvider,
-  type ThemeDefinition,
-} from '@repro/design'
+import { PortalRootProvider, ThemeProvider } from '@repro/design'
 import { applyResetStyles } from '@repro/theme'
 import React, { Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
@@ -45,78 +40,6 @@ const apiClient = createApiClient({
   baseUrl: env.REPRO_API_URL,
   authStorage: 'local-storage',
 })
-
-const adminTheme: ThemeDefinition = {
-  color: {
-    primary: color.neutral,
-    primaryHover: color.bg.emphasis,
-    primarySubtle: color.bg.hover,
-    primarySubtleHover: color.bg.muted,
-
-    text: {
-      default: color.text.default,
-      secondary: color.neutral,
-      muted: color.text.muted,
-      label: color.text.label,
-      inverse: color.bg.surface,
-    },
-
-    bg: {
-      surface: color.bg.surface,
-      subtle: color.bg.subtle,
-      hover: color.bg.hover,
-      muted: color.bg.muted,
-      strong: color.border.strong,
-      emphasis: color.bg.emphasis,
-      overlay: 'rgba(0,0,0,0.5)',
-    },
-
-    border: {
-      default: color.border.default,
-      strong: color.border.strong,
-      emphasis: color.text.muted,
-      focus: color.text.muted,
-    },
-
-    danger: color.danger,
-    dangerHover: color.dangerHover,
-    dangerSubtle: color.dangerSubtle,
-    dangerTint: color.dangerTint,
-    dangerBorder: color.dangerBorder,
-    dangerBorderSubtle: color.dangerBorderSubtle,
-    dangerFg: color.dangerFg,
-
-    success: color.success,
-    successHover: color.successHover,
-    successSubtle: color.successSubtle,
-    successTint: color.successTint,
-    successBorder: color.successBorder,
-    successBorderSubtle: color.successBorderSubtle,
-    successFg: color.successFg,
-
-    warning: color.warning,
-    warningHover: color.warningHover,
-    warningEmphasis: color.warningEmphasis,
-    warningEmphasisHover: color.warningEmphasisHover,
-    warningSubtle: color.warningSubtle,
-    warningTint: color.warningTint,
-    warningBorder: color.warningBorder,
-    warningBorderSubtle: color.warningBorderSubtle,
-    warningFg: color.warningFg,
-
-    info: color.info,
-    infoSubtle: color.infoSubtle,
-    infoTint: color.infoTint,
-    infoBorder: color.infoBorder,
-    infoBorderSubtle: color.infoBorderSubtle,
-    infoFg: color.infoFg,
-
-    neutral: color.neutral,
-    neutralHover: color.text.label,
-    neutralBorder: color.text.muted,
-    neutralBorderSubtle: color.border.strong,
-  },
-}
 
 const rootSelector = '#root'
 const rootElem = document.querySelector(rootSelector)
@@ -177,7 +100,7 @@ if (rootElem) {
       <BrowserRouter basename={basename}>
         <ApiProvider client={apiClient}>
           <AuthProvider basePath="/staff" loginPath="/login">
-            <ThemeProvider theme={adminTheme}>
+            <ThemeProvider>
               <PortalRootProvider>
                 <Suspense fallback={<Loading />}>
                   <AppRoutes />
