@@ -637,8 +637,13 @@ function createMutationObserver(
           const shadowRoot = origAttachShadow!.call(this, init)
 
           if (init.mode === 'open' && shadowRoot) {
-            // Walk the shadow tree and emit an addShadowRoot patch.
-            const shadowVTree = walkDOMTree(shadowRoot)
+            // Walk the shadow tree (DOM-only, no passive visitors) and emit
+            // an addShadowRoot patch. Using the dom-only visitors option
+            // avoids firing iframeVisitor/scrollVisitor/viewportVisitor for
+            // shadow root trees.
+            const shadowVTree = walkDOMTree(shadowRoot, {
+              visitors: 'dom-only',
+            })
             if (shadowVTree) {
               subscriber(
                 new Box({
