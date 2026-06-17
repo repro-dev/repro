@@ -48,6 +48,10 @@ export function createResourceMap(events: Array<SourceEvent>) {
 
   function addResource(url: string) {
     try {
+      if (isDataURI(url)) {
+        return
+      }
+
       // FIXME: Handle in-page hash resources (i.e. SVG definitions)
       const absoluteURL = new URL(url, currentPageURL || undefined).href
 
