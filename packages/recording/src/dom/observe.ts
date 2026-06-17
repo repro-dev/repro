@@ -615,36 +615,42 @@ function createMutationObserver(
     },
 
     observe(doc) {
-      origAttachShadow = Element.prototype.attachShadow
+      if (origAttachShadow === null) {
+        origAttachShadow = Element.prototype.attachShadow
 
-      // Monkey-patch Element.prototype.attachShadow to intercept open
-      // shadow root creation at runtime.
-      Element.prototype.attachShadow = function (
-        this: Element,
-        init: ShadowRootInit
-      ) {
-        const shadowRoot = origAttachShadow!.call(this, init)
+        // Monkey-patch Element.prototype.attachShadow to intercept open
+        // shadow root creation at runtime.
+        Element.prototype.attachShadow = function (
+          this: Element,
+          init: ShadowRootInit
+        ) {
+          const shadowRoot = origAttachShadow!.call(this, init)
 
-        if (init.mode === 'open' && shadowRoot) {
-          // Walk the shadow tree and emit an addShadowRoot patch.
-          const shadowVTree = walkDOMTree(shadowRoot)
-          if (shadowVTree) {
-            subscriber(
-              new Box({
-                type: PatchType.AddShadowRoot,
-                hostId: getNodeId(this),
-                shadowRoot: shadowVTree,
-              })
-            )
+          if (init.mode === 'open' && shadowRoot) {
+            // Walk the shadow tree and emit an addShadowRoot patch.
+            const shadowVTree = walkDOMTree(shadowRoot)
+            if (shadowVTree) {
+              subscriber(
+                new Box({
+                  type: PatchType.AddShadowRoot,
+                  hostId: getNodeId(this),
+                  shadowRoot: shadowVTree,
+                })
+              )
+            }
+
+            // Create observer for the new shadow root.
+            observeAdoptedStyleSheets(shadowRoot)
+            createObserverForRoot(shadowRoot)
+            discoverAndObserveShadows(shadowRoot)
           }
 
-          // Create observer for the new shadow root.
-          observeAdoptedStyleSheets(shadowRoot)
-          createObserverForRoot(shadowRoot)
-          discoverAndObserveShadows(shadowRoot)
+          return shadowRoot
         }
-
-        return shadowRoot
+      } else {
+        console.warn(
+          'MutationObserver.observe() called while already observing shadow roots. Skipping attachShadow monkey-patch reinstall.'
+        )
       }
 
       createObserverForRoot(doc)

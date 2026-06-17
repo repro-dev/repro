@@ -646,6 +646,50 @@ describe('Shadow DOM recording', () => {
       document.body.removeChild(host)
     })
 
+    it('does not recurse when observe() is called twice', () => {
+      const options = createRecordingOptions()
+      const walker = createDOMTreeWalker(options)
+      walker.acceptDOMVisitor(createDOMVisitor(options))
+
+      const patches: Array<DOMPatch> = []
+      const observer = createDOMObserver(walker, options, patch =>
+        patches.push(patch)
+      )
+
+      const initialVTree = walker(document)
+
+      // First observe — installs monkey-patch
+      observer.observe(document, initialVTree!)
+
+      // Second observe on same instance — should not overwrite origAttachShadow
+      // and should log a warning, not throw
+      observer.observe(document, initialVTree!)
+
+      // Verify attachShadow still works and does not stack overflow
+      const host = document.createElement('div')
+      document.body.appendChild(host)
+
+      expect(() => {
+        host.attachShadow({ mode: 'open' })
+      }).not.toThrow()
+
+      // Should still emit an addShadowRoot patch
+      const addShadowPatches = patches
+        .map(p => {
+          let val: any = null
+          ;(p as any).apply?.((v: any) => {
+            val = v
+          })
+          return val
+        })
+        .filter((p: any) => p && p.type === PatchType.AddShadowRoot)
+
+      expect(addShadowPatches.length).toBe(1)
+
+      observer.disconnect()
+      document.body.removeChild(host)
+    })
+
     it('restores original attachShadow on disconnect', () => {
       const original = Element.prototype.attachShadow
 
