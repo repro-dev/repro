@@ -293,9 +293,6 @@ importers:
       pino:
         specifier: ^9.6.0
         version: 9.6.0
-      pino-pretty:
-        specifier: ^13.1.3
-        version: 13.1.3
       rxjs:
         specifier: ^7.8.0
         version: 7.8.0
@@ -369,6 +366,9 @@ importers:
       nodemon:
         specifier: ^2.0.19
         version: 2.0.19
+      pino-pretty:
+        specifier: ^13.1.3
+        version: 13.1.3
       prettier:
         specifier: ^3.0.0
         version: 3.0.0

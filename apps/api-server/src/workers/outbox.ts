@@ -40,12 +40,32 @@ const outboxRegistry = createDefaultOutboxRegistry({
 })
 const workerId = `${process.pid}-${Date.now()}`
 
-const pinoLogger = pino({
+const pinoOptions: pino.LoggerOptions = {
   level: env.NODE_ENV === 'test' ? 'silent' : 'info',
-  ...(env.NODE_ENV !== 'production' && {
-    transport: { target: 'pino-pretty' },
-  }),
-})
+}
+if (env.NODE_ENV !== 'production') {
+  try {
+    pinoOptions.transport = { target: 'pino-pretty' }
+  } catch {
+    // pino-pretty is a devDependency — silently fall back to JSON in CI
+  }
+}
+const pinoLogger = pino(pinoOptions)
+
+function serializeError(error: unknown): {
+  name?: string
+  message: string
+  stack?: string
+} {
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+    }
+  }
+  return { message: String(error) }
+}
 
 function createStructuredLogger(
   base: pino.Logger,
@@ -60,12 +80,25 @@ function createStructuredLogger(
       child.warn({ ...metadata, event: message }, message)
     },
     error(message, metadata) {
-      child.error({ ...metadata, event: message }, message)
+      const enriched = { ...metadata }
+      if (enriched.error !== undefined) {
+        enriched.error = serializeError(enriched.error)
+      }
+      child.error({ ...enriched, event: message }, message)
     },
   }
 }
 
 const logger = createStructuredLogger(pinoLogger, workerId)
+
+logger.info('outbox worker started', {
+  batchSize: env.OUTBOX_WORKER_BATCH_SIZE,
+  pollIntervalMs: env.OUTBOX_WORKER_POLL_INTERVAL_MS,
+  retryBaseMs: env.OUTBOX_WORKER_RETRY_BASE_MS,
+  retryMaxMs: env.OUTBOX_WORKER_RETRY_MAX_MS,
+  staleAfterMs: env.OUTBOX_WORKER_STALE_AFTER_MS,
+  maxAttempts: env.OUTBOX_WORKER_DEFAULT_MAX_ATTEMPTS,
+})
 
 const worker = createOutboxWorker({
   outboxService,
@@ -84,6 +117,7 @@ const worker = createOutboxWorker({
 const polling = worker.startPolling()
 
 function stop() {
+  logger.info('outbox worker shutting down', { workerId })
   polling.stop()
   void database.destroy().finally(() => process.exit(0))
 }
