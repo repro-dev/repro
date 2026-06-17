@@ -127,7 +127,7 @@ Draw from available source material across these categories. Skip any category w
 - **Free-text** (print the question, wait for user response): For understanding — design rationale, tradeoff analysis, conceptual understanding.
 - Aim for at least 50% free-text questions, biasing toward free-text when the source material supports comprehension-based questions. Multiple-choice questions should not exceed 50% of the total. Adjust exact ratios based on available material.
 - **Shuffle**: Shuffle question order to vary category sequencing. Shuffle answer options within each multiple-choice question so the correct answer is not predictably first. Avoid patterns where the correct answer appears in the same position (first, last, etc.) in consecutive questions.
-- **All options require descriptions**: Every multiple-choice option must include both a `label` and a `description`. The `label` is the option text shown to the user; the `description` is a brief explanation of why the option is relevant (used during evaluation). All options — both correct and incorrect — must have non-empty descriptions. Never leave a description blank.
+- **All options require descriptions**: Every multiple-choice option must include both a `label` and a `description`. The `label` is the option text shown to the user; the `description` is a brief explanation of why the option is relevant (used during evaluation). All options — both correct and incorrect — must have non-empty descriptions. Never leave a description blank. Descriptions must sound equally plausible regardless of whether the option is correct; an incorrect option's description should explain the reasoning or misconception that makes it seem plausible, not invalidate it or reveal it is wrong.
 - **Prohibited question types**: Do not generate purely numeric counting questions (e.g. "How many files changed?", "How many lines were added or deleted?"). Questions about file names, module locations, function names, and package names are permitted. Free-text comprehension questions are strongly preferred over multiple-choice for testing understanding.
 
 ## Phase 4 — Quiz loop
@@ -136,8 +136,8 @@ Present questions one at a time. Do not reveal the next question until the curre
 
 ### For multiple-choice questions
 
-1. Configure: `question` tool with `header`, `question` string, `options` array, and `multiple: false`.
-2. Populate the `options` array: every option object must include both a `label` (the option text) and a `description` (a brief explanation tied to the source material). All options — correct and incorrect — require non-empty descriptions.
+1. Present the question using the `question` tool as the sole first presentation. Do not print the question as plain text before or after the tool call — the `question` tool's own rendering is the entire presentation. Configure: `question` tool with `header`, `question` string, `options` array, and `multiple: false`.
+2. Populate the `options` array: every option object must include both a `label` (the option text) and a `description` (a brief explanation tied to the source material). All options — correct and incorrect — require non-empty descriptions. Descriptions must sound plausible regardless of correctness; an incorrect option's description should explain a reasoning path or misconception that makes that option seem credible, not betray that it is wrong.
 3. After the user answers, evaluate against the known correct answer chosen during generation.
 4. Print: "Correct!" or "Incorrect." followed by the correct answer and a brief explanation tied to the source material.
 5. Score: 1 point for correct, 0 for incorrect.
@@ -168,6 +168,13 @@ After the last question, print:
 
 === Quiz Summary ===
 Score: X/Y (Z%)
+
+| Category | Score | % | |
+|---|---|---|---|
+| Architecture / structure | 1/2 | 50% | Weak |
+| Design decisions | 1/1 | 100% | Strong |
+| … | | | |
+
 Strong areas: <categories where ≥80% score>
 Weak areas: <categories where <60% score>
 
