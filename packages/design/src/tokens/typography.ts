@@ -19,18 +19,20 @@
 
 /**
  * Font size scale in px.
- * 15 (body) and 16 (UI/headings) are intentionally kept separate — they map
- * to distinct use cases despite the 1px difference.
+ * Centered around 13px as primary body text. Steps are intentional:
+ * 11 (xs) → 12 (sm) → 13 (base) → 14 (md) → 20 (lg) → 24 (xl) → 32 (2xl).
+ * The gap between md and lg reflects the transition from UI/badge sizes
+ * to heading sizes.
  */
 export const fontSize = {
-  /** 11px — captions, timestamps */
+  /** 11px — captions, timestamps, minimal UI */
   xs: 11,
-  /** 13px — secondary body, labels, code */
-  sm: 13,
-  /** 15px — primary body text */
-  base: 15,
-  /** 16px — heading3 / small UI text */
-  md: 16,
+  /** 12px — small UI text, labels, secondary body */
+  sm: 12,
+  /** 13px — primary body text */
+  base: 13,
+  /** 14px — small headings, medium UI text */
+  md: 14,
   /** 20px — heading2 */
   lg: 20,
   /** 24px — heading1 */
@@ -61,6 +63,8 @@ export type FontWeightValue = (typeof fontWeight)[FontWeightToken]
 // ---------------------------------------------------------------------------
 
 export const lineHeight = {
+  /** 0 — icon-only alignment */
+  none: 0,
   /** 1 — single-line UI labels, badges */
   tight: 1,
   /** 1.25 — headings */

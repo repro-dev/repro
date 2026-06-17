@@ -1,6 +1,6 @@
 import { Block } from '@jsxstyle/react'
 import { Loading } from '@repro/agentic'
-import { color, spacing } from '@repro/design'
+import { color, lineHeight, spacing } from '@repro/design'
 import { ArrowDownIcon } from 'lucide-react'
 import React from 'react'
 import {
@@ -38,7 +38,7 @@ export const JumpToEndButton: React.FC<JumpToEndButtonProps> = ({
       padding={spacing.lg}
       borderRadius="99rem"
       cursor="pointer"
-      lineHeight={0}
+      lineHeight={lineHeight.none}
       scale={shouldShow ? 1 : 0}
       transformOrigin="center center"
       transition="scale ease-in-out 100ms, translate ease-in-out 250ms"

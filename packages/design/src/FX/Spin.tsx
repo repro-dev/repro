@@ -2,6 +2,7 @@
 import { InlineBlock, JsxstyleComponentStyleProps } from '@jsxstyle/react'
 import React, { PropsWithChildren } from 'react'
 import { duration } from '../tokens/motion'
+import { lineHeight } from '../tokens/typography'
 
 type Props = PropsWithChildren<JsxstyleComponentStyleProps>
 
@@ -19,7 +20,7 @@ const animation = {
 export const Spin: React.FC<Props> = React.memo(({ children, ...props }) => (
   <InlineBlock
     {...props}
-    lineHeight={0}
+    lineHeight={lineHeight.none}
     animationIterationCount="infinite"
     animationDuration={duration[1000]}
     animation={animation}

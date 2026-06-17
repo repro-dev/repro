@@ -103,7 +103,8 @@ const contextColors = {
  * from base * 1.5:
  *   small  -> fontSize.xs (11px)
  *   medium -> fontSize.xs (11px)
- *   large  -> fontSize.sm (13px)
+ *   large  -> fontSize.base (13px) — matches body text for consistent
+ *            CTA-to-copy sizing
  *
  * borderRadius derives from base (5/7/9px for small/medium/large)
  * rather than a fixed radius token, preserving the original scaling behaviour.
@@ -113,7 +114,7 @@ const contextColors = {
 const sizes = {
   small: { base: 5, fontSize: fontSizeTokens.xs }, // 11px
   medium: { base: 7, fontSize: fontSizeTokens.xs }, // 11px
-  large: { base: 9, fontSize: fontSizeTokens.sm }, // 13px
+  large: { base: 9, fontSize: fontSizeTokens.base }, // 13px — matches body
 }
 
 /**

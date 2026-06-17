@@ -808,7 +808,8 @@ describe('Table — TableCell font size', () => {
     const td = document.querySelector('td') as HTMLTableCellElement
     expect(td).not.toBeNull()
     // fontSize is set inline; jsdom stores inline style values as strings
-    expect(td.style.fontSize).toBe('13px')
+    // Both body and header cells use fontSize.sm (now 12px) — they still match
+    expect(td.style.fontSize).toBe('12px')
   })
 })
 
