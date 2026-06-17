@@ -1,10 +1,10 @@
-/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 import { Block, Col, Row } from '@jsxstyle/react'
 import {
   color,
   fontFamily,
   fontSize,
   fontWeight,
+  lineHeight,
   spacing,
   textStyles,
 } from '@repro/design'
@@ -101,7 +101,7 @@ export const ConsoleMessageResultRow: React.FC<
           gap={TOOL_RESULT_ROW_STYLES.consoleHeaderGap}
           lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
         >
-          <Block color={messageColor} lineHeight={1}>
+          <Block color={messageColor} lineHeight={lineHeight.tight}>
             {icon}
           </Block>
 

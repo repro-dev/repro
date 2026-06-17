@@ -1,6 +1,5 @@
-/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 import { Inline } from '@jsxstyle/react'
-import { color } from '@repro/design'
+import { color, lineHeight } from '@repro/design'
 import React from 'react'
 import { FONT_SIZE } from './constants'
 
@@ -22,7 +21,7 @@ export const Toggle: React.FC<{ isOpen: boolean; onClick: () => void }> = ({
 }) => (
   <Inline
     position="absolute"
-    lineHeight={1.25}
+    lineHeight={lineHeight.normal}
     transform="translate(-150%, 0)"
     props={{ onClick }}
   >

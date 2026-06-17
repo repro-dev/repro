@@ -1,6 +1,11 @@
-/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 import { Block, Grid, Row } from '@jsxstyle/react'
-import { color, DropdownMenu, spacing } from '@repro/design'
+import {
+  color,
+  DropdownMenu,
+  fontSize,
+  fontWeight,
+  spacing,
+} from '@repro/design'
 import { ChevronDownIcon, FolderIcon, PlusIcon } from 'lucide-react'
 import React, { useState } from 'react'
 import { useProjectContext } from '~/ProjectContext'
@@ -25,8 +30,8 @@ export const ProjectSwitcher: React.FC<ProjectSwitcherProps> = () => {
         <Grid
           padding={spacing.sm}
           color={color.text.secondary}
-          fontSize={13}
-          fontWeight={500}
+          fontSize={fontSize.sm}
+          fontWeight={fontWeight.normal}
           hoverBackgroundColor={color.bg.hover}
         >
           <Grid
@@ -42,8 +47,8 @@ export const ProjectSwitcher: React.FC<ProjectSwitcherProps> = () => {
             border="none"
             background="none"
             color={color.text.secondary}
-            fontSize={13}
-            fontWeight={500}
+            fontSize={fontSize.sm}
+            fontWeight={fontWeight.normal}
             hoverBackgroundColor={color.bg.muted}
             props={{
               'aria-label': 'Create project',
@@ -72,8 +77,8 @@ export const ProjectSwitcher: React.FC<ProjectSwitcherProps> = () => {
         gridTemplateColumns="5fr 1fr"
         gap={spacing.sm}
         color={color.text.secondary}
-        fontSize={13}
-        fontWeight={500}
+        fontSize={fontSize.sm}
+        fontWeight={fontWeight.normal}
         hoverBackgroundColor={color.bg.hover}
       >
         <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
@@ -91,8 +96,8 @@ export const ProjectSwitcher: React.FC<ProjectSwitcherProps> = () => {
               border="none"
               background="none"
               color={color.text.secondary}
-              fontSize={13}
-              fontWeight={500}
+              fontSize={fontSize.sm}
+              fontWeight={fontWeight.normal}
               hoverBackgroundColor={color.bg.muted}
               props={{
                 'aria-label': `Switch project. Current: ${selectedProject.name}`,

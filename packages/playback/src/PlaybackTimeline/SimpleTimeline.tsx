@@ -1,8 +1,7 @@
-/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 import { Block, Row } from '@jsxstyle/react'
 import { Analytics } from '@repro/analytics'
 import { formatTime } from '@repro/date-utils'
-import { color, spacing } from '@repro/design'
+import { color, fontSize, spacing } from '@repro/design'
 import React, { useEffect, useRef } from 'react'
 import { NEVER, Observable, Subscription, combineLatest, fromEvent } from 'rxjs'
 import {
@@ -272,7 +271,7 @@ export const SimpleTimeline: React.FC<Props> = ({ children, min, max }) => {
         gap={spacing.xs}
         alignItems="center"
         fontFamily="monospace"
-        fontSize={11}
+        fontSize={fontSize.xs}
         userSelect="none"
       >
         <Block
@@ -283,7 +282,7 @@ export const SimpleTimeline: React.FC<Props> = ({ children, min, max }) => {
           00:00
         </Block>
         <Block color={color.text.muted}>/</Block>
-        <Block color={color.primary} whiteSpace="nowrap" fontSize={11}>
+        <Block color={color.primary} whiteSpace="nowrap" fontSize={fontSize.xs}>
           {formatTime((max || playback.getDuration()) - (min || 0), 'seconds')}
         </Block>
       </Row>
@@ -422,7 +421,7 @@ function createTooltipElement() {
     ['borderRadius', '8px'],
     ['color', color.text.inverse],
     ['display', 'none'],
-    ['fontSize', '11px'],
+    ['fontSize', `${fontSize.xs}px`],
     ['left', '0'],
     ['padding', '8px'],
     ['position', 'absolute'],
