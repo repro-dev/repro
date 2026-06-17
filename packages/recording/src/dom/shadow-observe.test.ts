@@ -8,6 +8,15 @@ import { createDOMObserver, internal__processMutationRecords } from './observe'
 import { createDOMTreeWalker, isIgnoredByNode } from './utils'
 import { createDOMVisitor } from './visitor'
 
+/** Unwrap a Box-wrapped TDL union value via its `apply` method. */
+function unwrapBox<T>(box: unknown): T | null {
+  let val: T | null = null
+  ;(box as any).apply?.((v: T) => {
+    val = v
+  })
+  return val
+}
+
 function createRecordingOptions() {
   return {
     types: new Set(['dom'] as const),
@@ -779,13 +788,7 @@ describe('Shadow DOM recording', () => {
       // Verify VTree contains shadow root node with expected children
       const nodes = Object.values(vtree!.nodes)
       const shadowVNodes = nodes
-        .map(n => {
-          let val: any = null
-          ;(n as any).apply?.((v: any) => {
-            val = v
-          })
-          return val
-        })
+        .map(n => unwrapBox<any>(n))
         .filter((n: any) => n && n.type === NodeType.ShadowRoot)
 
       expect(shadowVNodes.length).toBeGreaterThanOrEqual(1)
@@ -794,13 +797,7 @@ describe('Shadow DOM recording', () => {
 
       // Shadow child text should be present
       const textValues = nodes
-        .map(n => {
-          let val: any = null
-          ;(n as any).apply?.((v: any) => {
-            val = v
-          })
-          return val
-        })
+        .map(n => unwrapBox<any>(n))
         .filter(
           (n: any) =>
             n && n.type === NodeType.Text && n.value === 'shadow content'
@@ -857,9 +854,10 @@ describe('Shadow DOM recording', () => {
       const host = document.createElement('div')
       document.body.appendChild(host)
 
-      // Record spy count after observer setup but before attachShadow
-      // (includes elements from the initial document walk and the host
-      // element added via appendChild which triggers a mutation walk)
+      // Record spy count after observer setup but before attachShadow.
+      // preAttachCount captures elements from the initial document walk
+      // only (mutation observer callbacks from appendChild are
+      // microtask-scheduled and haven't fired yet).
       const preAttachCount = spyElementNodes.length
 
       // Trigger attachShadow — monkey-patch uses walkDOMOnly
@@ -870,13 +868,7 @@ describe('Shadow DOM recording', () => {
 
       // Verify AddShadowRoot patch is still emitted (existing behavior preserved)
       const addShadowPatches = patches
-        .map(p => {
-          let val: any = null
-          ;(p as any).apply?.((v: any) => {
-            val = v
-          })
-          return val
-        })
+        .map(p => unwrapBox<any>(p))
         .filter((p: any) => p && p.type === PatchType.AddShadowRoot)
 
       expect(addShadowPatches.length).toBe(1)
