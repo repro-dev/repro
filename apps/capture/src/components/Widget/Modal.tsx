@@ -1,6 +1,6 @@
 import { Block, InlineBlock, Row } from '@jsxstyle/react'
 import { animated, config, useTransition } from '@react-spring/web'
-import { color, Logo, spacing } from '@repro/design'
+import { Logo, color, fontSize, lineHeight, spacing } from '@repro/design'
 import { XIcon } from 'lucide-react'
 import React from 'react'
 
@@ -64,7 +64,10 @@ export const Modal: React.FC<React.PropsWithChildren<ModalProps>> = ({
                     <Logo size={24} inverted={true} />
 
                     {title && (
-                      <InlineBlock color={color.text.inverse} fontSize={16}>
+                      <InlineBlock
+                        color={color.text.inverse}
+                        fontSize={fontSize.md}
+                      >
                         {title}
                       </InlineBlock>
                     )}
@@ -82,7 +85,7 @@ export const Modal: React.FC<React.PropsWithChildren<ModalProps>> = ({
                           hoverBackgroundColor={color.infoFg}
                           borderRadius={2}
                           transition="all 100ms ease-in-out"
-                          lineHeight={1}
+                          lineHeight={lineHeight.tight}
                           cursor="pointer"
                           props={{ onClick: onClose }}
                         >

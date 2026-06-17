@@ -1,6 +1,13 @@
 import { Block, InlineBlock } from '@jsxstyle/react'
 import { formatDate } from '@repro/date-utils'
-import { color, Drawer, spacing } from '@repro/design'
+import {
+  Drawer,
+  color,
+  fontSize,
+  fontWeight,
+  lineHeight,
+  spacing,
+} from '@repro/design'
 import { RecordingInfo } from '@repro/domain'
 import React, { Fragment, useState } from 'react'
 
@@ -29,16 +36,16 @@ export const Summary: React.FC<Props> = ({ info }) => {
       boxShadow={`0 4px 16px ${color.border.default}`}
       borderBottom={`1px solid ${color.border.default}`}
     >
-      <Block fontSize={20} lineHeight={1.25}>
+      <Block fontSize={fontSize.lg} lineHeight={lineHeight.normal}>
         {info.title}
       </Block>
 
       <Block
         component="a"
         marginTop={spacing.lg}
-        fontSize={13}
+        fontSize={fontSize.sm}
         textDecoration="underline"
-        lineHeight={1.25}
+        lineHeight={lineHeight.normal}
         wordBreak="break-all"
         color={color.primary}
         cursor="pointer"
@@ -52,8 +59,8 @@ export const Summary: React.FC<Props> = ({ info }) => {
 
       <Block
         marginTop={spacing.lg}
-        fontSize={13}
-        lineHeight={1.25}
+        fontSize={fontSize.sm}
+        lineHeight={lineHeight.normal}
         color={color.text.secondary}
       >
         Posted on {formatDate(info.createdAt)}
@@ -61,8 +68,8 @@ export const Summary: React.FC<Props> = ({ info }) => {
 
       <Block
         marginTop={spacing.lg}
-        lineHeight={1.5}
-        fontSize={13}
+        lineHeight={lineHeight.relaxed}
+        fontSize={fontSize.sm}
         textOverflow="ellipsis"
         emptyDisplay="none"
       >
@@ -71,7 +78,7 @@ export const Summary: React.FC<Props> = ({ info }) => {
         {shouldTruncateDescription && (
           <InlineBlock
             marginLeft={spacing.sm}
-            fontWeight={700}
+            fontWeight={fontWeight.bold}
             color={color.primary}
             cursor="pointer"
             props={{
@@ -85,14 +92,18 @@ export const Summary: React.FC<Props> = ({ info }) => {
         <Drawer open={showDrawer} onClose={() => setShowDrawer(false)}>
           {showDrawer && (
             <Fragment>
-              <Block fontSize={24} fontWeight={700} color={color.text.default}>
+              <Block
+                fontSize={fontSize.xl}
+                fontWeight={fontWeight.bold}
+                color={color.text.default}
+              >
                 {info.title}
               </Block>
 
               <Block
                 component="a"
                 marginTop={spacing['2xl']}
-                fontSize={15}
+                fontSize={fontSize.base}
                 textDecoration="underline"
                 color={color.primary}
                 cursor="pointer"
@@ -103,8 +114,8 @@ export const Summary: React.FC<Props> = ({ info }) => {
 
               <Block
                 marginTop={spacing.lg}
-                fontSize={15}
-                lineHeight={1.25}
+                fontSize={fontSize.base}
+                lineHeight={lineHeight.normal}
                 color={color.text.secondary}
               >
                 Posted on {formatDate(info.createdAt)}
@@ -112,8 +123,8 @@ export const Summary: React.FC<Props> = ({ info }) => {
 
               <Block
                 marginTop={spacing['2xl']}
-                fontSize={13}
-                lineHeight={1.5}
+                fontSize={fontSize.sm}
+                lineHeight={lineHeight.relaxed}
                 whiteSpace="pre-wrap"
               >
                 {info.description}

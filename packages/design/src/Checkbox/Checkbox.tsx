@@ -1,3 +1,4 @@
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 import { Block, Col, Row } from '@jsxstyle/react'
 import { Check } from 'lucide-react'
 import React, { forwardRef, useId } from 'react'

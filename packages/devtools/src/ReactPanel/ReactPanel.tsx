@@ -1,6 +1,6 @@
 import { Block, Grid } from '@jsxstyle/react'
 import { useAtomValue } from '@repro/atom'
-import { color, spacing } from '@repro/design'
+import { color, fontSize, spacing } from '@repro/design'
 import { SourceEventType, SourceEventView, StateEventType } from '@repro/domain'
 import { usePlayback, useSnapshot } from '@repro/playback'
 import React, { useMemo, useState } from 'react'
@@ -93,7 +93,11 @@ export const ReactPanel: React.FC = () => {
 
   if (componentMap.size === 0 && !isProductionBuild) {
     return (
-      <Block padding={spacing.xl} fontSize={12} color={color.text.muted}>
+      <Block
+        padding={spacing.xl}
+        fontSize={fontSize.sm}
+        color={color.text.muted}
+      >
         No component data yet. Scrub the timeline to see the React component
         tree.
       </Block>
@@ -106,7 +110,7 @@ export const ReactPanel: React.FC = () => {
         {isProductionBuild && (
           <Block
             padding={spacing.md}
-            fontSize={11}
+            fontSize={fontSize.xs}
             color={color.warning}
             backgroundColor={color.warningSubtle}
             borderBottom={`1px solid ${color.warningBorder}`}

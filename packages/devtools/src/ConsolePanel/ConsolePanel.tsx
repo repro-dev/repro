@@ -1,5 +1,5 @@
 import { Block, Grid } from '@jsxstyle/react'
-import { color, spacing } from '@repro/design'
+import { color, fontSize, spacing } from '@repro/design'
 import { Stats } from '@repro/diagnostics'
 import { ConsoleEvent, MessagePartType, SourceEventView } from '@repro/domain'
 import { ControlFrame, ElapsedMarker, usePlayback } from '@repro/playback'
@@ -125,7 +125,11 @@ export const ConsolePanel: React.FC = () => {
           onChange={setConsoleLevelFilter}
         />
 
-        <Block justifySelf="end" fontSize={11} color={color.text.muted}>
+        <Block
+          justifySelf="end"
+          fontSize={fontSize.xs}
+          color={color.text.muted}
+        >
           {consoleEvents.length !== filteredConsoleEvents.length &&
             `${consoleEvents.length - filteredConsoleEvents.length} hidden`}
         </Block>

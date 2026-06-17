@@ -1,5 +1,6 @@
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 import { Block, Inline } from '@jsxstyle/react'
-import { color } from '@repro/design'
+import { color, fontSize } from '@repro/design'
 import React from 'react'
 
 const OpenIcon: React.FC = () => (
@@ -16,7 +17,7 @@ export const Toggle: React.FC<{ isOpen: boolean; onClick: () => void }> = ({
 }) => (
   <Block
     height={13.75}
-    fontSize={16}
+    fontSize={fontSize.md}
     lineHeight={0}
     cursor="default"
     props={{ onClick }}

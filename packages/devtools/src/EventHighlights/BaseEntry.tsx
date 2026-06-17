@@ -1,6 +1,6 @@
 import { Block, Row } from '@jsxstyle/react'
 import { formatTime } from '@repro/date-utils'
-import { color, spacing } from '@repro/design'
+import { color, fontSize, spacing } from '@repro/design'
 import { SourceEvent } from '@repro/domain'
 import { usePlayback } from '@repro/playback'
 import { Unboxed } from '@repro/tdl'
@@ -38,7 +38,7 @@ export const BaseEntry: React.FC<React.PropsWithChildren<Props>> = ({
       alignItems="center"
       gap={spacing.sm}
       overflow="hidden"
-      fontSize={13}
+      fontSize={fontSize.sm}
       backgroundColor={color.bg.surface}
       hoverBackgroundColor={color.bg.subtle}
       color={entryColor}

@@ -1,5 +1,5 @@
 import { Block, Grid, Inline, Row } from '@jsxstyle/react'
-import { Button, color, spacing } from '@repro/design'
+import { Button, color, fontSize, lineHeight, spacing } from '@repro/design'
 import { interrupt } from '@repro/recording'
 import { Check as CheckIcon, Video as VideoIcon } from 'lucide-react'
 import React, { useEffect, useState } from 'react'
@@ -47,7 +47,7 @@ export const LiveControls: React.FC = () => {
         <CheckIcon size={16} />
       </Button>
 
-      <Row alignItems="center" gap={spacing.md} lineHeight={1}>
+      <Row alignItems="center" gap={spacing.md} lineHeight={lineHeight.tight}>
         <Row
           alignItems="center"
           justifyContent="center"
@@ -59,7 +59,11 @@ export const LiveControls: React.FC = () => {
           <VideoIcon color={color.primary} size={16} />
         </Row>
 
-        <Block fontFamily="monospace" fontSize={14} color={color.text.default}>
+        <Block
+          fontFamily="monospace"
+          fontSize={fontSize.sm}
+          color={color.text.default}
+        >
           <Inline>{minutes.toString().padStart(2, '0')}</Inline>
           <Inline color={color.border.focus}>:</Inline>
           <Inline>{seconds.toString().padStart(2, '0')}</Inline>

@@ -1,6 +1,6 @@
 import { Block, Row } from '@jsxstyle/react'
 import { useAtomValue } from '@repro/atom'
-import { Button, color, Logo, spacing, Toggle } from '@repro/design'
+import { Button, Logo, Toggle, color, fontSize, spacing } from '@repro/design'
 import { forget } from '@repro/future-utils'
 import { useMessaging } from '@repro/messaging'
 import { useRecordingStream } from '@repro/recording'
@@ -64,7 +64,7 @@ export const Toolbar: React.FC = () => {
       borderStyle="solid"
       borderWidth="3px 1px 0"
       color={color.text.secondary}
-      fontSize={16}
+      fontSize={fontSize.md}
       pointerEvents="auto"
     >
       <Row alignItems="center" gap={spacing.lg}>

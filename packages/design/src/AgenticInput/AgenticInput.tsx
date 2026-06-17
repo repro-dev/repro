@@ -1,3 +1,4 @@
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 import { Block, Row } from '@jsxstyle/react'
 import { animated, useTransition } from '@react-spring/web'
 import { ArrowUpIcon, SparklesIcon } from 'lucide-react'

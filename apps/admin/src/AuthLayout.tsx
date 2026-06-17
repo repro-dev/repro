@@ -40,6 +40,7 @@ export const AuthLayout: React.FC = () => (
       >
         <Row alignItems="center" gap={spacing.md}>
           <Logo size={24} inverted />
+          {/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing -- Text component string token prop, not a jsxstyle prop */}
           <Text variant="body" as="span" weight="light" lineHeight="tight">
             admin
           </Text>

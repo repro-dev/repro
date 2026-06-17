@@ -1,6 +1,6 @@
 import { Block, Col, Row } from '@jsxstyle/react'
 import { formatTime } from '@repro/date-utils'
-import { color, spacing, transition } from '@repro/design'
+import { color, fontSize, fontWeight, spacing, transition } from '@repro/design'
 import { SourceEventType } from '@repro/domain'
 import { Unboxed, isLens, unwrapLens } from '@repro/tdl'
 import prettyBytes from 'pretty-bytes'
@@ -31,7 +31,7 @@ export const BaseRow: React.FC<React.PropsWithChildren<Props>> = ({
       borderStyle="solid"
       borderWidth="0 0 1px"
       color={color.text.default}
-      fontSize={12}
+      fontSize={fontSize.sm}
       cursor="pointer"
       hoverBackgroundColor={color.primarySubtle}
       transition={transition.fast}
@@ -48,7 +48,11 @@ export const BaseRow: React.FC<React.PropsWithChildren<Props>> = ({
         borderWidth="0 1px 0 0"
       >
         <Block>{formatTime(event.time, 'millis')}</Block>
-        <Block fontSize={11} fontWeight={700} color={color.primary}>
+        <Block
+          fontSize={fontSize.xs}
+          fontWeight={fontWeight.bold}
+          color={color.primary}
+        >
           {SourceEventType[event.type]}
         </Block>
       </Col>

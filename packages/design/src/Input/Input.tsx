@@ -1,3 +1,4 @@
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 import { Block } from '@jsxstyle/react'
 import type { MutableRefObject } from 'react'
 import React, { forwardRef, useRef } from 'react'

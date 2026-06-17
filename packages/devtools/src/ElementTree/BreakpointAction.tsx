@@ -1,5 +1,5 @@
 import { InlineRow } from '@jsxstyle/react'
-import { color, spacing, Tooltip } from '@repro/design'
+import { Tooltip, color, lineHeight, spacing } from '@repro/design'
 import { CircleIcon } from 'lucide-react'
 import React from 'react'
 export const BreakpointAction: React.FC<{
@@ -17,7 +17,7 @@ export const BreakpointAction: React.FC<{
     hoverColor={active ? color.primarySubtle : color.info}
     borderStartEndRadius={4}
     borderEndEndRadius={4}
-    lineHeight={1.25}
+    lineHeight={lineHeight.normal}
     cursor="pointer"
     props={{ onClick }}
   >

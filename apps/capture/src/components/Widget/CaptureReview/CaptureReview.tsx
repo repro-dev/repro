@@ -1,6 +1,13 @@
 import { Block, Row } from '@jsxstyle/react'
 import { formatTime } from '@repro/date-utils'
-import { color, shadow, spacing, ToggleGroup } from '@repro/design'
+import {
+  ToggleGroup,
+  color,
+  fontSize,
+  fontWeight,
+  shadow,
+  spacing,
+} from '@repro/design'
 import { DevTools } from '@repro/devtools'
 import { RecordingMode } from '@repro/domain'
 import { Playback, PlaybackProvider, SimpleTimeline } from '@repro/playback'
@@ -66,8 +73,8 @@ export const CaptureReview: React.FC<CaptureReviewProps> = ({
               boxShadow={shadow.md}
             >
               <Block
-                fontSize={11}
-                fontWeight={700}
+                fontSize={fontSize.xs}
+                fontWeight={fontWeight.bold}
                 color={color.text.secondary}
               >
                 Duration

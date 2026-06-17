@@ -1,5 +1,12 @@
 import { Block, Row } from '@jsxstyle/react'
-import { color, spacing, Tooltip, transition } from '@repro/design'
+import {
+  Tooltip,
+  color,
+  fontSize,
+  fontWeight,
+  spacing,
+  transition,
+} from '@repro/design'
 import React, { useCallback, useEffect } from 'react'
 import { tinykeys } from 'tinykeys'
 import { usePlayback, useSpeed } from '../hooks'
@@ -66,8 +73,8 @@ export const SpeedControl: React.FC = () => {
       color={color.primary}
       hoverBackgroundColor={color.bg.hover}
       borderRadius={4}
-      fontSize={11}
-      fontWeight={600}
+      fontSize={fontSize.xs}
+      fontWeight={fontWeight.semibold}
       fontFamily="monospace"
       userSelect="none"
       cursor="pointer"

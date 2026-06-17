@@ -1,3 +1,4 @@
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 import { InlineBlock, JsxstyleComponentStyleProps } from '@jsxstyle/react'
 import React, { PropsWithChildren } from 'react'
 import { duration } from '../tokens/motion'

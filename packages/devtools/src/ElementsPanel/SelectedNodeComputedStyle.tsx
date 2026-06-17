@@ -6,7 +6,7 @@ import {
   GroupedCSSPropertyMap,
   useReferenceStyle,
 } from '@repro/css-utils'
-import { color, spacing } from '@repro/design'
+import { color, fontSize, fontWeight, lineHeight, spacing } from '@repro/design'
 import { isElementNode } from '@repro/dom-utils'
 import { useElapsed, useLatestControlFrame } from '@repro/playback'
 import React, { useEffect, useState } from 'react'
@@ -91,8 +91,8 @@ export const SelectedNodeComputedStyle: React.FC = () => {
               display="list-item"
               paddingBottom={spacing.md}
               textTransform="uppercase"
-              fontSize={11}
-              fontWeight={700}
+              fontSize={fontSize.xs}
+              fontWeight={fontWeight.bold}
               color={color.text.secondary}
               userSelect="none"
               props={{ tabIndex: -1 }}
@@ -104,8 +104,8 @@ export const SelectedNodeComputedStyle: React.FC = () => {
               <Block
                 key={key}
                 fontFamily="monospace"
-                fontSize={11}
-                lineHeight={1.5}
+                fontSize={fontSize.xs}
+                lineHeight={lineHeight.relaxed}
               >
                 <InlineBlock color={color.danger}>{key}:</InlineBlock>
                 <InlineBlock

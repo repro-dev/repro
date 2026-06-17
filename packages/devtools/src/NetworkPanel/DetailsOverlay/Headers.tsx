@@ -1,5 +1,5 @@
 import { Block, Grid, Row } from '@jsxstyle/react'
-import { color, DefinitionList, spacing } from '@repro/design'
+import { DefinitionList, color, fontSize, spacing } from '@repro/design'
 import { FetchGroup } from '@repro/source-utils'
 import { getReasonPhrase } from 'http-status-codes'
 import React from 'react'
@@ -65,7 +65,7 @@ export const Headers: React.FC<Props> = ({ group }) => {
   return (
     <Grid
       gridTemplateColumns="max-content 1fr"
-      fontSize={11}
+      fontSize={fontSize.xs}
       overflowX="hidden"
     >
       <DefinitionList title="General" pairs={generalHeaders} />

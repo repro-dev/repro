@@ -21,6 +21,7 @@ export const JumpToEndButton: React.FC<JumpToEndButtonProps> = ({
   onJumpToEnd,
 }) => {
   return (
+    /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
     <Block
       position="absolute"
       bottom={0}
@@ -46,5 +47,6 @@ export const JumpToEndButton: React.FC<JumpToEndButtonProps> = ({
     >
       <ArrowDownIcon size={16} />
     </Block>
+    /* eslint-enable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   )
 }

@@ -124,7 +124,7 @@ describe('no-hardcoded-spacing', () => {
     assert.strictEqual(reports.length, 1)
   })
 
-  it('does not report fontSize={16} (non-spacing prop)', () => {
+  it('reports fontSize={16}', () => {
     const { context, reports } = createMockContext()
     const visitor = noHardcodedSpacing.create(context)
     visitor.JSXAttribute?.({
@@ -133,6 +133,114 @@ describe('no-hardcoded-spacing', () => {
       value: {
         type: 'JSXExpressionContainer',
         expression: { type: 'Literal', value: 16 },
+      },
+    })
+    assert.strictEqual(reports.length, 1)
+    assert.strictEqual(reports[0]?.messageId, 'hardcodedSpacing')
+  })
+
+  it('reports fontSize={13}', () => {
+    const { context, reports } = createMockContext()
+    const visitor = noHardcodedSpacing.create(context)
+    visitor.JSXAttribute?.({
+      type: 'JSXAttribute',
+      name: { type: 'JSXIdentifier', name: 'fontSize' },
+      value: {
+        type: 'JSXExpressionContainer',
+        expression: { type: 'Literal', value: 13 },
+      },
+    })
+    assert.strictEqual(reports.length, 1)
+  })
+
+  it('does not report fontSize={fontSize.xs} (token usage)', () => {
+    const { context, reports } = createMockContext()
+    const visitor = noHardcodedSpacing.create(context)
+    visitor.JSXAttribute?.({
+      type: 'JSXAttribute',
+      name: { type: 'JSXIdentifier', name: 'fontSize' },
+      value: {
+        type: 'JSXExpressionContainer',
+        expression: {
+          type: 'MemberExpression',
+          object: { type: 'Identifier', name: 'fontSize' },
+          property: { type: 'Identifier', name: 'xs' },
+        },
+      },
+    })
+    assert.strictEqual(reports.length, 0)
+  })
+
+  it('reports fontSize="13px" (string)', () => {
+    const { context, reports } = createMockContext()
+    const visitor = noHardcodedSpacing.create(context)
+    visitor.JSXAttribute?.({
+      type: 'JSXAttribute',
+      name: { type: 'JSXIdentifier', name: 'fontSize' },
+      value: { type: 'Literal', value: '13px' },
+    })
+    assert.strictEqual(reports.length, 1)
+  })
+
+  it('reports lineHeight={1.5}', () => {
+    const { context, reports } = createMockContext()
+    const visitor = noHardcodedSpacing.create(context)
+    visitor.JSXAttribute?.({
+      type: 'JSXAttribute',
+      name: { type: 'JSXIdentifier', name: 'lineHeight' },
+      value: {
+        type: 'JSXExpressionContainer',
+        expression: { type: 'Literal', value: 1.5 },
+      },
+    })
+    assert.strictEqual(reports.length, 1)
+  })
+
+  it('does not report lineHeight={lineHeight.tight} (token usage)', () => {
+    const { context, reports } = createMockContext()
+    const visitor = noHardcodedSpacing.create(context)
+    visitor.JSXAttribute?.({
+      type: 'JSXAttribute',
+      name: { type: 'JSXIdentifier', name: 'lineHeight' },
+      value: {
+        type: 'JSXExpressionContainer',
+        expression: {
+          type: 'MemberExpression',
+          object: { type: 'Identifier', name: 'lineHeight' },
+          property: { type: 'Identifier', name: 'tight' },
+        },
+      },
+    })
+    assert.strictEqual(reports.length, 0)
+  })
+
+  it('reports fontWeight={700}', () => {
+    const { context, reports } = createMockContext()
+    const visitor = noHardcodedSpacing.create(context)
+    visitor.JSXAttribute?.({
+      type: 'JSXAttribute',
+      name: { type: 'JSXIdentifier', name: 'fontWeight' },
+      value: {
+        type: 'JSXExpressionContainer',
+        expression: { type: 'Literal', value: 700 },
+      },
+    })
+    assert.strictEqual(reports.length, 1)
+  })
+
+  it('does not report fontWeight={fontWeight.bold} (token usage)', () => {
+    const { context, reports } = createMockContext()
+    const visitor = noHardcodedSpacing.create(context)
+    visitor.JSXAttribute?.({
+      type: 'JSXAttribute',
+      name: { type: 'JSXIdentifier', name: 'fontWeight' },
+      value: {
+        type: 'JSXExpressionContainer',
+        expression: {
+          type: 'MemberExpression',
+          object: { type: 'Identifier', name: 'fontWeight' },
+          property: { type: 'Identifier', name: 'bold' },
+        },
       },
     })
     assert.strictEqual(reports.length, 0)

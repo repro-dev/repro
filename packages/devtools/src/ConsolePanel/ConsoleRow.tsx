@@ -1,6 +1,6 @@
 import { Block, Grid, InlineBlock, Row } from '@jsxstyle/react'
 import { formatTime } from '@repro/date-utils'
-import { color, spacing } from '@repro/design'
+import { color, fontSize, lineHeight, spacing } from '@repro/design'
 import { ConsoleEvent, LogLevel, StackEntry } from '@repro/domain'
 import { AlertCircle, AlertTriangle } from 'lucide-react'
 import React from 'react'
@@ -51,11 +51,15 @@ export const ConsoleRow: React.FC<Props> = ({
         columnGap={spacing.lg}
         paddingV={spacing.sm}
         paddingH={spacing.xl}
-        fontSize={11}
+        fontSize={fontSize.xs}
         color={textColors[level]}
         backgroundColor={bgColors[level]}
       >
-        <Block position="relative" color={color.text.muted} lineHeight={1.25}>
+        <Block
+          position="relative"
+          color={color.text.muted}
+          lineHeight={lineHeight.normal}
+        >
           {formatTime(time, 'millis')}
 
           <Block position="absolute" top={-3} left={-10}>
@@ -82,7 +86,7 @@ interface StackReferenceProps {
 }
 
 const StackReference: React.FC<StackReferenceProps> = ({ entry }) => (
-  <InlineBlock lineHeight={1.25}>
+  <InlineBlock lineHeight={lineHeight.normal}>
     {entry.fileName}:{entry.lineNumber}
   </InlineBlock>
 )

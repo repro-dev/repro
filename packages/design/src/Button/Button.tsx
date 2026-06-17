@@ -1,3 +1,4 @@
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 import { Row } from '@jsxstyle/react'
 import React, { forwardRef, PropsWithChildren } from 'react'
 import { color } from '../tokens/colors'

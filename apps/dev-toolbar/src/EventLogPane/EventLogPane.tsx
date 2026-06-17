@@ -1,5 +1,5 @@
 import { Block, Grid, Row } from '@jsxstyle/react'
-import { color, spacing } from '@repro/design'
+import { color, fontSize, spacing } from '@repro/design'
 import { SourceEventType } from '@repro/domain'
 import { InterruptSignal, useRecordingStream } from '@repro/recording'
 import { TablePropertiesIcon } from 'lucide-react'
@@ -115,7 +115,7 @@ export const EventLogPane: React.FC = () => {
       >
         <TablePropertiesIcon size={24} color={color.text.secondary} />
 
-        <Block color={color.text.secondary} fontSize={16}>
+        <Block color={color.text.secondary} fontSize={fontSize.md}>
           Event Log
         </Block>
       </Row>

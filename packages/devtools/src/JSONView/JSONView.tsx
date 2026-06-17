@@ -1,5 +1,5 @@
 import { Block } from '@jsxstyle/react'
-import { spacing } from '@repro/design'
+import { fontSize, lineHeight, spacing } from '@repro/design'
 import React from 'react'
 import { getRendererForType } from './getRendererForType'
 
@@ -12,8 +12,8 @@ export const JSONView: React.FC<Props> = ({ data }) => {
     <Block
       marginLeft={spacing.xl}
       fontFamily="monospace"
-      fontSize={11}
-      lineHeight={1.25}
+      fontSize={fontSize.xs}
+      lineHeight={lineHeight.normal}
     >
       {getRendererForType(null, data, 0)}
     </Block>

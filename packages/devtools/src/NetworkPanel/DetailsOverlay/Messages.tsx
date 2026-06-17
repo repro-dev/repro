@@ -1,6 +1,6 @@
 import { Block, Grid, Inline, Row } from '@jsxstyle/react'
 import { formatTime } from '@repro/date-utils'
-import { color, spacing } from '@repro/design'
+import { color, fontSize, lineHeight, spacing } from '@repro/design'
 import { Stats } from '@repro/diagnostics'
 import {
   NetworkMessageType,
@@ -79,7 +79,7 @@ export const Messages: React.FC<Props> = ({ group }) => {
     selectedIndex !== null ? group.messages?.[selectedIndex] ?? null : null
 
   return (
-    <Block position="relative" height="100%" fontSize={11}>
+    <Block position="relative" height="100%" fontSize={fontSize.xs}>
       <AutoSizer disableWidth>
         {({ height }) => (
           <FixedSizeList
@@ -200,7 +200,7 @@ const Cell: React.FC<PropsWithChildren<JsxstyleProps<false>>> = ({
     alignItems="center"
     paddingH={spacing.lg}
     borderLeft={`1px solid ${color.border.default}`}
-    lineHeight={1.25}
+    lineHeight={lineHeight.normal}
     {...props}
   >
     {children}
@@ -233,7 +233,7 @@ const Body: React.FC<BodyProps> = ({ message, onClose }) => (
       paddingTop={spacing['4xl']}
       paddingBottom={spacing['2xl']}
       whiteSpace="pre-wrap"
-      lineHeight={1.5}
+      lineHeight={lineHeight.relaxed}
     >
       {message.messageType === WebSocketMessageType.Binary
         ? binaryToHex(message.data)

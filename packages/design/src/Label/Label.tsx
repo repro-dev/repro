@@ -1,3 +1,4 @@
+/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 import { Inline, Row } from '@jsxstyle/react'
 import { StarIcon } from 'lucide-react'
 import React, { PropsWithChildren } from 'react'

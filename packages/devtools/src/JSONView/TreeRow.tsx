@@ -1,5 +1,5 @@
 import { Block, Row } from '@jsxstyle/react'
-import { color, spacing } from '@repro/design'
+import { color, fontWeight, spacing } from '@repro/design'
 import React from 'react'
 
 const INDENT_SIZE = 15
@@ -19,7 +19,7 @@ export const TreeRow: React.FC<React.PropsWithChildren<Props>> = ({
       <Block
         marginRight={spacing.sm}
         color={color.text.secondary}
-        fontWeight={700}
+        fontWeight={fontWeight.bold}
       >
         {objectKey}:
       </Block>

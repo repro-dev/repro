@@ -208,6 +208,7 @@ export function RecordingPrivacySettingsRoute({
                       disabled={saving || saved || !hasUnsavedChanges}
                     >
                       {saving ? (
+                        /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing -- lineHeight=0 for icon-only layout */
                         <InlineBlock
                           lineHeight={0}
                           animation={{

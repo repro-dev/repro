@@ -1,5 +1,14 @@
 import { Block, Col, Row } from '@jsxstyle/react'
-import { Button, Card, color, Meter, spacing } from '@repro/design'
+import {
+  Button,
+  Card,
+  Meter,
+  color,
+  fontSize,
+  fontWeight,
+  lineHeight,
+  spacing,
+} from '@repro/design'
 import { UploadProgress, UploadStage } from '@repro/recording-api'
 import {
   AlertTriangleIcon,
@@ -35,7 +44,11 @@ const Backdrop: React.FC<React.PropsWithChildren<{}>> = ({ children }) => (
 
 const Label: React.FC<React.PropsWithChildren<{}>> = ({ children }) => {
   return (
-    <Block marginBottom={spacing.md} fontSize={13} lineHeight={1}>
+    <Block
+      marginBottom={spacing.md}
+      fontSize={fontSize.sm}
+      lineHeight={lineHeight.tight}
+    >
       {children}
     </Block>
   )
@@ -80,8 +93,8 @@ export const ProgressOverlay: React.FC<Props> = ({
               <AlertTriangleIcon size={32} color={color.danger} />
               <Block>
                 <Block
-                  fontSize={11}
-                  fontWeight={700}
+                  fontSize={fontSize.xs}
+                  fontWeight={fontWeight.bold}
                   color={color.text.default}
                   textTransform="uppercase"
                 >
@@ -91,7 +104,7 @@ export const ProgressOverlay: React.FC<Props> = ({
                 <Row
                   gap={spacing.sm}
                   alignItems="center"
-                  fontSize={15}
+                  fontSize={fontSize.base}
                   marginTop={spacing.lg}
                 >
                   {progress.error.message}
@@ -111,8 +124,8 @@ export const ProgressOverlay: React.FC<Props> = ({
             <Row alignItems="center" gap={spacing.lg}>
               <CheckCircle2Icon size={32} color={color.success} />
               <Block
-                fontSize={11}
-                fontWeight={700}
+                fontSize={fontSize.xs}
+                fontWeight={fontWeight.bold}
                 color={color.text.default}
                 textTransform="uppercase"
               >
@@ -150,8 +163,8 @@ export const ProgressOverlay: React.FC<Props> = ({
         {!progress.completed && (
           <Fragment>
             <Block
-              fontSize={11}
-              fontWeight={700}
+              fontSize={fontSize.xs}
+              fontWeight={fontWeight.bold}
               color={color.text.default}
               textTransform="uppercase"
             >
