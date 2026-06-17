@@ -648,8 +648,8 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
                 )}
                 <Block
                   component="ul"
-                  margin={0}
-                  padding={0}
+                  margin={spacing.none}
+                  padding={spacing.none}
                   listStyleType="none"
                   props={{
                     id: listboxId,

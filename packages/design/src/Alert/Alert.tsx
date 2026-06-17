@@ -131,6 +131,7 @@ export const Alert: React.FC<Props> = ({ children, icon, type, onDismiss }) => {
         </Block>
       )}
       <Block flex={onDismiss ? 1 : undefined}>{children}</Block>
+      {/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */}
       {onDismiss && (
         <Row
           component="button"
@@ -171,6 +172,7 @@ export const Alert: React.FC<Props> = ({ children, icon, type, onDismiss }) => {
           <XIcon size={14} />
         </Row>
       )}
+      {/* eslint-enable @repro/oxlint-plugin-design/no-hardcoded-spacing */}
     </Row>
   )
 }

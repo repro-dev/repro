@@ -24,6 +24,7 @@ export const EmptyStateDescription = forwardRef<
   EmptyStateDescriptionProps
 >(({ children }, ref) => {
   return (
+    /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
     <Block
       component="p"
       {...textStyles.body}
@@ -34,6 +35,7 @@ export const EmptyStateDescription = forwardRef<
     >
       {children}
     </Block>
+    /* eslint-enable @repro/oxlint-plugin-design/no-hardcoded-spacing */
   )
 })
 

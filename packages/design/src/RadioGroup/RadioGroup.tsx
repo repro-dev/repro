@@ -101,8 +101,8 @@ export const RadioGroup = forwardRef<HTMLFieldSetElement, RadioGroupProps>(
         component="fieldset"
         gap={spacing.lg}
         border="none"
-        margin={0}
-        padding={0}
+        margin={spacing.none}
+        padding={spacing.none}
         props={{
           ref: mergeRefs([ref, fieldsetRef]),
           role: 'radiogroup',

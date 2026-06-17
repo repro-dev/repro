@@ -4,6 +4,7 @@ import { color } from '../tokens/colors'
 import { radius } from '../tokens/elevation'
 import { focusRing } from '../tokens/interaction'
 import { transition } from '../tokens/motion'
+import { spacing } from '../tokens/spacing'
 import { MINIMUM_FONT_SIZE } from '../tokens/typography'
 
 export interface ToggleProps {
@@ -60,7 +61,7 @@ export const Toggle = forwardRef<HTMLButtonElement, ToggleProps>(
         background="none"
         border="none"
         fontFamily="inherit"
-        padding={0}
+        padding={spacing.none}
         props={{
           ref,
           type: 'button',
