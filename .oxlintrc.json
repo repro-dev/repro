@@ -10,9 +10,16 @@
     "packages/wire-formats/src/generated",
     "packages/tdl/src/cli/*.ohm-bundle.*"
   ],
+  "jsPlugins": [
+    "./packages/oxlint-plugin-design/dist/plugin.js"
+  ],
   "rules": {
     "react/forbid-elements": ["error", { "forbid": ["div", "span"] }],
-    "react/forbid-dom-props": ["error", { "forbid": ["style"] }]
+    "react/forbid-dom-props": ["error", { "forbid": ["style"] }],
+    "@repro/oxlint-plugin-design/no-hardcoded-color": "warn",
+    "@repro/oxlint-plugin-design/no-hardcoded-spacing": "warn",
+    "@repro/oxlint-plugin-design/no-raw-palette": "warn",
+    "@repro/oxlint-plugin-design/no-classname-prop": "warn"
   },
   "overrides": [
     {

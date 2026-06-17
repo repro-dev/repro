@@ -1,0 +1,18 @@
+id: repro/oxlint-plugin-design
+language: typescript
+layer: library
+tags:
+  - type.package
+  - role.lint
+tasks:
+  build:
+    command: pnpm run build
+    inputs:
+      - glob: src/**/*.ts
+        cache: true
+    outputs:
+      - dist/**/*
+    options:
+      cache: true
+toolchains:
+  default: node

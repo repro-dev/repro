@@ -170,6 +170,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --reporter=silent
 
+      - name: Build oxlint plugin (if present)
+        run: |
+          if [ -f "packages/oxlint-plugin-design/package.json" ]; then
+            pnpm -C packages/oxlint-plugin-design run build
+          fi
+
       - name: Run workspace lint (Oxlint)
         run: pnpm run lint
 
