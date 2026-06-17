@@ -206,50 +206,50 @@ describe('libs/record: network observers', () => {
     })
   })
 
-  describe('WebSocket observer', () => {
-    class MockWebSocket {
-      static CONNECTING = 0
-      static OPEN = 1
-      static CLOSING = 2
-      static CLOSED = 3
+  class MockWebSocket {
+    static CONNECTING = 0
+    static OPEN = 1
+    static CLOSING = 2
+    static CLOSED = 3
 
-      readyState: number = MockWebSocket.CONNECTING
-      url: string
-      private listeners = new Map<string, Set<Function>>()
+    readyState: number = MockWebSocket.CONNECTING
+    url: string
+    private listeners = new Map<string, Set<Function>>()
 
-      constructor(url: string, _protocols?: string | string[]) {
-        this.url = url
-      }
-
-      addEventListener(event: string, listener: Function) {
-        if (!this.listeners.has(event)) {
-          this.listeners.set(event, new Set())
-        }
-        this.listeners.get(event)!.add(listener)
-      }
-
-      removeEventListener(event: string, listener: Function) {
-        this.listeners.get(event)?.delete(listener)
-      }
-
-      send(_data: string | ArrayBufferLike | Blob | ArrayBufferView) {}
-
-      close() {
-        this.readyState = MockWebSocket.CLOSED
-        this.dispatchEvent(new Event('close'))
-      }
-
-      dispatchEvent(event: Event): boolean {
-        const handlers = this.listeners.get(event.type)
-        if (handlers) {
-          for (const handler of handlers) {
-            handler.call(this, event)
-          }
-        }
-        return true
-      }
+    constructor(url: string, _protocols?: string | string[]) {
+      this.url = url
     }
 
+    addEventListener(event: string, listener: Function) {
+      if (!this.listeners.has(event)) {
+        this.listeners.set(event, new Set())
+      }
+      this.listeners.get(event)!.add(listener)
+    }
+
+    removeEventListener(event: string, listener: Function) {
+      this.listeners.get(event)?.delete(listener)
+    }
+
+    send(_data: string | ArrayBufferLike | Blob | ArrayBufferView) {}
+
+    close() {
+      this.readyState = MockWebSocket.CLOSED
+      this.dispatchEvent(new Event('close'))
+    }
+
+    dispatchEvent(event: Event): boolean {
+      const handlers = this.listeners.get(event.type)
+      if (handlers) {
+        for (const handler of handlers) {
+          handler.call(this, event)
+        }
+      }
+      return true
+    }
+  }
+
+  describe('WebSocket observer', () => {
     let originalWebSocket: typeof globalThis.WebSocket
 
     before(() => {
@@ -295,6 +295,97 @@ describe('libs/record: network observers', () => {
 
       expect(errorMsg).toBeDefined()
       expect(errorMsg.value.message).toBe('Connection refused')
+    })
+  })
+
+  describe('idempotency: double observe() guards', () => {
+    it('XHR observer: observe() twice does not produce duplicate request events', async () => {
+      global.XMLHttpRequest = MockXHR as unknown as typeof XMLHttpRequest
+
+      const messages: Array<NetworkMessage> = []
+
+      observer = createNetworkObserver(message => {
+        messages.push(message)
+      })
+      // Call observe() twice
+      observer.observe(document, vtree)
+      observer.observe(document, vtree)
+
+      const xhr = new XMLHttpRequest() as unknown as MockXHR
+      xhr.open('GET', 'https://example.text/xhr')
+      xhr.send()
+
+      await flush()
+
+      // Without guard, double-observe would produce 4 messages (2 requests + 2 responses)
+      // With guard, expect exactly 2 (1 request + 1 response)
+      expect(messages).toHaveLength(2)
+      expect((messages[0] as any).value.type).toBe(
+        NetworkMessageType.FetchRequest
+      )
+      expect((messages[1] as any).value.type).toBe(
+        NetworkMessageType.FetchResponse
+      )
+    })
+
+    it('Fetch observer: observe() twice does not double-wrap global fetch', async () => {
+      global.fetch = (async () =>
+        new Response('ok', { status: 200 })) as typeof fetch
+
+      const messages: Array<NetworkMessage> = []
+
+      observer = createNetworkObserver(message => {
+        messages.push(message)
+      })
+      // Call observe() twice
+      observer.observe(document, vtree)
+      observer.observe(document, vtree)
+
+      await fetch('https://example.text/fetch', { method: 'GET' })
+
+      await flush()
+
+      // Expect exactly 2 messages (1 request + 1 response)
+      expect(messages).toHaveLength(2)
+      expect((messages[0] as any).value.type).toBe(
+        NetworkMessageType.FetchRequest
+      )
+      expect((messages[1] as any).value.type).toBe(
+        NetworkMessageType.FetchResponse
+      )
+    })
+
+    it('WebSocket observer: observe() twice does not double-wrap constructor', async () => {
+      const messages: Array<NetworkMessage> = []
+
+      // Need to restore WebSocket after this test
+      const origWebSocket = globalThis.WebSocket
+      globalThis.WebSocket =
+        MockWebSocket as unknown as typeof globalThis.WebSocket
+
+      observer = createNetworkObserver(message => {
+        messages.push(message)
+      })
+      // Call observe() twice
+      observer.observe(document, vtree)
+      observer.observe(document, vtree)
+
+      const mockWs = new (globalThis.WebSocket as any)(
+        'wss://example.com/socket'
+      ) as unknown as MockWebSocket
+
+      // Trigger open to produce a WebSocketOpen event
+      mockWs.dispatchEvent(new Event('open'))
+
+      await flush()
+
+      // Expect exactly 1 WebSocketOpen message
+      const openMsg = messages.find(
+        (m: any) => m.value.type === NetworkMessageType.WebSocketOpen
+      )
+      expect(openMsg).toBeDefined()
+
+      globalThis.WebSocket = origWebSocket
     })
   })
 

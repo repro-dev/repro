@@ -20,6 +20,8 @@ export function createConsoleObserver(
   subscriber: (message: ConsoleMessage) => void,
   maskedSelectors: Array<string> = []
 ): ObserverLike {
+  let isObserving = false
+
   const bind = Function.prototype.bind
   const log = bind.call(console.log, console)
   const info = bind.call(console.info, console)
@@ -146,6 +148,9 @@ export function createConsoleObserver(
 
   return {
     observe() {
+      if (isObserving) return
+      isObserving = true
+
       console.log = patchConsoleMethod(LogLevel.Info, log)
       console.info = patchConsoleMethod(LogLevel.Info, info)
       console.warn = patchConsoleMethod(LogLevel.Warning, warn)
@@ -157,6 +162,8 @@ export function createConsoleObserver(
     },
 
     disconnect() {
+      isObserving = false
+
       console.log = log
       console.info = info
       console.warn = warn

@@ -6,7 +6,7 @@ import expect from 'expect'
 import { describe, it } from 'node:test'
 import { redactText } from '../redaction'
 import { RecordingOptions } from '../types'
-import { internal__processMutationRecords } from './observe'
+import { createDOMObserver, internal__processMutationRecords } from './observe'
 import { createDOMTreeWalker } from './utils'
 import { createDOMVisitor } from './visitor'
 
@@ -525,5 +525,65 @@ describe('libs/record: dom observers', () => {
     expect(styleSheetPatches.length).toBe(0)
 
     document.body.removeChild(div)
+  })
+
+  it('createDOMObserver.observe() is idempotent and supports disconnect → re-observe cycle', async () => {
+    const patches: Array<DOMPatch> = []
+
+    const options: RecordingOptions = {
+      types: new Set(['dom']),
+      snapshotInterval: 10_000,
+      ignoredNodes: [],
+      ignoredSelectors: [],
+      maskedSelectors: [],
+      eventSampling: {
+        pointerMove: 50,
+        resize: 250,
+        scroll: 100,
+      },
+    }
+
+    const walkDOMTree = createDOMTreeWalker(options)
+    walkDOMTree.acceptDOMVisitor(createDOMVisitor(options))
+
+    const observer = createDOMObserver(
+      walkDOMTree,
+      options,
+      (patch: DOMPatch) => {
+        patches.push(patch)
+      }
+    )
+
+    // Call observe() twice — second call should be a no-op
+    observer.observe(document, { rootId: 'foo', nodes: {} } as any)
+    observer.observe(document, { rootId: 'foo', nodes: {} } as any)
+
+    // Make a DOM mutation and flush microtasks for MutationObserver callback
+    const el = document.createElement('div')
+    document.body.appendChild(el)
+
+    await new Promise(resolve => setTimeout(resolve, 5))
+
+    const initialPatchCount = patches.length
+    expect(initialPatchCount).toBeGreaterThan(0)
+
+    // Disconnect and re-observe
+    observer.disconnect()
+    patches.length = 0
+
+    observer.observe(document, { rootId: 'foo', nodes: {} } as any)
+
+    // Make another mutation
+    const el2 = document.createElement('span')
+    document.body.appendChild(el2)
+
+    await new Promise(resolve => setTimeout(resolve, 5))
+
+    expect(patches.length).toBeGreaterThan(0)
+
+    // Cleanup
+    document.body.removeChild(el)
+    document.body.removeChild(el2)
+    observer.disconnect()
   })
 })
