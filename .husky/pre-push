@@ -6,7 +6,7 @@ current_branch=$(git symbolic-ref --short HEAD 2>/dev/null || true)
 if [ "$current_branch" = "main" ]; then
   export MOON_BASE=HEAD~1
 else
-  git fetch origin main --depth=2 --quiet
+  git fetch origin main --quiet
   export MOON_BASE=origin/main
 fi
 

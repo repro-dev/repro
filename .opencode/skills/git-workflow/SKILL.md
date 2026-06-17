@@ -53,29 +53,8 @@ This guidance applies only to non-interactive agent contexts. Human developers u
 | --- | --- | --- |
 | Content conflict | `CONFLICT (content): Merge conflict in <file>` | Two branches changed the same lines |
 | Add/add conflict | `CONFLICT (add/add): Merge conflict in <file>` | Both branches created the same file |
-| Unrelated histories | `fatal: refusing to merge unrelated histories` | No common ancestor — shallow repo or orphaned branch |
+| Unrelated histories | `fatal: refusing to merge unrelated histories` | No common ancestor — orphaned branch or genuinely unrelated repo |
 | Rebase-in-progress | `.git/rebase-apply` or `.git/rebase-merge` exists | Prior rebase was interrupted |
-
-### Detection: Shallow Repository Check
-
-```sh
-# Pre: running from main checkout
-# Post: shallow state is detected and reported
-#
-# Check if repo is shallow
-if [ -f .git/shallow ]; then
-  echo "Repository is shallow (depth-limited). Git history may be incomplete."
-  wc -l < .git/shallow  # number of cut-points
-fi
-
-# Pre: .git/shallow exists (repo is shallow)
-# Post: full history is restored, shallow file is removed
-#
-# Fix: unshallow the repo
-git fetch --unshallow origin
-```
-
-Note: this must be run from the **main checkout**, not from a worktree (worktrees share the `.git/shallow` from the main checkout).
 
 ### Strategy Selection
 
@@ -84,7 +63,7 @@ Note: this must be run from the **main checkout**, not from a worktree (worktree
 | Branch behind origin/main, no conflicts expected | Rebase | `git rebase origin/main` |
 | Long-lived branch with many changes, moderate conflicts | Merge (keep both histories) | `git merge origin/main` |
 | Need to apply one or few specific commits | Cherry-pick | `git cherry-pick <sha>` |
-| Unrelated histories that genuinely share code (after confirming shallow isn't the cause) | Allow unrelated histories | `git merge --allow-unrelated-histories origin/main` |
+| Unrelated histories that genuinely share code | Allow unrelated histories | `git merge --allow-unrelated-histories origin/main` |
 | Multiple commits need reordering or squashing before push | Interactive rebase | `git rebase -i origin/main` |
 
 ### Rebase Recovery
@@ -132,21 +111,7 @@ if ! git merge-base --is-ancestor origin/main HEAD; then
 fi
 ```
 
-Guidance: rebase onto `origin/main` frequently — at least before pushing and after any multi-day break. This reduces conflict surface area and catches shallow-state problems early.
-
-### Prevention: Shallow State
-
-Recommendation: check for `.git/shallow` before branch creation and periodically:
-
-```sh
-# Pre: running from main checkout
-# Post: warning printed if shallow state is detected
-#
-# Run from main checkout
-test -f .git/shallow && echo "WARNING: shallow repo detected. Run: git fetch --unshallow origin"
-```
-
-The `reproctl wt create` flow (in `scripts/lib/worktree.sh`) does `git fetch origin main` without `--depth`, but it preserves an existing shallow state. Consider adding a shallow-state check to the worktree creation pre-flight in `scripts/lib/worktree.sh`.
+Guidance: rebase onto `origin/main` frequently — at least before pushing and after any multi-day break. This reduces conflict surface area.
 
 ### git rerere (Optional Proactive Measure)
 
@@ -163,7 +128,7 @@ git config --global rerere.enabled true
 ### Cross-References
 
 - **`.opencode/skills/delivery-workflow/references/deliver-phase-8-publish.md`**: Contains the pre-push `origin/main` ancestor guard. This playbook provides the resolution strategies when that guard fails. Do not duplicate the guard here — reference it.
-- **`worktree-workflow` skill**: For worktree lifecycle guidance and the shallow-state troubleshooting entry added in this same change.
+- **`worktree-workflow` skill**: For worktree lifecycle guidance.
 
 ## Pull Requests
 
