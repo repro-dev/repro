@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 
 export interface ThemeProviderProps {
   colorScheme?: 'light' | 'dark' | 'light dark'
@@ -9,10 +9,13 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({
   colorScheme = 'light dark',
   children,
 }) => {
-  return (
-    <>
-      <style>{`:root { color-scheme: ${colorScheme}; }`}</style>
-      {children}
-    </>
-  )
+  useEffect(() => {
+    const root = document.documentElement
+    root.style.setProperty('color-scheme', colorScheme)
+    return () => {
+      root.style.removeProperty('color-scheme')
+    }
+  }, [colorScheme])
+
+  return <>{children}</>
 }
