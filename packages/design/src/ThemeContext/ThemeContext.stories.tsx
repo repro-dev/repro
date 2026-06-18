@@ -81,11 +81,21 @@ function ThemeDemo({ title }: { title: string }) {
   )
 }
 
-export const Default: Story = {
+export const System: Story = {
+  render: () => (
+    <Block padding={spacing.xl}>
+      <ThemeProvider>
+        <ThemeDemo title="System (follows OS preference)" />
+      </ThemeProvider>
+    </Block>
+  ),
+}
+
+export const Light: Story = {
   render: () => (
     <Block padding={spacing.xl}>
       <ThemeProvider colorScheme="light">
-        <ThemeDemo title="Default (light)" />
+        <ThemeDemo title="Light (forced)" />
       </ThemeProvider>
     </Block>
   ),
@@ -95,7 +105,7 @@ export const Dark: Story = {
   render: () => (
     <Block padding={spacing.xl} backgroundColor={color.bg.surface}>
       <ThemeProvider colorScheme="dark">
-        <ThemeDemo title="Dark" />
+        <ThemeDemo title="Dark (forced)" />
       </ThemeProvider>
     </Block>
   ),

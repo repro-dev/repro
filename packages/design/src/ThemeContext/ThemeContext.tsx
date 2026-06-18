@@ -1,12 +1,12 @@
 import React from 'react'
 
 export interface ThemeProviderProps {
-  colorScheme?: 'light' | 'dark'
+  colorScheme?: 'light' | 'dark' | 'light dark'
   children?: React.ReactNode
 }
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({
-  colorScheme = 'light',
+  colorScheme = 'light dark',
   children,
 }) => {
   return (
