@@ -31,6 +31,7 @@ import {
   SyntheticId,
   VNode,
 } from '@repro/domain'
+import { logger } from '@repro/logger'
 import { ObserverLike } from '@repro/observer-utils'
 import {
   OUT_OF_BOUNDS_POINT,
@@ -163,6 +164,21 @@ export function createRecordingStream(
   // Detect frameworks once at stream creation time
   const frameworks = detectFrameworks()
 
+  // Debug: surface the applied recording configuration at construction so we
+  // can tell a "light" (DOM + interaction) snapshot apart from one that also
+  // records framework state.
+  logger.debug('[repro] createRecordingStream options', {
+    types: Array.from(options.types),
+    recordsFrameworkState: options.types.has('state'),
+    snapshotInterval: options.snapshotInterval,
+    eventSampling: options.eventSampling,
+    ignoredNodeCount: options.ignoredNodes.length,
+    ignoredSelectors: options.ignoredSelectors,
+    maskedSelectors: options.maskedSelectors,
+    redaction: options.redaction,
+    detectedFrameworks: frameworks,
+  })
+
   // Instance references to state observers — set by registerStateObservers(),
   // read by createSnapshotEvent() to call instance-level getters.
   let reactObserverInstance:
@@ -251,15 +267,26 @@ export function createRecordingStream(
         leadingSnapshot = copyObjectDeep(trailingSnapshot)
       })
 
-      subscribeToBuffer()
+      Stats.time('RecordingStream#start: subscribe to buffer', () => {
+        subscribeToBuffer()
+      })
 
-      for (const observer of observers) {
-        for (const doc of sourceDocuments) {
-          observer.observe(doc, trailingVTree)
+      Stats.time('RecordingStream#start: attach observers', () => {
+        for (const observer of observers) {
+          for (const doc of sourceDocuments) {
+            observer.observe(doc, trailingVTree)
+          }
         }
-      }
+      })
 
-      addEvent(createSnapshotEvent())
+      const snapshotEvent = Stats.time(
+        'RecordingStream#start: create snapshot event',
+        () => createSnapshotEvent()
+      )
+
+      Stats.time('RecordingStream#start: add snapshot event', () => {
+        addEvent(snapshotEvent)
+      })
     })
   }
 

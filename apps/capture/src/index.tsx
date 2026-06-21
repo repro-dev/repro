@@ -23,7 +23,7 @@ import { installRuntimeObservers } from './runtime'
 import { clearRuntimeBuffer } from './runtimeBuffer'
 import { StateProvider, createState } from './state'
 
-if (process.env.NODE_ENV === 'development') {
+if (process.env.BUILD_ENV === 'development') {
   Stats.enable()
   Trace.enable()
 }
