@@ -24,10 +24,10 @@ let getByteLengthCalls = 0
 let getByteLengthCallsByType: Record<string, number> = {}
 let codePointsScanned = 0
 let nodeWrites = 0
-let sizePassStartMs = 0
-let sizePassEndMs = 0
-let writePassStartMs = 0
-let writePassEndMs = 0
+let sizePassStartMs = -1
+let sizePassEndMs = -1
+let writePassStartMs = -1
+let writePassEndMs = -1
 
 // Stores the most recent report so tests can read it after reset clears counters
 let lastReportData: ProfileReport | null = null
@@ -52,10 +52,10 @@ export function reset(): void {
   getByteLengthCallsByType = {}
   codePointsScanned = 0
   nodeWrites = 0
-  sizePassStartMs = 0
-  sizePassEndMs = 0
-  writePassStartMs = 0
-  writePassEndMs = 0
+  sizePassStartMs = -1
+  sizePassEndMs = -1
+  writePassStartMs = -1
+  writePassEndMs = -1
 }
 
 export function report(): ProfileReport {
@@ -66,11 +66,12 @@ export function report(): ProfileReport {
     getByteLengthCallsByType: { ...getByteLengthCallsByType },
     codePointsScanned,
     nodeWrites,
-    sizePassMs: sizePassEndMs ? sizePassEndMs - sizePassStartMs : 0,
-    writePassMs: writePassEndMs ? writePassEndMs - writePassStartMs : 0,
-    totalMs: writePassEndMs ? writePassEndMs - sizePassStartMs : 0,
+    sizePassMs: sizePassEndMs >= 0 ? sizePassEndMs - sizePassStartMs : 0,
+    writePassMs: writePassEndMs >= 0 ? writePassEndMs - writePassStartMs : 0,
+    totalMs: writePassEndMs >= 0 ? writePassEndMs - sizePassStartMs : 0,
   }
   lastReportData = reportData
+  // Guarded at call site; conditional here is defense-in-depth
   if (enabled) {
     logger.info(reportData)
   }
@@ -82,6 +83,8 @@ export function getLastReport(): ProfileReport | null {
   return lastReportData
 }
 
+// Profiler assumes the outermost encode enters through encodeProperty
+// (not encodeStruct / encodeVector etc.).
 export const prof = {
   get enabled() {
     return enabled

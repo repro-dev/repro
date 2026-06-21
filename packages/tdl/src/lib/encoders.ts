@@ -282,6 +282,14 @@ export function encodeProperty(
     pointerRef.offset += ByteLengths.Int8
 
     if (data === null) {
+      if (prof.enabled) {
+        prof.encodeDepth--
+        if (prof.encodeDepth === 0) {
+          prof.writePassEndMs = performance.now()
+          report()
+          reset()
+        }
+      }
       return view
     }
   }

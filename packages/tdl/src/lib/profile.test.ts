@@ -269,7 +269,39 @@ describe('TDL profiler', () => {
   })
 
   // ============================================================
-  // Test §5: String codePointsScanned
+  // Test §5: Nullable-null early return doesn't leak encodeDepth
+  // ============================================================
+
+  describe('nullable-null early return', () => {
+    it('should emit report and produce identical output when encoding nullable null', () => {
+      const nullableDescriptor: StructDescriptor = {
+        type: 'struct',
+        fields: [
+          ['opt', { type: 'integer', signed: false, bits: 8, nullable: true }],
+        ],
+      }
+      const nullableData = { opt: null }
+
+      // Encode with profiler disabled
+      const bufferDisabled = encodeToBuffer(nullableDescriptor, nullableData)
+
+      // Encode with profiler enabled
+      profile.enable()
+      const bufferEnabled = encodeToBuffer(nullableDescriptor, nullableData)
+      const r = profile.getLastReport()
+
+      // Report should be emitted (proving the early return didn't leak depth)
+      expect(r).not.toBeNull()
+      expect(r!.nodeWrites).toBeGreaterThan(0)
+      expect(r!.maxDepth).toBeGreaterThan(0)
+
+      // Byte-identical output regardless of profiler state
+      expect(buffersEqual(bufferDisabled, bufferEnabled)).toBe(true)
+    })
+  })
+
+  // ============================================================
+  // Test §6: String codePointsScanned
   // ============================================================
 
   describe('string codePointsScanned', () => {
