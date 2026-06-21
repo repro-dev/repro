@@ -166,18 +166,21 @@ export function createRecordingStream(
 
   // Debug: surface the applied recording configuration at construction so we
   // can tell a "light" (DOM + interaction) snapshot apart from one that also
-  // records framework state.
-  logger.debug('[repro] createRecordingStream options', {
-    types: Array.from(options.types),
-    recordsFrameworkState: options.types.has('state'),
-    snapshotInterval: options.snapshotInterval,
-    eventSampling: options.eventSampling,
-    ignoredNodeCount: options.ignoredNodes.length,
-    ignoredSelectors: options.ignoredSelectors,
-    maskedSelectors: options.maskedSelectors,
-    redaction: options.redaction,
-    detectedFrameworks: frameworks,
-  })
+  // records framework state. Dev build only — gated on BUILD_ENV since
+  // NODE_ENV is 'production' under `reproctl start capture`.
+  if (process.env.BUILD_ENV === 'development') {
+    logger.debug('[repro] createRecordingStream options', {
+      types: Array.from(options.types),
+      recordsFrameworkState: options.types.has('state'),
+      snapshotInterval: options.snapshotInterval,
+      eventSampling: options.eventSampling,
+      ignoredNodeCount: options.ignoredNodes.length,
+      ignoredSelectors: options.ignoredSelectors,
+      maskedSelectors: options.maskedSelectors,
+      redaction: options.redaction,
+      detectedFrameworks: frameworks,
+    })
+  }
 
   // Instance references to state observers — set by registerStateObservers(),
   // read by createSnapshotEvent() to call instance-level getters.
