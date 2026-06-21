@@ -67,6 +67,7 @@ export default defineConfig(({ mode }) => ({
     'process.env.STATS_LEVEL': JSON.stringify(
       process.env.STATS_LEVEL ?? 'debug'
     ),
+    'process.env.TDL_PROFILE': JSON.stringify(process.env.TDL_PROFILE ?? ''),
     'process.env.GIT_BRANCH': JSON.stringify(GIT_BRANCH),
     'process.env.GIT_SLUG': JSON.stringify(GIT_SLUG),
   },

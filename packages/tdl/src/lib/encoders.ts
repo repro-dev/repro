@@ -15,6 +15,7 @@ import {
   UnionDescriptor,
   VectorDescriptor,
 } from './descriptors'
+import { prof, report, reset } from './profile'
 import {
   PointerRef,
   createDataView,
@@ -265,6 +266,17 @@ export function encodeProperty(
   view: DataView = createDataView(getByteLength(descriptor, data)),
   pointerRef: PointerRef = createPointerRef()
 ) {
+  if (prof.enabled) {
+    if (prof.profilingCycle === 1) {
+      prof.sizePassEndMs = performance.now()
+      prof.profilingCycle = 2
+      prof.writePassStartMs = performance.now()
+    }
+    prof.encodeDepth++
+    if (prof.encodeDepth > prof.maxDepth) prof.maxDepth = prof.encodeDepth
+    prof.incNodeWrites()
+  }
+
   if (descriptor.nullable) {
     view.setUint8(pointerRef.offset, data === null ? 0 : 1)
     pointerRef.offset += ByteLengths.Int8
@@ -325,6 +337,15 @@ export function encodeProperty(
 
     default:
       ensureUnreachable(descriptor)
+  }
+
+  if (prof.enabled) {
+    prof.encodeDepth--
+    if (prof.encodeDepth === 0) {
+      prof.writePassEndMs = performance.now()
+      report()
+      reset()
+    }
   }
 
   return view
