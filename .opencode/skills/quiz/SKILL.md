@@ -23,7 +23,7 @@ The command may provide an `issueId` (REP-NNN), a `prNumber` (digits), or neithe
 - **PR mode**: `prNumber` provided (e.g. `#1077` — the `#` is stripped by the command). Use `gh` CLI to fetch PR details and diff. tmp/ artifacts are not available locally — skip artifact-dependent categories.
 - **Branch mode**: Neither `issueId` nor `prNumber` provided, but the branch has committed changes relative to `origin/main`. Use `git diff origin/main...HEAD` to detect a non-empty diff. Quiz purely on the diff and commit messages, reverse-engineering intent. Design-decision questions become inference. Do not prompt the user for an ID or PR when a committed diff exists. Note in the end-of-quiz summary that it was a diff-only quiz.
 
-If no mode applies (no issue ID, no PR number, no branch diff vs origin/main, and no branch match), ask: "Which issue or PR do you want to quiz on? (e.g., REP-123 or #1234)"
+If no mode applies (no issue ID, no PR number, no branch diff vs origin/main, nor a REP-xxx ID in the branch name), ask: "Which issue or PR do you want to quiz on? (e.g., REP-123 or #1234)"
 
 ### 2. Issue mode — gather local context
 
@@ -205,6 +205,7 @@ Maintain ephemeral state:
 - `currentScore` (float, accumulates points)
 - `totalQuestions` (integer)
 - `perCategoryScore` — map of category name -> { points, total }
+- `slotCounts` — array of per-0-based-slot counts of how many times the correct answer has landed in each slot (drives deterministic correct-option placement in Phase 3)
 
 ## Phase 5 — End-of-quiz summary
 
