@@ -2944,6 +2944,9 @@ importers:
 
   packages/tdl:
     dependencies:
+      '@repro/logger':
+        specifier: workspace:*
+        version: link:../logger
       '@repro/ts-utils':
         specifier: workspace:*
         version: link:../ts-utils

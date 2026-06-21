@@ -1,14 +1,4 @@
-// Local console-bypass to avoid circular/logger-dep issues at import time.
-// @repro/logger is added to package.json dependencies; once the orchestrator
-// runs `pnpm install`, this can be replaced with:
-//   import { logger } from '@repro/logger'
-const logger = {
-  info: console.info.bind(console),
-  log: console.log.bind(console),
-  warn: console.warn.bind(console),
-  error: console.error.bind(console),
-  debug: console.debug.bind(console),
-}
+import { logger } from '@repro/logger'
 
 export interface ProfileReport {
   profilingCycle: number
