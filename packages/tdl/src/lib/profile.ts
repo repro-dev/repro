@@ -36,6 +36,14 @@ let writePassEndMs = -1
 // Stores the most recent report so tests can read it after reset clears counters
 let lastReportData: ProfileReport | null = null
 
+// Default 1000 filters per-event encodes (pointer moves, small DOM patches);
+// lower it (e.g. setReportThreshold(0)) for fine-grained debugging.
+let reportThreshold = 1000
+
+export function setReportThreshold(n: number): void {
+  reportThreshold = n
+}
+
 export function enable(): void {
   enabled = true
   profilingCycle = 0
@@ -76,8 +84,8 @@ export function report(): ProfileReport {
   }
   lastReportData = reportData
   // Guarded at call site; conditional here is defense-in-depth
-  if (enabled) {
-    logger.info(reportData)
+  if (enabled && nodeWrites >= reportThreshold) {
+    logger.info('[tdl-profile]', reportData)
   }
   return reportData
 }

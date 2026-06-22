@@ -1,6 +1,7 @@
 import expect from 'expect'
-import { beforeEach, describe, it } from 'node:test'
+import { beforeEach, describe, it, mock } from 'node:test'
 
+import { logger } from '@repro/logger'
 import { AnyDescriptor, StructDescriptor } from './descriptors'
 import { encodeProperty } from './encoders'
 
@@ -95,6 +96,7 @@ describe('TDL profiler', () => {
   beforeEach(() => {
     profile.disable()
     profile.reset()
+    profile.setReportThreshold(0)
   })
 
   describe('byte-for-byte identical output', () => {
@@ -343,6 +345,50 @@ describe('TDL profiler', () => {
       // At minimum, each code point is scanned in getDataByteLength
       // May be rescanned per struct ancestor, so ≥ 4
       expect(r!.codePointsScanned).toBeGreaterThanOrEqual(4)
+    })
+  })
+
+  // ============================================================
+  // Test §8: Report threshold suppresses console noise
+  // ============================================================
+
+  describe('report threshold', () => {
+    it('should suppress logger.info when nodeWrites below threshold, but still populate getLastReport()', () => {
+      const mockInfo = mock.method(logger, 'info')
+
+      profile.setReportThreshold(1000)
+      profile.enable()
+      encodeToBuffer(mixedDescriptor, mixedData)
+
+      // logger.info should NOT have been called with threshold 1000
+      expect(mockInfo.mock.callCount()).toBe(0)
+
+      // But getLastReport should still have data (internal recording unaffected)
+      const r = profile.getLastReport()
+      expect(r).not.toBeNull()
+      expect(r!.nodeWrites).toBeGreaterThan(0)
+
+      mockInfo.mock.restore()
+    })
+
+    it('should call logger.info with [tdl-profile] tag when threshold is low enough', () => {
+      const mockInfo = mock.method(logger, 'info')
+
+      // threshold already 0 from beforeEach
+      profile.enable()
+      encodeToBuffer(mixedDescriptor, mixedData)
+
+      // logger.info should have been called at least once
+      expect(mockInfo.mock.callCount()).toBeGreaterThan(0)
+
+      // First call's first argument should be the tag
+      const firstCall = mockInfo.mock.calls[0]
+      expect(firstCall).toBeDefined()
+      if (firstCall) {
+        expect(firstCall.arguments[0]).toBe('[tdl-profile]')
+      }
+
+      mockInfo.mock.restore()
     })
   })
 })
