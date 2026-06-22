@@ -17,8 +17,10 @@ import {
 } from './descriptors'
 import { prof, report, reset } from './profile'
 import {
+  EncodeContext,
   PointerRef,
   createDataView,
+  createEncodeContext,
   createPointerRef,
   ensureUnreachable,
   getByteLength,
@@ -78,9 +80,11 @@ export function encodeString(
   descriptor: StringDescriptor,
   data: string,
   view: DataView = createDataView(getByteLength(descriptor, data)),
-  pointerRef: PointerRef = createPointerRef()
+  pointerRef: PointerRef = createPointerRef(),
+  ctx?: EncodeContext
 ) {
-  const byteLength = getDataByteLength(descriptor, data)
+  // Use ctx for cached byte length (avoids re-scanning code points)
+  const byteLength = getDataByteLength(descriptor, data, ctx)
 
   view.setUint32(pointerRef.offset, byteLength, LITTLE_ENDIAN)
   pointerRef.offset += ByteLengths.Int32
@@ -126,20 +130,21 @@ export function encodeBuffer(
   descriptor: BufferDescriptor,
   data: ArrayBufferLike,
   view: DataView = createDataView(getByteLength(descriptor, data)),
-  pointerRef: PointerRef = createPointerRef()
+  pointerRef: PointerRef = createPointerRef(),
+  ctx?: EncodeContext
 ) {
-  const byteLength = getDataByteLength(descriptor, data)
+  const byteLength = getDataByteLength(descriptor, data, ctx)
   view.setUint32(pointerRef.offset, byteLength, LITTLE_ENDIAN)
   pointerRef.offset += ByteLengths.Int32
 
-  const src = !ArrayBuffer.isView(data)
-    ? new DataView(data)
-    : new DataView(data, data.byteOffset, data.byteLength)
-
-  for (let i = 0; i < byteLength; i++) {
-    view.setUint8(pointerRef.offset, src.getUint8(i))
-    pointerRef.offset += ByteLengths.Int8
-  }
+  // Bulk copy via Uint8Array .set (handles typed-array views with non-zero byteOffset)
+  const srcU8 = ArrayBuffer.isView(data)
+    ? new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
+    : new Uint8Array(data)
+  new Uint8Array(view.buffer, pointerRef.offset, byteLength).set(
+    srcU8.subarray(0, byteLength)
+  )
+  pointerRef.offset += byteLength
 
   return view
 }
@@ -148,7 +153,8 @@ export function encodeStruct(
   descriptor: StructDescriptor,
   data: any,
   view: DataView = createDataView(getByteLength(descriptor, data)),
-  pointerRef: PointerRef = createPointerRef()
+  pointerRef: PointerRef = createPointerRef(),
+  ctx?: EncodeContext
 ) {
   const headerByteLength =
     ByteLengths.Int16 + descriptor.fields.length * ByteLengths.Int32
@@ -158,15 +164,20 @@ export function encodeStruct(
   pointerRef.offset += ByteLengths.Int16
 
   let fieldPointer = headerByteLength
+  const childSizes = ctx?.childSizes.get(data)
 
-  for (const [name, fieldDescriptor] of descriptor.fields) {
+  for (const [i, [name, fieldDescriptor]] of descriptor.fields.entries()) {
     view.setUint32(pointerRef.offset, fieldPointer, LITTLE_ENDIAN)
-    fieldPointer += getByteLength(fieldDescriptor, data[name])
+    // Use cached child size when available, avoiding re-computation
+    fieldPointer +=
+      childSizes !== undefined
+        ? (childSizes as number[])[i]!
+        : getByteLength(fieldDescriptor, data[name], ctx)
     pointerRef.offset += ByteLengths.Int32
   }
 
   for (const [name, fieldDescriptor] of descriptor.fields) {
-    encodeProperty(fieldDescriptor, data[name], view, pointerRef)
+    encodeProperty(fieldDescriptor, data[name], view, pointerRef, ctx)
   }
 
   return view
@@ -176,10 +187,11 @@ export function encodeArray(
   descriptor: ArrayDescriptor,
   data: any[],
   view: DataView = createDataView(getByteLength(descriptor, data)),
-  pointerRef: PointerRef = createPointerRef()
+  pointerRef: PointerRef = createPointerRef(),
+  ctx?: EncodeContext
 ) {
   for (let i = 0; i < descriptor.size; i++) {
-    encodeProperty(descriptor.items, data[i], view, pointerRef)
+    encodeProperty(descriptor.items, data[i], view, pointerRef, ctx)
   }
 
   return view
@@ -189,7 +201,8 @@ export function encodeVector(
   descriptor: VectorDescriptor,
   data: any[],
   view: DataView = createDataView(getByteLength(descriptor, data)),
-  pointerRef: PointerRef = createPointerRef()
+  pointerRef: PointerRef = createPointerRef(),
+  ctx?: EncodeContext
 ) {
   const size = data.length
   const headerByteLength = ByteLengths.Int32 + size * ByteLengths.Int32
@@ -198,15 +211,19 @@ export function encodeVector(
   pointerRef.offset += ByteLengths.Int32
 
   let itemPointer = headerByteLength
+  const itemSizes = ctx?.childSizes.get(data)
 
-  for (const item of data) {
+  for (const [i, item] of data.entries()) {
     view.setUint32(pointerRef.offset, itemPointer, LITTLE_ENDIAN)
-    itemPointer += getByteLength(descriptor.items, item)
+    itemPointer +=
+      itemSizes !== undefined
+        ? (itemSizes as number[])[i]!
+        : getByteLength(descriptor.items, item, ctx)
     pointerRef.offset += ByteLengths.Int32
   }
 
   for (const item of data) {
-    encodeProperty(descriptor.items, item, view, pointerRef)
+    encodeProperty(descriptor.items, item, view, pointerRef, ctx)
   }
 
   return view
@@ -216,27 +233,39 @@ export function encodeMap(
   descriptor: MapDescriptor,
   data: any,
   view: DataView = createDataView(getByteLength(descriptor, data)),
-  pointerRef: PointerRef = createPointerRef()
+  pointerRef: PointerRef = createPointerRef(),
+  ctx?: EncodeContext
 ) {
   const entries = Object.entries(data)
   view.setUint32(pointerRef.offset, entries.length, LITTLE_ENDIAN)
   pointerRef.offset += ByteLengths.Int32
 
-  const headerByteLength = entries.reduce((acc, [key]) => {
-    return acc + getByteLength(descriptor.key, key) + ByteLengths.Int32
+  const sizes = ctx?.childSizes.get(data)
+  const N = entries.length
+
+  const headerByteLength = entries.reduce((acc, [key], i) => {
+    const keySize =
+      sizes !== undefined
+        ? (sizes as number[])[i]!
+        : getByteLength(descriptor.key, key, ctx)
+    return acc + keySize + ByteLengths.Int32
   }, ByteLengths.Int32)
 
   let offsetPointer = headerByteLength
 
-  for (const [key, value] of entries) {
-    encodeProperty(descriptor.key, key, view, pointerRef)
+  for (const [i, [key, value]] of entries.entries()) {
+    encodeProperty(descriptor.key, key, view, pointerRef, ctx)
     view.setUint32(pointerRef.offset, offsetPointer, LITTLE_ENDIAN)
     pointerRef.offset += ByteLengths.Int32
-    offsetPointer += getByteLength(descriptor.value, value)
+    const valSize =
+      sizes !== undefined
+        ? (sizes as number[])[N + i]!
+        : getByteLength(descriptor.value, value, ctx)
+    offsetPointer += valSize
   }
 
   for (const [, value] of entries) {
-    encodeProperty(descriptor.value, value, view, pointerRef)
+    encodeProperty(descriptor.value, value, view, pointerRef, ctx)
   }
 
   return view
@@ -246,7 +275,8 @@ export function encodeUnion(
   descriptor: UnionDescriptor,
   data: Box<any>,
   view: DataView = createDataView(getByteLength(descriptor, data)),
-  pointerRef: PointerRef = createPointerRef()
+  pointerRef: PointerRef = createPointerRef(),
+  ctx?: EncodeContext
 ) {
   const { tagField, descriptors } = descriptor
   const value = data.unwrap()
@@ -255,7 +285,13 @@ export function encodeUnion(
   view.setUint8(pointerRef.offset, tag)
   pointerRef.offset += ByteLengths.Int8
 
-  encodeStruct(descriptors[tag] as StructDescriptor, value, view, pointerRef)
+  encodeStruct(
+    descriptors[tag] as StructDescriptor,
+    value,
+    view,
+    pointerRef,
+    ctx
+  )
 
   return view
 }
@@ -263,9 +299,23 @@ export function encodeUnion(
 export function encodeProperty(
   descriptor: AnyDescriptor,
   data: any,
-  view: DataView = createDataView(getByteLength(descriptor, data)),
-  pointerRef: PointerRef = createPointerRef()
-) {
+  view?: DataView,
+  pointerRef: PointerRef = createPointerRef(),
+  ctxArg?: EncodeContext
+): DataView {
+  // Top-level entry detection: when view is undefined, create the per-encode context
+  // and run the size pass (which populates childSizes and stringByteLengths).
+  let dv: DataView
+  let ctx: EncodeContext | undefined
+
+  if (view === undefined) {
+    ctx = createEncodeContext()
+    dv = createDataView(getByteLength(descriptor, data, ctx))
+  } else {
+    dv = view
+    ctx = ctxArg
+  }
+
   if (prof.enabled) {
     if (prof.profilingCycle === 1) {
       prof.sizePassEndMs = performance.now()
@@ -278,7 +328,7 @@ export function encodeProperty(
   }
 
   if (descriptor.nullable) {
-    view.setUint8(pointerRef.offset, data === null ? 0 : 1)
+    dv.setUint8(pointerRef.offset, data === null ? 0 : 1)
     pointerRef.offset += ByteLengths.Int8
 
     if (data === null) {
@@ -290,57 +340,57 @@ export function encodeProperty(
           reset()
         }
       }
-      return view
+      return dv
     }
   }
 
   switch (descriptor.type) {
     case 'integer':
-      encodeInteger(descriptor, data, view, pointerRef)
+      encodeInteger(descriptor, data, dv, pointerRef)
       break
 
     case 'float':
-      encodeFloat(descriptor, data, view, pointerRef)
+      encodeFloat(descriptor, data, dv, pointerRef)
       break
 
     case 'char':
-      encodeChar(descriptor, data, view, pointerRef)
+      encodeChar(descriptor, data, dv, pointerRef)
       break
 
     case 'string':
-      encodeString(descriptor, data, view, pointerRef)
+      encodeString(descriptor, data, dv, pointerRef, ctx)
       break
 
     case 'uuid':
-      encodeUUID(descriptor, data, view, pointerRef)
+      encodeUUID(descriptor, data, dv, pointerRef)
       break
 
     case 'bool':
-      encodeBoolean(descriptor, data, view, pointerRef)
+      encodeBoolean(descriptor, data, dv, pointerRef)
       break
 
     case 'buffer':
-      encodeBuffer(descriptor, data, view, pointerRef)
+      encodeBuffer(descriptor, data, dv, pointerRef, ctx)
       break
 
     case 'struct':
-      encodeStruct(descriptor, data, view, pointerRef)
+      encodeStruct(descriptor, data, dv, pointerRef, ctx)
       break
 
     case 'vector':
-      encodeVector(descriptor, data, view, pointerRef)
+      encodeVector(descriptor, data, dv, pointerRef, ctx)
       break
 
     case 'array':
-      encodeArray(descriptor, data, view, pointerRef)
+      encodeArray(descriptor, data, dv, pointerRef, ctx)
       break
 
     case 'map':
-      encodeMap(descriptor, data, view, pointerRef)
+      encodeMap(descriptor, data, dv, pointerRef, ctx)
       break
 
     case 'union':
-      encodeUnion(descriptor, data, view, pointerRef)
+      encodeUnion(descriptor, data, dv, pointerRef, ctx)
       break
 
     default:
@@ -356,5 +406,5 @@ export function encodeProperty(
     }
   }
 
-  return view
+  return dv
 }
