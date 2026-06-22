@@ -124,6 +124,7 @@ const SidebarPane: React.FC = () => {
     <Col
       height="100%"
       width={size}
+      overflow="auto"
       borderLeft={`1px solid ${color.border.default}`}
     >
       <Tabs defaultValue="styles">
