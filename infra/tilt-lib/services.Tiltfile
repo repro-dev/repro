@@ -342,6 +342,12 @@ def register_local_service(service_name, svc, infra_dir, wt_slug=None, source_pa
 
   serve_env = dict(svc.get('serve_env', {}))
 
+  # Forward declared host env vars (e.g. TDL_PROFILE for capture) into the
+  # service's build/serve environment. Mirrors register_service() and the
+  # inline portless path in infra/Tiltfile, which local services otherwise miss.
+  for env_key in svc.get('env_passthrough', []):
+    serve_env[env_key] = os.getenv(env_key, '')
+
   if wt_slug:
     current_service_slugs = service_slugs.get(wt_slug, {})
     app_slug = current_service_slugs.get('workspace', wt_slug)

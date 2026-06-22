@@ -126,6 +126,7 @@
       "REPRO_API_URL": "https://api.repro.localhost:1355",
       "AGENTIC_MAX_ITERATIONS": "25"
     },
+    "env_passthrough": ["TDL_PROFILE"],
     "resource_deps": ["dependencies"],
     "labels": ["extension"],
     "launch": {

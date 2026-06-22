@@ -1,6 +1,7 @@
 import { Box } from './Box'
 import { ByteLengths } from './constants'
 import { AnyDescriptor, StructDescriptor } from './descriptors'
+import { prof } from './profile'
 import { isLens, unwrapLens } from './view'
 
 export function copy(view: DataView): DataView {
@@ -91,6 +92,8 @@ export function getDataByteLength(
       for (let i = 0, len = data.length; i < len; i++) {
         const codePoint = data.codePointAt(i)
 
+        if (prof.enabled) prof.addCodePoints(1)
+
         if (codePoint === undefined) {
           continue
         }
@@ -119,6 +122,15 @@ export function getDataByteLength(
 
 export function getByteLength(descriptor: AnyDescriptor, data: any): number {
   const { type, nullable } = descriptor
+
+  if (prof.enabled) {
+    prof.incGetByteLengthCalls()
+    prof.incGetByteLengthCallsByType(type)
+    if (prof.profilingCycle === 0) {
+      prof.profilingCycle = 1
+      prof.sizePassStartMs = performance.now()
+    }
+  }
 
   // Treat undefined the same as null for nullable fields — callers may omit
   // optional struct fields entirely, which JS represents as undefined.
