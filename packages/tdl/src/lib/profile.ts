@@ -1,5 +1,7 @@
 import { logger } from '@repro/logger'
 
+declare const __TDL_PROFILE__: boolean | undefined
+
 export interface ProfileReport {
   profilingCycle: number
   maxDepth: number
@@ -12,10 +14,12 @@ export interface ProfileReport {
   totalMs: number
 }
 
-// Browser/import-safe: `typeof process` short-circuits in bundles with no process shim;
-// in the capture build, vite's define statically replaces `process.env.TDL_PROFILE`.
-let enabled =
-  typeof process !== 'undefined' && !!process.env && !!process.env.TDL_PROFILE
+// Default-enabled at build time via the `__TDL_PROFILE__` define (capture vite config
+// sets it from the TDL_PROFILE env var). The `typeof` guard keeps module-eval safe in any
+// bundle/runtime that doesn't define it (node tests, other bundlers) — there it stays off,
+// and enable()/disable() control state explicitly.
+let enabled: boolean =
+  typeof __TDL_PROFILE__ !== 'undefined' ? __TDL_PROFILE__ : false
 
 let profilingCycle = 0 // 0=none, 1=size-pass, 2=write-pass
 let encodeDepth = 0
