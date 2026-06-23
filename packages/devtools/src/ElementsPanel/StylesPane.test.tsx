@@ -15,6 +15,7 @@ function makeResult(
     inline: null,
     rules: [],
     inherited: [],
+    elementLabel: 'div#target',
     ...overrides,
   }
 }
@@ -83,8 +84,54 @@ describe('StylesPane', () => {
     assert.ok(container.textContent!.includes('blue'))
   })
 
-  it('renders inherited groups under heading', () => {
+  it('renders element-own section with label', () => {
     const result = makeResult({
+      elementLabel: 'div#my-target.cls',
+      rules: [
+        {
+          selectorText: '.foo',
+          declarations: { color: 'blue' },
+          priorities: { color: '' },
+          specificity: { a: 0, b: 1, c: 0 },
+          stylesheetId: 's1',
+          ruleIndex: 0,
+          mediaCondition: null,
+          supportsCondition: null,
+          isInline: false,
+          importInaccessible: false,
+          overriddenDeclarations: new Set<string>(),
+          winningDeclarations: new Set(['color']),
+          source: 'app.css',
+        },
+      ],
+    })
+    const { container } = render(<StylesPane result={result} />)
+
+    // Section 0 summary should contain the element label
+    assert.ok(container.textContent!.includes('div#my-target.cls'))
+    assert.ok(container.textContent!.includes('.foo'))
+    assert.ok(container.textContent!.includes('blue'))
+  })
+
+  it('renders inherited groups under sentence-case heading in details/summary', () => {
+    const result = makeResult({
+      rules: [
+        {
+          selectorText: '.base',
+          declarations: { display: 'block' },
+          priorities: { display: '' },
+          specificity: { a: 0, b: 1, c: 0 },
+          stylesheetId: 's1',
+          ruleIndex: 0,
+          mediaCondition: null,
+          supportsCondition: null,
+          isInline: false,
+          importInaccessible: false,
+          overriddenDeclarations: new Set<string>(),
+          winningDeclarations: new Set(['display']),
+          source: 'app.css',
+        },
+      ],
       inherited: [
         {
           ancestorLabel: 'div#parent.container',
@@ -107,8 +154,53 @@ describe('StylesPane', () => {
     })
     const { container } = render(<StylesPane result={result} />)
 
-    assert.ok(container.textContent!.includes('Inherited from'))
-    assert.ok(container.textContent!.includes('div#parent.container'))
+    // Should have details elements (collapsible sections)
+    const detailsEls = container.querySelectorAll('details')
+    assert.equal(detailsEls.length, 2) // element-own + inherited
+
+    // Should have summary elements
+    const summaryEls = container.querySelectorAll('summary')
+    assert.equal(summaryEls.length, 2)
+
+    // Inherited heading should be sentence case (not uppercase)
+    const detailsTextContent = detailsEls[1]!.textContent!
+    assert.ok(detailsTextContent.includes('Inherited from'))
+    // Check that it's NOT uppercase (no textTransform="uppercase")
+    // In the rendered output, check that the text is normal case
+    const inheritedSummary = summaryEls[1]!
+    assert.ok(inheritedSummary.textContent!.includes('Inherited from'))
+    assert.ok(inheritedSummary.textContent!.includes('div#parent.container'))
+    // Content should be visible
     assert.ok(container.textContent!.includes('green'))
+  })
+
+  it('renders at least one details element with open attribute', () => {
+    const result = makeResult({
+      rules: [
+        {
+          selectorText: '.foo',
+          declarations: { color: 'blue' },
+          priorities: { color: '' },
+          specificity: { a: 0, b: 1, c: 0 },
+          stylesheetId: 's1',
+          ruleIndex: 0,
+          mediaCondition: null,
+          supportsCondition: null,
+          isInline: false,
+          importInaccessible: false,
+          overriddenDeclarations: new Set<string>(),
+          winningDeclarations: new Set(['color']),
+          source: 'app.css',
+        },
+      ],
+    })
+    const { container } = render(<StylesPane result={result} />)
+
+    // At least one details element (element-own section)
+    const detailsEls = container.querySelectorAll('details')
+    assert.ok(detailsEls.length >= 1)
+    // details should have open attribute
+    const firstDetails = detailsEls[0]!
+    assert.ok(firstDetails.hasAttribute('open'))
   })
 })

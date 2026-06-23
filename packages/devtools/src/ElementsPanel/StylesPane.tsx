@@ -14,53 +14,101 @@ interface StylesPaneProps {
   result?: MatchedCSSRulesResult | null
 }
 
-const Inner: React.FC<{ result: MatchedCSSRulesResult }> = ({ result }) => (
-  <Block
-    padding={spacing.xl}
-    fontFamily="monospace"
-    fontSize={fontSize.xs}
-    lineHeight={lineHeight.relaxed}
-  >
-    {/* Inline block at top */}
-    {result.inline && <MatchedRule entry={result.inline} />}
+const Inner: React.FC<{ result: MatchedCSSRulesResult }> = ({ result }) => {
+  // Build sections: section 0 = element's own styles (inline + direct rules),
+  // sections 1..n = inherited groups
+  const sections: Array<{
+    label: string
+    content: React.ReactNode
+  }> = []
 
-    {/* Direct rules */}
-    {result.rules.map((rule, i) => (
-      <Block
-        key={`rule-${rule.stylesheetId}-${rule.ruleIndex}-${i}`}
-        paddingTop={i > 0 || result.inline ? spacing.sm : spacing.none}
-      >
-        <MatchedRule entry={rule} />
-      </Block>
-    ))}
+  // Section 0: element's own styles
+  const hasOwnStyles = result.inline !== null || result.rules.length > 0
+  if (hasOwnStyles) {
+    sections.push({
+      label: result.elementLabel,
+      content: (
+        <>
+          {result.inline && <MatchedRule entry={result.inline} />}
+          {result.rules.map((rule, i) => (
+            <Block
+              key={`rule-${rule.stylesheetId}-${rule.ruleIndex}-${i}`}
+              paddingTop={i > 0 || result.inline ? spacing.sm : spacing.none}
+            >
+              <MatchedRule entry={rule} />
+            </Block>
+          ))}
+        </>
+      ),
+    })
+  }
 
-    {/* Inherited groups */}
-    {result.inherited.map((group, i) => (
-      <Block key={`inherited-${i}`} paddingTop={spacing.md}>
+  // Sections 1..n: inherited groups
+  for (let i = 0; i < result.inherited.length; i++) {
+    const group = result.inherited[i]!
+    sections.push({
+      label: `Inherited from ${group.ancestorLabel}`,
+      content: (
+        <>
+          {group.rules.map((rule, j) => (
+            <MatchedRule
+              key={`inh-rule-${rule.stylesheetId}-${rule.ruleIndex}-${j}`}
+              entry={{
+                ...rule,
+                overriddenDeclarations: new Set<string>(),
+                winningDeclarations: new Set<string>(),
+                source: '',
+              }}
+            />
+          ))}
+        </>
+      ),
+    })
+  }
+
+  if (sections.length === 0) {
+    return null
+  }
+
+  return (
+    <Block
+      fontFamily="monospace"
+      fontSize={fontSize.xs}
+      lineHeight={lineHeight.relaxed}
+    >
+      {sections.map((section, i) => (
         <Block
-          textTransform="uppercase"
-          fontSize={fontSize.xs}
-          fontWeight={fontWeight.bold}
-          color={color.text.secondary}
-          paddingBottom={spacing.sm}
+          key={i}
+          component="details"
+          paddingTop={i > 0 ? spacing.xl : spacing.none}
+          paddingBottom={spacing.xl}
+          borderTop={i > 0 ? `1px solid ${color.border.default}` : ''}
+          props={{ open: true }}
         >
-          Inherited from {group.ancestorLabel}
-        </Block>
-        {group.rules.map((rule, j) => (
-          <MatchedRule
-            key={`inh-rule-${rule.stylesheetId}-${rule.ruleIndex}-${j}`}
-            entry={{
-              ...rule,
-              overriddenDeclarations: new Set<string>(),
-              winningDeclarations: new Set<string>(),
-              source: '',
+          <Block
+            component="summary"
+            display="list-item"
+            paddingBottom={spacing.md}
+            fontSize={fontSize.xs}
+            fontWeight={fontWeight.bold}
+            color={color.text.secondary}
+            userSelect="none"
+            whiteSpace="nowrap"
+            overflow="hidden"
+            textOverflow="ellipsis"
+            props={{
+              tabIndex: -1,
+              title: section.label,
             }}
-          />
-        ))}
-      </Block>
-    ))}
-  </Block>
-)
+          >
+            {section.label}
+          </Block>
+          {section.content}
+        </Block>
+      ))}
+    </Block>
+  )
+}
 
 export const StylesPane: React.FC<StylesPaneProps> = ({
   result: externalResult,
@@ -72,11 +120,7 @@ export const StylesPane: React.FC<StylesPaneProps> = ({
 
   if (!result) {
     return (
-      <Block
-        padding={spacing.xl}
-        color={color.text.muted}
-        fontSize={fontSize.sm}
-      >
+      <Block color={color.text.muted} fontSize={fontSize.sm}>
         Select an element to view its styles
       </Block>
     )

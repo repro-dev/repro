@@ -30,9 +30,10 @@ export interface MatchedCSSRulesResult {
   inline: MatchedRuleEntry | null
   rules: MatchedRuleEntry[]
   inherited: InheritedGroup[]
+  elementLabel: string
 }
 
-function buildAncestorLabel(element: Element): string {
+function describeElement(element: Element): string {
   let label = element.tagName.toLowerCase()
   if (element.id) {
     label += `#${element.id}`
@@ -185,7 +186,7 @@ export function matchCSSRulesForElement(
 
       if (filteredRules.length > 0) {
         inherited.push({
-          ancestorLabel: buildAncestorLabel(ancestor),
+          ancestorLabel: describeElement(ancestor),
           rules: filteredRules,
         })
       }
@@ -198,6 +199,7 @@ export function matchCSSRulesForElement(
     inline: inline ? { ...inline, source: 'element.style' } : null,
     rules,
     inherited,
+    elementLabel: describeElement(element),
   }
 }
 
