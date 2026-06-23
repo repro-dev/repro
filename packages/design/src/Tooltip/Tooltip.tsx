@@ -1,4 +1,5 @@
 import {
+  type Placement,
   autoUpdate,
   flip,
   offset,
@@ -30,7 +31,10 @@ const TRANSITION_DURATION = parseInt(duration[100], 10)
 
 type Props = PropsWithChildren<{
   delay?: number
-  position?: 'top' | 'bottom' | 'right' | 'left'
+  /** Tooltip placement relative to the trigger element.
+   * Supports all floating-ui placements, including aligned variants
+   * such as 'top-start', 'top-end', 'bottom-start', etc. */
+  position?: Placement
 }>
 
 /**

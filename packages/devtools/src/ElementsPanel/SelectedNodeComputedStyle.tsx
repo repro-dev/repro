@@ -54,7 +54,7 @@ export const SelectedNodeComputedStyle: React.FC = () => {
     const groupedStyleMap = createGroupedCSSPropertyMap(filteredStyleMap)
 
     setStyleMaps(groupedStyleMap)
-  }, [selectedElement, latestControlFrame, setStyleMaps])
+  }, [selectedElement, latestControlFrame, setStyleMaps, getReferenceStyle])
 
   useEffect(() => {
     if (styleMaps) {
@@ -67,7 +67,7 @@ export const SelectedNodeComputedStyle: React.FC = () => {
   }, [styleMaps, elapsed])
 
   return styleMaps ? (
-    <Block padding={spacing.xl}>
+    <Block>
       {styleMaps.map(({ name, propertyMap }, i) => {
         const propertyKeys = Object.keys(propertyMap).sort((a, b) =>
           a < b ? -1 : 1

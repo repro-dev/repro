@@ -1,6 +1,6 @@
-import { Block, Grid } from '@jsxstyle/react'
+import { Block, Col, Grid } from '@jsxstyle/react'
 import { useSelector } from '@repro/atom'
-import { color } from '@repro/design'
+import { color, Tabs } from '@repro/design'
 import { NodeId, VElement, VTree } from '@repro/domain'
 import { BreakpointType, usePlayback, useSnapshot } from '@repro/playback'
 import { isDocumentVNode, isElementVNode } from '@repro/vdom-utils'
@@ -8,6 +8,7 @@ import React, { useCallback, useEffect, useState } from 'react'
 import { ElementTree } from '../ElementTree'
 import { useElementPicker, useFocusedNode, useSelectedNode } from '../hooks'
 import { SelectedNodeComputedStyle } from './SelectedNodeComputedStyle'
+import { StylesPane } from './StylesPane'
 
 export const ElementsPanel: React.FC = () => {
   return (
@@ -120,14 +121,25 @@ const SidebarPane: React.FC = () => {
   const [_initialSize, _setInitialSize] = useState(INITIAL_SIDEBAR_SIZE)
 
   return (
-    <Block
+    <Col
       height="100%"
       width={size}
       overflow="auto"
       borderLeft={`1px solid ${color.border.default}`}
     >
-      <SelectedNodeComputedStyle />
-    </Block>
+      <Tabs defaultValue="styles">
+        <Tabs.List aria-label="Element styles">
+          <Tabs.Tab value="styles">Styles</Tabs.Tab>
+          <Tabs.Tab value="computed">Computed</Tabs.Tab>
+        </Tabs.List>
+        <Tabs.Panel value="styles">
+          <StylesPane />
+        </Tabs.Panel>
+        <Tabs.Panel value="computed">
+          <SelectedNodeComputedStyle />
+        </Tabs.Panel>
+      </Tabs>
+    </Col>
   )
 }
 
