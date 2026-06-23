@@ -1,3 +1,4 @@
+import type { Placement } from '@floating-ui/react'
 import { cleanup, render } from '@testing-library/react'
 import expect from 'expect'
 import { afterEach, describe, it } from 'node:test'
@@ -9,7 +10,7 @@ afterEach(cleanup)
 
 function createTooltipTree(tooltipProps?: {
   delay?: number
-  position?: 'top' | 'bottom' | 'left' | 'right'
+  position?: Placement
 }) {
   return (
     <PortalRootProvider>

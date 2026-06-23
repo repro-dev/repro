@@ -118,22 +118,61 @@ describe('MatchedRule', () => {
     assert.ok(container.textContent!.includes('element.style'))
   })
 
-  it('renders a tooltip with the full selector text for long selectors', () => {
+  it('renders a tooltip with the full selector text for truncated selectors', () => {
     const longSelector = 'div.container > ul li:nth-child(2)::before'
     const entry = makeEntry({ selectorText: longSelector })
-    const { container } = render(
+    const { container, rerender } = render(
       <PortalRootProvider>
         <MatchedRule entry={entry} />
       </PortalRootProvider>
     )
 
-    // Visible (CSS-truncated) text is still present in the DOM
+    // Visible text is present in the DOM
     assert.ok(container.textContent!.includes(longSelector))
 
-    // Tooltip is portaled into the portal root and carries the full selector
+    // By default (jsdom, no layout), the selector is not truncated and
+    // no tooltip is rendered
+    assert.equal(
+      document.querySelector('[role="tooltip"]'),
+      null,
+      'no tooltip when not truncated'
+    )
+
+    // Mock truncation on the selector block: make scrollWidth > clientWidth
+    // Find the deepest element whose text content matches the selector
+    // (the truncated block rendered by MatchedRule)
+    const allElements = container.querySelectorAll('*')
+    let selectorBlock: Element | null = null
+    for (const el of allElements) {
+      if (el.textContent?.trim() === longSelector && !el.querySelector('*')) {
+        // Deepest element with matching text (leaf node)
+        selectorBlock = el
+        break
+      }
+    }
+    assert.ok(selectorBlock, 'selector block element exists')
+    Object.defineProperty(selectorBlock!, 'scrollWidth', {
+      value: 200,
+      configurable: true,
+    })
+    Object.defineProperty(selectorBlock!, 'clientWidth', {
+      value: 100,
+      configurable: true,
+    })
+
+    // Re-render with a different selector string to trigger the mount
+    // effect, which re-reads the mocked layout and detects truncation
+    const modifiedSelector = longSelector + '--modified'
+    rerender(
+      <PortalRootProvider>
+        <MatchedRule entry={makeEntry({ selectorText: modifiedSelector })} />
+      </PortalRootProvider>
+    )
+
+    // Tooltip now renders and shows the full selector
     const tip = document.querySelector('[role="tooltip"]')
-    assert.ok(tip, 'tooltip element should be rendered')
-    assert.ok(tip!.textContent!.includes(longSelector))
+    assert.ok(tip, 'tooltip should appear when selector is truncated')
+    assert.ok(tip!.textContent!.includes(modifiedSelector))
   })
 
   it('does not render a selector tooltip for inline element.style', () => {

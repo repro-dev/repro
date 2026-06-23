@@ -7,7 +7,7 @@ import {
   spacing,
   Tooltip,
 } from '@repro/design'
-import React from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 
 import type { MatchedRuleEntry } from '../hooks'
 
@@ -27,6 +27,44 @@ export const MatchedRule: React.FC<MatchedRuleProps> = ({ entry }) => {
   } = entry
 
   const propNames = Object.keys(declarations)
+
+  const selectorRef = useRef<HTMLDivElement>(null)
+  const [isTruncated, setIsTruncated] = useState(false)
+
+  const checkTruncation = useCallback(() => {
+    const el = selectorRef.current
+    if (el) {
+      setIsTruncated(el.scrollWidth > el.clientWidth)
+    }
+  }, [])
+
+  // Check truncation on mount and when the selector text changes
+  useEffect(() => {
+    checkTruncation()
+  }, [checkTruncation, selectorText])
+
+  // Re-check truncation on layout changes. ResizeObserver is available in
+  // the devtools runtime; skip gracefully in constrained/test environments
+  // (the mount + selector-change effect above still provides the signal).
+  useEffect(() => {
+    if (typeof ResizeObserver === 'undefined') {
+      return
+    }
+
+    const el = selectorRef.current
+    if (!el) {
+      return
+    }
+
+    const observer = new ResizeObserver(() => {
+      checkTruncation()
+    })
+    observer.observe(el)
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [checkTruncation])
 
   return (
     <Block paddingBottom={spacing.md}>
@@ -67,9 +105,12 @@ export const MatchedRule: React.FC<MatchedRuleProps> = ({ entry }) => {
           fontWeight={fontWeight.semibold}
           color={color.text.default}
           lineHeight={lineHeight.relaxed}
+          props={{ ref: selectorRef }}
         >
           {selectorText || 'element.style'}
-          {selectorText && <Tooltip position="top">{selectorText}</Tooltip>}
+          {selectorText && isTruncated && (
+            <Tooltip position="top-start">{selectorText}</Tooltip>
+          )}
         </Block>
         <Block
           flexShrink={0}
