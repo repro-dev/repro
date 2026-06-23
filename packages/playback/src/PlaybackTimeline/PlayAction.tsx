@@ -6,6 +6,7 @@ import React, { useCallback, useEffect } from 'react'
 import { tinykeys } from 'tinykeys'
 import { usePlaybackState } from '..'
 import { usePlayback } from '../hooks'
+import { usePlaybackHud } from '../PlaybackCanvas/PlaybackHudContext'
 import { PlaybackState } from '../types'
 import { shouldIgnoreKeyboardEvent } from './keyboardIgnore'
 
@@ -13,6 +14,7 @@ export const PlayAction: React.FC = () => {
   const playback = usePlayback()
   const playbackState = usePlaybackState()
   const playing = playbackState === PlaybackState.Playing
+  const { showHud } = usePlaybackHud()
 
   const togglePlayback = useCallback(() => {
     if (playing) {
@@ -28,11 +30,16 @@ export const PlayAction: React.FC = () => {
     }
   }, [playback, playing])
 
+  const handleSpace = useCallback(() => {
+    togglePlayback()
+    showHud(playing ? 'pause' : 'play')
+  }, [togglePlayback, showHud, playing])
+
   useEffect(() => {
     const unsubscribe = tinykeys(
       window,
       {
-        Space: togglePlayback,
+        Space: handleSpace,
       },
       {
         ignore: shouldIgnoreKeyboardEvent,
@@ -42,7 +49,7 @@ export const PlayAction: React.FC = () => {
     return () => {
       unsubscribe()
     }
-  }, [togglePlayback])
+  }, [handleSpace])
 
   return (
     <Row
