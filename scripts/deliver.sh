@@ -74,9 +74,52 @@ if [[ -n "$profile" && "$pick" == true ]]; then
   exit 1
 fi
 
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Resolve --pick into a concrete profile before worktree creation
+if [[ "$pick" == true ]]; then
+  profiles=()
+  for pf in "$REPO_ROOT/.opencode/profiles/"*.json; do
+    [[ -f "$pf" ]] || continue
+    profiles+=("$(basename "$pf" .json)")
+  done
+
+  if [[ ${#profiles[@]} -eq 0 ]]; then
+    echo "Error: No profiles found in $REPO_ROOT/.opencode/profiles/" >&2
+    echo "Create a .json profile file before using --pick." >&2
+    exit 1
+  fi
+
+  if [[ ${#profiles[@]} -eq 1 ]]; then
+    profile="${profiles[0]}"
+  elif command -v fzf > /dev/null 2>&1; then
+    profile="$(printf '%s\n' "${profiles[@]}" | fzf --prompt="Select a profile: " --height=~15 --reverse)" || exit 2
+    [[ -n "$profile" ]] || exit 2
+  elif [[ ! -t 0 ]]; then
+    echo "Error: Cannot show interactive picker: stdin is not a terminal and fzf is not installed." >&2
+    exit 1
+  else
+    echo "" >&2
+    echo "Select a profile:" >&2
+    i=1
+    for item in "${profiles[@]}"; do
+      printf '  %d) %s\n' "$i" "$item" >&2
+      i=$((i + 1))
+    done
+    echo "" >&2
+    choice=""
+    read -r -p "Enter number (1-${#profiles[@]}): " choice </dev/tty
+    [[ -n "$choice" ]] || exit 2
+    if [[ ! "$choice" =~ ^[0-9]+$ ]] || [[ "$choice" -lt 1 ]] || [[ "$choice" -gt ${#profiles[@]} ]]; then
+      echo "Error: Invalid selection." >&2
+      exit 1
+    fi
+    profile="${profiles[$((choice - 1))]}"
+  fi
+fi
+
 # Validate profile existence
 if [[ -n "$profile" ]]; then
-  REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
   profile_file="$REPO_ROOT/.opencode/profiles/${profile}.json"
   if [[ ! -f "$profile_file" ]]; then
     echo "Error: Profile '$profile' not found at $profile_file" >&2
@@ -125,11 +168,6 @@ if [[ -n "$profile" ]]; then
       --workspace "$workspace_id" \
       --focus \
       -- bash -c 'cd "$1" && exec "$2" opencode --profile "$3" --prompt "$4"' _ "$worktree_path" "$SCRIPT_DIR/reproctl.sh" "$profile" "/deliver-issue $issue_id"
-elif [[ "$pick" == true ]]; then
-  exec herdr agent start "opencode-${issue_id}" \
-      --workspace "$workspace_id" \
-      --focus \
-      -- bash -c 'cd "$1" && exec "$2" opencode --pick --prompt "$3"' _ "$worktree_path" "$SCRIPT_DIR/reproctl.sh" "/deliver-issue $issue_id"
 else
   exec herdr agent start "opencode-${issue_id}" \
       --workspace "$workspace_id" \

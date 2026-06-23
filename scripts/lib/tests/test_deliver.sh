@@ -141,11 +141,12 @@ test_profile_flag_before_issue() {
   fi
 }
 
-# Test 4: --pick flag passes --pick to opencode
-test_pick_flag_passes_pick() {
+# Test 4: --pick auto-selects single profile, passes --profile to opencode
+test_pick_autoselects_single() {
   local tmpdir rc=0
   tmpdir="$(_make_tmpdir)"
   _write_stubs "$tmpdir"
+  echo '{}' > "$tmpdir/.opencode/profiles/beta.json"
   _write_runner "$tmpdir" "REP-123 --pick"
 
   local output
@@ -153,18 +154,21 @@ test_pick_flag_passes_pick() {
   rm -rf "$tmpdir"
 
   if printf '%s\n' "$output" | grep -q 'REPROCTL_ARGS: wt create --from-issue REP-123 --open' \
-    && printf '%s\n' "$output" | grep -q -- '--pick'; then
-    _pass "--pick passes --pick to opencode"
+    && printf '%s\n' "$output" | grep -qF 'opencode --profile' \
+    && printf '%s\n' "$output" | grep -qF -- 'beta' \
+    && ! printf '%s\n' "$output" | grep -q -- '--pick'; then
+    _pass "--pick auto-selects single profile, passes --profile beta"
   else
-    _fail "--pick passes --pick to opencode" "rc=$rc; output: $output"
+    _fail "--pick auto-selects single profile, passes --profile beta" "rc=$rc; output: $output"
   fi
 }
 
-# Test 5: --pick flag before issue ID
-test_pick_flag_before_issue() {
+# Test 5: --pick flag before issue ID, auto-selects single profile
+test_pick_before_issue_autoselects() {
   local tmpdir rc=0
   tmpdir="$(_make_tmpdir)"
   _write_stubs "$tmpdir"
+  echo '{}' > "$tmpdir/.opencode/profiles/beta.json"
   _write_runner "$tmpdir" "--pick REP-123"
 
   local output
@@ -172,10 +176,11 @@ test_pick_flag_before_issue() {
   rm -rf "$tmpdir"
 
   if printf '%s\n' "$output" | grep -q 'REPROCTL_ARGS: wt create --from-issue REP-123 --open' \
-    && printf '%s\n' "$output" | grep -q -- '--pick'; then
-    _pass "--pick before issue ID works"
+    && printf '%s\n' "$output" | grep -qF 'opencode --profile' \
+    && printf '%s\n' "$output" | grep -qF -- 'beta'; then
+    _pass "--pick before issue ID auto-selects single profile"
   else
-    _fail "--pick before issue ID works" "rc=$rc; output: $output"
+    _fail "--pick before issue ID auto-selects single profile" "rc=$rc; output: $output"
   fi
 }
 
@@ -376,17 +381,20 @@ test_pick_overrides_env_var() {
   local tmpdir rc=0
   tmpdir="$(_make_tmpdir)"
   _write_stubs "$tmpdir"
+  echo '{}' > "$tmpdir/.opencode/profiles/beta.json"
   _write_runner "$tmpdir" "REP-123 --pick"
 
   local output
   output="$(REPRO_OPENCODE_PROFILE=gamma bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
   rm -rf "$tmpdir"
 
-  # Should contain --pick in the herdr command, not the env var value
-  if printf '%s\n' "$output" | grep -q -- '--pick'; then
-    _pass "--pick ignores REPRO_OPENCODE_PROFILE=gamma"
+  # Should resolve --pick to --profile beta (the single available profile), ignoring env
+  if printf '%s\n' "$output" | grep -qF 'opencode --profile' \
+    && printf '%s\n' "$output" | grep -qF -- 'beta' \
+    && ! printf '%s\n' "$output" | grep -q -- 'gamma'; then
+    _pass "--pick ignores REPRO_OPENCODE_PROFILE=gamma, resolves to beta"
   else
-    _fail "--pick ignores REPRO_OPENCODE_PROFILE=gamma" "rc=$rc; output: $output"
+    _fail "--pick ignores REPRO_OPENCODE_PROFILE=gamma, resolves to beta" "rc=$rc; output: $output"
   fi
 }
 
@@ -405,8 +413,8 @@ test_file_exists
 test_no_flags_uses_default
 test_profile_flag_passes_profile
 test_profile_flag_before_issue
-test_pick_flag_passes_pick
-test_pick_flag_before_issue
+test_pick_autoselects_single
+test_pick_before_issue_autoselects
 test_help_exits_zero
 test_h_flag_exits_zero
 test_missing_args_exits_one
