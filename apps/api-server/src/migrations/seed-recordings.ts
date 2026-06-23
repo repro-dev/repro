@@ -77,6 +77,14 @@ async function insertRecording(
       recordingId: row.id,
       authorId,
     })
+    // Defense-in-depth: guards the partial-commit/orphan path where a
+    // project_recordings row already exists for this recordingId but the
+    // recordings pre-check (title+url SELECT above, ~line 37) did not
+    // short-circuit — e.g. interrupted seed or manual db reset. The normal
+    // re-run path is already caught by the pre-check; this ON CONFLICT is
+    // only exercised when a project_recordings row outlives its matching
+    // recordings row or the recordings row was re-inserted without cleanup.
+    .onConflict(oc => oc.column('recordingId').doNothing())
     .execute()
 
   console.log(`  Seeded recording: ${recording.title} (${recordingId})`)

@@ -291,6 +291,8 @@ def register_service(service_name, svc, wt_slug, source_path, infra_dir, service
         env=seed_env,
         resource_deps=[migrations_resource] + seed_deps,
         labels=[label],
+        trigger_mode=TRIGGER_MODE_MANUAL,
+        auto_init=False,
       )
 
       local_resource(
