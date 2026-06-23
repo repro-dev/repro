@@ -222,31 +222,36 @@ describe('TDL profiler', () => {
   // Test §4: O(n·depth) recomputation signature
   // ============================================================
 
-  describe('O(n·depth) recomputation signature', () => {
-    it('should have more calls for deep chain vs flat tree with similar node count', () => {
+  describe('O(n·depth) eliminated — linear scaling post-fix', () => {
+    it('should have getByteLengthCalls ≈ nodeWrites for deep chain (~1× not ~7×)', () => {
       // Deep chain with 8 levels (~9 nodes incl leaf integer)
       profile.enable()
       encodeToBuffer(deepStructDescriptor(8), deepStructData(8))
       const deepReport = profile.getLastReport()
       profile.disable()
 
+      expect(deepReport).not.toBeNull()
+
+      // Post-fix: getByteLengthCalls = size-pass only ≈ nodeWrites
+      expect(deepReport!.getByteLengthCalls).toBeLessThanOrEqual(
+        deepReport!.nodeWrites * 1.5
+      )
+    })
+
+    it('should have getByteLengthCalls ≈ nodeWrites for flat tree (~1× not ~7×)', () => {
       // Flat tree with 8 leaf fields (~9 nodes incl root)
       profile.enable()
       encodeToBuffer(flatStructDescriptor(8), flatStructData(8))
       const flatReport = profile.getLastReport()
       profile.disable()
 
-      expect(deepReport).not.toBeNull()
       expect(flatReport).not.toBeNull()
-
-      // The deep chain should have significantly more getByteLengthCalls
-      // than the flat tree, both having ~9 nodes
-      expect(deepReport!.getByteLengthCalls).toBeGreaterThan(
-        flatReport!.getByteLengthCalls * 2
+      expect(flatReport!.getByteLengthCalls).toBeLessThanOrEqual(
+        flatReport!.nodeWrites * 1.5
       )
     })
 
-    it('should show super-linear growth as depth increases', () => {
+    it('should show linear (not super-linear) growth as depth increases', () => {
       profile.reset()
       profile.enable()
       encodeToBuffer(deepStructDescriptor(5), deepStructData(5))
@@ -262,10 +267,9 @@ describe('TDL profiler', () => {
       expect(depth5).not.toBeNull()
       expect(depth10).not.toBeNull()
 
-      // Depth 10 should have MORE than double the calls of depth 5
-      // (O(D²) means 10²/5² = 4x, so 2x is a conservative lower bound)
-      expect(depth10!.getByteLengthCalls).toBeGreaterThan(
-        depth5!.getByteLengthCalls * 2
+      // Post-fix: depth10 calls ≈ 2× depth5 (linear), not 4× (quadratic)
+      expect(depth10!.getByteLengthCalls).toBeLessThan(
+        depth5!.getByteLengthCalls * 3
       )
     })
   })
