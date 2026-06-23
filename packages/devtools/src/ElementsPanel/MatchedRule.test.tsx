@@ -1,5 +1,6 @@
 import 'global-jsdom/register'
 
+import { PortalRootProvider } from '@repro/design'
 import { cleanup, render } from '@testing-library/react'
 import assert from 'node:assert/strict'
 import { afterEach, describe, it } from 'node:test'
@@ -115,5 +116,38 @@ describe('MatchedRule', () => {
     const { container } = render(<MatchedRule entry={entry} />)
 
     assert.ok(container.textContent!.includes('element.style'))
+  })
+
+  it('renders a tooltip with the full selector text for long selectors', () => {
+    const longSelector = 'div.container > ul li:nth-child(2)::before'
+    const entry = makeEntry({ selectorText: longSelector })
+    const { container } = render(
+      <PortalRootProvider>
+        <MatchedRule entry={entry} />
+      </PortalRootProvider>
+    )
+
+    // Visible (CSS-truncated) text is still present in the DOM
+    assert.ok(container.textContent!.includes(longSelector))
+
+    // Tooltip is portaled into the portal root and carries the full selector
+    const tip = document.querySelector('[role="tooltip"]')
+    assert.ok(tip, 'tooltip element should be rendered')
+    assert.ok(tip!.textContent!.includes(longSelector))
+  })
+
+  it('does not render a selector tooltip for inline element.style', () => {
+    const entry = makeEntry({
+      selectorText: '',
+      source: 'element.style',
+    })
+    render(
+      <PortalRootProvider>
+        <MatchedRule entry={entry} />
+      </PortalRootProvider>
+    )
+
+    const tips = document.querySelectorAll('[role="tooltip"]')
+    assert.equal(tips.length, 0)
   })
 })

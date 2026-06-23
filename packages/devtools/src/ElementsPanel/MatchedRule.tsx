@@ -1,5 +1,12 @@
 import { Block, InlineBlock, Row } from '@jsxstyle/react'
-import { color, fontSize, fontWeight, lineHeight, spacing } from '@repro/design'
+import {
+  color,
+  fontSize,
+  fontWeight,
+  lineHeight,
+  spacing,
+  Tooltip,
+} from '@repro/design'
 import React from 'react'
 
 import type { MatchedRuleEntry } from '../hooks'
@@ -43,9 +50,18 @@ export const MatchedRule: React.FC<MatchedRuleProps> = ({ entry }) => {
         </Block>
       )}
 
-      {/* Header row: selector text on left, source on right */}
+      {/* Header row: selector text on left, source on right.
+          The selector truncates with ellipsis when long; a Tooltip reveals
+          the full selector on hover. Inline (element.style) is always short,
+          so no tooltip is rendered for it. */}
       <Row alignItems="center" justifyContent="space-between">
         <Block
+          position="relative"
+          flex={1}
+          minWidth={0}
+          overflow="hidden"
+          whiteSpace="nowrap"
+          textOverflow="ellipsis"
           fontFamily="monospace"
           fontSize={fontSize.xs}
           fontWeight={fontWeight.semibold}
@@ -53,8 +69,11 @@ export const MatchedRule: React.FC<MatchedRuleProps> = ({ entry }) => {
           lineHeight={lineHeight.relaxed}
         >
           {selectorText || 'element.style'}
+          {selectorText && <Tooltip position="top">{selectorText}</Tooltip>}
         </Block>
         <Block
+          flexShrink={0}
+          marginLeft={spacing.sm}
           fontSize={fontSize.xs}
           color={color.text.muted}
           lineHeight={lineHeight.relaxed}
