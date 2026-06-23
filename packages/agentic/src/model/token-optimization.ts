@@ -18,58 +18,11 @@ export interface TokenEstimatedResponse {
   _tokenEstimate: number
 }
 
-// Cached tokenizer module reference. `null` means unavailable after one attempt.
-let tokenizerModule:
-  | { countTokens: (text: string) => number }
-  | null
-  | undefined = undefined
-
-// Exported for testability. Returns false in browser environments so the
-// tokenizer (and its Wasm payload) is never loaded outside Node.
-export function isNodeEnvironment(): boolean {
-  return (
-    typeof process !== 'undefined' &&
-    !!process.versions?.node &&
-    typeof window === 'undefined'
-  )
-}
-
-function loadTokenizer(): { countTokens: (text: string) => number } | null {
-  if (tokenizerModule !== undefined) return tokenizerModule
-  // Only attempt to load the tokenizer in Node. Browser bundlers (webpack,
-  // Vite) would otherwise attempt to bundle the Wasm payload.
-  if (!isNodeEnvironment()) {
-    tokenizerModule = null
-    return tokenizerModule
-  }
-  try {
-    // Use eval('require') to avoid static bundler analysis picking up the
-    // @anthropic-ai/tokenizer import and bundling the Wasm payload. Unlike
-    // Function('return require'), eval resolves the lexical `require` that tsx
-    // injects in ESM-compiled CJS contexts, so this works in both CJS and ESM.
-    // eslint-disable-next-line @typescript-eslint/no-implied-eval
-    tokenizerModule = (eval('require') as NodeRequire)(
-      '@anthropic-ai/tokenizer'
-    ) as {
-      countTokens: (text: string) => number
-    }
-  } catch {
-    tokenizerModule = null
-  }
-  return tokenizerModule
-}
-
+// Heuristic: ~4 chars per token on average; ceil to avoid undercounting.
+// This is only used for coarse budgeting (TOKEN_BUDGETS = 500/2000/8000) so
+// a simple heuristic is sufficient — exact token counts aren't needed here.
 export function estimateTokens(response: unknown): number {
-  const text = JSON.stringify(response)
-  try {
-    const mod = loadTokenizer()
-    if (mod) {
-      return mod.countTokens(text)
-    }
-  } catch {
-    // Fall through to heuristic on unexpected tokenizer errors
-  }
-  // Heuristic fallback: ~4 chars per token on average; ceil to avoid undercounting
+  const text = JSON.stringify(response) ?? ''
   return Math.ceil(text.length / 4)
 }
 

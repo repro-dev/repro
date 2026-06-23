@@ -8,32 +8,42 @@ import {
 } from './token-optimization'
 
 describe('estimateTokens', () => {
-  it('returns real tokenizer count for empty object', () => {
-    // Real tokenizer: {} -> 1 token
+  it('returns heuristic count for empty object', () => {
+    // JSON.stringify({}) = "{}" = 2 chars → Math.ceil(2/4) = 1
     assert.strictEqual(estimateTokens({}), 1)
   })
 
-  it('returns real tokenizer count for small object', () => {
-    // Real tokenizer: {"foo":"bar","count":42} -> 9 tokens
-    assert.strictEqual(estimateTokens({ foo: 'bar', count: 42 }), 9)
+  it('returns heuristic count for small object', () => {
+    // JSON.stringify({ foo: 'bar', count: 42 }) =
+    //   '{"foo":"bar","count":42}' = 23 chars → Math.ceil(23/4) = 6
+    assert.strictEqual(estimateTokens({ foo: 'bar', count: 42 }), 6)
   })
 
-  it('returns real tokenizer count for string', () => {
-    // Real tokenizer: "hello world" -> 4 tokens
+  it('returns heuristic count for string', () => {
+    // JSON.stringify('hello world') = '"hello world"' = 14 chars → Math.ceil(14/4) = 4
     assert.strictEqual(estimateTokens('hello world'), 4)
   })
 
-  it('smoke test: estimate for known string is within ±10% of correct token count', () => {
-    // "The quick brown fox jumps over the lazy dog." is 10 tokens by Anthropic BPE
-    // (verified via countTokens on the JSON-stringified form: 11 tokens)
-    const knownInput = 'The quick brown fox jumps over the lazy dog.'
-    const knownTokenCount = 11 // countTokens(JSON.stringify(knownInput))
-    const result = estimateTokens(knownInput)
-    const tolerance = Math.ceil(knownTokenCount * 0.1)
-    assert.ok(
-      Math.abs(result - knownTokenCount) <= tolerance,
-      `estimateTokens returned ${result}, expected within ±${tolerance} of ${knownTokenCount}`
+  it('returns a reasonable estimate for a known input', () => {
+    // JSON.stringify('The quick brown fox jumps over the lazy dog.') =
+    //   '"The quick brown fox jumps over the lazy dog."' = 47 chars → Math.ceil(47/4) = 12
+    const result = estimateTokens(
+      'The quick brown fox jumps over the lazy dog.'
     )
+    const expected = Math.ceil(
+      JSON.stringify('The quick brown fox jumps over the lazy dog.').length / 4
+    )
+    assert.strictEqual(result, expected) // 12
+  })
+
+  it('uses Math.ceil (not Math.round) to avoid undercounting', () => {
+    // JSON.stringify('hey') = '"hey"' = 5 chars → Math.ceil(5/4) = 2, Math.round(5/4) = 1
+    // The two diverge here — ceil prevents undercounting, which would risk context overflow.
+    const input = 'hey'
+    const result = estimateTokens(input)
+    const serialized = JSON.stringify(input)
+    assert.strictEqual(result, Math.ceil(serialized.length / 4))
+    assert.strictEqual(result, 2)
   })
 })
 
