@@ -109,7 +109,7 @@ export const MatchedRule: React.FC<MatchedRuleProps> = ({
             fontFamily="monospace"
             fontSize={fontSize.xs}
             fontWeight={fontWeight.semibold}
-            color={color.text.default}
+            color={color.primary}
             lineHeight={lineHeight.relaxed}
             props={{ ref: selectorRef }}
           >
