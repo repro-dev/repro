@@ -165,13 +165,14 @@ export function encodeStruct(
 
   let fieldPointer = headerByteLength
   const childSizes = ctx?.childSizes.get(data)
+  const sizes = childSizes as number[] | undefined
 
   for (const [i, [name, fieldDescriptor]] of descriptor.fields.entries()) {
     view.setUint32(pointerRef.offset, fieldPointer, LITTLE_ENDIAN)
     // Use cached child size when available, avoiding re-computation
     fieldPointer +=
-      childSizes !== undefined
-        ? (childSizes as number[])[i]!
+      sizes !== undefined
+        ? sizes[i]!
         : getByteLength(fieldDescriptor, data[name], ctx)
     pointerRef.offset += ByteLengths.Int32
   }
@@ -212,12 +213,13 @@ export function encodeVector(
 
   let itemPointer = headerByteLength
   const itemSizes = ctx?.childSizes.get(data)
+  const sizes = itemSizes as number[] | undefined
 
   for (const [i, item] of data.entries()) {
     view.setUint32(pointerRef.offset, itemPointer, LITTLE_ENDIAN)
     itemPointer +=
-      itemSizes !== undefined
-        ? (itemSizes as number[])[i]!
+      sizes !== undefined
+        ? sizes[i]!
         : getByteLength(descriptor.items, item, ctx)
     pointerRef.offset += ByteLengths.Int32
   }
@@ -240,14 +242,12 @@ export function encodeMap(
   view.setUint32(pointerRef.offset, entries.length, LITTLE_ENDIAN)
   pointerRef.offset += ByteLengths.Int32
 
-  const sizes = ctx?.childSizes.get(data)
+  const sizes = ctx?.childSizes.get(data) as number[] | undefined
   const N = entries.length
 
   const headerByteLength = entries.reduce((acc, [key], i) => {
     const keySize =
-      sizes !== undefined
-        ? (sizes as number[])[i]!
-        : getByteLength(descriptor.key, key, ctx)
+      sizes !== undefined ? sizes[i]! : getByteLength(descriptor.key, key, ctx)
     return acc + keySize + ByteLengths.Int32
   }, ByteLengths.Int32)
 
@@ -259,7 +259,7 @@ export function encodeMap(
     pointerRef.offset += ByteLengths.Int32
     const valSize =
       sizes !== undefined
-        ? (sizes as number[])[N + i]!
+        ? sizes[N + i]!
         : getByteLength(descriptor.value, value, ctx)
     offsetPointer += valSize
   }
