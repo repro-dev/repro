@@ -35,7 +35,7 @@ issue_id=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --help|-h) usage_text; exit 0 ;;
+    --help|-h) usage_text >&1; exit 0 ;;
     --profile)
       shift
       if [[ $# -eq 0 ]]; then
