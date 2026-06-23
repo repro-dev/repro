@@ -38,7 +38,6 @@ describe('matchCSSRulesForElement', () => {
     assert.deepStrictEqual(result.inline, null)
     assert.deepStrictEqual(result.rules, [])
     assert.deepStrictEqual(result.inherited, [])
-    assert.equal(result.elementLabel, 'div#target')
   })
 
   it('sorts matched rules highest-priority-first with correct override markings', () => {
@@ -263,21 +262,6 @@ describe('matchCSSRulesForElement', () => {
 
     // Parent has margin (non-inherited) but no inherited props like color
     assert.equal(result.inherited.length, 0)
-  })
-
-  it('returns elementLabel matching tag/id/class descriptor', () => {
-    document.body.innerHTML =
-      '<span id="myId" class="cls1 cls2" style="color:red">text</span>'
-    const el = document.querySelector('span')!
-    const result = matchCSSRulesForElement(el, [])
-    assert.equal(result.elementLabel, 'span#myId.cls1.cls2')
-  })
-
-  it('returns elementLabel even for element with no id or classes', () => {
-    document.body.innerHTML = '<p></p>'
-    const el = document.querySelector('p')!
-    const result = matchCSSRulesForElement(el, [])
-    assert.equal(result.elementLabel, 'p')
   })
 
   it('returns empty for null/empty rules and no element style', () => {

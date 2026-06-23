@@ -15,41 +15,56 @@ interface StylesPaneProps {
 }
 
 const Inner: React.FC<{ result: MatchedCSSRulesResult }> = ({ result }) => {
-  // Build sections: section 0 = element's own styles (inline + direct rules),
-  // sections 1..n = inherited groups
-  const sections: Array<{
-    label: string
-    content: React.ReactNode
-  }> = []
+  const hasContent =
+    result.inline !== null ||
+    result.rules.length > 0 ||
+    result.inherited.length > 0
 
-  // Section 0: element's own styles
-  const hasOwnStyles = result.inline !== null || result.rules.length > 0
-  if (hasOwnStyles) {
-    sections.push({
-      label: `Applied to ${result.elementLabel}`,
-      content: (
-        <>
-          {result.inline && <MatchedRule entry={result.inline} />}
-          {result.rules.map((rule, i) => (
-            <Block
-              key={`rule-${rule.stylesheetId}-${rule.ruleIndex}-${i}`}
-              paddingTop={i > 0 || result.inline ? spacing.sm : spacing.none}
-            >
-              <MatchedRule entry={rule} />
-            </Block>
-          ))}
-        </>
-      ),
-    })
+  if (!hasContent) {
+    return null
   }
 
-  // Sections 1..n: inherited groups
-  for (let i = 0; i < result.inherited.length; i++) {
-    const group = result.inherited[i]!
-    sections.push({
-      label: `Inherited from ${group.ancestorLabel}`,
-      content: (
-        <>
+  return (
+    <Block
+      fontFamily="monospace"
+      fontSize={fontSize.xs}
+      lineHeight={lineHeight.relaxed}
+    >
+      {/* a) Inline block */}
+      {result.inline && (
+        <Block key="inline">
+          <MatchedRule entry={result.inline} />
+        </Block>
+      )}
+
+      {/* b) Direct rules (highest-priority-first) */}
+      {result.rules.map((rule, i) => (
+        <Block
+          key={`rule-${rule.stylesheetId}-${rule.ruleIndex}-${i}`}
+          paddingTop={i > 0 || result.inline ? spacing.sm : spacing.none}
+        >
+          <MatchedRule entry={rule} />
+        </Block>
+      ))}
+
+      {/* c) Inherited groups */}
+      {result.inherited.map((group, gi) => (
+        <Block key={`inherited-${gi}`}>
+          <Block
+            borderTop={`1px solid ${color.border.default}`}
+            paddingTop={spacing.xl}
+            paddingBottom={spacing.sm}
+            fontSize={fontSize.xs}
+            fontWeight={fontWeight.bold}
+            color={color.text.secondary}
+            userSelect="none"
+            whiteSpace="nowrap"
+            overflow="hidden"
+            textOverflow="ellipsis"
+            props={{ title: `Inherited from ${group.ancestorLabel}` }}
+          >
+            Inherited from {group.ancestorLabel}
+          </Block>
           {group.rules.map((rule, j) => (
             <MatchedRule
               key={`inh-rule-${rule.stylesheetId}-${rule.ruleIndex}-${j}`}
@@ -61,49 +76,6 @@ const Inner: React.FC<{ result: MatchedCSSRulesResult }> = ({ result }) => {
               }}
             />
           ))}
-        </>
-      ),
-    })
-  }
-
-  if (sections.length === 0) {
-    return null
-  }
-
-  return (
-    <Block
-      fontFamily="monospace"
-      fontSize={fontSize.xs}
-      lineHeight={lineHeight.relaxed}
-    >
-      {sections.map((section, i) => (
-        <Block
-          key={i}
-          component="details"
-          paddingTop={i > 0 ? spacing.xl : spacing.none}
-          paddingBottom={spacing.xl}
-          borderTop={i > 0 ? `1px solid ${color.border.default}` : ''}
-          props={{ open: true }}
-        >
-          <Block
-            component="summary"
-            display="list-item"
-            paddingBottom={spacing.md}
-            fontSize={fontSize.xs}
-            fontWeight={fontWeight.bold}
-            color={color.text.secondary}
-            userSelect="none"
-            whiteSpace="nowrap"
-            overflow="hidden"
-            textOverflow="ellipsis"
-            props={{
-              tabIndex: -1,
-              title: section.label,
-            }}
-          >
-            {section.label}
-          </Block>
-          {section.content}
         </Block>
       ))}
     </Block>

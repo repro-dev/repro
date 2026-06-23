@@ -30,7 +30,6 @@ export interface MatchedCSSRulesResult {
   inline: MatchedRuleEntry | null
   rules: MatchedRuleEntry[]
   inherited: InheritedGroup[]
-  elementLabel: string
 }
 
 function describeElement(element: Element): string {
@@ -199,7 +198,6 @@ export function matchCSSRulesForElement(
     inline: inline ? { ...inline, source: 'element.style' } : null,
     rules,
     inherited,
-    elementLabel: describeElement(element),
   }
 }
 
