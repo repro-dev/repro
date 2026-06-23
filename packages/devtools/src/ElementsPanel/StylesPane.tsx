@@ -68,6 +68,7 @@ const Inner: React.FC<{ result: MatchedCSSRulesResult }> = ({ result }) => {
           {group.rules.map((rule, j) => (
             <MatchedRule
               key={`inh-rule-${rule.stylesheetId}-${rule.ruleIndex}-${j}`}
+              showSelector={false}
               entry={{
                 ...rule,
                 overriddenDeclarations: new Set<string>(),

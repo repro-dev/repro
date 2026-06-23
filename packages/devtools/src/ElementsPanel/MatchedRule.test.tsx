@@ -189,4 +189,18 @@ describe('MatchedRule', () => {
     const tips = document.querySelectorAll('[role="tooltip"]')
     assert.equal(tips.length, 0)
   })
+
+  it('hides the selector header when showSelector is false', () => {
+    const entry = makeEntry({ selectorText: '.my-selector' })
+    const { container } = render(
+      <MatchedRule entry={entry} showSelector={false} />
+    )
+
+    // Declarations still render
+    assert.ok(container.textContent!.includes('color'))
+    assert.ok(container.textContent!.includes('red'))
+    // Selector text and source are NOT rendered
+    assert.ok(!container.textContent!.includes('.my-selector'))
+    assert.ok(!container.textContent!.includes('style.css'))
+  })
 })

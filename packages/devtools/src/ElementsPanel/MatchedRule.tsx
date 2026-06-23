@@ -13,9 +13,15 @@ import type { MatchedRuleEntry } from '../hooks'
 
 interface MatchedRuleProps {
   entry: MatchedRuleEntry
+  /** Show the selector + source header row. Defaults to true; set false for
+   * inherited rules where the "Inherited from…" heading already provides context. */
+  showSelector?: boolean
 }
 
-export const MatchedRule: React.FC<MatchedRuleProps> = ({ entry }) => {
+export const MatchedRule: React.FC<MatchedRuleProps> = ({
+  entry,
+  showSelector = true,
+}) => {
   const {
     selectorText,
     declarations,
@@ -89,39 +95,40 @@ export const MatchedRule: React.FC<MatchedRuleProps> = ({ entry }) => {
       )}
 
       {/* Header row: selector text on left, source on right.
-          The selector truncates with ellipsis when long; a Tooltip reveals
-          the full selector on hover. Inline (element.style) is always short,
-          so no tooltip is rendered for it. */}
-      <Row alignItems="center" justifyContent="space-between">
-        <Block
-          position="relative"
-          flex={1}
-          minWidth={0}
-          overflow="hidden"
-          whiteSpace="nowrap"
-          textOverflow="ellipsis"
-          fontFamily="monospace"
-          fontSize={fontSize.xs}
-          fontWeight={fontWeight.semibold}
-          color={color.text.default}
-          lineHeight={lineHeight.relaxed}
-          props={{ ref: selectorRef }}
-        >
-          {selectorText || 'element.style'}
-          {selectorText && isTruncated && (
-            <Tooltip position="top-start">{selectorText}</Tooltip>
-          )}
-        </Block>
-        <Block
-          flexShrink={0}
-          marginLeft={spacing.sm}
-          fontSize={fontSize.xs}
-          color={color.text.muted}
-          lineHeight={lineHeight.relaxed}
-        >
-          {source}
-        </Block>
-      </Row>
+          Skipped for inherited rules (showSelector=false) where the
+          "Inherited from…" heading already provides context. */}
+      {showSelector && (
+        <Row alignItems="center" justifyContent="space-between">
+          <Block
+            position="relative"
+            flex={1}
+            minWidth={0}
+            overflow="hidden"
+            whiteSpace="nowrap"
+            textOverflow="ellipsis"
+            fontFamily="monospace"
+            fontSize={fontSize.xs}
+            fontWeight={fontWeight.semibold}
+            color={color.text.default}
+            lineHeight={lineHeight.relaxed}
+            props={{ ref: selectorRef }}
+          >
+            {selectorText || 'element.style'}
+            {selectorText && isTruncated && (
+              <Tooltip position="top-start">{selectorText}</Tooltip>
+            )}
+          </Block>
+          <Block
+            flexShrink={0}
+            marginLeft={spacing.sm}
+            fontSize={fontSize.xs}
+            color={color.text.muted}
+            lineHeight={lineHeight.relaxed}
+          >
+            {source}
+          </Block>
+        </Row>
+      )}
 
       {/* Declarations */}
       <Block>

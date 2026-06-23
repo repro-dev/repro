@@ -165,6 +165,12 @@ describe('StylesPane', () => {
     assert.ok(container.textContent!.includes('div#parent.container'))
     // Inherited rule content should be visible
     assert.ok(container.textContent!.includes('green'))
+    // Selector header is NOT shown for inherited rules — the source label
+    // 'app.css' from the inherited rule should not appear (only the direct
+    // rule's source appears). The ancestor label is the only heading.
+    // Note: '#parent' can't be checked directly as it's a substring of the
+    // ancestor label 'div#parent.container'; showSelector=false is verified
+    // in the dedicated MatchedRule test.
   })
 
   // details/summary test removed — flat layout has no collapsible sections
