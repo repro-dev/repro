@@ -107,7 +107,8 @@ describe('StylesPane', () => {
     })
     const { container } = render(<StylesPane result={result} />)
 
-    // Section 0 summary should contain the element label
+    // Section 0 summary should be prefixed with a role cue and contain the element label
+    assert.ok(container.textContent!.includes('Applied to'))
     assert.ok(container.textContent!.includes('div#my-target.cls'))
     assert.ok(container.textContent!.includes('.foo'))
     assert.ok(container.textContent!.includes('blue'))

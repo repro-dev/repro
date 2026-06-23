@@ -26,7 +26,7 @@ const Inner: React.FC<{ result: MatchedCSSRulesResult }> = ({ result }) => {
   const hasOwnStyles = result.inline !== null || result.rules.length > 0
   if (hasOwnStyles) {
     sections.push({
-      label: result.elementLabel,
+      label: `Applied to ${result.elementLabel}`,
       content: (
         <>
           {result.inline && <MatchedRule entry={result.inline} />}
