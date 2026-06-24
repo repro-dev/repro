@@ -3,7 +3,54 @@
 All visual values must use tokens. Never hardcode raw pixel values, color hex codes, or transition strings.
 
 ```tsx
+import {
+  color,
+  duration,
+  easing,
+  focusRing,
+  focusWithinRing,
+  fontFamily,
+  fontSize,
+  fontWeight,
+  lineHeight,
+  radius,
+  shadow,
+  spacing,
+  textStyles,
+  transition,
+} from '@repro/design'
 
+function Example() {
+  return (
+    <Block
+      component="button"
+      {...textStyles.label}
+      color={color.text.default}
+      backgroundColor={color.bg.surface}
+      padding={spacing.md}
+      borderRadius={radius.md}
+      boxShadow={shadow.sm}
+      transition={transition.default}
+      fontSize={fontSize.md}
+      fontWeight={fontWeight.semibold}
+      lineHeight={lineHeight.tight}
+      fontFamily={fontFamily.sans}
+      {...focusRing()}
+    >
+      Label
+    </Block>
+  )
+}
+
+const fadeTransition = `opacity ${duration[200]} ${easing.default}`
+
+function Wrapper() {
+  return (
+    <Block {...focusWithinRing()} transition={fadeTransition}>
+      <Example />
+    </Block>
+  )
+}
 ```
 
 ## Color (`color`)
