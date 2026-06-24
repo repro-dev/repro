@@ -137,3 +137,17 @@ class TestResolveDeps:
             assert data["deps"] == []
         finally:
             os.unlink(path)
+
+    def test_db_backed_local_service_with_worktree_slug(self):
+        path = _write_services(SERVICES)
+        try:
+            data = run_script_json(
+                "resolve_deps.py",
+                args=["--worktree-slug", "rep-397", path, "outbox-worker"],
+            )
+            assert data["targets"] == ["outbox-worker"]
+            deps = sorted(data["deps"])
+            assert "api-server-wt-rep-397-migrations" in deps
+            assert "api-server-migrations" not in deps
+        finally:
+            os.unlink(path)

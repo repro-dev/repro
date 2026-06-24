@@ -172,8 +172,16 @@ _wait_for_healthy() {
     target_names+=("$(resolve_worktree_resource_name "$svc")")
   done
 
+  local resolve_deps_argv=("$SERVICES_JSON")
+  if is_worktree "$REPO_ROOT"; then
+    local wt_slug
+    wt_slug="$(detect_worktree_slug)"
+    resolve_deps_argv=("--worktree-slug" "$wt_slug" "$SERVICES_JSON")
+  fi
+  resolve_deps_argv+=("${services[@]}")
+
   local dep_tree
-  dep_tree="$(python3 "$SCRIPTS_DIR/lib/py/resolve_deps.py" "$SERVICES_JSON" "${services[@]}" 2>/dev/null)" || dep_tree='{"targets":[],"deps":[]}'
+  dep_tree="$(python3 "$SCRIPTS_DIR/lib/py/resolve_deps.py" "${resolve_deps_argv[@]}" 2>/dev/null)" || dep_tree='{"targets":[],"deps":[]}'
 
   local dep_resource_names=()
   while IFS= read -r _line; do
@@ -445,6 +453,13 @@ while queue:
             queue.append(dep)
         if dep in services and dep not in ordered:
             ordered.append(dep)
+
+    db_backed_by = cfg.get("db_backed_by")
+    if db_backed_by and db_backed_by not in seen:
+        seen.add(db_backed_by)
+        queue.append(db_backed_by)
+    if db_backed_by in services and db_backed_by not in ordered:
+        ordered.append(db_backed_by)
 
 for dep in ordered:
     print(dep)
