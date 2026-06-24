@@ -247,9 +247,11 @@ For full token tables with every value, read `references/tokens.md`.
 
 ## Lint Enforcement
 
-Design-system conventions are now CI-gated via oxlint. The skill describes *why* a convention exists; the lint rules enforce *that* it's followed. Each rule runs at `error` level in CI via `pnpm run lint` (which runs `oxlint .`).
+Design-system conventions are CI-gated through two complementary detectors. The skill describes *why* a convention exists; the lint rules enforce *that* it's followed.
 
-These rules close the gap between documented convention and actual code: without them, hardcoded colors, raw spacing values, inline styles, and bare DOM elements accumulate over time, silently eroding the two-layer architecture. CI-gating means violations are caught at build time rather than during review, where they are easy to miss.
+### Oxlint — Code architecture enforcement
+
+Oxlint (`pnpm run lint`) enforces code-architecture rules at `error` level. These rules prevent token bypass and keep the two-layer architecture intact:
 
 | Violation | Lint rule |
 | -- | -- |
@@ -260,9 +262,25 @@ These rules close the gap between documented convention and actual code: without
 | `className` prop | `@repro/oxlint-plugin-design/no-classname-prop` |
 | Direct `colors.*` imports | `@repro/oxlint-plugin-design/no-raw-palette` |
 
-**Exclusions**: Test files (`*.test.ts*`, `**/__tests__/**`), story files (`*.stories.ts*`), and `packages/design/src/**` are excluded from these rules via `.oxlintrc.json` overrides.
+**Exclusions**: Test files (`*.test.ts*`, `**/__tests__/**`), story files (`*.stories.ts*`), and `packages/design/src/**` are excluded via `.oxlintrc.json` overrides.
 
 **Suppressing violations**: Existing violations are suppressed with `/* eslint-disable @repro/oxlint-plugin-design/<rule> */` block comments. New violations must use the same block-level format. Per-line `// oxlint-disable-next-line` comments are not recognized by oxlint for JS plugin rules inside JSX elements.
+
+### Impeccable — Design anti-pattern detection
+
+Impeccable (`npx impeccable detect apps/ packages/ --json`) detects design anti-patterns and visual slop across 44 deterministic rules. It catches AI-generated tells (gradient text, nested cards, icon-tile stacks), quality issues (low contrast, tight leading, skipped headings), and copy smells (em-dash overuse, marketing buzzwords) that oxlint's architecture rules don't cover.
+
+**Exclusions**: Test files, story files, and `packages/design/src/**` are excluded via `.impeccable/config.json` `detector.ignoreFiles`.
+
+**Suppressing violations**: Use inline `impeccable-disable <rule-id>` (whole file), `impeccable-disable-line <rule-id>` (current line), or `impeccable-disable-next-line <rule-id>` (next line) in any comment syntax. Project-wide ignores go in `.impeccable/config.json` `detector.ignoreRules`.
+
+### Why two detectors?
+
+Oxlint and Impeccable cover fundamentally different surfaces:
+- **Oxlint** = code architecture: are you using design tokens instead of raw values? Are you using design system components instead of raw className?
+- **Impeccable** = design quality: does the visual result look authored rather than AI-generated? Are contrast, spacing, and typography meeting quality heuristics?
+
+They are complementary, not overlapping. Both gates must pass in CI.
 
 ---
 
