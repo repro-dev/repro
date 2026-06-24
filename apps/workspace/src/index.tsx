@@ -6,7 +6,6 @@ import { AuthProvider, GateProvider, SessionRouteBoundary } from '@repro/auth'
 import { BillingProvider } from '@repro/billing'
 import {
   ConfirmDialogProvider,
-  defaultTheme,
   PortalRootProvider,
   ThemeProvider,
 } from '@repro/design'
@@ -84,7 +83,7 @@ if (rootElem) {
         >
           <GateProvider>
             <AuthProvider>
-              <ThemeProvider theme={defaultTheme}>
+              <ThemeProvider>
                 <PortalRootProvider>
                   <ConfirmDialogProvider>
                     <Suspense fallback={<Loading />}>
