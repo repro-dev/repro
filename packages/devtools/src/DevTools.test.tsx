@@ -64,6 +64,9 @@ describe('DevTools fullscreen', () => {
           <div data-testid="playback-canvas">{children}</div>
         ),
         PlaybackNavigation: () => <div data-testid="playback-navigation" />,
+        PlaybackHudProvider: ({ children }: React.PropsWithChildren) => (
+          <>{children}</>
+        ),
         SimpleTimeline: () => <div data-testid="toolbar-timeline" />,
       },
     })

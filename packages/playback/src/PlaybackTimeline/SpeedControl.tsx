@@ -10,6 +10,7 @@ import {
 import React, { useCallback, useEffect } from 'react'
 import { tinykeys } from 'tinykeys'
 import { usePlayback, useSpeed } from '../hooks'
+import { usePlaybackHud } from '../PlaybackCanvas/PlaybackHudContext'
 import { PlaybackSpeed, VALID_SPEEDS } from '../types'
 import { shouldIgnoreKeyboardEvent } from './keyboardIgnore'
 
@@ -28,6 +29,7 @@ function getNextSpeed(
 export const SpeedControl: React.FC = () => {
   const playback = usePlayback()
   const speed = useSpeed()
+  const { showHud } = usePlaybackHud()
 
   const cycleSpeed = useCallback(() => {
     const next = getNextSpeed(speed, 'up')
@@ -39,12 +41,16 @@ export const SpeedControl: React.FC = () => {
   }, [playback, speed])
 
   const increaseSpeed = useCallback(() => {
-    playback.setSpeed(getNextSpeed(speed, 'up'))
-  }, [playback, speed])
+    const next = getNextSpeed(speed, 'up')
+    playback.setSpeed(next)
+    showHud('speed-up', { speed: next })
+  }, [playback, speed, showHud])
 
   const decreaseSpeed = useCallback(() => {
-    playback.setSpeed(getNextSpeed(speed, 'down'))
-  }, [playback, speed])
+    const next = getNextSpeed(speed, 'down')
+    playback.setSpeed(next)
+    showHud('speed-down', { speed: next })
+  }, [playback, speed, showHud])
 
   useEffect(() => {
     const unsubscribe = tinykeys(

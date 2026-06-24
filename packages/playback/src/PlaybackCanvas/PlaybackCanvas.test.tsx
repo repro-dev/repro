@@ -82,6 +82,12 @@ describe('PlaybackCanvas fullscreen', () => {
       },
     })
 
+    t.mock.module('./PlaybackHudOverlay', {
+      namedExports: {
+        PlaybackHudOverlay: () => null,
+      },
+    })
+
     t.mock.module('./PointerTrail', {
       namedExports: {
         PointerTrail: () => null,

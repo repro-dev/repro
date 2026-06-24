@@ -8,6 +8,7 @@ import { withPlaybackErrorBoundary } from '../PlaybackErrorBoundary'
 import { FullWidthViewport } from './FullWidthViewport'
 import { InteractionMask } from './InteractionMask'
 import { NativeDOMRenderer } from './NativeDOMRenderer'
+import { PlaybackHudOverlay } from './PlaybackHudOverlay'
 import { PointerOverlay } from './PointerOverlay'
 import { PointerTrail } from './PointerTrail'
 import { ScaleToFitViewport } from './ScaleToFitViewport'
@@ -99,6 +100,7 @@ export const PlaybackCanvas = withPlaybackErrorBoundary(
 
         {trackPointer && <PointerTrail />}
         {trackPointer && <PointerOverlay />}
+        <PlaybackHudOverlay />
         {!interactive && <InteractionMask />}
         {children}
       </React.Fragment>

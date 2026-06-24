@@ -2,32 +2,38 @@ import { Analytics } from '@repro/analytics'
 import React, { useCallback, useEffect } from 'react'
 import { tinykeys } from 'tinykeys'
 import { usePlayback } from '../hooks'
+import { usePlaybackHud } from '../PlaybackCanvas/PlaybackHudContext'
 import { shouldIgnoreKeyboardEvent } from './keyboardIgnore'
 
 export const PlaybackKeyboardShortcuts: React.FC = () => {
   const playback = usePlayback()
+  const { showHud } = usePlaybackHud()
 
   const seekBackward = useCallback(() => {
     const time = Math.max(0, playback.getElapsed() - 5000)
     playback.seekToTime(time)
     Analytics.track('playback:keyboard-seek-backward')
-  }, [playback])
+    showHud('seek-backward')
+  }, [playback, showHud])
 
   const seekForward = useCallback(() => {
     const time = Math.min(playback.getDuration(), playback.getElapsed() + 5000)
     playback.seekToTime(time)
     Analytics.track('playback:keyboard-seek-forward')
-  }, [playback])
+    showHud('seek-forward')
+  }, [playback, showHud])
 
   const seekToStart = useCallback(() => {
     playback.seekToTime(0)
     Analytics.track('playback:keyboard-seek-to-start')
-  }, [playback])
+    showHud('seek-to-start')
+  }, [playback, showHud])
 
   const seekToEnd = useCallback(() => {
     playback.seekToTime(playback.getDuration())
     Analytics.track('playback:keyboard-seek-to-end')
-  }, [playback])
+    showHud('seek-to-end')
+  }, [playback, showHud])
 
   useEffect(() => {
     const unsubscribe = tinykeys(

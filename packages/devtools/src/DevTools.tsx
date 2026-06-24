@@ -2,7 +2,7 @@ import { Block, Grid } from '@jsxstyle/react'
 import { Analytics } from '@repro/analytics'
 import { ReferenceStyleProvider } from '@repro/css-utils'
 import { color } from '@repro/design'
-import { PlaybackCanvas } from '@repro/playback'
+import { PlaybackCanvas, PlaybackHudProvider } from '@repro/playback'
 import React, {
   Fragment,
   useCallback,
@@ -100,42 +100,44 @@ export const DevTools = React.memo<Props>(props => {
 
   return (
     <Container containerRef={containerRef}>
-      <ReferenceStyleProvider>
-        <PlaybackRegion mask={mask}>
-          <PlaybackCanvas
-            interactive={false}
-            trackPointer={true}
-            trackScroll={true}
-            scaling="scale-to-fit"
-            resourceBaseURL={props.resourceBaseURL}
-            onDocumentReady={setCurrentDocument}
-            onLoad={setNodeMap}
-          >
-            <PickerOverlay />
-          </PlaybackCanvas>
-        </PlaybackRegion>
+      <PlaybackHudProvider>
+        <ReferenceStyleProvider>
+          <PlaybackRegion mask={mask}>
+            <PlaybackCanvas
+              interactive={false}
+              trackPointer={true}
+              trackScroll={true}
+              scaling="scale-to-fit"
+              resourceBaseURL={props.resourceBaseURL}
+              onDocumentReady={setCurrentDocument}
+              onLoad={setNodeMap}
+            >
+              <PickerOverlay />
+            </PlaybackCanvas>
+          </PlaybackRegion>
 
-        <InspectorRegion>
-          <Toolbar
-            timeline={props.timeline}
-            fullscreen={isFullscreen}
-            onToggleFullscreen={toggleFullscreen}
-          />
+          <InspectorRegion>
+            <Toolbar
+              timeline={props.timeline}
+              fullscreen={isFullscreen}
+              onToggleFullscreen={toggleFullscreen}
+            />
 
-          {inspecting && (
-            <Fragment>
-              <DragHandle />
-              <ContentRegion>
-                {view === View.Elements && <ElementsPanel />}
-                {view === View.Network && <NetworkPanel />}
-                {view === View.Console && <ConsolePanel />}
-                {view === View.React && <ReactPanel />}
-                {view === View.Redux && <ReduxPanel />}
-              </ContentRegion>
-            </Fragment>
-          )}
-        </InspectorRegion>
-      </ReferenceStyleProvider>
+            {inspecting && (
+              <Fragment>
+                <DragHandle />
+                <ContentRegion>
+                  {view === View.Elements && <ElementsPanel />}
+                  {view === View.Network && <NetworkPanel />}
+                  {view === View.Console && <ConsolePanel />}
+                  {view === View.React && <ReactPanel />}
+                  {view === View.Redux && <ReduxPanel />}
+                </ContentRegion>
+              </Fragment>
+            )}
+          </InspectorRegion>
+        </ReferenceStyleProvider>
+      </PlaybackHudProvider>
     </Container>
   )
 })
