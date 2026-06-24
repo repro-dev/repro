@@ -127,4 +127,6 @@ Use the repo-owned `linear` CLI issue-create flow with all the fields gathered a
 linear issue create --title "..." --project "<project name>" --description "<markdown description>" --label "<one type label>" --priority high
 ```
 
+`--priority` accepts `urgent`, `high`, `medium`, `low`, or `none` — **not** `normal`. The "Normal" tier in the Step 5 table is priority 3 = `medium`.
+
 When creating the issue, add relation flags as needed: `--related <issue-id>`, `--blocks <issue-id>`, `--blocked-by <issue-id>`, or `--duplicate-of <issue-id>`.

@@ -95,12 +95,39 @@ When a tool is installed elsewhere (e.g. in a Dockerfile, CI config, or setup sc
 | ------- | ------------------ | ------------------------------------------------ |
 | `moon`  | `moon = "2.2.5"`   | `infra/Dockerfile` (`@moonrepo/cli@2.2.5`)       |
 | `proto` | `proto = "0.57.2"` | `.moon/toolchains.yml` (`proto.version: 0.57.2`) |
-| `node`  | `node = "22.19.0"` | `infra/Dockerfile` (base image `node:22-slim`)   |
+| `node`  | `node = "24.18.0"` | `infra/Dockerfile` (base image `node:24-slim`)   |
 | `pnpm`  | `pnpm = "10.17.0"` | —                                                |
 
 `.prototools` also pins a **moon_tool plugin override** (`[plugins.tools] moon = "...moon_tool-v0.4.1/moon_tool.wasm"`) required for Moon v2's archive distribution format. The built-in proto plugin doesn't support v2 yet.
 
 When upgrading a tool version, update **all** pinning locations together.
+
+### Node major-version bumps
+
+The Node pin surface is wider than the table above. When bumping Node, update every location and keep
+the exact patch identical in the first four:
+
+| Location | Form |
+| -------- | ---- |
+| `.prototools` | `node = "<exact>"` (single source of truth; CI reads it via `moonrepo/setup-toolchain@v0`) |
+| `package.json` | `engines.node: "<exact>"` |
+| `packages/agentic-ui/moon.yml` | `toolchains.node.version: "<exact>"` (per-package override — easy to miss) |
+| `infra/Dockerfile` | `FROM node:<major>-slim` (major-only tag, by convention) |
+| `docs/man/reproctl-help-json.7.md` | example `expected`/`actual` values (doc accuracy) |
+
+Locations that need **no** edit: CI workflows (Node comes from `.prototools`), `.moon/toolchains.yml`
+(`node: {}` is empty/inherited), `Brewfile` (no Node pin). `package.json` `@types/node` is a types
+dependency, **not** a Node runtime pin — do not bump it as part of a Node version change.
+
+Two gotchas, both cost real time on REP-1459:
+
+- **proto shims are inactive in non-interactive shells** (the agent bash tool). After editing
+  `.prototools`, `node -v` will still report the old global version until you run
+  `eval "$(proto activate bash)"` at the start of the command. Prefix verification commands with it.
+- **Native modules must be rebuilt for the new ABI.** A Node major bump changes `NODE_MODULE_VERSION`,
+  so prebuilt `.node` binaries (e.g. `better-sqlite3`) fail to load. `pnpm rebuild` skips packages in
+  the ignored-build-scripts list, so rebuild them directly: `cd` into the package and run
+  `npx node-gyp rebuild`.
 
 ## Temporary Files (Invariant)
 

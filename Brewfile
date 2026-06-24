@@ -1,5 +1,6 @@
 brew "agent-browser"
 brew "direnv"
+brew "envchain"
 brew "fzf"
 brew "herdr"
 brew "jq"
