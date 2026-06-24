@@ -1,0 +1,13 @@
+# Remote state in Scaleway Object Storage.
+# Copy to staging.hcl and fill in the bucket/key values plus credentials.
+
+bucket                      = "repro-terraform-state"
+key                         = "staging/terraform.tfstate"
+region                      = "fr-par"
+endpoint                    = "https://s3.fr-par.scw.cloud"
+access_key                  = ""
+secret_key                  = ""
+skip_credentials_validation  = true
+skip_metadata_api_check      = true
+skip_region_validation       = true
+force_path_style             = true

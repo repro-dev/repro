@@ -6,6 +6,8 @@
   "scripts": {
     "build": "./scripts/build",
     "dev-serve": "vite",
+    "prepare-env": "bash ./scripts/prepare-env",
+    "serve": "vite preview --host",
     "fmt": "prettier --write src",
     "lint": "prettier --check src",
     "test": "tsx --experimental-test-module-mocks --import=global-jsdom/register --test --test-timeout=30000 --test-force-exit src/**/*.test.ts{,x}",
@@ -46,7 +48,6 @@
     "@types/react-dom": "overridden",
     "@types/repro-shared-types": "workspace:*",
     "@vitejs/plugin-react": "overridden",
-    "global-jsdom": "27.0.0",
     "prettier": "^3.0.0",
     "prettier-plugin-organize-imports": "^3.2.3",
     "tsx": "4.19.3",

@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+project_dir=$(realpath "$(dirname "$0")/..")
+build_dir="$project_dir/dist"
+
+templated=0
+for input in "$build_dir"/*.template.html; do
+  if [ -f "$input" ]; then
+    output="${input%.template.html}.html"
+    vars=$(grep -oE '\$[a-zA-Z0-9_]+' "$input" | sort -u | tr '\n' ',')
+    vars="${vars%,}"
+    envsubst "$vars" < "$input" > "$output"
+    templated=$((templated + 1))
+  fi
+done
+
+if [ "$templated" -eq 0 ]; then
+  echo "prepare-env: no *.template.html files found in $build_dir; nothing to template."
+fi
