@@ -34,8 +34,8 @@ JSON (NDJSON) — one JSON object per line — because log output is unbounded.
             {
               "name": "node",
               "status": "ok",
-              "expected": "22.19.0",
-              "actual": "22.19.0"
+              "expected": "24.18.0",
+              "actual": "24.18.0"
             }
           ]
         }
