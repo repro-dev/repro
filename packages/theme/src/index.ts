@@ -5,6 +5,7 @@ function createResetRules(rootSelector: string = '') {
     '* { box-sizing: border-box; }',
     `html, body ${rootSelector ? `, ${rootSelector}` : ''} {
       all: initial;
+      color-scheme: light;
       margin: 0;
       font-family: ${fontFamily.sans};
       font-size: 10px;

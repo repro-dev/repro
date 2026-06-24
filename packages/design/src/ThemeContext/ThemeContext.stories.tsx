@@ -84,7 +84,7 @@ function ThemeDemo({ title }: { title: string }) {
 export const System: Story = {
   render: () => (
     <Block padding={spacing.xl}>
-      <ThemeProvider>
+      <ThemeProvider colorScheme="light dark">
         <ThemeDemo title="System (follows OS preference)" />
       </ThemeProvider>
     </Block>
@@ -111,22 +111,24 @@ export const Dark: Story = {
   ),
 }
 
+// Per-subtree theming: each ThemeProvider scopes its own `color-scheme` via a
+// `display: contents` wrapper, so light and dark render side by side in one view.
 export const SideBySide: Story = {
   render: () => (
     <Block padding={spacing.xl}>
       <Col gap={spacing.lg}>
         <Block {...textStyles.heading2}>Theme Comparison</Block>
         <Row gap={spacing.lg}>
-          <Block flex={1}>
-            <ThemeProvider colorScheme="light">
+          <ThemeProvider colorScheme="light">
+            <Block flex={1} backgroundColor={color.bg.surface} borderRadius={8}>
               <ThemeDemo title="Light" />
-            </ThemeProvider>
-          </Block>
-          <Block flex={1} backgroundColor={color.bg.surface} borderRadius={8}>
-            <ThemeProvider colorScheme="dark">
+            </Block>
+          </ThemeProvider>
+          <ThemeProvider colorScheme="dark">
+            <Block flex={1} backgroundColor={color.bg.surface} borderRadius={8}>
               <ThemeDemo title="Dark" />
-            </ThemeProvider>
-          </Block>
+            </Block>
+          </ThemeProvider>
         </Row>
       </Col>
     </Block>

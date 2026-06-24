@@ -6,9 +6,14 @@
  * without a JavaScript theme provider. Values that are the same in both
  * modes are kept as plain color strings.
  *
- * The only runtime requirement for `light-dark()` to work is that the
- * `:root` element has a `color-scheme` property set (light, dark, or
- * light dark). The ThemeProvider handles this by injecting a `<style>` tag.
+ * The only runtime requirement for `light-dark()` to work is that an ancestor
+ * element has a `color-scheme` set. Two mechanisms provide it:
+ *   - `@repro/theme`'s reset stylesheet pins the root element to
+ *     `color-scheme: light`. Production surfaces are light-only until the dark
+ *     theme has had a design review (REP-1453).
+ *   - `ThemeProvider` sets `color-scheme` on a `display: contents` wrapper, so a
+ *     subtree can opt into `dark` / `light dark` (Storybook uses this for early
+ *     dark-mode validation).
  *
  * Usage:
  *   import { color } from '@repro/design'
@@ -182,6 +187,6 @@ export const color = {
   neutralBorder: twColors.slate['500'],
   /** slate-300 light / slate-700 dark — subtle border for badges and tinted containers */
   neutralBorderSubtle: `light-dark(${twColors.slate['300']}, ${twColors.slate['700']})`,
-}
+} as const
 
 export type ColorToken = typeof color

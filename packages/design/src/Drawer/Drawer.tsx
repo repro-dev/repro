@@ -138,7 +138,7 @@ const Backdrop: React.FC<PropsWithChildren<BackdropProps>> = ({
 
   return (
     <Block
-      background="rgba(0, 0, 0, 0.75)"
+      background={color.bg.overlay}
       position="fixed"
       top={0}
       left={0}
