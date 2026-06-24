@@ -270,11 +270,17 @@ mkdir -p "$REPO_ROOT" "$TMP_DIR"
 
 source "$WORKTREE_SH"
 
-_linear_cli() { exit 2; }
+_linear_cli() { touch "$tmpdir/linear_cli_called" && exit 2; }
 
 # _resolve_issue_worktree_metadata should die before calling _linear_cli.
 # If die() works, this subshell exits non-zero.
 if ( _resolve_issue_worktree_metadata "bad-format" ) 2>/dev/null; then
+  exit 1
+fi
+
+# Sentinel: verify _linear_cli was NOT called (validation must fire first).
+if [ -f "$tmpdir/linear_cli_called" ]; then
+  printf 'Error: _linear_cli was reached before ID validation\n' >&2
   exit 1
 fi
 RUNNER

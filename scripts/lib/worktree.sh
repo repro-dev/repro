@@ -146,7 +146,7 @@ _resolve_issue_worktree_metadata() {
   _step 1 3 "Fetching issue ${issue_id} from Linear..."
 
   local issue_json
-  issue_json="$(_linear_cli issue show "$issue_id" --json 2>&1)" || die "Failed to fetch issue ${issue_id} from Linear."
+  issue_json="$(_linear_cli issue show "$issue_id" --json)" || die "Failed to fetch issue ${issue_id} from Linear."
 
   local issue_data
   issue_data="$(printf '%s' "$issue_json" | python3 -c '
