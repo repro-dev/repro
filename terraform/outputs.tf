@@ -19,7 +19,7 @@ output "api_container_name" {
 }
 
 output "api_container_domain" {
-  value = scaleway_container.api.domain_name
+  value = scaleway_container.api.public_endpoint
 }
 
 output "api_url" {

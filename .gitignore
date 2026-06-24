@@ -72,3 +72,7 @@ packages/tdl/src/cli/*.ohm-bundle.*
 # AUTOBOT
 /.autobot/
 **/.autobot/
+
+# TERRAFORM
+# Provider cache — never committed. Lock file (.terraform.lock.hcl) IS committed.
+terraform/.terraform/

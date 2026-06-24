@@ -3,7 +3,7 @@ base_domain = "reproqa.dev"
 
 static_origin_target = "static.reproqa.dev."
 
-rdb_node_type        = "DB-DEV-S"
+rdb_node_type = "DB-DEV-S"
 
 # Supply secrets at apply time via TF_VAR_* or a local, uncommitted var file.
 # database_password = "..."

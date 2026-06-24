@@ -27,13 +27,13 @@ resource "scaleway_registry_namespace" "api" {
 }
 
 resource "scaleway_rdb_instance" "api" {
-  name              = local.rdb_instance_name
-  node_type         = var.rdb_node_type
-  engine            = "PostgreSQL-17"
-  is_ha_cluster     = var.rdb_is_ha_cluster
-  disable_backup    = false
-  volume_type       = "bssd"
-  volume_size_in_gb = var.rdb_volume_size_gb
+  name                = local.rdb_instance_name
+  node_type           = var.rdb_node_type
+  engine              = "PostgreSQL-17"
+  is_ha_cluster       = var.rdb_is_ha_cluster
+  disable_backup      = false
+  volume_type         = "bssd"
+  volume_size_in_gb   = var.rdb_volume_size_gb
   user_name           = var.database_user
   password_wo         = var.database_password
   password_wo_version = 1
@@ -64,7 +64,6 @@ resource "scaleway_container" "api" {
   min_scale      = var.api_min_scale
   max_scale      = var.api_max_scale
   privacy        = "private"
-  deploy         = false
 }
 
 resource "scaleway_container_domain" "api" {
@@ -93,6 +92,6 @@ resource "scaleway_domain_record" "api" {
   dns_zone = var.base_domain
   name     = "api"
   type     = "CNAME"
-  data     = "${scaleway_container.api.domain_name}."
+  data     = "${scaleway_container.api.public_endpoint}."
   ttl      = 3600
 }
