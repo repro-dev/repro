@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Resolve the transitive dependency tree for a set of services.
 
-Usage: resolve_deps.py <services-json-path> <service> [<service>...]
+Usage: resolve_deps.py [--worktree-slug <slug>] <services-json-path> <service> [<service>...]
 
 Outputs JSON:
 
@@ -13,22 +13,34 @@ Outputs JSON:
 targets: the originally-requested service names (not Tilt resource names).
 deps: inferred dependency resource names (infra + migrations) that Tilt must
       bring up before the targets can be healthy. These are Tilt resource names
-      (not user-facing service names), and do NOT include worktree suffixes —
-      the caller handles that.
+      (not user-facing service names). When --worktree-slug is given, migration
+      dep names are worktree-prefixed (e.g. "api-server-wt-rep-397-migrations"
+      instead of "api-server-migrations").
 """
 
 import json
 import sys
 from collections import deque
 
+from wt_name import wt_name
+
+
+def _strip_optional_prefix(args):
+    """Parse --worktree-slug <slug> prefix if present, return (slug, remaining)."""
+    if len(args) >= 2 and args[0] == "--worktree-slug":
+        return args[1], args[2:]
+    return None, args
+
 
 def main():
-    if len(sys.argv) < 3:
+    worktree_slug, positional = _strip_optional_prefix(sys.argv[1:])
+
+    if len(positional) < 2:
         print(json.dumps({"targets": [], "deps": []}))
         return
 
-    services_path = sys.argv[1]
-    requested = list(sys.argv[2:])
+    services_path = positional[0]
+    requested = list(positional[1:])
 
     with open(services_path) as f:
         services = json.load(f)
@@ -67,7 +79,12 @@ def main():
                 if mig:
                     for rd in mig.get("resource_deps", []):
                         infra_deps.add(rd)
-                    infra_deps.add(db_backed_by + "-migrations")
+                    if worktree_slug:
+                        infra_deps.add(
+                            wt_name(db_backed_by, worktree_slug) + "-migrations"
+                        )
+                    else:
+                        infra_deps.add(db_backed_by + "-migrations")
             continue
 
         mig = cfg.get("migrations")
