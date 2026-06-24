@@ -78,6 +78,7 @@ const ISSUE_BY_NUMBER_QUERY = [
   "        id",
   "        identifier",
   "        title",
+  "        branchName",
   "        url",
   "        priority",
   "        priorityLabel",
