@@ -37,8 +37,3 @@ output "admin_static_url" {
 output "marketing_static_url" {
   value = "https://${local.marketing_domain}"
 }
-
-output "db_password_secret_id" {
-  value     = scaleway_secret.db_password.id
-  sensitive = true
-}

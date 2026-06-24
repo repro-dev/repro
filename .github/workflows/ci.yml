@@ -230,6 +230,9 @@ jobs:
     needs: [build, containerize]
     runs-on: ubuntu-latest
     if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && contains(fromJSON(needs.build.outputs.app_ids), 'repro/api-server') }}
+    environment:
+      name: api-staging
+      url: https://api.reproqa.dev
     steps:
       - name: Initialize Scaleway CLI
         uses: scaleway/action-scw@v0
@@ -252,9 +255,9 @@ jobs:
     name: Deploy admin (app)
     needs: [build, format-check]
     runs-on: ubuntu-latest
-    if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (github.event_name == 'pull_request' || startsWith(github.ref, 'refs/heads/')) && contains(fromJSON(needs.build.outputs.app_ids), 'repro/admin') }}
+    if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && contains(fromJSON(needs.build.outputs.app_ids), 'repro/admin') }}
     environment:
-      name: ${{ github.ref == 'refs/heads/main' && 'admin-staging' || 'admin-preview' }}
+      name: admin-staging
       url: ${{ steps.deploy.outputs.deployment-url }}
     steps:
       - name: Checkout repository
@@ -271,7 +274,6 @@ jobs:
           repro-workspace-url: https://app.reproqa.dev
           repro-admin-url: https://admin.reproqa.dev
           repro-api-url: https://api.reproqa.dev
-          paddle-client-token: ""
           paddle-environment: production
           auth-storage: local-storage
           access-key: ${{ secrets.SCW_ACCESS_KEY }}
@@ -284,9 +286,9 @@ jobs:
     name: Deploy workspace (app)
     needs: [build, format-check]
     runs-on: ubuntu-latest
-    if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (github.event_name == 'pull_request' || startsWith(github.ref, 'refs/heads/')) && contains(fromJSON(needs.build.outputs.app_ids), 'repro/workspace') }}
+    if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && contains(fromJSON(needs.build.outputs.app_ids), 'repro/workspace') }}
     environment:
-      name: ${{ github.ref == 'refs/heads/main' && 'workspace-staging' || 'workspace-preview' }}
+      name: workspace-staging
       url: ${{ steps.deploy.outputs.deployment-url }}
     steps:
       - name: Checkout repository

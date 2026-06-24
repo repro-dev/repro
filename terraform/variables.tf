@@ -72,6 +72,12 @@ variable "rdb_volume_size_gb" {
   default     = 20
 }
 
+variable "rdb_is_ha_cluster" {
+  type        = bool
+  description = "Enable PostgreSQL HA cluster. Requires a production-tier node type; dev-tier nodes do not support HA."
+  default     = false
+}
+
 variable "database_name" {
   type        = string
   description = "Default database name for api-server."

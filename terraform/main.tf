@@ -26,23 +26,11 @@ resource "scaleway_registry_namespace" "api" {
   region     = var.region
 }
 
-resource "scaleway_secret" "db_password" {
-  name        = "${local.resource_prefix}-db-password"
-  description = "Database password for api-server (${var.environment})"
-  project_id  = var.scw_project_id
-}
-
-resource "scaleway_secret_version" "db_password" {
-  secret_id       = scaleway_secret.db_password.id
-  data_wo         = var.database_password
-  data_wo_version  = 1
-}
-
 resource "scaleway_rdb_instance" "api" {
   name              = local.rdb_instance_name
   node_type         = var.rdb_node_type
   engine            = "PostgreSQL-17"
-  is_ha_cluster     = false
+  is_ha_cluster     = var.rdb_is_ha_cluster
   disable_backup    = false
   volume_type       = "bssd"
   volume_size_in_gb = var.rdb_volume_size_gb

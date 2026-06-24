@@ -37,3 +37,13 @@ Use the outputs from `terraform output` to populate GitHub Actions secrets:
 
 The `api_url`, `workspace_static_url`, `admin_static_url`, and `marketing_static_url` outputs are the canonical deployment URLs for CI and release notes.
 `api_container_domain` is the native Scaleway domain used as the DNS target for `api.${base_domain}`.
+
+## Operational notes
+
+### Container image tag drift
+
+`terraform/main.tf` sets `registry_image` on the api-server container to `.../repro:latest` as a bootstrap placeholder. CI owns the running image tag: the `containerize` job pushes `.../repro:${GITHUB_SHA}` and `deploy-api-server` calls `scw container container update --registry-image <SHA>` on every merge to main. Terraform manages the container *definition* (CPU, memory, scaling, port, domain) while CI is the source of truth for `registry_image`. Re-running `terraform apply` resets the image tag to `latest`; this is expected and harmless because the next deploy overwrites it. The container is created with `deploy = false` so terraform never serves traffic directly.
+
+### Database password
+
+The PostgreSQL password is set directly on `scaleway_rdb_instance.api` via `password_wo`. Scaleway Secret Manager adoption (storing the password in `scaleway_secret` and reading it from the api-server container) is tracked in REP-1461; until then the RDB-managed password is the sole secret store. Terraform validation in CI (`fmt -check` + `validate`) is tracked in REP-1462.
