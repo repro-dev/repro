@@ -23,4 +23,12 @@ REAL_SCRIPT="$(resolve_path "$0")"
 SCRIPT_DIR="$(cd "$(dirname "$REAL_SCRIPT")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 
+# Inject LINEAR_API_KEY from the envchain "linear" namespace when it isn't
+# already present in the environment (CI, direnv, etc.) and envchain is
+# installed. Falls through to a direct exec otherwise, so the CLI's own
+# "Missing Linear API key" guidance still applies on machines without envchain.
+if [[ -z "${LINEAR_API_KEY:-}" ]] && command -v envchain > /dev/null 2>&1; then
+  exec envchain linear "$REPO_ROOT/scripts/linear.sh" "$@"
+fi
+
 exec "$REPO_ROOT/scripts/linear.sh" "$@"
