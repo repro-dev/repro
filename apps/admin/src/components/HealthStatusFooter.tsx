@@ -2,10 +2,9 @@ import { Block, Col, Row } from '@jsxstyle/react'
 import {
   color,
   focusRing,
-  lineHeight,
   radius,
   spacing,
-  textStyles,
+  Text,
   transition,
 } from '@repro/design'
 import React from 'react'
@@ -66,16 +65,12 @@ export const HealthStatusFooter: React.FC = () => {
         />
 
         <Col gap={spacing.xs}>
-          <Block
-            {...textStyles.label}
-            lineHeight={lineHeight.normal}
-            color={color.text.default}
-          >
+          <Text variant="label" color={color.text.default}>
             System health
-          </Block>
-          <Block {...textStyles.bodySmall} color={statusColor}>
+          </Text>
+          <Text variant="bodySmall" color={statusColor}>
             {label}
-          </Block>
+          </Text>
         </Col>
       </Row>
     </Block>

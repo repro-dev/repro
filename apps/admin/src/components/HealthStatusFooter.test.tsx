@@ -20,15 +20,6 @@ mock.module('@repro/design', {
       },
     },
     focusRing: () => ({}),
-    fontSize: {
-      xs: 11,
-    },
-    lineHeight: {
-      relaxed: 1.5,
-    },
-    fontWeight: {
-      semibold: 600,
-    },
     radius: {
       full: 9999,
     },
@@ -38,18 +29,15 @@ mock.module('@repro/design', {
       sm: 8,
       xs: 4,
     },
-    textStyles: {
-      bodySmall: {
-        fontSize: 13,
-        fontWeight: 400,
-        lineHeight: 1.5,
-      },
-      label: {
-        fontSize: 13,
-        fontWeight: 600,
-        lineHeight: 1.5,
-      },
-    },
+    Text: ({
+      color: colorProp,
+      children,
+    }: {
+      variant?: string
+      color?: string
+      children?: React.ReactNode
+    }) =>
+      React.createElement('span', { style: { color: colorProp } }, children),
     transition: {
       fast: 'background-color 120ms ease',
     },

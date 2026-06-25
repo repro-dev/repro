@@ -8,7 +8,7 @@ import {
   FullPageLoading,
   PageFrame,
   spacing,
-  textStyles,
+  Text,
 } from '@repro/design'
 import type { SubsystemCheck } from '@repro/domain'
 import React from 'react'
@@ -43,21 +43,21 @@ const SubsystemCard = ({ name, check }: SubsystemCardProps) => (
         backgroundColor={STATUS_COLOR_MAP[check.status]}
       />
       <Col flex={1} gap={spacing.sm}>
-        <Block {...textStyles.label} color={color.text.default}>
+        <Text variant="label" color={color.text.default}>
           {name}
-        </Block>
-        <Block {...textStyles.bodySmall} color={color.text.secondary}>
+        </Text>
+        <Text variant="bodySmall" color={color.text.secondary}>
           Status: {getSubsystemStatusLabel(check.status)}
-        </Block>
+        </Text>
         {check.latencyMs != null && (
-          <Block {...textStyles.bodySmall} color={color.text.secondary}>
+          <Text variant="bodySmall" color={color.text.secondary}>
             {check.latencyMs}ms
-          </Block>
+          </Text>
         )}
         {check.error && (
-          <Block {...textStyles.bodySmall} color={color.danger}>
+          <Text variant="bodySmall" color={color.danger}>
             {check.error}
-          </Block>
+          </Text>
         )}
       </Col>
     </Row>
@@ -129,9 +129,9 @@ export const HealthRoute: React.FC = () => {
         </Grid>
 
         <Row alignItems="center" gap={spacing.md}>
-          <Block {...textStyles.bodySmall} color={color.text.secondary}>
+          <Text variant="bodySmall" color={color.text.secondary}>
             Last checked: {new Date(timestamp).toLocaleString()}
-          </Block>
+          </Text>
           <Button variant="outlined" size="small" onClick={refresh}>
             Refresh
           </Button>
