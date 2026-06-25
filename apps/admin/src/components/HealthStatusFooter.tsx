@@ -65,7 +65,8 @@ export const HealthStatusFooter: React.FC = () => {
         />
 
         <Col gap={spacing.xs}>
-          <Text variant="label" color={color.text.default}>
+          {/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing -- Text component string token prop, not a jsxstyle prop */}
+          <Text variant="label" lineHeight="normal" color={color.text.default}>
             System health
           </Text>
           <Text variant="bodySmall" color={statusColor}>
