@@ -1,6 +1,6 @@
 import { Block } from '@jsxstyle/react'
 import { formatDate, formatTime } from '@repro/date-utils'
-import { Badge, Table, color, textStyles } from '@repro/design'
+import { Badge, Table, Tooltip, color, textStyles } from '@repro/design'
 import type { RecordingInfo } from '@repro/domain'
 import { RecordingMode } from '@repro/domain'
 import React from 'react'
@@ -32,7 +32,15 @@ export const SessionTable: React.FC<Props> = ({
         <Table.Row>
           <Table.HeaderCell>Name</Table.HeaderCell>
           <Table.HeaderCell>URL</Table.HeaderCell>
-          <Table.HeaderCell>Mode</Table.HeaderCell>
+          <Table.HeaderCell>
+            <Block component="span" display="inline-flex">
+              Mode
+              <Tooltip>
+                Recording mode: Snapshot captures page state, Live records
+                interactions, Replay replays sessions.
+              </Tooltip>
+            </Block>
+          </Table.HeaderCell>
           <Table.HeaderCell columnId="duration" sortable>
             Duration
           </Table.HeaderCell>

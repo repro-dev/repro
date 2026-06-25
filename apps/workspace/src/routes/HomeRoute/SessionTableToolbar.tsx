@@ -1,7 +1,15 @@
 import { Block, Row } from '@jsxstyle/react'
-import { Checkbox, Input, color, spacing, textStyles } from '@repro/design'
+import {
+  Checkbox,
+  Input,
+  Tooltip,
+  color,
+  spacing,
+  textStyles,
+} from '@repro/design'
 import React from 'react'
 import {
+  MODE_DESCRIPTIONS,
   SESSION_LIST_MODE_OPTIONS,
   type SessionListFilters,
 } from './sessionListControls'
@@ -49,13 +57,15 @@ export const SessionTableToolbar: React.FC<Props> = ({
          * requirement; replace with MultiSelect when it becomes available.
          */}
         {SESSION_LIST_MODE_OPTIONS.map(option => (
-          <Checkbox
-            key={option.value}
-            label={option.label}
-            checked={selectedModes.includes(option.value)}
-            onChange={() => onToggleMode(option.value)}
-            size="small"
-          />
+          <Block key={option.value} component="span" display="inline-flex">
+            <Checkbox
+              label={option.label}
+              checked={selectedModes.includes(option.value)}
+              onChange={() => onToggleMode(option.value)}
+              size="small"
+            />
+            <Tooltip>{MODE_DESCRIPTIONS[option.value]}</Tooltip>
+          </Block>
         ))}
 
         {hiddenCount > 0 && (
