@@ -1,11 +1,11 @@
 ---
 name: discover
-description: Read-only Linear backlog scanning, readiness classification, file-independence sequencing, and artifact writing. Load when /discover is invoked or when preparing a standalone backlog triage.
+description: Read-only Linear backlog scanning, readiness classification, priority ranking, and artifact writing. Load when /discover is invoked or when preparing a standalone backlog triage.
 ---
 
 # Discovery Workflow
 
-Read-only workflow for scanning a Linear project's Todo and Backlog, classifying candidates by readiness, sequencing them into waves by file independence, and writing output artifacts to `tmp/discover-runs/<run-id>/`.
+Read-only workflow for scanning a Linear project's Todo and Backlog, classifying candidates by readiness, ranking the best candidates for delivery, and writing output artifacts to `tmp/discover-runs/<run-id>/`.
 
 **Hard constraint**: This workflow is **read-only across the entire system**. It never:
 
@@ -72,7 +72,7 @@ Evaluate each issue against this ordered rubric and classify into one of these b
 | **needs-spec**               | Has the `needs-spec` label                                                                                                   | Skip — record as pre-filtered with reason |
 | **no-concrete-AC**           | Description lacks concrete implementation steps (checklist items, explicit file paths, specific outcomes)                    | Skip — record as pre-filtered with reason |
 | **has-unresolved-decisions** | Description contains unresolved language: `TBD`, `pending design`, `pending decision`, `TODO`, `undetermined`, or equivalent | Skip — record as pre-filtered with reason |
-| **ready**                    | Passes all checks above                                                                                                      | Candidate for sequencing                  |
+| **ready**                    | Passes all checks above                                                                                                      | Candidate for ranking                     |
 
 ### 1e. Apply optional `--query` filter
 
@@ -80,91 +80,19 @@ If `search_query` is set, filter ready candidates to those whose `title` or `des
 
 ---
 
-## Phase 2 — Determine file independence
+## Phase 2 — Rank candidates
 
-For each ready candidate:
+Sort ready candidates by priority descending (Urgent → High → Medium → Low), then by issue identifier as a tiebreaker.
 
-### 2a. Parse issue body for file/package references
+Priority value mapping: treat `1` = Urgent, `2` = High, `3` = Medium, `4` = Low. If no priority is assigned, treat as Low.
 
-Examine the issue title and description for:
-
-- Explicit file paths (e.g. `src/components/`, `packages/foo/`)
-- Package references (e.g. `@repro/design`, `apps/api-server`)
-- Component or function names that can be mapped to code locations
-
-### 2b. Gather codebase context
-
-Use jcodemunch tools to find related code. Resolve the repo path dynamically from the current working directory (discovery always runs in the current directory):
-
-```
-jcodemunch_resolve_repo path=$(pwd)
-jcodemunch_search_symbols repo=<repo-identifier> query="<keywords from issue>" detail_level=compact
-```
-
-For any likely files found, also check:
-
-```
-jcodemunch_get_file_outline repo=<repo-identifier> file_path="<candidate-file>"
-```
-
-**Fallback**: If jcodemunch tools are unavailable or the repo isn't indexed, fall back to file-based search using `glob` and `grep` with keywords from the issue body (e.g., component names, file patterns, package paths).
-
-### 2c. Build estimated file set
-
-Assemble a set of estimated affected file paths per issue. If no files can be estimated from the issue body or symbol search, assign a sentinel path derived from the project name so issues from different projects don't all collide in a single wave:
-
-```
-discover/sentinel/<project-name>/<issue-identifier>
-```
-
-This keeps issues from the same project-without-locations together without causing artificial cross-project collisions.
+Build the deferred list: collect all skipped issues with their skip reason and the rubric bucket they fell into.
 
 ---
 
-## Phase 3 — Sequence into waves
+## Phase 3 — Write output artifacts
 
-Greedy wave-assignment algorithm:
-
-### 3a. Sort candidates
-
-Sort ready candidates by priority (Urgent → High → Medium → Low), then by issue identifier as a tiebreaker.
-
-Priority value mapping: look for a `priority` field. If the Linear CLI returns `priority` as a number, treat `1` = Urgent, `2` = High, `3` = Medium, `4` = Low. If no priority is assigned, treat as Low.
-
-### 3b. Assign waves
-
-```
-waves = []           # list of waves, each wave = list of issues
-current_wave = []    # issues in the current wave
-current_files = {}   # set of all files claimed by issues in current wave
-
-for issue in sorted_candidates:
-    issue_files = estimated_file_set[issue.id]
-
-    if current_files ∩ issue_files is empty:
-        # No overlap — add to current wave
-        current_wave.append(issue)
-        current_files = current_files ∪ issue_files
-    else:
-        # Overlap — close current wave, start new one
-        waves.append(current_wave)
-        current_wave = [issue]
-        current_files = issue_files
-
-# Don't forget the last wave
-if current_wave:
-    waves.append(current_wave)
-```
-
-### 3c. Build deferred list
-
-Collect all skipped issues with their skip reason and the rubric bucket they fell into.
-
----
-
-## Phase 4 — Write output artifacts
-
-### 4a. Write `candidates.md`
+### 3a. Write `candidates.md`
 
 Write `tmp/discover-runs/<run-id>/candidates.md` with the following structure:
 
@@ -176,10 +104,10 @@ Generated: <timestamp>
 
 ## Ready Candidates
 
-| Priority | Issue | Title | Estimated Files |
-| -------- | ----- | ----- | --------------- |
-| High     | REP-1 | ...   | src/foo.ts ...  |
-| Medium   | REP-2 | ...   | src/bar.ts ...  |
+| # | Priority | Issue | Title |
+|---| -------- | ----- | ----- |
+| 1 | High     | REP-1 | ...   |
+| 2 | Medium   | REP-2 | ...   |
 
 ## Pre-filtered Issues
 
@@ -198,7 +126,7 @@ Generated: <timestamp>
 - **Pre-filtered**: N (needs-spec: N, no-concrete-AC: N, unresolved-decisions: N, blocked: N, in-flight: N)
 ```
 
-### 4b. Write `sequence.md`
+### 3b. Write `sequence.md`
 
 Write `tmp/discover-runs/<run-id>/sequence.md`:
 
@@ -208,21 +136,13 @@ Write `tmp/discover-runs/<run-id>/sequence.md`:
 Run ID: <run-id>
 Generated: <timestamp>
 
-> **Caveat**: File independence is estimated from issue bodies and symbol search.
-> Actual file overlap may differ during implementation. Re-verify before building.
+Ready candidates ranked by priority — start at the top.
 
-## Wave 1
-
-| Priority | Issue | Title | Estimated Files |
-| -------- | ----- | ----- | --------------- |
-| High     | REP-1 | ...   | src/foo.ts      |
-| Medium   | REP-3 | ...   | src/baz.ts      |
-
-## Wave 2
-
-| Priority | Issue | Title | Estimated Files |
-| -------- | ----- | ----- | --------------- |
-| Medium   | REP-2 | ...   | src/bar.ts      |
+| # | Priority | Issue | Title |
+|---| -------- | ----- | ----- |
+| 1 | High     | REP-1 | ...   |
+| 2 | High     | REP-5 | ...   |
+| 3 | Medium   | REP-3 | ...   |
 
 ## Deferred
 
@@ -233,12 +153,11 @@ Generated: <timestamp>
 
 ## Next Actions
 
-1. Start with **Wave 1** — issues are file-independent and can be built in parallel
-2. After Wave 1 completes, re-evaluate Wave 2 for any dependency changes
-3. Review **Deferred** issues and resolve blockers or add specification before the next discovery
+1. Deliver the top candidates with `/build REP-xxx`
+2. Review **Deferred** issues and resolve blockers or add specification before the next discovery
 ```
 
-### 4c. Artifact path reminder
+### 3c. Artifact path reminder
 
 All output goes under `tmp/discover-runs/<run-id>/`. Verify the directory exists and both files were written.
 
@@ -253,7 +172,7 @@ After writing artifacts, print a summary like this and **stop**:
 
 ### Summary
 
-- Ready: N candidates across M waves
+- Ready: N candidates
 - Deferred: N issues (blocked/N, needs-spec/N, no-concrete-AC/N, unresolved-decisions/N)
 
 ### Output
@@ -264,7 +183,7 @@ After writing artifacts, print a summary like this and **stop**:
 ### Next actions
 
 1. Review candidates.md for any adjustments before delivery
-2. Use `wave 1` issues with `/build` for parallel delivery
+2. Deliver top candidates with `/build REP-xxx`
 3. Resolve deferred issues or re-discover after changes
 
 This was a read-only operation. No Linear issues, worktrees, branches, or PRs were created or modified.
@@ -283,7 +202,6 @@ This was a read-only operation. No Linear issues, worktrees, branches, or PRs we
 
 ## Risk awareness
 
-1. **File independence is heuristic**: issues don't declare affected files in advance. The `sequence.md` artifact carries a caveat noting this limitation.
-2. **Linear API pagination**: projects with >250 issues require pagination handling. Respect `pageInfo.hasNextPage` and `pageInfo.endCursor`.
-3. **Linear API rate limiting**: scanning many issues may hit rate limits. If a `linear` command returns a rate-limit error, wait 30 seconds and retry up to 3 times.
-4. **No mutations**: verify after each phase that no write commands (`linear issue update`, `linear issue comment`, `linear issue create`, etc.) have been invoked. This workflow is read-only.
+1. **Linear API pagination**: projects with >250 issues require pagination handling. Respect `pageInfo.hasNextPage` and `pageInfo.endCursor`.
+2. **Linear API rate limiting**: scanning many issues may hit rate limits. If a `linear` command returns a rate-limit error, wait 30 seconds and retry up to 3 times.
+3. **No mutations**: verify after each phase that no write commands (`linear issue update`, `linear issue comment`, `linear issue create`, etc.) have been invoked. This workflow is read-only.
