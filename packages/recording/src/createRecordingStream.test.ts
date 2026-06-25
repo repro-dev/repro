@@ -101,6 +101,75 @@ it('preserves buffered event ordering and timestamps through slice()', () => {
   assert.equal(second.time, 40)
 })
 
+it('captures computed colorScheme on trailing snapshot when set to dark', () => {
+  const origGetComputedStyle = globalThis.getComputedStyle
+  globalThis.getComputedStyle = (el: Element) => {
+    if (el === document.documentElement) {
+      return { colorScheme: 'dark' } as CSSStyleDeclaration
+    }
+    return origGetComputedStyle(el)
+  }
+
+  try {
+    const stream = createRecordingStream(document, {
+      types: new Set() as any,
+      ignoredNodes: [],
+      ignoredSelectors: [],
+    })
+
+    stream.start()
+    const snapshot = stream.snapshot()
+    assert.equal(snapshot.colorScheme, 'dark')
+    stream.stop()
+  } finally {
+    globalThis.getComputedStyle = origGetComputedStyle
+  }
+})
+
+it('does not store colorScheme when computed value is normal', () => {
+  const origGetComputedStyle = globalThis.getComputedStyle
+  globalThis.getComputedStyle = (_el: Element) => {
+    return { colorScheme: 'normal' } as CSSStyleDeclaration
+  }
+
+  try {
+    const stream = createRecordingStream(document, {
+      types: new Set() as any,
+      ignoredNodes: [],
+      ignoredSelectors: [],
+    })
+
+    stream.start()
+    const snapshot = stream.snapshot()
+    assert.equal(snapshot.colorScheme, null)
+    stream.stop()
+  } finally {
+    globalThis.getComputedStyle = origGetComputedStyle
+  }
+})
+
+it('does not store colorScheme when computed value is empty string', () => {
+  const origGetComputedStyle = globalThis.getComputedStyle
+  globalThis.getComputedStyle = (_el: Element) => {
+    return { colorScheme: '' } as CSSStyleDeclaration
+  }
+
+  try {
+    const stream = createRecordingStream(document, {
+      types: new Set() as any,
+      ignoredNodes: [],
+      ignoredSelectors: [],
+    })
+
+    stream.start()
+    const snapshot = stream.snapshot()
+    assert.equal(snapshot.colorScheme, null)
+    stream.stop()
+  } finally {
+    globalThis.getComputedStyle = origGetComputedStyle
+  }
+})
+
 it('keeps live buffered events flowing after start in event order', () => {
   const stream = createRecordingStream(document, {
     types: new Set() as any,

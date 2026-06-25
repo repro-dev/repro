@@ -686,7 +686,8 @@ export function resolveURLToResource(
 export function patchDocumentElement(
   vtree: VTree,
   nodeMap: MutableNodeMap,
-  documentElement: HTMLElement
+  documentElement: HTMLElement,
+  colorScheme?: string
 ) {
   const queue = [vtree.rootId]
 
@@ -713,6 +714,10 @@ export function patchDocumentElement(
           }
         }
       })
+
+      if (colorScheme) {
+        documentElement.style.colorScheme = colorScheme
+      }
 
       break
     }

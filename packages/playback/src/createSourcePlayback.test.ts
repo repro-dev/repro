@@ -80,6 +80,7 @@ describe('createSourcePlayback', () => {
             interaction: null,
             frameworkState: null,
             cssRules: null,
+            colorScheme: null,
           },
         })
       ),
@@ -159,5 +160,33 @@ describe('createSourcePlayback', () => {
 
     expect(playback.getElapsed()).toBe(500)
     expect(playback.getActiveIndex()).toBe(2)
+  })
+
+  it('should round-trip colorScheme through getSnapshot()', () => {
+    const vtree = html2VTree('<div>test</div>')
+    assert(vtree, 'vtree should not be null')
+
+    const events = new List(SourceEventView, [])
+    events.append(
+      SourceEventView.from(
+        new Box({
+          type: SourceEventType.Snapshot,
+          time: 0,
+          data: {
+            dom: vtree,
+            interaction: null,
+            frameworkState: null,
+            cssRules: null,
+            colorScheme: 'dark',
+          },
+        })
+      )
+    )
+
+    const playback = createSourcePlayback(events, 1000, {})
+    playback.open()
+    playback.seekToTime(0)
+
+    expect(playback.getSnapshot().colorScheme).toBe('dark')
   })
 })
