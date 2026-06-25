@@ -895,26 +895,42 @@ import { radius } from '@repro/design'
 
 ### Easings
 
-| Token     | Value       | Use case                |
-| --------- | ----------- | ----------------------- |
-| `default` | ease-in-out | Most UI transitions     |
-| `linear`  | linear      | Progress bars, marquees |
-| `easeOut` | ease-out    | Toasts, dropdowns       |
+| Token          | Value                           | Use case                               |
+| -------------- | ------------------------------- | -------------------------------------- |
+| `default`      | ease-in-out                     | Symmetric enter/exit                   |
+| `linear`       | linear                          | Progress bars, marquees                |
+| `easeOut`      | ease-out                        | Toasts, dropdowns, default transitions |
+| `easeOutQuart` | `cubic-bezier(0.25, 1, 0.5, 1)` | Rich deceleration (modal enter)        |
+| `easeOutExpo`  | `cubic-bezier(0.16, 1, 0.3, 1)` | Sharp deceleration (snappy transforms) |
 
 ### Transition presets
 
-Ready-to-use CSS transition strings:
+Ready-to-use CSS transition strings. All presets default to `easeOut` for consistent decelerating UX:
 
 ```tsx
 <Block transition={transition.default} />
 ```
 
-| Token       | Value                         |
-| ----------- | ----------------------------- |
-| `default`   | `all 200ms ease-in-out`       |
-| `fast`      | `all 100ms ease-in-out`       |
-| `transform` | `transform 100ms ease-in-out` |
-| `opacity`   | `opacity 200ms ease-in-out`   |
+| Token           | Value                                           |
+| --------------- | ----------------------------------------------- |
+| `default`       | `all 200ms ease-out`                            |
+| `fast`          | `all 100ms ease-out`                            |
+| `transform`     | `transform 100ms ease-out`                      |
+| `opacity`       | `opacity 200ms ease-out`                        |
+| `defaultQuart`  | `all 200ms cubic-bezier(0.25, 1, 0.5, 1)`       |
+| `transformExpo` | `transform 200ms cubic-bezier(0.16, 1, 0.3, 1)` |
+
+### Reduced Motion
+
+Use the `useReducedMotion()` hook to respect the user's `prefers-reduced-motion: reduce` OS setting:
+
+```tsx
+import { useReducedMotion } from '@repro/design'
+
+const isReducedMotion = useReducedMotion()
+```
+
+All animated components (`Skeleton`, `Button`, `FX.Pulse`, `FX.Spin`, `Drawer`, `Modal`, `Collapsible`) respect this preference automatically.
 
 **Types:** `DurationToken`, `EasingToken`, `TransitionToken`, `DelayToken`
 

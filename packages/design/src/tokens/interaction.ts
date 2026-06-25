@@ -123,8 +123,12 @@ export function focusWithinRing(context: FocusRingContext = 'default') {
  * explicitly so that multiple interaction utilities can be composed without
  * overwriting each other.
  *
+ * @param enabled - When false, returns an empty object (no active press style).
+ *                   Use to disable the press effect when reduced motion is active.
+ *
  * @example
  * <Block component="button" transition={transition.fast} {...activePress()} />
+ * <Block component="button" transition={transition.fast} {...activePress(!isReducedMotion)} />
  */
 export function activePress() {
   return {

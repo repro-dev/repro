@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { useReducedMotion } from '../hooks/useReducedMotion'
 import { duration, easing } from '../tokens/motion'
 
 const KEYFRAMES = `
@@ -11,13 +12,6 @@ const KEYFRAMES = `
   to { max-height: 0; opacity: 0; }
 }
 `
-
-function prefersReducedMotion(): boolean {
-  return typeof window !== 'undefined' &&
-    typeof window.matchMedia === 'function'
-    ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    : false
-}
 
 export function injectDisclosureKeyframes(): void {
   if (
@@ -40,6 +34,7 @@ export function useDisclosureAnimation(open: boolean): {
   const contentRef = useRef<HTMLDivElement>(null)
   const [height, setHeight] = useState(0)
   const [hasMounted, setHasMounted] = useState(false)
+  const isReducedMotion = useReducedMotion()
 
   useEffect(() => {
     injectDisclosureKeyframes()
@@ -55,7 +50,7 @@ export function useDisclosureAnimation(open: boolean): {
     contentStyle: useMemo(() => {
       const contentHeight = `${height}px`
       const animation =
-        hasMounted && !prefersReducedMotion()
+        hasMounted && !isReducedMotion
           ? `repro-disclosure-${open ? 'expand' : 'collapse'} ${
               duration[200]
             } ${easing.easeOut} forwards`
@@ -67,6 +62,6 @@ export function useDisclosureAnimation(open: boolean): {
         opacity: open ? 1 : 0,
         animation,
       } as React.CSSProperties
-    }, [hasMounted, height, open]),
+    }, [hasMounted, height, open, isReducedMotion]),
   }
 }

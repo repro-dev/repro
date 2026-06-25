@@ -1,5 +1,6 @@
 import { Block } from '@jsxstyle/react'
 import React, { forwardRef } from 'react'
+import { useReducedMotion } from '../hooks/useReducedMotion'
 import { color } from '../tokens/colors'
 import { radius } from '../tokens/elevation'
 import { duration } from '../tokens/motion'
@@ -53,6 +54,20 @@ export const Skeleton = forwardRef<HTMLDivElement, SkeletonProps>(
     const styles = variantStyles[variant]
     const resolvedWidth = width ?? styles.defaultWidth
     const resolvedHeight = height ?? styles.defaultHeight
+    const isReducedMotion = useReducedMotion()
+
+    const shimmerProps = isReducedMotion
+      ? {
+          background: color.border.default,
+        }
+      : {
+          background: shimmerGradient,
+          backgroundSize: `${SHIMMER_WIDTH}px 100%`,
+          animation: shimmerAnimation,
+          animationDuration: duration[1800],
+          animationIterationCount: 'infinite' as const,
+          animationTimingFunction: 'linear',
+        }
 
     if (variant === 'text' && lines > 1) {
       return (
@@ -72,13 +87,8 @@ export const Skeleton = forwardRef<HTMLDivElement, SkeletonProps>(
               key={i}
               width={i === lines - 1 ? '80%' : resolvedWidth}
               height={resolvedHeight}
-              background={shimmerGradient}
-              backgroundSize={`${SHIMMER_WIDTH}px 100%`}
               borderRadius={styles.borderRadius}
-              animation={shimmerAnimation}
-              animationDuration={duration[1800]}
-              animationIterationCount="infinite"
-              animationTimingFunction="linear"
+              {...shimmerProps}
             />
           ))}
         </Block>
@@ -89,13 +99,8 @@ export const Skeleton = forwardRef<HTMLDivElement, SkeletonProps>(
       <Block
         width={resolvedWidth}
         height={resolvedHeight}
-        background={shimmerGradient}
-        backgroundSize={`${SHIMMER_WIDTH}px 100%`}
         borderRadius={styles.borderRadius}
-        animation={shimmerAnimation}
-        animationDuration={duration[1800]}
-        animationIterationCount="infinite"
-        animationTimingFunction="linear"
+        {...shimmerProps}
         props={{
           ref,
           role: 'status',

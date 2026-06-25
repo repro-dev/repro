@@ -2,6 +2,7 @@ import { Block, Row } from '@jsxstyle/react'
 import { useFocusTrap } from '@repro/a11y'
 import { X as CloseIcon } from 'lucide-react'
 import React, { PropsWithChildren, useCallback, useEffect } from 'react'
+import { useReducedMotion } from '../hooks/useReducedMotion'
 import { Portal } from '../Portal'
 import { color } from '../tokens/colors'
 import { radius } from '../tokens/elevation'
@@ -40,6 +41,7 @@ export const Drawer: React.FC<PropsWithChildren<Props>> = ({
   labelId,
 }) => {
   const containerRef = useFocusTrap<HTMLDivElement>(open)
+  const isReducedMotion = useReducedMotion()
 
   const handleEscape = useCallback(
     (evt: KeyboardEvent) => {
@@ -58,7 +60,7 @@ export const Drawer: React.FC<PropsWithChildren<Props>> = ({
 
   return (
     <Portal>
-      <Backdrop active={open} onClose={onClose}>
+      <Backdrop active={open} onClose={onClose} reducedMotion={isReducedMotion}>
         <Block
           position="absolute"
           top={0}
@@ -69,9 +71,13 @@ export const Drawer: React.FC<PropsWithChildren<Props>> = ({
           padding={spacing['3xl']}
           overflow="hidden"
           backgroundColor={color.bg.surface}
-          transform={open ? 'translateX(0)' : 'translateX(100%)'}
+          transform={
+            open || isReducedMotion ? 'translateX(0)' : 'translateX(100%)'
+          }
           transition={
-            open
+            isReducedMotion
+              ? 'none'
+              : open
               ? `transform ${duration[100]} ${easing.default} ${duration[300]}`
               : `transform ${duration[100]} ${easing.default}`
           }
@@ -120,12 +126,14 @@ export const Drawer: React.FC<PropsWithChildren<Props>> = ({
 interface BackdropProps {
   active: boolean
   onClose(): void
+  reducedMotion: boolean
 }
 
 const Backdrop: React.FC<PropsWithChildren<BackdropProps>> = ({
   children,
   active,
   onClose,
+  reducedMotion,
 }) => {
   const handleBackdropClick = useCallback(
     (evt: React.MouseEvent<HTMLDivElement>) => {
@@ -144,10 +152,12 @@ const Backdrop: React.FC<PropsWithChildren<BackdropProps>> = ({
       left={0}
       bottom={0}
       right={0}
-      opacity={active ? 1 : 0}
+      opacity={active || reducedMotion ? 1 : 0}
       pointerEvents={active ? 'all' : 'none'}
       transition={
-        active
+        reducedMotion
+          ? 'none'
+          : active
           ? `opacity ${duration[300]} ${easing.default}`
           : `opacity ${duration[300]} ${easing.default} ${duration[100]}`
       }

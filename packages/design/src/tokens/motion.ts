@@ -52,6 +52,10 @@ export const easing = {
   linear: 'linear',
   /** ease-out — decelerating exit (toasts, dropdowns) */
   easeOut: 'ease-out',
+  /** ease-out-quart — decelerating exponential curve */
+  easeOutQuart: 'cubic-bezier(0.25, 1, 0.5, 1)',
+  /** ease-out-expo — sharper decelerating exponential curve */
+  easeOutExpo: 'cubic-bezier(0.16, 1, 0.3, 1)',
 } as const
 
 export type EasingToken = keyof typeof easing
@@ -88,14 +92,18 @@ export type DelayValue = (typeof delay)[DelayToken]
  * Apply directly to jsxstyle's `transition` prop.
  */
 export const transition = {
-  /** All properties, 200ms duration, default easing */
-  default: `all ${duration[200]} ${easing.default}`,
-  /** All properties, 100ms duration, default easing */
-  fast: `all ${duration[100]} ${easing.default}`,
-  /** Transform only, 100ms duration, default easing */
-  transform: `transform ${duration[100]} ${easing.default}`,
-  /** Opacity only, 200ms duration, default easing */
-  opacity: `opacity ${duration[200]} ${easing.default}`,
+  /** All properties, 200ms duration, ease-out */
+  default: `all ${duration[200]} ${easing.easeOut}`,
+  /** All properties, 100ms duration, ease-out */
+  fast: `all ${duration[100]} ${easing.easeOut}`,
+  /** Transform only, 100ms duration, ease-out */
+  transform: `transform ${duration[100]} ${easing.easeOut}`,
+  /** Opacity only, 200ms duration, ease-out */
+  opacity: `opacity ${duration[200]} ${easing.easeOut}`,
+  /** All properties, 200ms, ease-out-quart */
+  defaultQuart: `all ${duration[200]} ${easing.easeOutQuart}`,
+  /** Transform only, 200ms, ease-out-expo */
+  transformExpo: `transform ${duration[200]} ${easing.easeOutExpo}`,
 } as const
 
 export type TransitionToken = keyof typeof transition
