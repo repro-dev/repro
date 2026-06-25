@@ -7,7 +7,7 @@ tags:
   - role.ui
 toolchains:
   node:
-    version: "24.18.0"
+    version: "26.4.0"
 tasks:
   test:
     command: tsx --experimental-test-module-mocks --import=global-jsdom/register --test src/**/*.test.ts src/**/*.test.tsx

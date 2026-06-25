@@ -270,8 +270,8 @@ importers:
         specifier: ^3.7.0
         version: 3.7.0
       better-sqlite3:
-        specifier: ^11.7.2
-        version: 11.7.2
+        specifier: ^12.11.1
+        version: 12.11.1
       compression:
         specifier: ^1.7.4
         version: 1.7.4
@@ -1654,8 +1654,8 @@ importers:
         specifier: workspace:*
         version: link:../autobot-core
       better-sqlite3:
-        specifier: ^11.7.2
-        version: 11.7.2
+        specifier: ^12.11.1
+        version: 12.11.1
       fluture:
         specifier: ^14.0.0
         version: 14.0.0
@@ -6489,8 +6489,9 @@ packages:
     engines: {node: '>=10.0.0'}
     deprecated: Security vulnerability fixed in 5.2.1, please upgrade
 
-  better-sqlite3@11.7.2:
-    resolution: {integrity: sha512-10a57cHVDmfNQS4jrZ9AH2t+2ekzYh5Rhbcnb4ytpmYweoLdogDmyTt5D+hLiY9b44Mx9foowb/4iXBTO2yP3Q==}
+  better-sqlite3@12.11.1:
+    resolution: {integrity: sha512-dq9AtApgg5PGFtBzPFSBl3HZQjHok5gaQCM6zh2Yk0aSmDCs1CbnVI8/HgASQkNKsWFpseIO9beg5xxpYhbIfA==}
+    engines: {node: 20.x || 22.x || 23.x || 24.x || 25.x || 26.x}
 
   bidi-js@1.0.3:
     resolution: {integrity: sha512-RKshQI1R3YQ+n9YJz2QQ147P66ELpa1FQEg20Dk8oW9t2KgLbpDLLp9aGZ7y8WHSshDknG0bknqGw5/tyCs5tw==}
@@ -7118,10 +7119,6 @@ packages:
 
   detect-browser@5.3.0:
     resolution: {integrity: sha512-53rsFbGdwMwlF7qvCt0ypLM5V5/Mbl0szB7GPN8y9NCcbknYOeVVXdrXEq+90IwAfrrzt6Hd+u2E2ntakICU8w==}
-
-  detect-libc@2.0.3:
-    resolution: {integrity: sha512-bwy0MGW55bG41VqxxypOsdSdGqLwXPI/focwgTYCFMbdUiBAxLg9CFzG08sz2aqzknwiX7Hkl0bQENjg8iLByw==}
-    engines: {node: '>=8'}
 
   detect-libc@2.1.2:
     resolution: {integrity: sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ==}
@@ -10888,7 +10885,7 @@ snapshots:
     dependencies:
       '@asamuzakjp/nwsapi': 2.3.9
       bidi-js: 1.0.3
-      css-tree: 3.1.0
+      css-tree: 3.2.1
       is-potential-custom-element-name: 1.0.1
 
   '@asamuzakjp/nwsapi@2.3.9': {}
@@ -14703,7 +14700,7 @@ snapshots:
 
   basic-ftp@5.0.5: {}
 
-  better-sqlite3@11.7.2:
+  better-sqlite3@12.11.1:
     dependencies:
       bindings: 1.5.0
       prebuild-install: 7.1.2
@@ -15175,7 +15172,7 @@ snapshots:
     dependencies:
       '@asamuzakjp/css-color': 4.0.4
       '@csstools/css-syntax-patches-for-csstree': 1.0.14(postcss@8.4.35)
-      css-tree: 3.1.0
+      css-tree: 3.2.1
     transitivePeerDependencies:
       - postcss
 
@@ -15183,7 +15180,7 @@ snapshots:
     dependencies:
       '@asamuzakjp/css-color': 4.0.4
       '@csstools/css-syntax-patches-for-csstree': 1.0.14(postcss@8.5.8)
-      css-tree: 3.1.0
+      css-tree: 3.2.1
     transitivePeerDependencies:
       - postcss
 
@@ -15310,8 +15307,6 @@ snapshots:
   dequal@2.0.3: {}
 
   detect-browser@5.3.0: {}
-
-  detect-libc@2.0.3: {}
 
   detect-libc@2.1.2: {}
 
@@ -16667,7 +16662,7 @@ snapshots:
       whatwg-encoding: 3.1.1
       whatwg-mimetype: 4.0.0
       whatwg-url: 15.1.0
-      ws: 8.18.2
+      ws: 8.21.0
       xml-name-validator: 5.0.0
     transitivePeerDependencies:
       - bufferutil
@@ -16695,7 +16690,7 @@ snapshots:
       whatwg-encoding: 3.1.1
       whatwg-mimetype: 4.0.0
       whatwg-url: 15.1.0
-      ws: 8.18.2
+      ws: 8.21.0
       xml-name-validator: 5.0.0
     transitivePeerDependencies:
       - bufferutil
@@ -17313,7 +17308,7 @@ snapshots:
 
   node-abi@3.71.0:
     dependencies:
-      semver: 7.7.1
+      semver: 7.7.4
 
   node-fetch@2.6.11:
     dependencies:
@@ -17867,7 +17862,7 @@ snapshots:
 
   prebuild-install@7.1.2:
     dependencies:
-      detect-libc: 2.0.3
+      detect-libc: 2.1.2
       expand-template: 2.0.3
       github-from-package: 0.0.0
       minimist: 1.2.8
@@ -19620,8 +19615,7 @@ snapshots:
 
   ws@8.18.2: {}
 
-  ws@8.21.0:
-    optional: true
+  ws@8.21.0: {}
 
   wsl-utils@0.1.0:
     dependencies:
