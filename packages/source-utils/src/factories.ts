@@ -11,5 +11,6 @@ export function createEmptySnapshot(): Snapshot {
     interaction: null,
     frameworkState: null,
     cssRules: null,
+    colorScheme: null,
   }
 }
