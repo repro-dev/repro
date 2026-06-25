@@ -672,37 +672,26 @@ For the published issue:
 
 ### Operator output
 
-After writing the artifact, emit the plan to the operator in the publish-phase summary output:
+After writing the artifact, print the full plan verbatim in the publish-phase summary output:
 
 ```
 ─────────────────────────────────────────────────────
 📋 Manual test plan for REP-xxx
 ─────────────────────────────────────────────────────
 
-[Full plan content, or a summary with path to the file]
+<full plan content verbatim>
 ```
-
-If the artifact is more than ~40 lines, show a condensed summary (step count + section headers) and the path to the full file instead of the full content.
 
 ### PR body update
 
-After writing the artifact, update the PR body to include a reference:
-
-```
-## Manual test plan
-
-See `tmp/manual-test-plan-<issue-id>.md` in the branch.
-```
-
-Append this section after the Review remainder section already produced in the publish phase. If the plan says automated coverage is sufficient, include that note instead.
+After writing the artifact, append the full plan verbatim to the PR body as a `## Manual test plan` section. This section goes after the Review remainder already produced in the publish phase. If the plan says automated coverage is sufficient, use that single line.
 
 Use `gh pr edit <pr-number> --body "<updated-body>"` to update the PR description.
 
 ### Post-phase handoff
 
-After the manual test plan is written and the PR body is updated:
+After the manual test plan is written, printed verbatim, and the PR body is updated:
 
-- Report the artifact path in the final summary
 - Proceed to the existing post-publish stop and `/ledger` handoff
 
 ## Throughout
