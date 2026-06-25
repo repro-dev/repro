@@ -124,6 +124,10 @@ For each ready candidate, compute these signals:
 
 Sort ready candidates by composite signal strength. Weight thematic connection and query relevance most heavily (the operator's intent), then recency (what's fresh), then priority (Linear's signal). The exact weighting is a heuristic — the output artifacts should make the rationale visible so the operator can override.
 
+### 2d. Surface reprioritization recommendations
+
+Compare the ranked order against Linear's assigned priorities. Flag cases where a lower-priority issue outranks a higher-priority one — this may indicate stale prioritization in Linear. Collect these as **reprioritization recommendations** for the output artifacts. Do not mutate Linear — this is a non-binding nudge. Suggest a follow-up `/groom` run to correct priorities.
+
 Build the deferred list: collect all skipped issues with their skip reason and the rubric bucket they fell into.
 
 ---
@@ -193,10 +197,19 @@ Ready candidates sequenced by thematic connection, recency, and priority — sta
 | REP-4 | ...   | Blocked by REP-7            | Has open blocker relation           |
 | REP-5 | ...   | Needs spec — no concrete AC | Description lacks implementation AC |
 
+## Reprioritization Recommendations
+
+Non-binding suggestions — run `/groom` to apply.
+
+| Issue | Current Priority | Suggested | Because |
+| ----- | ---------------- | --------- | ------- |
+| REP-5 | Medium           | High      | Outranks REP-789 (High) due to thematic connection to active work |
+
 ## Next Actions
 
 1. Deliver the top candidates with `/build REP-xxx`
-2. Review **Deferred** issues and resolve blockers or add specification before the next discovery
+2. Run `/groom <project>` to review the reprioritization recommendations above
+3. Review **Deferred** issues and resolve blockers or add specification before the next discovery
 ```
 
 ### 3c. Artifact path reminder
@@ -207,29 +220,32 @@ All output goes under `tmp/discover-runs/<run-id>/`. Verify the directory exists
 
 ## Hard stop
 
-After writing artifacts, print a summary like this and **stop**:
+After writing artifacts, print the candidate list inline and **stop**. The operator needs the list immediately to kick off builds in another terminal — the markdown files are the durable record for later refinement.
 
-```markdown
+```
 ## Discovery Complete — <project-name> (run-id)
 
-### Summary
+### Ready candidates (N) — build in this order
 
-- Ready: N candidates
-- Deferred: N issues (blocked/N, needs-spec/N, no-concrete-AC/N, unresolved-decisions/N)
+1. REP-1  High    Add social login          Connected to active REP-100; updated 2d ago
+2. REP-5  Medium  Passkeys support           Query match; shares labels with REP-100
+3. REP-3  High    Session refresh            Updated 5d ago
+
+### Reprioritization suggestions
+
+REP-5 (Medium) outranks REP-3 (High). Consider /groom <project> to review.
+
+### Deferred (K)
+
+blocked/N | needs-spec/N | no-concrete-AC/N | unresolved-decisions/N
 
 ### Output
 
-- candidates.md: <run-dir>/candidates.md
-- sequence.md: <run-dir>/sequence.md
-
-### Next actions
-
-1. Review candidates.md for any adjustments before delivery
-2. Deliver top candidates with `/build REP-xxx`
-3. Resolve deferred issues or re-discover after changes
-
-This was a read-only operation. No Linear issues, worktrees, branches, or PRs were created or modified.
+candidates.md: <run-dir>/candidates.md
+sequence.md: <run-dir>/sequence.md
 ```
+
+**Do not proceed beyond this point.** Do not create worktrees, branches, PRs, or mutate Linear state.
 
 **Do not proceed beyond this point.** Do not create worktrees, branches, PRs, or mutate Linear state.
 
