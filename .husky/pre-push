@@ -2,7 +2,7 @@
 set -euo pipefail
 
 if command -v direnv >/dev/null 2>&1; then
-  eval "$(direnv export bash)"
+  eval "$(direnv export "$(basename "${SHELL:-bash}")")"
 fi
 
 current_branch=$(git symbolic-ref --short HEAD 2>/dev/null || true)
