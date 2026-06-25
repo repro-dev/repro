@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if command -v direnv >/dev/null 2>&1; then
+  eval "$(direnv export bash)"
+fi
+
 current_branch=$(git symbolic-ref --short HEAD 2>/dev/null || true)
 
 if [ "$current_branch" = "main" ]; then
