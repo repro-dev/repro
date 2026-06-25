@@ -1,26 +1,24 @@
 ---
-description: Groom Linear backlog — per-project Todo/Backlog scan, or full-workspace status-by-status sweep with closure authority
+description: Groom Linear backlog interactively — per-project Todo/Backlog scan, or full-workspace status-by-status sweep with closure authority
 ---
 
 Arguments: `$ARGUMENTS`
 
 ## Mode selection
 
-1. If `$ARGUMENTS` is `--full` or starts with `--full`: run **full-sweep mode** — all projects, all statuses, systematic sweep with closure authority.
-2. If `$ARGUMENTS` contains only `--apply` or `--full --apply`: same as above, mutations applied.
-3. Otherwise: treat `$ARGUMENTS` as a **project name** for per-project Todo/Backlog grooming.
-4. `--apply` may be appended in either mode to execute mutations (dry-run is the default).
+1. If `$ARGUMENTS` is `--full`: run **full-sweep mode** — all projects, all statuses, systematic sweep with closure authority.
+2. Otherwise: treat `$ARGUMENTS` as a **project name** for per-project Todo/Backlog grooming.
+3. There is no `--apply` flag. The workflow is always conversational — present proposals, get approval, then apply.
 
-If scope is missing, ambiguous, or combined with extra unrecognized flags, stop with a clear usage error:
+If scope is missing, ambiguous, or contains unrecognized flags, stop with a usage error:
 ```
 Usage:
-  /groom <project> [--apply]     Per-project Todo/Backlog scan
-  /groom --full [--apply]        Full workspace sweep (all projects, all statuses)
+  /groom <project>      Per-project Todo/Backlog scan (conversational)
+  /groom --full         Full workspace sweep — all projects, all statuses (conversational)
 ```
 
 ## Dispatch
 
 1. Load `linear-cli` and the `backlog-grooming` skill.
-2. In per-project mode: follow the skill's "Per-project mode" section — bounded queue scan, readiness classification, and write-back.
-3. In full-sweep mode: follow the skill's "Full-sweep mode" section — paginated inventory, six-phase status-by-status audit, and closure execution.
-4. In dry-run mode (default), show proposed actions first. In apply mode, include a compact post-write verification summary.
+2. Follow the skill's conversational workflow for the selected mode.
+3. Never apply mutations without explicit user approval. Present proposals grouped by phase or category, ask for confirmation, apply only what the user approves, and verify each write.
