@@ -260,6 +260,13 @@ export function createRecordingStream(
         trailingSnapshot.cssRules = captureStyleSheets(rootDocument)
       })
 
+      const computedColorScheme = globalThis.getComputedStyle(
+        rootDocument.documentElement
+      ).colorScheme
+      if (computedColorScheme && computedColorScheme !== 'normal') {
+        trailingSnapshot.colorScheme = computedColorScheme
+      }
+
       const trailingVTree = trailingSnapshot.dom
 
       if (!trailingVTree) {
