@@ -44,8 +44,6 @@ Apply this policy only to `planner`, `develop`, and `review` launch failures.
 When keeping the status table updated, make backoff explicit so the operator can tell the command is intentionally waiting rather than hung.
 
 - Show active retry waits, for example `develop launch rate-limited; retry 2/4 in 30s`.
-- Keep stop and continue decisions at the usual phase boundaries. Do **not** stop mid-phase.
-
 ## Load these support skills as needed
 
 - `implementation-rigor` — red/green/refactor, verification, and test expectations
@@ -144,29 +142,11 @@ When 1–3 skills matched in the inline skill matching step above, include the `
 
 If the targeted-edit, UI-direction, or design-handoff gate applies, also tell the planner to treat the current `tmp/context-<issue-id>.md` as authoritative UI context and to read its `## Targeted Design Edit` block when present, plus any `## Design Direction` and `## Design Handoff Context` blocks, before planning unless the plan explicitly calls out a strategic mismatch.
 
-When `prior_agent_context` or `resolved_blocker_prs` is non-empty for the issue, include the `## Prior context` block (shown below between `[INJECT IF ENRICHED]` and `[END INJECT]`) immediately after the `Worktree:` line and **before** any `[INJECT IF MATCHED]` skills block. Omit the block entirely when both values are empty.
-
 ```
 Produce an implementation plan for Linear issue REP-xxx in worktree <absolute-worktree-path>.
 
 Issue: REP-xxx
 Worktree: <absolute-worktree-path>
-
-[INJECT IF ENRICHED — omit this block when both prior_investigation_context and resolved_blocker_prs are empty]
-## Prior context
-[INJECT IF prior_investigation_context is non-empty]
-Prior investigation findings:
-- <bullet 1 from prior_investigation_context>
-- <bullet 2 from prior_investigation_context>
-(up to 5 bullets)
-[END INJECT]
-[INJECT IF resolved_blocker_prs is non-empty]
-Resolved blockers with linked PRs (review diffs for relevant implementation patterns):
-- <PR reference 1 from resolved_blocker_prs>
-- <PR reference 2 from resolved_blocker_prs>
-(up to 3 entries)
-[END INJECT]
-[END INJECT]
 
 [INJECT IF MATCHED — omit this block when 0 skills matched]
 ## Relevant conventions
@@ -186,7 +166,7 @@ ready | not ready
 ## Sequence Notes
 - likely touched packages/files
 - dependency or ordering notes
-- list every file this plan will write or modify; for each shared file, specify the edit location so the orchestrator can judge whether edits will overlap
+- list every file this plan will write or modify
 
 ## Risk Notes
 - anything that could block implementation or require scope changes
@@ -201,9 +181,9 @@ Friction logging: if you encounter friction during planning (unclear patterns, m
   [Brief description]
   - Phase: planning
   - Root cause: <one of: missing-docs, unclear-pattern, tooling-gap, stale-code>
-Do not stop or change your approach — log and continue. (This append is the one exception to "Do NOT write any files." below.)
+Do not stop or change your approach — log and continue.
 
-Do NOT write any files.
+Do NOT write any files except friction.md (append-only).
 ```
 
 ### QC checks after planner finishes
@@ -270,17 +250,11 @@ Classification rules:
 
 Store the risk level alongside the issue in the status table for the rest of the run. The risk level drives reviewer spawning in the review phase.
 
-## 4. Delegation
+## 4. Implementation
 
-- Use `develop` for implementation that touches 2+ files.
-- Give `develop` the current `tmp/context-<issue-id>.md` or `tmp/context-<topic>.md` when one exists. For UI work with unresolved direction, that artifact is authoritative upstream input.
-- Give `develop` a `tmp/test-plan-<issue-id>.md` artifact for any new behavior, bug fix, or public contract change. For non-Linear work, use `tmp/test-plan-<topic>.md`.
-- If a required artifact is missing at delegation time, stop to create it and retry the same delegation step. Do not weaken the precondition or invent an inline substitute mid-flight.
-- Use `test` after implementation to audit coverage and add regressions.
+Launch `develop` for the issue. Use `develop` for any implementation touching 2+ files. Use `test` after implementation to audit coverage and add regressions.
 
-## 5. Implementation
-
-Launch `develop` for the issue. Do not launch `develop` until the issue has a completed planner result plus the required context and test-plan artifacts. If the issue is UI-bearing and the work is a bounded follow-up edit, the context artifact must already carry the `## Targeted Design Edit` block; if the issue is UI-bearing with unresolved visual direction, it must carry the `## Design Direction` block; if settled UI decisions must not be reinterpreted, it must also carry `## Design Handoff Context`. If a required artifact is missing, create it and retry the launch instead of improvising the implementation path.
+Do not launch `develop` until the issue has a completed planner result plus the required context and test-plan artifacts. If the issue is UI-bearing and the work is a bounded follow-up edit, the context artifact must already carry the `## Targeted Design Edit` block; if the issue is UI-bearing with unresolved visual direction, it must carry the `## Design Direction` block; if settled UI decisions must not be reinterpreted, it must also carry `## Design Handoff Context`. If a required artifact is missing, create it and retry the launch instead of improvising the implementation path.
 
 ### Worktree existence guard
 
@@ -361,13 +335,13 @@ If the `develop` run reports an unresolved build failure, typecheck failure, or 
 - Set the issue state back to **Todo** with `linear issue update <issue-id> --status "Todo" --json`
 - Add the issue ID to `escalated_issues`
 
-## 6. Review loop
+## 5. Review loop
 
-Before launching `review`, create a local checkpoint commit for each completed implementation so review runs against a real branch diff instead of dirty worktree changes.
+Before launching `review`, create a local checkpoint commit so review runs against a real branch diff instead of dirty worktree changes.
 
-For each completed implementation before review:
+For the completed implementation before review:
 
-1. Run the commit inspection steps in the issue worktree:
+1. Run the commit inspection steps:
    - `git status`
    - `git diff`
    - `git log -5 --oneline`
@@ -390,6 +364,18 @@ Spawn reviewers based on the risk level computed in the risk classification phas
 3. **Performance reviewer** — only spawned when data-heavy changes are detected (e.g. data model changes signal, large batch operations, streaming or pipeline patterns in Sequence Notes)
 4. **UI quality reviewer** — always spawned for UI-bearing issues; required for high-risk UI changes so authored-polish critique can gate publishability
 
+When `smoke_test_result` is `fail` for this issue, append this block to every reviewer prompt:
+
+```
+## Smoke test failures
+
+The following packages had test failures after implementation. For each failure, classify it as **caused-by-this-change** or **pre-existing**:
+- **caused-by-this-change**: add as a blocking finding (`category: correctness`, `fixable_by_agent: true`) in your structured output.
+- **pre-existing**: add as a non-blocking suggestion only.
+
+<structured failure summary from smoke tests>
+```
+
 #### Scoped prompt templates
 
 **Correctness + Security reviewer** (always spawned for high-risk issues):
@@ -403,23 +389,7 @@ Focus exclusively on correctness and security:
 3. Review the committed branch diff with: `git diff main...HEAD`
 4. Evaluate: logic gaps, off-by-one errors, unhandled edge cases, error-path handling, async operation correctness (Futures not Promises per project conventions), and security implications (injection, auth bypass, data exposure, unsafe deserialization).
 5. Check AGENTS.md conventions for the affected packages.
-6. Return the structured output required by .opencode/agents/review.md — but only report findings in the correctness and security categories. Assign each finding `role: correctness-security` in the structured output (both correctness and security findings use the same role).
-
-Friction logging: if you encounter friction during review (unclear patterns, missing documentation, ambiguous conventions, surprising codebase state), append an entry to `<absolute-worktree-path>/tmp/friction.md` in this format:
-  [Brief description]
-  - Phase: review
-  - Root cause: <one of: missing-docs, unclear-pattern, tooling-gap, stale-code>
-Do not stop or change your approach — log and continue.
-
-[If smoke_test_result is fail for this issue, also include:]
-
-## Smoke test failures
-
-The following packages had test failures after implementation. For each failure, classify it as **caused-by-this-change** or **pre-existing**:
-- **caused-by-this-change**: add as a blocking finding (`category: correctness`, `fixable_by_agent: true`) in your structured output.
-- **pre-existing**: add as a non-blocking suggestion only.
-
-<structured failure summary from smoke tests>
+6. Return the structured output required by .opencode/agents/review.md — but only report findings in the correctness and security categories. Assign each finding `role: correctness-security` in the structured output.
 ```
 
 **Architecture + Conventions reviewer** (always spawned for high-risk issues):
@@ -433,23 +403,7 @@ Focus exclusively on architecture and conventions:
 3. Review the committed branch diff with: `git diff main...HEAD`
 4. Evaluate: side effects on other parts of the system, consistency with existing codebase patterns, approach alignment with stated architecture, and package-level AGENTS.md convention compliance.
 5. Check style/conventions (imports, naming, Prettier, no hardcoded values, design tokens).
-6. Return the structured output required by .opencode/agents/review.md — but only report findings in the architecture and conventions categories. Assign each finding `role: architecture-conventions` in the structured output (both architecture and conventions findings use the same role).
-
-Friction logging: if you encounter friction during review (unclear patterns, missing documentation, ambiguous conventions, surprising codebase state), append an entry to `<absolute-worktree-path>/tmp/friction.md` in this format:
-  [Brief description]
-  - Phase: review
-  - Root cause: <one of: missing-docs, unclear-pattern, tooling-gap, stale-code>
-Do not stop or change your approach — log and continue.
-
-[If smoke_test_result is fail for this issue, also include:]
-
-## Smoke test failures
-
-The following packages had test failures after implementation. For each failure, classify it as **caused-by-this-change** or **pre-existing**:
-- **caused-by-this-change**: add as a blocking finding (`category: correctness`, `fixable_by_agent: true`) in your structured output.
-- **pre-existing**: add as a non-blocking suggestion only.
-
-<structured failure summary from smoke tests>
+6. Return the structured output required by .opencode/agents/review.md — but only report findings in the architecture and conventions categories. Assign each finding `role: architecture-conventions` in the structured output.
 ```
 
 **Performance reviewer** (spawned only when data-heavy changes are detected):
@@ -463,22 +417,6 @@ Focus exclusively on performance:
 3. Review the committed branch diff with: `git diff main...HEAD`
 4. Evaluate: algorithmic complexity regressions, unnecessary iteration or duplication, missing indexes or query optimizations (if DB changes are present), unbuffered stream operations, large in-memory collections, and lack of pagination/cursor patterns where appropriate.
 5. Return the structured output required by .opencode/agents/review.md — but only report findings in the performance category. Assign each finding `role: performance` in the structured output.
-
-Friction logging: if you encounter friction during review (unclear patterns, missing documentation, ambiguous conventions, surprising codebase state), append an entry to `<absolute-worktree-path>/tmp/friction.md` in this format:
-  [Brief description]
-  - Phase: review
-  - Root cause: <one of: missing-docs, unclear-pattern, tooling-gap, stale-code>
-Do not stop or change your approach — log and continue.
-
-[If smoke_test_result is fail for this issue, also include:]
-
-## Smoke test failures
-
-The following packages had test failures after implementation. For each failure, classify it as **caused-by-this-change** or **pre-existing**:
-- **caused-by-this-change**: add as a blocking finding (`category: correctness`, `fixable_by_agent: true`) in your structured output.
-- **pre-existing**: add as a non-blocking suggestion only.
-
-<structured failure summary from smoke tests>
 ```
 
 **UI quality reviewer** (spawned for UI-bearing issues; always include on high-risk UI changes):
@@ -494,22 +432,6 @@ Focus exclusively on authored polish and generic-drift risk:
 5. If `## Targeted Design Edit` is present, use its scope boundary, intended delta, and verification evidence as the review brief.
 6. Evaluate authored polish separately from compliance, require concrete fix hints for any drift, and treat low-authored-polish output as a blocker or major rather than a vague note.
 7. Return the structured output required by .opencode/agents/review.md — but only report findings in the conventions category. Assign each finding `role: ui-quality` in the structured output.
-
-Friction logging: if you encounter friction during review (unclear patterns, missing documentation, ambiguous conventions, surprising codebase state), append an entry to `<absolute-worktree-path>/tmp/friction.md` in this format:
-  [Brief description]
-  - Phase: review
-  - Root cause: <one of: missing-docs, unclear-pattern, tooling-gap, stale-code>
-Do not stop or change your approach — log and continue.
-
-[If smoke_test_result is fail for this issue, also include:]
-
-## Smoke test failures
-
-The following packages had test failures after implementation. For each failure, classify it as **caused-by-this-change** or **pre-existing**:
-- **caused-by-this-change**: add as a blocking finding (`category: correctness`, `fixable_by_agent: true`) in your structured output.
-- **pre-existing**: add as a non-blocking suggestion only.
-
-<structured failure summary from smoke tests>
 ```
 
 ### Finding merge and deduplication
@@ -540,22 +462,6 @@ Review the implementation for REP-xxx in worktree <absolute-worktree-path>.
 3. Review the committed branch diff with: `git diff main...HEAD`
 4. Review against requirements coverage, correctness, test coverage, conventions, and architecture.
 5. Return the structured output required by .opencode/agents/review.md.
-
-Friction logging: if you encounter friction during review (unclear patterns, missing documentation, ambiguous conventions, surprising codebase state), append an entry to `<absolute-worktree-path>/tmp/friction.md` in this format:
-  [Brief description]
-  - Phase: review
-  - Root cause: <one of: missing-docs, unclear-pattern, tooling-gap, stale-code>
-Do not stop or change your approach — log and continue.
-
-[If smoke_test_result is fail for this issue, also include:]
-
-## Smoke test failures
-
-The following packages had test failures after implementation. For each failure, classify it as **caused-by-this-change** or **pre-existing**:
-- **caused-by-this-change**: add as a blocking finding (`category: correctness`, `fixable_by_agent: true`) in your structured output.
-- **pre-existing**: add as a non-blocking suggestion only.
-
-<structured failure summary from smoke tests>
 ```
 
 ### Iterative fix loop
@@ -633,9 +539,9 @@ Do not create a PR or set `In Review` until an issue has cleared review or hit t
 
 Do **not** paste full AI review output back into Linear comments. Use Linear comments only for short phase-local blocker summaries when an issue is being kicked back.
 
-## 7. Publish
+## 6. Publish
 
-For each publishable issue:
+For the publishable issue:
 
 1. **Pre-push origin/main guard**: Before any push attempt, run:
 
@@ -694,7 +600,7 @@ For each publishable issue:
 
 4. **Set the Linear issue to In Review** only after the PR exists.
 
-After the publishable issue has been handled:
+After publish has been handled:
 
 - Report the opened PR URL
 - Report escalated issues and why
@@ -707,9 +613,9 @@ After stopping, if this session will not immediately continue:
 
 - Run `/ledger` to capture a session handoff. This allows a future session to resume triage without re-exploring.
 
-Then proceed to the manual test plan phase (Section 8).
+Then proceed to the manual test plan phase.
 
-## 8. Manual test plan (post-publish)
+## 7. Manual test plan (post-publish)
 
 After publish completes, produce a manual test plan artifact for the published issue. This phase runs **after** the PR is created and does **not** block publish. It is a final informational output step.
 
@@ -790,7 +696,7 @@ See `tmp/manual-test-plan-<issue-id>.md` in the branch.
 
 Append this section after the Review remainder section already produced in the publish phase. If the plan says automated coverage is sufficient, include that note instead.
 
-Use `gh pr edit <issue-id> --body "<updated-body>"` to update the PR description.
+Use `gh pr edit <pr-number> --body "<updated-body>"` to update the PR description.
 
 ### Post-phase handoff
 
@@ -819,13 +725,7 @@ After the manual test plan is written and the PR body is updated:
 
 ### CI-enforced checks
 
-- Duplicate migration timestamp check.
-- Test file size check.
-- Tooling config regression test.
-- `moon ci :build :typecheck :test`.
-- Workspace lint.
-- Prettier format check.
-- Conditional container / deploy jobs.
+CI enforces build, typecheck, test (`moon ci :build :typecheck :test`), lint, format, migration timestamp checks, and test-file size limits — these run independently after publish and are not gated here.
 
 `/build` publishes PRs after local verification and does **not** wait on CI. A run is not complete until the PR exists and the publish phase has run. Report local checks separately so CI status is never implied unless it was actually observed elsewhere.
 
