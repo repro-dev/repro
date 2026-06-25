@@ -885,6 +885,7 @@ async function serializeIssue(client, issue, labels = []) {
         ? issue.updatedAt.toISOString()
         : issue.updatedAt ?? null,
     description: issue.description ?? null,
+    branchName: issue.branchName ?? null,
   };
 }
 

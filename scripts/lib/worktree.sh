@@ -13,62 +13,8 @@ WT_OPEN=false
 WT_ISSUE_LINEAR_SYNCED=false
 WT_ISSUE_LINEAR_SYNC_ERROR=""
 
-_linear_api() {
-  local query="$1"
-  local _tmpfile http_code body
-  mkdir -p "$MAIN_CHECKOUT/tmp"
-  _tmpfile="$(mktemp "$MAIN_CHECKOUT/tmp/linear-api.XXXXXX")"
-
-  http_code="$(curl -sS -o "$_tmpfile" -w '%{http_code}' -X POST \
-    -H "Content-Type: application/json" \
-    -H "Authorization: $LINEAR_API_KEY" \
-    --data "{\"query\": $(printf '%s' "$query" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')}" \
-    "https://api.linear.app/graphql")" || { rm -f "$_tmpfile"; die "Failed to reach Linear API (network error)"; }
-
-  body="$(cat "$_tmpfile")"
-  rm -f "$_tmpfile"
-
-  if [[ "$http_code" -ge 400 ]]; then
-    case "$http_code" in
-      401) die "Linear API authentication failed (HTTP 401). Check that LINEAR_API_KEY is valid." ;;
-      403) die "Linear API authorization failed (HTTP 403). Your API key may lack required scopes." ;;
-      *)   die "Linear API request failed (HTTP $http_code): $body" ;;
-    esac
-  fi
-
-  if ! printf '%s' "$body" | python3 -c 'import json,sys; json.load(sys.stdin)' >/dev/null 2>&1; then
-    die "Linear API returned non-JSON response (HTTP $http_code)"
-  fi
-
-  local errors rc=0
-  errors="$(printf '%s' "$body" | python3 "$SCRIPTS_DIR/lib/py/linear_check_errors.py" 2>/dev/null)" || rc=$?
-  if [[ $rc -ne 0 ]] && [[ -n "$errors" ]]; then
-    die "Linear API error: $errors"
-  fi
-
-  printf '%s' "$body"
-}
-
-_linear_api_try() {
-  local query="$1"
-  local stdout_file stderr_file rc=0
-
-  mkdir -p "$MAIN_CHECKOUT/tmp"
-  stdout_file="$(mktemp "$MAIN_CHECKOUT/tmp/linear-api-stdout.XXXXXX")"
-  stderr_file="$(mktemp "$MAIN_CHECKOUT/tmp/linear-api-stderr.XXXXXX")"
-
-  if ( _linear_api "$query" ) >"$stdout_file" 2>"$stderr_file"; then
-    cat "$stdout_file"
-    rm -f "$stdout_file" "$stderr_file"
-    return 0
-  fi
-
-  rc=$?
-  if [ -s "$stderr_file" ]; then
-    cat "$stderr_file" >&2
-  fi
-  rm -f "$stdout_file" "$stderr_file"
-  return "$rc"
+_linear_cli() {
+  "$REPO_ROOT/bin/linear" "$@"
 }
 
 issue_worktree_suffix() {
@@ -197,42 +143,37 @@ _resolve_issue_worktree_metadata() {
     die "Invalid issue identifier: '$issue_id'. Expected format: REP-123"
   fi
 
-  if [[ -z "${LINEAR_API_KEY:-}" ]]; then
-    die "LINEAR_API_KEY environment variable is not set.\nCreate a personal API key at https://linear.app/settings/api\nthen export it in your shell:  export LINEAR_API_KEY=lin_api_..."
-  fi
-
   _step 1 3 "Fetching issue ${issue_id} from Linear..."
 
-  local team_key issue_number
-  team_key="${issue_id%%-*}"
-  issue_number="${issue_id##*-}"
-
-  local query
-  query="{ issues(filter: { number: { eq: ${issue_number} }, team: { key: { eq: \"${team_key}\" } } }, first: 1) { nodes { id identifier title branchName state { name type } team { states { nodes { id name type } } } } } }"
-
-  local response
-  response="$(_linear_api "$query")"
+  local issue_json
+  issue_json="$(_linear_cli issue show "$issue_id" --json)" || die "Failed to fetch issue ${issue_id} from Linear."
 
   local issue_data
-  issue_data="$(printf '%s' "$response" | python3 "$SCRIPTS_DIR/lib/py/linear_parse_issue.py")" || die "Failed to parse Linear API response"
+  issue_data="$(printf '%s' "$issue_json" | python3 -c '
+import json, sys
+data = json.load(sys.stdin)
+item = data.get("item", data)
+id = item.get("id", "")
+identifier = item.get("identifier", "")
+title = item.get("title", "")
+branch_name = item.get("branchName") or ""
+state_name = (item.get("status") or {}).get("name", "")
+state_type = (item.get("status") or {}).get("type", "")
+print(id)
+print(identifier)
+print(title)
+print(branch_name)
+print(state_name)
+print(state_type)
+')" || die "Failed to parse Linear issue data for ${issue_id}"
 
-  if [[ -z "$issue_data" ]]; then
-    die "Failed to parse Linear API response for ${issue_id}"
-  fi
-
-  if [[ "$issue_data" == "NOT_FOUND" ]]; then
-    die "Issue ${issue_id} not found in Linear."
-  fi
-
-  local issue_uuid issue_identifier issue_title branch_name in_progress_state_id
+  local issue_uuid issue_identifier issue_title branch_name issue_state_name issue_state_type
   issue_uuid="$(sed -n '1p' <<< "$issue_data")"
   issue_identifier="$(sed -n '2p' <<< "$issue_data")"
   issue_title="$(sed -n '3p' <<< "$issue_data")"
   branch_name="$(sed -n '4p' <<< "$issue_data")"
-  in_progress_state_id="$(sed -n '5p' <<< "$issue_data")"
-  local issue_state_name issue_state_type
-  issue_state_name="$(sed -n '6p' <<< "$issue_data")"
-  issue_state_type="$(sed -n '7p' <<< "$issue_data")"
+  issue_state_name="$(sed -n '5p' <<< "$issue_data")"
+  issue_state_type="$(sed -n '6p' <<< "$issue_data")"
 
   if [[ -z "$branch_name" ]]; then
     die "No branch name returned by Linear for ${issue_identifier}."
@@ -245,7 +186,6 @@ _resolve_issue_worktree_metadata() {
   WT_ISSUE_BRANCH_NAME="$branch_name"
   WT_ISSUE_STATE_NAME="$issue_state_name"
   WT_ISSUE_STATE_TYPE="$issue_state_type"
-  WT_ISSUE_IN_PROGRESS_STATE_ID="$in_progress_state_id"
 }
 
 _populate_issue_worktree_names() {
@@ -272,19 +212,12 @@ _create_issue_worktree_from_metadata() {
   cmd_wt_create "$WT_ISSUE_WORKTREE_BRANCH" "$WT_ISSUE_WORKTREE_SLUG" "$WT_ISSUE_START_REF" || return $?
 
   if [[ "$WT_NO_STATUS_UPDATE" != true ]]; then
-    if [[ -n "$WT_ISSUE_IN_PROGRESS_STATE_ID" ]]; then
-      _step 3 3 "Updating ${WT_ISSUE_IDENTIFIER} status to In Progress..."
-      local mutation
-      mutation="mutation { issueUpdate(id: \"${WT_ISSUE_UUID}\", input: { stateId: \"${WT_ISSUE_IN_PROGRESS_STATE_ID}\" }) { issue { id identifier } } }"
-      if _linear_api_try "$mutation" > /dev/null; then
-        WT_ISSUE_LINEAR_SYNCED=true
-        _ok "Issue ${WT_ISSUE_IDENTIFIER} marked In Progress"
-      else
-        WT_ISSUE_LINEAR_SYNC_ERROR="Failed to update Linear state to In Progress"
-      fi
+    _step 3 3 "Updating ${WT_ISSUE_IDENTIFIER} status to In Progress..."
+    if _linear_cli issue update "$WT_ISSUE_IDENTIFIER" --status "In Progress" > /dev/null 2>&1; then
+      WT_ISSUE_LINEAR_SYNCED=true
+      _ok "Issue ${WT_ISSUE_IDENTIFIER} marked In Progress"
     else
-      WT_ISSUE_LINEAR_SYNC_ERROR="Could not find 'In Progress' state"
-      echo "  ${CLR_DIM}Could not find 'In Progress' state — skipping status update${CLR_RESET}"
+      WT_ISSUE_LINEAR_SYNC_ERROR="Failed to update Linear state to In Progress"
     fi
   fi
 }
