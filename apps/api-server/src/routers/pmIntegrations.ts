@@ -30,7 +30,6 @@ export type PmOAuthProviders = Record<string, PmOAuthProvider>
 
 function toSafeConnection(row: {
   id: number
-  accountId: number
   provider: PmProvider
   providerWorkspaceId: string
   scopes: string[]

@@ -64,6 +64,7 @@ export {
   OAuthClientTable,
   OAuthConnectionTable,
   OutboxJobTable,
+  PmConnectionTable,
   RecordingErrorTable,
   RecordingEventIndexTable,
   RecordingResourceTable,
