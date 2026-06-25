@@ -1,6 +1,14 @@
 import { Row } from '@jsxstyle/react'
 import { formatDate, formatTime } from '@repro/date-utils'
-import { Badge, Breadcrumbs, Link, Text, color, spacing } from '@repro/design'
+import {
+  Badge,
+  Breadcrumbs,
+  Button,
+  Link,
+  Text,
+  color,
+  spacing,
+} from '@repro/design'
 import { RecordingInfo, RecordingMode } from '@repro/domain'
 import { ucfirst } from '@repro/string-utils'
 import React from 'react'
@@ -10,6 +18,7 @@ interface Props {
   projectId?: string | null
   projectName?: string | null
   recording: RecordingInfo
+  onShare?: () => void
 }
 
 function getModeLabel(mode: RecordingMode): string {
@@ -69,6 +78,7 @@ export const RecordingHeader: React.FC<Props> = ({
   projectId,
   projectName,
   recording,
+  onShare,
 }) => {
   const browserLabel = getBrowserLabel(recording)
   const operatingSystemLabel = getOperatingSystemLabel(recording)
@@ -146,6 +156,19 @@ export const RecordingHeader: React.FC<Props> = ({
           {operatingSystemLabel}
         </Text>
       )}
+
+      {onShare ? (
+        <Button
+          variant="outlined"
+          context="info"
+          size="small"
+          rounded
+          onClick={onShare}
+          type="button"
+        >
+          Share
+        </Button>
+      ) : null}
     </Row>
   )
 }

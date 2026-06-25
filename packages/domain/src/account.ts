@@ -116,6 +116,18 @@ export interface UserProfile {
   account: Account
 }
 
+export interface ShareTokenInfo {
+  id: string
+  token: string
+  resourceType: string
+  resourceId: string
+  createdBy: string
+  createdAt: string
+  expiresAt: string | null
+  revokedAt: string | null
+  shareUrl: string
+}
+
 export interface Session {
   id: string
   sessionToken: string

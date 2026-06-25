@@ -42,9 +42,11 @@ import { createOutboxService } from '~/services/outbox'
 import { createProjectService } from '~/services/project'
 import { createRecordingService } from '~/services/recording'
 import { createRecordingFinalizationService } from '~/services/recordingFinalization'
+import { createShareService } from '~/services/share'
 import { createSocialAuthService } from '~/services/socialAuth'
 import { serverError } from '~/utils/errors'
 import { createHttpClient } from './modules/http'
+import { createShareRouter } from './routers/share'
 import { createStaffRouter } from './routers/staff'
 import { createStaffOAuthRouter } from './routers/staffOAuth'
 import { buildHelmetOptions } from './securityHeaders'
@@ -192,6 +194,7 @@ async function bootstrap() {
     app.log,
     recordingFinalizationService
   )
+  const shareService = createShareService(database, env.REPRO_APP_URL)
   const socialAuthService = createSocialAuthService(database)
 
   const googleProvider = createGoogleProvider('/account/oauth/google/callback')
@@ -239,7 +242,9 @@ async function bootstrap() {
   const projectRouter = createProjectRouter(
     projectService,
     recordingService,
-    accountService
+    accountService,
+    undefined,
+    shareService
   )
   const staffRouter = createStaffRouter(accountService, projectService)
 
@@ -264,6 +269,8 @@ async function bootstrap() {
     await app.register(apiKeysRouter)
   }
 
+  const shareRouter = createShareRouter(shareService, recordingService)
+
   const staffPlugins: FastifyPluginAsync = async app => {
     await app.register(staffRouter)
     await app.register(staffOAuthRouter)
@@ -280,6 +287,7 @@ async function bootstrap() {
     '/health': healthRouter,
     '/oauth': oauthRouter,
     '/projects': projectRouter,
+    '/share': shareRouter,
     '/staff': staffPlugins,
   }
 

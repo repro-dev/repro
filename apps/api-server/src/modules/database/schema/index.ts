@@ -23,6 +23,7 @@ import { RecordingEventIndexTable } from './RecordingEventIndexTable'
 import { RecordingResourceTable } from './RecordingResourceTable'
 import { RecordingTable } from './RecordingTable'
 import { SessionTable } from './SessionTable'
+import { ShareTokenTable } from './ShareTokenTable'
 import { StaffUserTable, asStaffUser } from './StaffUserTable'
 import { UserTable, asStaffUserDetail, asUser } from './UserTable'
 
@@ -52,6 +53,7 @@ export interface Schema {
   projects: ProjectTable
   project_recordings: ProjectRecordingTable
   sessions: SessionTable
+  share_tokens: ShareTokenTable
   staff_users: StaffUserTable
   users: UserTable
 }
