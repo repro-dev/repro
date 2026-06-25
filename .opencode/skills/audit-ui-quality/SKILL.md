@@ -154,10 +154,13 @@ moon run repro/<package>:test
 
 ## Do / Don't
 
-| Do                                                          | Don't                                         |
-| ----------------------------------------------------------- | --------------------------------------------- |
-| Time-box the audit to avoid infinite scope                  | Audit the entire codebase in one pass         |
-| Report findings before fixing                               | Fix-as-you-go during audit (loses the report) |
-| Classify surfaces (new / existing / legacy) before scanning | Apply the same bar to all surfaces            |
-| Cross-reference `harden` skill for resilience               | Duplicate resilience checks in this skill     |
-| Treat generic-looking patterns as critique prompts          | Turn them into blanket bans or hard rules     |
+| Do                                                                                          | Don't                                         |
+| ------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| Time-box the audit to avoid infinite scope                                                  | Audit the entire codebase in one pass         |
+| Report findings before fixing                                                               | Fix-as-you-go during audit (loses the report) |
+| Classify surfaces (new / existing / legacy) before scanning                                 | Apply the same bar to all surfaces            |
+| Cross-reference `harden` skill for resilience                                               | Duplicate resilience checks in this skill     |
+| Treat generic-looking patterns as critique prompts                                          | Turn them into blanket bans or hard rules     |
+| Cross-reference [Impeccable](https://impeccable.style) for deterministic rule-driven checks | Duplicate Impeccable's rule set in this skill |
+
+The [Impeccable](https://impeccable.style) detector layers under this audit as a deterministic CI gate and shared design-quality vocabulary. Named anti-patterns (nested cards, icon-tile stacks, monotonous spacing) come from Impeccable's 44-rule set. See `design-system/SKILL.md` § "Impeccable — Design anti-pattern detection".

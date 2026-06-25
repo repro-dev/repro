@@ -139,22 +139,7 @@ For admin/workspace settings and entity-detail surfaces, use the REP-520 user de
 All visual values must use tokens from `@repro/design`. Never hardcode raw pixels, hex colors, or transition strings.
 
 ```tsx
-import {
-  color,
-  spacing,
-  fontSize,
-  fontWeight,
-  lineHeight,
-  fontFamily,
-  textStyles,
-  shadow,
-  radius,
-  duration,
-  easing,
-  transition,
-  focusRing,
-  focusWithinRing,
-} from "@repro/design";
+
 ```
 
 | Category      | Key tokens                                                                                                                      | Use for                                                                                          |
@@ -177,39 +162,39 @@ For full token tables with every value, read `references/tokens.md`.
 
 ## Component Selection Guide
 
-| I need to...                           | Use                                                                                                                                                                                                                                                 |
-| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Display a clickable action             | `Button` with `variant`, `context`, `size`                                                                                                                                                                                                          |
-| Collect text input                     | `Input` (single line or textarea via `rows` prop)                                                                                                                                                                                                   |
-| Toggle a boolean setting               | `Toggle` with `label`, `checked`, `onChange`                                                                                                                                                                                                        |
-| Select from mutually exclusive options | `ToggleGroup` with `options`, `selected`, `onChange`                                                                                                                                                                                                |
-| Switch between in-page content sections | `Tabs` compound component — `Tabs.List` + `Tabs.Tab` + `Tabs.Panel`                                                                                                                                                                                |
-| Show contextual feedback (inline)      | `Alert` with `type` (info/success/warning/danger)                                                                                                                                                                                                   |
-| Show a modal dialog                    | `Modal` with `width`, `height` + content as children                                                                                                                                                                                                |
-| Show a side panel                      | `Drawer` with `open`, `onClose` + content as children                                                                                                                                                                                               |
-| Display a tooltip                      | `Tooltip` wrapping the trigger element                                                                                                                                                                                                              |
-| Show a custom inline spinner           | `FX.Spin` wrapping `LoaderIcon` from lucide-react                                                                                                                                                                                                   |
-| Show a section-level loading state     | `LoadingState` — centered spinner within a content section                                                                                                                                                                                          |
-| Show a full-page loading state         | `FullPageLoading` — fills parent container; place inside a sized element                                                                                                                                                                            |
-| Show a section-level error state       | `ErrorBoundary` — catches render/runtime exceptions in any subtree; renders `FullPageError` by default, accepts custom `fallback` render prop. For controlled/data-fetch errors that aren't thrown values, render `FullPageError` directly instead. |
-| Show a full-page error state           | `FullPageError` with `title`, `description`, optional `action`                                                                                                                                                                                      |
-| Show a pulsing indicator               | `FX.Pulse` wrapping the animated element                                                                                                                                                                                                            |
-| Display a form field error             | `FormFieldError` with `error` from react-hook-form                                                                                                                                                                                                  |
-| Display a field label                  | `Label` with optional `icon` and `optional` flag                                                                                                                                                                                                    |
-| Render content in a portal             | `Portal` (must be inside a `PortalRootProvider`)                                                                                                                                                                                                    |
-| Render content in an iframe            | `FrameRealm`                                                                                                                                                                                                                                        |
-| Display a card container               | `Card` with optional `fullBleed`, `height`, `padding`                                                                                                                                                                                               |
-| Show a progress bar                    | `Meter` with `value`, `min`, `max`                                                                                                                                                                                                                  |
-| Display an avatar                      | `Avatar` with `email`, optional `name`, `mode`, `size`                                                                                                                                                                                              |
-| Display key-value data                 | `DefinitionList` with `title`, `pairs`                                                                                                                                                                                                              |
-| Display JSON/object data               | `JSONView` from `@repro/devtools` (not `@repro/design`)                                                                                                                                                                                             |
-| Delay rendering children               | `Delay` with optional `duration`                                                                                                                                                                                                                    |
-| Show a draggable resize handle         | `DragHandle` with `edge`, drag callbacks                                                                                                                                                                                                            |
-| Display the Repro logo                 | `Logo` with optional `inverted`, `size`, `iconOnly`                                                                                                                                                                                                 |
-| Style inline text as a link            | `Link` (visual only — no navigation)                                                                                                                                                                                                                |
-| Build a page layout                    | See `references/layouts.md` — use the decision tree                                                                                                                                                                                                 |
-| Stack children vertically              | `Stack` with `gap` (spacing token key)                                                                                                                                                                                                              |
-| Center content                         | `Center` with optional `maxWidth`                                                                                                                                                                                                                   |
+| I need to...                            | Use                                                                                                                                                                                                                                                 |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Display a clickable action              | `Button` with `variant`, `context`, `size`                                                                                                                                                                                                          |
+| Collect text input                      | `Input` (single line or textarea via `rows` prop)                                                                                                                                                                                                   |
+| Toggle a boolean setting                | `Toggle` with `label`, `checked`, `onChange`                                                                                                                                                                                                        |
+| Select from mutually exclusive options  | `ToggleGroup` with `options`, `selected`, `onChange`                                                                                                                                                                                                |
+| Switch between in-page content sections | `Tabs` compound component — `Tabs.List` + `Tabs.Tab` + `Tabs.Panel`                                                                                                                                                                                 |
+| Show contextual feedback (inline)       | `Alert` with `type` (info/success/warning/danger)                                                                                                                                                                                                   |
+| Show a modal dialog                     | `Modal` with `width`, `height` + content as children                                                                                                                                                                                                |
+| Show a side panel                       | `Drawer` with `open`, `onClose` + content as children                                                                                                                                                                                               |
+| Display a tooltip                       | `Tooltip` wrapping the trigger element                                                                                                                                                                                                              |
+| Show a custom inline spinner            | `FX.Spin` wrapping `LoaderIcon` from lucide-react                                                                                                                                                                                                   |
+| Show a section-level loading state      | `LoadingState` — centered spinner within a content section                                                                                                                                                                                          |
+| Show a full-page loading state          | `FullPageLoading` — fills parent container; place inside a sized element                                                                                                                                                                            |
+| Show a section-level error state        | `ErrorBoundary` — catches render/runtime exceptions in any subtree; renders `FullPageError` by default, accepts custom `fallback` render prop. For controlled/data-fetch errors that aren't thrown values, render `FullPageError` directly instead. |
+| Show a full-page error state            | `FullPageError` with `title`, `description`, optional `action`                                                                                                                                                                                      |
+| Show a pulsing indicator                | `FX.Pulse` wrapping the animated element                                                                                                                                                                                                            |
+| Display a form field error              | `FormFieldError` with `error` from react-hook-form                                                                                                                                                                                                  |
+| Display a field label                   | `Label` with optional `icon` and `optional` flag                                                                                                                                                                                                    |
+| Render content in a portal              | `Portal` (must be inside a `PortalRootProvider`)                                                                                                                                                                                                    |
+| Render content in an iframe             | `FrameRealm`                                                                                                                                                                                                                                        |
+| Display a card container                | `Card` with optional `fullBleed`, `height`, `padding`                                                                                                                                                                                               |
+| Show a progress bar                     | `Meter` with `value`, `min`, `max`                                                                                                                                                                                                                  |
+| Display an avatar                       | `Avatar` with `email`, optional `name`, `mode`, `size`                                                                                                                                                                                              |
+| Display key-value data                  | `DefinitionList` with `title`, `pairs`                                                                                                                                                                                                              |
+| Display JSON/object data                | `JSONView` from `@repro/devtools` (not `@repro/design`)                                                                                                                                                                                             |
+| Delay rendering children                | `Delay` with optional `duration`                                                                                                                                                                                                                    |
+| Show a draggable resize handle          | `DragHandle` with `edge`, drag callbacks                                                                                                                                                                                                            |
+| Display the Repro logo                  | `Logo` with optional `inverted`, `size`, `iconOnly`                                                                                                                                                                                                 |
+| Style inline text as a link             | `Link` (visual only — no navigation)                                                                                                                                                                                                                |
+| Build a page layout                     | See `references/layouts.md` — use the decision tree                                                                                                                                                                                                 |
+| Stack children vertically               | `Stack` with `gap` (spacing token key)                                                                                                                                                                                                              |
+| Center content                          | `Center` with optional `maxWidth`                                                                                                                                                                                                                   |
 
 ### Loading and Error Pattern Guide
 
@@ -247,20 +232,20 @@ For full token tables with every value, read `references/tokens.md`.
 
 ## Lint Enforcement
 
-Design-system conventions are CI-gated through two complementary detectors. The skill describes *why* a convention exists; the lint rules enforce *that* it's followed.
+Design-system conventions are CI-gated through two complementary detectors. The skill describes _why_ a convention exists; the lint rules enforce _that_ it's followed.
 
 ### Oxlint — Code architecture enforcement
 
 Oxlint (`pnpm run lint`) enforces code-architecture rules at `error` level. These rules prevent token bypass and keep the two-layer architecture intact:
 
-| Violation | Lint rule |
-| -- | -- |
-| Hardcoded hex/rgb colors (`"#fff"`, `"#ffffff"`, `"rgb(...)"`) | `@repro/oxlint-plugin-design/no-hardcoded-color` |
+| Violation                                                       | Lint rule                                          |
+| --------------------------------------------------------------- | -------------------------------------------------- |
+| Hardcoded hex/rgb colors (`"#fff"`, `"#ffffff"`, `"rgb(...)"`)  | `@repro/oxlint-plugin-design/no-hardcoded-color`   |
 | Raw pixel/number values in padding, margin, gap, fontSize, etc. | `@repro/oxlint-plugin-design/no-hardcoded-spacing` |
-| Raw `<div>` or `<span>` elements | `react/forbid-elements` |
-| Inline `style={{}}` prop | `react/forbid-dom-props` |
-| `className` prop | `@repro/oxlint-plugin-design/no-classname-prop` |
-| Direct `colors.*` imports | `@repro/oxlint-plugin-design/no-raw-palette` |
+| Raw `<div>` or `<span>` elements                                | `react/forbid-elements`                            |
+| Inline `style={{}}` prop                                        | `react/forbid-dom-props`                           |
+| `className` prop                                                | `@repro/oxlint-plugin-design/no-classname-prop`    |
+| Direct `colors.*` imports                                       | `@repro/oxlint-plugin-design/no-raw-palette`       |
 
 **Exclusions**: Test files (`*.test.ts*`, `**/__tests__/**`), story files (`*.stories.ts*`), and `packages/design/src/**` are excluded via `.oxlintrc.json` overrides.
 
@@ -277,10 +262,18 @@ Impeccable (`npx impeccable detect apps/ packages/ --json`) detects design anti-
 ### Why two detectors?
 
 Oxlint and Impeccable cover fundamentally different surfaces:
+
 - **Oxlint** = code architecture: are you using design tokens instead of raw values? Are you using design system components instead of raw className?
 - **Impeccable** = design quality: does the visual result look authored rather than AI-generated? Are contrast, spacing, and typography meeting quality heuristics?
 
 They are complementary, not overlapping. Both gates must pass in CI.
+
+### Context & Configuration
+
+- **PRODUCT.md** (repo root): Hand-authored product context consumed by Impeccable for product-aware heuristics. Maintained by hand; no generator.
+- **DESIGN.md** (repo root): Derived artifact listing `@repro/design` tokens (font, color, radius, spacing). Regenerate via `npx impeccable document`. Tokens in `packages/design/src/tokens/` remain the source of truth.
+- **Install path**: Impeccable skills live in `.opencode/skills/impeccable/`, installed via `npx impeccable install` (OpenCode-native).
+- **Update path**: `npx impeccable update` refreshes the local skill bundle.
 
 ---
 
@@ -379,13 +372,13 @@ import { color } from '@repro/design'
 
 ```tsx
 // Before — lint: react/forbid-elements, react/forbid-dom-props
-<p style={{ fontSize: "14px", lineHeight: 1.5 }}>Caption text</p>;
+;<p style={{ fontSize: '14px', lineHeight: 1.5 }}>Caption text</p>
 
 // After
-import { textStyles } from "@repro/design";
-<Block component="p" {...textStyles.body}>
+import { textStyles } from '@repro/design'
+;<Block component="p" {...textStyles.body}>
   Caption text
-</Block>;
+</Block>
 ```
 
 **4. Layout** — replace raw flex/grid divs with jsxstyle primitives.
@@ -435,13 +428,13 @@ import { focusRing } from '@repro/design'
 ```ts
 // Before
 function process(data: any) {
-  return data.value;
+  return data.value
 }
 
 // After
 function process(data: unknown) {
-  if (typeof data === "object" && data !== null && "value" in data) {
-    return (data as { value: unknown }).value;
+  if (typeof data === 'object' && data !== null && 'value' in data) {
+    return (data as { value: unknown }).value
   }
 }
 ```
@@ -563,11 +556,8 @@ Every list or grid `product/app UI` surface must have an empty state. Use the fi
 ### jsxstyle Skeleton
 
 ```tsx
-import { color, spacing, textStyles } from "@repro/design";
-import { Button } from "@repro/design";
-// Import `SomeIcon` from the icon library used in your app (e.g. lucide-react).
-
-<Col alignItems="center" gap={spacing.lg} padding={spacing.xl}>
+import { Button, color, spacing, textStyles } from '@repro/design'
+;<Col alignItems="center" gap={spacing.lg} padding={spacing.xl}>
   <Block color={color.text.subtle}>
     <SomeIcon size={48} />
   </Block>
@@ -580,7 +570,7 @@ import { Button } from "@repro/design";
   <Button variant="contained" onClick={onStart}>
     Start recording
   </Button>
-</Col>;
+</Col>
 ```
 
 ### Examples
@@ -621,17 +611,17 @@ Assert on DOM output, not on captured props.
 
 ```ts
 // CORRECT — assert what the user sees
-expect(screen.getByText(PLACEHOLDER_COPY[0]!)).toBeDefined();
+expect(screen.getByText(PLACEHOLDER_COPY[0]!)).toBeDefined()
 
 // WRONG — prop-capture anti-pattern
-const capturedProps = { placeholders: undefined };
-mock.module("@repro/design", () => ({
+const capturedProps = { placeholders: undefined }
+mock.module('@repro/design', () => ({
   AgenticInput: (props: any) => {
-    capturedProps.placeholders = props.placeholders;
-    return null;
+    capturedProps.placeholders = props.placeholders
+    return null
   },
-}));
-expect(capturedProps.placeholders).toEqual(PLACEHOLDER_COPY);
+}))
+expect(capturedProps.placeholders).toEqual(PLACEHOLDER_COPY)
 ```
 
 Note: `AgenticInput` renders placeholder text as animated `div` elements (via `@react-spring/web`), NOT as `<textarea placeholder="...">`. Use `screen.getByText(PLACEHOLDER_COPY[0]!)` — synchronous, no `findByText` needed for the first placeholder.

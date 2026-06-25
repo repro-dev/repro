@@ -19,6 +19,7 @@ Use this skill when feedback points to a specific existing UI surface and the go
 - settled preservation-only handoffs — use `design-handoff`
 - browser proof after the fix is already implemented — use `ui-verification`
 - broad UI audit or polish review — use `audit-ui-quality`
+- deterministic design-quality gate or shared anti-pattern vocabulary — see Impeccable in `design-system/SKILL.md` § "Impeccable — Design anti-pattern detection"
 
 ## Workflow
 

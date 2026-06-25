@@ -158,3 +158,5 @@ Use this shape in the context artifact:
 | `design-handoff`   | Preserving settled direction across downstream agents without re-opening it |
 | `audit-ui-quality` | Checking authored UI for polish, consistency, and generic drift             |
 | `ui-verification`  | Verifying the implemented UI behaves correctly in the browser               |
+
+[Impeccable](https://impeccable.style) complements this workflow as a deterministic CI gate and shared design-quality vocabulary. It layers under direction, edit, handoff, and audit — not a replacement. See `design-system/SKILL.md` § "Impeccable — Design anti-pattern detection".
