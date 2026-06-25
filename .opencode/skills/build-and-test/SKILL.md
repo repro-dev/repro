@@ -95,7 +95,7 @@ When a tool is installed elsewhere (e.g. in a Dockerfile, CI config, or setup sc
 | ------- | ------------------ | ------------------------------------------------ |
 | `moon`  | `moon = "2.2.5"`   | `infra/Dockerfile` (`@moonrepo/cli@2.2.5`)       |
 | `proto` | `proto = "0.57.2"` | `.moon/toolchains.yml` (`proto.version: 0.57.2`) |
-| `node`  | `node = "24.18.0"` | `infra/Dockerfile` (base image `node:24-slim`)   |
+| `node`  | `node = "26.4.0"` | `infra/Dockerfile` (base image `node:26-slim`)   |
 | `pnpm`  | `pnpm = "10.17.0"` | —                                                |
 
 `.prototools` also pins a **moon_tool plugin override** (`[plugins.tools] moon = "...moon_tool-v0.4.1/moon_tool.wasm"`) required for Moon v2's archive distribution format. The built-in proto plugin doesn't support v2 yet.
