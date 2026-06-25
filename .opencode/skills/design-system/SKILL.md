@@ -139,7 +139,22 @@ For admin/workspace settings and entity-detail surfaces, use the REP-520 user de
 All visual values must use tokens from `@repro/design`. Never hardcode raw pixels, hex colors, or transition strings.
 
 ```tsx
-
+import {
+  color,
+  spacing,
+  fontSize,
+  fontWeight,
+  lineHeight,
+  fontFamily,
+  textStyles,
+  shadow,
+  radius,
+  duration,
+  easing,
+  transition,
+  focusRing,
+  focusWithinRing,
+} from "@repro/design";
 ```
 
 | Category      | Key tokens                                                                                                                      | Use for                                                                                          |
@@ -372,11 +387,11 @@ import { color } from '@repro/design'
 
 ```tsx
 // Before — lint: react/forbid-elements, react/forbid-dom-props
-;<p style={{ fontSize: '14px', lineHeight: 1.5 }}>Caption text</p>
+<p style={{ fontSize: '14px', lineHeight: 1.5 }}>Caption text</p>
 
 // After
 import { textStyles } from '@repro/design'
-;<Block component="p" {...textStyles.body}>
+<Block component="p" {...textStyles.body}>
   Caption text
 </Block>
 ```
@@ -557,7 +572,7 @@ Every list or grid `product/app UI` surface must have an empty state. Use the fi
 
 ```tsx
 import { Button, color, spacing, textStyles } from '@repro/design'
-;<Col alignItems="center" gap={spacing.lg} padding={spacing.xl}>
+<Col alignItems="center" gap={spacing.lg} padding={spacing.xl}>
   <Block color={color.text.subtle}>
     <SomeIcon size={48} />
   </Block>
