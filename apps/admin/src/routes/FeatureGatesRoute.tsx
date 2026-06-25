@@ -9,7 +9,7 @@ export const FeatureGatesRoute: React.FC = () => {
       </PageFrame.Header>
       <PageFrame.Body>
         <EmptyState>
-          <EmptyState.Title>Feature Gates</EmptyState.Title>
+          <EmptyState.Title>Coming Soon</EmptyState.Title>
           <EmptyState.Description>
             Feature gates management is coming soon.
           </EmptyState.Description>

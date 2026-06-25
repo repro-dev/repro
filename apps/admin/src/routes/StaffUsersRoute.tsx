@@ -9,7 +9,7 @@ export const StaffUsersRoute: React.FC = () => {
       </PageFrame.Header>
       <PageFrame.Body>
         <EmptyState>
-          <EmptyState.Title>Staff Users</EmptyState.Title>
+          <EmptyState.Title>Coming Soon</EmptyState.Title>
           <EmptyState.Description>
             Staff user management is coming soon.
           </EmptyState.Description>

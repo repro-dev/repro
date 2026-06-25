@@ -9,7 +9,7 @@ export const RecordingsRoute: React.FC = () => {
       </PageFrame.Header>
       <PageFrame.Body>
         <EmptyState>
-          <EmptyState.Title>Recordings</EmptyState.Title>
+          <EmptyState.Title>Coming Soon</EmptyState.Title>
           <EmptyState.Description>
             Recordings list is coming soon.
           </EmptyState.Description>

@@ -12,6 +12,7 @@ describe('StaffUsersRoute', () => {
     const html = renderToStaticMarkup(<StaffUsersRoute />)
 
     assert.match(html, /Staff Users/)
+    assert.match(html, /Coming Soon/)
     assert.match(html, /Staff user management is coming soon\./)
   })
 

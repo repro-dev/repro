@@ -12,6 +12,7 @@ describe('FeatureGatesRoute', () => {
     const html = renderToStaticMarkup(<FeatureGatesRoute />)
 
     assert.match(html, /Feature Gates/)
+    assert.match(html, /Coming Soon/)
     assert.match(html, /Feature gates management is coming soon\./)
   })
 
