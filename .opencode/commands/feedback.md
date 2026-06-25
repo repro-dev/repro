@@ -12,6 +12,6 @@ Arguments (required): `$ARGUMENTS`
 2. Loads the `feedback-synthesis-workflow` skill.
 3. Treat the provided input as raw customer-feedback intake, not as shaped issue scope.
 4. Produce the synthesis brief and recommendations, then stop; do not create Linear issues directly.
-5. If the input is already a shaped issue brief, redirect the user to `/plan` or `/deliver` instead of duplicating work.
+5. If the input is already a shaped issue brief, redirect the user to `/plan` or `/build` instead of duplicating work.
 
 Keep this a thin command shim. The workflow owns clustering, evidence handling, and brief structure.

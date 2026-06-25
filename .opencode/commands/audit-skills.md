@@ -131,7 +131,7 @@ For each affected skill file identified in the audit, scan these sources to find
 Populate the **Agent Impact** column in the summary table dynamically based on this scan. The format should be:
 
 ```
-| .opencode/skills/<name>/SKILL.md | /deliver (develop agent), AGENTS.md | Agents get stale function names |
+| .opencode/skills/<name>/SKILL.md | /build (develop agent), AGENTS.md | Agents get stale function names |
 ```
 
 If no agent or command loads the skill, write `(none found)` in the Loaded By column.

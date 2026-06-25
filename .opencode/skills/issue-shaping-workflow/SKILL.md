@@ -18,7 +18,7 @@ Use this workflow when a user starts from a goal rather than an existing issue. 
 ## 1. Intake
 
 - Start from a goal, initiative statement, or planning prompt.
-- Do not accept an existing issue ID as the primary input; that belongs to `/deliver` or `/spec`.
+- Do not accept an existing issue ID as the primary input; that belongs to `/build` or `/spec`.
 - If the input is a synthesized feedback brief, consume the synthesized feedback briefs first and use them as the upstream signal for scope shaping.
 - Capture the goal, constraints, audience, and success signal.
 - If the discovery thread is getting broad or fragmented, write a small durable note in `tmp/context-<topic>.md` before going deeper.
@@ -48,7 +48,7 @@ Use these proposal buckets:
 
 - `tracking/parent` — the goal is broad and should anchor smaller executable issues
 - `spec/needs-spec` — the goal is too vague to plan safely
-- `executable leaf` — the work is bounded enough for `/deliver`
+- `executable leaf` — the work is bounded enough for `/build`
 
 Rules:
 
@@ -86,4 +86,4 @@ Keep the proposal grounded in the original goal and the context gathered so far.
 
 - On approval, write the curated issue set and stop.
 - Do not pivot into delivery, implementation, or issue refinement after the write.
-- The output should be agent-ready enough that `/deliver` can pick up the executable issues without a second planning pass.
+- The output should be agent-ready enough that `/build` can pick up the executable issues without a second planning pass.

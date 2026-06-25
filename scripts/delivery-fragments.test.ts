@@ -8,105 +8,59 @@ const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   '..'
 )
-const fragmentPaths = [
-  '.opencode/skills/delivery-workflow/references/deliver-command-contract.md',
-  '.opencode/skills/delivery-workflow/references/deliver-single-track.md',
-  '.opencode/skills/delivery-workflow/references/deliver-phase-1-scan-and-select.md',
-  '.opencode/skills/delivery-workflow/references/deliver-phase-2-provisional-sequencing.md',
-  '.opencode/skills/delivery-workflow/references/deliver-phase-3-worktrees.md',
-  '.opencode/skills/delivery-workflow/references/deliver-phase-4-plan.md',
-  '.opencode/skills/delivery-workflow/references/deliver-phase-5-risk-and-resequence.md',
-  '.opencode/skills/delivery-workflow/references/deliver-phase-6-implement.md',
-  '.opencode/skills/delivery-workflow/references/deliver-phase-7-review.md',
-  '.opencode/skills/delivery-workflow/references/deliver-phase-8-publish.md',
-  '.opencode/skills/delivery-workflow/references/deliver-phase-9-manual-test-plan.md',
-  '.opencode/skills/delivery-workflow/references/deliver-throughout.md',
-  '.opencode/skills/delivery-workflow/references/deliver-verification.md',
-]
 
 function readText(relativePath: string) {
   return readFileSync(path.join(repoRoot, relativePath), 'utf8')
 }
 
-function extractFragmentPaths(text: string) {
-  return [
-    ...text.matchAll(
-      /\.opencode\/skills\/delivery-workflow\/references\/[a-z0-9-]+\.md/g
-    ),
-  ].map(match => match[0])
-}
+describe('REP-1472 delivery workflow wiring', () => {
+  const referencesDir = '.opencode/skills/delivery-workflow/references'
 
-describe('REP-1132 delivery fragment wiring', () => {
-  it('keeps the shared fragments present and non-empty', () => {
-    for (const fragmentPath of fragmentPaths) {
-      assert.ok(
-        existsSync(path.join(repoRoot, fragmentPath)),
-        `missing ${fragmentPath}`
-      )
-      assert.ok(
-        readText(fragmentPath).trim().length > 0,
-        `empty ${fragmentPath}`
-      )
-    }
+  it('has no fragment files in references/', () => {
+    assert.ok(
+      !existsSync(path.join(repoRoot, referencesDir)),
+      `references/ directory should not exist`
+    )
   })
 
-  it('points the command and skill at the same fragment set', () => {
-    const commandPaths = new Set(
-      extractFragmentPaths(readText('.opencode/commands/deliver.md'))
+  it('has build.md but not deliver.md or deliver-issue.md', () => {
+    assert.ok(
+      existsSync(path.join(repoRoot, '.opencode/commands/build.md')),
+      'missing build.md'
     )
-    const skillPaths = new Set(
-      extractFragmentPaths(
-        readText('.opencode/skills/delivery-workflow/SKILL.md')
-      )
+    assert.ok(
+      !existsSync(path.join(repoRoot, '.opencode/commands/deliver.md')),
+      'deliver.md should not exist'
     )
-
-    assert.deepEqual(commandPaths, skillPaths)
-    assert.deepEqual(commandPaths, new Set(fragmentPaths))
+    assert.ok(
+      !existsSync(path.join(repoRoot, '.opencode/commands/deliver-issue.md')),
+      'deliver-issue.md should not exist'
+    )
   })
 
-  it('preserves the documented deliver modes in the command contract', () => {
-    const contract = readText(
-      '.opencode/skills/delivery-workflow/references/deliver-command-contract.md'
-    )
+  it('has build.md as a thin shim loading only delivery-workflow skill', () => {
+    const build = readText('.opencode/commands/build.md')
 
-    assert.match(contract, /\/deliver --project <project>/)
-    assert.match(contract, /\/deliver --issue REP-123/)
-    assert.match(contract, /--wave-concurrency <1-6>/)
+    assert.match(build, /Load `delivery-workflow`/)
+    assert.doesNotMatch(build, /references\/deliver-/)
+    assert.doesNotMatch(build, /\/deliver --issue/)
+    assert.doesNotMatch(build, /Fragment overrides/)
   })
 
-  it('keeps deliver.md as a shim instead of phase bodies', () => {
-    const deliverCommand = readText('.opencode/commands/deliver.md')
+  it('has SKILL.md with merged content and no fragment references', () => {
+    const skill = readText('.opencode/skills/delivery-workflow/SKILL.md')
 
-    assert.doesNotMatch(
-      deliverCommand,
-      /## Single-track mode \(replaces Phases 1 and 2\)/
-    )
-    assert.doesNotMatch(deliverCommand, /## Phase 1: Scan and select/)
-    assert.doesNotMatch(
-      deliverCommand,
-      /## Phase 8: Publish the active ready wave and stop/
-    )
-    assert.doesNotMatch(deliverCommand, /## Phase 9: Emit manual test plan/)
-    assert.doesNotMatch(deliverCommand, /## Throughout/)
-    assert.match(deliverCommand, /Read these canonical fragments in order:/)
+    assert.doesNotMatch(skill, /references\/deliver-/)
+    assert.doesNotMatch(skill, /Shared `\/deliver` fragments/)
+    assert.match(skill, /## Orchestration boundaries/)
+    assert.match(skill, /## Verification/)
+    assert.match(skill, /## Throughout/)
   })
 
-  it('keeps runtime-only interpolation out of the shared command contract', () => {
-    const contract = readText(
-      '.opencode/skills/delivery-workflow/references/deliver-command-contract.md'
-    )
+  it('has no /deliver or /deliver-issue command references in SKILL.md', () => {
+    const skill = readText('.opencode/skills/delivery-workflow/SKILL.md')
 
-    assert.doesNotMatch(contract, /\$ARGUMENTS/)
-    assert.doesNotMatch(contract, /!`git branch --show-current`/)
-  })
-
-  it('separates local-only and CI-enforced verification wording', () => {
-    const verification = readText(
-      '.opencode/skills/delivery-workflow/references/deliver-verification.md'
-    )
-
-    assert.match(verification, /## Local-only \/ orchestrator checks/)
-    assert.match(verification, /## CI-enforced checks/)
-    assert.ok(verification.includes('does **not** wait on CI'))
+    assert.doesNotMatch(skill, /\/deliver /)
+    assert.doesNotMatch(skill, /\/deliver-issue/)
   })
 })

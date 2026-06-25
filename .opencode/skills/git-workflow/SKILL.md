@@ -104,7 +104,7 @@ git rebase origin/main
 # Pre: branch exists, working tree is clean
 # Post: if branch was behind origin/main, it is now rebased; if already ahead, no-op
 #
-# Pre-push guard (referenced from .opencode/skills/delivery-workflow/references/deliver-phase-8-publish.md)
+# Pre-push guard (referenced from .opencode/skills/delivery-workflow/SKILL.md publish section)
 git fetch origin main
 if ! git merge-base --is-ancestor origin/main HEAD; then
   git rebase origin/main
@@ -127,7 +127,7 @@ git config --global rerere.enabled true
 
 ### Cross-References
 
-- **`.opencode/skills/delivery-workflow/references/deliver-phase-8-publish.md`**: Contains the pre-push `origin/main` ancestor guard. This playbook provides the resolution strategies when that guard fails. Do not duplicate the guard here — reference it.
+- **`.opencode/skills/delivery-workflow/SKILL.md` publish section**: Contains the pre-push `origin/main` ancestor guard. This playbook provides the resolution strategies when that guard fails. Do not duplicate the guard here — reference it.
 - **`worktree-workflow` skill**: For worktree lifecycle guidance.
 
 ## Pull Requests

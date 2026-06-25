@@ -164,7 +164,7 @@ Replace `~/path/to/parent-of-checkouts` with the directory that contains your ma
 
 ## Visual Regression Tooling
 
-The repo includes standalone visual regression tooling in `scripts/`. It is useful for manual UI checks and for refreshing local baselines, but it is not an active `/deliver` pipeline phase. The tooling consists of two scripts:
+The repo includes standalone visual regression tooling in `scripts/`. It is useful for manual UI checks and for refreshing local baselines, but it is not an active `/build` pipeline phase. The tooling consists of two scripts:
 
 | Script                                 | Purpose                                                        |
 | -------------------------------------- | -------------------------------------------------------------- |

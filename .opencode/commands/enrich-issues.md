@@ -1,8 +1,8 @@
 ---
-description: Enrich thin or ambiguous Linear issues that are not yet ready for /deliver — run a project-scoped backlog scan or target one issue directly, then generate grounded acceptance criteria and scope context, update issues in Linear, or flag them for human review
+description: Enrich thin or ambiguous Linear issues that are not yet ready for /build — run a project-scoped backlog scan or target one issue directly, then generate grounded acceptance criteria and scope context, update issues in Linear, or flag them for human review
 ---
 
-Scan Linear backlog issues that are not yet ready for `/deliver`, or target exactly one Linear issue for refinement. For each failing issue, gather codebase context and generate concrete acceptance criteria, scope notes, and description expansions. Update issues in Linear (with user approval, or autonomously with `--apply`). Flag un-enrichable issues as `needs-spec`. Queue-state fixes and duplicate/supersession triage belong to `/groom`, not this command.
+Scan Linear backlog issues that are not yet ready for `/build`, or target exactly one Linear issue for refinement. For each failing issue, gather codebase context and generate concrete acceptance criteria, scope notes, and description expansions. Update issues in Linear (with user approval, or autonomously with `--apply`). Flag un-enrichable issues as `needs-spec`. Queue-state fixes and duplicate/supersession triage belong to `/groom`, not this command.
 
 Arguments (optional):
 
@@ -12,7 +12,7 @@ Arguments (optional):
 
 Parse `$ARGUMENTS` carefully: separate the positional project filter from the `--apply` flag in project-scan mode, or parse `--issue REP-123` for single-issue mode. These modes are mutually exclusive. Reject bare issue IDs, multiple positional arguments, unknown flags, and malformed issue identifiers as hard failures.
 
-<!-- Selection-readiness rubric — keep in sync with deliver.md Phase 1 and defer queue-normalization cases to /groom -->
+<!-- Selection-readiness rubric — keep in sync with build.md pre-flight checks and defer queue-normalization cases to /groom -->
 
 ---
 
@@ -45,7 +45,7 @@ This step is idempotent — if the label already exists, skip creation.
 
 ## Step 3: Apply the readiness rubric
 
-<!-- This rubric must stay in sync with deliver.md Phase 1; queue-health mismatches should be routed to /groom -->
+<!-- This rubric must stay in sync with build.md pre-flight checks; queue-health mismatches should be routed to /groom -->
 
 Evaluate each issue in this order:
 
