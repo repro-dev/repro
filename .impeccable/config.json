@@ -1,0 +1,15 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [
+      "**/*.test.ts*",
+      "**/__tests__/**",
+      "**/*.stories.ts*",
+      "packages/design/src/**",
+      "**/dist/**",
+      "**/out/**",
+      "**/storybook-static/**",
+      "**/generated/**"
+    ]
+  }
+}

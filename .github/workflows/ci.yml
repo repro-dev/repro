@@ -180,6 +180,9 @@ jobs:
       - name: Run workspace lint (Oxlint)
         run: pnpm run lint
 
+      - name: Run Impeccable design-slop detector
+        run: npx impeccable detect apps/ packages/ --json
+
       - name: Check formatting (Prettier)
         run: pnpm run fmt:check
 
