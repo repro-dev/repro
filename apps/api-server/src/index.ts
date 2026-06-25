@@ -4,7 +4,7 @@ import helmet from '@fastify/helmet'
 import rateLimit from '@fastify/rate-limit'
 import { buildRateLimitOptions } from '~/rateLimit'
 
-import { Google } from 'arctic'
+import { Google, Linear } from 'arctic'
 import fastify, { FastifyPluginAsync } from 'fastify'
 import {
   serializerCompiler,
@@ -29,6 +29,7 @@ import { createBillingWebhookRouter } from '~/routers/billingWebhook'
 import { createFeatureGateRouter } from '~/routers/featureGate'
 import { createHealthRouter } from '~/routers/health'
 import { createOAuthRouter } from '~/routers/oauth'
+import { createPmIntegrationRouter } from '~/routers/pmIntegrations'
 import { createProjectRouter } from '~/routers/project'
 import { createSocialAuthRouter } from '~/routers/socialAuth'
 import { createAccountService } from '~/services/account'
@@ -39,6 +40,7 @@ import { createFeatureGateService } from '~/services/featureGate'
 import { createHealthService } from '~/services/health'
 import { createOAuthService } from '~/services/oauth'
 import { createOutboxService } from '~/services/outbox'
+import { createPmIntegrationService } from '~/services/pmIntegrations'
 import { createProjectService } from '~/services/project'
 import { createRecordingService } from '~/services/recording'
 import { createRecordingFinalizationService } from '~/services/recordingFinalization'
@@ -106,6 +108,47 @@ function createGoogleProvider(callbackPath: string) {
         email: string
         name: string
       }>
+    },
+  }
+}
+
+function createLinearProvider(callbackPath: string) {
+  if (!env.LINEAR_CLIENT_ID || !env.LINEAR_CLIENT_SECRET) {
+    return null
+  }
+
+  const arctic = new Linear(
+    env.LINEAR_CLIENT_ID,
+    env.LINEAR_CLIENT_SECRET,
+    `${env.REPRO_API_URL}${callbackPath}`
+  )
+
+  return {
+    createAuthorizationURL: (state: string, scopes: string[]) =>
+      arctic.createAuthorizationURL(state, scopes),
+    validateAuthorizationCode: (code: string) =>
+      arctic.validateAuthorizationCode(code),
+    fetchWorkspaceInfo: async (accessToken: string) => {
+      const resp = await fetch('https://api.linear.app/graphql', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          query: `query { viewer { organization { id name } } }`,
+        }),
+      })
+      const json = (await resp.json()) as {
+        data?: { viewer?: { organization?: { id: string; name: string } } }
+      }
+      const org = json.data?.viewer?.organization
+
+      if (!org) {
+        throw new Error('Failed to fetch Linear workspace info')
+      }
+
+      return { id: org.id, name: org.name }
     },
   }
 }
@@ -193,6 +236,7 @@ async function bootstrap() {
     recordingFinalizationService
   )
   const socialAuthService = createSocialAuthService(database)
+  const pmIntegrationService = createPmIntegrationService(database)
 
   const googleProvider = createGoogleProvider('/account/oauth/google/callback')
   const socialAuthRouter = createSocialAuthRouter(
@@ -200,6 +244,17 @@ async function bootstrap() {
     socialAuthService,
     env,
     googleProvider ? { google: googleProvider } : {}
+  )
+
+  const linearProvider =
+    env.LINEAR_CLIENT_ID && env.LINEAR_CLIENT_SECRET
+      ? createLinearProvider('/integrations/pm/oauth/linear/callback')
+      : null
+  const pmIntegrationRouter = createPmIntegrationRouter(
+    accountService,
+    pmIntegrationService,
+    env,
+    linearProvider ? { linear: linearProvider } : {}
   )
 
   const accountRouter = createAccountRouter(accountService, emailModule)
@@ -277,6 +332,7 @@ async function bootstrap() {
       ? { '/billing/webhooks': billingWebhookRouter }
       : {}),
     '/feature-gates': featureGateRouter,
+    '/integrations/pm': pmIntegrationRouter,
     '/health': healthRouter,
     '/oauth': oauthRouter,
     '/projects': projectRouter,
