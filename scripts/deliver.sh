@@ -8,7 +8,11 @@ usage_text() {
 Usage: deliver [--profile <name> | --pick] [--help] <issue-id>
 
   Creates an isolated worktree from a Linear issue, then opens an
-  OpenCode session with /deliver-issue to run the delivery workflow.
+  OpenCode session with the appropriate delivery command.
+
+  Routing:
+    Bug issues    → /debug
+    All others    → /build
 
   Flags:
     --profile <name>  Use the specified OpenCode profile
@@ -26,6 +30,42 @@ EOF
 usage() {
   usage_text
   exit 1
+}
+
+# Resolve delivery command based on Linear issue labels.
+# Bug → /debug, everything else → /build (fail-open default).
+resolve_command() {
+  local issue_id="$1"
+
+  if ! command -v linear > /dev/null 2>&1; then
+    echo "/build"
+    return 0
+  fi
+
+  local json_output
+  json_output="$(linear issue show "$issue_id" --json 2>/dev/null)" || {
+    echo "/build"
+    return 0
+  }
+
+  if [[ -z "$json_output" ]]; then
+    echo "/build"
+    return 0
+  fi
+
+  if echo "$json_output" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+labels = data.get('labels', [])
+for label in labels:
+    if label.get('name') == 'Bug':
+        sys.exit(0)
+sys.exit(1)
+" 2>/dev/null; then
+    echo "/debug"
+  else
+    echo "/build"
+  fi
 }
 
 # Parse flags and issue ID (flags accepted before OR after issue ID)
@@ -131,12 +171,15 @@ if [[ -n "$profile" ]]; then
   fi
 fi
 
+# Resolve delivery command based on issue labels
+delivery_command="$(resolve_command "$issue_id")"
+
 "$SCRIPT_DIR/reproctl.sh" wt create --from-issue "$issue_id" --open
 
 if ! herdr status &>/dev/null; then
   echo "herdr is not running — worktree created but no OpenCode session was opened." >&2
   echo "Start herdr and run the following in the new worktree:" >&2
-  echo "  opencode run -i \"/deliver-issue $issue_id\"" >&2
+  echo "  opencode run -i \"$delivery_command $issue_id\"" >&2
   exit 1
 fi
 
@@ -167,10 +210,10 @@ if [[ -n "$profile" ]]; then
   exec herdr agent start "opencode-${issue_id}" \
       --workspace "$workspace_id" \
       --focus \
-      -- bash -c 'cd "$1" && exec "$2" opencode --profile "$3" --prompt "$4"' _ "$worktree_path" "$SCRIPT_DIR/reproctl.sh" "$profile" "/deliver-issue $issue_id"
+      -- bash -c 'cd "$1" && exec "$2" opencode --profile "$3" --prompt "$4"' _ "$worktree_path" "$SCRIPT_DIR/reproctl.sh" "$profile" "$delivery_command $issue_id"
 else
   exec herdr agent start "opencode-${issue_id}" \
       --workspace "$workspace_id" \
       --focus \
-      -- bash -c 'cd "$1" && REPRO_OPENCODE_PROFILE="$2" exec "$3" opencode --prompt "$4"' _ "$worktree_path" "${REPRO_OPENCODE_PROFILE:-deepseek-v4}" "$SCRIPT_DIR/reproctl.sh" "/deliver-issue $issue_id"
+      -- bash -c 'cd "$1" && REPRO_OPENCODE_PROFILE="$2" exec "$3" opencode --prompt "$4"' _ "$worktree_path" "${REPRO_OPENCODE_PROFILE:-deepseek-v4}" "$SCRIPT_DIR/reproctl.sh" "$delivery_command $issue_id"
 fi
