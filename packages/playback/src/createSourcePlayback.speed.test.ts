@@ -45,6 +45,7 @@ describe('createSourcePlayback speed advancement', () => {
             interaction: null,
             frameworkState: null,
             cssRules: null,
+            colorScheme: null,
           },
         })
       ),

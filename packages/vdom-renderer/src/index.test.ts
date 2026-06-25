@@ -5,6 +5,7 @@ import { describe, it } from 'node:test'
 import {
   applyDOMPatchEvent,
   createDOMFromVTree,
+  patchDocumentElement,
   replaceURLsInCSSText,
   resolveURLToResource,
 } from './index'
@@ -460,6 +461,98 @@ describe('vdom-renderer: shadow DOM reconstruction', () => {
       undefined,
       'shadow root child should be removed from nodeMap'
     )
+  })
+})
+
+describe('vdom-renderer: patchDocumentElement colorScheme', () => {
+  it('applies colorScheme when provided', () => {
+    const vtree = makeVTree('html-1', {
+      'html-1': new Box({
+        type: NodeType.Element as any,
+        id: 'html-1',
+        parentId: null,
+        tagName: 'html',
+        children: [],
+        attributes: {},
+        properties: { checked: null, selectedIndex: null, value: null },
+        shadowRoot: false,
+      }),
+    })
+
+    const nodeMap: Record<string, Node> = {}
+    const documentElement = document.documentElement
+
+    patchDocumentElement(vtree, nodeMap, documentElement, 'dark')
+
+    assert.equal(documentElement.style.colorScheme, 'dark')
+    assert.equal(nodeMap['html-1'], documentElement)
+  })
+
+  it('is a no-op when colorScheme is undefined', () => {
+    const vtree = makeVTree('html-1', {
+      'html-1': new Box({
+        type: NodeType.Element as any,
+        id: 'html-1',
+        parentId: null,
+        tagName: 'html',
+        children: [],
+        attributes: {},
+        properties: { checked: null, selectedIndex: null, value: null },
+        shadowRoot: false,
+      }),
+    })
+
+    const nodeMap: Record<string, Node> = {}
+    const documentElement = document.documentElement
+    const originalColorScheme = documentElement.style.colorScheme
+
+    patchDocumentElement(vtree, nodeMap, documentElement)
+
+    assert.equal(documentElement.style.colorScheme, originalColorScheme)
+    assert.equal(nodeMap['html-1'], documentElement)
+  })
+
+  it('is a no-op when colorScheme is empty string', () => {
+    const vtree = makeVTree('html-1', {
+      'html-1': new Box({
+        type: NodeType.Element as any,
+        id: 'html-1',
+        parentId: null,
+        tagName: 'html',
+        children: [],
+        attributes: {},
+        properties: { checked: null, selectedIndex: null, value: null },
+        shadowRoot: false,
+      }),
+    })
+
+    const nodeMap: Record<string, Node> = {}
+    const documentElement = document.documentElement
+    const originalColorScheme = documentElement.style.colorScheme
+
+    patchDocumentElement(vtree, nodeMap, documentElement, '')
+
+    assert.equal(documentElement.style.colorScheme, originalColorScheme)
+    assert.equal(nodeMap['html-1'], documentElement)
+  })
+
+  it('does not throw when colorScheme is undefined', () => {
+    const vtree = makeVTree('html-1', {
+      'html-1': new Box({
+        type: NodeType.Element as any,
+        id: 'html-1',
+        parentId: null,
+        tagName: 'html',
+        children: [],
+        attributes: {},
+        properties: { checked: null, selectedIndex: null, value: null },
+        shadowRoot: false,
+      }),
+    })
+
+    assert.doesNotThrow(() => {
+      patchDocumentElement(vtree, {}, document.documentElement)
+    })
   })
 })
 

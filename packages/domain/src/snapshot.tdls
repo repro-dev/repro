@@ -22,4 +22,5 @@ type Snapshot: struct {
   1) interaction: ?InteractionSnapshot
   2) frameworkState: ?FrameworkState
   3) cssRules: ?vector<CapturedStyleSheet>
+  4) colorScheme: ?string
 }

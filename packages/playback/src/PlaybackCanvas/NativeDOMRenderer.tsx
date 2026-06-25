@@ -104,11 +104,17 @@ export const NativeDOMRenderer: React.FC<Props> = ({
                 })
 
                 const documentElement = ownerDocument.documentElement
+                const colorScheme = snapshot.colorScheme ?? undefined
 
                 Stats.time(
                   'NativeDOMRenderer (effect): patch document element',
                   () => {
-                    patchDocumentElement(vtree, vtreeNodeMap, documentElement)
+                    patchDocumentElement(
+                      vtree,
+                      vtreeNodeMap,
+                      documentElement,
+                      colorScheme
+                    )
                   }
                 )
 

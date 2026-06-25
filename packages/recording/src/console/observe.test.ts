@@ -147,12 +147,11 @@ describe('libs/record: console observers', () => {
     observer.observe(document, { rootId: 'foo', nodes: {} } as any)
 
     // Dispatch an error event — without guard, subscriber fires twice
-    window.dispatchEvent(
-      new ErrorEvent('error', {
-        message: 'test-error',
-        error: new Error('test'),
-      })
-    )
+    const errorEvent = Object.assign(new window.Event('error'), {
+      message: 'test-error',
+      error: new Error('test'),
+    })
+    window.dispatchEvent(errorEvent)
 
     await waitForMessages(messages, 1, 500)
 
