@@ -174,7 +174,7 @@ fi
 # Resolve delivery command based on issue labels
 delivery_command="$(resolve_command "$issue_id")"
 
-"$SCRIPT_DIR/reproctl.sh" wt create --from-issue "$issue_id" --open
+"$SCRIPT_DIR/reproctl.sh" wt create --from-issue "$issue_id" --open --no-status-update
 
 if ! herdr status &>/dev/null; then
   echo "herdr is not running — worktree created but no OpenCode session was opened." >&2
