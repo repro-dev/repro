@@ -1,12 +1,24 @@
 ---
-description: Groom Linear backlog/Todo queues within an explicit scope, classify readiness, and optionally apply conservative mutations with verification
+description: Groom Linear backlog interactively — per-project Todo/Backlog scan, or full-workspace status-by-status sweep with closure authority
 ---
 
 Arguments: `$ARGUMENTS`
 
-1. Parse exactly one explicit scope selector first: a project name or a filter selector.
-2. Accept `--apply` as the only mutation switch.
-3. If scope is missing, ambiguous, or combined with extra unrecognized flags, stop with a clear usage error instead of scanning broadly.
-4. Load `linear-cli` and the `backlog-grooming` skill.
-5. Hand off the bounded queue scan, readiness classification, and write-back flow to the skill.
-6. In dry-run mode, show proposed actions first. In apply mode, include a compact post-write verification summary.
+## Mode selection
+
+1. If `$ARGUMENTS` is `--full`: run **full-sweep mode** — all projects, all statuses, systematic sweep with closure authority.
+2. Otherwise: treat `$ARGUMENTS` as a **project name** for per-project Todo/Backlog grooming.
+3. There is no `--apply` flag. The workflow is always conversational — present proposals, get approval, then apply.
+
+If scope is missing, ambiguous, or contains unrecognized flags, stop with a usage error:
+```
+Usage:
+  /groom <project>      Per-project Todo/Backlog scan (conversational)
+  /groom --full         Full workspace sweep — all projects, all statuses (conversational)
+```
+
+## Dispatch
+
+1. Load `linear-cli` and the `backlog-grooming` skill.
+2. Follow the skill's conversational workflow for the selected mode.
+3. Never apply mutations without explicit user approval. Present proposals grouped by phase or category, ask for confirmation, apply only what the user approves, and verify each write.
