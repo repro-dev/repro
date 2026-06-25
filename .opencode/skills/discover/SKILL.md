@@ -94,10 +94,10 @@ Examine the issue title and description for:
 
 ### 2b. Gather codebase context
 
-Use jcodemunch tools to find related code:
+Use jcodemunch tools to find related code. Resolve the repo path dynamically from the current working directory (discovery always runs in the current directory):
 
 ```
-jcodemunch_resolve_repo path=/Users/gary/Projects/repro-dev/repro-wt-rep-1473-20260625194330-53cd
+jcodemunch_resolve_repo path=$(pwd)
 jcodemunch_search_symbols repo=<repo-identifier> query="<keywords from issue>" detail_level=compact
 ```
 
@@ -106,6 +106,8 @@ For any likely files found, also check:
 ```
 jcodemunch_get_file_outline repo=<repo-identifier> file_path="<candidate-file>"
 ```
+
+**Fallback**: If jcodemunch tools are unavailable or the repo isn't indexed, fall back to file-based search using `glob` and `grep` with keywords from the issue body (e.g., component names, file patterns, package paths).
 
 ### 2c. Build estimated file set
 
@@ -224,10 +226,10 @@ Generated: <timestamp>
 
 ## Deferred
 
-| Issue | Title | Reason                      |
-| ----- | ----- | --------------------------- |
-| REP-4 | ...   | Blocked by REP-7            |
-| REP-5 | ...   | Needs spec — no concrete AC |
+| Issue | Title | Reason                      | Detail                              |
+| ----- | ----- | --------------------------- | ----------------------------------- |
+| REP-4 | ...   | Blocked by REP-7            | Has open blocker relation           |
+| REP-5 | ...   | Needs spec — no concrete AC | Description lacks implementation AC |
 
 ## Next Actions
 
