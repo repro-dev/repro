@@ -7,7 +7,6 @@ import {
   Card,
   FullPageLoading,
   PageFrame,
-  Stack,
   Text,
   TextField,
   spacing,
@@ -155,9 +154,9 @@ export function ProfileSettingsRoute({
       </PageFrame.Header>
 
       <PageFrame.Body maxWidth={720}>
-        <Stack gap={spacing.lg}>
-          <Card>
-            <Col padding={spacing.xl} gap={spacing.lg}>
+        <Card>
+          <Col padding={spacing.xl} gap={spacing['3xl']}>
+            <Col gap={spacing.lg}>
               <Row alignItems="center" gap={spacing.md}>
                 <Text variant="heading3">Name</Text>
                 {!isEditingName && (
@@ -199,10 +198,8 @@ export function ProfileSettingsRoute({
                 <Text variant="body">{displayProfile.name}</Text>
               )}
             </Col>
-          </Card>
 
-          <Card>
-            <Col padding={spacing.xl} gap={spacing.lg}>
+            <Col gap={spacing.lg}>
               <Text variant="heading3">Email</Text>
               <Row alignItems="center" gap={spacing.md}>
                 <Text variant="body">{displayProfile.email}</Text>
@@ -230,24 +227,20 @@ export function ProfileSettingsRoute({
                 </Col>
               )}
             </Col>
-          </Card>
 
-          <Card>
-            <Col padding={spacing.xl} gap={spacing.lg}>
+            <Col gap={spacing.lg}>
               <Text variant="heading3">Account</Text>
               <Text variant="body">{displayProfile.account.name}</Text>
             </Col>
-          </Card>
 
-          <Card>
-            <Col padding={spacing.xl} gap={spacing.lg}>
+            <Col gap={spacing.lg}>
               <Text variant="heading3">Member since</Text>
               <Text variant="body">
                 {new Date(displayProfile.createdAt).toLocaleDateString()}
               </Text>
             </Col>
-          </Card>
-        </Stack>
+          </Col>
+        </Card>
       </PageFrame.Body>
     </PageFrame>
   )
