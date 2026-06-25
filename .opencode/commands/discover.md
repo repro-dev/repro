@@ -1,5 +1,5 @@
 ---
-description: Read-only Linear backlog scan — classify readiness, rank by priority, and write artifacts to tmp/discover-runs/
+description: Read-only Linear backlog scan — classify readiness, strategic sequencing, and write artifacts to tmp/discover-runs/
 ---
 
 Arguments: `$ARGUMENTS`
@@ -13,8 +13,8 @@ Arguments: `$ARGUMENTS`
      /discover --project <project> [--query <term>]
 
    Scans Todo and Backlog issues in a Linear project, classifies readiness,
-   ranks the best candidates for delivery, and writes output
-   to tmp/discover-runs/<run-id>/.
+   strategically sequences the best candidates by thematic connection to
+   active work, and writes output to tmp/discover-runs/<run-id>/.
 
    --project <project>  (required) Linear project name
    --query <term>       (optional) Filter ready candidates by keyword

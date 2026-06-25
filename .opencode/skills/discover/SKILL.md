@@ -1,11 +1,11 @@
 ---
 name: discover
-description: Read-only Linear backlog scanning, readiness classification, priority ranking, and artifact writing. Load when /discover is invoked or when preparing a standalone backlog triage.
+description: Read-only Linear backlog scanning, readiness classification, strategic sequencing, and artifact writing. Load when /discover is invoked or when preparing a standalone backlog triage.
 ---
 
 # Discovery Workflow
 
-Read-only workflow for scanning a Linear project's Todo and Backlog, classifying candidates by readiness, ranking the best candidates for delivery, and writing output artifacts to `tmp/discover-runs/<run-id>/`.
+Read-only workflow for scanning a Linear project's Todo and Backlog, classifying candidates by readiness, strategically sequencing the best candidates for delivery, and writing output artifacts to `tmp/discover-runs/<run-id>/`.
 
 **Hard constraint**: This workflow is **read-only across the entire system**. It never:
 
@@ -72,7 +72,7 @@ Evaluate each issue against this ordered rubric and classify into one of these b
 | **needs-spec**               | Has the `needs-spec` label                                                                                                   | Skip — record as pre-filtered with reason |
 | **no-concrete-AC**           | Description lacks concrete implementation steps (checklist items, explicit file paths, specific outcomes)                    | Skip — record as pre-filtered with reason |
 | **has-unresolved-decisions** | Description contains unresolved language: `TBD`, `pending design`, `pending decision`, `TODO`, `undetermined`, or equivalent | Skip — record as pre-filtered with reason |
-| **ready**                    | Passes all checks above                                                                                                      | Candidate for ranking                     |
+| **ready**                    | Passes all checks above                                                                                                      | Candidate for sequencing                  |
 
 ### 1e. Apply optional `--query` filter
 
@@ -80,11 +80,49 @@ If `search_query` is set, filter ready candidates to those whose `title` or `des
 
 ---
 
-## Phase 2 — Rank candidates
+## Phase 2 — Strategic sequencing
 
-Sort ready candidates by priority descending (Urgent → High → Medium → Low), then by issue identifier as a tiebreaker.
+The goal is to surface candidates that complete larger slices of work rather than isolated units. Three signals drive the ranking:
 
-Priority value mapping: treat `1` = Urgent, `2` = High, `3` = Medium, `4` = Low. If no priority is assigned, treat as Low.
+1. **Thematic connection** — how strongly this issue relates to work that is currently active or recently completed
+2. **Recency** — more recently updated issues are more likely to be top-of-mind
+3. **Priority** — the Linear priority label is a signal, but not the only one
+
+### 2a. Gather active context
+
+Fetch recently active work from the same project to establish thematic context:
+
+```sh
+linear issue list --status done --project "$target_project" --limit 50 --json
+linear issue list --status in-progress --project "$target_project" --limit 50 --json
+linear issue list --status "In Review" --project "$target_project" --limit 50 --json
+```
+
+Collect these as the **active-context set** — issues that represent the current stream of work.
+
+### 2b. Score each ready candidate
+
+For each ready candidate, compute these signals:
+
+**Thematic connection** — how strongly this issue links to the active-context set:
+- Shared labels with active-context issues (+2 per shared label per active issue, cap contribution)
+- Title keyword overlap with active-context issues (significant word matches beyond stop words)
+- Shared related issues or parent/child links with active-context issues
+- Weak signal: same project alone (already true for all candidates, skip)
+
+**Recency** — based on `updatedAt`:
+- Updated within last 7 days: strong recency signal
+- Updated within last 30 days: moderate recency signal
+- Updated within last 90 days: weak recency signal
+- Older: no recency signal
+
+**Priority** — Urgent > High > Medium > Low. Priority value mapping: `1` = Urgent, `2` = High, `3` = Medium, `4` = Low. If no priority is assigned, treat as Low.
+
+**Query relevance** — if `search_query` is set, issues that match the query term in title or description keywords (not just substring) get a boost. Exact keyword matches rank above vague substring hits.
+
+### 2c. Produce ranked order
+
+Sort ready candidates by composite signal strength. Weight thematic connection and query relevance most heavily (the operator's intent), then recency (what's fresh), then priority (Linear's signal). The exact weighting is a heuristic — the output artifacts should make the rationale visible so the operator can override.
 
 Build the deferred list: collect all skipped issues with their skip reason and the rubric bucket they fell into.
 
@@ -101,13 +139,15 @@ Write `tmp/discover-runs/<run-id>/candidates.md` with the following structure:
 
 Run ID: <run-id>
 Generated: <timestamp>
+Query: <search_query or "(none)">
 
 ## Ready Candidates
 
-| # | Priority | Issue | Title |
-|---| -------- | ----- | ----- |
-| 1 | High     | REP-1 | ...   |
-| 2 | Medium   | REP-2 | ...   |
+| # | Issue | Title | Priority | Why |
+|---| ----- | ----- | -------- | --- |
+| 1 | REP-1 | ...   | High     | Connected to active REP-100 (shared labels: auth, login); updated 2d ago |
+| 2 | REP-5 | ...   | Medium   | Query match "auth"; shares labels with REP-100 |
+| 3 | REP-3 | ...   | High     | Updated 5d ago |
 
 ## Pre-filtered Issues
 
@@ -126,6 +166,8 @@ Generated: <timestamp>
 - **Pre-filtered**: N (needs-spec: N, no-concrete-AC: N, unresolved-decisions: N, blocked: N, in-flight: N)
 ```
 
+The **Why** column makes the sequencing rationale transparent — the operator can see why each candidate ranked where it did and override as needed.
+
 ### 3b. Write `sequence.md`
 
 Write `tmp/discover-runs/<run-id>/sequence.md`:
@@ -136,13 +178,13 @@ Write `tmp/discover-runs/<run-id>/sequence.md`:
 Run ID: <run-id>
 Generated: <timestamp>
 
-Ready candidates ranked by priority — start at the top.
+Ready candidates sequenced by thematic connection, recency, and priority — start at the top.
 
-| # | Priority | Issue | Title |
-|---| -------- | ----- | ----- |
-| 1 | High     | REP-1 | ...   |
-| 2 | High     | REP-5 | ...   |
-| 3 | Medium   | REP-3 | ...   |
+| # | Issue | Title | Priority | Why |
+|---| ----- | ----- | -------- | --- |
+| 1 | REP-1 | ...   | High     | Connected to active REP-100 (shared labels: auth, login); updated 2d ago |
+| 2 | REP-5 | ...   | Medium   | Query match; shares labels with active work |
+| 3 | REP-3 | ...   | High     | Updated 5d ago |
 
 ## Deferred
 
@@ -202,6 +244,7 @@ This was a read-only operation. No Linear issues, worktrees, branches, or PRs we
 
 ## Risk awareness
 
-1. **Linear API pagination**: projects with >250 issues require pagination handling. Respect `pageInfo.hasNextPage` and `pageInfo.endCursor`.
-2. **Linear API rate limiting**: scanning many issues may hit rate limits. If a `linear` command returns a rate-limit error, wait 30 seconds and retry up to 3 times.
-3. **No mutations**: verify after each phase that no write commands (`linear issue update`, `linear issue comment`, `linear issue create`, etc.) have been invoked. This workflow is read-only.
+1. **Thematic connection is heuristic**: label and keyword overlap with active work is a proxy for real thematic coherence. The **Why** column makes rationale visible so the operator can override.
+2. **Linear API pagination**: projects with >250 issues require pagination handling. Respect `pageInfo.hasNextPage` and `pageInfo.endCursor`.
+3. **Linear API rate limiting**: scanning many issues may hit rate limits. If a `linear` command returns a rate-limit error, wait 30 seconds and retry up to 3 times.
+4. **No mutations**: verify after each phase that no write commands (`linear issue update`, `linear issue comment`, `linear issue create`, etc.) have been invoked. This workflow is read-only.
