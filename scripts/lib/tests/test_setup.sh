@@ -200,17 +200,6 @@ test_bootstrap_uses_repo_local_linear_cli_from_pnpm_install() {
   fi
 }
 
-test_bootstrap_exposes_autobot_next_from_repo_bin_path() {
-  local output rc=0
-  output="$(PATH="$REPO_ROOT/bin:$SYSTEM_PATH" bash -lc 'command -v autobot-next' 2>&1)" || rc=$?
-
-  if [ $rc -eq 0 ] && [ "$output" = "$REPO_ROOT/bin/autobot-next" ]; then
-    _pass "bootstrap exposes autobot-next from repo bin path"
-  else
-    _fail "bootstrap exposes autobot-next from repo bin path" "rc=$rc; output: $output"
-  fi
-}
-
 test_bootstrap_fails_when_linear_wrapper_execution_fails_but_sdk_resolution_succeeds() {
   local tmpdir rc=0
   tmpdir="$(_make_tmpdir)"

@@ -1543,145 +1543,6 @@ importers:
         specifier: 5.7.3
         version: 5.7.3
 
-  packages/autobot-adapters:
-    dependencies:
-      fluture:
-        specifier: ^14.0.0
-        version: 14.0.0
-    devDependencies:
-      '@types/node':
-        specifier: 22.14.0
-        version: 22.14.0
-      prettier:
-        specifier: ^3.0.0
-        version: 3.8.1
-      prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.8.1)(typescript@5.7.3)
-      typescript:
-        specifier: 5.7.3
-        version: 5.7.3
-
-  packages/autobot-cli:
-    dependencies:
-      '@repro/autobot-adapters':
-        specifier: workspace:*
-        version: link:../autobot-adapters
-      '@repro/autobot-core':
-        specifier: workspace:*
-        version: link:../autobot-core
-      '@repro/autobot-flowcraft':
-        specifier: workspace:*
-        version: link:../autobot-flowcraft
-      '@repro/autobot-store':
-        specifier: workspace:*
-        version: link:../autobot-store
-      commander:
-        specifier: ^12.1.0
-        version: 12.1.0
-      fluture:
-        specifier: ^14.0.0
-        version: 14.0.0
-      serialize-error:
-        specifier: ^11.0.3
-        version: 11.0.3
-    devDependencies:
-      '@types/node':
-        specifier: 22.14.0
-        version: 22.14.0
-      prettier:
-        specifier: ^3.0.0
-        version: 3.8.1
-      prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.8.1)(typescript@5.7.3)
-      tsx:
-        specifier: 4.19.3
-        version: 4.19.3
-      typescript:
-        specifier: 5.7.3
-        version: 5.7.3
-
-  packages/autobot-core:
-    devDependencies:
-      '@types/node':
-        specifier: 22.14.0
-        version: 22.14.0
-      prettier:
-        specifier: ^3.0.0
-        version: 3.8.1
-      prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.8.1)(typescript@5.7.3)
-      tsx:
-        specifier: 4.19.3
-        version: 4.19.3
-      typescript:
-        specifier: 5.7.3
-        version: 5.7.3
-
-  packages/autobot-flowcraft:
-    dependencies:
-      '@repro/autobot-core':
-        specifier: workspace:*
-        version: link:../autobot-core
-      flowcraft:
-        specifier: 2.10.1
-        version: 2.10.1
-      fluture:
-        specifier: ^14.0.0
-        version: 14.0.0
-    devDependencies:
-      '@types/node':
-        specifier: 22.14.0
-        version: 22.14.0
-      prettier:
-        specifier: ^3.0.0
-        version: 3.8.1
-      prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.8.1)(typescript@5.7.3)
-      tsx:
-        specifier: 4.19.3
-        version: 4.19.3
-      typescript:
-        specifier: 5.7.3
-        version: 5.7.3
-
-  packages/autobot-store:
-    dependencies:
-      '@repro/autobot-core':
-        specifier: workspace:*
-        version: link:../autobot-core
-      better-sqlite3:
-        specifier: ^12.11.1
-        version: 12.11.1
-      fluture:
-        specifier: ^14.0.0
-        version: 14.0.0
-      kysely:
-        specifier: ^0.27.2
-        version: 0.27.2
-    devDependencies:
-      '@types/better-sqlite3':
-        specifier: ^7.6.8
-        version: 7.6.8
-      '@types/node':
-        specifier: 22.14.0
-        version: 22.14.0
-      prettier:
-        specifier: ^3.0.0
-        version: 3.8.1
-      prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.8.1)(typescript@5.7.3)
-      tsx:
-        specifier: 4.19.3
-        version: 4.19.3
-      typescript:
-        specifier: 5.7.3
-        version: 5.7.3
-
   packages/billing:
     dependencies:
       react:
@@ -6774,10 +6635,6 @@ packages:
     resolution: {integrity: sha512-yPVavfyCcRhmorC7rWlkHn15b4wDVgVmBA7kV4QVBsF7kv/9TKJAbAXVTxvTnwP8HHKjRCJDClKbciiYS7p0DQ==}
     engines: {node: '>=16'}
 
-  commander@12.1.0:
-    resolution: {integrity: sha512-Vw8qHK3bZM9y/P10u3Vib8o/DdkvA2OtPtZvD871QKjy74Wj1WSKFILMPRPSdUSx5RFK1arlJzEtA4PkFgnbuA==}
-    engines: {node: '>=18'}
-
   commander@14.0.3:
     resolution: {integrity: sha512-H+y0Jo/T1RZ9qPP4Eh1pkcQcLRglraJaSLoyOtHxu6AapkjWVCy2Sit1QQ4x3Dng8qDlSsZEet7g5Pq06MvTgw==}
     engines: {node: '>=20'}
@@ -7632,9 +7489,6 @@ packages:
 
   flatted@3.3.3:
     resolution: {integrity: sha512-GX+ysw4PBCz0PzosHDepZGANEuFCMLrnRTiEy9McGjmkCQYwRq4A/X786G/fjM/+OjsWSU1ZrY5qyARZmO/uwg==}
-
-  flowcraft@2.10.1:
-    resolution: {integrity: sha512-+wt28fosbqwadgdbM9TYSXQHDBNGla9r8Ky1Y3zZbRW8B0mIz+Q/2RnTmsHKemmbKEOzETKGwM2TxcghcGHULg==}
 
   fluture@14.0.0:
     resolution: {integrity: sha512-pENtLF948a8DfduVKugT8edTAbFi4rBS94xjHwzLanQqIu5PYtLGl+xqs6H8TaIRL7z/B0cDpswdINzH/HRUGA==}
@@ -15005,8 +14859,6 @@ snapshots:
 
   commander@11.1.0: {}
 
-  commander@12.1.0: {}
-
   commander@14.0.3: {}
 
   commander@2.15.1: {}
@@ -15976,8 +15828,6 @@ snapshots:
       keyv: 4.5.4
 
   flatted@3.3.3: {}
-
-  flowcraft@2.10.1: {}
 
   fluture@14.0.0:
     dependencies:
