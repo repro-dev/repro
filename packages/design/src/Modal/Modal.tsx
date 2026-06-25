@@ -7,6 +7,7 @@ import React, {
   useRef,
   useState,
 } from 'react'
+import { useReducedMotion } from '../hooks/useReducedMotion'
 import { Portal } from '../Portal'
 import { color } from '../tokens/colors'
 import { radius, shadow } from '../tokens/elevation'
@@ -84,12 +85,8 @@ function useModalAnimation(open: boolean): {
     open ? 'entering' : 'visible'
   )
 
-  // Capture prefers-reduced-motion on first render (SSR-safe).
-  // matchMedia may be absent in test environments (jsdom), so guard it.
-  const prefersReducedMotion =
-    typeof window !== 'undefined' && typeof window.matchMedia === 'function'
-      ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
-      : false
+  // Check for reduced motion preference using the shared hook.
+  const prefersReducedMotion = useReducedMotion()
 
   // Use a ref to always access the latest phase inside the callback without
   // rebuilding the memoised function.
@@ -111,7 +108,7 @@ function useModalAnimation(open: boolean): {
         // isMounted is set to false via the animationend handler below.
       }
     }
-  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps — prefersReducedMotion is stable
+  }, [open, prefersReducedMotion])
 
   const handleAnimationEnd = useCallback(() => {
     const current = phaseRef.current

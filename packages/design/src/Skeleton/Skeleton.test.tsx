@@ -3,6 +3,7 @@ import { cleanup, render } from '@testing-library/react'
 import expect from 'expect'
 import { afterEach, describe, it } from 'node:test'
 import React from 'react'
+import { duration } from '../tokens/motion'
 import { Skeleton } from './Skeleton'
 
 afterEach(cleanup)
@@ -93,5 +94,67 @@ describe('Skeleton', () => {
 
     const el = document.querySelector('[role="status"]')
     expect(el).not.toBeNull()
+  })
+})
+
+describe('Skeleton reduced-motion gating', () => {
+  afterEach(() => {
+    // Restore matchMedia
+    const win = window as any
+    delete win.matchMedia
+  })
+
+  it('has shimmer animation when reduced motion is not active', () => {
+    // matchMedia returns no match for reduce
+    const win = window as any
+    win.matchMedia = (query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    })
+
+    render(<Skeleton />)
+    const el = document.querySelector('[role="status"]')
+    expect(el).not.toBeNull()
+
+    const css = getElementCSSRules(el!)
+      .map(({ cssText }) => cssText)
+      .join('\n')
+
+    expect(css).toContain('animation-duration')
+    expect(css).toContain(duration[1800])
+  })
+
+  it('has no shimmer animation when reduced motion is active', () => {
+    // matchMedia returns match for reduce
+    const win = window as any
+    win.matchMedia = (query: string) => ({
+      matches: query === '(prefers-reduced-motion: reduce)',
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    })
+
+    render(<Skeleton />)
+    const el = document.querySelector('[role="status"]')
+    expect(el).not.toBeNull()
+
+    const css = getElementCSSRules(el!)
+      .map(({ cssText }) => cssText)
+      .join('\n')
+
+    // No animation properties when reduced motion is active
+    expect(css).not.toContain('animation-duration')
+    expect(css).not.toContain('animation-iteration-count')
+    expect(css).not.toContain('animation-timing-function')
   })
 })

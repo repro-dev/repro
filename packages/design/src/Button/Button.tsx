@@ -1,6 +1,7 @@
 /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 import { Row } from '@jsxstyle/react'
 import React, { forwardRef, PropsWithChildren } from 'react'
+import { useReducedMotion } from '../hooks/useReducedMotion'
 import { color } from '../tokens/colors'
 import { containedShadow, radius, shadow } from '../tokens/elevation'
 import { formControlHeight } from '../tokens/formControl'
@@ -149,6 +150,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     const paddingH = base * 2
     const gap = base
     const ctx = contextColors[context]
+    const isReducedMotion = useReducedMotion()
 
     const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
       onClick?.(event)
@@ -205,7 +207,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         lineHeight="1em"
         transition={transition.fast}
         {...focusRing(context)}
-        {...activePress()}
+        {...(isReducedMotion ? {} : activePress())}
       >
         {children}
       </Row>

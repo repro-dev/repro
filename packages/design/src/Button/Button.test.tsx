@@ -124,3 +124,55 @@ describe('Button font-family override — REP-1317', () => {
     ).toBe(true)
   })
 })
+
+describe('Button reduced-motion gating', () => {
+  afterEach(() => {
+    const win = window as any
+    delete win.matchMedia
+  })
+
+  it('has active press scale-down when reduced motion is not active', () => {
+    const win = window as any
+    win.matchMedia = (query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    })
+
+    const { getByRole } = render(<Button>Text</Button>)
+    const cssRules = getElementCSSRules(getByRole('button'))
+    const activeRule = cssRules.find(({ selectorText }) =>
+      selectorText.includes(':active:not(:disabled)')
+    )
+
+    expect(activeRule).toBeDefined()
+    expect(activeRule?.cssText).toContain('scale(0.96)')
+  })
+
+  it('has no active press scale-down when reduced motion is active', () => {
+    const win = window as any
+    win.matchMedia = (query: string) => ({
+      matches: query === '(prefers-reduced-motion: reduce)',
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    })
+
+    const { getByRole } = render(<Button>Text</Button>)
+    const cssRules = getElementCSSRules(getByRole('button'))
+    const activeRule = cssRules.find(({ selectorText }) =>
+      selectorText.includes(':active:not(:disabled)')
+    )
+
+    expect(activeRule).toBeUndefined()
+  })
+})
