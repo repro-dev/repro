@@ -240,10 +240,8 @@ describe('AccountSettingsRoute', () => {
     )
 
     assert.equal(
-      screen
-        .getByRole('link', { name: 'View team members' })
-        .getAttribute('href'),
-      '/settings/team'
+      screen.queryByRole('link', { name: /view team members/i }),
+      null
     )
 
     for (const [name, href] of [
