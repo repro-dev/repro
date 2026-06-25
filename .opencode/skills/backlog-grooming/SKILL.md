@@ -58,7 +58,7 @@ Scope: a single project. Only Todo and Backlog issues.
 - **duplicate/superseded** — overlaps an existing issue strongly enough to warrant a report or note
 - **follow-up** — thin, stale, or mismatched issues that need human attention
 
-Use the same readiness signals as `/deliver` and `/enrich-issues`:
+Use the same readiness signals as `/build` and `/enrich-issues`:
 
 - unresolved blockers keep the issue out of action
 - In Progress / In Review issues are not groom targets

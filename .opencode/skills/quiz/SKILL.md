@@ -9,7 +9,7 @@ Use this skill after a delivery session to reinforce understanding through activ
 
 ## When to use
 
-After completing a `/deliver` or `/deliver-issue` session, run `/quiz` to self-test on what was delivered. The quiz is a read-only activity — no files are created or modified.
+After completing a `/build` session, run `/quiz` to self-test on what was delivered. The quiz is a read-only activity — no files are created or modified.
 
 ## Phase 1 — Gather source material
 
