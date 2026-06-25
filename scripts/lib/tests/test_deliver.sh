@@ -91,7 +91,7 @@ test_no_flags_uses_default() {
   output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
   rm -rf "$tmpdir"
 
-  if printf '%s\n' "$output" | grep -q 'REPROCTL_ARGS: wt create --from-issue REP-123 --open' \
+  if printf '%s\n' "$output" | grep -q 'REPROCTL_ARGS: wt create --from-issue REP-123 --open --no-status-update' \
     && printf '%s\n' "$output" | grep -q 'REPRO_OPENCODE_PROFILE='; then
     _pass "no flags uses REPRO_OPENCODE_PROFILE default (deepseek-v4)"
   else
@@ -111,7 +111,7 @@ test_profile_flag_passes_profile() {
   output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
   rm -rf "$tmpdir"
 
-  if printf '%s\n' "$output" | grep -q 'REPROCTL_ARGS: wt create --from-issue REP-123 --open' \
+  if printf '%s\n' "$output" | grep -q 'REPROCTL_ARGS: wt create --from-issue REP-123 --open --no-status-update' \
     && printf '%s\n' "$output" | grep -qF 'opencode --profile' \
     && printf '%s\n' "$output" | grep -qF -- 'beta'; then
     _pass "--profile beta passes --profile beta to opencode"
@@ -132,7 +132,7 @@ test_profile_flag_before_issue() {
   output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
   rm -rf "$tmpdir"
 
-  if printf '%s\n' "$output" | grep -q 'REPROCTL_ARGS: wt create --from-issue REP-123 --open' \
+  if printf '%s\n' "$output" | grep -q 'REPROCTL_ARGS: wt create --from-issue REP-123 --open --no-status-update' \
     && printf '%s\n' "$output" | grep -qF 'opencode --profile' \
     && printf '%s\n' "$output" | grep -qF -- 'beta'; then
     _pass "--profile beta before issue ID works"
@@ -153,7 +153,7 @@ test_pick_autoselects_single() {
   output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
   rm -rf "$tmpdir"
 
-  if printf '%s\n' "$output" | grep -q 'REPROCTL_ARGS: wt create --from-issue REP-123 --open' \
+  if printf '%s\n' "$output" | grep -q 'REPROCTL_ARGS: wt create --from-issue REP-123 --open --no-status-update' \
     && printf '%s\n' "$output" | grep -qF 'opencode --profile' \
     && printf '%s\n' "$output" | grep -qF -- 'beta' \
     && ! printf '%s\n' "$output" | grep -q -- '--pick'; then
@@ -175,7 +175,7 @@ test_pick_before_issue_autoselects() {
   output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
   rm -rf "$tmpdir"
 
-  if printf '%s\n' "$output" | grep -q 'REPROCTL_ARGS: wt create --from-issue REP-123 --open' \
+  if printf '%s\n' "$output" | grep -q 'REPROCTL_ARGS: wt create --from-issue REP-123 --open --no-status-update' \
     && printf '%s\n' "$output" | grep -qF 'opencode --profile' \
     && printf '%s\n' "$output" | grep -qF -- 'beta'; then
     _pass "--pick before issue ID auto-selects single profile"
@@ -347,7 +347,7 @@ test_env_var_is_honored() {
   output="$(REPRO_OPENCODE_PROFILE=gamma bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
   rm -rf "$tmpdir"
 
-  if printf '%s\n' "$output" | grep -q 'REPROCTL_ARGS: wt create --from-issue REP-123 --open' \
+  if printf '%s\n' "$output" | grep -q 'REPROCTL_ARGS: wt create --from-issue REP-123 --open --no-status-update' \
     && printf '%s\n' "$output" | grep -q 'gamma'; then
     _pass "REPRO_OPENCODE_PROFILE=gamma is honored"
   else

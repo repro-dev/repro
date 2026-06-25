@@ -64,10 +64,9 @@ For non-trivial UI changes, use `design-direction` only when the direction is st
 
 1. Fetch the Linear issue via `linear issue show REP-123 --json`. For non-Linear work, establish a stable topic label for `tmp/context-<topic>.md`.
 2. Load support skills needed. If the work is a genuine bug fix or regression, load `bug-rigor` before implementation begins. If non-trivial UI work still needs visual direction, load `design-direction` before planning starts.
-3. Set the issue to **In Progress**.
-4. Create `tmp/context-<issue-id>.md` and `tmp/test-plan-<issue-id>.md` under the worktree root. For UI work, extend the context artifact with `## Design Direction`, `## Targeted Design Edit`, or `## Design Handoff Context` blocks as appropriate. For non-Linear work, write `tmp/context-<topic>.md`.
-5. If the issue spans 3+ packages, depends on prior investigation threads, or the relevant scope is scattered across related issues/comments/docs, run `context-gather`.
-6. Treat missing required artifacts as a pre-flight failure. Create the missing artifact first, then retry the blocked step instead of continuing with degraded context.
+3. Create `tmp/context-<issue-id>.md` and `tmp/test-plan-<issue-id>.md` under the worktree root. For UI work, extend the context artifact with `## Design Direction`, `## Targeted Design Edit`, or `## Design Handoff Context` blocks as appropriate. For non-Linear work, write `tmp/context-<topic>.md`.
+4. If the issue spans 3+ packages, depends on prior investigation threads, or the relevant scope is scattered across related issues/comments/docs, run `context-gather`.
+5. Treat missing required artifacts as a pre-flight failure. Create the missing artifact first, then retry the blocked step instead of continuing with degraded context.
 
 ### Readiness checks (before proceeding to planning)
 
@@ -97,7 +96,7 @@ Before proceeding to planning, run these readiness checks:
 
 7. If a stop condition was triggered by recoverable missing UI context, handle as in step 6. If still failing after context capture, add `needs-spec`, add to `escalated_issues`, and stop.
 
-8. If all checks pass, continue to planning.
+8. If all checks pass, set the issue to **In Progress** and continue to planning.
 
 ## 2. Planning
 
