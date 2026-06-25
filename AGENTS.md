@@ -76,7 +76,11 @@ This file is loaded automatically at session start. It covers cross-cutting rule
   - **Oxlint** (`pnpm run lint`): Enforces code-architecture rules via `@repro/oxlint-plugin-design` — no hardcoded colors/spacing, no raw `colors.*` imports, no `className` prop. These rules prevent token bypass and keep the two-layer architecture intact. Test files, story files, and `packages/design/src/**` are excluded via `.oxlintrc.json` overrides.
   - **Impeccable** (`npx impeccable detect apps/ packages/ --json`): Detects design anti-patterns and visual slop (gradient text, nested cards, AI color palettes, monotonous spacing, etc.) across 44 deterministic rules. Test files, story files, and `packages/design/src/**` are excluded via `.impeccable/config.json` `detector.ignoreFiles`.
   - **Suppression format**: Oxlint violations use `/* eslint-disable @repro/oxlint-plugin-design/<rule> */` block comments. Impeccable violations use `impeccable-disable <rule-id>` / `impeccable-disable-line <rule-id>` inline comments (any comment syntax). Per-line `// oxlint-disable-next-line` comments are not recognized by oxlint for JS plugin rules when placed inside JSX elements.
-  - Suppressed violations are tracked under a follow-up issue for actual migration.
+  - Suppressed violations (oxlint or Impeccable) are tracked under a follow-up issue for actual migration.
+  - **PRODUCT.md**: Impeccable consumes root `PRODUCT.md` (hand-authored) for product-aware design-quality heuristics.
+  - **DESIGN.md**: A derived artifact listing `@repro/design` tokens (font, color, radius, spacing). Regenerate from tokens via `npx impeccable document`. Tokens remain the source of truth.
+  - **Install path**: Impeccable commands live in `.opencode/skills/impeccable/`, installed via `npx impeccable install` (OpenCode-native).
+  - **Update path**: `npx impeccable update`. Run this to refresh the local skill bundle.
 
 ### Async
 

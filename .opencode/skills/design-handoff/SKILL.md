@@ -21,6 +21,7 @@ Use this skill when the UI direction is already settled and needs to survive dow
 - auditing UI quality or authoredness — use `audit-ui-quality`
 - verifying behavior in the browser — use `ui-verification`
 - working on agentic debugger runtime, tool, or API behavior with no UI handoff concern — use `agentic`
+- deterministic design-quality gate or shared anti-pattern vocabulary — see Impeccable in `design-system/SKILL.md` § "Impeccable — Design anti-pattern detection"
 
 ## Workflow
 
