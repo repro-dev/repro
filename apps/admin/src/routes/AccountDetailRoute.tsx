@@ -22,6 +22,7 @@ import {
 import { useFuture } from '@repro/future-utils'
 import React from 'react'
 import { Link as RouterLink, useParams } from 'react-router-dom'
+import { formatSubscriptionStatus } from '../lib/formatSubscriptionStatus'
 
 const ACCOUNT_DETAIL_PAGE_SIZE = 50
 
@@ -37,18 +38,6 @@ function formatLastActiveAt(lastActiveAt: string | null) {
   return lastActiveAt == null
     ? 'No activity recorded'
     : formatDate(lastActiveAt)
-}
-
-function formatSubscriptionStatus(status: string | null | undefined) {
-  switch (status) {
-    case 'canceled':
-      return 'cancelled'
-    case null:
-    case undefined:
-      return 'unknown'
-    default:
-      return status.replaceAll('_', ' ')
-  }
 }
 
 export const AccountDetailRoute: React.FC = () => {
