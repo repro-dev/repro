@@ -1,4 +1,4 @@
-import { PageFrame } from '@repro/design'
+import { EmptyState, PageFrame } from '@repro/design'
 import React from 'react'
 
 export const RecordingsRoute: React.FC = () => {
@@ -8,7 +8,12 @@ export const RecordingsRoute: React.FC = () => {
         <PageFrame.Title>Recordings</PageFrame.Title>
       </PageFrame.Header>
       <PageFrame.Body>
-        <p>Recordings list coming soon.</p>
+        <EmptyState>
+          <EmptyState.Title>Recordings</EmptyState.Title>
+          <EmptyState.Description>
+            Recordings list is coming soon.
+          </EmptyState.Description>
+        </EmptyState>
       </PageFrame.Body>
     </PageFrame>
   )

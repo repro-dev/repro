@@ -1,4 +1,4 @@
-import { PageFrame } from '@repro/design'
+import { EmptyState, PageFrame } from '@repro/design'
 import React from 'react'
 
 export const StaffUsersRoute: React.FC = () => {
@@ -8,7 +8,12 @@ export const StaffUsersRoute: React.FC = () => {
         <PageFrame.Title>Staff Users</PageFrame.Title>
       </PageFrame.Header>
       <PageFrame.Body>
-        <p>Staff user management coming soon.</p>
+        <EmptyState>
+          <EmptyState.Title>Staff Users</EmptyState.Title>
+          <EmptyState.Description>
+            Staff user management is coming soon.
+          </EmptyState.Description>
+        </EmptyState>
       </PageFrame.Body>
     </PageFrame>
   )
