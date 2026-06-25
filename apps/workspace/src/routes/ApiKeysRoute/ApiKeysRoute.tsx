@@ -7,11 +7,11 @@ import {
   EmptyState,
   FormField,
   FullPageError,
-  FullPageLoading,
   Input,
   Label,
   Modal,
   PageFrame,
+  Skeleton,
   Stack,
   Table,
   Text,
@@ -169,7 +169,65 @@ export const ApiKeysRoute: React.FC = () => {
   )
 
   if (loading) {
-    return <FullPageLoading />
+    return (
+      <PageFrame>
+        <PageFrame.Header>
+          <PageFrame.Title>API Keys</PageFrame.Title>
+        </PageFrame.Header>
+        <PageFrame.Body>
+          <Card fullBleed>
+            <Table aria-label="Loading API keys">
+              <Table.Header>
+                <Table.Row>
+                  <Table.HeaderCell>
+                    <Skeleton variant="text" width={80} />
+                  </Table.HeaderCell>
+                  <Table.HeaderCell>
+                    <Skeleton variant="text" width={120} />
+                  </Table.HeaderCell>
+                  <Table.HeaderCell>
+                    <Skeleton variant="text" width={100} />
+                  </Table.HeaderCell>
+                  <Table.HeaderCell>
+                    <Skeleton variant="text" width={100} />
+                  </Table.HeaderCell>
+                  <Table.HeaderCell>
+                    <Skeleton variant="text" width={80} />
+                  </Table.HeaderCell>
+                  <Table.HeaderCell>
+                    <Skeleton variant="text" width={40} />
+                  </Table.HeaderCell>
+                </Table.Row>
+              </Table.Header>
+              <Table.Body>
+                {Array.from({ length: 4 }, (_, i) => (
+                  <Table.Row key={i}>
+                    <Table.Cell>
+                      <Skeleton variant="text" width="70%" />
+                    </Table.Cell>
+                    <Table.Cell>
+                      <Skeleton variant="text" width="50%" />
+                    </Table.Cell>
+                    <Table.Cell>
+                      <Skeleton variant="text" width="60%" />
+                    </Table.Cell>
+                    <Table.Cell>
+                      <Skeleton variant="text" width="60%" />
+                    </Table.Cell>
+                    <Table.Cell>
+                      <Skeleton variant="text" width="40%" />
+                    </Table.Cell>
+                    <Table.Cell>
+                      <Skeleton variant="text" width="20%" />
+                    </Table.Cell>
+                  </Table.Row>
+                ))}
+              </Table.Body>
+            </Table>
+          </Card>
+        </PageFrame.Body>
+      </PageFrame>
+    )
   }
 
   if (error) {

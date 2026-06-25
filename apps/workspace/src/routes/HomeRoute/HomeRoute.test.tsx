@@ -176,6 +176,9 @@ describe('HomeRoute', () => {
 
       // Sessions title should be visible in loading state
       assert.ok(screen.getByText('Sessions'))
+
+      // Skeleton placeholders should be rendered during loading
+      assert.ok(screen.getAllByRole('status').length > 0)
     })
   })
 

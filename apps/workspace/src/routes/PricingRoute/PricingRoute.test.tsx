@@ -102,7 +102,25 @@ function makeClient(checkoutFuture: FutureInstance<unknown, unknown>) {
   return { ...mockApiClient, fetch: fetchFn }
 }
 
+function makeLoadingClient() {
+  const fetchFn = (_url: string) => never as any
+
+  return { ...mockApiClient, fetch: fetchFn }
+}
+
 describe('PricingRoute checkout', () => {
+  it('shows skeleton placeholders while plans are loading', () => {
+    render(
+      <MemoryRouter>
+        <ApiProvider client={makeLoadingClient()}>
+          <PricingRoute />
+        </ApiProvider>
+      </MemoryRouter>
+    )
+
+    assert.ok(screen.getByText('Plans'))
+    assert.ok(screen.getAllByRole('status').length > 0)
+  })
   it('shows loading text on the clicked plan button while checkout is in flight', async () => {
     render(
       <MemoryRouter>

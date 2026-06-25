@@ -79,9 +79,10 @@ function renderRoute({
 // ============================================================================
 
 describe('ProfileSettingsRoute', () => {
-  it('shows loading state while profile is fetching', async () => {
+  it('shows skeleton placeholders while profile is loading', () => {
     renderRoute({ getProfile: () => never })
     assert.equal(screen.queryByText('John Smith'), null)
+    assert.ok(screen.getAllByRole('status').length > 0)
   })
 
   it('renders profile data after loading', async () => {
