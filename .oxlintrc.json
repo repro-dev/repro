@@ -8,8 +8,7 @@
     "packages/domain/src/generated",
     "packages/wire-formats/generated",
     "packages/wire-formats/src/generated",
-    "packages/tdl/src/cli/*.ohm-bundle.*",
-    ".opencode/skills/impeccable/**"
+    "packages/tdl/src/cli/*.ohm-bundle.*"
   ],
   "jsPlugins": [
     "./packages/oxlint-plugin-design/dist/plugin.js"
