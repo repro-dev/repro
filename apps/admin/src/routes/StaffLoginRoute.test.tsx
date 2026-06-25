@@ -1,14 +1,41 @@
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react'
+import { never } from 'fluture'
 import assert from 'node:assert/strict'
 import { afterEach, describe, it, mock } from 'node:test'
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { createDefaultEnv } from '../testing/env'
 
-globalThis.window = {
-  location: {
-    href: 'http://admin.test/login',
+// Use a proxy on globalThis.window to intercept location.href as a plain
+// mutable property instead of jsdom's getter/setter (which triggers
+// unimplemented navigation). All other window properties (document, Node,
+// HTMLElement, etc.) pass through to the real jsdom window, so
+// @testing-library/react can render without instanceof failures.
+const realWindow = globalThis.window
+const hrefState = { current: 'http://admin.test/login' }
+
+globalThis.window = new Proxy(realWindow, {
+  get(target, prop) {
+    if (prop === 'location') {
+      return {
+        get href() {
+          return hrefState.current
+        },
+        set href(v: string) {
+          hrefState.current = String(v)
+        },
+        toString: () => hrefState.current,
+      }
+    }
+    return Reflect.get(target, prop)
   },
-} as Window & typeof globalThis
+})
 
 const loginMock = mock.fn(() => null)
 const navigateMock = mock.fn()
@@ -50,7 +77,8 @@ afterEach(() => {
   navigateMock.mock.resetCalls()
   googleSignInButtonMock.mock.resetCalls()
   searchParams = new URLSearchParams()
-  window.location.href = 'http://admin.test/login'
+  hrefState.current = 'http://admin.test/login'
+  cleanup()
 })
 
 describe('StaffLoginRoute', () => {
@@ -85,6 +113,29 @@ describe('StaffLoginRoute', () => {
     buttonProps.onClick()
 
     assert.equal(window.location.href, 'http://admin.test/staff/oauth/google')
+  })
+
+  it('shows Logging in... on the submit button after form submission', async () => {
+    loginMock.mock.mockImplementation(() => never as unknown as null)
+
+    render(<StaffLoginRoute />)
+
+    // Labels include a "Required" indicator, so use partial matching
+    // Email input has implicit textbox role; password input (type="password")
+    // does not in testing-library v10, so use getByLabelText with regex
+    fireEvent.change(screen.getByRole('textbox', { name: /^Email/ }), {
+      target: { value: 'staff@repro.dev' },
+    })
+
+    fireEvent.change(screen.getByLabelText(/^Password/), {
+      target: { value: 'test123' },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Log in' }))
+
+    await waitFor(() => {
+      assert.ok(screen.getByRole('button', { name: 'Logging in...' }))
+    })
   })
 
   it('renders the Google domain restriction alert when requested', () => {
