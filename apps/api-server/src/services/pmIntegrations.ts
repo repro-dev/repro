@@ -1,7 +1,7 @@
+import { PmProvider } from '@repro/domain'
 import { chain, FutureInstance, map, reject, resolve } from 'fluture'
 import { sql } from 'kysely'
 import { attemptQuery, Database } from '~/modules/database'
-import { PmProvider } from '~/modules/database/schema/PmConnectionTable'
 import { notFound } from '~/utils/errors'
 
 export interface PmConnectionRow {

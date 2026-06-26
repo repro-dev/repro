@@ -1,6 +1,5 @@
+import type { PmProvider } from '@repro/domain'
 import { Generated, GeneratedAlways } from 'kysely'
-
-export type PmProvider = 'linear'
 
 export interface PmConnectionTable {
   id: GeneratedAlways<number>
