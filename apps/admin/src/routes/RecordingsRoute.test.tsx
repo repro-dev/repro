@@ -74,7 +74,7 @@ describe('RecordingsRoute', () => {
     assert.match(html, /Checkout Session/)
   })
 
-  it('returns null when loading or errored', () => {
+  it('renders EmptyState when loading or errored', () => {
     currentResult = {
       success: false,
       data: null,
@@ -82,6 +82,20 @@ describe('RecordingsRoute', () => {
 
     const html = renderToStaticMarkup(<RecordingsRoute />)
 
-    assert.equal(html, '')
+    assert.match(html, /Recordings/)
+    assert.match(html, /No Recordings/)
+    assert.match(html, /No recordings are available/)
+  })
+
+  it('renders EmptyState when items list is empty', () => {
+    currentResult = {
+      success: true,
+      data: { items: [] },
+    }
+
+    const html = renderToStaticMarkup(<RecordingsRoute />)
+
+    assert.match(html, /No Recordings/)
+    assert.doesNotMatch(html, /Login Flow Bug/)
   })
 })

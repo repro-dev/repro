@@ -1,6 +1,12 @@
 import { Block } from '@jsxstyle/react'
 import { useApiClient } from '@repro/api-client'
-import { Card, fontSize, lineHeight, PageFrame } from '@repro/design'
+import {
+  Card,
+  EmptyState,
+  fontSize,
+  lineHeight,
+  PageFrame,
+} from '@repro/design'
 import { ListResponse, RecordingInfo } from '@repro/domain'
 import { useFuture } from '@repro/future-utils'
 import React from 'react'
@@ -14,13 +20,13 @@ export const RecordingsRoute: React.FC = () => {
     [apiClient]
   )
 
-  if (result.success) {
-    return (
-      <PageFrame>
-        <PageFrame.Header>
-          <PageFrame.Title>Recordings</PageFrame.Title>
-        </PageFrame.Header>
-        <PageFrame.Body>
+  return (
+    <PageFrame>
+      <PageFrame.Header>
+        <PageFrame.Title>Recordings</PageFrame.Title>
+      </PageFrame.Header>
+      <PageFrame.Body>
+        {result.success && result.data.items.length > 0 ? (
           <Card>
             {result.data.items.map(recording => (
               <Block
@@ -34,10 +40,15 @@ export const RecordingsRoute: React.FC = () => {
               </Block>
             ))}
           </Card>
-        </PageFrame.Body>
-      </PageFrame>
-    )
-  }
-
-  return null
+        ) : (
+          <EmptyState>
+            <EmptyState.Title>No Recordings</EmptyState.Title>
+            <EmptyState.Description>
+              No recordings are available.
+            </EmptyState.Description>
+          </EmptyState>
+        )}
+      </PageFrame.Body>
+    </PageFrame>
+  )
 }
