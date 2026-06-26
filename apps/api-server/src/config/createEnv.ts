@@ -72,6 +72,8 @@ const envSchema = z.object({
   APP_BASE_URL: z.string().default('http://localhost:3000'),
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
+  LINEAR_CLIENT_ID: z.string().optional(),
+  LINEAR_CLIENT_SECRET: z.string().optional(),
   REPRO_APP_URL: z.string().default('http://localhost:3000'),
   REPRO_ADMIN_URL: z.string().default('http://localhost:3001'),
   REPRO_API_URL: z.string().default('http://localhost:8080'),
