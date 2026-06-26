@@ -105,12 +105,11 @@ export function createPmIntegrationRouter(
         }
 
         const state = generateState()
-        const url = oauthProvider.createAuthorizationURL(state, [
-          'read',
-          'issues:read',
-          'comments:read',
-          'projects:read',
-        ])
+        // Linear's only read scope is `read` (it grants read access to
+        // issues, comments, projects, etc.). Granular `*:read` scopes do not
+        // exist in Linear's OAuth vocabulary. Issue creation (write) is added
+        // by the consumer issues (REP-1237) when they need it.
+        const url = oauthProvider.createAuthorizationURL(state, ['read'])
 
         res.setCookie('pm_oauth_state', state, {
           httpOnly: true,
