@@ -19,6 +19,11 @@ import React, { useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { getModeContext, getModeLabel } from '~/recordingUtils'
 
+type ResolvedShare = {
+  token: ShareTokenInfo
+  recording: RecordingInfo
+}
+
 export const ShareRoute: React.FC = () => {
   const params = useParams<'token'>()
   const token = params.token
@@ -36,10 +41,7 @@ export const ShareRoute: React.FC = () => {
     const originalTitle = document.title
 
     if (result) {
-      const data = result as {
-        token: ShareTokenInfo
-        recording: RecordingInfo
-      }
+      const data = result as ResolvedShare
       document.title = `${data.recording.title} - Shared Recording - Repro`
     }
 
@@ -79,7 +81,7 @@ export const ShareRoute: React.FC = () => {
     )
   }
 
-  const recording = (result as { recording: RecordingInfo }).recording
+  const recording = (result as ResolvedShare).recording
   const browserLabel = recording.browserName
     ? recording.browserVersion
       ? `${ucfirst(recording.browserName)} ${recording.browserVersion}`

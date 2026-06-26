@@ -35,10 +35,6 @@ export function createShareService(
     }
   }
 
-  function generateToken(): FutureInstance<Error, string> {
-    return resolve(randomBytes(32).toString('hex'))
-  }
-
   function createShareToken(
     resourceType: string,
     resourceId: string,
@@ -57,7 +53,7 @@ export function createShareService(
     }
 
     return go(function* () {
-      const token: string = yield generateToken()
+      const token: string = randomBytes(32).toString('hex')
 
       const row = yield attemptQuery(() => {
         return database
@@ -103,13 +99,19 @@ export function createShareService(
 
   function revokeShareToken(
     tokenId: string,
+    resourceId: string,
     userId: string
   ): FutureInstance<Error, void> {
     const decodedTokenId = decodeId(tokenId)
+    const decodedResourceId = decodeId(resourceId)
     const decodedUserId = decodeId(userId)
 
     if (decodedTokenId == null) {
       return reject(badRequest(`Invalid token ID "${tokenId}"`))
+    }
+
+    if (decodedResourceId == null) {
+      return reject(badRequest(`Invalid resource ID "${resourceId}"`))
     }
 
     if (decodedUserId == null) {
@@ -121,13 +123,14 @@ export function createShareService(
         .updateTable('share_tokens')
         .set({ revokedAt: new Date() })
         .where('id', '=', decodedTokenId)
+        .where('resourceId', '=', decodedResourceId)
         .where('createdBy', '=', decodedUserId)
         .where('revokedAt', 'is', null)
         .executeTakeFirst()
     }).pipe(
       map(result => {
         if (result.numUpdatedRows === 0n) {
-          throw notFound()
+          throw notFound('Share token not found or already revoked')
         }
       })
     )

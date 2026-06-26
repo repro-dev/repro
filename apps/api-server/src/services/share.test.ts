@@ -101,12 +101,28 @@ describe('Services > Share', () => {
     )
 
     await expect(
-      promise(shareService.revokeShareToken(created.id, user.id))
+      promise(shareService.revokeShareToken(created.id, recording.id, user.id))
     ).resolves.toBeUndefined()
 
     await expect(
       promise(shareService.resolveShareToken(created.token))
     ).rejects.toThrow(notFound('Share token has been revoked'))
+  })
+
+  it('should reject revoking a share token with mismatched resource ID', async () => {
+    const [recordingA, recordingB, user] = await harness.loadFixtures([
+      fixtures.recording.RecordingA,
+      fixtures.recording.RecordingB,
+      fixtures.account.UserA,
+    ])
+
+    const created = await promise(
+      shareService.createShareToken('recording', recordingA.id, user.id, null)
+    )
+
+    await expect(
+      promise(shareService.revokeShareToken(created.id, recordingB.id, user.id))
+    ).rejects.toThrow(notFound('Share token not found or already revoked'))
   })
 
   it('should list share tokens for a recording', async () => {

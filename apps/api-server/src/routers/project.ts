@@ -877,7 +877,7 @@ export function createProjectRouter(
         recordingId: z.string(),
       }),
       body: z.object({
-        expiresAt: z.string().nullable().optional(),
+        expiresAt: z.string().datetime().nullable().optional(),
       }),
     } as const
 
@@ -982,7 +982,11 @@ export function createProjectRouter(
               throw new Error('Share service not available')
             }
 
-            return yield shareService.revokeShareToken(tokenId, user.id)
+            return yield shareService.revokeShareToken(
+              tokenId,
+              recordingId,
+              user.id
+            )
           })
         )
       }
