@@ -3,6 +3,7 @@ import { AccountService } from '~/services/account'
 import { BillingService } from '~/services/billing'
 import { FeatureGateService } from '~/services/featureGate'
 import { OAuthService } from '~/services/oauth'
+import { PmIntegrationService } from '~/services/pmIntegrations'
 import { ProjectService } from '~/services/project'
 import { RecordingService } from '~/services/recording'
 import { SocialAuthService } from '~/services/socialAuth'
@@ -15,6 +16,7 @@ export interface Services {
   projectService: ProjectService
   recordingService: RecordingService
   socialAuthService: SocialAuthService
+  pmIntegrationService: PmIntegrationService
 }
 
 export interface Fixture<T> {

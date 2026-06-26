@@ -29,7 +29,9 @@
       "OPENROUTER_API_KEY",
       "RESEND_API_KEY",
       "GOOGLE_CLIENT_ID",
-      "GOOGLE_CLIENT_SECRET"
+      "GOOGLE_CLIENT_SECRET",
+      "LINEAR_CLIENT_ID",
+      "LINEAR_CLIENT_SECRET"
     ],
     "resource_deps": ["dependencies", "portless-proxy", "redis-ready"],
     "portless_name": "api.repro",
