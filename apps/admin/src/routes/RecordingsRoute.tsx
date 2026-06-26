@@ -38,7 +38,7 @@ export const RecordingsRoute: React.FC = () => {
   const [reloadNonce, setReloadNonce] = useState(0)
 
   const result = useFuture(
-    () => apiClient.fetch<ListResponse<RecordingInfo>>('/recordings'),
+    () => apiClient.fetch<ListResponse<RecordingInfo>>('/staff/recordings'),
     [apiClient, reloadNonce]
   )
 
