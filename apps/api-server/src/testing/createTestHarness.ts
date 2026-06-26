@@ -19,6 +19,7 @@ import { createAccountService } from '~/services/account'
 import { createBillingService } from '~/services/billing'
 import { createFeatureGateService } from '~/services/featureGate'
 import { createOAuthService } from '~/services/oauth'
+import { createPmIntegrationService } from '~/services/pmIntegrations'
 import { createProjectService } from '~/services/project'
 import { createRecordingService } from '~/services/recording'
 import { createSocialAuthService } from '~/services/socialAuth'
@@ -81,6 +82,7 @@ export async function createTestHarness(
   const projectService = createProjectService(db)
   const recordingService = createRecordingService(db, storage)
   const socialAuthService = createSocialAuthService(db)
+  const pmIntegrationService = createPmIntegrationService(db)
 
   const services = {
     accountService,
@@ -90,6 +92,7 @@ export async function createTestHarness(
     projectService,
     recordingService,
     socialAuthService,
+    pmIntegrationService,
   }
 
   const sessionDecorator = createSessionDecorator(accountService, env)
