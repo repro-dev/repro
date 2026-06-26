@@ -23,6 +23,18 @@ export const SESSION_LIST_MODE_OPTIONS = [
   { value: RecordingMode.Replay, label: 'Replay' },
 ] as const
 
+export const MODE_DESCRIPTIONS: Record<
+  (typeof SESSION_LIST_MODE_OPTIONS)[number]['value'],
+  string
+> = {
+  [RecordingMode.Snapshot]:
+    'A single-page capture that records the current DOM state at a point in time.',
+  [RecordingMode.Live]:
+    'A live recording session that captures user interactions, network requests, and console output in real time.',
+  [RecordingMode.Replay]:
+    'A session recording that replays captured browser interactions for debugging and analysis.',
+}
+
 export const SESSION_LIST_SORT_OPTIONS = [
   { value: 'createdAt-desc', label: 'Newest first' },
   { value: 'createdAt-asc', label: 'Oldest first' },
