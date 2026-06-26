@@ -96,7 +96,7 @@ export const StaffLoginRoute: React.FC = () => {
           />
 
           <Button size="large" disabled={isSubmitting} type="submit">
-            Log in
+            {isSubmitting ? 'Logging in...' : 'Log in'}
           </Button>
 
           <Row alignItems="center" gap={spacing.md}>

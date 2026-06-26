@@ -1,4 +1,4 @@
-import { PageFrame } from '@repro/design'
+import { EmptyState, PageFrame } from '@repro/design'
 import React from 'react'
 
 export const FeatureGatesRoute: React.FC = () => {
@@ -8,7 +8,12 @@ export const FeatureGatesRoute: React.FC = () => {
         <PageFrame.Title>Feature Gates</PageFrame.Title>
       </PageFrame.Header>
       <PageFrame.Body>
-        <p>Feature gates management coming soon.</p>
+        <EmptyState>
+          <EmptyState.Title>Coming Soon</EmptyState.Title>
+          <EmptyState.Description>
+            Feature gates management is coming soon.
+          </EmptyState.Description>
+        </EmptyState>
       </PageFrame.Body>
     </PageFrame>
   )
