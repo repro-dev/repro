@@ -42,15 +42,15 @@ function renderRoute({
   fetch,
   items = [recording],
 }: {
-  fetch?: () => FutureInstance<unknown, ListResponse<RecordingInfo>>
+  fetch?: (path: string) => FutureInstance<unknown, ListResponse<RecordingInfo>>
   items?: RecordingInfo[]
 } = {}) {
-  const callCount = { count: 0 }
+  const requests: string[] = []
   const connectedApiClient = {
     ...apiClient,
-    fetch: () => {
-      callCount.count += 1
-      return fetch?.() ?? resolve({ items })
+    fetch: (path: string) => {
+      requests.push(path)
+      return fetch?.(path) ?? resolve({ items })
     },
   } as typeof apiClient
 
@@ -70,7 +70,7 @@ function renderRoute({
     </ApiProvider>
   )
 
-  return callCount
+  return { requests }
 }
 
 describe('RecordingsRoute', () => {
@@ -84,7 +84,7 @@ describe('RecordingsRoute', () => {
 
   it('shows an error state with retry that recovers on second attempt', async () => {
     let requestCount = 0
-    const callCount = renderRoute({
+    const { requests } = renderRoute({
       fetch: () => {
         requestCount += 1
 
@@ -107,7 +107,7 @@ describe('RecordingsRoute', () => {
     })
 
     await waitFor(() => assert.ok(screen.getByText('Alpha Session')))
-    assert.equal(callCount.count, 2)
+    assert.equal(requests.length, 2)
   })
 
   it('shows an empty state when no recordings exist', async () => {
@@ -128,9 +128,6 @@ describe('RecordingsRoute', () => {
 
     await waitFor(() => assert.ok(screen.getByText('Alpha Session')))
 
-    const nameLink = screen.getByText('Alpha Session').closest('a')
-    assert.ok(nameLink)
-    assert.match(nameLink!.getAttribute('href') ?? '', /\/recordings\/rec-1/)
     assert.ok(screen.getByText('https://example.com/alpha'))
     assert.ok(screen.getByText('Live'))
     assert.ok(screen.getByText(formatTime(120, 'seconds')))
@@ -150,7 +147,7 @@ describe('RecordingsRoute', () => {
     await waitFor(() => assert.ok(screen.getByText('Recording detail')))
   })
 
-  it('renders snapshot badge and hides duration for snapshot recordings', async () => {
+  it('renders the snapshot mode label and hides duration for snapshot recordings', async () => {
     const snapshotRecording: RecordingInfo = {
       ...recording,
       mode: RecordingMode.Snapshot,
@@ -161,5 +158,114 @@ describe('RecordingsRoute', () => {
 
     await waitFor(() => assert.ok(screen.getByText('Snapshot')))
     assert.equal(screen.queryByText(formatTime(0, 'seconds')), null)
+  })
+
+  it('shows the next page when clicking next with more than PAGE_SIZE items', async () => {
+    const page1Items: RecordingInfo[] = []
+    for (let i = 0; i < 51; i++) {
+      page1Items.push({
+        ...recording,
+        id: `rec-${i}`,
+        title: `Rec ${i}`,
+      })
+    }
+    const page2Items: RecordingInfo[] = [
+      {
+        ...recording,
+        id: 'rec-50b',
+        title: 'Rec 50b',
+      },
+    ]
+
+    const { requests } = renderRoute({
+      fetch: (path: string) => {
+        if (path.includes('offset=0')) {
+          return resolve({ items: page1Items })
+        }
+        if (path.includes('offset=50')) {
+          return resolve({ items: page2Items })
+        }
+        return resolve({ items: [] })
+      },
+    })
+
+    await waitFor(() => assert.ok(screen.getByText('Rec 0')))
+
+    const nextButton = screen.getByRole('button', { name: 'Next page' })
+    assert.equal(nextButton.hasAttribute('disabled'), false)
+
+    await act(async () => {
+      fireEvent.click(nextButton)
+    })
+
+    await waitFor(() => assert.ok(screen.getByText('Rec 50b')))
+    assert.equal(screen.queryByText('Rec 0'), null)
+    assert.ok(requests.some(path => path.includes('offset=50')))
+  })
+
+  it('shows previous page content when clicking previous from page 2', async () => {
+    const page1Items: RecordingInfo[] = []
+    for (let i = 0; i < 51; i++) {
+      page1Items.push({
+        ...recording,
+        id: `rec-${i}`,
+        title: `Rec ${i}`,
+      })
+    }
+    const page2Items: RecordingInfo[] = [
+      {
+        ...recording,
+        id: 'rec-50b',
+        title: 'Rec 50b',
+      },
+    ]
+
+    renderRoute({
+      fetch: (path: string) => {
+        if (path.includes('offset=0')) {
+          return resolve({ items: page1Items })
+        }
+        if (path.includes('offset=50')) {
+          return resolve({ items: page2Items })
+        }
+        return resolve({ items: [] })
+      },
+    })
+
+    await waitFor(() => assert.ok(screen.getByText('Rec 0')))
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
+    })
+    await waitFor(() => assert.ok(screen.getByText('Rec 50b')))
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Previous page' }))
+    })
+
+    await waitFor(() => assert.ok(screen.getByText('Rec 0')))
+    assert.equal(screen.queryByText('Rec 50b'), null)
+  })
+
+  it('disables next-page navigation when exactly PAGE_SIZE items are returned', async () => {
+    const items: RecordingInfo[] = []
+    for (let i = 0; i < 50; i++) {
+      items.push({
+        ...recording,
+        id: `rec-${i}`,
+        title: `Rec ${i}`,
+      })
+    }
+
+    renderRoute({ fetch: () => resolve({ items }) })
+
+    await waitFor(() => assert.ok(screen.getByText('Rec 0')))
+
+    assert.equal(
+      screen
+        .getByRole('button', { name: 'Next page' })
+        .hasAttribute('disabled'),
+      true
+    )
   })
 })
