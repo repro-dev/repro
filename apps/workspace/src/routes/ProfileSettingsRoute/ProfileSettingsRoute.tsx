@@ -19,18 +19,18 @@ import React, { useCallback, useState } from 'react'
 // --- Default API functions (injectable for testing) ---
 
 function defaultGetProfile(apiClient: ApiClient) {
-  return apiClient.fetch<UserProfile>('/me/profile')
+  return apiClient.fetch<UserProfile>('/account/me/profile')
 }
 
 function defaultUpdateName(apiClient: ApiClient, name: string) {
-  return apiClient.fetch('/me/name', {
+  return apiClient.fetch('/account/me/name', {
     method: 'put',
     body: JSON.stringify({ name }),
   })
 }
 
 function defaultSendVerification(apiClient: ApiClient) {
-  return apiClient.fetch('/me/send-verification', { method: 'post' })
+  return apiClient.fetch('/account/me/send-verification', { method: 'post' })
 }
 
 // --- Props ---
