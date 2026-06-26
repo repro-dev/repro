@@ -34,7 +34,7 @@ const recording: RecordingInfo = {
   createdAt: '2026-01-01T00:00:00.000Z',
   browserName: 'Chrome',
   browserVersion: '120',
-  operatingSystem: null,
+  operatingSystem: 'macOS',
   codecVersion: '1.0.0',
 }
 
@@ -129,7 +129,8 @@ describe('RecordingsRoute', () => {
     await waitFor(() => assert.ok(screen.getByText('Alpha Session')))
 
     assert.ok(screen.getByText('https://example.com/alpha'))
-    assert.ok(screen.getByText('Live'))
+    assert.ok(screen.getByText('macOS'))
+    assert.ok(screen.getByText('Chrome 120'))
     assert.ok(screen.getByText(formatTime(120, 'seconds')))
     assert.ok(screen.getByText(formatDate('2026-01-01T00:00:00.000Z')))
     assert.ok(screen.getByText('Recordings'))
@@ -147,7 +148,7 @@ describe('RecordingsRoute', () => {
     await waitFor(() => assert.ok(screen.getByText('Recording detail')))
   })
 
-  it('renders the snapshot mode label and hides duration for snapshot recordings', async () => {
+  it('hides the duration for snapshot recordings', async () => {
     const snapshotRecording: RecordingInfo = {
       ...recording,
       mode: RecordingMode.Snapshot,
@@ -156,8 +157,22 @@ describe('RecordingsRoute', () => {
 
     renderRoute({ items: [snapshotRecording] })
 
-    await waitFor(() => assert.ok(screen.getByText('Snapshot')))
+    await waitFor(() => assert.ok(screen.getByText('Alpha Session')))
     assert.equal(screen.queryByText(formatTime(0, 'seconds')), null)
+  })
+
+  it('renders Unknown for recordings missing platform and browser', async () => {
+    const bareRecording: RecordingInfo = {
+      ...recording,
+      operatingSystem: null,
+      browserName: null,
+      browserVersion: null,
+    }
+
+    renderRoute({ items: [bareRecording] })
+
+    await waitFor(() => assert.ok(screen.getByText('Alpha Session')))
+    assert.ok(screen.getAllByText('Unknown').length >= 2)
   })
 
   it('shows the next page when clicking next with more than PAGE_SIZE items', async () => {

@@ -22,17 +22,13 @@ import { Inbox as InboxIcon } from 'lucide-react'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-function modeLabel(mode: RecordingMode): string {
-  switch (mode) {
-    case RecordingMode.Snapshot:
-      return 'Snapshot'
-    case RecordingMode.Live:
-      return 'Live'
-    case RecordingMode.Replay:
-      return 'Replay'
-    default:
-      return 'None'
+function browserLabel(recording: RecordingInfo): string | null {
+  if (recording.browserName == null) {
+    return null
   }
+  return recording.browserVersion == null
+    ? recording.browserName
+    : `${recording.browserName} ${recording.browserVersion}`
 }
 
 const PAGE_SIZE = 50
@@ -246,7 +242,8 @@ export const RecordingsRoute: React.FC = () => {
                   <Table.Row>
                     <Table.HeaderCell>Name</Table.HeaderCell>
                     <Table.HeaderCell>URL</Table.HeaderCell>
-                    <Table.HeaderCell>Mode</Table.HeaderCell>
+                    <Table.HeaderCell>Platform</Table.HeaderCell>
+                    <Table.HeaderCell>Browser</Table.HeaderCell>
                     <Table.HeaderCell>Duration</Table.HeaderCell>
                     <Table.HeaderCell>Date</Table.HeaderCell>
                   </Table.Row>
@@ -271,7 +268,20 @@ export const RecordingsRoute: React.FC = () => {
                           </Text>
                         </Block>
                       </Table.Cell>
-                      <Table.Cell>{modeLabel(recording.mode)}</Table.Cell>
+                      <Table.Cell>
+                        {recording.operatingSystem ?? (
+                          <Text variant="bodySmall" color={color.text.muted}>
+                            Unknown
+                          </Text>
+                        )}
+                      </Table.Cell>
+                      <Table.Cell>
+                        {browserLabel(recording) ?? (
+                          <Text variant="bodySmall" color={color.text.muted}>
+                            Unknown
+                          </Text>
+                        )}
+                      </Table.Cell>
                       <Table.Cell>
                         {recording.mode === RecordingMode.Snapshot
                           ? ''
