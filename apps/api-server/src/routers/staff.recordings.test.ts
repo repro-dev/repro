@@ -7,7 +7,7 @@ import { RecordingService } from '~/services/recording'
 import { Harness, createTestHarness, fixtures } from '~/testing'
 import { createStaffRouter } from './staff'
 
-describe('Routers > Staff > Recordings', () => {
+describe('Routers > Staff', () => {
   let harness: Harness
   let recordingService: RecordingService
   let app: FastifyInstance
