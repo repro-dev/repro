@@ -94,14 +94,15 @@ export function createPmIntegrationRouter(
         const oauthProvider = providers[provider]
 
         if (oauthProvider == null) {
+          req.log.warn(
+            { provider, configuredProviders: Object.keys(providers) },
+            'PM OAuth: requested provider is not configured (missing OAuth credentials?)'
+          )
           await res
             .status(400)
             .send({ message: `Unsupported provider: ${provider}` })
           return
         }
-
-        // Check credentials are configured by verifying provider exists
-        // (the provider was only registered if credentials were set)
 
         const state = generateState()
         const url = oauthProvider.createAuthorizationURL(state, [
@@ -133,6 +134,10 @@ export function createPmIntegrationRouter(
       const oauthProvider = providers[provider]
 
       if (oauthProvider == null) {
+        req.log.warn(
+          { provider, configuredProviders: Object.keys(providers) },
+          'PM OAuth: requested provider is not configured (missing OAuth credentials?)'
+        )
         res.status(400).send({ message: `Unsupported provider: ${provider}` })
         return
       }

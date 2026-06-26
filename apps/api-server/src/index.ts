@@ -29,7 +29,10 @@ import { createBillingWebhookRouter } from '~/routers/billingWebhook'
 import { createFeatureGateRouter } from '~/routers/featureGate'
 import { createHealthRouter } from '~/routers/health'
 import { createOAuthRouter } from '~/routers/oauth'
-import { createPmIntegrationRouter } from '~/routers/pmIntegrations'
+import {
+  createPmIntegrationRouter,
+  PmOAuthProviders,
+} from '~/routers/pmIntegrations'
 import { createProjectRouter } from '~/routers/project'
 import { createSocialAuthRouter } from '~/routers/socialAuth'
 import { createAccountService } from '~/services/account'
@@ -250,11 +253,24 @@ async function bootstrap() {
     env.LINEAR_CLIENT_ID && env.LINEAR_CLIENT_SECRET
       ? createLinearProvider('/integrations/pm/oauth/linear/callback')
       : null
+  const pmProviders: PmOAuthProviders = linearProvider
+    ? { linear: linearProvider }
+    : {}
+  if (Object.keys(pmProviders).length === 0) {
+    app.log.warn(
+      'PM integrations: no providers configured — set LINEAR_CLIENT_ID and LINEAR_CLIENT_SECRET in the api-server environment and restart; /integrations/pm/oauth/:provider returns 400 until then'
+    )
+  } else {
+    app.log.info(
+      { configuredPmProviders: Object.keys(pmProviders) },
+      'PM integration providers configured'
+    )
+  }
   const pmIntegrationRouter = createPmIntegrationRouter(
     accountService,
     pmIntegrationService,
     env,
-    linearProvider ? { linear: linearProvider } : {}
+    pmProviders
   )
 
   const accountRouter = createAccountRouter(accountService, emailModule)
