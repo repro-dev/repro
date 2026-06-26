@@ -6,7 +6,9 @@ import z from 'zod'
 import { defaultSystemConfig } from '~/config/system'
 import { AccountService } from '~/services/account'
 import { ProjectService } from '~/services/project'
+import { RecordingService } from '~/services/recording'
 import { isNotFound, isTooManyRequests, notAuthenticated } from '~/utils/errors'
+import { toListResponse } from '~/utils/listResponse'
 import { createResponseUtils } from '~/utils/response'
 
 const loginSchema = {
@@ -19,6 +21,7 @@ const loginSchema = {
 export function createStaffRouter(
   accountService: AccountService,
   projectService: ProjectService,
+  recordingService: RecordingService,
   config = defaultSystemConfig
 ): FastifyPluginAsync {
   const { respondWith } = createResponseUtils(config)
@@ -416,5 +419,30 @@ export function createStaffRouter(
         )
       }
     )
+
+    const recordingsPaginationSchema = {
+      querystring: z.object({
+        offset: z.coerce.number().int().min(0).default(0),
+        limit: z.coerce.number().int().min(1).max(100).default(50),
+      }),
+    } as const
+
+    // GET /recordings — list all recordings (staff-only)
+    app.get<{
+      Querystring: z.infer<typeof recordingsPaginationSchema.querystring>
+    }>('/recordings', { schema: recordingsPaginationSchema }, (req, res) => {
+      respondWith(
+        res,
+        go(function* () {
+          const user = yield req.getCurrentUser()
+          yield accountService.ensureStaffUser(user)
+          const recordings = yield recordingService.listInfo(
+            req.query.offset,
+            req.query.limit
+          )
+          return toListResponse(recordings)
+        })
+      )
+    })
   }
 }
