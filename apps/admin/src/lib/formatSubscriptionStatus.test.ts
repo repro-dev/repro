@@ -11,19 +11,19 @@ describe('formatSubscriptionStatus', () => {
     assert.equal(formatSubscriptionStatus(undefined), 'No subscription')
   })
 
-  it('passes through "active" unchanged', () => {
-    assert.equal(formatSubscriptionStatus('active'), 'active')
+  it('converts "active" to sentence case', () => {
+    assert.equal(formatSubscriptionStatus('active'), 'Active')
   })
 
-  it('converts "canceled" to "cancelled"', () => {
-    assert.equal(formatSubscriptionStatus('canceled'), 'cancelled')
+  it('converts "canceled" to sentence case', () => {
+    assert.equal(formatSubscriptionStatus('canceled'), 'Cancelled')
   })
 
-  it('passes through "trialing" unchanged (no underscore)', () => {
-    assert.equal(formatSubscriptionStatus('trialing'), 'trialing')
+  it('converts "trialing" to sentence case (no underscore)', () => {
+    assert.equal(formatSubscriptionStatus('trialing'), 'Trialing')
   })
 
-  it('replaces underscores with spaces for "past_due"', () => {
-    assert.equal(formatSubscriptionStatus('past_due'), 'past due')
+  it('converts "past_due" to sentence case with spaces', () => {
+    assert.equal(formatSubscriptionStatus('past_due'), 'Past due')
   })
 })
