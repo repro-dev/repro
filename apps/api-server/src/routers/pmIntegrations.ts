@@ -105,11 +105,18 @@ export function createPmIntegrationRouter(
         }
 
         const state = generateState()
-        // Linear's only read scope is `read` (it grants read access to
-        // issues, comments, projects, etc.). Granular `*:read` scopes do not
-        // exist in Linear's OAuth vocabulary. Issue creation (write) is added
-        // by the consumer issues (REP-1237) when they need it.
-        const url = oauthProvider.createAuthorizationURL(state, ['read'])
+        // Linear scopes (verified against Linear's OAuth docs): `read` is the
+        // single read scope (no granular `*:read` scopes exist) and is required
+        // for the workspace-info `viewer { organization }` read; `issues:create`
+        // and `comments:create` are the targeted write scopes for filing bugs as
+        // issues. Requested up front so connected workspaces don't need to
+        // re-authorize when issue creation (REP-1237) lands. Broad `write`/`admin`
+        // deliberately avoided (least privilege).
+        const url = oauthProvider.createAuthorizationURL(state, [
+          'read',
+          'issues:create',
+          'comments:create',
+        ])
 
         res.setCookie('pm_oauth_state', state, {
           httpOnly: true,
