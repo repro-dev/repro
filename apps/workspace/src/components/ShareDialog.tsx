@@ -13,7 +13,7 @@ import {
 import { ShareTokenInfo } from '@repro/domain'
 import { createShareToken as defaultCreateShareToken } from '@repro/workspace-api'
 import { fork } from 'fluture'
-import { Info } from 'lucide-react'
+import { CheckIcon, Info } from 'lucide-react'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 
 export interface ShareDialogProps {
@@ -60,6 +60,7 @@ export const ShareDialog = ({
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Cancel ref holds the fluture Cancel function so we can cancel on unmount.
   const cancelRef = useRef<(() => void) | null>(null)
@@ -82,6 +83,9 @@ export const ShareDialog = ({
     return () => {
       if (cancelRef.current) {
         cancelRef.current()
+      }
+      if (copyTimerRef.current !== null) {
+        clearTimeout(copyTimerRef.current)
       }
     }
   }, [])
@@ -120,20 +124,26 @@ export const ShareDialog = ({
     cancelRef.current = cancel as unknown as () => void
   }, [expiry, apiClient, projectId, recordingId, createShareTokenFn])
 
-  const handleCopy = useCallback(() => {
+  const handleCopy = useCallback(async () => {
     if (!shareToken) {
       return
     }
 
-    navigator.clipboard.writeText(shareToken.shareUrl).then(
-      () => {
-        setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
-      },
-      () => {
-        setError('Failed to copy to clipboard.')
+    try {
+      await navigator.clipboard.writeText(shareToken.shareUrl)
+      setCopied(true)
+
+      if (copyTimerRef.current !== null) {
+        clearTimeout(copyTimerRef.current)
       }
-    )
+
+      copyTimerRef.current = setTimeout(() => {
+        setCopied(false)
+        copyTimerRef.current = null
+      }, 2000)
+    } catch {
+      setError('Failed to copy to clipboard.')
+    }
   }, [shareToken])
 
   return (
@@ -165,9 +175,14 @@ export const ShareDialog = ({
             />
 
             {copied ? (
-              <Row justifyContent="flex-end">
+              <Row
+                justifyContent="flex-end"
+                gap={spacing.xs}
+                alignItems="center"
+              >
+                <CheckIcon size={14} />
                 <Block {...textStyles.body} color={color.success}>
-                  Link copied!
+                  Copied!
                 </Block>
               </Row>
             ) : null}
@@ -202,7 +217,7 @@ export const ShareDialog = ({
             <Col gap={spacing.sm}>
               <Block
                 component="label"
-                {...textStyles.heading4}
+                {...textStyles.label}
                 color={color.text.secondary}
               >
                 Link expiry

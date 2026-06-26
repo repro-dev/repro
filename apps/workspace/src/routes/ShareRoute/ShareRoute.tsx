@@ -3,7 +3,6 @@ import { useApiClient } from '@repro/api-client'
 import { formatDate, formatTime } from '@repro/date-utils'
 import {
   Badge,
-  Button,
   Card,
   FullPageError,
   LoadingState,
@@ -11,37 +10,14 @@ import {
   spacing,
   textStyles,
 } from '@repro/design'
-import { RecordingInfo, RecordingMode, ShareTokenInfo } from '@repro/domain'
+import { RecordingInfo, ShareTokenInfo } from '@repro/domain'
 import { useFuture } from '@repro/future-utils'
 import { ucfirst } from '@repro/string-utils'
 import { resolveShareToken } from '@repro/workspace-api'
 import { reject } from 'fluture'
 import React, { useEffect } from 'react'
 import { useParams } from 'react-router-dom'
-
-function getModeLabel(mode: RecordingMode): string {
-  switch (mode) {
-    case RecordingMode.Live:
-      return 'Live'
-    case RecordingMode.Replay:
-      return 'Replay'
-    case RecordingMode.Snapshot:
-      return 'Snapshot'
-    case RecordingMode.None:
-      return 'Inactive'
-  }
-}
-
-function getModeContext(mode: RecordingMode): 'info' | 'neutral' {
-  switch (mode) {
-    case RecordingMode.Live:
-    case RecordingMode.Replay:
-      return 'info'
-    case RecordingMode.Snapshot:
-    case RecordingMode.None:
-      return 'neutral'
-  }
-}
+import { getModeContext, getModeLabel } from '~/recordingUtils'
 
 export const ShareRoute: React.FC = () => {
   const params = useParams<'token'>()
@@ -220,18 +196,12 @@ export const ShareRoute: React.FC = () => {
               ) : null}
             </Col>
 
-            {recording.url ? (
-              <Button
-                variant="contained"
-                context="info"
-                size="large"
-                rounded
-                onClick={() => window.open(recording.url!, '_blank')}
-                type="button"
-              >
-                Open recorded URL
-              </Button>
-            ) : null}
+            {/*
+              Open recorded URL button removed intentionally for v1 speedrun:
+              the share page shows recording metadata; full playback requires
+              project access. URL scheme validation would be needed before
+              re-adding window.open.
+            */}
           </Col>
         </Card>
       </Block>

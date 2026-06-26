@@ -25,6 +25,10 @@ export function createShareRouter(
       }),
     } as const
 
+    // Note: This public endpoint has no rate limiting, which is acceptable
+    // for the v1 speedrun. Rate limiting should be added in a follow-up
+    // using the same pattern as uploadRateLimitOptions in project.ts.
+
     app.get<{
       Params: z.infer<typeof resolveShareSchema.params>
     }>(

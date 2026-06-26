@@ -1,13 +1,5 @@
 import { ShareTokenInfo } from '@repro/domain'
-import {
-  FutureInstance,
-  attemptP,
-  chain,
-  go,
-  map,
-  reject,
-  resolve,
-} from 'fluture'
+import { FutureInstance, chain, go, map, reject, resolve } from 'fluture'
 import { randomBytes } from 'node:crypto'
 import {
   Database,
@@ -44,11 +36,7 @@ export function createShareService(
   }
 
   function generateToken(): FutureInstance<Error, string> {
-    return attemptP<Error, string>(() =>
-      Promise.resolve().then(() => {
-        return randomBytes(32).toString('hex')
-      })
-    )
+    return resolve(randomBytes(32).toString('hex'))
   }
 
   function createShareToken(
@@ -134,6 +122,7 @@ export function createShareService(
         .set({ revokedAt: new Date() })
         .where('id', '=', decodedTokenId)
         .where('createdBy', '=', decodedUserId)
+        .where('revokedAt', 'is', null)
         .executeTakeFirst()
     }).pipe(
       map(result => {

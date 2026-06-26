@@ -10,6 +10,7 @@ import { getProject } from '@repro/workspace-api'
 import { reject } from 'fluture'
 import React, { useEffect, useState } from 'react'
 import { Link as RouterLink, useParams } from 'react-router-dom'
+import { ShareDialog } from '~/components/ShareDialog'
 import { defaultEnv as env } from '~/config/env'
 import { Loading } from './Loading'
 import { RecordingError } from './RecordingError'
@@ -70,6 +71,8 @@ export const RecordingRoute: React.FC = () => {
     }
   }, [info])
 
+  const [shareOpen, setShareOpen] = useState(false)
+
   const isLoading = loading
 
   return (
@@ -87,6 +90,7 @@ export const RecordingRoute: React.FC = () => {
             projectId={projectId}
             projectName={project?.name}
             recording={info}
+            onShare={() => setShareOpen(true)}
           />
         ) : (
           <>
@@ -108,6 +112,15 @@ export const RecordingRoute: React.FC = () => {
           </PlaybackFromSourceProvider>
         )}
       </Col>
+
+      {projectId && recordingId && (
+        <ShareDialog
+          open={shareOpen}
+          onClose={() => setShareOpen(false)}
+          projectId={projectId}
+          recordingId={recordingId}
+        />
+      )}
     </Col>
   )
 }
