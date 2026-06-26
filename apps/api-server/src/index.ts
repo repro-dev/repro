@@ -312,7 +312,11 @@ async function bootstrap() {
     recordingService,
     accountService
   )
-  const staffRouter = createStaffRouter(accountService, projectService)
+  const staffRouter = createStaffRouter(
+    accountService,
+    projectService,
+    recordingService
+  )
 
   const staffGoogleProvider = createGoogleProvider(
     '/staff/oauth/google/callback'

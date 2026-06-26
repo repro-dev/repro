@@ -16,7 +16,7 @@ export const RecordingsRoute: React.FC = () => {
   const apiClient = useApiClient()
 
   const result = useFuture(
-    () => apiClient.fetch<ListResponse<RecordingInfo>>('/recordings'),
+    () => apiClient.fetch<ListResponse<RecordingInfo>>('/staff/recordings'),
     [apiClient]
   )
 
