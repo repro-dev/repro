@@ -282,7 +282,10 @@ def register_service(service_name, svc, wt_slug, source_path, infra_dir, service
     if svc.get('seed'):
       seed_pkg = svc['seed']['pnpm_package']
       seed_deps = svc['seed'].get('resource_deps', [])
-      seed_env = {'DB_NAME': db_name}
+      seed_env = {
+        'DB_NAME': db_name,
+        'STORAGE_KEY_PREFIX': 'wt-' + wt_slug + '/',
+      }
 
       local_resource(
         'db-seed-wt-' + wt_slug,
@@ -291,8 +294,6 @@ def register_service(service_name, svc, wt_slug, source_path, infra_dir, service
         env=seed_env,
         resource_deps=[migrations_resource] + seed_deps,
         labels=[label],
-        trigger_mode=TRIGGER_MODE_MANUAL,
-        auto_init=False,
       )
 
       local_resource(
@@ -310,7 +311,12 @@ def register_service(service_name, svc, wt_slug, source_path, infra_dir, service
   if svc.get('migrations'):
     serve_env_final['DB_NAME'] = db_name
 
+  if wt_slug:
+    serve_env_final['STORAGE_KEY_PREFIX'] = 'wt-' + wt_slug + '/'
+
   resource_deps_list = [prefix + '-migrations'] if svc.get('migrations') else []
+  if svc.get('seed'):
+    resource_deps_list.append('db-seed-wt-' + wt_slug)
   resource_deps_list.append('portless-proxy')
   wt_dep_name = 'dependencies-wt-' + wt_slug
   resource_deps_list.append(wt_dep_name)

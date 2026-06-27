@@ -141,6 +141,7 @@ function createStorageClient() {
     bucket: env.STORAGE_BUCKET,
     accessKeyId: env.STORAGE_ACCESS_KEY_ID,
     secretAccessKey: env.STORAGE_SECRET_ACCESS_KEY,
+    keyPrefix: env.STORAGE_KEY_PREFIX,
   })
 }
 

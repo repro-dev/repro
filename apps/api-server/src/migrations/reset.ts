@@ -40,7 +40,7 @@ END $$`
   )
 }
 
-async function clearStorageBucket() {
+async function clearStorageBucket(keyPrefix: string) {
   const s3 = new S3Client({
     endpoint: env.STORAGE_ENDPOINT,
     forcePathStyle: true,
@@ -54,12 +54,22 @@ async function clearStorageBucket() {
   let continuationToken: string | undefined
 
   do {
-    const response = await s3.send(
-      new ListObjectsV2Command({
-        Bucket: env.STORAGE_BUCKET,
-        ContinuationToken: continuationToken,
-      })
-    )
+    const command: {
+      Bucket: string
+      ContinuationToken?: string
+      Prefix?: string
+    } = {
+      Bucket: env.STORAGE_BUCKET,
+      ContinuationToken: continuationToken,
+    }
+
+    // When keyPrefix is non-empty, scope deletion to objects within that
+    // prefix namespace. Empty prefix = clear everything (main checkout).
+    if (keyPrefix) {
+      command.Prefix = keyPrefix
+    }
+
+    const response = await s3.send(new ListObjectsV2Command(command))
 
     const keys = (response.Contents ?? [])
       .map(item => item.Key)
@@ -99,6 +109,7 @@ async function main() {
     bucket: env.STORAGE_BUCKET,
     accessKeyId: env.STORAGE_ACCESS_KEY_ID,
     secretAccessKey: env.STORAGE_SECRET_ACCESS_KEY,
+    keyPrefix: env.STORAGE_KEY_PREFIX,
   })
 
   try {
@@ -107,7 +118,7 @@ async function main() {
     await dropSchemaObjects(db)
 
     console.log('Clearing storage bucket...')
-    await clearStorageBucket()
+    await clearStorageBucket(env.STORAGE_KEY_PREFIX)
 
     console.log('All tables and types dropped. Running migrations...')
 

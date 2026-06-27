@@ -29,10 +29,11 @@ local_resource(
     'db-seed',
     cmd='pnpm --filter @repro/api-server run seed',
     dir=PROJECT_ROOT,
-    resource_deps=['database-ready', 'storage-ready'],
+    env={
+        'STORAGE_KEY_PREFIX': '',
+    },
+    resource_deps=['api-server-migrations', 'storage-ready'],
     labels=['api'],
-    trigger_mode=TRIGGER_MODE_MANUAL,
-    auto_init=False,
 )
 
 local_resource(
@@ -64,7 +65,7 @@ local_resource(
         os.path.join(PROJECT_ROOT, 'apps/api-server/src'),
         os.path.join(PROJECT_ROOT, 'apps/api-server/package.json'),
     ],
-    resource_deps=['api-server-migrations', 'portless-proxy', 'redis-ready'],
+    resource_deps=['api-server-migrations', 'db-seed', 'portless-proxy', 'redis-ready'],
     allow_parallel=True,
     links=['https://api.repro.localhost:1355'],
     labels=['api'],
