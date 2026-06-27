@@ -3,6 +3,7 @@ import { ApiClient, useApiClient } from '@repro/api-client'
 import {
   Button,
   Card,
+  Delay,
   EmptyState,
   PageFrame,
   Skeleton,
@@ -218,57 +219,59 @@ export const HomeRoute = ({
 
   if (effectiveLoading) {
     return (
-      <PageFrame>
-        <PageFrame.Header>
-          <PageFrame.Title>Sessions</PageFrame.Title>
-        </PageFrame.Header>
-        <PageFrame.Body>
-          <Card fullBleed>
-            <Table aria-label="Loading sessions">
-              <Table.Header>
-                <Table.Row>
-                  <Table.HeaderCell>
-                    <Skeleton variant="text" width={80} />
-                  </Table.HeaderCell>
-                  <Table.HeaderCell>
-                    <Skeleton variant="text" width={120} />
-                  </Table.HeaderCell>
-                  <Table.HeaderCell>
-                    <Skeleton variant="text" width={80} />
-                  </Table.HeaderCell>
-                  <Table.HeaderCell>
-                    <Skeleton variant="text" width={100} />
-                  </Table.HeaderCell>
-                  <Table.HeaderCell>
-                    <Skeleton variant="text" width={100} />
-                  </Table.HeaderCell>
-                </Table.Row>
-              </Table.Header>
-              <Table.Body>
-                {Array.from({ length: 5 }, (_, i) => (
-                  <Table.Row key={i}>
-                    <Table.Cell>
-                      <Skeleton variant="text" width="80%" />
-                    </Table.Cell>
-                    <Table.Cell>
-                      <Skeleton variant="text" width="60%" />
-                    </Table.Cell>
-                    <Table.Cell>
-                      <Skeleton variant="text" width="50%" />
-                    </Table.Cell>
-                    <Table.Cell>
-                      <Skeleton variant="text" width="60%" />
-                    </Table.Cell>
-                    <Table.Cell>
-                      <Skeleton variant="text" width="70%" />
-                    </Table.Cell>
+      <Delay duration={300}>
+        <PageFrame>
+          <PageFrame.Header>
+            <PageFrame.Title>Sessions</PageFrame.Title>
+          </PageFrame.Header>
+          <PageFrame.Body>
+            <Card fullBleed>
+              <Table aria-label="Loading sessions">
+                <Table.Header>
+                  <Table.Row>
+                    <Table.HeaderCell>
+                      <Skeleton variant="text" width={80} />
+                    </Table.HeaderCell>
+                    <Table.HeaderCell>
+                      <Skeleton variant="text" width={120} />
+                    </Table.HeaderCell>
+                    <Table.HeaderCell>
+                      <Skeleton variant="text" width={80} />
+                    </Table.HeaderCell>
+                    <Table.HeaderCell>
+                      <Skeleton variant="text" width={100} />
+                    </Table.HeaderCell>
+                    <Table.HeaderCell>
+                      <Skeleton variant="text" width={100} />
+                    </Table.HeaderCell>
                   </Table.Row>
-                ))}
-              </Table.Body>
-            </Table>
-          </Card>
-        </PageFrame.Body>
-      </PageFrame>
+                </Table.Header>
+                <Table.Body>
+                  {Array.from({ length: 5 }, (_, i) => (
+                    <Table.Row key={i}>
+                      <Table.Cell>
+                        <Skeleton variant="text" width="80%" />
+                      </Table.Cell>
+                      <Table.Cell>
+                        <Skeleton variant="text" width="60%" />
+                      </Table.Cell>
+                      <Table.Cell>
+                        <Skeleton variant="text" width="50%" />
+                      </Table.Cell>
+                      <Table.Cell>
+                        <Skeleton variant="text" width="60%" />
+                      </Table.Cell>
+                      <Table.Cell>
+                        <Skeleton variant="text" width="70%" />
+                      </Table.Cell>
+                    </Table.Row>
+                  ))}
+                </Table.Body>
+              </Table>
+            </Card>
+          </PageFrame.Body>
+        </PageFrame>
+      </Delay>
     )
   }
 

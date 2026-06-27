@@ -5,6 +5,7 @@ import {
   Badge,
   Button,
   Card,
+  Delay,
   PageFrame,
   Skeleton,
   Stack,
@@ -134,32 +135,34 @@ export function ProfileSettingsRoute({
           <PageFrame.Title>Profile</PageFrame.Title>
         </PageFrame.Header>
         <PageFrame.Body maxWidth={720}>
-          <Stack gap={spacing.lg}>
-            <Card>
-              <Col padding={spacing.xl} gap={spacing.lg}>
-                <Skeleton variant="text" width="30%" height={24} />
-                <Skeleton variant="text" width="60%" />
-              </Col>
-            </Card>
-            <Card>
-              <Col padding={spacing.xl} gap={spacing.lg}>
-                <Skeleton variant="text" width="30%" height={24} />
-                <Skeleton variant="text" width="60%" />
-              </Col>
-            </Card>
-            <Card>
-              <Col padding={spacing.xl} gap={spacing.lg}>
-                <Skeleton variant="text" width="30%" height={24} />
-                <Skeleton variant="text" width="60%" />
-              </Col>
-            </Card>
-            <Card>
-              <Col padding={spacing.xl} gap={spacing.lg}>
-                <Skeleton variant="text" width="30%" height={24} />
-                <Skeleton variant="text" width="60%" />
-              </Col>
-            </Card>
-          </Stack>
+          <Delay duration={300}>
+            <Stack gap={spacing.lg}>
+              <Card>
+                <Col padding={spacing.xl} gap={spacing.lg}>
+                  <Skeleton variant="text" width="30%" height={24} />
+                  <Skeleton variant="text" width="60%" />
+                </Col>
+              </Card>
+              <Card>
+                <Col padding={spacing.xl} gap={spacing.lg}>
+                  <Skeleton variant="text" width="30%" height={24} />
+                  <Skeleton variant="text" width="60%" />
+                </Col>
+              </Card>
+              <Card>
+                <Col padding={spacing.xl} gap={spacing.lg}>
+                  <Skeleton variant="text" width="30%" height={24} />
+                  <Skeleton variant="text" width="60%" />
+                </Col>
+              </Card>
+              <Card>
+                <Col padding={spacing.xl} gap={spacing.lg}>
+                  <Skeleton variant="text" width="30%" height={24} />
+                  <Skeleton variant="text" width="60%" />
+                </Col>
+              </Card>
+            </Stack>
+          </Delay>
         </PageFrame.Body>
       </PageFrame>
     )

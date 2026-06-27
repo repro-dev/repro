@@ -6,6 +6,7 @@ import {
   Badge,
   Button,
   Card,
+  Delay,
   FullPageError,
   PageFrame,
   Skeleton,
@@ -108,34 +109,36 @@ export const PricingRoute: React.FC = () => {
 
   if (loading) {
     return (
-      <PageFrame>
-        <PageFrame.Header>
-          <PageFrame.Title>Plans</PageFrame.Title>
-        </PageFrame.Header>
-        <PageFrame.Body>
-          <Grid gridTemplateColumns="repeat(3, 1fr)" gap={spacing['2xl']}>
-            {Array.from({ length: 3 }, (_, i) => (
-              <Card key={i}>
-                <Col padding={spacing.xl} gap={spacing.xl}>
-                  <Stack gap={spacing.sm}>
-                    <Skeleton variant="text" width="60%" height={28} />
-                    <Skeleton variant="text" width="30%" height={20} />
-                  </Stack>
-                  <Stack gap={spacing.md}>
-                    {Array.from({ length: 4 }, (_, j) => (
-                      <Stack key={j} gap={spacing.xs}>
-                        <Skeleton variant="text" width="40%" />
-                        <Skeleton variant="text" width="80%" />
-                      </Stack>
-                    ))}
-                  </Stack>
-                  <Skeleton variant="rectangular" height={36} />
-                </Col>
-              </Card>
-            ))}
-          </Grid>
-        </PageFrame.Body>
-      </PageFrame>
+      <Delay duration={300}>
+        <PageFrame>
+          <PageFrame.Header>
+            <PageFrame.Title>Plans</PageFrame.Title>
+          </PageFrame.Header>
+          <PageFrame.Body>
+            <Grid gridTemplateColumns="repeat(3, 1fr)" gap={spacing['2xl']}>
+              {Array.from({ length: 3 }, (_, i) => (
+                <Card key={i}>
+                  <Col padding={spacing.xl} gap={spacing.xl}>
+                    <Stack gap={spacing.sm}>
+                      <Skeleton variant="text" width="60%" height={28} />
+                      <Skeleton variant="text" width="30%" height={20} />
+                    </Stack>
+                    <Stack gap={spacing.md}>
+                      {Array.from({ length: 4 }, (_, j) => (
+                        <Stack key={j} gap={spacing.xs}>
+                          <Skeleton variant="text" width="40%" />
+                          <Skeleton variant="text" width="80%" />
+                        </Stack>
+                      ))}
+                    </Stack>
+                    <Skeleton variant="rectangular" height={36} />
+                  </Col>
+                </Card>
+              ))}
+            </Grid>
+          </PageFrame.Body>
+        </PageFrame>
+      </Delay>
     )
   }
 

@@ -2,6 +2,7 @@ import { Col } from '@jsxstyle/react'
 import {
   Button,
   Card,
+  Delay,
   EmptyState,
   PageFrame,
   Skeleton,
@@ -26,39 +27,41 @@ export const ProjectsRoute: React.FC = () => {
 
   if (loading) {
     return (
-      <PageFrame>
-        <PageFrame.Header>
-          <PageFrame.Title>Projects</PageFrame.Title>
-        </PageFrame.Header>
-        <PageFrame.Body>
-          <Card fullBleed>
-            <Table aria-label="Loading projects">
-              <Table.Header>
-                <Table.Row>
-                  <Table.HeaderCell>
-                    <Skeleton variant="text" width={200} />
-                  </Table.HeaderCell>
-                  <Table.HeaderCell width={100}>
-                    <Skeleton variant="text" width={80} />
-                  </Table.HeaderCell>
-                </Table.Row>
-              </Table.Header>
-              <Table.Body>
-                {Array.from({ length: 5 }, (_, i) => (
-                  <Table.Row key={i}>
-                    <Table.Cell>
-                      <Skeleton variant="text" width="80%" />
-                    </Table.Cell>
-                    <Table.Cell>
-                      <Skeleton variant="text" width="50%" />
-                    </Table.Cell>
+      <Delay duration={300}>
+        <PageFrame>
+          <PageFrame.Header>
+            <PageFrame.Title>Projects</PageFrame.Title>
+          </PageFrame.Header>
+          <PageFrame.Body>
+            <Card fullBleed>
+              <Table aria-label="Loading projects">
+                <Table.Header>
+                  <Table.Row>
+                    <Table.HeaderCell>
+                      <Skeleton variant="text" width={200} />
+                    </Table.HeaderCell>
+                    <Table.HeaderCell width={100}>
+                      <Skeleton variant="text" width={80} />
+                    </Table.HeaderCell>
                   </Table.Row>
-                ))}
-              </Table.Body>
-            </Table>
-          </Card>
-        </PageFrame.Body>
-      </PageFrame>
+                </Table.Header>
+                <Table.Body>
+                  {Array.from({ length: 5 }, (_, i) => (
+                    <Table.Row key={i}>
+                      <Table.Cell>
+                        <Skeleton variant="text" width="80%" />
+                      </Table.Cell>
+                      <Table.Cell>
+                        <Skeleton variant="text" width="50%" />
+                      </Table.Cell>
+                    </Table.Row>
+                  ))}
+                </Table.Body>
+              </Table>
+            </Card>
+          </PageFrame.Body>
+        </PageFrame>
+      </Delay>
     )
   }
 
