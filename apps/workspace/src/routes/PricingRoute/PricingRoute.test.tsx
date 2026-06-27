@@ -109,7 +109,7 @@ function makeLoadingClient() {
 }
 
 describe('PricingRoute checkout', () => {
-  it('shows skeleton placeholders while plans are loading', () => {
+  it('shows skeleton placeholders while plans are loading', async () => {
     render(
       <MemoryRouter>
         <ApiProvider client={makeLoadingClient()}>
@@ -119,7 +119,9 @@ describe('PricingRoute checkout', () => {
     )
 
     assert.ok(screen.getByText('Plans'))
-    assert.ok(screen.getAllByRole('status').length > 0)
+    await waitFor(() => {
+      assert.ok(screen.getAllByRole('status').length > 0)
+    })
   })
   it('shows loading text on the clicked plan button while checkout is in flight', async () => {
     render(

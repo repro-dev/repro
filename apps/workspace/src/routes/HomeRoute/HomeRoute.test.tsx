@@ -163,7 +163,7 @@ describe('HomeRoute', () => {
   })
 
   describe('loading state', () => {
-    it('should show session title while loading', () => {
+    it('should show session title while loading', async () => {
       // never is a valid Fluture Future that never resolves or rejects
       const getProjectRecordings = (
         _apiClient: ApiClient,
@@ -180,7 +180,9 @@ describe('HomeRoute', () => {
       assert.ok(screen.getByText('Sessions'))
 
       // Skeleton placeholders should be rendered during loading
-      assert.ok(screen.getAllByRole('status').length > 0)
+      await waitFor(() => {
+        assert.ok(screen.getAllByRole('status').length > 0)
+      })
     })
   })
 

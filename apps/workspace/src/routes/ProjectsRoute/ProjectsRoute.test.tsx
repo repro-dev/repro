@@ -95,11 +95,13 @@ describe('ProjectsRoute', () => {
     localStorageMock.clear()
   })
 
-  it('shows skeleton placeholders while projects are loading', () => {
+  it('shows skeleton placeholders while projects are loading', async () => {
     renderProjectsRouteLoading()
 
     assert.ok(screen.getByText('Projects'))
-    assert.ok(screen.getAllByRole('status').length > 0)
+    await waitFor(() => {
+      assert.ok(screen.getAllByRole('status').length > 0)
+    })
   })
 
   it('shows a zero-project create action', async () => {
