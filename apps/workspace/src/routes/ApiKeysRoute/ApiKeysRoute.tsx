@@ -201,30 +201,7 @@ export const ApiKeysRoute: React.FC = () => {
                     </Table.HeaderCell>
                   </Table.Row>
                 </Table.Header>
-                <Table.Body>
-                  {Array.from({ length: 4 }, (_, i) => (
-                    <Table.Row key={i}>
-                      <Table.Cell>
-                        <Skeleton variant="text" width="70%" />
-                      </Table.Cell>
-                      <Table.Cell>
-                        <Skeleton variant="text" width="50%" />
-                      </Table.Cell>
-                      <Table.Cell>
-                        <Skeleton variant="text" width="60%" />
-                      </Table.Cell>
-                      <Table.Cell>
-                        <Skeleton variant="text" width="60%" />
-                      </Table.Cell>
-                      <Table.Cell>
-                        <Skeleton variant="text" width="40%" />
-                      </Table.Cell>
-                      <Table.Cell>
-                        <Skeleton variant="text" width="20%" />
-                      </Table.Cell>
-                    </Table.Row>
-                  ))}
-                </Table.Body>
+                <Table.Body loading loadingRows={4} columnCount={6} />
               </Table>
             </Card>
           </PageFrame.Body>

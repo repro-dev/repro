@@ -246,27 +246,7 @@ export const HomeRoute = ({
                     </Table.HeaderCell>
                   </Table.Row>
                 </Table.Header>
-                <Table.Body>
-                  {Array.from({ length: 5 }, (_, i) => (
-                    <Table.Row key={i}>
-                      <Table.Cell>
-                        <Skeleton variant="text" width="80%" />
-                      </Table.Cell>
-                      <Table.Cell>
-                        <Skeleton variant="text" width="60%" />
-                      </Table.Cell>
-                      <Table.Cell>
-                        <Skeleton variant="text" width="50%" />
-                      </Table.Cell>
-                      <Table.Cell>
-                        <Skeleton variant="text" width="60%" />
-                      </Table.Cell>
-                      <Table.Cell>
-                        <Skeleton variant="text" width="70%" />
-                      </Table.Cell>
-                    </Table.Row>
-                  ))}
-                </Table.Body>
+                <Table.Body loading loadingRows={5} columnCount={5} />
               </Table>
             </Card>
           </PageFrame.Body>
