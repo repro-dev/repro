@@ -62,6 +62,10 @@ export function createFileSystemStorageClient(config: Config): Storage {
     filePath: string,
     range?: { start: number; end: number }
   ): FutureInstance<Error, Readable> {
+    if (!isSafePath(filePath)) {
+      return reject(notFound(`File does not exist: ${filePath}`))
+    }
+
     const key = prefixedKey(filePath)
     return exists(filePath).pipe(
       chain(pathExists =>

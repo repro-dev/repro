@@ -1,4 +1,5 @@
 import {
+  DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
   InvalidRequest,
@@ -96,6 +97,21 @@ describe('Modules > S3Storage keyPrefix', () => {
           chain(readable => storage.write('bar', readable))
         )
       )
+    })
+  })
+
+  it('should prepend keyPrefix when deleting', () => {
+    s3Mock
+      .on(DeleteObjectCommand)
+      .rejects(new InvalidRequest({ $metadata: {}, message: '' }))
+
+    s3Mock.on(DeleteObjectCommand, { Key: 'wt-foo/bar' }).resolves({})
+
+    return new Promise<void>(next => {
+      done<Error, void>(err => {
+        expect(err).toBeNull()
+        next()
+      })(storage.delete('bar'))
     })
   })
 
