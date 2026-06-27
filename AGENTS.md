@@ -78,6 +78,7 @@ This file is loaded automatically at session start. It covers cross-cutting rule
   - Suppressed violations (oxlint or Impeccable) are tracked under a follow-up issue for actual migration.
   - **PRODUCT.md**: Impeccable consumes root `PRODUCT.md` (hand-authored) for product-aware design-quality heuristics.
   - **DESIGN.md**: A derived artifact listing `@repro/design` tokens (font, color, radius, spacing). Regenerate from tokens via `npx impeccable document`. Tokens remain the source of truth.
+  - **Critique snapshots**: `/impeccable critique` writes timestamped snapshots to `.impeccable/critique/`. **Commit them** — they are the shared score-trend history and the `/impeccable polish` backlog, and issues reference specific snapshots as baselines across worktrees (e.g. REP-1514 compares against a named one; a missing baseline is why REP-1488's score-improvement AC could not be verified as a numeric delta). Keep the latest-per-target plus any explicitly-referenced baseline tracked; prune stale intermediates (the trend looks back ~5). Commit on a design-quality cadence or with the polish work they inform — **not** as incidental additions to unrelated feature PRs. A `.impeccable/critique/ignore.md` (hand-curated finding suppressions), if present, is also tracked.
   - **Install path**: Impeccable commands live in `.opencode/skills/impeccable/`, installed via `npx impeccable install` (OpenCode-native).
   - **Update path**: `npx impeccable update`. Run this to refresh the local skill bundle.
 
