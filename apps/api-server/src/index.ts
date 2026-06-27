@@ -73,6 +73,7 @@ const storage = createS3StorageClient({
   bucket: env.STORAGE_BUCKET,
   accessKeyId: env.STORAGE_ACCESS_KEY_ID,
   secretAccessKey: env.STORAGE_SECRET_ACCESS_KEY,
+  keyPrefix: env.STORAGE_KEY_PREFIX,
 })
 
 // Initialize Redis client at module level when a URL is configured.

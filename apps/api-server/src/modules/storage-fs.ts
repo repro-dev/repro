@@ -14,9 +14,14 @@ import { Storage } from './storage'
 
 interface Config {
   path: string
+  keyPrefix?: string
 }
 
 export function createFileSystemStorageClient(config: Config): Storage {
+  function prefixedKey(filePath: string): string {
+    return config.keyPrefix ? config.keyPrefix + filePath : filePath
+  }
+
   function isSafePath(filePath: string) {
     const relPath = path.relative(config.path, path.join(config.path, filePath))
 
@@ -29,7 +34,8 @@ export function createFileSystemStorageClient(config: Config): Storage {
 
   function exists(filePath: string): FutureInstance<Error, boolean> {
     return node(done => {
-      const fullPath = path.join(config.path, filePath)
+      const key = prefixedKey(filePath)
+      const fullPath = path.join(config.path, key)
 
       if (!isSafePath(filePath)) {
         done(null, false)
@@ -56,6 +62,11 @@ export function createFileSystemStorageClient(config: Config): Storage {
     filePath: string,
     range?: { start: number; end: number }
   ): FutureInstance<Error, Readable> {
+    if (!isSafePath(filePath)) {
+      return reject(notFound(`File does not exist: ${filePath}`))
+    }
+
+    const key = prefixedKey(filePath)
     return exists(filePath).pipe(
       chain(pathExists =>
         pathExists
@@ -65,7 +76,7 @@ export function createFileSystemStorageClient(config: Config): Storage {
                 options.start = range.start
                 options.end = range.end
               }
-              return createReadStream(path.join(config.path, filePath), options)
+              return createReadStream(path.join(config.path, key), options)
             })
           : reject(notFound(`File does not exist: ${filePath}`))
       )
@@ -80,7 +91,8 @@ export function createFileSystemStorageClient(config: Config): Storage {
       return reject(notFound(`File does not exist: ${filePath}`))
     }
 
-    const fullPath = path.join(config.path, filePath)
+    const key = prefixedKey(filePath)
+    const fullPath = path.join(config.path, key)
     const dirname = path.dirname(fullPath)
 
     const ensureDirectory = node<Error, string>(done =>
@@ -129,7 +141,8 @@ export function createFileSystemStorageClient(config: Config): Storage {
       return reject(notFound(`File does not exist: ${filePath}`))
     }
 
-    const fullPath = path.join(config.path, filePath)
+    const key = prefixedKey(filePath)
+    const fullPath = path.join(config.path, key)
 
     return node(done => unlink(fullPath, done))
   }

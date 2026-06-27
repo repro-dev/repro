@@ -54,6 +54,7 @@ const envSchema = z.object({
   STORAGE_BUCKET: z.string().default('repro'),
   STORAGE_ACCESS_KEY_ID: z.string().default('repro'),
   STORAGE_SECRET_ACCESS_KEY: z.string().default('repro'),
+  STORAGE_KEY_PREFIX: z.string().default(''),
   SESSION_SECRET: z.string().default('this-is-a-session-secret'),
   SESSION_COOKIE: z.string().default('sessid'),
   SESSION_SOFT_EXPIRY: numericStringTransform.default(3600),

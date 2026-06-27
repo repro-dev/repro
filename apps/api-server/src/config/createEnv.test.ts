@@ -2,6 +2,18 @@ import expect from 'expect'
 import { describe, it } from 'node:test'
 import { createEnv } from './createEnv'
 
+describe('Config > createEnv STORAGE_KEY_PREFIX', () => {
+  it('defaults to empty string', () => {
+    const env = createEnv({})
+    expect(env.STORAGE_KEY_PREFIX).toEqual('')
+  })
+
+  it('accepts a custom prefix', () => {
+    const env = createEnv({ STORAGE_KEY_PREFIX: 'wt-my-worktree/' })
+    expect(env.STORAGE_KEY_PREFIX).toEqual('wt-my-worktree/')
+  })
+})
+
 describe('Config > createEnv outbox worker values', () => {
   it('parses outbox worker defaults', () => {
     const env = createEnv({})

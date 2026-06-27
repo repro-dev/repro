@@ -2,7 +2,7 @@ PROJECT_ROOT = os.path.join(os.getcwd(), '../../..')
 
 local_resource(
     'api-server-migrations',
-    cmd='moon run repro/api-server:migrate',
+    cmd='moon run repro/api-server:migrate --force && pnpm --filter @repro/api-server run seed',
     dir=PROJECT_ROOT,
     env={
         'DB_HOST': 'localhost',
@@ -10,6 +10,8 @@ local_resource(
         'DB_NAME': 'repro',
         'DB_USER': 'repro',
         'DB_PASSWORD': 'repro',
+        'STORAGE_ENDPOINT': 'http://localhost:18333',
+        'STORAGE_KEY_PREFIX': '',
     },
     resource_deps=['database-ready', 'storage-ready'],
     labels=['api'],
@@ -17,18 +19,17 @@ local_resource(
 
 local_resource(
     'db-reset',
-    cmd='pnpm --filter @repro/api-server run reset-db',
+    cmd='pnpm --filter @repro/api-server run reset-db && pnpm --filter @repro/api-server run seed',
     dir=PROJECT_ROOT,
-    resource_deps=['database-ready', 'storage-ready'],
-    labels=['api'],
-    trigger_mode=TRIGGER_MODE_MANUAL,
-    auto_init=False,
-)
-
-local_resource(
-    'db-seed',
-    cmd='pnpm --filter @repro/api-server run seed',
-    dir=PROJECT_ROOT,
+    env={
+        'DB_HOST': 'localhost',
+        'DB_PORT': '15432',
+        'DB_NAME': 'repro',
+        'DB_USER': 'repro',
+        'DB_PASSWORD': 'repro',
+        'STORAGE_ENDPOINT': 'http://localhost:18333',
+        'STORAGE_KEY_PREFIX': '',
+    },
     resource_deps=['database-ready', 'storage-ready'],
     labels=['api'],
     trigger_mode=TRIGGER_MODE_MANUAL,
@@ -46,6 +47,7 @@ local_resource(
         'DB_USER': 'repro',
         'DB_PASSWORD': 'repro',
         'STORAGE_ENDPOINT': 'http://localhost:18333',
+        'STORAGE_KEY_PREFIX': '',
         'REPRO_APP_URL': 'https://app.repro.localhost:1355',
         'REPRO_API_URL': 'https://api.repro.localhost:1355',
         'OPENROUTER_API_KEY': os.getenv('OPENROUTER_API_KEY', ''),
