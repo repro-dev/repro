@@ -63,7 +63,7 @@ export function createFileSystemStorageClient(config: Config): Storage {
     range?: { start: number; end: number }
   ): FutureInstance<Error, Readable> {
     const key = prefixedKey(filePath)
-    return exists(key).pipe(
+    return exists(filePath).pipe(
       chain(pathExists =>
         pathExists
           ? attempt<Error, Readable>(() => {
