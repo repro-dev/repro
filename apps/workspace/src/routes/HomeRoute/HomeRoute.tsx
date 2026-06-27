@@ -219,12 +219,12 @@ export const HomeRoute = ({
 
   if (effectiveLoading) {
     return (
-      <Delay duration={300}>
-        <PageFrame>
-          <PageFrame.Header>
-            <PageFrame.Title>Sessions</PageFrame.Title>
-          </PageFrame.Header>
-          <PageFrame.Body>
+      <PageFrame>
+        <PageFrame.Header>
+          <PageFrame.Title>Sessions</PageFrame.Title>
+        </PageFrame.Header>
+        <PageFrame.Body>
+          <Delay duration={300}>
             <Card fullBleed>
               <Table aria-label="Loading sessions">
                 <Table.Header>
@@ -249,9 +249,9 @@ export const HomeRoute = ({
                 <Table.Body loading loadingRows={5} columnCount={5} />
               </Table>
             </Card>
-          </PageFrame.Body>
-        </PageFrame>
-      </Delay>
+          </Delay>
+        </PageFrame.Body>
+      </PageFrame>
     )
   }
 

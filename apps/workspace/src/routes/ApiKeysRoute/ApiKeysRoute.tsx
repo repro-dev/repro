@@ -171,12 +171,12 @@ export const ApiKeysRoute: React.FC = () => {
 
   if (loading) {
     return (
-      <Delay duration={300}>
-        <PageFrame>
-          <PageFrame.Header>
-            <PageFrame.Title>API Keys</PageFrame.Title>
-          </PageFrame.Header>
-          <PageFrame.Body>
+      <PageFrame>
+        <PageFrame.Header>
+          <PageFrame.Title>API Keys</PageFrame.Title>
+        </PageFrame.Header>
+        <PageFrame.Body>
+          <Delay duration={300}>
             <Card fullBleed>
               <Table aria-label="Loading API keys">
                 <Table.Header>
@@ -204,9 +204,9 @@ export const ApiKeysRoute: React.FC = () => {
                 <Table.Body loading loadingRows={4} columnCount={6} />
               </Table>
             </Card>
-          </PageFrame.Body>
-        </PageFrame>
-      </Delay>
+          </Delay>
+        </PageFrame.Body>
+      </PageFrame>
     )
   }
 

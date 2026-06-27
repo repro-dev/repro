@@ -27,12 +27,12 @@ export const ProjectsRoute: React.FC = () => {
 
   if (loading) {
     return (
-      <Delay duration={300}>
-        <PageFrame>
-          <PageFrame.Header>
-            <PageFrame.Title>Projects</PageFrame.Title>
-          </PageFrame.Header>
-          <PageFrame.Body>
+      <PageFrame>
+        <PageFrame.Header>
+          <PageFrame.Title>Projects</PageFrame.Title>
+        </PageFrame.Header>
+        <PageFrame.Body>
+          <Delay duration={300}>
             <Card fullBleed>
               <Table aria-label="Loading projects">
                 <Table.Header>
@@ -48,9 +48,9 @@ export const ProjectsRoute: React.FC = () => {
                 <Table.Body loading loadingRows={5} columnCount={2} />
               </Table>
             </Card>
-          </PageFrame.Body>
-        </PageFrame>
-      </Delay>
+          </Delay>
+        </PageFrame.Body>
+      </PageFrame>
     )
   }
 

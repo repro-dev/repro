@@ -109,12 +109,12 @@ export const PricingRoute: React.FC = () => {
 
   if (loading) {
     return (
-      <Delay duration={300}>
-        <PageFrame>
-          <PageFrame.Header>
-            <PageFrame.Title>Plans</PageFrame.Title>
-          </PageFrame.Header>
-          <PageFrame.Body>
+      <PageFrame>
+        <PageFrame.Header>
+          <PageFrame.Title>Plans</PageFrame.Title>
+        </PageFrame.Header>
+        <PageFrame.Body>
+          <Delay duration={300}>
             <Grid gridTemplateColumns="repeat(3, 1fr)" gap={spacing['2xl']}>
               {Array.from({ length: 3 }, (_, i) => (
                 <Card key={i}>
@@ -136,9 +136,9 @@ export const PricingRoute: React.FC = () => {
                 </Card>
               ))}
             </Grid>
-          </PageFrame.Body>
-        </PageFrame>
-      </Delay>
+          </Delay>
+        </PageFrame.Body>
+      </PageFrame>
     )
   }
 
