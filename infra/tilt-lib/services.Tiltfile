@@ -271,7 +271,7 @@ def register_service(service_name, svc, wt_slug, source_path, infra_dir, service
     migration_env = dict(serve_env)
     migration_env['DB_NAME'] = db_name
 
-    migration_cmd = 'moon run ' + svc['migrations']['moon_task'] + ' --no-cache'
+    migration_cmd = 'moon run ' + svc['migrations']['moon_task'] + ' --force'
     if svc.get('seed'):
       seed_pkg = svc['seed']['pnpm_package']
       migration_env['STORAGE_KEY_PREFIX'] = 'wt-' + wt_slug + '/'
