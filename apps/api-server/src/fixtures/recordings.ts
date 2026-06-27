@@ -138,6 +138,7 @@ function makeSnapshotEvent(time: number): SourceEvent {
       interaction: makeInteractionSnapshot(),
       frameworkState: null,
       cssRules: null,
+      colorScheme: null,
     },
   })
 }

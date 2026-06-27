@@ -382,52 +382,44 @@ export function AccountSettingsRoute({
                                   {summary.userCount} users
                                 </Text>
 
-                                <Link
-                                  component={RouterLink}
-                                  props={{
-                                    to: '/settings/team',
-                                    'aria-label': 'View team members',
-                                  }}
+                                <Row
+                                  alignItems="center"
+                                  gap={spacing.sm}
+                                  flexWrap="wrap"
                                 >
-                                  <Row
-                                    alignItems="center"
-                                    gap={spacing.sm}
-                                    flexWrap="wrap"
-                                  >
-                                    <Row alignItems="center">
-                                      {visibleUsers.map((user, index) => (
-                                        <Block
-                                          key={user.id}
-                                          width={24}
-                                          height={24}
-                                          marginLeft={
-                                            index === 0 ? 0 : -spacing.xs
-                                          }
-                                          position="relative"
-                                          zIndex={index + 1}
-                                          borderRadius={radius.full}
-                                          overflow="hidden"
-                                        >
-                                          <Avatar
-                                            mode="image-only"
-                                            size={24}
-                                            name={user.name}
-                                            email={user.email}
-                                          />
-                                        </Block>
-                                      ))}
-                                    </Row>
-
-                                    {userOverflowCount > 0 && (
-                                      <Text
-                                        variant="bodySmall"
-                                        color={color.text.muted}
+                                  <Row alignItems="center">
+                                    {visibleUsers.map((user, index) => (
+                                      <Block
+                                        key={user.id}
+                                        width={24}
+                                        height={24}
+                                        marginLeft={
+                                          index === 0 ? 0 : -spacing.xs
+                                        }
+                                        position="relative"
+                                        zIndex={index + 1}
+                                        borderRadius={radius.full}
+                                        overflow="hidden"
                                       >
-                                        and {userOverflowCount} more
-                                      </Text>
-                                    )}
+                                        <Avatar
+                                          mode="image-only"
+                                          size={24}
+                                          name={user.name}
+                                          email={user.email}
+                                        />
+                                      </Block>
+                                    ))}
                                   </Row>
-                                </Link>
+
+                                  {userOverflowCount > 0 && (
+                                    <Text
+                                      variant="bodySmall"
+                                      color={color.text.muted}
+                                    >
+                                      and {userOverflowCount} more
+                                    </Text>
+                                  )}
+                                </Row>
                               </Col>
                             </Table.Cell>
                           </Table.Row>

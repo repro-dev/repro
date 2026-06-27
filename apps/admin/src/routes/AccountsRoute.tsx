@@ -22,6 +22,7 @@ import { StaffAccountListItem } from '@repro/domain'
 import { useFuture } from '@repro/future-utils'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { formatSubscriptionStatus } from '../lib/formatSubscriptionStatus'
 
 const PLAN_OPTIONS = [
   { value: 'all', label: 'All plans' },
@@ -59,18 +60,6 @@ function formatLastActiveAt(lastActiveAt: string | null) {
   return lastActiveAt == null
     ? 'No activity recorded'
     : formatDate(lastActiveAt)
-}
-
-function formatSubscriptionStatus(status: string | null | undefined) {
-  switch (status) {
-    case 'canceled':
-      return 'cancelled'
-    case null:
-    case undefined:
-      return 'No subscription'
-    default:
-      return status.replaceAll('_', ' ')
-  }
 }
 
 function accountListPath({

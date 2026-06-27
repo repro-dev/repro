@@ -6,7 +6,13 @@ import {
   useSession,
 } from '@repro/auth'
 import { AppShell, Link, SideNav } from '@repro/design'
-import { ActivityIcon, FlagIcon, ShieldIcon, UsersIcon } from 'lucide-react'
+import {
+  ActivityIcon,
+  FilmIcon,
+  FlagIcon,
+  ShieldIcon,
+  UsersIcon,
+} from 'lucide-react'
 import React from 'react'
 import { Outlet, NavLink as RouterNavLink, useMatch } from 'react-router-dom'
 import { AdminHeader } from '~/components/AdminHeader'
@@ -17,6 +23,7 @@ export const Layout: React.FC = () => {
   const loginPath = useLoginPath()
   const isAdminStaff = session?.type === 'staff' && session.isAdmin
 
+  const recordingsActive = useMatch({ path: '/recordings', end: false })
   const featureGatesActive = useMatch({ path: '/feature-gates', end: false })
   const accountsActive = useMatch({ path: '/accounts', end: false })
   const staffUsersActive = useMatch({ path: '/staff-users', end: false })
@@ -37,6 +44,13 @@ export const Layout: React.FC = () => {
       >
         <IfSession>
           <SideNav aria-label="Main navigation">
+            <SideNav.Item
+              icon={FilmIcon}
+              label="Recordings"
+              active={!!recordingsActive}
+              component={RouterNavLink}
+              props={{ to: '/recordings' }}
+            />
             <SideNav.Item
               icon={FlagIcon}
               label="Feature Gates"

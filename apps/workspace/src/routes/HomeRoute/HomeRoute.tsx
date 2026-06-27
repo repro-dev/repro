@@ -1,6 +1,15 @@
 import { Col } from '@jsxstyle/react'
 import { ApiClient, useApiClient } from '@repro/api-client'
-import { Button, EmptyState, PageFrame, spacing } from '@repro/design'
+import {
+  Button,
+  Card,
+  Delay,
+  EmptyState,
+  PageFrame,
+  Skeleton,
+  spacing,
+  Table,
+} from '@repro/design'
 import type { RecordingInfo } from '@repro/domain'
 import { useFuture } from '@repro/future-utils'
 import { getProjectRecordings as defaultGetProjectRecordings } from '@repro/workspace-api'
@@ -214,6 +223,34 @@ export const HomeRoute = ({
         <PageFrame.Header>
           <PageFrame.Title>Sessions</PageFrame.Title>
         </PageFrame.Header>
+        <PageFrame.Body>
+          <Delay duration={300}>
+            <Card fullBleed>
+              <Table aria-label="Loading sessions">
+                <Table.Header>
+                  <Table.Row>
+                    <Table.HeaderCell>
+                      <Skeleton variant="text" width={80} />
+                    </Table.HeaderCell>
+                    <Table.HeaderCell>
+                      <Skeleton variant="text" width={120} />
+                    </Table.HeaderCell>
+                    <Table.HeaderCell>
+                      <Skeleton variant="text" width={80} />
+                    </Table.HeaderCell>
+                    <Table.HeaderCell>
+                      <Skeleton variant="text" width={100} />
+                    </Table.HeaderCell>
+                    <Table.HeaderCell>
+                      <Skeleton variant="text" width={100} />
+                    </Table.HeaderCell>
+                  </Table.Row>
+                </Table.Header>
+                <Table.Body loading loadingRows={5} columnCount={5} />
+              </Table>
+            </Card>
+          </Delay>
+        </PageFrame.Body>
       </PageFrame>
     )
   }

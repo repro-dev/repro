@@ -20,7 +20,13 @@ describe('Routers > Staff', () => {
     harness = await createTestHarness()
     accountService = harness.services.accountService
     projectService = harness.services.projectService
-    app = harness.bootstrap(createStaffRouter(accountService, projectService))
+    app = harness.bootstrap(
+      createStaffRouter(
+        accountService,
+        projectService,
+        harness.services.recordingService
+      )
+    )
   })
 
   beforeEach(async () => {

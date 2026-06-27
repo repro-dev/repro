@@ -6,6 +6,87 @@ import { setUpTestFileSystemStorage } from '~/testing/storage'
 import { stringToReadable } from '~/testing/utils'
 import { Storage } from './storage'
 
+describe('Modules > FileSystemStorage keyPrefix', () => {
+  let reset: () => Promise<void>
+  let storage: Storage
+
+  beforeEach(async () => {
+    const { storage: storageInstance, close: closeStorage } =
+      await setUpTestFileSystemStorage({ keyPrefix: 'wt-foo/' })
+    storage = storageInstance
+    reset = closeStorage
+  })
+
+  afterEach(async () => {
+    await reset()
+  })
+
+  it('should prepend keyPrefix when writing and allow reading with the same path', () => {
+    // Write to 'bar' with prefix 'wt-foo/' — the actual file path should
+    // include the prefix on the filesystem.
+    return new Promise<void>(next => {
+      done<Error, void>(err => {
+        expect(err).toBeNull()
+
+        // Verify the file exists when accessed through the storage (prefix applied)
+        done<Error, boolean>((_err, exists) => {
+          expect(exists).toEqual(true)
+
+          // Read the file through the storage (prefix applied)
+          done<Error, Readable>((readErr, stream) => {
+            expect(readErr).toBeNull()
+            expect(stream).toBeInstanceOf(Readable)
+            next()
+          })(storage.read('bar'))
+        })(storage.exists('bar'))
+      })(
+        stringToReadable('bar-data').pipe(
+          chain(readable => storage.write('bar', readable))
+        )
+      )
+    })
+  })
+
+  it('should prepend keyPrefix when deleting and verify file is removed', () => {
+    return new Promise<void>(next => {
+      done<Error, void>(err => {
+        expect(err).toBeNull()
+
+        // Delete the file through the storage (prefix applied)
+        done<Error, void>(deleteErr => {
+          expect(deleteErr).toBeNull()
+
+          // Verify the file no longer exists
+          done<Error, boolean>((_err, exists) => {
+            expect(exists).toEqual(false)
+            next()
+          })(storage.exists('bar'))
+        })(storage.delete('bar'))
+      })(
+        stringToReadable('bar-data').pipe(
+          chain(readable => storage.write('bar', readable))
+        )
+      )
+    })
+  })
+
+  it('should work without a keyPrefix (empty string)', async () => {
+    const { close, storage: storageNoPrefix } =
+      await setUpTestFileSystemStorage({ keyPrefix: '' })
+
+    return new Promise<void>(next => {
+      done<Error, void>(err => {
+        expect(err).toBeNull()
+        close().then(next)
+      })(
+        stringToReadable('data').pipe(
+          chain(readable => storageNoPrefix.write('test-key', readable))
+        )
+      )
+    })
+  })
+})
+
 describe('Modules > FileSystemStorage', () => {
   let reset: () => Promise<void>
   let storage: Storage

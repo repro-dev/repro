@@ -18,7 +18,11 @@ describe('Routers > Staff', () => {
     harness = await createTestHarness()
     accountService = harness.services.accountService
     app = harness.bootstrap(
-      createStaffRouter(accountService, harness.services.projectService)
+      createStaffRouter(
+        accountService,
+        harness.services.projectService,
+        harness.services.recordingService
+      )
     )
   })
 

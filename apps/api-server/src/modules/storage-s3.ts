@@ -25,9 +25,14 @@ interface Config {
   bucket: string
   accessKeyId: string
   secretAccessKey: string
+  keyPrefix?: string
 }
 
 export function createS3StorageClient(config: Config): Storage {
+  function prefixedKey(path: string): string {
+    return config.keyPrefix ? config.keyPrefix + path : path
+  }
+
   const s3 = new S3Client({
     endpoint: config.endpoint,
     forcePathStyle: true,
@@ -39,11 +44,12 @@ export function createS3StorageClient(config: Config): Storage {
   })
 
   function exists(path: string): FutureInstance<Error, boolean> {
+    const key = prefixedKey(path)
     const res = attemptP<Error, HeadObjectCommandOutput>(() =>
       s3.send(
         new HeadObjectCommand({
           Bucket: config.bucket,
-          Key: path,
+          Key: key,
         })
       )
     )
@@ -63,13 +69,14 @@ export function createS3StorageClient(config: Config): Storage {
     path: string,
     range?: { start: number; end: number }
   ): FutureInstance<Error, Readable> {
+    const key = prefixedKey(path)
     const input: {
       Bucket: string
       Key: string
       Range?: string
     } = {
       Bucket: config.bucket,
-      Key: path,
+      Key: key,
     }
 
     if (range) {
@@ -88,11 +95,12 @@ export function createS3StorageClient(config: Config): Storage {
   }
 
   function write(path: string, data: Readable): FutureInstance<Error, void> {
+    const key = prefixedKey(path)
     const upload = new Upload({
       client: s3,
       params: {
         Bucket: config.bucket,
-        Key: path,
+        Key: key,
         Body: data,
       },
     })
@@ -105,12 +113,13 @@ export function createS3StorageClient(config: Config): Storage {
   }
 
   function deleteObject(path: string): FutureInstance<Error, void> {
+    const key = prefixedKey(path)
     return attemptP<Error, void>(() =>
       s3
         .send(
           new DeleteObjectCommand({
             Bucket: config.bucket,
-            Key: path,
+            Key: key,
           })
         )
         .then(() => void 0)
