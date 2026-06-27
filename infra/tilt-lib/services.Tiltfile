@@ -282,10 +282,9 @@ def register_service(service_name, svc, wt_slug, source_path, infra_dir, service
     if svc.get('seed'):
       seed_pkg = svc['seed']['pnpm_package']
       seed_deps = svc['seed'].get('resource_deps', [])
-      seed_env = {
-        'DB_NAME': db_name,
-        'STORAGE_KEY_PREFIX': 'wt-' + wt_slug + '/',
-      }
+      seed_env = dict(serve_env)
+      seed_env['DB_NAME'] = db_name
+      seed_env['STORAGE_KEY_PREFIX'] = 'wt-' + wt_slug + '/'
 
       local_resource(
         'db-seed-wt-' + wt_slug,
