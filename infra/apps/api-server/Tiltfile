@@ -2,7 +2,7 @@ PROJECT_ROOT = os.path.join(os.getcwd(), '../../..')
 
 local_resource(
     'api-server-migrations',
-    cmd='moon run repro/api-server:migrate && pnpm --filter @repro/api-server run seed',
+    cmd='moon run repro/api-server:migrate --no-cache && pnpm --filter @repro/api-server run seed',
     dir=PROJECT_ROOT,
     env={
         'DB_HOST': 'localhost',
