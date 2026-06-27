@@ -36,6 +36,7 @@ function makeSnapshot(): Snapshot {
     },
     frameworkState: null,
     cssRules: null,
+    colorScheme: null,
   }
 }
 

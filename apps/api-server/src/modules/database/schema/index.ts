@@ -16,6 +16,7 @@ import { OAuthClientTable } from './OAuthClientTable'
 import { OAuthConnectionTable } from './OAuthConnectionTable'
 import { OutboxJobTable } from './OutboxJobTable'
 import { PasswordResetTokenTable } from './PasswordResetTokenTable'
+import { PmConnectionTable } from './PmConnectionTable'
 import { ProjectRecordingTable } from './ProjectRecordingTable'
 import { ProjectTable } from './ProjectTable'
 import { RecordingErrorTable } from './RecordingErrorTable'
@@ -44,6 +45,7 @@ export interface Schema {
   oauth_clients: OAuthClientTable
   oauth_connections: OAuthConnectionTable
   outbox_jobs: OutboxJobTable
+  pm_connections: PmConnectionTable
   password_reset_tokens: PasswordResetTokenTable
   recordings: RecordingTable
   recording_errors: RecordingErrorTable
@@ -62,6 +64,7 @@ export {
   OAuthClientTable,
   OAuthConnectionTable,
   OutboxJobTable,
+  PmConnectionTable,
   RecordingErrorTable,
   RecordingEventIndexTable,
   RecordingResourceTable,

@@ -123,4 +123,10 @@ describe('Layout', () => {
 
     assert.match(html, /data-to="\/admin-login"/)
   })
+
+  it('renders a sidebar entry labeled "Recordings" when signed in', () => {
+    const html = renderToStaticMarkup(<Layout />)
+
+    assert.match(html, /Recordings/)
+  })
 })

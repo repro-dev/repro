@@ -133,7 +133,7 @@ describe('AccountDetailRoute', () => {
     assert.ok(screen.getByText('Plan'))
     assert.ok(screen.getByText('Repro+'))
     assert.ok(screen.getByText('Subscription status'))
-    assert.ok(screen.getByText('active'))
+    assert.ok(screen.getAllByText('Active').length >= 2)
     assert.equal(screen.queryByText('Subscription active'), null)
     assert.equal(screen.queryByText('Active account'), null)
     assert.ok(screen.getByText('No activity recorded'))
@@ -334,7 +334,7 @@ describe('AccountDetailRoute', () => {
 
     await waitFor(() => assert.ok(screen.getByText('Subscription status')))
 
-    assert.ok(screen.getByText('cancelled'))
+    assert.ok(screen.getByText('Cancelled'))
     assert.equal(screen.queryByText('Subscription canceled'), null)
     assert.equal(screen.queryByText('canceled'), null)
   })

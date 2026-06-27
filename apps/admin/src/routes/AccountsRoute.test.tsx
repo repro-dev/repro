@@ -87,7 +87,7 @@ describe('AccountsRoute', () => {
     assert.equal(screen.queryByText(/owner@acme.test/), null)
     assert.equal(screen.queryByText('ID account-1'), null)
     assert.ok(screen.getByText('Repro+'))
-    assert.ok(screen.getByText('cancelled'))
+    assert.ok(screen.getByText('Cancelled'))
     assert.equal(screen.queryByText('canceled'), null)
     assert.ok(screen.getByText('12 recordings'))
     assert.ok(screen.getByText('No activity recorded'))
