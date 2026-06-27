@@ -270,9 +270,16 @@ def register_service(service_name, svc, wt_slug, source_path, infra_dir, service
     migrations_resource = prefix + '-migrations'
     migration_env = dict(serve_env)
     migration_env['DB_NAME'] = db_name
+
+    migration_cmd = 'moon run ' + svc['migrations']['moon_task']
+    if svc.get('seed'):
+      seed_pkg = svc['seed']['pnpm_package']
+      migration_env['STORAGE_KEY_PREFIX'] = 'wt-' + wt_slug + '/'
+      migration_cmd += ' && pnpm --filter %s run seed' % seed_pkg
+
     local_resource(
       migrations_resource,
-      cmd='moon run ' + svc['migrations']['moon_task'],
+      cmd=migration_cmd,
       dir=source_path,
       env=migration_env,
       resource_deps=[db_ready_name] + svc['migrations']['resource_deps'],
@@ -285,15 +292,6 @@ def register_service(service_name, svc, wt_slug, source_path, infra_dir, service
       seed_env = dict(serve_env)
       seed_env['DB_NAME'] = db_name
       seed_env['STORAGE_KEY_PREFIX'] = 'wt-' + wt_slug + '/'
-
-      local_resource(
-        'db-seed-wt-' + wt_slug,
-        cmd='pnpm --filter %s run seed' % seed_pkg,
-        dir=source_path,
-        env=seed_env,
-        resource_deps=[migrations_resource] + seed_deps,
-        labels=[label],
-      )
 
       local_resource(
         'db-reset-wt-' + wt_slug,
@@ -314,8 +312,6 @@ def register_service(service_name, svc, wt_slug, source_path, infra_dir, service
     serve_env_final['STORAGE_KEY_PREFIX'] = 'wt-' + wt_slug + '/'
 
   resource_deps_list = [prefix + '-migrations'] if svc.get('migrations') else []
-  if svc.get('seed'):
-    resource_deps_list.append('db-seed-wt-' + wt_slug)
   resource_deps_list.append('portless-proxy')
   wt_dep_name = 'dependencies-wt-' + wt_slug
   resource_deps_list.append(wt_dep_name)

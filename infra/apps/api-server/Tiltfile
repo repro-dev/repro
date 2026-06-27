@@ -2,7 +2,7 @@ PROJECT_ROOT = os.path.join(os.getcwd(), '../../..')
 
 local_resource(
     'api-server-migrations',
-    cmd='moon run repro/api-server:migrate',
+    cmd='moon run repro/api-server:migrate && pnpm --filter @repro/api-server run seed',
     dir=PROJECT_ROOT,
     env={
         'DB_HOST': 'localhost',
@@ -10,6 +10,8 @@ local_resource(
         'DB_NAME': 'repro',
         'DB_USER': 'repro',
         'DB_PASSWORD': 'repro',
+        'STORAGE_ENDPOINT': 'http://localhost:18333',
+        'STORAGE_KEY_PREFIX': '',
     },
     resource_deps=['database-ready', 'storage-ready'],
     labels=['api'],
@@ -26,23 +28,6 @@ local_resource(
 )
 
 local_resource(
-    'db-seed',
-    cmd='pnpm --filter @repro/api-server run seed',
-    dir=PROJECT_ROOT,
-    env={
-        'DB_HOST': 'localhost',
-        'DB_PORT': '15432',
-        'DB_NAME': 'repro',
-        'DB_USER': 'repro',
-        'DB_PASSWORD': 'repro',
-        'STORAGE_ENDPOINT': 'http://localhost:18333',
-        'STORAGE_KEY_PREFIX': '',
-    },
-    resource_deps=['api-server-migrations', 'storage-ready'],
-    labels=['api'],
-)
-
-local_resource(
     'api-server',
     serve_cmd='portless api.repro moon run repro/api-server:dev',
     serve_dir=PROJECT_ROOT,
@@ -53,6 +38,7 @@ local_resource(
         'DB_USER': 'repro',
         'DB_PASSWORD': 'repro',
         'STORAGE_ENDPOINT': 'http://localhost:18333',
+        'STORAGE_KEY_PREFIX': '',
         'REPRO_APP_URL': 'https://app.repro.localhost:1355',
         'REPRO_API_URL': 'https://api.repro.localhost:1355',
         'OPENROUTER_API_KEY': os.getenv('OPENROUTER_API_KEY', ''),
@@ -71,7 +57,7 @@ local_resource(
         os.path.join(PROJECT_ROOT, 'apps/api-server/src'),
         os.path.join(PROJECT_ROOT, 'apps/api-server/package.json'),
     ],
-    resource_deps=['api-server-migrations', 'db-seed', 'portless-proxy', 'redis-ready'],
+    resource_deps=['api-server-migrations', 'portless-proxy', 'redis-ready'],
     allow_parallel=True,
     links=['https://api.repro.localhost:1355'],
     labels=['api'],
