@@ -4,14 +4,15 @@ import {
   Alert,
   Button,
   Card,
+  Delay,
   EmptyState,
   FormField,
   FullPageError,
-  FullPageLoading,
   Input,
   Label,
   Modal,
   PageFrame,
+  Skeleton,
   Stack,
   Table,
   Text,
@@ -169,7 +170,44 @@ export const ApiKeysRoute: React.FC = () => {
   )
 
   if (loading) {
-    return <FullPageLoading />
+    return (
+      <PageFrame>
+        <PageFrame.Header>
+          <PageFrame.Title>API Keys</PageFrame.Title>
+        </PageFrame.Header>
+        <PageFrame.Body>
+          <Delay duration={300}>
+            <Card fullBleed>
+              <Table aria-label="Loading API keys">
+                <Table.Header>
+                  <Table.Row>
+                    <Table.HeaderCell>
+                      <Skeleton variant="text" width={80} />
+                    </Table.HeaderCell>
+                    <Table.HeaderCell>
+                      <Skeleton variant="text" width={120} />
+                    </Table.HeaderCell>
+                    <Table.HeaderCell>
+                      <Skeleton variant="text" width={100} />
+                    </Table.HeaderCell>
+                    <Table.HeaderCell>
+                      <Skeleton variant="text" width={100} />
+                    </Table.HeaderCell>
+                    <Table.HeaderCell>
+                      <Skeleton variant="text" width={80} />
+                    </Table.HeaderCell>
+                    <Table.HeaderCell>
+                      <Skeleton variant="text" width={40} />
+                    </Table.HeaderCell>
+                  </Table.Row>
+                </Table.Header>
+                <Table.Body loading loadingRows={4} columnCount={6} />
+              </Table>
+            </Card>
+          </Delay>
+        </PageFrame.Body>
+      </PageFrame>
+    )
   }
 
   if (error) {

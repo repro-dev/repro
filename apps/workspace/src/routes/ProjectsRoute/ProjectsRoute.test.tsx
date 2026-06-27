@@ -7,7 +7,7 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react'
-import { resolve } from 'fluture'
+import { type FutureInstance, never, resolve } from 'fluture'
 import assert from 'node:assert/strict'
 import { afterEach, describe, it } from 'node:test'
 import React from 'react'
@@ -66,10 +66,42 @@ function renderProjectsRoute({
   )
 }
 
+function renderProjectsRouteLoading() {
+  render(
+    <MemoryRouter initialEntries={['/projects']}>
+      <ApiProvider client={mockApiClient}>
+        <PortalRootProvider>
+          <ProjectProvider
+            getProjects={
+              (() =>
+                never as FutureInstance<
+                  unknown,
+                  { id: string; name: string }[]
+                >) as any
+            }
+          >
+            <ProjectsRoute />
+            <LocationProbe />
+          </ProjectProvider>
+        </PortalRootProvider>
+      </ApiProvider>
+    </MemoryRouter>
+  )
+}
+
 describe('ProjectsRoute', () => {
   afterEach(() => {
     cleanup()
     localStorageMock.clear()
+  })
+
+  it('shows skeleton placeholders while projects are loading', async () => {
+    renderProjectsRouteLoading()
+
+    assert.ok(screen.getByText('Projects'))
+    await waitFor(() => {
+      assert.ok(screen.getAllByRole('status').length > 0)
+    })
   })
 
   it('shows a zero-project create action', async () => {

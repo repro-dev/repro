@@ -5,8 +5,10 @@ import {
   Badge,
   Button,
   Card,
-  FullPageLoading,
+  Delay,
   PageFrame,
+  Skeleton,
+  Stack,
   Text,
   TextField,
   spacing,
@@ -127,7 +129,43 @@ export function ProfileSettingsRoute({
   }, [apiClient, sendVerification])
 
   if (loading) {
-    return <FullPageLoading />
+    return (
+      <PageFrame>
+        <PageFrame.Header>
+          <PageFrame.Title>Profile</PageFrame.Title>
+        </PageFrame.Header>
+        <PageFrame.Body maxWidth={720}>
+          <Delay duration={300}>
+            <Stack gap={spacing.lg}>
+              <Card>
+                <Col padding={spacing.xl} gap={spacing.lg}>
+                  <Skeleton variant="text" width="30%" height={24} />
+                  <Skeleton variant="text" width="60%" />
+                </Col>
+              </Card>
+              <Card>
+                <Col padding={spacing.xl} gap={spacing.lg}>
+                  <Skeleton variant="text" width="30%" height={24} />
+                  <Skeleton variant="text" width="60%" />
+                </Col>
+              </Card>
+              <Card>
+                <Col padding={spacing.xl} gap={spacing.lg}>
+                  <Skeleton variant="text" width="30%" height={24} />
+                  <Skeleton variant="text" width="60%" />
+                </Col>
+              </Card>
+              <Card>
+                <Col padding={spacing.xl} gap={spacing.lg}>
+                  <Skeleton variant="text" width="30%" height={24} />
+                  <Skeleton variant="text" width="60%" />
+                </Col>
+              </Card>
+            </Stack>
+          </Delay>
+        </PageFrame.Body>
+      </PageFrame>
+    )
   }
 
   if (error || !profile) {

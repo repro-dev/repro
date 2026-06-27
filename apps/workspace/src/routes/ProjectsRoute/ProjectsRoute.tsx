@@ -1,5 +1,14 @@
 import { Col } from '@jsxstyle/react'
-import { Button, EmptyState, PageFrame, spacing, Table } from '@repro/design'
+import {
+  Button,
+  Card,
+  Delay,
+  EmptyState,
+  PageFrame,
+  Skeleton,
+  spacing,
+  Table,
+} from '@repro/design'
 import { FolderIcon } from 'lucide-react'
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -22,6 +31,25 @@ export const ProjectsRoute: React.FC = () => {
         <PageFrame.Header>
           <PageFrame.Title>Projects</PageFrame.Title>
         </PageFrame.Header>
+        <PageFrame.Body>
+          <Delay duration={300}>
+            <Card fullBleed>
+              <Table aria-label="Loading projects">
+                <Table.Header>
+                  <Table.Row>
+                    <Table.HeaderCell>
+                      <Skeleton variant="text" width={200} />
+                    </Table.HeaderCell>
+                    <Table.HeaderCell width={100}>
+                      <Skeleton variant="text" width={80} />
+                    </Table.HeaderCell>
+                  </Table.Row>
+                </Table.Header>
+                <Table.Body loading loadingRows={5} columnCount={2} />
+              </Table>
+            </Card>
+          </Delay>
+        </PageFrame.Body>
       </PageFrame>
     )
   }

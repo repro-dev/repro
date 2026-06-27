@@ -123,10 +123,13 @@ function renderRoute({
 }
 
 describe('ApiKeysRoute', () => {
-  it('shows a loading state before keys finish loading', () => {
+  it('shows skeleton placeholders before keys finish loading', async () => {
     renderRoute({ listFuture: never })
 
     assert.equal(screen.queryByRole('button', { name: /new api key/i }), null)
+    await waitFor(() => {
+      assert.ok(screen.getAllByRole('status').length > 0)
+    })
   })
 
   it('shows an error state when loading keys fails', async () => {
