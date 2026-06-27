@@ -7,9 +7,7 @@ import { sql } from 'kysely'
 import { fileURLToPath } from 'node:url'
 import { defaultEnv as env } from '~/config/env'
 import { createPostgresDatabaseClient } from '~/modules/database/database-postgres'
-import { createS3StorageClient } from '~/modules/storage-s3'
 import { migrate } from './migrate'
-import { seed } from './seed'
 
 export async function dropSchemaObjects(
   db: ReturnType<typeof createPostgresDatabaseClient>
@@ -103,15 +101,6 @@ async function main() {
     ssl: env.DB_SSL,
   })
 
-  const storage = createS3StorageClient({
-    endpoint: env.STORAGE_ENDPOINT,
-    region: env.STORAGE_REGION,
-    bucket: env.STORAGE_BUCKET,
-    accessKeyId: env.STORAGE_ACCESS_KEY_ID,
-    secretAccessKey: env.STORAGE_SECRET_ACCESS_KEY,
-    keyPrefix: env.STORAGE_KEY_PREFIX,
-  })
-
   try {
     console.log('Dropping all tables and types...')
 
@@ -135,9 +124,7 @@ async function main() {
       process.exit(1)
     }
 
-    console.log('Migrations complete. Running seed...')
-    await seed(db, storage)
-    console.log('Reset complete.')
+    console.log('Reset complete. Run seed to repopulate data.')
   } finally {
     await db.destroy()
   }

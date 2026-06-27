@@ -295,7 +295,7 @@ def register_service(service_name, svc, wt_slug, source_path, infra_dir, service
 
       local_resource(
         'db-reset-wt-' + wt_slug,
-        cmd='pnpm --filter %s run reset-db' % seed_pkg,
+        cmd='pnpm --filter %s run reset-db && pnpm --filter %s run seed' % (seed_pkg, seed_pkg),
         dir=source_path,
         env=seed_env,
         resource_deps=['database-ready'] + seed_deps,
