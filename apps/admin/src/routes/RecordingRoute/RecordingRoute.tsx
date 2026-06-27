@@ -1,6 +1,5 @@
-import { Block } from '@jsxstyle/react'
 import { useApiClient } from '@repro/api-client'
-import { Link, Logo, textStyles, ToolView } from '@repro/design'
+import { Link, Logo, Text, textStyles, ToolView } from '@repro/design'
 import { DevTools } from '@repro/devtools'
 import { useFuture } from '@repro/future-utils'
 import { createNullSource, PlaybackFromSourceProvider } from '@repro/playback'
@@ -64,7 +63,7 @@ export const RecordingRoute: React.FC = () => {
         >
           &larr; Recordings
         </Link>
-        {info && <Block {...textStyles.body}>{info.title}</Block>}
+        {info && <Text variant="body">{info.title}</Text>}
       </ToolView.Header>
       <ToolView.Content>
         {loading ? (
