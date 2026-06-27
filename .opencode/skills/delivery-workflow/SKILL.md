@@ -255,6 +255,17 @@ Launch `develop` for the issue. Use `develop` for any implementation touching 2+
 
 Do not launch `develop` until the issue has a completed planner result plus the required context and test-plan artifacts. If the issue is UI-bearing and the work is a bounded follow-up edit, the context artifact must already carry the `## Targeted Design Edit` block; if the issue is UI-bearing with unresolved visual direction, it must carry the `## Design Direction` block; if settled UI decisions must not be reinterpreted, it must also carry `## Design Handoff Context`. If a required artifact is missing, create it and retry the launch instead of improvising the implementation path.
 
+### `/impeccable` hand-off mandate (issue-driven)
+
+If the issue body contains an `## Implementation: /build → /impeccable hand-off` section (or otherwise mandates an `/impeccable <command>` pass on a path), `/build` MUST honor it — treat it as a binding instruction, not optional prose:
+
+1. **Planning**: tell the planner to sequence the named `/impeccable <command>(s)` on the given path (e.g. `/impeccable shape`, then `/impeccable layout`) ahead of the deterministic code, and to plan to that shaped output.
+2. **Implementation**: the `develop` prompt MUST instruct the agent to load the `impeccable` skill and run the named command(s) on the specified path as the design/UX step, then apply the remaining deterministic edits. Guard the hand-off scope to the named path; revert any drift into out-of-scope files.
+3. **Lifecycle unchanged**: `/build` still owns plan → branch → commit → review → PR. The hand-off replaces the design step, not the delivery lifecycle.
+4. **Verification**: if the issue names a verification command (e.g. re-run `/impeccable critique <path>`), include it in the develop verification and the proof bundle.
+
+This generalizes the REP-1488 pattern: the issue declares the hand-off; the orchestrator wires it into the planner and develop prompts rather than relying on noticing the issue text.
+
 ### Worktree existence guard
 
 Before launching `develop`, verify the worktree path exists and the branch is correct:
