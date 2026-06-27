@@ -60,9 +60,9 @@ export const RecordingRoute: React.FC = () => {
         <Logo size={24} />
         <Link
           component={RouterLink}
-          props={{ to: '/', style: textStyles.body }}
+          props={{ to: '/recordings', style: textStyles.body }}
         >
-          &larr; Sessions
+          &larr; Recordings
         </Link>
         {info && <Block {...textStyles.body}>{info.title}</Block>}
       </ToolView.Header>

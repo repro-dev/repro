@@ -5,6 +5,7 @@ import {
   fontSize,
   fontWeight,
   spacing,
+  Tooltip,
 } from '@repro/design'
 import { ChevronDownIcon, FolderIcon, PlusIcon } from 'lucide-react'
 import React, { useState } from 'react'
@@ -148,6 +149,7 @@ export const ProjectSwitcher: React.FC<ProjectSwitcherProps> = () => {
           }}
         >
           <PlusIcon size={14} />
+          <Tooltip>Create project</Tooltip>
         </Row>
       </Grid>
 

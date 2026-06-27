@@ -151,4 +151,20 @@ describe('ProjectSwitcher', () => {
       1
     )
   })
+
+  it('renders a tooltip on the create project button', async () => {
+    localStorageMock.setItem(STORAGE_KEY, 'project-1')
+
+    renderProjectSwitcher()
+
+    await screen.findByRole('button', {
+      name: /switch project\. current: alpha/i,
+    })
+
+    const tooltips = document.querySelectorAll('[role="tooltip"]')
+    const createTooltip = Array.from(tooltips).find(
+      t => t.textContent === 'Create project'
+    )
+    assert.ok(createTooltip)
+  })
 })

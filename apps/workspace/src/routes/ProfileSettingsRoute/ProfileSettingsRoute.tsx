@@ -20,18 +20,18 @@ import React, { useCallback, useState } from 'react'
 // --- Default API functions (injectable for testing) ---
 
 function defaultGetProfile(apiClient: ApiClient) {
-  return apiClient.fetch<UserProfile>('/me/profile')
+  return apiClient.fetch<UserProfile>('/account/me/profile')
 }
 
 function defaultUpdateName(apiClient: ApiClient, name: string) {
-  return apiClient.fetch('/me/name', {
+  return apiClient.fetch('/account/me/name', {
     method: 'put',
     body: JSON.stringify({ name }),
   })
 }
 
 function defaultSendVerification(apiClient: ApiClient) {
-  return apiClient.fetch('/me/send-verification', { method: 'post' })
+  return apiClient.fetch('/account/me/send-verification', { method: 'post' })
 }
 
 // --- Props ---
@@ -189,9 +189,9 @@ export function ProfileSettingsRoute({
       </PageFrame.Header>
 
       <PageFrame.Body maxWidth={720}>
-        <Stack gap={spacing.lg}>
-          <Card>
-            <Col padding={spacing.xl} gap={spacing.lg}>
+        <Card>
+          <Col padding={spacing.xl} gap={spacing['3xl']}>
+            <Col gap={spacing.lg}>
               <Row alignItems="center" gap={spacing.md}>
                 <Text variant="heading3">Name</Text>
                 {!isEditingName && (
@@ -233,10 +233,8 @@ export function ProfileSettingsRoute({
                 <Text variant="body">{displayProfile.name}</Text>
               )}
             </Col>
-          </Card>
 
-          <Card>
-            <Col padding={spacing.xl} gap={spacing.lg}>
+            <Col gap={spacing.lg}>
               <Text variant="heading3">Email</Text>
               <Row alignItems="center" gap={spacing.md}>
                 <Text variant="body">{displayProfile.email}</Text>
@@ -264,24 +262,20 @@ export function ProfileSettingsRoute({
                 </Col>
               )}
             </Col>
-          </Card>
 
-          <Card>
-            <Col padding={spacing.xl} gap={spacing.lg}>
+            <Col gap={spacing.lg}>
               <Text variant="heading3">Account</Text>
               <Text variant="body">{displayProfile.account.name}</Text>
             </Col>
-          </Card>
 
-          <Card>
-            <Col padding={spacing.xl} gap={spacing.lg}>
+            <Col gap={spacing.lg}>
               <Text variant="heading3">Member since</Text>
               <Text variant="body">
                 {new Date(displayProfile.createdAt).toLocaleDateString()}
               </Text>
             </Col>
-          </Card>
-        </Stack>
+          </Col>
+        </Card>
       </PageFrame.Body>
     </PageFrame>
   )

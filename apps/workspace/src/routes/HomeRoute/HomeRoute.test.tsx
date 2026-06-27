@@ -98,9 +98,11 @@ function makeWrapper(initialProjectId = 'proj-1') {
     return (
       <MemoryRouter>
         <ApiProvider client={mockApiClient}>
-          <ProjectProvider getProjects={getProjects}>
-            {children}
-          </ProjectProvider>
+          <PortalRootProvider>
+            <ProjectProvider getProjects={getProjects}>
+              {children}
+            </ProjectProvider>
+          </PortalRootProvider>
         </ApiProvider>
       </MemoryRouter>
     )
@@ -322,6 +324,28 @@ describe('HomeRoute', () => {
       await waitFor(() => {
         assert.ok(calledWithProjectIds.includes('proj-b'))
       })
+    })
+
+    it('renders a tooltip on the Mode column header explaining recording modes', async () => {
+      const getProjectRecordings = (
+        _apiClient: ApiClient,
+        _projectId: string
+      ): FutureInstance<unknown, RecordingInfo[]> => resolve(mockRecordings)
+      const wrapper = makeWrapper()
+
+      render(<HomeRoute getProjectRecordings={getProjectRecordings} />, {
+        wrapper,
+      })
+
+      await waitFor(() => {
+        assert.ok(screen.getByText('Alpha Recording'))
+      })
+
+      const tooltips = document.querySelectorAll('[role="tooltip"]')
+      const modeTooltip = Array.from(tooltips).find(
+        t => t.textContent?.includes('Recording mode')
+      )
+      assert.ok(modeTooltip)
     })
 
     it('should not show stale recordings from a previous project while the new project is loading', async () => {
