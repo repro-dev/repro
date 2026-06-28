@@ -92,6 +92,66 @@ export function getRecordingEventsStream(
     )
 }
 
+export function getShareRecordingInfo(apiClient: ApiClient, token: string) {
+  return apiClient.fetch(`/share/${token}`)
+}
+
+export function getShareResourceMap(apiClient: ApiClient, token: string) {
+  return apiClient
+    .fetch<Record<string, string>>(`/share/${token}/resource-map`)
+    .pipe(chainRej(() => resolve(EMPTY_RESOURCE_MAP)))
+}
+
+export function getShareRecordingEventsStream(
+  apiClient: ApiClient,
+  token: string,
+  encryptionKey?: string
+) {
+  return apiClient
+    .fetch<ReadableStream<Uint8Array>>(
+      `/share/${token}/data`,
+      undefined,
+      'json',
+      'stream'
+    )
+    .pipe(
+      map(data =>
+        Stats.time('createShareSource(): unpack binary wire format', () => {
+          return fromBinaryWireFormatStream(toArrayBufferStream(data))
+        })
+      )
+    )
+    .pipe(
+      map(stream =>
+        stream.pipeThrough(
+          new TransformStream<ArrayBuffer, ArrayBuffer>({
+            transform(chunk, controller) {
+              if (encryptionKey == null) {
+                controller.enqueue(chunk)
+                return
+              }
+
+              decryptF(chunk, encryptionKey).pipe(
+                fork(error => {
+                  controller.error(error)
+                })(value => {
+                  controller.enqueue(value)
+                })
+              )
+            },
+
+            flush(controller) {
+              controller.terminate()
+            },
+          }),
+          {
+            preventClose: true,
+          }
+        )
+      )
+    )
+}
+
 export function getResourceMap(
   apiClient: ApiClient,
   projectId: string,

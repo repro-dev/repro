@@ -1,22 +1,24 @@
 import { Block, Col, Row } from '@jsxstyle/react'
 import { useApiClient } from '@repro/api-client'
-import { formatDate, formatTime } from '@repro/date-utils'
 import {
   Badge,
-  Card,
+  color,
   FullPageError,
   LoadingState,
-  color,
   spacing,
+  Text,
   textStyles,
 } from '@repro/design'
-import { RecordingInfo, ShareTokenInfo } from '@repro/domain'
+import { DevTools } from '@repro/devtools'
+import type { RecordingInfo, ShareTokenInfo } from '@repro/domain'
 import { useFuture } from '@repro/future-utils'
-import { ucfirst } from '@repro/string-utils'
+import { createNullSource, PlaybackFromSourceProvider } from '@repro/playback'
+import { createShareSource } from '@repro/recording-api'
 import { resolveShareToken } from '@repro/workspace-api'
 import { reject } from 'fluture'
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { defaultEnv as env } from '~/config/env'
 import { getModeContext, getModeLabel } from '~/recordingUtils'
 
 type ResolvedShare = {
@@ -37,12 +39,24 @@ export const ShareRoute: React.FC = () => {
     return resolveShareToken(apiClient, token)
   }, [apiClient, token])
 
+  const resourceBaseURL = token
+    ? `${env.REPRO_API_URL}/share/${token}/resources/`
+    : undefined
+
+  const [source, setSource] = useState(createNullSource())
+
+  useEffect(() => {
+    if (token && !loading && !error && result) {
+      setSource(createShareSource(token, apiClient))
+    }
+  }, [error, loading, token, apiClient, setSource, result])
+
   useEffect(() => {
     const originalTitle = document.title
+    const resolvedData = result as ResolvedShare | null
 
-    if (result) {
-      const data = result as ResolvedShare
-      document.title = `${data.recording.title} - Shared Recording - Repro`
+    if (resolvedData) {
+      document.title = `${resolvedData.recording.title} - Shared Recording - Repro`
     }
 
     return () => {
@@ -63,7 +77,7 @@ export const ShareRoute: React.FC = () => {
     )
   }
 
-  if (error) {
+  if (error || !result) {
     return (
       <FullPageError
         title="Share link not found"
@@ -72,141 +86,50 @@ export const ShareRoute: React.FC = () => {
     )
   }
 
-  if (!result) {
-    return (
-      <FullPageError
-        title="Share link not found"
-        description="This share link may have expired, been revoked, or does not exist."
-      />
-    )
-  }
-
-  const recording = (result as ResolvedShare).recording
-  const browserLabel = recording.browserName
-    ? recording.browserVersion
-      ? `${ucfirst(recording.browserName)} ${recording.browserVersion}`
-      : ucfirst(recording.browserName)
-    : null
+  const shareData = result as ResolvedShare
 
   return (
-    <Col
-      alignItems="center"
-      justifyContent="center"
-      minHeight="100vh"
-      padding={spacing.xl}
-      backgroundColor={color.bg.subtle}
-    >
-      <Block width={480}>
-        <Card padding={spacing.xl}>
-          <Col gap={spacing.lg}>
-            <Col gap={spacing.sm}>
-              <Badge context={getModeContext(recording.mode)} size="small">
-                {getModeLabel(recording.mode)}
-              </Badge>
-              <Block {...textStyles.heading2}>{recording.title}</Block>
-            </Col>
+    <Col height="100%">
+      <Row
+        component="header"
+        alignItems="center"
+        gap={spacing.md}
+        paddingH={spacing['2xl']}
+        paddingV={spacing.xl}
+        borderBottom={`1px solid ${color.border.default}`}
+      >
+        <Text variant="label" color={color.text.muted}>
+          Shared Recording
+        </Text>
 
-            <Col gap={spacing.md}>
-              <Row gap={spacing.md}>
-                <Col gap={spacing.xs} flex={1}>
-                  <Block
-                    {...textStyles.label}
-                    color={color.text.secondary}
-                    textTransform="uppercase"
-                  >
-                    Recorded
-                  </Block>
-                  <Block {...textStyles.body} color={color.text.default}>
-                    {formatDate(recording.createdAt)}
-                  </Block>
-                </Col>
-                <Col gap={spacing.xs} flex={1}>
-                  <Block
-                    {...textStyles.label}
-                    color={color.text.secondary}
-                    textTransform="uppercase"
-                  >
-                    Duration
-                  </Block>
-                  <Block {...textStyles.body} color={color.text.default}>
-                    {formatTime(recording.duration, 'seconds')}
-                  </Block>
-                </Col>
-              </Row>
+        <Block
+          width="1px"
+          height={spacing.lg}
+          backgroundColor={color.border.default}
+        />
 
-              {browserLabel || recording.operatingSystem ? (
-                <Row gap={spacing.md}>
-                  {browserLabel ? (
-                    <Col gap={spacing.xs} flex={1}>
-                      <Block
-                        {...textStyles.label}
-                        color={color.text.secondary}
-                        textTransform="uppercase"
-                      >
-                        Browser
-                      </Block>
-                      <Block {...textStyles.body} color={color.text.default}>
-                        {browserLabel}
-                      </Block>
-                    </Col>
-                  ) : null}
-                  {recording.operatingSystem ? (
-                    <Col gap={spacing.xs} flex={1}>
-                      <Block
-                        {...textStyles.label}
-                        color={color.text.secondary}
-                        textTransform="uppercase"
-                      >
-                        OS
-                      </Block>
-                      <Block {...textStyles.body} color={color.text.default}>
-                        {recording.operatingSystem}
-                      </Block>
-                    </Col>
-                  ) : null}
-                </Row>
-              ) : null}
+        <Block
+          {...textStyles.heading2}
+          color={color.text.default}
+          flexShrink={1}
+          minWidth={0}
+          overflow="hidden"
+          textOverflow="ellipsis"
+          whiteSpace="nowrap"
+        >
+          {shareData.recording.title}
+        </Block>
 
-              {recording.url ? (
-                <Col gap={spacing.xs}>
-                  <Block
-                    {...textStyles.label}
-                    color={color.text.secondary}
-                    textTransform="uppercase"
-                  >
-                    URL
-                  </Block>
-                  <Block {...textStyles.body} color={color.text.default}>
-                    {recording.url}
-                  </Block>
-                </Col>
-              ) : null}
+        <Badge context={getModeContext(shareData.recording.mode)} size="small">
+          {getModeLabel(shareData.recording.mode)}
+        </Badge>
+      </Row>
 
-              {recording.description ? (
-                <Col gap={spacing.xs}>
-                  <Block
-                    {...textStyles.label}
-                    color={color.text.secondary}
-                    textTransform="uppercase"
-                  >
-                    Description
-                  </Block>
-                  <Block {...textStyles.body} color={color.text.default}>
-                    {recording.description}
-                  </Block>
-                </Col>
-              ) : null}
-            </Col>
-
-            {/*
-              Open recorded URL button removed intentionally for v1 speedrun:
-              the share page shows recording metadata; full playback requires
-              project access. URL scheme validation would be needed before
-              re-adding window.open.
-            */}
-          </Col>
-        </Card>
-      </Block>
+      <Col flex={1} overflow="hidden" component="main">
+        <PlaybackFromSourceProvider source={source}>
+          <DevTools resourceBaseURL={resourceBaseURL} />
+        </PlaybackFromSourceProvider>
+      </Col>
     </Col>
   )
 }

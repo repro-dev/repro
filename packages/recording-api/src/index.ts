@@ -1,4 +1,5 @@
 export { createApiSource } from './createApiSource'
+export { createShareSource } from './createShareSource'
 export { createUploadWorker } from './createUploadWorker'
 export * from './queries'
 export { UploadStage, type UploadInput, type UploadProgress } from './types'
