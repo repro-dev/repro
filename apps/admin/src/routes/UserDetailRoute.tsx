@@ -8,6 +8,7 @@ import {
   FullPageError,
   FullPageLoading,
   PageFrame,
+  Skeleton,
   Table,
   Tabs,
   Text,
@@ -274,12 +275,16 @@ export const UserDetailRoute: React.FC = () => {
 
                         <Card context="danger" padding={spacing.none}>
                           <Col gap={spacing.none}>
-                            {[
-                              {
-                                label: 'Deactivate user',
-                                description:
-                                  'Remove this user from active access.',
-                                control: (
+                            <Block
+                              paddingTop={spacing.lg}
+                              paddingBottom={spacing.lg}
+                              paddingLeft={spacing.xl}
+                              paddingRight={spacing.xl}
+                            >
+                              <ActionRow
+                                label="Deactivate user"
+                                description="Remove this user from active access."
+                                control={
                                   <Button
                                     variant="outlined"
                                     context="danger"
@@ -289,24 +294,9 @@ export const UserDetailRoute: React.FC = () => {
                                   >
                                     Deactivate user
                                   </Button>
-                                ),
-                              },
-                            ].map((action, index) => (
-                              <Block
-                                key={action.label}
-                                paddingTop={spacing.lg}
-                                paddingBottom={spacing.lg}
-                                paddingLeft={spacing.xl}
-                                paddingRight={spacing.xl}
-                                borderTop={
-                                  index === 0
-                                    ? 'none'
-                                    : `1px solid ${color.border.default}`
                                 }
-                              >
-                                <ActionRow {...action} />
-                              </Block>
-                            ))}
+                              />
+                            </Block>
                           </Col>
                         </Card>
                       </Col>
@@ -330,9 +320,13 @@ export const UserDetailRoute: React.FC = () => {
                   <Block width="100%">
                     <Card fullBleed>
                       {projectsResult.loading ? (
-                        <Text variant="bodySmall" color={color.text.secondary}>
-                          Loading...
-                        </Text>
+                        <Block padding={spacing.xl}>
+                          <Col gap={spacing.sm}>
+                            <Skeleton variant="text" width="60%" />
+                            <Skeleton variant="text" width="40%" />
+                            <Skeleton variant="text" width="80%" />
+                          </Col>
+                        </Block>
                       ) : projectsResult.error ? (
                         <Alert type="danger">
                           Failed to load project memberships:{' '}

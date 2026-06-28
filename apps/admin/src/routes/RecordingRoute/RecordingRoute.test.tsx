@@ -47,6 +47,9 @@ mock.module('@repro/design', {
         ),
       }
     ),
+    Text: ({ children }: { variant?: string; children?: React.ReactNode }) => (
+      <span>{children}</span>
+    ),
     textStyles: { body: {} },
   },
 })

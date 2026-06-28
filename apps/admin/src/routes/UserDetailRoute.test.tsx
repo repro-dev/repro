@@ -337,6 +337,8 @@ describe('UserDetailRoute', () => {
         level: 2,
       })
     )
+    // No ad-hoc "Loading..." text should appear anywhere
+    assert.equal(screen.queryByText('Loading...'), null)
     assert.ok(screen.getByRole('table', { name: 'Project memberships' }))
     const membershipsTableCard = screen.getByRole('table', {
       name: 'Project memberships',
