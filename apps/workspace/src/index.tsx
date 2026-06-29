@@ -33,6 +33,7 @@ const RecordingRoute = lazy(() => import('./routes/RecordingRoute'))
 const RegisterRoute = lazy(() => import('./routes/RegisterRoute'))
 const ResetPasswordRoute = lazy(() => import('./routes/ResetPasswordRoute'))
 const SettingsRoute = lazy(() => import('./routes/SettingsRoute'))
+const ShareRoute = lazy(() => import('./routes/ShareRoute'))
 
 declare global {
   interface Window {
@@ -107,6 +108,8 @@ if (rootElem) {
                             element={<AcceptInvitationRoute />}
                           />
                         </Route>
+
+                        <Route path="share/:token" element={<ShareRoute />} />
 
                         <Route element={<Layout />}>
                           <Route element={<SessionRouteBoundary />}>

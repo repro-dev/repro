@@ -100,6 +100,49 @@ export function deleteAccount(apiClient: ApiClient) {
   })
 }
 
+export function createShareToken(
+  apiClient: ApiClient,
+  projectId: string,
+  recordingId: string,
+  expiresAt?: string | null
+) {
+  return apiClient.fetch(
+    `/projects/${projectId}/recordings/${recordingId}/share`,
+    {
+      method: 'post',
+      body: JSON.stringify({ expiresAt: expiresAt ?? null }),
+    }
+  )
+}
+
+export function listShareTokens(
+  apiClient: ApiClient,
+  projectId: string,
+  recordingId: string
+) {
+  return apiClient
+    .fetch(`/projects/${projectId}/recordings/${recordingId}/shares`)
+    .pipe(map(res => res.items))
+}
+
+export function revokeShareToken(
+  apiClient: ApiClient,
+  projectId: string,
+  recordingId: string,
+  tokenId: string
+) {
+  return apiClient.fetch(
+    `/projects/${projectId}/recordings/${recordingId}/share/${tokenId}`,
+    {
+      method: 'delete',
+    }
+  )
+}
+
+export function resolveShareToken(apiClient: ApiClient, token: string) {
+  return apiClient.fetch(`/share/${token}`)
+}
+
 export function getRecordingPrivacyPreset(apiClient: ApiClient) {
   return apiClient.fetch<{ value: RecordingPrivacyPreset }>('/account/privacy')
 }

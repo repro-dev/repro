@@ -18,7 +18,7 @@ The repo's `Brewfile` installs `jq` for trimming high-volume JSON responses duri
 
 ## Common commands
 
-- List backlog work: `linear issues --status backlog --status todo --unblocked --leaf --limit 250`
+- List issues: `linear issue list --status backlog --status todo --unblocked --leaf --limit 250`
 - Create an issue: `linear issue create --title "..." --project "Workspace" --description "..." --label "Feature" --priority high`
 - Create linked issues: `linear issue create --title "..." --project "Workspace" --parent ISSUE-1 --related ISSUE-2 --blocks ISSUE-3 --blocked-by ISSUE-4`
 - Show an issue: `linear issue show ISSUE-1`
@@ -35,11 +35,19 @@ The repo's `Brewfile` installs `jq` for trimming high-volume JSON responses duri
 - Compatibility only: `linear issue attach ISSUE-1 --document "Runbook"` (prefer the first-class document commands)
 - List labels: `linear label list`
 - Create a label: `linear label create --name "needs-spec" --description "Issue requires additional specification" --color "#F2994A"`
-- List projects: `linear projects`
+- List projects: `linear project list`
 - Show a project: `linear project show "Workspace"`
-- Show milestones: `linear milestones --project "Workspace"`
+- List milestones: `linear milestone list --project "Workspace"`
 - Show issue details as JSON: `linear issue show ISSUE-1 --json`
 - Verify issue relations: `linear issue show ISSUE-1 --json | jq '.item.relations'`
+
+## Aliases
+
+The CLI has convenience aliases: `linear issues` = `linear issue list`, `linear projects` = `linear project list`, `linear milestones` = `linear milestone list`. Always use the canonical form (`issue list`, `project list`, `milestone list`) in scripts and documentation — the aliases exist only for interactive use.
+
+## Valid priority values
+
+`urgent`, `high`, `medium`, `low`, `none`. The value `normal` is **invalid**.
 
 ## Usage notes
 
@@ -48,13 +56,29 @@ The repo's `Brewfile` installs `jq` for trimming high-volume JSON responses duri
 - Keep OpenCode prompts aligned with concrete CLI commands rather than abstract tool names.
 - `linear issue create` accepts `--parent <issue-id>` for tracker/sub-issue setup.
 - `linear issue create` and `linear issue update` verify parent-link mutations by refetching the issue; they return non-zero if Linear reads back the wrong parent.
-- `linear issue update` accepts `--title <title>` for renaming and `--parent <issue-id>` / `--remove-parent` for reparenting.
-- When creating or updating issue bodies, pass the body through a single-quoted heredoc so Markdown, backticks, and other code spans survive unchanged. Example: `linear issue create ... --description "$(cat <<'EOF'\n## Context\n...\nEOF\n)"`.
+- `linear issue update` accepts `--title <title>` for renaming, `--parent <issue-id>` / `--remove-parent` for reparenting, and `--milestone <name>` for milestone association.
+- `linear issue list` supports `--mine` for issues assigned to the authenticated user.
+- `linear issue list` supports `--json <fields>` for flat field projection (e.g. `--json id,identifier,title,priority`). Without field args, `--json` returns the full issue object.
+- When creating or updating issue bodies, pass the body through a single-quoted heredoc so Markdown, backticks, and other code spans survive unchanged. Example:
+
+  ```sh
+  linear issue create ... --description "$(cat <<'EOF'
+  ## Context
+
+  Some markdown here.
+  EOF
+  )"
+  ```
+
 - Use raw `--json` for single-issue deep reads when you need full descriptions, comments, relations, or labels.
 - Use `--json | jq '...'` for list and scan flows where only routing fields are needed; keep the projection stable and narrow.
 - `linear issue list` supports `--unblocked` and `--leaf` for server-side narrowing of backlog scans, and accepts `--limit` up to 250.
+- `linear issue list` supports `--open` to return only issues with open statuses (active, in-progress, in-review, etc.).
 - The current CLI surface is: `whoami`, `issue list`, `issue create`, `issue show`, `issue children`, `issue start`, `issue update`, `issue comment`, `issue attach`, `document create`, `document show`, `document update`, `document link`, `label list`, `label create`, `project list`, `project show`, `milestone list`.
 - Canonical projections:
   - Issue lists: `linear issue list --status backlog --json | jq '[.items[] | {id, identifier, title, state, priority, project}]'`
+  - Individual issue: `linear issue show ISSUE-1 --json | jq '{id: .item.identifier, title: .item.title, status: .item.status.name, parentId: .item.parentId}'`
   - Label lists: `linear label list --json | jq '[.items[] | {id, name, color}]'`
+  - Project lists: `linear project list --json | jq '[.items[] | {id, name}]'`
+  - Milestone lists: `linear milestone list --project "Workspace" --json | jq '[.items[] | {id, name}]'`
 - If a workflow needs a missing subcommand, stop and report the gap so the repo-owned CLI can be extended. Do not fall back to MCP or the legacy third-party CLI.

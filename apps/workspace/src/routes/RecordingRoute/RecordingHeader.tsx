@@ -1,39 +1,26 @@
-import { Row } from '@jsxstyle/react'
+import { Block, Row } from '@jsxstyle/react'
 import { formatDate, formatTime } from '@repro/date-utils'
-import { Badge, Breadcrumbs, Link, Text, color, spacing } from '@repro/design'
-import { RecordingInfo, RecordingMode } from '@repro/domain'
+import {
+  Badge,
+  Breadcrumbs,
+  Button,
+  Link,
+  Text,
+  color,
+  spacing,
+} from '@repro/design'
+import { RecordingInfo } from '@repro/domain'
 import { ucfirst } from '@repro/string-utils'
+import { Share2 } from 'lucide-react'
 import React from 'react'
 import { Link as RouterLink } from 'react-router-dom'
+import { getModeContext, getModeLabel } from '~/recordingUtils'
 
 interface Props {
   projectId?: string | null
   projectName?: string | null
   recording: RecordingInfo
-}
-
-function getModeLabel(mode: RecordingMode): string {
-  switch (mode) {
-    case RecordingMode.Live:
-      return 'Live'
-    case RecordingMode.Replay:
-      return 'Replay'
-    case RecordingMode.Snapshot:
-      return 'Snapshot'
-    case RecordingMode.None:
-      return 'Inactive'
-  }
-}
-
-function getModeContext(mode: RecordingMode): 'info' | 'neutral' {
-  switch (mode) {
-    case RecordingMode.Live:
-    case RecordingMode.Replay:
-      return 'info'
-    case RecordingMode.Snapshot:
-    case RecordingMode.None:
-      return 'neutral'
-  }
+  onShare?: () => void
 }
 
 function getBrowserLabel(recording: RecordingInfo): string | null {
@@ -69,6 +56,7 @@ export const RecordingHeader: React.FC<Props> = ({
   projectId,
   projectName,
   recording,
+  onShare,
 }) => {
   const browserLabel = getBrowserLabel(recording)
   const operatingSystemLabel = getOperatingSystemLabel(recording)
@@ -146,6 +134,22 @@ export const RecordingHeader: React.FC<Props> = ({
           {operatingSystemLabel}
         </Text>
       )}
+
+      {onShare ? (
+        <Button
+          variant="outlined"
+          context="info"
+          size="small"
+          rounded
+          onClick={onShare}
+          type="button"
+        >
+          <Row gap={spacing.xs} alignItems="center">
+            <Share2 size={14} />
+            <Block component="span">Share</Block>
+          </Row>
+        </Button>
+      ) : null}
     </Row>
   )
 }

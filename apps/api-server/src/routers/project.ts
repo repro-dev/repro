@@ -25,6 +25,7 @@ import { uploadRateLimitOptions } from '~/rateLimit'
 import { AccountService } from '~/services/account'
 import { ProjectService } from '~/services/project'
 import { RecordingService } from '~/services/recording'
+import { ShareService } from '~/services/share'
 import {
   badRequest,
   isPermissionDenied,
@@ -38,7 +39,8 @@ export function createProjectRouter(
   projectService: ProjectService,
   recordingService: RecordingService,
   accountService: AccountService,
-  config = defaultSystemConfig
+  config = defaultSystemConfig,
+  shareService?: ShareService
 ): FastifyPluginAsync {
   const env = createEnv()
   const { respondWith } = createResponseUtils(config)
@@ -863,6 +865,129 @@ export function createProjectRouter(
             )
           }),
           204
+        )
+      }
+    )
+
+    // --- Share routes ---
+
+    const createShareSchema = {
+      params: z.object({
+        projectId: z.string(),
+        recordingId: z.string(),
+      }),
+      body: z.object({
+        expiresAt: z.string().datetime().nullable().optional(),
+      }),
+    } as const
+
+    app.post<{
+      Params: z.infer<typeof createShareSchema.params>
+      Body: z.infer<typeof createShareSchema.body>
+    }>(
+      '/:projectId/recordings/:recordingId/share',
+
+      {
+        schema: createShareSchema,
+      },
+
+      (req, res) => {
+        const { projectId, recordingId } = req.params
+        const expiresAt = req.body.expiresAt ?? null
+
+        respondWith(
+          res,
+          go(function* () {
+            const user: User | StaffUser = yield req.getCurrentUser()
+            yield ensureCanAccessProjectRecording(user, projectId, recordingId)
+
+            if (!shareService) {
+              throw new Error('Share service not available')
+            }
+
+            return yield shareService.createShareToken(
+              'recording',
+              recordingId,
+              user.id,
+              expiresAt
+            )
+          }),
+          201
+        )
+      }
+    )
+
+    const listSharesSchema = {
+      params: z.object({
+        projectId: z.string(),
+        recordingId: z.string(),
+      }),
+    } as const
+
+    app.get<{
+      Params: z.infer<typeof listSharesSchema.params>
+    }>(
+      '/:projectId/recordings/:recordingId/shares',
+
+      {
+        schema: listSharesSchema,
+      },
+
+      (req, res) => {
+        const { projectId, recordingId } = req.params
+
+        respondWith(
+          res,
+          go(function* () {
+            const user: User | StaffUser = yield req.getCurrentUser()
+            yield ensureCanAccessProjectRecording(user, projectId, recordingId)
+
+            if (!shareService) {
+              throw new Error('Share service not available')
+            }
+
+            return yield shareService.listShareTokens('recording', recordingId)
+          }).pipe(map(toListResponse))
+        )
+      }
+    )
+
+    const revokeShareSchema = {
+      params: z.object({
+        projectId: z.string(),
+        recordingId: z.string(),
+        tokenId: z.string(),
+      }),
+    } as const
+
+    app.delete<{
+      Params: z.infer<typeof revokeShareSchema.params>
+    }>(
+      '/:projectId/recordings/:recordingId/share/:tokenId',
+
+      {
+        schema: revokeShareSchema,
+      },
+
+      (req, res) => {
+        const { projectId, recordingId, tokenId } = req.params
+
+        respondWith(
+          res,
+          go(function* () {
+            const user: User | StaffUser = yield req.getCurrentUser()
+            yield ensureCanAccessProjectRecording(user, projectId, recordingId)
+
+            if (!shareService) {
+              throw new Error('Share service not available')
+            }
+
+            return yield shareService.revokeShareToken(
+              tokenId,
+              recordingId,
+              user.id
+            )
+          })
         )
       }
     )

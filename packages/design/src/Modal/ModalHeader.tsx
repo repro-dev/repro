@@ -17,7 +17,12 @@ interface Props {
  */
 export const ModalHeader: React.FC<Props> = ({ title, description }) => (
   <Col gap={spacing.xs}>
-    <Block {...textStyles.heading2} color={color.text.default} component="h2">
+    <Block
+      {...textStyles.heading2}
+      color={color.text.default}
+      component="h2"
+      margin={spacing.none}
+    >
       {title}
     </Block>
     {description && (
