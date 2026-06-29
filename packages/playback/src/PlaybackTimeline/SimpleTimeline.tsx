@@ -17,6 +17,7 @@ import { usePlayback } from '../hooks'
 import { PlaybackState } from '../types'
 import { PlayAction } from './PlayAction'
 import { PlaybackKeyboardShortcuts } from './PlaybackKeyboardShortcuts'
+import { PlaybackShortcutsHelp } from './PlaybackShortcutsHelp'
 import { SpeedControl } from './SpeedControl'
 
 const SVG_NS = 'http://www.w3.org/2000/svg'
@@ -411,6 +412,7 @@ export const SimpleTimeline: React.FC<Props> = ({
       <PlayAction />
       <SpeedControl />
       <PlaybackKeyboardShortcuts />
+      <PlaybackShortcutsHelp />
 
       <Row alignItems="center" height="100%" width="100%" position="relative">
         <Block
