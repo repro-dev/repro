@@ -89,7 +89,7 @@ export const ShareRoute: React.FC = () => {
   const shareData = result as ResolvedShare
 
   return (
-    <Col height="100%">
+    <Col height="100vh">
       <Row
         component="header"
         alignItems="center"
