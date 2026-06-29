@@ -13,7 +13,7 @@ import {
 import { ShareTokenInfo } from '@repro/domain'
 import { createShareToken as defaultCreateShareToken } from '@repro/workspace-api'
 import { fork } from 'fluture'
-import { CheckIcon, Info } from 'lucide-react'
+import { CheckIcon } from 'lucide-react'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 
 export interface ShareDialogProps {
@@ -157,11 +157,17 @@ export const ShareDialog = ({
       <Col gap={spacing.lg} padding={spacing.xl}>
         <Modal.Header title="Share recording" />
 
-        <Alert type="info" icon={<Info size={16} />}>
-          This creates a shareable link that anyone with the link can access.
-          The recording title, URL, browser info, duration, and recording mode
-          will be visible. Full playback requires project access.
-        </Alert>
+        <Col gap={spacing.sm}>
+          <Block {...textStyles.body} color={color.text.default}>
+            Anyone with this link can view the recording and use the DevTools to
+            debug it — just like a workspace member.
+          </Block>
+          <Block {...textStyles.body} color={color.text.secondary}>
+            The link includes the recording title, URL, browser info, duration,
+            recording mode, and full playback with DevTools (Elements, Console,
+            Network, and other panels).
+          </Block>
+        </Col>
 
         {shareToken ? (
           <Col gap={spacing.md}>

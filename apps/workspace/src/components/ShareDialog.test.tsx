@@ -35,7 +35,7 @@ describe('ShareDialog', () => {
       </ApiProvider>
     )
 
-    assert.ok(screen.getByText(/This creates a shareable link/))
+    assert.ok(screen.getByText(/Anyone with this link/))
   })
 
   it('should render expiry selector when open', () => {
