@@ -39,7 +39,7 @@ describe('ErrorMarkerFilterToggle', () => {
     expect(container.textContent).toContain('None')
   })
 
-  it('renders clickable filter buttons that call onChange', () => {
+  it('renders filter state buttons with correct text', () => {
     const onChange = mock.fn()
 
     const { container } = render(

@@ -1,4 +1,4 @@
-import { Inline, Row } from '@jsxstyle/react'
+import { Row } from '@jsxstyle/react'
 import { color, fontSize, spacing } from '@repro/design'
 import type { ErrorOrWarningEntry } from '@repro/source-utils'
 import { findErrorAndWarningEvents } from '@repro/source-utils'
@@ -104,12 +104,12 @@ const FilterButton: React.FC<FilterButtonProps> = ({
       borderRadius="4px"
       backgroundColor={active ? color.border.focus : color.bg.hover}
       color={active ? color.primary : color.text.secondary}
-      hoverBackgroundColor={color.primarySubtleHover}
+      hoverBackgroundColor={active ? undefined : color.primarySubtleHover}
       transition="background-color 100ms ease"
       alignItems="center"
       gap={spacing.sm}
     >
-      <Inline>{label}</Inline>
+      {label}
     </Row>
   )
 }
