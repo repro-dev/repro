@@ -12,6 +12,7 @@ import { createAccountRouter } from '~/routers/account'
 import { createAccountService } from '~/services/account'
 import { ApiKeyService, createApiKeyService } from '~/services/apiKeys'
 import { createBillingService } from '~/services/billing'
+import { type TransactionalEmailService } from '~/services/transactionalEmail'
 import { setUpTestDatabase } from '~/testing/database'
 import { createCapturedSendEmail } from '~/testing/email'
 import { setUpTestFileSystemStorage } from '~/testing/storage'
@@ -29,7 +30,15 @@ async function createApiKeyHarness() {
   const emailModule = createEmailModule({ sendEmail })
   const stubPaddleClient = createStubPaddleClient(db)
   const billingService = createBillingService(db, env, stubPaddleClient)
-  const accountService = createAccountService(db, emailModule, billingService)
+  const noopTransactionalEmailService: TransactionalEmailService = {
+    enqueue: () => {},
+  }
+  const accountService = createAccountService(
+    db,
+    emailModule,
+    noopTransactionalEmailService,
+    billingService
+  )
   const apiKeyService: ApiKeyService = createApiKeyService(db)
 
   // Session decorator wired with apiKeyService — enables Bearer/API-key auth path
@@ -40,9 +49,14 @@ async function createApiKeyHarness() {
   )
 
   function bootstrap() {
-    return fromRouter(createAccountRouter(accountService, emailModule), [
-      sessionDecorator,
-    ])
+    return fromRouter(
+      createAccountRouter(
+        accountService,
+        emailModule,
+        noopTransactionalEmailService
+      ),
+      [sessionDecorator]
+    )
   }
 
   async function reset() {

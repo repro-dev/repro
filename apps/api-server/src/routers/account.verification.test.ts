@@ -156,6 +156,66 @@ describe('Routers > Account > Verification', () => {
     ).resolves.not.toMatchObject({ verified: true })
   })
 
+  it('sends a second email on /me/send-verification (not deduped)', async () => {
+    // Register a user — creates the first email.send job with a stable
+    // per-user idempotencyKey
+    const registerRes = await context.app.inject({
+      method: 'POST',
+      url: '/register',
+      body: {
+        accountName: 'Resend Test Account',
+        userName: 'Resend Tester',
+        email: 'resend-test@example.com',
+        password: 'hunter2!',
+      },
+    })
+
+    expect(registerRes.statusCode).toEqual(201)
+    const { user } = registerRes.json() as {
+      account: { id: string }
+      user: { id: string }
+    }
+
+    // Assert exactly one email.send job with the registration key
+    let jobs = await context.harness.getEnqueuedEmailJobs()
+    expect(jobs).toHaveLength(1)
+    expect(jobs[0]?.idempotencyKey).toEqual(
+      `email.send:verification:registration:${user.id}`
+    )
+
+    // Use the session cookie from registration to call /me/send-verification
+    const sessionCookie = registerRes.cookies.find(
+      c => c.name === context.harness.env.SESSION_COOKIE
+    )
+    expect(sessionCookie).toBeDefined()
+
+    const resendRes = await context.app.inject({
+      method: 'POST',
+      url: '/me/send-verification',
+      cookies: {
+        [context.harness.env.SESSION_COOKIE]: sessionCookie!.value,
+      },
+    })
+
+    expect(resendRes.statusCode).toEqual(204)
+
+    // Assert a SECOND job is enqueued (not deduped - no idempotencyKey)
+    jobs = await context.harness.getEnqueuedEmailJobs()
+    expect(jobs).toHaveLength(2)
+    expect(jobs[1]?.idempotencyKey).toBeNull()
+
+    // Drain and assert resend email is delivered
+    await context.harness.drainOutbox()
+    const sentEmails = context.harness.getSentEmails()
+    // One from registration + one from resend
+    expect(sentEmails).toHaveLength(2)
+    expect(sentEmails[1]).toMatchObject({
+      to: 'resend-test@example.com',
+      from: 'noreply@repro.dev',
+      subject: 'Verify your Repro email address',
+    })
+  })
+
   it('should reject an empty verification token at the schema boundary', async () => {
     const [user, session] = await context.harness.loadFixtures([
       fixtures.account.UserA,

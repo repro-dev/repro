@@ -64,6 +64,7 @@ const DUMMY_HASH =
 
 type SendVerificationEmailOptions = {
   context?: Record<string, unknown>
+  idempotencyKey?: string
 }
 
 function createToken(): string {
@@ -79,9 +80,9 @@ function hashToken(token: string): string {
 export function createAccountService(
   database: Database,
   emailModule: EmailModule,
+  transactionalEmailService: TransactionalEmailService,
   billingService?: BillingService,
-  _config: SystemConfig = defaultSystemConfig,
-  transactionalEmailService?: TransactionalEmailService
+  _config: SystemConfig = defaultSystemConfig
 ) {
   function ensureStaffUser(
     user: User | StaffUser | null
@@ -1386,7 +1387,7 @@ export function createAccountService(
         verificationUrl.searchParams.set('verificationToken', verificationToken)
         verificationUrl.searchParams.set('email', email)
 
-        transactionalEmailService?.enqueue(
+        transactionalEmailService.enqueue(
           {
             to: email,
             from: emailModule.emailFromAddress,
@@ -1397,7 +1398,7 @@ export function createAccountService(
           },
           {
             emailKind: 'verification',
-            idempotencyKey: `email.send:verification:${verificationToken}`,
+            idempotencyKey: options.idempotencyKey,
             context: {
               targetUserId: userId,
               ...options.context,

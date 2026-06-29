@@ -97,9 +97,8 @@ export async function createTestHarness(
   const accountService = createAccountService(
     db,
     emailModule,
-    billingService,
-    undefined,
-    transactionalEmailService
+    transactionalEmailService,
+    billingService
   )
   const featureGateService = createFeatureGateService(db)
   const oauthService = createOAuthService(db)

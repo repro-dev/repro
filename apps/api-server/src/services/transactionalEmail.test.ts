@@ -53,6 +53,31 @@ describe('Services > Transactional Email', () => {
   })
 
   describe('enqueue', () => {
+    it('enqueues two distinct rows when called without idempotencyKey (no dedup)', async () => {
+      const { logger } = createLoggerSpy()
+      const service = createTransactionalEmailService({ outboxService, logger })
+
+      const message = {
+        to: 'user@example.com',
+        from: 'noreply@repro.dev',
+        subject: 'Test',
+        html: '<p>Test</p>',
+      }
+
+      // Enqueue twice without idempotencyKey
+      service.enqueue(message, { emailKind: 'verification' })
+      await waitForJobs(db, 1)
+
+      service.enqueue(message, { emailKind: 'verification' })
+      await waitForJobs(db, 2)
+
+      const rows = await db.selectFrom('outbox_jobs').selectAll().execute()
+
+      expect(rows).toHaveLength(2)
+      expect(rows[0]?.idempotencyKey).toBeNull()
+      expect(rows[1]?.idempotencyKey).toBeNull()
+    })
+
     it('enqueues an email.send job with correct type, payload, and idempotencyKey', async () => {
       const { logger } = createLoggerSpy()
       const service = createTransactionalEmailService({ outboxService, logger })

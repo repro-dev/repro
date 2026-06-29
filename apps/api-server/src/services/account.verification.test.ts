@@ -55,12 +55,11 @@ describe('Services > Account', () => {
       verificationUrl.searchParams.set('verificationToken', verificationToken)
       verificationUrl.searchParams.set('email', email)
 
-      // Assert enqueued job
+      // Assert enqueued job (no idempotencyKey at the service level;
+      // the registration route handler adds the key)
       const jobs = await harness.getEnqueuedEmailJobs()
       expect(jobs).toHaveLength(1)
-      expect(jobs[0]?.idempotencyKey).toEqual(
-        `email.send:verification:${verificationToken}`
-      )
+      expect(jobs[0]?.idempotencyKey).toBeNull()
 
       // Drain and assert sent emails
       await harness.drainOutbox()
@@ -80,8 +79,7 @@ describe('Services > Account', () => {
     it('should still resolve if verification email enqueue fails', async () => {
       // We don't need to test this at the service level anymore because
       // enqueue failure is swallowed by transactionalEmailService.
-      // Instead test that the service returns successfully even when
-      // transactionalEmailService is not available (the optional ?. handles it).
+      // The service returns successfully even without transactional email.
       const account = await promise(accountService.createAccount('New Account'))
       const email = harness.generateRandomEmailAddress()
 

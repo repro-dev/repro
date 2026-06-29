@@ -46,6 +46,24 @@ export function createDefaultOutboxRegistry({
         )
       }
 
+      if (typeof p.message.from !== 'string') {
+        throw new Error(
+          'Invalid email.send outbox payload: message.from must be a string'
+        )
+      }
+
+      if (typeof p.message.subject !== 'string') {
+        throw new Error(
+          'Invalid email.send outbox payload: message.subject must be a string'
+        )
+      }
+
+      if (typeof p.message.html !== 'string') {
+        throw new Error(
+          'Invalid email.send outbox payload: message.html must be a string'
+        )
+      }
+
       if (!sendEmail) {
         throw new Error('No email provider configured for email.send handler')
       }

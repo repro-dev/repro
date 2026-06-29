@@ -34,7 +34,6 @@ export async function createAccountTestContext({
         createAccountRouter(
           accountService,
           harness.emailModule,
-          undefined,
           transactionalEmailService
         )
       )
@@ -45,7 +44,6 @@ export async function createAccountTestContext({
       createAccountRouter(
         accountService,
         harness.emailModule,
-        undefined,
         transactionalEmailService
       ),
       {

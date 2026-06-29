@@ -222,9 +222,8 @@ async function bootstrap() {
   const accountService = createAccountService(
     database,
     emailModule,
-    billingService,
-    undefined,
-    transactionalEmailService
+    transactionalEmailService,
+    billingService
   )
   const agenticService = createAgenticService(database, httpClient)
   const oauthService = createOAuthService(database)
@@ -286,7 +285,6 @@ async function bootstrap() {
   const accountRouter = createAccountRouter(
     accountService,
     emailModule,
-    undefined,
     transactionalEmailService
   )
   const agenticRouter = createAgenticRouter(

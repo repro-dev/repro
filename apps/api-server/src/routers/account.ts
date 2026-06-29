@@ -96,8 +96,8 @@ const updatePrivacyPresetSchema = {
 export function createAccountRouter(
   accountService: AccountService,
   emailModule: EmailModule,
-  config = defaultSystemConfig,
-  transactionalEmailService?: TransactionalEmailService
+  transactionalEmailService: TransactionalEmailService,
+  config = defaultSystemConfig
 ): FastifyPluginAsync {
   const { respondWith } = createResponseUtils(config)
 
@@ -155,6 +155,7 @@ export function createAccountRouter(
               )
 
             yield accountService.sendVerificationEmail(user.id, {
+              idempotencyKey: `email.send:verification:registration:${user.id}`,
               context: {
                 ...createRequestLogContext(req),
                 accountId: account.id,
@@ -197,7 +198,7 @@ export function createAccountRouter(
                   .createInvitation(account.id, req.body.email)
                   .pipe(
                     map(invitation => {
-                      transactionalEmailService?.enqueue(
+                      transactionalEmailService.enqueue(
                         {
                           to: invitation.email,
                           from: emailModule.emailFromAddress,
@@ -373,7 +374,7 @@ export function createAccountRouter(
             )(user =>
               accountService.createPasswordResetToken(user.id).pipe(
                 map(token => {
-                  transactionalEmailService?.enqueue(
+                  transactionalEmailService.enqueue(
                     {
                       to: user.email,
                       from: emailModule.emailFromAddress,

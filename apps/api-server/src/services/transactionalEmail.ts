@@ -7,7 +7,7 @@ import { type OutboxService } from './outbox'
 
 export type TransactionalEmailEnqueueOptions = {
   emailKind: string
-  idempotencyKey: string
+  idempotencyKey?: string
   context?: Record<string, unknown>
 }
 
@@ -31,28 +31,30 @@ export function createTransactionalEmailService({
     message: EmailMessage,
     options: TransactionalEmailEnqueueOptions
   ): void {
-    outboxService
-      .enqueue({
-        type: EMAIL_SEND_JOB_TYPE,
-        payload: {
-          message: message as unknown as OutboxJson,
-          emailKind: options.emailKind,
-        },
-        idempotencyKey: options.idempotencyKey,
-      })
-      .pipe(
-        fork((error: Error) => {
-          logger?.error(
-            {
-              err: error,
-              event: 'transactional_email.enqueue_failed',
-              emailKind: options.emailKind,
-              ...options.context,
-            },
-            'Transactional email enqueue failed'
-          )
-        })(() => {})
-      )
+    const enqueueParams: Parameters<OutboxService['enqueue']>[0] = {
+      type: EMAIL_SEND_JOB_TYPE,
+      payload: {
+        message: message as unknown as OutboxJson,
+        emailKind: options.emailKind,
+      },
+    }
+    if (options.idempotencyKey !== undefined) {
+      enqueueParams.idempotencyKey = options.idempotencyKey
+    }
+
+    outboxService.enqueue(enqueueParams).pipe(
+      fork((error: Error) => {
+        logger?.error(
+          {
+            err: error,
+            event: 'transactional_email.enqueue_failed',
+            emailKind: options.emailKind,
+            ...options.context,
+          },
+          'Transactional email enqueue failed'
+        )
+      })(() => {})
+    )
   }
 
   return { enqueue }

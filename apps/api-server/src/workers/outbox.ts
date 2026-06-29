@@ -106,6 +106,12 @@ logger.info('outbox worker started', {
   maxAttempts: env.OUTBOX_WORKER_DEFAULT_MAX_ATTEMPTS,
 })
 
+if (!env.RESEND_API_KEY) {
+  logger.warn(
+    'outbox worker: no RESEND_API_KEY configured — using console email provider; real transactional email WILL NOT be delivered'
+  )
+}
+
 const worker = createOutboxWorker({
   outboxService,
   registry: outboxRegistry,
