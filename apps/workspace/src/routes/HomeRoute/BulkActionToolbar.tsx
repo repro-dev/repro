@@ -1,5 +1,5 @@
 import { Block, Row } from '@jsxstyle/react'
-import { Button, color, spacing, textStyles } from '@repro/design'
+import { Button, color, radius, spacing, textStyles } from '@repro/design'
 import { DownloadIcon, TrashIcon } from 'lucide-react'
 import React from 'react'
 
@@ -27,7 +27,7 @@ export const BulkActionToolbar: React.FC<BulkActionToolbarProps> = ({
       paddingH={spacing.md}
       paddingV={spacing.sm}
       backgroundColor={color.bg.subtle}
-      borderRadius={6}
+      borderRadius={radius.md}
       justifyContent="space-between"
     >
       <Block {...textStyles.bodySmall} color={color.text.secondary}>

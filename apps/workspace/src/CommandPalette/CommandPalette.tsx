@@ -1,5 +1,5 @@
 import { Block, Col, Row } from '@jsxstyle/react'
-import { color, Input, Modal, spacing, textStyles } from '@repro/design'
+import { color, Input, Modal, radius, spacing, textStyles } from '@repro/design'
 import {
   CreditCardIcon,
   FolderIcon,
@@ -193,7 +193,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                     backgroundColor={
                       isHighlighted ? color.bg.hover : 'transparent'
                     }
-                    borderRadius={4}
+                    borderRadius={radius.sm}
                     props={{
                       role: 'option',
                       'aria-selected': isHighlighted,
