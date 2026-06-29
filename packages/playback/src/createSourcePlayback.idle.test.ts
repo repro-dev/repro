@@ -7,6 +7,7 @@
  */
 import {
   InteractionType,
+  PatchType,
   SourceEventType,
   SourceEventView,
 } from '@repro/domain'
@@ -42,6 +43,22 @@ function snapshotEvent(time: number) {
         cssRules: null,
         colorScheme: null,
       },
+    })
+  )
+}
+
+function domPatchEvent(time: number) {
+  return SourceEventView.from(
+    new Box({
+      type: SourceEventType.DOMPatch,
+      time,
+      data: new Box({
+        type: PatchType.Attribute,
+        targetId: '00000',
+        name: 'class',
+        value: 'foo',
+        oldValue: 'bar',
+      }),
     })
   )
 }
@@ -158,6 +175,20 @@ describe('buildIdleRegions', () => {
     ])
   })
 
+  it('should count DOMPatch as an activity type that terminates idle regions', async () => {
+    const { buildIdleRegions, DEFAULT_IDLE_THRESHOLD_MS } = await import(
+      './createSourcePlayback.js'
+    )
+    const events = new List(SourceEventView, [])
+    // Snapshot at 0 (not activity), DOMPatch at 5000 (activity)
+    // — idle gap from 0 to 5000, trailing from 5000 to 10000
+    events.append(snapshotEvent(0), domPatchEvent(5000))
+    expect(buildIdleRegions(events, 10000, DEFAULT_IDLE_THRESHOLD_MS)).toEqual([
+      { start: 0, end: 5000 },
+      { start: 5000, end: 10000 },
+    ])
+  })
+
   it('should use DEFAULT_IDLE_THRESHOLD_MS value', async () => {
     const { buildIdleRegions, DEFAULT_IDLE_THRESHOLD_MS } = await import(
       './createSourcePlayback.js'
@@ -231,6 +262,37 @@ describe('idle skip-on-playback', () => {
     // Paused (default) — seek into idle region
     playback.seekToTime(1000)
     expect(playback.getElapsed()).toBe(1000)
+
+    playback.close()
+  })
+
+  it('should skip idle region when play() is called while inside an idle region', async () => {
+    const { createSourcePlayback, DEFAULT_IDLE_THRESHOLD_MS } = await import(
+      './createSourcePlayback.js'
+    )
+
+    const events = new List(SourceEventView, [])
+    // Snapshot at 0, Interaction at 5000 (idle gap from 0 to 5000)
+    events.append(snapshotEvent(0), interactionEvent(5000))
+
+    const playback = createSourcePlayback(
+      events,
+      10000,
+      {},
+      {
+        idleThresholdMs: DEFAULT_IDLE_THRESHOLD_MS,
+      }
+    )
+    playback.open()
+
+    // Seek into idle region while paused — no skip (confirmed by the
+    // "should NOT skip when paused" test above)
+    playback.seekToTime(1000)
+    expect(playback.getElapsed()).toBe(1000)
+
+    // play() should trigger skipIdleRegion and jump to region end (5000)
+    playback.play()
+    expect(playback.getElapsed()).toBe(5000)
 
     playback.close()
   })
