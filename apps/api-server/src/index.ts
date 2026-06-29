@@ -336,7 +336,8 @@ async function bootstrap() {
   const registerSessionDecorator = createSessionDecorator(
     accountService,
     env,
-    apiKeyService
+    apiKeyService,
+    { staffPathPrefix: '/staff' }
   )
 
   const accountPlugins: FastifyPluginAsync = async app => {

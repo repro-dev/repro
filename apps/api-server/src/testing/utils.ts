@@ -12,7 +12,8 @@ import { buildHelmetOptions } from '~/securityHeaders'
 
 export function fromRouter(
   router: FastifyPluginCallback,
-  decorators: Array<(fastify: FastifyInstance) => void> = []
+  decorators: Array<(fastify: FastifyInstance) => void> = [],
+  options?: { prefix?: string }
 ): FastifyInstance {
   const app = fastify() as unknown as FastifyInstance
 
@@ -29,6 +30,9 @@ export function fromRouter(
     decorator(app)
   }
 
+  if (options?.prefix) {
+    return app.register(router, { prefix: options.prefix })
+  }
   return app.register(router)
 }
 
