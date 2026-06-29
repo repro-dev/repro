@@ -9,7 +9,7 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react'
-import { FutureInstance, never, resolve } from 'fluture'
+import { FutureInstance, never, reject, resolve } from 'fluture'
 import assert from 'node:assert/strict'
 import { afterEach, describe, it } from 'node:test'
 import React from 'react'
@@ -318,5 +318,29 @@ describe('AccountsRoute', () => {
         .hasAttribute('disabled'),
       true
     )
+  })
+
+  it('shows an error state with retry button that recovers on retry', async () => {
+    let requestCount = 0
+    const { requests } = renderRoute({
+      fetch: () => {
+        requestCount += 1
+
+        if (requestCount === 1) return reject(new Error('server error'))
+
+        return resolve({ items: [account] })
+      },
+    })
+
+    await waitFor(() => assert.ok(screen.getByText('Failed to load accounts')))
+    assert.ok(screen.getByText(/server error/))
+    assert.ok(screen.getByText('Try again'))
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Try again'))
+    })
+
+    await waitFor(() => assert.ok(screen.getByText('Acme Workspace')))
+    assert.equal(requests.length, 2)
   })
 })
