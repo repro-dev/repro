@@ -6,6 +6,7 @@ import {
   buildLayoutSummary,
   formatLayoutSummary,
   LayoutSummary,
+  SCREENSHOT_TOKEN_EQUIVALENT,
 } from './layoutSummary'
 
 // ─── VTree builders (mirrors a11yTree.test.ts pattern) ───────────────────────
@@ -487,8 +488,8 @@ describe('buildLayoutSummary — token efficiency', () => {
     assert.ok(match, `Expected token estimate in:\n${output}`)
     const estimate = parseInt(match[1]!, 10)
     assert.ok(
-      estimate < 5000,
-      `Token estimate ${estimate} should be < 5000 (SCREENSHOT_TOKEN_EQUIVALENT)`
+      estimate < SCREENSHOT_TOKEN_EQUIVALENT,
+      `Token estimate ${estimate} should be < ${SCREENSHOT_TOKEN_EQUIVALENT}`
     )
   })
 })

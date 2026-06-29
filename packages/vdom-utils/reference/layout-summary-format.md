@@ -45,14 +45,14 @@ LAYOUT SUMMARY — <framing> (detail: <level>, viewport: <W>x<H>)
 - Per-region child cap: truncated entries shown as `(+N more <type>)`.
 - Text hints truncated at 80 characters with `…`.
 - CTAs capped at 3 per region, sorted (submit-type first, then shortest name).
-- Max nesting depth enforced per detail level; deeper nesting emits `(+N nested)`.
+- Max nesting depth enforced per detail level; overflow from depth or child caps emits `(+N more <type>)`.
 
 ## Desktop vs Mobile Framing
 
 - Viewport width **≥1024** → `DESKTOP` framing.
 - Viewport width **<1024** → `MOBILE` framing.
 - On desktop, `<nav>` and `<aside>` positioned before `<main>` are labelled **SIDEBAR**.
-- On mobile, side regions collapse to `— (sidebar collapsed: …)`.
+- On mobile, `<nav>` and `<aside>` are labelled `NAVIGATION` and `COMPLEMENTARY` respectively (no sidebar collapse).
 
 ## Heuristics (non-pixel, deterministic)
 
@@ -84,7 +84,7 @@ LAYOUT SUMMARY — DESKTOP (detail: overview, viewport: 1440×900)
 # MAIN [ref=j7k8l]
   └─ FORM "Create project" [ref=m9n0o]
      └─ CTA: "Submit" [ref=p1q2r]
-  └─ GRID: 3 columns "Project cards" [ref=s3t4u]  (+9 items)
+  └─ GRID: 3 columns "Project cards" [ref=s3t4u]  (+3 items)
 # CONTENTINFO "Footer" [ref=v5w6x]
 ────────────────────────────────────────────────────────────
 [token estimate: ~340]
@@ -97,11 +97,11 @@ LAYOUT SUMMARY — MOBILE (detail: overview, viewport: 390×844)
 ────────────────────────────────────────────────────────────
 # BANNER "Acme Dashboard" [ref=a1b2c]
   └─ CTA: "Settings" [ref=d3e4f]
+# NAVIGATION "Main navigation" [ref=g5h6i]
 # MAIN [ref=j7k8l]
   └─ FORM "Create project" [ref=m9n0o]
      └─ CTA: "Submit" [ref=p1q2r]
-  └─ GRID: 2 columns "Project cards" [ref=s3t4u]  (+9 items)
-# — (sidebar collapsed: NAVIGATION "Main navigation" [ref=g5h6i])
+  └─ GRID: 3 columns "Project cards" [ref=s3t4u]  (+3 items)
 # CONTENTINFO "Footer" [ref=v5w6x]
 ────────────────────────────────────────────────────────────
 [token estimate: ~310]
