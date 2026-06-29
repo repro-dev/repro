@@ -77,7 +77,13 @@ export const Meter: React.FC<Props> = ({ min, max, value }) => {
       backgroundColor={color.bg.muted}
       borderRadius={radius.sm}
       overflow="hidden"
-      props={{ ref }}
+      props={{
+        ref,
+        role: 'progressbar',
+        'aria-valuenow': normalizedValue,
+        'aria-valuemin': 0,
+        'aria-valuemax': 1,
+      }}
     />
   )
 }

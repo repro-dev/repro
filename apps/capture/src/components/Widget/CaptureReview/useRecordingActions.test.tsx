@@ -22,7 +22,6 @@ mock.module('@repro/wire-formats', {
       }
       return new DataView(new ArrayBuffer(0))
     },
-    toByteString: (bytes: Uint8Array) => bytes.toString(),
   },
 })
 
@@ -88,13 +87,11 @@ function createMockPlayback(overrides: Record<string, unknown> = {}) {
 
 const TestHarness: React.FC<{
   playback: ReturnType<typeof createMockPlayback>
-  projectId: string | null
   recordingMode: number
   selectedDuration: number
-}> = ({ playback, projectId, recordingMode, selectedDuration }) => {
+}> = ({ playback, recordingMode, selectedDuration }) => {
   const actions = useRecordingActions(
     playback as any,
-    projectId,
     recordingMode as any,
     selectedDuration
   )
@@ -104,7 +101,6 @@ const TestHarness: React.FC<{
 
 function renderHook(
   playback: ReturnType<typeof createMockPlayback>,
-  projectId: string | null = 'proj-1',
   recordingMode: number = 1,
   selectedDuration: number = 60000
 ) {
@@ -113,7 +109,6 @@ function renderHook(
   render(
     <TestHarness
       playback={playback}
-      projectId={projectId}
       recordingMode={recordingMode}
       selectedDuration={selectedDuration}
     />
@@ -143,7 +138,7 @@ describe('useRecordingActions', () => {
       getDuration: () => 100,
       getSourceEvents: () => sourceEvents,
     })
-    const actions = renderHook(playback, 'proj-1', RecordingMode.Replay, 50)
+    const actions = renderHook(playback, RecordingMode.Replay, 50)
 
     const result = actions.getSelectedRecording()
     const eventTimes = result.events.toSource().map(event =>
@@ -161,7 +156,7 @@ describe('useRecordingActions', () => {
     const playback = createMockPlayback({
       getDuration: () => 20000,
     })
-    const actions = renderHook(playback, 'proj-1', RecordingMode.Replay, 60000)
+    const actions = renderHook(playback, RecordingMode.Replay, 60000)
 
     const result = actions.getSelectedRecording()
 
@@ -173,12 +168,7 @@ describe('useRecordingActions', () => {
     const playback = createMockPlayback({
       getDuration: () => 100000,
     })
-    const actions = renderHook(
-      playback,
-      'proj-1',
-      RecordingMode.Snapshot,
-      30000
-    )
+    const actions = renderHook(playback, RecordingMode.Snapshot, 30000)
 
     const result = actions.getSelectedRecording()
 
@@ -195,7 +185,7 @@ describe('useRecordingActions', () => {
       getDuration: () => 100,
       getSourceEvents: () => sourceEvents,
     })
-    const actions = renderHook(playback, 'proj-1', RecordingMode.Replay, 50)
+    const actions = renderHook(playback, RecordingMode.Replay, 50)
 
     const result = actions.getSelectedRecording()
 
@@ -205,7 +195,7 @@ describe('useRecordingActions', () => {
 
   it('downloadLocally creates a binary .repro download', () => {
     const playback = createMockPlayback()
-    const actions = renderHook(playback, 'proj-1', 1, 60000)
+    const actions = renderHook(playback, 1, 60000)
 
     let capturedBlob: Blob | null = null
     const originalCreateObjectURL = URL.createObjectURL
@@ -246,7 +236,7 @@ describe('useRecordingActions', () => {
     const playback = createMockPlayback({
       getSourceEvents: () => emptyEvents,
     })
-    const actions = renderHook(playback, 'proj-1', 1, 60000)
+    const actions = renderHook(playback, 1, 60000)
 
     let createObjectURLCalled = false
     const originalCreateObjectURL = URL.createObjectURL
@@ -268,7 +258,7 @@ describe('useRecordingActions', () => {
     toBinaryWireFormatShouldThrow = true
     try {
       const playback = createMockPlayback()
-      const actions = renderHook(playback, 'proj-1', 1, 60000)
+      const actions = renderHook(playback, 1, 60000)
 
       let appendedChild: HTMLElement | null = null
       const originalAppendChild = document.body.appendChild.bind(document.body)

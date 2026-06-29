@@ -1,4 +1,5 @@
 import { cleanup, render, screen } from '@testing-library/react'
+import assert from 'node:assert/strict'
 import { afterEach, describe, it } from 'node:test'
 import React from 'react'
 
@@ -134,5 +135,13 @@ describe('ProgressOverlay', () => {
 
     // Overall progress should be rendered
     screen.getByText('Overall progress')
+
+    // Verify computeOverallProgress correctness via aria-valuenow on the overall Meter
+    // stages: {0.5, 0, 0, 0, 0} ÷ 5 = 0.1
+    const progressbars = screen.getAllByRole('progressbar')
+    assert.ok(progressbars.length >= 1)
+    const overallMeter = progressbars[0]
+    assert.ok(overallMeter)
+    assert.equal(overallMeter.getAttribute('aria-valuenow'), '0.1')
   })
 })

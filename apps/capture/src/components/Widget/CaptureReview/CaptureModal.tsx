@@ -29,12 +29,7 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
     DEFAULT_SELECTED_DURATION
   )
 
-  const actions = useRecordingActions(
-    playback,
-    null,
-    recordingMode,
-    selectedDuration
-  )
+  const actions = useRecordingActions(playback, recordingMode, selectedDuration)
 
   const isAuthed = session !== null
 

@@ -111,7 +111,7 @@ export const ProgressOverlay: React.FC<Props> = ({
                 <Block
                   fontSize={fontSize.xs}
                   fontWeight={fontWeight.bold}
-                  color={color.text.default}
+                  color={color.danger}
                   textTransform="uppercase"
                 >
                   Could not create recording

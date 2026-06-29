@@ -19,7 +19,6 @@ export interface RecordingActions {
 
 export function useRecordingActions(
   playback: Playback,
-  _projectId: string | null,
   recordingMode: RecordingMode,
   selectedDuration: number
 ): RecordingActions {
