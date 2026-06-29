@@ -39,19 +39,19 @@ const PRESET_OPTIONS: Array<PresetInfo> = [
     value: 'strict',
     label: 'Strict',
     description:
-      'Masks all input elements and images by default on every recorded page. No page data is captured without explicit opt-in via .repro-ignore.',
+      'Masks all input elements, textareas, contenteditable regions, and <img> elements by default. Auth headers and PII-like values are also automatically redacted.',
   },
   {
     value: 'standard',
     label: 'Standard',
     description:
-      'Respects .repro-ignore (exclude element) and .repro-mask (mask contents) CSS classes on recorded pages. Note: .repro-mask is planned but not yet active.',
+      'Respects .repro-ignore (exclude element) and .repro-mask (mask contents) CSS classes. Sensitive input types (password, credit card) and PII-like values are automatically redacted.',
   },
   {
     value: 'off',
     label: 'Off',
     description:
-      'No privacy filtering. All page content is recorded as-is. Only use for public-facing demos or internal tools with no sensitive data.',
+      'Minimal filtering — only authentication headers (cookies, authorization tokens) are redacted. All other page content is captured as-is. Not recommended for pages with sensitive data.',
   },
 ]
 

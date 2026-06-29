@@ -346,6 +346,46 @@ describe('RecordingPrivacySettingsRoute', () => {
     assert.ok(screen.getAllByText('.repro-mask').length >= 2)
   })
 
+  it('does not contain stale .repro-mask "planned but not yet active" text', async () => {
+    renderRoute()
+
+    await waitFor(() => {
+      assert.ok(
+        screen.getByRole('heading', {
+          name: 'Privacy Controls',
+          level: 1,
+        })
+      )
+    })
+
+    // The stale text should not appear
+    assert.equal(screen.queryByText(/planned but not yet active/i), null)
+  })
+
+  it('contains accurate preset descriptions for each preset', async () => {
+    renderRoute()
+
+    await waitFor(() => {
+      assert.ok(
+        screen.getByRole('heading', {
+          name: 'Privacy Controls',
+          level: 1,
+        })
+      )
+    })
+
+    // Strict mentions input elements and contenteditable
+    assert.ok(screen.getByText(/masks all input elements/i))
+
+    // Standard mentions .repro-mask and .repro-ignore (both appear in
+    // radio descriptions and the documentation section, so use getAllByText)
+    assert.ok(screen.getAllByText(/\.repro-ignore/i).length >= 2)
+    assert.ok(screen.getAllByText(/\.repro-mask/i).length >= 2)
+
+    // Off mentions the credential floor
+    assert.ok(screen.getByText(/authentication headers/i))
+  })
+
   it('redirects non-admin users to profile settings', async () => {
     renderConnectedRoute(nonAdminUser)
 

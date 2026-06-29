@@ -111,6 +111,7 @@ export interface RecordingStream {
   slice(start?: number, end?: number): List<SourceEventView>
   snapshot(): Snapshot
   tail(signal: Subject<void>): Observable<SourceEvent>
+  updateMaskedSelectors(selectors: Array<string>): void
 }
 
 interface BufferSubscriptions {
@@ -128,6 +129,7 @@ export const EMPTY_RECORDING_STREAM: RecordingStream = {
   slice: () => new List(SourceEventView, []),
   snapshot: () => SnapshotView.from(createEmptySnapshot()),
   tail: () => NEVER,
+  updateMaskedSelectors: (_selectors: Array<string>) => undefined,
 }
 
 export const InterruptSignal = new Subject<void>()
@@ -808,6 +810,14 @@ export function createRecordingStream(
     }
   }
 
+  function updateMaskedSelectors(selectors: Array<string>) {
+    // Mutate options.maskedSelectors — options is captured by reference by
+    // the DOM tree walker (dom/utils.ts), DOM visitor (dom/visitor.ts), and
+    // DOM observer (dom/observe.ts). Mutating before start() makes all
+    // consumers see the new selectors.
+    options.maskedSelectors = selectors
+  }
+
   return {
     start,
     stop,
@@ -818,5 +828,6 @@ export function createRecordingStream(
     slice,
     snapshot,
     tail,
+    updateMaskedSelectors,
   }
 }

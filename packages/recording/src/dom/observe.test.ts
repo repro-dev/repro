@@ -586,4 +586,140 @@ describe('libs/record: dom observers', () => {
     document.body.removeChild(el2)
     observer.disconnect()
   })
+
+  it('strict preset masks input value via attribute mutation when input is in maskedSelectors', () => {
+    const patches: Array<DOMPatch> = []
+
+    // Elements must be in the DOM for closest() to work in isMaskedBySelector
+    const container = document.createElement('div')
+    const input = document.createElement('input')
+    input.setAttribute('type', 'text')
+    // Set initial value that differs from oldValue so the mutation is detected
+    input.setAttribute('value', 'new-value')
+    container.appendChild(input)
+    document.body.appendChild(container)
+
+    const options: RecordingOptions = {
+      types: new Set(['dom']),
+      snapshotInterval: 10_000,
+      ignoredNodes: [],
+      ignoredSelectors: [],
+      maskedSelectors: [
+        '.repro-mask',
+        'input',
+        'textarea',
+        'select',
+        '[contenteditable]',
+        'img',
+      ],
+      eventSampling: {
+        pointerMove: 50,
+        resize: 250,
+        scroll: 100,
+      },
+    }
+
+    const walkDOMTree = createDOMTreeWalker(options)
+    const subscriber = (patch: DOMPatch) => {
+      patches.push(patch)
+    }
+
+    // Simulate an attribute mutation on the input value (oldValue differs from current)
+    const records: Array<MutationRecord> = [
+      {
+        type: 'attributes',
+        attributeName: 'value',
+        attributeNamespace: null,
+        oldValue: 'old-value',
+        addedNodes: MockNodeList.empty(),
+        removedNodes: MockNodeList.empty(),
+        target: input,
+        nextSibling: null,
+        previousSibling: null,
+      },
+    ]
+
+    internal__processMutationRecords(records, walkDOMTree, options, subscriber)
+
+    // The value attribute mutation should be emitted and redacted via isMaskedBySelector
+    const unboxed = deepUnbox(patches)
+    expect(unboxed.length).toBeGreaterThan(0)
+    if (unboxed[0]) {
+      // Under strict preset, the value should be redacted (not the raw new-value)
+      expect(
+        unboxed[0] && 'oldValue' in unboxed[0]
+          ? (unboxed[0] as any).oldValue
+          : null
+      ).toEqual(redactText('old-value'))
+    }
+
+    // Cleanup
+    document.body.removeChild(container)
+  })
+
+  it('factory createVElement blanks img src when maskedSelectors includes img', () => {
+    // Dynamic import since factory isn't imported at the top of this file
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const factory = require('./factory')
+
+    const img = document.createElement('img')
+    img.setAttribute('src', 'https://example.com/photo.jpg')
+
+    const container = document.createElement('div')
+    container.appendChild(img)
+    document.body.appendChild(container)
+
+    const strictSelectors = [
+      '.repro-mask',
+      'input',
+      'textarea',
+      'select',
+      '[contenteditable]',
+      'img',
+    ]
+
+    const vElement: Record<string, unknown> = factory.createVElement(img, {
+      maskedSelectors: strictSelectors,
+    })
+
+    // With strict preset, img should have blank src
+    expect(vElement.tagName).toBe('img')
+    expect(vElement.attributes).toBeDefined()
+    if (vElement.attributes) {
+      expect((vElement.attributes as Record<string, string>).src).toBe('')
+    }
+
+    // Cleanup
+    document.body.removeChild(container)
+  })
+
+  it('factory createVElement does NOT blank img src when maskedSelectors does NOT include img', () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const factory = require('./factory')
+
+    const img = document.createElement('img')
+    img.setAttribute('src', 'https://example.com/photo.jpg')
+
+    const container = document.createElement('div')
+    container.appendChild(img)
+    document.body.appendChild(container)
+
+    const standardSelectors = ['.repro-mask']
+
+    const vElement: Record<string, unknown> = factory.createVElement(img, {
+      maskedSelectors: standardSelectors,
+    })
+
+    // Without img in maskedSelectors, src should be preserved
+    expect(vElement.tagName).toBe('img')
+    expect(vElement.attributes).toBeDefined()
+    if (vElement.attributes) {
+      expect((vElement.attributes as Record<string, string>).src).toBe(
+        'https://example.com/photo.jpg'
+      )
+    }
+
+    // Cleanup
+    document.body.removeChild(container)
+  })
 })

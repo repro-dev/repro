@@ -96,6 +96,11 @@ export function createVElement(
     attributes.value = redactText(String(attributes.value ?? ''))
   }
 
+  // Blank <img> src when masked (strict preset maskImages behavior)
+  if (isMasked && element.tagName === 'IMG' && 'src' in attributes) {
+    attributes.src = ''
+  }
+
   const properties: VElement['properties'] = {
     checked: null,
     value: null,

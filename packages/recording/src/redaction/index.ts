@@ -6,6 +6,8 @@ export {
   validateCreditCard,
 } from './patterns'
 export type { FieldPattern } from './patterns'
+export { toRedactionOverrides } from './presets'
+export type { RedactionOverride } from './presets'
 export {
   MASKED_VALUE,
   detectPii,

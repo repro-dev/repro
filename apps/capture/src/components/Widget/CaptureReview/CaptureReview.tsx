@@ -1,6 +1,7 @@
 import { Block, Row } from '@jsxstyle/react'
 import { formatTime } from '@repro/date-utils'
 import {
+  Alert,
   ToggleGroup,
   color,
   fontSize,
@@ -15,6 +16,7 @@ import { RecordingMode } from '@repro/domain'
 import { Playback, PlaybackProvider, SimpleTimeline } from '@repro/playback'
 import { findErrorAndWarningEvents } from '@repro/source-utils'
 import React, { useEffect, useMemo } from 'react'
+import { useRecordingPrivacyPreset } from '~/useRecordingPrivacyPreset'
 import { AsideRegion, Layout, PlaybackRegion } from '../ReportForm/Layout'
 import { ProgressOverlay } from '../ReportForm/ProgressOverlay'
 import { AgenticSection } from './AgenticSection'
@@ -34,6 +36,31 @@ interface CaptureReviewProps {
   privacyOverrides: PrivacyOverrides
 }
 
+function getNoticeForOverride(
+  maskedSelectors: Array<string>,
+  maskImages: boolean
+): { label: string; summary: string } {
+  if (maskImages) {
+    return {
+      label: 'Strict',
+      summary:
+        'Inputs, images, and .repro-mask elements are masked. PII and auth headers are redacted.',
+    }
+  }
+  if (maskedSelectors.length === 0) {
+    return {
+      label: 'Off',
+      summary:
+        'Minimal filtering — only authentication headers are redacted. All other content is recorded as-is.',
+    }
+  }
+  return {
+    label: 'Standard',
+    summary:
+      'Only .repro-mask elements are masked. PII and auth headers are redacted.',
+  }
+}
+
 export const CaptureReview: React.FC<CaptureReviewProps> = ({
   onClose,
   actions,
@@ -45,6 +72,8 @@ export const CaptureReview: React.FC<CaptureReviewProps> = ({
 }) => {
   const maxTime = playback.getDuration()
   const minTime = Math.max(0, maxTime - selectedDuration)
+
+  const { override, loading: presetLoading } = useRecordingPrivacyPreset()
 
   const durationOptions = [
     { value: maxTime, label: `Max (${formatTime(maxTime, 'seconds')})` },
@@ -131,6 +160,27 @@ export const CaptureReview: React.FC<CaptureReviewProps> = ({
         </PlaybackRegion>
 
         <AsideRegion>
+          {!presetLoading && (
+            <Alert type="info">
+              This recording was captured with the{' '}
+              <strong>
+                {
+                  getNoticeForOverride(
+                    override.maskedSelectors,
+                    override.maskImages
+                  ).label
+                }
+              </strong>{' '}
+              privacy preset.{' '}
+              {
+                getNoticeForOverride(
+                  override.maskedSelectors,
+                  override.maskImages
+                ).summary
+              }
+            </Alert>
+          )}
+
           <AgenticSection getSelectedRecording={actions.getSelectedRecording} />
         </AsideRegion>
 
