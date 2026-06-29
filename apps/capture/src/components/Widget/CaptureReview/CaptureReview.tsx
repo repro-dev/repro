@@ -100,9 +100,12 @@ export const CaptureReview: React.FC<CaptureReviewProps> = ({
           <AgenticSection getSelectedRecording={actions.getSelectedRecording} />
         </AsideRegion>
 
-        {uploadState.progress && (
+        {(uploadState.isUploading ||
+          uploadState.progress ||
+          uploadState.error) && (
           <ProgressOverlay
             progress={uploadState.progress}
+            error={uploadState.error}
             projectId={uploadState.uploadProjectId}
             onClose={onClose}
           />

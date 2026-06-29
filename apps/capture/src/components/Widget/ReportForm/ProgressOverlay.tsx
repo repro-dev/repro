@@ -2,6 +2,7 @@ import { Block, Col, Row } from '@jsxstyle/react'
 import {
   Button,
   Card,
+  FX,
   Meter,
   color,
   fontSize,
@@ -15,11 +16,13 @@ import {
   CheckCircle2Icon,
   CopyIcon,
   CornerUpLeftIcon,
+  LoaderIcon,
 } from 'lucide-react'
 import React, { Fragment } from 'react'
 
 interface Props {
-  progress: UploadProgress
+  progress?: UploadProgress | null
+  error?: Error | null
   projectId: string | null
   width?: string | number
   onClose: () => void
@@ -67,14 +70,24 @@ const ListItem: React.FC<React.PropsWithChildren<{}>> = ({ children }) => (
   <Block>{children}</Block>
 )
 
+function computeOverallProgress(stages: Record<UploadStage, number>): number {
+  const values = Object.values(stages)
+  if (values.length === 0) return 0
+  return values.reduce((sum, v) => sum + v, 0) / values.length
+}
+
 export const ProgressOverlay: React.FC<Props> = ({
   progress,
+  error,
   projectId,
   onClose,
   width = 240,
 }) => {
+  // Determine the effective error: prefer the explicit `error` prop, then progress.error
+  const effectiveError = error ?? progress?.error ?? null
+
   const recordingUrl =
-    projectId && progress.recordingId
+    projectId && progress?.recordingId
       ? `${process.env.REPRO_APP_URL}/projects/${projectId}/recordings/${progress.recordingId}`
       : null
 
@@ -84,10 +97,13 @@ export const ProgressOverlay: React.FC<Props> = ({
     }
   }
 
+  const isIndeterminate = !progress && !effectiveError
+
   return (
     <Backdrop>
       <Card shadow="md">
-        {progress.error && (
+        {/* Error state — from either prop or progress.error */}
+        {effectiveError && (
           <Col gap={spacing.lg}>
             <Row alignItems="center" gap={spacing.lg}>
               <AlertTriangleIcon size={32} color={color.danger} />
@@ -107,7 +123,7 @@ export const ProgressOverlay: React.FC<Props> = ({
                   fontSize={fontSize.md}
                   marginTop={spacing.lg}
                 >
-                  {progress.error.message}
+                  {effectiveError.message}
                 </Row>
               </Block>
             </Row>
@@ -119,7 +135,8 @@ export const ProgressOverlay: React.FC<Props> = ({
           </Col>
         )}
 
-        {progress.completed && !progress.error && (
+        {/* Completed state */}
+        {progress?.completed && !effectiveError && (
           <Col gap={spacing.lg}>
             <Row alignItems="center" gap={spacing.lg}>
               <CheckCircle2Icon size={32} color={color.success} />
@@ -160,7 +177,25 @@ export const ProgressOverlay: React.FC<Props> = ({
           </Col>
         )}
 
-        {!progress.completed && (
+        {/* Indeterminate state — preparing upload */}
+        {isIndeterminate && (
+          <Col gap={spacing.lg} alignItems="center">
+            <FX.Spin>
+              <LoaderIcon size={24} />
+            </FX.Spin>
+            <Block
+              fontSize={fontSize.xs}
+              fontWeight={fontWeight.bold}
+              color={color.text.default}
+              textTransform="uppercase"
+            >
+              Preparing upload...
+            </Block>
+          </Col>
+        )}
+
+        {/* In-progress state */}
+        {progress && !progress.completed && !effectiveError && (
           <Fragment>
             <Block
               fontSize={fontSize.xs}
@@ -170,8 +205,19 @@ export const ProgressOverlay: React.FC<Props> = ({
             >
               Uploading Recording
             </Block>
+
             <Block marginTop={spacing.xl}>
               <List width={width}>
+                {/* Overall progress bar */}
+                <ListItem>
+                  <Label>Overall progress</Label>
+                  <Meter
+                    min={0}
+                    max={1}
+                    value={computeOverallProgress(progress.stages)}
+                  />
+                </ListItem>
+
                 <ListItem>
                   <Label>Saving recording details</Label>
                   <Meter

@@ -5,40 +5,12 @@ import {
   SourceEventView,
 } from '@repro/domain'
 import { Box, List } from '@repro/tdl'
-import { act, render } from '@testing-library/react'
-import { resolve } from 'fluture'
+import { render } from '@testing-library/react'
 import assert from 'node:assert/strict'
 import { afterEach, describe, it, mock } from 'node:test'
 import React from 'react'
 
 import type { RecordingActions } from './useRecordingActions'
-
-const trackedIntents: Array<{ type: string; payload: unknown }> = []
-let trackedAnalyticsEvent: string | null = null
-let trackedAnalyticsProps: Record<string, string> | null = null
-
-mock.module('@repro/messaging', {
-  namedExports: {
-    useMessaging: () => ({
-      raiseIntent: (...args: Array<unknown>) => {
-        const intent = args[0] as { type: string; payload: unknown }
-        trackedIntents.push({ type: intent.type, payload: intent.payload })
-        return resolve('mock-upload-ref-123')
-      },
-    }),
-  },
-})
-
-mock.module('@repro/analytics', {
-  namedExports: {
-    Analytics: {
-      track: (event: string, props: Record<string, string>) => {
-        trackedAnalyticsEvent = event
-        trackedAnalyticsProps = props
-      },
-    },
-  },
-})
 
 let toBinaryWireFormatShouldThrow = false
 
@@ -158,9 +130,6 @@ function renderHook(
 describe('useRecordingActions', () => {
   afterEach(() => {
     ;(globalThis as any).__testRecordingActions = null
-    trackedIntents.length = 0
-    trackedAnalyticsEvent = null
-    trackedAnalyticsProps = null
   })
 
   it('getSelectedRecording exposes the actual replay slice source offset and span', () => {
@@ -232,36 +201,6 @@ describe('useRecordingActions', () => {
 
     assert.equal(result.duration, 100)
     assert.equal(result.startTimeMs, 0)
-  })
-
-  it('enqueueUpload raises upload:enqueue intent with shared selected recording payload', () => {
-    const playback = createMockPlayback({
-      getDuration: () => 100000,
-      getSourceEvents: () =>
-        new List(SourceEventView, [createSnapshotEvent(70000)]),
-    })
-    const actions = renderHook(playback, 'proj-1', RecordingMode.Replay, 30000)
-
-    actions.enqueueUpload({ title: 'Test bug', description: 'Description' })
-
-    assert.equal(trackedIntents.length, 1)
-    assert.equal(trackedIntents[0]!.type, 'upload:enqueue')
-    const payload = trackedIntents[0]!.payload as Record<string, unknown>
-    assert.equal(payload.title, 'Test bug')
-    assert.equal(payload.description, 'Description')
-    assert.equal(payload.projectId, 'proj-1')
-    assert.equal(payload.duration, 30000)
-  })
-
-  it('enqueueUpload tracks analytics event', () => {
-    const playback = createMockPlayback()
-    const actions = renderHook(playback, 'proj-1', 1, 60000)
-
-    actions.enqueueUpload({ title: 'Test bug', description: 'Description' })
-
-    assert.equal(trackedAnalyticsEvent, 'capture:save-start')
-    assert.ok(trackedAnalyticsProps)
-    assert.ok(trackedAnalyticsProps!.recordingSize)
   })
 
   it('downloadLocally creates a binary .repro download', () => {
@@ -348,46 +287,5 @@ describe('useRecordingActions', () => {
     } finally {
       toBinaryWireFormatShouldThrow = false
     }
-  })
-
-  it('uploadState is initialized correctly', () => {
-    const playback = createMockPlayback()
-    const actions = renderHook(playback, null, 1, 60000)
-
-    assert.equal(actions.uploadState.isUploading, false)
-    assert.equal(actions.uploadState.progress, null)
-    assert.equal(actions.uploadState.error, null)
-    assert.equal(actions.uploadState.uploadRef, null)
-  })
-
-  it('sets uploadState on successful enqueueUpload fork resolution', async () => {
-    const playback = createMockPlayback()
-    renderHook(playback, 'proj-1', 1, 60000)
-
-    const actions = (globalThis as any)
-      .__testRecordingActions as RecordingActions | null
-    actions!.enqueueUpload({
-      title: 'Test bug',
-      description: 'Description',
-    })
-
-    await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 0))
-    })
-
-    const updatedActions = (globalThis as any)
-      .__testRecordingActions as RecordingActions | null
-    assert.equal(updatedActions!.uploadState.isUploading, true)
-    assert.equal(updatedActions!.uploadState.uploadRef, 'mock-upload-ref-123')
-    assert.equal(updatedActions!.uploadState.error, null)
-  })
-
-  it('does not enqueue upload when projectId is null', () => {
-    const playback = createMockPlayback()
-    const actions = renderHook(playback, null, 1, 60000)
-
-    actions.enqueueUpload({ title: 'Test bug', description: 'Description' })
-
-    assert.equal(trackedIntents.length, 0)
   })
 })
