@@ -166,6 +166,7 @@ export const ShareDialog = ({
             component="ul"
             margin={spacing.none}
             paddingLeft={spacing.lg}
+            listStyleType="disc"
             {...textStyles.body}
             color={color.text.secondary}
           >
