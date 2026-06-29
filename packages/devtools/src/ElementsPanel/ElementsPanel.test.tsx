@@ -56,7 +56,11 @@ describe('ElementsPanel tab integration', () => {
         ),
         useReferenceStyle: () => () => ({}),
         createCSSPropertyMap: () => ({}),
-        createGroupedCSSPropertyMap: () => [],
+        createGroupedCSSPropertyMap: [],
+        getMargin: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
+        getBorder: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
+        getPadding: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
+        resolveValue: () => 0,
       },
     })
 

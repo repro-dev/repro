@@ -102,17 +102,60 @@ describe('SelectedNodeBoxModel', () => {
       fullContainer.textContent?.includes('box-sizing: content-box'),
       'should show box-sizing indicator'
     )
+    // Region name labels
+    assert.ok(
+      fullContainer.textContent?.includes('margin'),
+      'should show margin region name'
+    )
+    assert.ok(
+      fullContainer.textContent?.includes('border'),
+      'should show border region name'
+    )
+    assert.ok(
+      fullContainer.textContent?.includes('padding'),
+      'should show padding region name'
+    )
+
+    // All four margin edge values
     assert.ok(
       fullContainer.textContent?.includes('10px'),
-      'should show margin value'
+      'should show margin-top value'
     )
     assert.ok(
-      fullContainer.textContent?.includes('2px'),
-      'should show border value'
+      fullContainer.textContent?.includes('20px'),
+      'should show margin-right value'
     )
+    assert.ok(
+      fullContainer.textContent?.includes('30px'),
+      'should show margin-bottom value'
+    )
+    assert.ok(
+      fullContainer.textContent?.includes('40px'),
+      'should show margin-left value'
+    )
+
+    // Border edge values
+    assert.ok(
+      fullContainer.textContent?.includes('2px'),
+      'should show border-top value'
+    )
+    assert.ok(
+      fullContainer.textContent?.includes('4px'),
+      'should show border-right value'
+    )
+    assert.ok(
+      fullContainer.textContent?.includes('8px'),
+      'should show border-left value'
+    )
+
+    // Padding edge values
     assert.ok(
       fullContainer.textContent?.includes('16px'),
       'should show padding-right value'
+    )
+    assert.ok(
+      fullContainer.textContent?.includes('12px'),
+      'should show padding-bottom value'
     )
 
     // Test 4: Content width × height

@@ -16,9 +16,9 @@ import { useSelectedElement } from '../hooks'
 /* eslint-disable @repro/oxlint-plugin-design/no-raw-palette */
 /**
  * Box model region colors — drawn from the Tailwind palette via @repro/design.
- * The colors palette is explicitly permitted for the element inspector per the
- * REP-1381 plan, matching the precedent in SelectedNodeComputedStyle.tsx which
- * uses colors.rose['500'].
+ * The raw Tailwind palette (`colors`) is explicitly re-exported for
+ * product-specific edge cases, including the element inspector
+ * (see packages/design/src/tokens/colors.ts docstring).
  */
 const BOX_MODEL_COLORS = {
   margin: colors.amber['100'],
@@ -35,14 +35,6 @@ interface BoxModelState {
   contentWidth: number
   contentHeight: number
   boxSizing: string
-}
-
-const regionLabelStyle = {
-  fontSize: fontSize.xs,
-  fontWeight: fontWeight.bold,
-  color: color.text.secondary,
-  fontFamily: 'monospace',
-  userSelect: 'none' as const,
 }
 
 const edgeLabelBaseStyle = {
@@ -69,25 +61,22 @@ const RegionLayer: React.FC<{
 }> = ({ box, label, bgColor, children }) => {
   const hasVisible =
     box.top > 0 || box.bottom > 0 || box.left > 0 || box.right > 0
-  const allZero =
-    box.top === 0 && box.bottom === 0 && box.left === 0 && box.right === 0
-
-  if (allZero) {
-    return (
-      <Block backgroundColor={bgColor} padding={spacing.xs}>
-        {children ? (
-          children
-        ) : (
-          <Block {...regionLabelStyle} textAlign="center" padding={spacing.sm}>
-            {label} (0)
-          </Block>
-        )}
-      </Block>
-    )
-  }
 
   return (
-    <Block backgroundColor={bgColor} padding={spacing.xs}>
+    <Block backgroundColor={bgColor} padding={spacing.xs} position="relative">
+      {/* Region name label — always visible, compact top-left within the band */}
+      <Block
+        position="absolute"
+        top={0}
+        left={0}
+        padding={spacing.xs}
+        fontSize={fontSize.xs}
+        fontFamily="monospace"
+        color={color.text.secondary}
+        userSelect="none"
+      >
+        {label}
+      </Block>
       <Col>
         {hasVisible && (
           <Row justifyContent="center">
@@ -101,17 +90,7 @@ const RegionLayer: React.FC<{
             </Col>
           )}
           <Block flex="1" minWidth={0}>
-            {children ? (
-              children
-            ) : (
-              <Block
-                {...regionLabelStyle}
-                textAlign="center"
-                padding={spacing.sm}
-              >
-                {label}
-              </Block>
-            )}
+            {children}
           </Block>
           {hasVisible && (
             <Col alignItems="center" justifyContent="center">
