@@ -259,7 +259,9 @@ export const SimpleTimeline: React.FC<Props> = ({
 
           const marker = document.createElement('div')
           const isError = entry.severity === 'error'
-          const markerColor = isError ? '#ef4444' : '#f59e0b'
+          const markerColor = isError
+            ? (color.danger as string)
+            : (color.warning as string)
           const size = 8
 
           marker.style.position = 'absolute'
