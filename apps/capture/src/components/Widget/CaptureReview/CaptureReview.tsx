@@ -19,9 +19,12 @@ import { AsideRegion, Layout, PlaybackRegion } from '../ReportForm/Layout'
 import { ProgressOverlay } from '../ReportForm/ProgressOverlay'
 import { AgenticSection } from './AgenticSection'
 import { useCaptureUpload } from './CaptureUploadProvider'
+import { PrivacySection } from './PrivacySection'
 import { RecordingActions } from './useRecordingActions'
 
 const DEFAULT_SELECTED_DURATION = 60_000
+
+import type { PrivacyOverrides } from './PrivacySection'
 
 interface CaptureReviewProps {
   onClose: () => void
@@ -59,7 +62,16 @@ export const CaptureReview: React.FC<CaptureReviewProps> = ({
     setSelectedDuration(Math.min(DEFAULT_SELECTED_DURATION, maxTime))
   }, [maxTime, setSelectedDuration])
 
-  const { uploadState } = useCaptureUpload()
+  const { uploadState, setPrivacyOverrides: setUploadPrivacyOverrides } =
+    useCaptureUpload()
+
+  const handlePrivacyOverridesChange = React.useCallback(
+    (overrides: PrivacyOverrides) => {
+      actions.setPrivacyOverrides(overrides)
+      setUploadPrivacyOverrides(overrides)
+    },
+    [actions, setUploadPrivacyOverrides]
+  )
 
   const [, setView] = useDevToolsView()
   const [, setInspecting] = useInspecting()
@@ -120,6 +132,7 @@ export const CaptureReview: React.FC<CaptureReviewProps> = ({
         </PlaybackRegion>
 
         <AsideRegion>
+          <PrivacySection onOverridesChange={handlePrivacyOverridesChange} />
           <AgenticSection getSelectedRecording={actions.getSelectedRecording} />
         </AsideRegion>
 

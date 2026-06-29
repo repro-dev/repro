@@ -8,8 +8,9 @@ import { UploadProgress } from '@repro/recording-api'
 import { toByteString } from '@repro/wire-formats'
 import { detect } from 'detect-browser'
 import { fork } from 'fluture'
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Subscription, switchMap, timer } from 'rxjs'
+import type { PrivacyOverrides } from './PrivacySection'
 
 const browser = detect()
 
@@ -35,6 +36,7 @@ interface CaptureUploadContextValue {
     title: string,
     description: string | null
   ): void
+  setPrivacyOverrides(overrides: PrivacyOverrides): void
 }
 
 const CaptureUploadContext =
@@ -76,6 +78,8 @@ export const CaptureUploadProvider: React.FC<CaptureUploadProviderProps> = ({
   open,
 }) => {
   const agent = useMessaging()
+  const privacyOverridesRef = useRef<PrivacyOverrides | null>(null)
+
   const [uploadState, setUploadStateInner] = useState<UploadState>({
     isUploading: false,
     progress: null,
@@ -156,6 +160,31 @@ export const CaptureUploadProvider: React.FC<CaptureUploadProviderProps> = ({
           .toString(),
       })
 
+      const payload: Record<string, unknown> = {
+        projectId,
+        title,
+        description,
+        url: typeof location !== 'undefined' ? location.href : '',
+        duration: selected.duration,
+        mode: recordingMode,
+        events: byteStrings,
+        browserName: browser && browser.name,
+        browserVersion: browser && browser.version,
+        operatingSystem: browser && browser.os,
+      }
+
+      const currentOverrides = privacyOverridesRef.current
+      if (
+        currentOverrides &&
+        (currentOverrides.maskedSelectors.length > 0 ||
+          currentOverrides.ignoredSelectors.length > 0)
+      ) {
+        payload.privacyOverrides = {
+          maskedSelectors: currentOverrides.maskedSelectors,
+          ignoredSelectors: currentOverrides.ignoredSelectors,
+        }
+      }
+
       fork((error: Error) => {
         console.log('[capture] raiseIntent rejected', error)
         setUploadState({ error, isUploading: false })
@@ -169,22 +198,17 @@ export const CaptureUploadProvider: React.FC<CaptureUploadProviderProps> = ({
       })(
         agent.raiseIntent({
           type: 'upload:enqueue',
-          payload: {
-            projectId,
-            title,
-            description,
-            url: typeof location !== 'undefined' ? location.href : '',
-            duration: selected.duration,
-            mode: recordingMode,
-            events: byteStrings,
-            browserName: browser && browser.name,
-            browserVersion: browser && browser.version,
-            operatingSystem: browser && browser.os,
-          },
+          payload,
         })
       )
     },
-    [recordingMode, agent, setUploadState, getSelectedRecording]
+    [
+      recordingMode,
+      agent,
+      setUploadState,
+      getSelectedRecording,
+      privacyOverridesRef,
+    ]
   )
 
   // Progress polling effect
@@ -229,9 +253,13 @@ export const CaptureUploadProvider: React.FC<CaptureUploadProviderProps> = ({
     }
   }, [setUploadState, uploadState.uploadRef, uploadState.isUploading, agent])
 
+  const setPrivacyOverrides = useCallback((overrides: PrivacyOverrides) => {
+    privacyOverridesRef.current = overrides
+  }, [])
+
   const value = useMemo(
-    () => ({ uploadState, enqueueUpload }),
-    [uploadState, enqueueUpload]
+    () => ({ uploadState, enqueueUpload, setPrivacyOverrides }),
+    [uploadState, enqueueUpload, setPrivacyOverrides]
   )
 
   return (
