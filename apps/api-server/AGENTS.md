@@ -23,14 +23,18 @@ Emitted by `registerRequestLoggingHooks` and `createRequestLogContext` in `src/m
 
 ### Transactional email failure fields
 
-Emitted by `sendEmailInBackground` in `src/modules/email.ts`.
+Transactional email (verification, password reset, invitation) is delivered durably via the outbox worker as `email.send` jobs (REP-1249); `sendEmailInBackground` no longer exists. Failures surface on two distinct paths:
+
+**Enqueue failure** (request process) — emitted by `createTransactionalEmailService` in `src/services/transactionalEmail.ts`. Non-blocking: the account action still succeeds even if enqueue fails.
 
 | Field       | Always?       | Description                                                    |
 | ----------- | ------------- | -------------------------------------------------------------- |
-| `event`     | always        | `"transactional_email.send_failed"`                            |
+| `event`     | always        | `"transactional_email.enqueue_failed"`                         |
 | `emailKind` | when supplied | e.g. `"verification"`, `"invitation"`, `"password_reset"`      |
-| `err`       | always        | The error object from the failed send                          |
+| `err`       | always        | The error object from the failed enqueue                       |
 | `context.*` | when supplied | Caller-supplied context fields (no PII)                        |
+
+**Delivery failure** (outbox worker process) — provider send failures occur when the `email.send` handler runs. They are recorded on the `outbox_jobs` row as `lastError` (`{ name?, message, stack? }`): retryable failures are retried with backoff, terminal failures are marked after `maxAttempts`. There is no `transactional_email.send_failed` log event; inspect the outbox job's `status`/`lastError` for delivery outcome.
 
 ### Redaction
 
@@ -38,4 +42,4 @@ Sensitive fields are redacted by Pino before serialisation (see `createFastifyLo
 
 ### Logger injection
 
-Runtime infrastructure such as loggers is injected at the module/service factory boundary (`createEmailModule`, `createBillingService`, `createRecordingService`, `createOutboxWorker`). Per-call arguments carry only event/request metadata — never `ApiLogger` or transport details.
+Runtime infrastructure such as loggers is injected at the module/service factory boundary (`createEmailModule`, `createBillingService`, `createRecordingService`, `createOutboxWorker`, `createTransactionalEmailService`). Per-call arguments carry only event/request metadata — never `ApiLogger` or transport details.
