@@ -11,6 +11,7 @@ import { BillingSubscriptionTable } from './BillingSubscriptionTable'
 import { FeatureGateTable } from './FeatureGateTable'
 import { InvitationTable } from './InvitationTable'
 import { MembershipTable } from './MembershipTable'
+import { MfaPendingTokenTable } from './MfaPendingTokenTable'
 import { OAuthAuthorizationCodeTable } from './OAuthAuthorizationCodeTable'
 import { OAuthClientTable } from './OAuthClientTable'
 import { OAuthConnectionTable } from './OAuthConnectionTable'
@@ -26,6 +27,8 @@ import { RecordingTable } from './RecordingTable'
 import { SessionTable } from './SessionTable'
 import { ShareTokenTable } from './ShareTokenTable'
 import { StaffUserTable, asStaffUser } from './StaffUserTable'
+import { TotpBackupCodeTable } from './TotpBackupCodeTable'
+import { TotpCredentialTable } from './TotpCredentialTable'
 import { UserTable, asStaffUserDetail, asUser } from './UserTable'
 
 export interface Schema {
@@ -42,6 +45,7 @@ export interface Schema {
   feature_gates: FeatureGateTable
   invitations: InvitationTable
   memberships: MembershipTable
+  mfa_pending_tokens: MfaPendingTokenTable
   oauth_authorization_codes: OAuthAuthorizationCodeTable
   oauth_clients: OAuthClientTable
   oauth_connections: OAuthConnectionTable
@@ -57,6 +61,8 @@ export interface Schema {
   sessions: SessionTable
   share_tokens: ShareTokenTable
   staff_users: StaffUserTable
+  totp_backup_codes: TotpBackupCodeTable
+  totp_credentials: TotpCredentialTable
   users: UserTable
 }
 

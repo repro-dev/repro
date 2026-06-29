@@ -52,6 +52,11 @@ export function useAcceptInvitation() {
   return context.acceptInvitation
 }
 
+export function useVerifyTotp() {
+  const context = useAuthContext()
+  return context.verifyTotp
+}
+
 export function useHasGate(gate: string) {
   const gates = useContext(GateContext)
   return gates.has(gate)

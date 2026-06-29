@@ -92,6 +92,7 @@ const envSchema = z.object({
   OUTBOX_WORKER_RETRY_MAX_MS: positiveIntegerStringTransform.default(60000),
   OUTBOX_WORKER_STALE_AFTER_MS: positiveIntegerStringTransform.default(300000),
   STORAGE_PATH: z.string().default('/tmp/repro-storage'),
+  TOTP_ENCRYPTION_KEY: z.string().default(''),
 })
 
 export type Env = z.infer<typeof envSchema>

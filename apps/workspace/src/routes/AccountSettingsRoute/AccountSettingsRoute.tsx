@@ -1,6 +1,6 @@
 import { Block, Col, Grid, Row } from '@jsxstyle/react'
 import { useApiClient } from '@repro/api-client'
-import { useSession, useSessionLoading } from '@repro/auth'
+import { ManageTotpSection, useSession, useSessionLoading } from '@repro/auth'
 import {
   Alert,
   Avatar,
@@ -481,6 +481,8 @@ export function AccountSettingsRoute({
                   </Card>
                 </Block>
               </Col>
+
+              <ManageTotpSection />
 
               <Col gap={spacing.md}>
                 <Col gap={spacing.xs}>

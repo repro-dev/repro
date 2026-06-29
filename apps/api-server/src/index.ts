@@ -47,6 +47,7 @@ import { createRecordingService } from '~/services/recording'
 import { createRecordingFinalizationService } from '~/services/recordingFinalization'
 import { createShareService } from '~/services/share'
 import { createSocialAuthService } from '~/services/socialAuth'
+import { createTotpService } from '~/services/totpService'
 import { serverError } from '~/utils/errors'
 import { createHttpClient } from './modules/http'
 import { createShareRouter } from './routers/share'
@@ -276,6 +277,7 @@ async function bootstrap() {
   )
   const shareService = createShareService(database, env.REPRO_APP_URL)
   const socialAuthService = createSocialAuthService(database)
+  const totpService = createTotpService(database, env)
 
   const googleProvider = createGoogleProvider('/account/oauth/google/callback')
   const socialAuthRouter = createSocialAuthRouter(
@@ -310,7 +312,11 @@ async function bootstrap() {
     pmProviders
   )
 
-  const accountRouter = createAccountRouter(accountService, emailModule)
+  const accountRouter = createAccountRouter(
+    accountService,
+    emailModule,
+    totpService
+  )
   const agenticRouter = createAgenticRouter(
     agenticService,
     accountService,

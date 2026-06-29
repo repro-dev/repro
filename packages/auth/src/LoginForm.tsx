@@ -18,11 +18,17 @@ import { FormProvider, useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router'
 import z from 'zod'
 import { GoogleSignInButton } from './GoogleSignInButton'
-import { useLogin, useResetPassword } from './hooks'
+import { MfaPendingResponse } from './createState'
+import { useLogin, useVerifyTotp } from './hooks'
 
 const loginFormSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
+})
+
+const challengeSchema = z.object({
+  code: z.string().min(1),
+  backupCode: z.string().optional(),
 })
 
 const resetFormSchema = z.object({
@@ -30,8 +36,8 @@ const resetFormSchema = z.object({
 })
 
 type LoginFormState = z.infer<typeof loginFormSchema>
+type ChallengeFormState = z.infer<typeof challengeSchema>
 type ResetFormState = z.infer<typeof resetFormSchema>
-type FormState = LoginFormState | ResetFormState
 
 interface Props {
   redirectTo?: string
@@ -48,17 +54,28 @@ export const LoginForm: React.FC<Props> = ({
   const [errorMessage, setErrorMessage] = useState('')
   const [showResetFlow, setShowResetFlow] = useState(false)
   const [showPostResetMessage, setShowPostResetMessage] = useState(false)
+  const [showChallenge, setShowChallenge] = useState(false)
+  const [useBackupCode, setUseBackupCode] = useState(false)
+  const [mfaPending, setMfaPending] = useState<string | null>(null)
   const [_loading, setLoading] = useState(false)
 
   const navigate = useNavigate()
   const login = useLogin()
-  const resetPassword = useResetPassword()
+  const verifyTotp = useVerifyTotp()
 
   const methods = useForm({
-    resolver: zodResolver(showResetFlow ? resetFormSchema : loginFormSchema),
+    resolver: zodResolver(
+      showChallenge
+        ? challengeSchema
+        : showResetFlow
+        ? resetFormSchema
+        : loginFormSchema
+    ),
     defaultValues: {
       email: '',
       password: '',
+      code: '',
+      backupCode: '',
     },
   })
 
@@ -70,7 +87,7 @@ export const LoginForm: React.FC<Props> = ({
     })(() => {
       setShowPostResetMessage(true)
       setShowResetFlow(false)
-    })(resetPassword(data.email))
+    })(login(data.email, ''))
   }
 
   function onLogin(data: LoginFormState) {
@@ -94,14 +111,50 @@ export const LoginForm: React.FC<Props> = ({
 
       setLoading(false)
       onFailure(err)
-    })(() => {
+    })((value: any) => {
+      // Check if MFA is required
+      if (
+        value != null &&
+        typeof value === 'object' &&
+        'mfa_pending' in value &&
+        (value as MfaPendingResponse).totpRequired
+      ) {
+        setMfaPending(value.mfa_pending)
+        setShowChallenge(true)
+        setLoading(false)
+        return
+      }
+
       onSuccess()
       navigate('/')
     })(session)
   }
 
-  function onSubmit(data: FormState) {
-    if (showResetFlow) {
+  function onChallenge(data: ChallengeFormState) {
+    if (mfaPending == null) {
+      return
+    }
+
+    const code = useBackupCode ? data.backupCode! : data.code
+    const codeType = useBackupCode ? 'backup' : 'totp'
+
+    setLoading(true)
+
+    return fork((_err: Error) => {
+      setErrorMessage('Invalid code. Please try again.')
+      setLoading(false)
+    })(() => {
+      onSuccess()
+      navigate('/')
+    })(verifyTotp(mfaPending, code, codeType))
+  }
+
+  function onSubmit(data: any) {
+    setErrorMessage('')
+
+    if (showChallenge) {
+      onChallenge(data as ChallengeFormState)
+    } else if (showResetFlow) {
       onResetRequest(data as ResetFormState)
     } else {
       onLogin(data as LoginFormState)
@@ -114,11 +167,19 @@ export const LoginForm: React.FC<Props> = ({
         <Col gap={spacing.xl}>
           <Col gap={spacing.sm}>
             <Text variant="heading2" color={color.primary} as="h1">
-              {showResetFlow ? 'Reset password' : 'Log in'}
+              {showChallenge
+                ? 'Two-factor authentication'
+                : showResetFlow
+                ? 'Reset password'
+                : 'Log in'}
             </Text>
 
             <Text variant="bodySmall" color={color.text.muted}>
-              {showResetFlow
+              {showChallenge
+                ? useBackupCode
+                  ? 'Enter one of your backup codes.'
+                  : 'Enter the code from your authenticator app.'
+                : showResetFlow
                 ? 'Enter your email address to receive password reset instructions.'
                 : 'Use your email and password to continue.'}
             </Text>
@@ -136,86 +197,143 @@ export const LoginForm: React.FC<Props> = ({
             </Alert>
           )}
 
-          <TextField
-            label="Email"
-            id="login-email"
-            autoFocus
-            autoComplete="email"
-            invalid={!!formState.errors.email}
-            error={formState.errors.email}
-            {...register('email', { required: true })}
-          />
-
-          {!showResetFlow && (
-            <TextField
-              label="Password"
-              id="login-password"
-              type="password"
-              autoComplete="current-password"
-              {...register('password', { required: true })}
-            />
-          )}
-
-          {!showResetFlow && (
-            <Block alignSelf="flex-start">
-              <Button
-                size="small"
-                type="button"
-                variant="text"
-                onClick={() => {
-                  setShowResetFlow(true)
-                  setShowPostResetMessage(false)
-                  setErrorMessage('')
-                }}
-              >
-                Forgot password?
-              </Button>
-            </Block>
-          )}
-
-          <Button size="large" disabled={formState.isSubmitting} type="submit">
-            {showResetFlow ? 'Send reset email' : 'Log in'}
-          </Button>
-
-          {showResetFlow && (
-            <Block alignSelf="center">
-              <Button
-                size="small"
-                type="button"
-                variant="text"
-                onClick={() => {
-                  setShowResetFlow(false)
-                  setShowPostResetMessage(false)
-                  setErrorMessage('')
-                }}
-              >
-                Back to login
-              </Button>
-            </Block>
-          )}
-
-          {!showResetFlow && (
+          {showChallenge ? (
             <>
-              <Row alignItems="center" gap={spacing.md}>
-                <Divider spacing="none" />
-                <Text variant="caption" color={color.text.muted}>
-                  or
-                </Text>
-                <Divider spacing="none" />
-              </Row>
+              {!useBackupCode && (
+                <TextField
+                  label="Authentication code"
+                  id="totp-code"
+                  autoFocus
+                  autoComplete="one-time-code"
+                  invalid={!!formState.errors.code}
+                  error={formState.errors.code}
+                  {...register('code', { required: true })}
+                />
+              )}
 
-              <GoogleSignInButton
+              {useBackupCode && (
+                <TextField
+                  label="Backup code"
+                  id="totp-backup-code"
+                  autoFocus
+                  invalid={!!formState.errors.backupCode}
+                  error={formState.errors.backupCode}
+                  {...register('backupCode', { required: true })}
+                />
+              )}
+
+              <Button
                 size="large"
-                onClick={() => {
-                  window.location.href = '/account/oauth/google'
-                }}
+                disabled={formState.isSubmitting}
+                type="submit"
+              >
+                Verify
+              </Button>
+
+              <Block alignSelf="center">
+                <Button
+                  size="small"
+                  type="button"
+                  variant="text"
+                  onClick={() => {
+                    setUseBackupCode(!useBackupCode)
+                    setErrorMessage('')
+                  }}
+                >
+                  {useBackupCode
+                    ? 'Use authenticator code instead'
+                    : 'Use a backup code instead'}
+                </Button>
+              </Block>
+            </>
+          ) : (
+            <>
+              <TextField
+                label="Email"
+                id="login-email"
+                autoFocus
+                autoComplete="email"
+                invalid={!!formState.errors.email}
+                error={formState.errors.email}
+                {...register('email', { required: true })}
               />
 
-              {registerHref && (
-                <Text variant="bodySmall" color={color.text.muted}>
-                  Don&apos;t have an account?{' '}
-                  <Link href={registerHref}>Sign up now</Link>
-                </Text>
+              {!showResetFlow && (
+                <TextField
+                  label="Password"
+                  id="login-password"
+                  type="password"
+                  autoComplete="current-password"
+                  {...register('password', { required: true })}
+                />
+              )}
+
+              {!showResetFlow && (
+                <Block alignSelf="flex-start">
+                  <Button
+                    size="small"
+                    type="button"
+                    variant="text"
+                    onClick={() => {
+                      setShowResetFlow(true)
+                      setShowPostResetMessage(false)
+                      setErrorMessage('')
+                    }}
+                  >
+                    Forgot password?
+                  </Button>
+                </Block>
+              )}
+
+              <Button
+                size="large"
+                disabled={formState.isSubmitting}
+                type="submit"
+              >
+                {showResetFlow ? 'Send reset email' : 'Log in'}
+              </Button>
+
+              {showResetFlow && (
+                <Block alignSelf="center">
+                  <Button
+                    size="small"
+                    type="button"
+                    variant="text"
+                    onClick={() => {
+                      setShowResetFlow(false)
+                      setShowPostResetMessage(false)
+                      setErrorMessage('')
+                    }}
+                  >
+                    Back to login
+                  </Button>
+                </Block>
+              )}
+
+              {!showResetFlow && (
+                <>
+                  <Row alignItems="center" gap={spacing.md}>
+                    <Divider spacing="none" />
+                    <Text variant="caption" color={color.text.muted}>
+                      or
+                    </Text>
+                    <Divider spacing="none" />
+                  </Row>
+
+                  <GoogleSignInButton
+                    size="large"
+                    onClick={() => {
+                      window.location.href = '/account/oauth/google'
+                    }}
+                  />
+
+                  {registerHref && (
+                    <Text variant="bodySmall" color={color.text.muted}>
+                      Don&apos;t have an account?{' '}
+                      <Link href={registerHref}>Sign up now</Link>
+                    </Text>
+                  )}
+                </>
               )}
             </>
           )}
