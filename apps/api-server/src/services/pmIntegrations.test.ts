@@ -490,5 +490,34 @@ describe('Services > PmIntegrationService', () => {
       // No refresh should have been attempted
       expect(testProviders.getRefreshCallCount()).toBe(0)
     })
+
+    it('should reject immediately without refresh when connection is disconnected', async () => {
+      const testProviders = createTestProviders()
+      const pmService = createPmIntegrationService(
+        harness.db,
+        testProviders.providers
+      )
+
+      // Create a connection with disconnected status
+      await promise(
+        harness.services.pmIntegrationService.upsertConnection({
+          accountId,
+          provider: 'linear',
+          providerWorkspaceId: 'wrkspc-1',
+          accessToken: 'disconnected-token',
+          refreshToken: 'some-refresh-token',
+          expiresAt: new Date(Date.now() - 3600_000), // expired, but irrelevant
+          scopes: ['read'],
+          status: 'disconnected',
+        })
+      )
+
+      await expect(
+        promise(pmService.getValidAccessToken(accountId, 'linear'))
+      ).rejects.toThrow('Token refresh failed; re-authorization required')
+
+      // No refresh should have been attempted — disconnected means no retry
+      expect(testProviders.getRefreshCallCount()).toBe(0)
+    })
   })
 })

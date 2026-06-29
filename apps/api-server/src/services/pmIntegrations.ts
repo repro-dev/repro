@@ -235,7 +235,9 @@ export function createPmIntegrationService(
           .where('provider', '=', connection.provider)
           .execute()
 
-        throw new Error('Token refresh failed; re-authorization required')
+        throw serviceUnavailable(
+          'Token refresh failed; re-authorization required'
+        )
       }
 
       const newAccessToken = updatedTokens.accessToken()
@@ -299,7 +301,10 @@ export function createPmIntegrationService(
       chain(connection => {
         // If the connection is already in a failed auth state, reject
         // immediately without attempting refresh.
-        if (connection.status === 'needs_reauth') {
+        if (
+          connection.status === 'needs_reauth' ||
+          connection.status === 'disconnected'
+        ) {
           return reject(
             serviceUnavailable(
               'Token refresh failed; re-authorization required'
