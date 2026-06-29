@@ -1,3 +1,4 @@
+import { RecordingPrivacyPreset } from '@repro/domain'
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { toRedactionOverrides } from './presets'
@@ -50,7 +51,10 @@ describe('toRedactionOverrides', () => {
   })
 
   it('returns standard on unknown preset value', () => {
-    const result = toRedactionOverrides('non-existent' as any)
+    // Cast to simulate a runtime value that bypasses TypeScript (e.g. from network)
+    const result = toRedactionOverrides(
+      'non-existent' as RecordingPrivacyPreset
+    )
     assert.deepStrictEqual(result.maskedSelectors, ['.repro-mask'])
     assert.strictEqual(result.maskImages, false)
   })

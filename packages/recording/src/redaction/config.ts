@@ -26,36 +26,26 @@ export function mergeRedactionConfig(
   base: RedactionConfig,
   overrides: Partial<RedactionConfig>
 ): RedactionConfig {
-  const mergedSensitiveHeaderNames = new Set([
-    ...base.sensitiveHeaderNames,
-    ...(overrides.sensitiveHeaderNames ?? []),
-  ])
-
-  const mergedFieldPatterns = [
-    ...base.sensitiveFieldPatterns,
-    ...(overrides.sensitiveFieldPatterns ?? []),
-  ]
-
-  const mergedValuePatterns = [
-    ...base.sensitiveValuePatterns,
-    ...(overrides.sensitiveValuePatterns ?? []),
-  ]
-
-  const mergedInputTypes = new Set([
-    ...base.sensitiveInputTypes,
-    ...(overrides.sensitiveInputTypes ?? []),
-  ])
-
-  const mergedMaskedSelectors = [
-    ...base.maskedSelectors,
-    ...(overrides.maskedSelectors ?? []),
-  ]
-
   return {
-    sensitiveHeaderNames: mergedSensitiveHeaderNames,
-    sensitiveFieldPatterns: mergedFieldPatterns,
-    sensitiveValuePatterns: mergedValuePatterns,
-    sensitiveInputTypes: mergedInputTypes,
-    maskedSelectors: mergedMaskedSelectors,
+    sensitiveHeaderNames:
+      overrides.sensitiveHeaderNames !== undefined
+        ? new Set(overrides.sensitiveHeaderNames)
+        : base.sensitiveHeaderNames,
+    sensitiveFieldPatterns:
+      overrides.sensitiveFieldPatterns !== undefined
+        ? [...overrides.sensitiveFieldPatterns]
+        : base.sensitiveFieldPatterns,
+    sensitiveValuePatterns:
+      overrides.sensitiveValuePatterns !== undefined
+        ? [...overrides.sensitiveValuePatterns]
+        : base.sensitiveValuePatterns,
+    sensitiveInputTypes:
+      overrides.sensitiveInputTypes !== undefined
+        ? new Set(overrides.sensitiveInputTypes)
+        : base.sensitiveInputTypes,
+    maskedSelectors:
+      overrides.maskedSelectors !== undefined
+        ? [...overrides.maskedSelectors]
+        : base.maskedSelectors,
   }
 }

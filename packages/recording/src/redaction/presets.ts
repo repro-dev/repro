@@ -1,3 +1,4 @@
+import type { RecordingPrivacyPreset } from '@repro/domain'
 import type { RedactionConfig } from './types'
 
 /**
@@ -9,7 +10,10 @@ import type { RedactionConfig } from './types'
  *   the full DEFAULT_REDACTION_CONFIG is used. When provided, these overrides are
  *   merged via mergeRedactionConfig (with empty arrays/sets for off preset to
  *   clear non-credential fields while keeping sensitiveHeaderNames).
- * - `maskImages` — Whether `<img>` elements should have their `src` blanked.
+ * - `maskImages` — Display-only flag consumed by the privacy indicator and
+ *   capture-review notice. The engine blanks `<img>` `src` via `'img'` in
+ *   `maskedSelectors`, not via this field. Do NOT use this field to drive
+ *   engine behavior.
  */
 export interface RedactionOverride {
   maskedSelectors: Array<string>
@@ -31,7 +35,9 @@ export interface RedactionOverride {
  * @param preset - The privacy preset ('strict' | 'standard' | 'off')
  * @returns A fresh RedactionOverride object
  */
-export function toRedactionOverrides(preset: string): RedactionOverride {
+export function toRedactionOverrides(
+  preset: RecordingPrivacyPreset
+): RedactionOverride {
   switch (preset) {
     case 'strict':
       return {

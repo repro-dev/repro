@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { DEFAULT_REDACTION_CONFIG, mergeRedactionConfig } from './config'
+import { toRedactionOverrides } from './presets'
+import { isSensitiveKey, setRedactionConfig } from './redact'
 
 describe('redaction config', () => {
   describe('DEFAULT_REDACTION_CONFIG', () => {
@@ -42,34 +44,40 @@ describe('redaction config', () => {
       assert.deepEqual(result, DEFAULT_REDACTION_CONFIG)
     })
 
-    it('unions Sets (does not replace)', () => {
+    it('replaces Sets when override provided', () => {
       const overrides = {
         sensitiveHeaderNames: new Set(['x-custom-token']),
       }
       const result = mergeRedactionConfig(DEFAULT_REDACTION_CONFIG, overrides)
-      assert.ok(result.sensitiveHeaderNames.has('authorization'))
+      // REPLACEMENT semantics: only the override value is present
+      assert.equal(result.sensitiveHeaderNames.has('authorization'), false)
       assert.ok(result.sensitiveHeaderNames.has('x-custom-token'))
-      assert.equal(
-        DEFAULT_REDACTION_CONFIG.sensitiveHeaderNames.has('x-custom-token'),
-        false
+      // Base must be unchanged
+      assert.ok(
+        DEFAULT_REDACTION_CONFIG.sensitiveHeaderNames.has('authorization')
       )
     })
 
-    it('concatenates arrays', () => {
+    it('replaces arrays when override provided', () => {
       const overrides = {
         maskedSelectors: ['.custom-mask'],
       }
       const result = mergeRedactionConfig(DEFAULT_REDACTION_CONFIG, overrides)
       assert.ok(result.maskedSelectors.includes('.custom-mask'))
+      // REPLACEMENT semantics: only the override value
+      assert.equal(result.maskedSelectors.length, 1)
     })
 
-    it('partial overrides work with only one field set', () => {
+    it('keeps base for absent override fields, replaces for present ones', () => {
       const overrides = {
         sensitiveInputTypes: new Set(['custom-type']),
       }
       const result = mergeRedactionConfig(DEFAULT_REDACTION_CONFIG, overrides)
-      assert.ok(result.sensitiveInputTypes.has('password'))
+      // sensitiveInputTypes is replaced
+      assert.equal(result.sensitiveInputTypes.has('password'), false)
       assert.ok(result.sensitiveInputTypes.has('custom-type'))
+      // sensitiveHeaderNames is kept from base (absent override)
+      assert.ok(result.sensitiveHeaderNames.has('authorization'))
     })
 
     it('empty overrides do not mutate defaults', () => {
@@ -95,6 +103,22 @@ describe('redaction config', () => {
         DEFAULT_REDACTION_CONFIG.sensitiveFieldPatterns.length,
         originalFieldPatternsLength
       )
+    })
+
+    it('off preset redaction: auth header still sensitive, email not sensitive', () => {
+      // Regression test for REP-1275 B1 — off preset must clear non-credential
+      // PII while keeping the auth-header credential floor.
+      const offOverride = toRedactionOverrides('off')
+      setRedactionConfig(offOverride.redaction)
+
+      // Auth header must still be detected as sensitive
+      assert.ok(isSensitiveKey('authorization'))
+
+      // Non-credential PII field must NOT be detected as sensitive
+      assert.equal(isSensitiveKey('email'), false)
+
+      // Reset to avoid test pollution
+      setRedactionConfig(undefined)
     })
   })
 })

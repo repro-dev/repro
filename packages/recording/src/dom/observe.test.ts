@@ -6,6 +6,7 @@ import expect from 'expect'
 import { describe, it } from 'node:test'
 import { redactText } from '../redaction'
 import { RecordingOptions } from '../types'
+import { createVElement } from './factory'
 import { createDOMObserver, internal__processMutationRecords } from './observe'
 import { createDOMTreeWalker } from './utils'
 import { createDOMVisitor } from './visitor'
@@ -658,10 +659,6 @@ describe('libs/record: dom observers', () => {
   })
 
   it('factory createVElement blanks img src when maskedSelectors includes img', () => {
-    // Dynamic import since factory isn't imported at the top of this file
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const factory = require('./factory')
-
     const img = document.createElement('img')
     img.setAttribute('src', 'https://example.com/photo.jpg')
 
@@ -678,7 +675,7 @@ describe('libs/record: dom observers', () => {
       'img',
     ]
 
-    const vElement: Record<string, unknown> = factory.createVElement(img, {
+    const vElement: Record<string, unknown> = createVElement(img, {
       maskedSelectors: strictSelectors,
     })
 
@@ -694,9 +691,6 @@ describe('libs/record: dom observers', () => {
   })
 
   it('factory createVElement does NOT blank img src when maskedSelectors does NOT include img', () => {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const factory = require('./factory')
-
     const img = document.createElement('img')
     img.setAttribute('src', 'https://example.com/photo.jpg')
 
@@ -706,7 +700,7 @@ describe('libs/record: dom observers', () => {
 
     const standardSelectors = ['.repro-mask']
 
-    const vElement: Record<string, unknown> = factory.createVElement(img, {
+    const vElement: Record<string, unknown> = createVElement(img, {
       maskedSelectors: standardSelectors,
     })
 

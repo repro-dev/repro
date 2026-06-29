@@ -16,6 +16,7 @@ import { RecordingMode } from '@repro/domain'
 import { Playback, PlaybackProvider, SimpleTimeline } from '@repro/playback'
 import { findErrorAndWarningEvents } from '@repro/source-utils'
 import React, { useEffect, useMemo } from 'react'
+import { describePreset } from '~/recordingPrivacyCopy'
 import { useRecordingPrivacyPreset } from '~/useRecordingPrivacyPreset'
 import { AsideRegion, Layout, PlaybackRegion } from '../ReportForm/Layout'
 import { ProgressOverlay } from '../ReportForm/ProgressOverlay'
@@ -34,31 +35,6 @@ interface CaptureReviewProps {
   selectedDuration: number
   setSelectedDuration: (duration: number) => void
   privacyOverrides: PrivacyOverrides
-}
-
-function getNoticeForOverride(
-  maskedSelectors: Array<string>,
-  maskImages: boolean
-): { label: string; summary: string } {
-  if (maskImages) {
-    return {
-      label: 'Strict',
-      summary:
-        'Inputs, images, and .repro-mask elements are masked. PII and auth headers are redacted.',
-    }
-  }
-  if (maskedSelectors.length === 0) {
-    return {
-      label: 'Off',
-      summary:
-        'Minimal filtering — only authentication headers are redacted. All other content is recorded as-is.',
-    }
-  }
-  return {
-    label: 'Standard',
-    summary:
-      'Only .repro-mask elements are masked. PII and auth headers are redacted.',
-  }
 }
 
 export const CaptureReview: React.FC<CaptureReviewProps> = ({
@@ -160,26 +136,16 @@ export const CaptureReview: React.FC<CaptureReviewProps> = ({
         </PlaybackRegion>
 
         <AsideRegion>
-          {!presetLoading && (
-            <Alert type="info">
-              This recording was captured with the{' '}
-              <strong>
-                {
-                  getNoticeForOverride(
-                    override.maskedSelectors,
-                    override.maskImages
-                  ).label
-                }
-              </strong>{' '}
-              privacy preset.{' '}
-              {
-                getNoticeForOverride(
-                  override.maskedSelectors,
-                  override.maskImages
-                ).summary
-              }
-            </Alert>
-          )}
+          {!presetLoading &&
+            (() => {
+              const { label, summary } = describePreset(override)
+              return (
+                <Alert type="info">
+                  This recording was captured with the <strong>{label}</strong>{' '}
+                  privacy preset. {summary}
+                </Alert>
+              )
+            })()}
 
           <AgenticSection getSelectedRecording={actions.getSelectedRecording} />
         </AsideRegion>

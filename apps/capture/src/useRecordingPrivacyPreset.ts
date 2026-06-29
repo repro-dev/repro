@@ -6,6 +6,9 @@ import { RedactionOverride, toRedactionOverrides } from '@repro/recording'
 import { resolve } from 'fluture'
 import { useMemo } from 'react'
 
+// Intentional fork of getRecordingPrivacyPreset in @repro/workspace-api
+// (packages/workspace-api/src/queries.ts:146). Capture runs in page-world
+// context and cannot depend on workspace-api (page-world transport separation).
 function getRecordingPrivacyPreset(apiClient: ApiClient) {
   return apiClient.fetch<{ value: RecordingPrivacyPreset }>('/account/privacy')
 }
