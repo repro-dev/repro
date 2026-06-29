@@ -18,6 +18,8 @@ The repo's `Brewfile` installs `jq` for trimming high-volume JSON responses duri
 
 ## Common commands
 
+- Search issues: `linear issue search "share links" --status backlog --limit 50`
+- Scope search by project: `linear issue search "share links" --project "Workspace"`
 - List issues: `linear issue list --status backlog --status todo --unblocked --leaf --limit 250`
 - Create an issue: `linear issue create --title "..." --project "Workspace" --description "..." --label "Feature" --priority high`
 - Create linked issues: `linear issue create --title "..." --project "Workspace" --parent ISSUE-1 --related ISSUE-2 --blocks ISSUE-3 --blocked-by ISSUE-4`
@@ -74,7 +76,8 @@ The CLI has convenience aliases: `linear issues` = `linear issue list`, `linear 
 - Use `--json | jq '...'` for list and scan flows where only routing fields are needed; keep the projection stable and narrow.
 - `linear issue list` supports `--unblocked` and `--leaf` for server-side narrowing of backlog scans, and accepts `--limit` up to 250.
 - `linear issue list` supports `--open` to return only issues with open statuses (active, in-progress, in-review, etc.).
-- The current CLI surface is: `whoami`, `issue list`, `issue create`, `issue show`, `issue children`, `issue start`, `issue update`, `issue comment`, `issue attach`, `document create`, `document show`, `document update`, `document link`, `label list`, `label create`, `project list`, `project show`, `milestone list`.
+- `linear issue search <term>` accepts the same filter flags as `issue list` (`--project`, `--status`, `--label`, `--priority`, `--assignee`, `--mine`, `--unblocked`, `--leaf`, `--open`). The positional search term is required.
+- The current CLI surface is: `whoami`, `issue list`, `issue search <term>`, `issue create`, `issue show`, `issue children`, `issue start`, `issue update`, `issue comment`, `issue attach`, `document create`, `document show`, `document update`, `document link`, `label list`, `label create`, `project list`, `project show`, `milestone list`.
 - Canonical projections:
   - Issue lists: `linear issue list --status backlog --json | jq '[.items[] | {id, identifier, title, state, priority, project}]'`
   - Individual issue: `linear issue show ISSUE-1 --json | jq '{id: .item.identifier, title: .item.title, status: .item.status.name, parentId: .item.parentId}'`
