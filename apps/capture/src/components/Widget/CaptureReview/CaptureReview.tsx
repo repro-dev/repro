@@ -19,12 +19,10 @@ import { AsideRegion, Layout, PlaybackRegion } from '../ReportForm/Layout'
 import { ProgressOverlay } from '../ReportForm/ProgressOverlay'
 import { AgenticSection } from './AgenticSection'
 import { useCaptureUpload } from './CaptureUploadProvider'
-import { PrivacySection } from './PrivacySection'
+import { PrivacySection, type PrivacyOverrides } from './PrivacySection'
 import { RecordingActions } from './useRecordingActions'
 
 const DEFAULT_SELECTED_DURATION = 60_000
-
-import type { PrivacyOverrides } from './PrivacySection'
 
 interface CaptureReviewProps {
   onClose: () => void

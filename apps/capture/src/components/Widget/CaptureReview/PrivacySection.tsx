@@ -8,6 +8,7 @@ import {
   fontSize,
   fontWeight,
   radius,
+  shadow,
   spacing,
   textStyles,
 } from '@repro/design'
@@ -32,6 +33,10 @@ const SUGGESTIONS: Array<{ label: string; selector: string }> = [
   { label: 'Phone inputs', selector: 'input[type="tel"]' },
   { label: 'Date inputs', selector: 'input[type="date"]' },
 ]
+
+const SUGGESTION_CLOSE_DELAY_MS = 200
+const PREVIEW_OUTLINE_WIDTH = '3px'
+const PREVIEW_OUTLINE_OFFSET = '2px'
 
 type PresetName = 'strict' | 'standard' | 'off'
 
@@ -156,7 +161,11 @@ const TagInput: React.FC<TagInputProps> = ({
             },
             onKeyDown: handleKeyDown,
             onFocus: () => setShowSuggestions(inputValue.length > 0),
-            onBlur: () => setTimeout(() => setShowSuggestions(false), 200),
+            onBlur: () =>
+              setTimeout(
+                () => setShowSuggestions(false),
+                SUGGESTION_CLOSE_DELAY_MS
+              ),
           }}
         />
 
@@ -170,7 +179,7 @@ const TagInput: React.FC<TagInputProps> = ({
             border={`1px solid ${color.border.default}`}
             borderRadius={radius.sm}
             zIndex={10}
-            boxShadow="0 2px 8px rgba(0,0,0,0.1)"
+            boxShadow={shadow.sm}
           >
             {SUGGESTIONS.filter(
               s =>
@@ -298,8 +307,10 @@ export const PrivacySection: React.FC<PrivacySectionProps> = ({
           const htmlEl = el as HTMLElement
           const originalOutline = htmlEl.style.outline
           const originalOutlineOffset = htmlEl.style.outlineOffset
-          htmlEl.style.outline = '3px solid #f59e0b'
-          htmlEl.style.outlineOffset = '2px'
+          /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-color */
+          htmlEl.style.outline = `${PREVIEW_OUTLINE_WIDTH} solid #f59e0b`
+          /* eslint-enable @repro/oxlint-plugin-design/no-hardcoded-color */
+          htmlEl.style.outlineOffset = PREVIEW_OUTLINE_OFFSET
           // Revert after 3 seconds
           setTimeout(() => {
             htmlEl.style.outline = originalOutline
@@ -316,7 +327,6 @@ export const PrivacySection: React.FC<PrivacySectionProps> = ({
 
   return (
     <Col gap={spacing.md}>
-      {/* Section header */}
       <Row alignItems="center" gap={spacing.sm}>
         <Block component="span" {...textStyles.heading3}>
           Privacy
@@ -336,7 +346,6 @@ export const PrivacySection: React.FC<PrivacySectionProps> = ({
         )}
       </Row>
 
-      {/* Workspace default display */}
       <Block
         component="span"
         fontSize={fontSize.xs}
@@ -355,7 +364,6 @@ export const PrivacySection: React.FC<PrivacySectionProps> = ({
         )}
       </Block>
 
-      {/* Override toggle */}
       <Row alignItems="center" gap={spacing.sm}>
         <Toggle
           checked={overridesEnabled}
@@ -364,7 +372,6 @@ export const PrivacySection: React.FC<PrivacySectionProps> = ({
         />
       </Row>
 
-      {/* Override controls */}
       {overridesEnabled && (
         <Col gap={spacing.md} paddingLeft={spacing.sm}>
           <Col gap={spacing.sm}>
