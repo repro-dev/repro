@@ -2,6 +2,7 @@ import { Block, Row } from '@jsxstyle/react'
 import { Analytics } from '@repro/analytics'
 import { formatTime } from '@repro/date-utils'
 import { color, fontSize, spacing } from '@repro/design'
+import type { ErrorOrWarningEntry } from '@repro/source-utils'
 import React, { useEffect, useRef } from 'react'
 import { NEVER, Observable, Subscription, combineLatest, fromEvent } from 'rxjs'
 import {
@@ -22,9 +23,15 @@ export interface Props {
   children?: React.ReactNode
   min?: number
   max?: number
+  errorAndWarningEvents?: Array<ErrorOrWarningEntry>
 }
 
-export const SimpleTimeline: React.FC<Props> = ({ children, min, max }) => {
+export const SimpleTimeline: React.FC<Props> = ({
+  children,
+  min,
+  max,
+  errorAndWarningEvents,
+}) => {
   const progressRef = useRef<HTMLDivElement | null>(null)
   const elapsedTimeRef = useRef<HTMLDivElement | null>(null)
   const playback = usePlayback()
@@ -226,6 +233,58 @@ export const SimpleTimeline: React.FC<Props> = ({ children, min, max }) => {
             updateElapsedTime(elapsedTime, formatTime(elapsed, 'seconds'))
           })
       )
+
+      // Render error/warning markers
+      if (errorAndWarningEvents && errorAndWarningEvents.length > 0) {
+        const markersContainer = document.createElement('div')
+
+        const containerStyles = [
+          ['height', '100%'],
+          ['left', '0'],
+          ['pointerEvents', 'none'],
+          ['position', 'absolute' as const],
+          ['top', '0'],
+          ['width', '100%'],
+          ['zIndex', '10'],
+        ] as const
+
+        for (const [key, value] of containerStyles) {
+          markersContainer.style[key] = value
+        }
+
+        for (const entry of errorAndWarningEvents) {
+          const offset = mapValueToOffset(entry.time)
+          // Only render markers within the visible range
+          if (offset < 0 || offset > 1) continue
+
+          const marker = document.createElement('div')
+          const isError = entry.severity === 'error'
+          const markerColor = isError ? '#ef4444' : '#f59e0b'
+          const size = 8
+
+          marker.style.position = 'absolute'
+          marker.style.left = `${offset * 100}%`
+          marker.style.top = '50%'
+          marker.style.transform = 'translate(-50%, -50%)'
+          marker.style.width = `${size}px`
+          marker.style.height = `${size}px`
+          marker.style.borderRadius = '50%'
+          marker.style.backgroundColor = markerColor
+          marker.style.cursor = 'pointer'
+          marker.style.pointerEvents = 'auto'
+          marker.title = entry.summary
+
+          marker.addEventListener('pointerdown', (e: PointerEvent) => {
+            e.stopPropagation()
+            playback.seekToTime(entry.time)
+            Analytics.track('playback:seek-to-marker')
+          })
+
+          markersContainer.appendChild(marker)
+        }
+
+        root.appendChild(markersContainer)
+      }
     }
 
     return () => {
@@ -237,7 +296,7 @@ export const SimpleTimeline: React.FC<Props> = ({ children, min, max }) => {
         }
       }
     }
-  }, [playback, elapsedTimeRef, progressRef, min, max])
+  }, [playback, elapsedTimeRef, progressRef, min, max, errorAndWarningEvents])
 
   return (
     <Row alignItems="center" height="100%" gap={spacing.md}>
