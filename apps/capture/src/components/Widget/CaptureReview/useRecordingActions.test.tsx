@@ -40,6 +40,7 @@ function createSnapshotEvent(time: number): DataView {
         interaction: null,
         frameworkState: null,
         cssRules: null,
+        colorScheme: null,
       },
     })
   )
