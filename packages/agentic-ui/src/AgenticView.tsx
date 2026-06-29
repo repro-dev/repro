@@ -41,6 +41,7 @@ export const AgenticView: React.FC<{
   const wasCancelled = useAtomValue(agentic.$wasCancelled)
   const stage = useAtomValue(agentic.$stage)
   const hypotheses = useAtomValue(agentic.$hypotheses)
+  const pendingInteraction = useAtomValue(agentic.$pendingInteraction)
 
   const lastPromptRef = useRef('')
 
@@ -139,6 +140,8 @@ export const AgenticView: React.FC<{
             lastPromptRef.current = prompt
             agentic.query(prompt)
           }}
+          pendingInteraction={pendingInteraction}
+          onSubmitAskUserAnswer={answer => agentic.submitAskUserAnswer(answer)}
         >
           {stage === 'conclusion' && hypotheses.length > 0 && (
             <HypothesisList hypotheses={hypotheses} />
@@ -158,6 +161,7 @@ export const AgenticView: React.FC<{
       <LoadingIndicator
         loading={loading}
         onCancel={isActive ? agentic.cancel : undefined}
+        pendingInteraction={pendingInteraction}
       />
 
       <JumpToEndButton

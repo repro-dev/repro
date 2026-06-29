@@ -1,5 +1,5 @@
 import { Block, Row } from '@jsxstyle/react'
-import { Loading } from '@repro/agentic'
+import type { Loading, PendingAskUserInteraction } from '@repro/agentic'
 import {
   FX,
   color,
@@ -15,11 +15,13 @@ import React, { useEffect, useRef, useState } from 'react'
 interface LoadingIndicatorProps {
   loading: Loading
   onCancel?: () => void
+  pendingInteraction?: PendingAskUserInteraction | null
 }
 
 export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
   loading,
   onCancel,
+  pendingInteraction,
 }) => {
   // Keep the last non-"none" loading value so the exit animation
   // doesn't flash a blank/wrong state while the pill slides away.
@@ -42,6 +44,8 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
 
   const isHidden = displayLoading === 'none'
   const isCancelled = displayLoading === 'cancelled'
+  const isWaitingForUser =
+    displayLoading === 'tool-executing' && pendingInteraction != null
 
   // State-specific labels give users a meaningful signal at each phase.
   const stateLabel: Record<Exclude<Loading, 'none' | 'cancelled'>, string> = {
@@ -52,7 +56,9 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
 
   const label =
     displayLoading !== 'none' && displayLoading !== 'cancelled'
-      ? stateLabel[displayLoading]
+      ? displayLoading === 'tool-executing' && isWaitingForUser
+        ? 'Waiting for your answer…'
+        : stateLabel[displayLoading]
       : null
 
   return (

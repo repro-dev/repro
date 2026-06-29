@@ -1,6 +1,13 @@
 import { Block, Col } from '@jsxstyle/react'
 import { Md } from '@m2d/react-markdown'
-import { AgenticError, Entry, Loading, groupToolCalls } from '@repro/agentic'
+import type {
+  AgenticError,
+  AskUserResult,
+  Entry,
+  Loading,
+  PendingAskUserInteraction,
+} from '@repro/agentic'
+import { groupToolCalls } from '@repro/agentic'
 import { color, fontSize, lineHeight, spacing } from '@repro/design'
 import React, { useMemo } from 'react'
 import {
@@ -8,6 +15,7 @@ import {
   LOADING_CONTAINER_OFFSET_PX,
 } from '../constants'
 import { EmptyState } from '../EmptyState'
+import { AskUserPrompt } from './AskUserPrompt'
 import { ErrorMessage } from './ErrorMessage'
 import { ResponseFeedback } from './ResponseFeedback'
 import { ToolCallGroup } from './ToolCallGroup'
@@ -24,6 +32,8 @@ interface MessageListProps {
   wasCancelled: boolean
   onFeedback?: (sentiment: 'positive' | 'negative') => void
   onGoToTime?: (timeMs: number) => void
+  pendingInteraction?: PendingAskUserInteraction | null
+  onSubmitAskUserAnswer?: (result: AskUserResult) => void
   children?: React.ReactNode
 }
 
@@ -38,6 +48,8 @@ export const MessageList: React.FC<MessageListProps> = ({
   wasCancelled,
   onFeedback,
   onGoToTime,
+  pendingInteraction,
+  onSubmitAskUserAnswer,
   children,
 }) => {
   const renderItems = useMemo(() => groupToolCalls(entries), [entries])
@@ -105,6 +117,24 @@ export const MessageList: React.FC<MessageListProps> = ({
                     <ResponseFeedback onFeedback={onFeedback} />
                   )}
               </Col>
+            )
+          }
+
+          // Render AskUserPrompt for pending askUser tool call groups
+          if (
+            pendingInteraction &&
+            onSubmitAskUserAnswer &&
+            item.pairs.some(
+              p => p.toolCall.id === pendingInteraction.toolCallId
+            )
+          ) {
+            return (
+              <AskUserPrompt
+                key={`askuser-${pendingInteraction.id}`}
+                request={pendingInteraction.request}
+                toolCallId={pendingInteraction.toolCallId}
+                onSubmit={onSubmitAskUserAnswer}
+              />
             )
           }
 

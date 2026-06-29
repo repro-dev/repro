@@ -1,0 +1,304 @@
+import type { AskUserRequest } from '@repro/agentic'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import expect from 'expect'
+import { afterEach, describe, it } from 'node:test'
+import React from 'react'
+import { AskUserPrompt } from './AskUserPrompt'
+
+function makeRequest(overrides: Partial<AskUserRequest> = {}): AskUserRequest {
+  return {
+    prompt: 'What would you like to do?',
+    ...overrides,
+  }
+}
+
+afterEach(() => {
+  cleanup()
+})
+
+describe('AskUserPrompt', () => {
+  it('renders the prompt text', () => {
+    render(
+      <AskUserPrompt
+        request={makeRequest()}
+        toolCallId="tc1"
+        onSubmit={() => {}}
+      />
+    )
+
+    expect(screen.getByText('What would you like to do?')).toBeDefined()
+  })
+
+  it('renders choices for single-select mode', () => {
+    render(
+      <AskUserPrompt
+        request={makeRequest({
+          choices: [
+            { label: 'Option A', value: 'a' },
+            { label: 'Option B', value: 'b' },
+          ],
+          multiple: false,
+        })}
+        toolCallId="tc1"
+        onSubmit={() => {}}
+      />
+    )
+
+    expect(screen.getByText('Option A')).toBeDefined()
+    expect(screen.getByText('Option B')).toBeDefined()
+    // Should be radio buttons (not checkboxes)
+    expect(screen.getByDisplayValue('a')).toBeDefined()
+    expect(screen.getByDisplayValue('b')).toBeDefined()
+    expect((screen.getByDisplayValue('a') as HTMLInputElement).type).toBe(
+      'radio'
+    )
+    expect((screen.getByDisplayValue('b') as HTMLInputElement).type).toBe(
+      'radio'
+    )
+  })
+
+  it('single-select: selecting one deselects others', () => {
+    render(
+      <AskUserPrompt
+        request={makeRequest({
+          choices: [
+            { label: 'Option A', value: 'a' },
+            { label: 'Option B', value: 'b' },
+          ],
+        })}
+        toolCallId="tc1"
+        onSubmit={() => {}}
+      />
+    )
+
+    const radioA = screen.getByDisplayValue('a') as HTMLInputElement
+    const radioB = screen.getByDisplayValue('b') as HTMLInputElement
+
+    fireEvent.click(radioA)
+    expect(radioA.checked).toBe(true)
+    expect(radioB.checked).toBe(false)
+
+    fireEvent.click(radioB)
+    expect(radioA.checked).toBe(false)
+    expect(radioB.checked).toBe(true)
+  })
+
+  it('multi-select: renders checkboxes and allows multiple selection', () => {
+    render(
+      <AskUserPrompt
+        request={makeRequest({
+          choices: [
+            { label: 'Option A', value: 'a' },
+            { label: 'Option B', value: 'b' },
+            { label: 'Option C', value: 'c' },
+          ],
+          multiple: true,
+        })}
+        toolCallId="tc1"
+        onSubmit={() => {}}
+      />
+    )
+
+    const cbA = screen.getByDisplayValue('a') as HTMLInputElement
+    const cbB = screen.getByDisplayValue('b') as HTMLInputElement
+
+    expect(cbA.type).toBe('checkbox')
+    expect(cbB.type).toBe('checkbox')
+
+    fireEvent.click(cbA)
+    fireEvent.click(cbB)
+
+    expect(cbA.checked).toBe(true)
+    expect(cbB.checked).toBe(true)
+  })
+
+  it('freeform mode: renders a textarea', () => {
+    render(
+      <AskUserPrompt
+        request={makeRequest({
+          choices: undefined,
+          allowFreeform: true,
+        })}
+        toolCallId="tc1"
+        onSubmit={() => {}}
+      />
+    )
+
+    expect(screen.getByPlaceholderText('Type your answer…')).toBeDefined()
+  })
+
+  it('mixed mode (select + freeform): renders both choice list and textarea', () => {
+    render(
+      <AskUserPrompt
+        request={makeRequest({
+          choices: [{ label: 'Choice 1', value: 'c1' }],
+          allowFreeform: true,
+        })}
+        toolCallId="tc1"
+        onSubmit={() => {}}
+      />
+    )
+
+    expect(screen.getByText('Choice 1')).toBeDefined()
+    expect(
+      screen.getByPlaceholderText('Additional details (optional)')
+    ).toBeDefined()
+  })
+
+  it('prompt-only mode: renders prompt text and "Got it" button', () => {
+    render(
+      <AskUserPrompt
+        request={makeRequest({
+          choices: undefined,
+          allowFreeform: undefined,
+        })}
+        toolCallId="tc1"
+        onSubmit={() => {}}
+      />
+    )
+
+    expect(screen.getByText('What would you like to do?')).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Got it' })).toBeDefined()
+  })
+
+  it('submit calls onSubmit with selected answer in single-select mode', () => {
+    let submitted: unknown = null
+
+    render(
+      <AskUserPrompt
+        request={makeRequest({
+          choices: [
+            { label: 'Option A', value: 'a' },
+            { label: 'Option B', value: 'b' },
+          ],
+        })}
+        toolCallId="tc1"
+        onSubmit={result => {
+          submitted = result
+        }}
+      />
+    )
+
+    fireEvent.click(screen.getByDisplayValue('a'))
+    fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+
+    expect(submitted).toEqual({ answer: 'a' })
+  })
+
+  it('submit calls onSubmit with selected answers in multi-select mode', () => {
+    let submitted: unknown = null
+
+    render(
+      <AskUserPrompt
+        request={makeRequest({
+          choices: [
+            { label: 'A', value: 'a' },
+            { label: 'B', value: 'b' },
+            { label: 'C', value: 'c' },
+          ],
+          multiple: true,
+        })}
+        toolCallId="tc1"
+        onSubmit={result => {
+          submitted = result
+        }}
+      />
+    )
+
+    fireEvent.click(screen.getByDisplayValue('a'))
+    fireEvent.click(screen.getByDisplayValue('c'))
+    fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+
+    expect(submitted).toEqual({ answer: ['a', 'c'] })
+  })
+
+  it('submit with freeform includes freeformAnswer', () => {
+    let submitted: unknown = null
+
+    render(
+      <AskUserPrompt
+        request={makeRequest({
+          choices: [{ label: 'A', value: 'a' }],
+          allowFreeform: true,
+        })}
+        toolCallId="tc1"
+        onSubmit={result => {
+          submitted = result
+        }}
+      />
+    )
+
+    fireEvent.click(screen.getByDisplayValue('a'))
+    fireEvent.change(
+      screen.getByPlaceholderText('Additional details (optional)'),
+      {
+        target: { value: 'some extra info' },
+      }
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+
+    expect(submitted).toEqual({
+      answer: 'a',
+      freeformAnswer: 'some extra info',
+    })
+  })
+
+  it('acknowledge in prompt-only mode calls onSubmit with answer "acknowledged"', () => {
+    let submitted: unknown = null
+
+    render(
+      <AskUserPrompt
+        request={makeRequest({
+          choices: undefined,
+          allowFreeform: undefined,
+        })}
+        toolCallId="tc1"
+        onSubmit={result => {
+          submitted = result
+        }}
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Got it' }))
+    expect(submitted).toEqual({ answer: 'acknowledged' })
+  })
+
+  it('submit button disables after first click', () => {
+    render(
+      <AskUserPrompt
+        request={makeRequest({
+          choices: [{ label: 'A', value: 'a' }],
+        })}
+        toolCallId="tc1"
+        onSubmit={() => {}}
+      />
+    )
+
+    fireEvent.click(screen.getByDisplayValue('a'))
+    const submitBtn = screen.getByRole('button', { name: 'Submit' })
+    fireEvent.click(submitBtn)
+
+    // After submit, button should show "Submitted"
+    expect(screen.getByRole('button', { name: 'Submitted' })).toBeDefined()
+  })
+
+  it('renders choice description when provided', () => {
+    render(
+      <AskUserPrompt
+        request={makeRequest({
+          choices: [
+            {
+              label: 'Option A',
+              value: 'a',
+              description: 'This is description A',
+            },
+          ],
+        })}
+        toolCallId="tc1"
+        onSubmit={() => {}}
+      />
+    )
+
+    expect(screen.getByText('This is description A')).toBeDefined()
+  })
+})

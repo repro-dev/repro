@@ -1,5 +1,6 @@
 export { AgenticView } from './AgenticView'
 export { AgenticInputSection } from './components/AgenticInputSection'
+export { AskUserPrompt } from './components/AskUserPrompt'
 export { CopyForCodingAgentButton } from './components/CopyForCodingAgentButton'
 export { ErrorMessage } from './components/ErrorMessage'
 export { HypothesisList } from './components/HypothesisList'

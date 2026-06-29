@@ -31,6 +31,7 @@ const TOOL_LABELS: Record<string, string> = {
   getEventsAroundTime: 'Get events around time',
   captureScreenshot: 'Capture screenshot',
   getDOMDiff: 'Get DOM diff',
+  askUser: 'Ask user',
 }
 
 // Detects whether a tool result content JSON contains a top-level error key,
