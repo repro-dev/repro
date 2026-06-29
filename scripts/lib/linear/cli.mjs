@@ -7,7 +7,6 @@ import { fileURLToPath } from "node:url";
 import { resolveLinearConfig, writeLinearConfig } from "./config.mjs";
 import {
   buildIssueFilter,
-  buildSearchIssuesQuery,
   createAttachmentWithFallback,
   createDocumentWithFallback,
   createIssueLabelWithFallback,

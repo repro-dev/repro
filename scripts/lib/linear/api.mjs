@@ -526,6 +526,26 @@ export function buildSearchIssuesQuery(fields) {
           "}",
         ].join("\n        ")
       : null,
+    selectRelations
+      ? [
+          "relations {",
+          "  nodes {",
+          "    id",
+          "    type",
+          `    issue {\n        ${ISSUE_BY_NUMBER_SUMMARY_FIELDS}\n      }`,
+          `    relatedIssue {\n        ${ISSUE_BY_NUMBER_SUMMARY_FIELDS}\n      }`,
+          "  }",
+          "}",
+          "inverseRelations {",
+          "  nodes {",
+          "    id",
+          "    type",
+          `    issue {\n        ${ISSUE_BY_NUMBER_SUMMARY_FIELDS}\n      }`,
+          `    relatedIssue {\n        ${ISSUE_BY_NUMBER_SUMMARY_FIELDS}\n      }`,
+          "  }",
+          "}",
+        ].join("\n        ")
+      : null,
   ]
     .filter(Boolean)
     .join("\n        ");

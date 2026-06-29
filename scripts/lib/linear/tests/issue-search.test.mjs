@@ -286,7 +286,120 @@ test("issue search rate-limit error surfaces retry hint", async () => {
   );
 
   assert.notEqual(result.code, 0);
-  assert.match(result.stderr, /rate.?limit/i);
+  assert.match(result.stderr, /Wait a few minutes and try again/);
+});
+
+test("issue search --json id,relations requests relations in GraphQL and renders them", async () => {
+  const issueWithRelations = makeIssue(1, {
+    identifier: "REP-2001",
+    title: "Issue with relations",
+  });
+  issueWithRelations.relations = {
+    nodes: [
+      {
+        id: "rel-1",
+        type: "related",
+        relatedIssue: {
+          id: "other-issue",
+          identifier: "REP-3001",
+          title: "Related issue",
+          url: "https://linear.app/acme/issue/REP-3001",
+          state: { id: "s1", name: "Todo", type: "unstarted" },
+          assignee: null,
+        },
+      },
+    ],
+  };
+  issueWithRelations.inverseRelations = { nodes: [] };
+
+  const searchResponse = makeSearchResponse([issueWithRelations]);
+  const client = makeSearchClient(searchResponse);
+  const result = await execute(
+    ["issue", "search", "test", "--json", "id,relations"],
+    {
+      env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+      clientFactory: async () => client,
+    },
+  );
+
+  assert.equal(result.code, 0);
+
+  const query = client.records.graphqlRequests[0].query;
+  assert.match(query, /relations \{/);
+  assert.match(query, /inverseRelations \{/);
+
+  // With explicit projection (--json id,relations), output is a bare array
+  const projected = JSON.parse(result.stdout);
+  assert.ok(Array.isArray(projected));
+  assert.equal(projected.length, 1);
+  assert.ok("relations" in projected[0]);
+  assert.ok(Array.isArray(projected[0].relations.related));
+  assert.equal(projected[0].relations.related.length, 1);
+  assert.equal(
+    projected[0].relations.related[0].identifier,
+    "REP-3001",
+  );
+});
+
+test("issue search --mine --assignee are mutually exclusive", async () => {
+  const result = await execute(
+    ["issue", "search", "foo", "--mine", "--assignee", "someone"],
+    {
+      env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+    },
+  );
+
+  assert.equal(result.code, 2);
+  assert.match(
+    result.stderr,
+    /--mine and --assignee are mutually exclusive/,
+  );
+});
+
+test("issue search rate-limit retry hint is not doubled when message already contains retry", async () => {
+  const alreadyHasRetry = new Error("Rate limited — retry after 30s");
+
+  const client = makeSearchClient(makeSearchResponse([]));
+  client.client.request = async () => {
+    throw alreadyHasRetry;
+  };
+
+  const result = await execute(
+    ["issue", "search", "foo"],
+    {
+      env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+      clientFactory: async () => client,
+    },
+  );
+
+  assert.notEqual(result.code, 0);
+  // The exact error message should appear exactly once (no duplicate hint)
+  assert.equal(result.stderr, "Rate limited — retry after 30s\n");
+  assert.doesNotMatch(result.stderr, /Wait a few minutes/);
+});
+
+test("issue search --limit 0 is rejected", async () => {
+  const result = await execute(
+    ["issue", "search", "foo", "--limit", "0"],
+    {
+      env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+    },
+  );
+
+  assert.notEqual(result.code, 0);
+  assert.match(result.stderr, /Invalid limit/);
+});
+
+test("issue search --limit -1 is rejected", async () => {
+  const result = await execute(
+    ["issue", "search", "foo", "--limit", "-1"],
+    {
+      env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+    },
+  );
+
+  assert.notEqual(result.code, 0);
+  assert.match(result.stderr, /Invalid limit/);
 });
 
 test("issue search --limit 9999 is rejected", async () => {
