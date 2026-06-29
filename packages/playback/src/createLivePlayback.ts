@@ -19,6 +19,7 @@ import { Observable, Subscription, first, skipUntil } from 'rxjs'
 import {
   Breakpoint,
   ControlFrame,
+  IdleRegion,
   Playback,
   PlaybackSpeed,
   PlaybackState,
@@ -52,6 +53,12 @@ export function createLivePlayback(event$: Observable<SourceEvent>): Playback {
     Array<Breakpoint>
   >([])
   const [$breakpointsEnabled, _setBreakpointsEnabled, getBreakpointsEnabled] =
+    createAtom(false)
+
+  const [$idleRegions, _setIdleRegions, getIdleRegions] = createAtom<
+    Array<IdleRegion>
+  >([])
+  const [$idleSkipEnabled, _setIdleSkipEnabled, getIdleSkipEnabled] =
     createAtom(false)
 
   const [$speed, setSpeedAtom, getSpeed] = createAtom<PlaybackSpeed>(1)
@@ -127,6 +134,10 @@ export function createLivePlayback(event$: Observable<SourceEvent>): Playback {
   }
 
   function listBreakingEvents() {
+    // No-op for live playback
+  }
+
+  function setIdleSkipEnabled() {
     // No-op for live playback
   }
 
@@ -227,6 +238,8 @@ export function createLivePlayback(event$: Observable<SourceEvent>): Playback {
     $breakpoints,
     $breakpointsEnabled,
     $speed,
+    $idleRegions,
+    $idleSkipEnabled,
 
     // Accessors
     getActiveIndex,
@@ -246,6 +259,8 @@ export function createLivePlayback(event$: Observable<SourceEvent>): Playback {
     getBreakpoints,
     getBreakpointsEnabled,
     getSpeed,
+    getIdleRegions,
+    getIdleSkipEnabled,
 
     // Breakpoints
     addBreakpoint,
@@ -263,6 +278,7 @@ export function createLivePlayback(event$: Observable<SourceEvent>): Playback {
     seekToEvent,
     seekToTime,
     setSpeed,
+    setIdleSkipEnabled,
 
     // Lifecycle
     open,

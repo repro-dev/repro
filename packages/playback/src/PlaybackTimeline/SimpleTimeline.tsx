@@ -14,6 +14,7 @@ import {
 } from 'rxjs/operators'
 import { usePlayback } from '../hooks'
 import { PlaybackState } from '../types'
+import { IdleSkipToggle } from './IdleSkipToggle'
 import { PlayAction } from './PlayAction'
 import { PlaybackKeyboardShortcuts } from './PlaybackKeyboardShortcuts'
 import { SpeedControl } from './SpeedControl'
@@ -39,9 +40,10 @@ export const SimpleTimeline: React.FC<Props> = ({ children, min, max }) => {
       const ghost = createGhostElement()
       const progress = createProgressElement()
       const tooltip = createTooltipElement()
+      const idleContainer = createIdleRegionContainer()
       const elapsedTime = elapsedTimeRef.current
 
-      root.append(background, buffer, ghost, progress, tooltip)
+      root.append(background, idleContainer, buffer, ghost, progress, tooltip)
 
       function getMinValue() {
         return min !== undefined ? min : 0
@@ -226,6 +228,38 @@ export const SimpleTimeline: React.FC<Props> = ({ children, min, max }) => {
             updateElapsedTime(elapsedTime, formatTime(elapsed, 'seconds'))
           })
       )
+
+      subscription.add(
+        playback.$idleRegions.subscribe(regions => {
+          // Clear previous idle bars
+          while (idleContainer.firstChild) {
+            idleContainer.firstChild.remove()
+          }
+
+          for (const region of regions) {
+            const bar = document.createElement('div')
+            const leftOffset = mapValueToOffset(region.start)
+            const widthOffset = mapValueToOffset(region.end) - leftOffset
+
+            const barStyles = [
+              ['backgroundColor', color.bg.hover as string],
+              ['height', '100%'],
+              ['left', `${leftOffset * 100}%`],
+              ['opacity', '0.5'],
+              ['pointerEvents', 'none'],
+              ['position', 'absolute'],
+              ['top', '0'],
+              ['width', `${Math.max(widthOffset * 100, 0.5)}%`],
+            ] as const
+
+            for (const [key, value] of barStyles) {
+              bar.style[key as any] = value
+            }
+
+            idleContainer.appendChild(bar)
+          }
+        })
+      )
     }
 
     return () => {
@@ -243,6 +277,7 @@ export const SimpleTimeline: React.FC<Props> = ({ children, min, max }) => {
     <Row alignItems="center" height="100%" gap={spacing.md}>
       <PlayAction />
       <SpeedControl />
+      <IdleSkipToggle />
       <PlaybackKeyboardShortcuts />
 
       <Row alignItems="center" height="100%" width="100%" position="relative">
@@ -459,5 +494,24 @@ function showTooltip(target: HTMLElement) {
 
 function hideTooltip(target: HTMLElement) {
   target.style.display = 'none'
+}
+
+function createIdleRegionContainer() {
+  const elem = document.createElement('div')
+
+  const styles = [
+    ['height', '100%'],
+    ['left', '0'],
+    ['pointerEvents', 'none'],
+    ['position', 'absolute'],
+    ['top', '0'],
+    ['width', '100%'],
+  ] as const
+
+  for (const [key, value] of styles) {
+    elem.style[key] = value
+  }
+
+  return elem
 }
 /* eslint-enable */

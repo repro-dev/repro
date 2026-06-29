@@ -27,6 +27,7 @@ import { map, observeOn, pairwise, switchMap } from 'rxjs/operators'
 import {
   Breakpoint,
   ControlFrame,
+  IdleRegion,
   Playback,
   PlaybackSpeed,
   PlaybackState,
@@ -36,16 +37,60 @@ import { findMatchingBreakpoint } from './utils/breakpoint'
 
 const EMPTY_SNAPSHOT = createEmptySnapshot()
 const EMPTY_BUFFER = new List(SourceEventView, [])
+export const DEFAULT_IDLE_THRESHOLD_MS = 2000
+
+export interface PlaybackOptions {
+  idleThresholdMs?: number
+}
+
+export function buildIdleRegions(
+  events: List<SourceEventView>,
+  duration: number,
+  idleThresholdMs: number
+): Array<IdleRegion> {
+  const regions: Array<IdleRegion> = []
+  let lastActivityTime = 0
+  let hasActivity = false
+
+  for (let i = 0, len = events.size(); i < len; i++) {
+    const dataView = events.at(i)
+    if (!dataView) continue
+
+    const event = SourceEventView.over(dataView)
+    event.apply(event => {
+      if (
+        event.type === SourceEventType.Interaction ||
+        event.type === SourceEventType.DOMPatch
+      ) {
+        if (event.time - lastActivityTime > idleThresholdMs) {
+          regions.push({ start: lastActivityTime, end: event.time })
+        }
+        lastActivityTime = event.time
+        hasActivity = true
+      }
+    })
+  }
+
+  // Trailing idle region (only if there was at least one activity event)
+  if (hasActivity && duration - lastActivityTime > idleThresholdMs) {
+    regions.push({ start: lastActivityTime, end: duration })
+  }
+
+  return regions
+}
+
 export const EMPTY_PLAYBACK = createSourcePlayback(
   new List(SourceEventView, []),
   0,
+  {},
   {}
 )
 
 export function createSourcePlayback(
   events: List<SourceEventView>,
   duration: number,
-  resourceMap: Record<string, string>
+  resourceMap: Record<string, string>,
+  options?: PlaybackOptions
 ): Playback {
   const [$activeIndex, setActiveIndex, getActiveIndex] = createAtom(-1)
   const [$buffer, setBuffer, getBuffer] = createAtom(
@@ -77,6 +122,15 @@ export function createSourcePlayback(
     createAtom(true)
 
   const [$speed, setSpeedAtom, getSpeed] = createAtom<PlaybackSpeed>(1)
+
+  const idleThresholdMs = options?.idleThresholdMs ?? DEFAULT_IDLE_THRESHOLD_MS
+
+  const [$idleRegions, setIdleRegions, getIdleRegions] = createAtom<
+    Array<IdleRegion>
+  >(buildIdleRegions(events, duration, idleThresholdMs))
+
+  const [$idleSkipEnabled, setIdleSkipEnabledAtom, getIdleSkipEnabled] =
+    createAtom(true)
 
   const snapshotIndex: Array<number> = []
 
@@ -237,6 +291,7 @@ export function createSourcePlayback(
             )
 
             buildSnapshotIndex()
+            setIdleRegions(buildIdleRegions(events, duration, idleThresholdMs))
 
             if (getSnapshot() === EMPTY_SNAPSHOT) {
               setSnapshot(getLeadingSnapshot())
@@ -282,9 +337,45 @@ export function createSourcePlayback(
     })
   )
 
+  let idleSkipGuard = false
+
+  function skipIdleRegion(elapsed: number) {
+    if (
+      idleSkipGuard ||
+      getPlaybackState() !== PlaybackState.Playing ||
+      !getIdleSkipEnabled()
+    ) {
+      return false
+    }
+
+    const region = getIdleRegions().find(
+      r => elapsed >= r.start && elapsed < r.end
+    )
+    if (region) {
+      // Only skip if there's an actual time advance — region end beyond the
+      // last event is a no-op that would trigger infinite re-entry.
+      const targetTime = Math.min(region.end, getLatestEventTime())
+      if (targetTime <= elapsed) {
+        return false
+      }
+      idleSkipGuard = true
+      seekToTime(region.end)
+      idleSkipGuard = false
+      return true
+    }
+    return false
+  }
+
   subscription.add(
     $elapsed.subscribe(elapsed => {
       unlessMutexLock(() => {
+        // Idle-skip check: if playing and idle skip is enabled, seek past
+        // any idle region we've entered. Must return early to avoid
+        // double-processing (seekToTime already handles partitioning).
+        if (skipIdleRegion(elapsed)) {
+          return
+        }
+
         const breakpoints = getBreakpoints()
         const breakingEvent = getBreakingEvent()
         const breakpointsEnabled = getBreakpointsEnabled()
@@ -551,6 +642,8 @@ export function createSourcePlayback(
 
   function play() {
     setPlaybackState(PlaybackState.Playing)
+    // Check if we're currently in an idle region and skip immediately
+    skipIdleRegion(getElapsed())
   }
 
   function pause() {
@@ -561,6 +654,10 @@ export function createSourcePlayback(
     if (VALID_SPEEDS.includes(speed)) {
       setSpeedAtom(speed)
     }
+  }
+
+  function setIdleSkipEnabled(enabled: boolean) {
+    setIdleSkipEnabledAtom(enabled)
   }
 
   function seekToEvent(nextIndex: number) {
@@ -733,6 +830,9 @@ export function createSourcePlayback(
 
       setLatestControlFrame(ControlFrame.SeekToTime)
     })
+
+    // Check if we landed in an idle region after seeking
+    skipIdleRegion(getElapsed())
   }
 
   function open() {
@@ -745,7 +845,9 @@ export function createSourcePlayback(
   }
 
   function copy() {
-    return createSourcePlayback(events, duration, resourceMap)
+    return createSourcePlayback(events, duration, resourceMap, {
+      idleThresholdMs,
+    })
   }
 
   return {
@@ -761,6 +863,8 @@ export function createSourcePlayback(
     $breakpoints,
     $breakpointsEnabled,
     $speed,
+    $idleRegions,
+    $idleSkipEnabled,
 
     // Accessors
     getActiveIndex,
@@ -780,6 +884,8 @@ export function createSourcePlayback(
     getBreakpoints,
     getBreakpointsEnabled,
     getSpeed,
+    getIdleRegions,
+    getIdleSkipEnabled,
 
     // Breakpoints
     addBreakpoint,
@@ -797,6 +903,7 @@ export function createSourcePlayback(
     seekToEvent,
     seekToTime,
     setSpeed,
+    setIdleSkipEnabled,
 
     // Lifecycle
     open,

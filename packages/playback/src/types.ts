@@ -30,6 +30,11 @@ export interface VNodeBreakpoint {
 
 export type Breakpoint = VNodeBreakpoint
 
+export interface IdleRegion {
+  start: number
+  end: number
+}
+
 // Valid playback speed multipliers
 export type PlaybackSpeed = 0.5 | 1 | 1.5 | 2 | 4
 
@@ -48,6 +53,8 @@ export interface Playback {
   readonly $breakpoints: Atom<Array<Breakpoint>>
   readonly $breakpointsEnabled: Atom<boolean>
   readonly $speed: Atom<PlaybackSpeed>
+  readonly $idleRegions: Atom<Array<IdleRegion>>
+  readonly $idleSkipEnabled: Atom<boolean>
 
   // Accessors
   getActiveIndex(): number
@@ -67,6 +74,8 @@ export interface Playback {
   getBreakpoints(): Array<Breakpoint>
   getBreakpointsEnabled(): boolean
   getSpeed(): PlaybackSpeed
+  getIdleRegions(): Array<IdleRegion>
+  getIdleSkipEnabled(): boolean
 
   // Breakpoints
   addBreakpoint(breakpoint: Breakpoint): void
@@ -84,6 +93,7 @@ export interface Playback {
   seekToEvent(index: number): void
   seekToTime(time: number): void
   setSpeed(speed: PlaybackSpeed): void
+  setIdleSkipEnabled(enabled: boolean): void
 
   // Lifecycle
   open(): void

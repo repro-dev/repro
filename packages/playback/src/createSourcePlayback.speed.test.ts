@@ -65,6 +65,7 @@ describe('createSourcePlayback speed advancement', () => {
 
     const playback = createSourcePlayback(events, 10000, {})
     playback.open()
+    playback.setIdleSkipEnabled(false)
     playback.setSpeed(2)
     // seekToTime(0) sets elapsed=0; requires latestEventTime > 0 to succeed
     playback.seekToTime(0)

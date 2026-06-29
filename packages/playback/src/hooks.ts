@@ -78,3 +78,13 @@ export function useSpeed() {
   const playback = usePlayback()
   return useAtomValue(playback.$speed)
 }
+
+export function useIdleSkipEnabled() {
+  const playback = usePlayback()
+  return useAtomValue(playback.$idleSkipEnabled)
+}
+
+export function useIdleRegions() {
+  const playback = usePlayback()
+  return useAtomValue(playback.$idleRegions)
+}
