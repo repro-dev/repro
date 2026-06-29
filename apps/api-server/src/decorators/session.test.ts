@@ -237,6 +237,7 @@ describe('Decorators > Session — Bearer token / API key auth', () => {
 
       const cookieNames = res.cookies.map(c => c.name)
       expect(cookieNames).not.toContain(harness.env.SESSION_COOKIE)
+      expect(cookieNames).not.toContain(harness.env.STAFF_SESSION_COOKIE)
     })
 
     it('should not leak the raw API key value into any response header', async () => {

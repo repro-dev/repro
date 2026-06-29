@@ -278,6 +278,92 @@ describe('Routers > Staff', () => {
       })
       expect(userMeRes.statusCode).toEqual(200)
     })
+
+    it('user logout clears only the user cookie and does not affect staff session', async () => {
+      // Create staff user + login
+      await promise(
+        accountService.createStaffUser(
+          'Staff3',
+          'staff3@example.com',
+          'hunter2!'
+        )
+      )
+
+      const staffLoginRes = await app.inject({
+        method: 'POST',
+        url: '/staff/login',
+        body: { email: 'staff3@example.com', password: 'hunter2!' },
+      })
+      const staffCookie = staffLoginRes.cookies.find(
+        c => c.name === harness.env.STAFF_SESSION_COOKIE
+      )
+      expect(staffCookie).toBeDefined()
+      const rawStaffToken = unsign(
+        staffCookie!.value,
+        harness.env.SESSION_SECRET
+      ).value as string
+
+      // Create user account + login
+      const workspaceAccount = await promise(accountService.createAccount('WB'))
+      await promise(
+        accountService.createUser(
+          workspaceAccount.id,
+          'User3',
+          'user3@example.com',
+          'hunter2!'
+        )
+      )
+
+      const userLoginRes = await userApp.inject({
+        method: 'POST',
+        url: '/login',
+        body: { email: 'user3@example.com', password: 'hunter2!' },
+      })
+      const userCookie = userLoginRes.cookies.find(
+        c => c.name === harness.env.SESSION_COOKIE
+      )
+      expect(userCookie).toBeDefined()
+      const rawUserToken = unsign(userCookie!.value, harness.env.SESSION_SECRET)
+        .value as string
+
+      // User logout — should revoke only the user session
+      const logoutRes = await userApp.inject({
+        method: 'POST',
+        url: '/logout',
+        cookies: {
+          [harness.env.STAFF_SESSION_COOKIE]: staffCookie!.value,
+          [harness.env.SESSION_COOKIE]: userCookie!.value,
+        },
+      })
+      expect(logoutRes.statusCode).toEqual(204)
+
+      // User session should be revoked in DB
+      await expect(
+        promise(accountService.getSessionByToken(rawUserToken))
+      ).rejects.toThrow()
+
+      // Staff session should still be valid
+      const staffSession = await promise(
+        accountService.getSessionByToken(rawStaffToken)
+      )
+      expect(staffSession.subjectType).toEqual('staff')
+
+      // User cookie should be cleared in the set-cookie header
+      const setCookieHeader = logoutRes.headers['set-cookie'] as string
+      if (setCookieHeader) {
+        expect(setCookieHeader).toContain(harness.env.SESSION_COOKIE + '=;')
+      }
+
+      // Staff session can still authenticate a staff route
+      const staffMeRes = await app.inject({
+        method: 'GET',
+        url: '/staff/me',
+        cookies: {
+          [harness.env.STAFF_SESSION_COOKIE]: staffCookie!.value,
+        },
+      })
+      expect(staffMeRes.statusCode).toEqual(200)
+    })
   })
 
   /* ---------- AC4: configurability ---------- */
