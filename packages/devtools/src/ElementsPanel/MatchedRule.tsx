@@ -9,6 +9,8 @@ import {
 } from '@repro/design'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 
+import { SelectorText } from './SelectorText'
+
 import type { MatchedRuleEntry } from '../hooks'
 
 interface MatchedRuleProps {
@@ -113,9 +115,15 @@ export const MatchedRule: React.FC<MatchedRuleProps> = ({
             lineHeight={lineHeight.relaxed}
             props={{ ref: selectorRef }}
           >
-            {selectorText || 'element.style'}
+            {selectorText ? (
+              <SelectorText text={selectorText} />
+            ) : (
+              'element.style'
+            )}
             {selectorText && isTruncated && (
-              <Tooltip position="top-start">{selectorText}</Tooltip>
+              <Tooltip position="top-start">
+                <SelectorText text={selectorText} />
+              </Tooltip>
             )}
           </Block>
           <Block
