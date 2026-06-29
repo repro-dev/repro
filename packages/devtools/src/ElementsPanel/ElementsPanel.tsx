@@ -1,12 +1,13 @@
 import { Block, Col, Grid } from '@jsxstyle/react'
 import { useSelector } from '@repro/atom'
-import { color, Tabs } from '@repro/design'
+import { color, spacing, Tabs } from '@repro/design'
 import { NodeId, VElement, VTree } from '@repro/domain'
 import { BreakpointType, usePlayback, useSnapshot } from '@repro/playback'
 import { isDocumentVNode, isElementVNode } from '@repro/vdom-utils'
 import React, { useCallback, useEffect, useState } from 'react'
 import { ElementTree } from '../ElementTree'
 import { useElementPicker, useFocusedNode, useSelectedNode } from '../hooks'
+import { SelectedNodeBoxModel } from './SelectedNodeBoxModel'
 import { SelectedNodeComputedStyle } from './SelectedNodeComputedStyle'
 import { StylesPane } from './StylesPane'
 
@@ -136,6 +137,8 @@ const SidebarPane: React.FC = () => {
           <StylesPane />
         </Tabs.Panel>
         <Tabs.Panel value="computed">
+          <SelectedNodeBoxModel />
+          <Block paddingBottom={spacing.md} />
           <SelectedNodeComputedStyle />
         </Tabs.Panel>
       </Tabs>
