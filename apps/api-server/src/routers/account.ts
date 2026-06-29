@@ -21,6 +21,7 @@ import { defaultSystemConfig } from '~/config/system'
 import { EmailModule } from '~/modules/email'
 import { createRequestLogContext } from '~/modules/logger'
 import { AccountService } from '~/services/account'
+import { TransactionalEmailService } from '~/services/transactionalEmail'
 import { isNotFound, notAuthenticated, resourceConflict } from '~/utils/errors'
 import { getCurrentUserAccount } from '~/utils/request'
 import { createResponseUtils } from '~/utils/response'
@@ -95,7 +96,8 @@ const updatePrivacyPresetSchema = {
 export function createAccountRouter(
   accountService: AccountService,
   emailModule: EmailModule,
-  config = defaultSystemConfig
+  config = defaultSystemConfig,
+  transactionalEmailService?: TransactionalEmailService
 ): FastifyPluginAsync {
   const { respondWith } = createResponseUtils(config)
 
@@ -195,7 +197,7 @@ export function createAccountRouter(
                   .createInvitation(account.id, req.body.email)
                   .pipe(
                     map(invitation => {
-                      emailModule.sendEmailInBackground(
+                      transactionalEmailService?.enqueue(
                         {
                           to: invitation.email,
                           from: emailModule.emailFromAddress,
@@ -211,6 +213,7 @@ export function createAccountRouter(
                         },
                         {
                           emailKind: 'invitation',
+                          idempotencyKey: `email.send:invitation:${invitation.id}`,
                           context: {
                             ...createRequestLogContext(req),
                             accountId: account.id,
@@ -370,7 +373,7 @@ export function createAccountRouter(
             )(user =>
               accountService.createPasswordResetToken(user.id).pipe(
                 map(token => {
-                  emailModule.sendEmailInBackground(
+                  transactionalEmailService?.enqueue(
                     {
                       to: user.email,
                       from: emailModule.emailFromAddress,
@@ -384,6 +387,7 @@ export function createAccountRouter(
                     },
                     {
                       emailKind: 'password_reset',
+                      idempotencyKey: `email.send:password_reset:${token}`,
                       context: {
                         ...createRequestLogContext(req),
                         targetUserId: user.id,

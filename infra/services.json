@@ -71,6 +71,7 @@
       "OUTBOX_WORKER_STALE_AFTER_MS": "300000",
       "STORAGE_PATH": "/tmp/repro-storage"
     },
+    "env_passthrough": ["RESEND_API_KEY"],
     "resource_deps": ["dependencies", "database-ready"],
     "deps": []
   },

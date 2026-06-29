@@ -1,5 +1,5 @@
 import expect from 'expect'
-import { promise, reject } from 'fluture'
+import { promise } from 'fluture'
 import { after, before, beforeEach, describe, it } from 'node:test'
 import { fixtures } from '~/testing'
 import {
@@ -23,7 +23,7 @@ describe('Routers > Account > Invitations', () => {
     await context.harness.close()
   })
 
-  it('should create an invitation for a user without an account', async () => {
+  it('should enqueue an invitation email and drain to sent emails', async () => {
     const [account, adminUser, session] = await context.harness.loadFixtures([
       fixtures.account.AccountA,
       fixtures.account.AdminUserA,
@@ -47,7 +47,7 @@ describe('Routers > Account > Invitations', () => {
 
     const invitation = await context.harness.db
       .selectFrom('invitations')
-      .select(['email', 'token'])
+      .select(['email', 'token', 'id'])
       .where('email', '=', 'hello@example.com')
       .executeTakeFirstOrThrow()
 
@@ -58,8 +58,17 @@ describe('Routers > Account > Invitations', () => {
     invitationUrl.searchParams.set('invitationToken', invitation.token)
     invitationUrl.searchParams.set('email', invitation.email)
 
-    const [message] = context.harness.getSentEmails()
+    // Assert enqueued job
+    const jobs = await context.harness.getEnqueuedEmailJobs()
+    expect(jobs).toHaveLength(1)
+    expect(jobs[0]?.idempotencyKey).toMatch(
+      /^email\.send:invitation:[A-Za-z0-9]{7}$/
+    )
 
+    // Drain and assert sent emails
+    await context.harness.drainOutbox()
+
+    const [message] = context.harness.getSentEmails()
     expect(context.harness.getSentEmails()).toHaveLength(1)
     expect(message).toMatchObject({
       to: 'hello@example.com',
@@ -72,43 +81,40 @@ describe('Routers > Account > Invitations', () => {
     )
   })
 
-  it('should still return 201 if invitation email delivery fails', async () => {
-    const failingContext = await createAccountTestContext({
-      sendEmail: () => reject(new Error('unexpected send')),
+  it('should still return 201 if invitation email enqueue fails (non-blocking)', async () => {
+    // With the enqueue path, request still succeeds even if delivery would fail
+    const [, , session] = await context.harness.loadFixtures([
+      fixtures.account.AccountA,
+      fixtures.account.AdminUserA,
+      fixtures.account.AdminUserA_Session,
+    ])
+
+    const res = await context.app.inject({
+      method: 'POST',
+      url: '/invite',
+      body: {
+        email: 'failed@example.com',
+      },
+      cookies: {
+        [context.harness.env.SESSION_COOKIE]: context.app.signCookie(
+          session.sessionToken
+        ),
+      },
     })
 
-    try {
-      const [, , session] = await failingContext.harness.loadFixtures([
-        fixtures.account.AccountA,
-        fixtures.account.AdminUserA,
-        fixtures.account.AdminUserA_Session,
-      ])
+    expect(res.statusCode).toEqual(201)
 
-      const res = await failingContext.app.inject({
-        method: 'POST',
-        url: '/invite',
-        body: {
-          email: 'failed@example.com',
-        },
-        cookies: {
-          [failingContext.harness.env.SESSION_COOKIE]:
-            failingContext.app.signCookie(session.sessionToken),
-        },
-      })
+    const invitation = await context.harness.db
+      .selectFrom('invitations')
+      .select(['email', 'token'])
+      .where('email', '=', 'failed@example.com')
+      .executeTakeFirstOrThrow()
 
-      expect(res.statusCode).toEqual(201)
+    expect(invitation).toMatchObject({ email: 'failed@example.com' })
 
-      const invitation = await failingContext.harness.db
-        .selectFrom('invitations')
-        .select(['email', 'token'])
-        .where('email', '=', 'failed@example.com')
-        .executeTakeFirstOrThrow()
-
-      expect(invitation).toMatchObject({ email: 'failed@example.com' })
-      expect(failingContext.harness.getSentEmails()).toHaveLength(1)
-    } finally {
-      await failingContext.harness.close()
-    }
+    // Email job should be enqueued
+    const jobs = await context.harness.getEnqueuedEmailJobs()
+    expect(jobs).toHaveLength(1)
   })
 
   it.todo(

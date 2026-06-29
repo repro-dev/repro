@@ -49,6 +49,7 @@ import { createRecordingService } from '~/services/recording'
 import { createRecordingFinalizationService } from '~/services/recordingFinalization'
 import { createShareService } from '~/services/share'
 import { createSocialAuthService } from '~/services/socialAuth'
+import { createTransactionalEmailService } from '~/services/transactionalEmail'
 import { serverError } from '~/utils/errors'
 import { createHttpClient } from './modules/http'
 import { createShareRouter } from './routers/share'
@@ -211,19 +212,24 @@ async function bootstrap() {
 
   const emailModule = createEmailModule({ logger: app.log })
   const billingService = createBillingService(database, env, undefined, app.log)
+  const outboxService = createOutboxService(database, {
+    defaultMaxAttempts: env.OUTBOX_WORKER_DEFAULT_MAX_ATTEMPTS,
+  })
+  const transactionalEmailService = createTransactionalEmailService({
+    outboxService,
+    logger: app.log,
+  })
   const accountService = createAccountService(
     database,
     emailModule,
     billingService,
-    undefined
+    undefined,
+    transactionalEmailService
   )
   const agenticService = createAgenticService(database, httpClient)
   const oauthService = createOAuthService(database)
   const apiKeyService = createApiKeyService(database)
   const featureGateService = createFeatureGateService(database)
-  const outboxService = createOutboxService(database, {
-    defaultMaxAttempts: env.OUTBOX_WORKER_DEFAULT_MAX_ATTEMPTS,
-  })
   const recordingFinalizationService = createRecordingFinalizationService(
     database,
     outboxService
@@ -277,7 +283,12 @@ async function bootstrap() {
     pmProviders
   )
 
-  const accountRouter = createAccountRouter(accountService, emailModule)
+  const accountRouter = createAccountRouter(
+    accountService,
+    emailModule,
+    undefined,
+    transactionalEmailService
+  )
   const agenticRouter = createAgenticRouter(
     agenticService,
     accountService,

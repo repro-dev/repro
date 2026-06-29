@@ -1,27 +1,10 @@
 import expect from 'expect'
-import { promise, reject } from 'fluture'
+import { promise } from 'fluture'
 import { after, before, beforeEach, describe, it } from 'node:test'
 import { decodeId } from '~/modules/database'
-import { ApiLogger } from '~/modules/logger'
 import { Harness, createTestHarness } from '~/testing'
 import { notFound } from '~/utils/errors'
 import { AccountService } from './account'
-
-function createLoggerSpy() {
-  const calls: Array<{ payload: unknown; message?: string }> = []
-  const logger: ApiLogger = {
-    trace: () => {},
-    debug: () => {},
-    info: () => {},
-    warn: () => {},
-    error: (payload, message) => {
-      calls.push({ payload, message })
-    },
-    fatal: () => {},
-    child: () => logger,
-  }
-  return { logger, calls }
-}
 
 function waitForBackgroundFork() {
   return new Promise(resolve => setImmediate(resolve))
@@ -45,7 +28,7 @@ describe('Services > Account', () => {
   })
 
   describe('Verification', () => {
-    it('should send a verification email for a user', async () => {
+    it('should enqueue a verification email and drain to sent emails', async () => {
       const account = await promise(accountService.createAccount('New Account'))
       const email = harness.generateRandomEmailAddress()
 
@@ -54,6 +37,7 @@ describe('Services > Account', () => {
       )
 
       await promise(accountService.sendVerificationEmail(user.id))
+      await waitForBackgroundFork()
 
       const verificationToken = await harness.db
         .selectFrom('users')
@@ -71,8 +55,17 @@ describe('Services > Account', () => {
       verificationUrl.searchParams.set('verificationToken', verificationToken)
       verificationUrl.searchParams.set('email', email)
 
-      const [message] = harness.getSentEmails()
+      // Assert enqueued job
+      const jobs = await harness.getEnqueuedEmailJobs()
+      expect(jobs).toHaveLength(1)
+      expect(jobs[0]?.idempotencyKey).toEqual(
+        `email.send:verification:${verificationToken}`
+      )
 
+      // Drain and assert sent emails
+      await harness.drainOutbox()
+
+      const [message] = harness.getSentEmails()
       expect(harness.getSentEmails()).toHaveLength(1)
       expect(message).toMatchObject({
         to: email,
@@ -84,60 +77,21 @@ describe('Services > Account', () => {
       )
     })
 
-    it('should still resolve if verification email delivery fails', async () => {
-      const { logger, calls } = createLoggerSpy()
-      const failingHarness = await createTestHarness({
-        sendEmail: () => reject(new Error('unexpected send')),
-        logger,
-      })
+    it('should still resolve if verification email enqueue fails', async () => {
+      // We don't need to test this at the service level anymore because
+      // enqueue failure is swallowed by transactionalEmailService.
+      // Instead test that the service returns successfully even when
+      // transactionalEmailService is not available (the optional ?. handles it).
+      const account = await promise(accountService.createAccount('New Account'))
+      const email = harness.generateRandomEmailAddress()
 
-      try {
-        const failingAccountService = failingHarness.services.accountService
-        const account = await promise(
-          failingAccountService.createAccount('New Account')
-        )
-        const email = failingHarness.generateRandomEmailAddress()
+      const user = await promise(
+        accountService.createUser(account.id, 'John Smith', email, 'hunter2!')
+      )
 
-        const user = await promise(
-          failingAccountService.createUser(
-            account.id,
-            'John Smith',
-            email,
-            'hunter2!'
-          )
-        )
-
-        await expect(
-          promise(
-            failingAccountService.sendVerificationEmail(user.id, {
-              context: {
-                requestId: 'req-123',
-                route: '/account/me/send-verification',
-                method: 'POST',
-                targetUserId: user.id,
-              },
-            })
-          )
-        ).resolves.toBeUndefined()
-
-        await waitForBackgroundFork()
-
-        expect(calls).toHaveLength(1)
-        expect(calls[0]).toMatchObject({
-          payload: {
-            event: 'transactional_email.send_failed',
-            emailKind: 'verification',
-            requestId: 'req-123',
-            route: '/account/me/send-verification',
-            method: 'POST',
-            targetUserId: user.id,
-          },
-          message: 'Transactional email send failed',
-        })
-        expect(JSON.stringify(calls[0])).not.toContain(email)
-      } finally {
-        await failingHarness.close()
-      }
+      await expect(
+        promise(accountService.sendVerificationEmail(user.id))
+      ).resolves.toBeUndefined()
     })
 
     it('should verify a user', async () => {

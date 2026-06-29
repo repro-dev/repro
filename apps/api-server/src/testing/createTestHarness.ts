@@ -1,7 +1,7 @@
 import { EmailMessage } from '@repro/email'
 import { randomString } from '@repro/random-string'
 import { FastifyInstance, FastifyPluginAsync } from 'fastify'
-import { resolve } from 'fluture'
+import { map, promise, resolve } from 'fluture'
 import { sql } from 'kysely'
 import { Env, createEnv } from '~/config/createEnv'
 import { createSessionDecorator } from '~/decorators/session'
@@ -19,10 +19,14 @@ import { createAccountService } from '~/services/account'
 import { createBillingService } from '~/services/billing'
 import { createFeatureGateService } from '~/services/featureGate'
 import { createOAuthService } from '~/services/oauth'
+import { createOutboxService } from '~/services/outbox'
+import { createOutboxWorker } from '~/services/outboxWorker'
 import { createPmIntegrationService } from '~/services/pmIntegrations'
 import { createProjectService } from '~/services/project'
 import { createRecordingService } from '~/services/recording'
 import { createSocialAuthService } from '~/services/socialAuth'
+import { createTransactionalEmailService } from '~/services/transactionalEmail'
+import { EMAIL_SEND_JOB_TYPE } from '~/workers/outboxRegistry'
 import { setUpTestDatabase } from './database'
 import { loadFixtures } from './loadFixtures'
 import { setUpTestFileSystemStorage } from './storage'
@@ -38,6 +42,16 @@ export interface Harness {
   services: Services
   getLastUpdateSubscriptionParams(): UpdateSubscriptionParams | null
   getSentEmails(): Array<EmailMessage>
+  getEnqueuedEmailJobs(): Promise<
+    Array<{
+      type: string
+      payload: Record<string, unknown>
+      idempotencyKey: string | null
+      status: string
+      attempts: number
+    }>
+  >
+  drainOutbox(): Promise<void>
 
   bootstrap(router: FastifyPluginAsync): FastifyInstance
   generateRandomEmailAddress(): string
@@ -76,7 +90,17 @@ export async function createTestHarness(
 
   const stubPaddleClient = createStubPaddleClient(db)
   const billingService = createBillingService(db, env, stubPaddleClient)
-  const accountService = createAccountService(db, emailModule, billingService)
+  const outboxService = createOutboxService(db)
+  const transactionalEmailService = createTransactionalEmailService({
+    outboxService,
+  })
+  const accountService = createAccountService(
+    db,
+    emailModule,
+    billingService,
+    undefined,
+    transactionalEmailService
+  )
   const featureGateService = createFeatureGateService(db)
   const oauthService = createOAuthService(db)
   const projectService = createProjectService(db)
@@ -93,6 +117,7 @@ export async function createTestHarness(
     recordingService,
     socialAuthService,
     pmIntegrationService,
+    transactionalEmailService,
   }
 
   const sessionDecorator = createSessionDecorator(accountService, env)
@@ -110,6 +135,43 @@ export async function createTestHarness(
 
   function getSentEmails() {
     return [...emailLog]
+  }
+
+  async function getEnqueuedEmailJobs() {
+    const rows = await db
+      .selectFrom('outbox_jobs')
+      .select(['type', 'payload', 'idempotencyKey', 'status', 'attempts'])
+      .where('type', '=', EMAIL_SEND_JOB_TYPE)
+      .orderBy('id', 'asc')
+      .execute()
+    return rows.map(row => ({
+      ...row,
+      payload: row.payload as Record<string, unknown>,
+    }))
+  }
+
+  async function drainOutbox() {
+    const worker = createOutboxWorker({
+      outboxService,
+      registry: {
+        [EMAIL_SEND_JOB_TYPE]: (payload, _job) => {
+          const p = payload as unknown as {
+            message: EmailMessage
+            emailKind: string
+          }
+          return sendEmail(p.message)
+        },
+      },
+      config: {
+        workerId: 'harness-drain',
+        batchSize: 10,
+        pollIntervalMs: 1000,
+        baseDelayMs: 100,
+        maxDelayMs: 1000,
+        staleAfterMs: 60000,
+      },
+    })
+    await promise(worker.runOnce().pipe(map(() => undefined)))
   }
 
   async function reset() {
@@ -143,9 +205,11 @@ export async function createTestHarness(
 
     bootstrap,
     generateRandomEmailAddress,
+    getEnqueuedEmailJobs,
     getLastUpdateSubscriptionParams:
       stubPaddleClient.getLastUpdateSubscriptionParams,
     getSentEmails,
+    drainOutbox,
     loadFixtures: curriedLoadFixtures,
 
     reset,

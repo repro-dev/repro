@@ -1,6 +1,7 @@
 import pino from 'pino'
 import { defaultEnv as env } from '~/config/env'
 import { createPostgresDatabaseClient } from '~/modules/database'
+import { createEmailModule } from '~/modules/email'
 import { createFileSystemStorageClient } from '~/modules/storage-fs'
 import { createOutboxService } from '~/services/outbox'
 import { createOutboxWorker, OutboxWorkerLogger } from '~/services/outboxWorker'
@@ -34,9 +35,11 @@ const recordingErrorIndexingService = createRecordingErrorIndexingService(
   database,
   storage
 )
+const { sendEmail } = createEmailModule()
 const outboxRegistry = createDefaultOutboxRegistry({
   recordingFinalizationService,
   recordingErrorIndexingService,
+  sendEmail,
 })
 const workerId = `${process.pid}-${Date.now()}`
 

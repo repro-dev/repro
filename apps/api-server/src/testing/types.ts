@@ -7,6 +7,7 @@ import { PmIntegrationService } from '~/services/pmIntegrations'
 import { ProjectService } from '~/services/project'
 import { RecordingService } from '~/services/recording'
 import { SocialAuthService } from '~/services/socialAuth'
+import { TransactionalEmailService } from '~/services/transactionalEmail'
 
 export interface Services {
   accountService: AccountService
@@ -17,6 +18,7 @@ export interface Services {
   recordingService: RecordingService
   socialAuthService: SocialAuthService
   pmIntegrationService: PmIntegrationService
+  transactionalEmailService: TransactionalEmailService
 }
 
 export interface Fixture<T> {

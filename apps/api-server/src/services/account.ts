@@ -47,6 +47,7 @@ import {
 import { EmailModule } from '~/modules/email'
 import { BillingService } from '~/services/billing'
 import { getSessionPolicy } from '~/services/sessionPolicy'
+import { TransactionalEmailService } from '~/services/transactionalEmail'
 import {
   badRequest,
   notFound,
@@ -79,7 +80,8 @@ export function createAccountService(
   database: Database,
   emailModule: EmailModule,
   billingService?: BillingService,
-  _config: SystemConfig = defaultSystemConfig
+  _config: SystemConfig = defaultSystemConfig,
+  transactionalEmailService?: TransactionalEmailService
 ) {
   function ensureStaffUser(
     user: User | StaffUser | null
@@ -1384,7 +1386,7 @@ export function createAccountService(
         verificationUrl.searchParams.set('verificationToken', verificationToken)
         verificationUrl.searchParams.set('email', email)
 
-        emailModule.sendEmailInBackground(
+        transactionalEmailService?.enqueue(
           {
             to: email,
             from: emailModule.emailFromAddress,
@@ -1395,6 +1397,7 @@ export function createAccountService(
           },
           {
             emailKind: 'verification',
+            idempotencyKey: `email.send:verification:${verificationToken}`,
             context: {
               targetUserId: userId,
               ...options.context,

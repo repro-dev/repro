@@ -43,8 +43,14 @@ describe('Routers > Account > Verification', () => {
       },
     })
 
-    const [message] = context.harness.getSentEmails()
+    // Assert an email.send job was enqueued
+    const jobs = await context.harness.getEnqueuedEmailJobs()
+    expect(jobs).toHaveLength(1)
 
+    // Drain the outbox so the email is actually sent
+    await context.harness.drainOutbox()
+
+    const [message] = context.harness.getSentEmails()
     expect(context.harness.getSentEmails()).toHaveLength(1)
     expect(message).toMatchObject({
       to: 'jsmith@example.com',

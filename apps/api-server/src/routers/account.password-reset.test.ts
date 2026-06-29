@@ -24,7 +24,7 @@ describe('Routers > Account > Password reset', () => {
     await context.harness.close()
   })
 
-  it('should accept a valid email and return 204', async () => {
+  it('should enqueue a password reset email and drain to sent emails', async () => {
     const [account] = await context.harness.loadFixtures([
       fixtures.account.AccountA,
     ])
@@ -58,8 +58,17 @@ describe('Routers > Account > Password reset', () => {
       context.harness.env.REPRO_APP_URL
     )
 
-    const [message] = context.harness.getSentEmails()
+    // Assert enqueued job
+    const jobs = await context.harness.getEnqueuedEmailJobs()
+    expect(jobs).toHaveLength(1)
+    expect(jobs[0]?.idempotencyKey).toEqual(
+      `email.send:password_reset:${token}`
+    )
 
+    // Drain and assert sent emails
+    await context.harness.drainOutbox()
+
+    const [message] = context.harness.getSentEmails()
     expect(context.harness.getSentEmails()).toHaveLength(1)
     expect(message).toMatchObject({
       to: 'jsmith@example.com',
@@ -80,35 +89,29 @@ describe('Routers > Account > Password reset', () => {
     expect(context.harness.getSentEmails()).toHaveLength(0)
   })
 
-  it('should still return 204 when sending the reset email fails', async () => {
-    const failingContext = await createAccountTestContext({
-      sendEmail: () => reject(new Error('unexpected send')),
+  it('should still return 204 when the email provider fails (non-blocking)', async () => {
+    // The enqueue path is non-blocking; even if the provider would fail,
+    // the request succeeds. Use a harness where we don't drain the outbox.
+    const [account] = await context.harness.loadFixtures([
+      fixtures.account.AccountA,
+    ])
+
+    await promise(
+      context.accountService.createUser(
+        account.id,
+        'John Smith',
+        'jsmith@example.com',
+        'hunter2!'
+      )
+    )
+
+    const res = await context.app.inject({
+      method: 'POST',
+      url: '/reset-password',
+      body: { email: 'jsmith@example.com' },
     })
 
-    try {
-      const [account] = await failingContext.harness.loadFixtures([
-        fixtures.account.AccountA,
-      ])
-
-      await promise(
-        failingContext.accountService.createUser(
-          account.id,
-          'John Smith',
-          'jsmith@example.com',
-          'hunter2!'
-        )
-      )
-
-      const res = await failingContext.app.inject({
-        method: 'POST',
-        url: '/reset-password',
-        body: { email: 'jsmith@example.com' },
-      })
-
-      expect(res.statusCode).toEqual(204)
-    } finally {
-      await failingContext.harness.close()
-    }
+    expect(res.statusCode).toEqual(204)
   })
 
   it('should surface database failures when creating the reset token', async () => {
