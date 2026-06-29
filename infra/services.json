@@ -69,9 +69,10 @@
       "OUTBOX_WORKER_RETRY_BASE_MS": "1000",
       "OUTBOX_WORKER_RETRY_MAX_MS": "60000",
       "OUTBOX_WORKER_STALE_AFTER_MS": "300000",
-      "STORAGE_PATH": "/tmp/repro-storage"
+      "STORAGE_ENDPOINT": "http://localhost:18333",
+      "STORAGE_KEY_PREFIX": ""
     },
-    "resource_deps": ["dependencies", "database-ready"],
+    "resource_deps": ["dependencies", "database-ready", "storage-ready"],
     "deps": []
   },
   "workspace": {

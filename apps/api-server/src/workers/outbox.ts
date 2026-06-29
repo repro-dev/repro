@@ -1,7 +1,7 @@
 import pino from 'pino'
 import { defaultEnv as env } from '~/config/env'
 import { createPostgresDatabaseClient } from '~/modules/database'
-import { createFileSystemStorageClient } from '~/modules/storage-fs'
+import { createS3StorageClient } from '~/modules/storage-s3'
 import { createOutboxService } from '~/services/outbox'
 import { createOutboxWorker, OutboxWorkerLogger } from '~/services/outboxWorker'
 import { createRecordingErrorIndexingService } from '~/services/recordingErrorIndexing'
@@ -20,7 +20,14 @@ const database = createPostgresDatabaseClient({
   ssl: env.DB_SSL,
 })
 
-const storage = createFileSystemStorageClient({ path: env.STORAGE_PATH })
+const storage = createS3StorageClient({
+  endpoint: env.STORAGE_ENDPOINT,
+  region: env.STORAGE_REGION,
+  bucket: env.STORAGE_BUCKET,
+  accessKeyId: env.STORAGE_ACCESS_KEY_ID,
+  secretAccessKey: env.STORAGE_SECRET_ACCESS_KEY,
+  keyPrefix: env.STORAGE_KEY_PREFIX,
+})
 
 const outboxService = createOutboxService(database, {
   defaultMaxAttempts: env.OUTBOX_WORKER_DEFAULT_MAX_ATTEMPTS,
