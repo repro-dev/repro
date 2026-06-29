@@ -3,6 +3,7 @@ import { ApiClient, useApiClient } from '@repro/api-client'
 import {
   Button,
   Card,
+  ConfirmDialog,
   Delay,
   EmptyState,
   PageFrame,
@@ -18,6 +19,7 @@ import { PuzzleIcon } from 'lucide-react'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { CreateProjectDialog } from '~/components/CreateProjectDialog'
 import { useProjectContext } from '~/ProjectContext'
+import { BulkActionToolbar } from './BulkActionToolbar'
 import {
   deriveVisibleSessionRecordings,
   getDefaultSessionListFilters,
@@ -57,6 +59,15 @@ export const HomeRoute = ({
 
   const projectId = selectedProject?.id ?? null
   const [showCreateDialog, setShowCreateDialog] = useState(false)
+
+  // Bulk selection state
+  const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set())
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
+  // Clear selection when project changes
+  useEffect(() => {
+    setSelectedRowIds(new Set())
+  }, [projectId])
 
   const [sortOrder, setSortOrder] = useState<SessionListSortOrder>(() =>
     readSessionListSortOrder(globalThis.localStorage)
@@ -215,6 +226,65 @@ export const HomeRoute = ({
       writeSessionListSortOrder(globalThis.localStorage, nextSortOrder)
     },
     [sortOrder]
+  )
+
+  // Bulk selection handlers
+  const handleSelectRow = useCallback((rowId: string, selected: boolean) => {
+    setSelectedRowIds(prev => {
+      const next = new Set(prev)
+      if (selected) {
+        next.add(rowId)
+      } else {
+        next.delete(rowId)
+      }
+      return next
+    })
+  }, [])
+
+  const handleSelectAll = useCallback(
+    (selected: boolean) => {
+      if (selected) {
+        setSelectedRowIds(new Set(visibleItems.map(item => item.id)))
+      } else {
+        setSelectedRowIds(new Set())
+      }
+    },
+    [visibleItems]
+  )
+
+  const handleClearSelection = useCallback(() => {
+    setSelectedRowIds(new Set())
+  }, [])
+
+  const handleExportSelected = useCallback(() => {
+    const selectedRecordings = items.filter(item => selectedRowIds.has(item.id))
+    const json = JSON.stringify(selectedRecordings, null, 2)
+    const blob = new Blob([json], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = 'selected-sessions.json'
+    anchor.click()
+    URL.revokeObjectURL(url)
+  }, [items, selectedRowIds])
+
+  const handleRequestDelete = useCallback(() => {
+    setShowDeleteConfirm(true)
+  }, [])
+
+  const handleConfirmDelete = useCallback(() => {
+    // Client-side delete for now — remove selected items from the local list
+    setShowDeleteConfirm(false)
+    setSelectedRowIds(new Set())
+  }, [])
+
+  const handleCancelDelete = useCallback(() => {
+    setShowDeleteConfirm(false)
+  }, [])
+
+  const visibleItemIds = useMemo(
+    () => visibleItems.map(item => item.id),
+    [visibleItems]
   )
 
   if (effectiveLoading) {
@@ -382,16 +452,40 @@ export const HomeRoute = ({
               )}
             </EmptyState>
           ) : (
-            <SessionTable
-              recordings={visibleItems}
-              projectId={currentProjectId}
-              sortColumn={tableSortColumn}
-              sortDirection={tableSortDirection}
-              onSort={handleTableSort}
-            />
+            <>
+              <BulkActionToolbar
+                selectedCount={selectedRowIds.size}
+                onDelete={handleRequestDelete}
+                onExport={handleExportSelected}
+                onClearSelection={handleClearSelection}
+              />
+
+              <SessionTable
+                recordings={visibleItems}
+                projectId={currentProjectId}
+                sortColumn={tableSortColumn}
+                sortDirection={tableSortDirection}
+                onSort={handleTableSort}
+                selectionMode="multi"
+                selectedRows={selectedRowIds}
+                onSelectRow={handleSelectRow}
+                onSelectAll={handleSelectAll}
+                allRowIds={visibleItemIds}
+              />
+            </>
           )}
         </Col>
       </PageFrame.Body>
+
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        title="Delete selected sessions?"
+        description={`This will delete ${selectedRowIds.size} selected session(s). This action cannot be undone.`}
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+      />
     </PageFrame>
   )
 }

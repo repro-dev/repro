@@ -1,8 +1,14 @@
 import { ApiProvider, createApiClient } from '@repro/api-client'
 import { createAtom } from '@repro/atom'
-import { SideNavItem } from '@repro/design'
+import { PortalRootProvider, SideNavItem } from '@repro/design'
 import { Project, ProjectRole, User } from '@repro/domain'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react'
 import { resolve } from 'fluture'
 import assert from 'node:assert/strict'
 import { afterEach, beforeEach, describe, it } from 'node:test'
@@ -157,17 +163,19 @@ function renderLayoutWithRefs(
   return render(
     <MemoryRouter initialEntries={[initialPath]}>
       <ApiProvider client={apiClient}>
-        <TestAuthProvider sessionUser={sessionUser} apiClient={apiClient}>
-          <Layout />
-          {/* Reference items rendered off-screen to capture active/inactive
-              jsxstyle class names without affecting visible test content. */}
-          <div data-testid="ref-active" style={{ display: 'none' }}>
-            <SideNavItem label="ref-active-item" active={true} />
-          </div>
-          <div data-testid="ref-inactive" style={{ display: 'none' }}>
-            <SideNavItem label="ref-inactive-item" active={false} />
-          </div>
-        </TestAuthProvider>
+        <PortalRootProvider>
+          <TestAuthProvider sessionUser={sessionUser} apiClient={apiClient}>
+            <Layout />
+            {/* Reference items rendered off-screen to capture active/inactive
+                jsxstyle class names without affecting visible test content. */}
+            <div data-testid="ref-active" style={{ display: 'none' }}>
+              <SideNavItem label="ref-active-item" active={true} />
+            </div>
+            <div data-testid="ref-inactive" style={{ display: 'none' }}>
+              <SideNavItem label="ref-inactive-item" active={false} />
+            </div>
+          </TestAuthProvider>
+        </PortalRootProvider>
       </ApiProvider>
     </MemoryRouter>
   )
@@ -387,6 +395,61 @@ describe('Layout nav active states', () => {
 
     await waitFor(() => {
       assert.equal(screen.queryByRole('link', { name: /^account$/i }), null)
+    })
+  })
+})
+
+describe('Command palette integration', () => {
+  beforeEach(() => {
+    localStorageMock.setItem(STORAGE_KEY, 'project-1')
+  })
+
+  it('does not show the command palette by default', async () => {
+    renderLayoutWithRefs('/')
+
+    await waitFor(() => {
+      assert.ok(screen.queryByRole('link', { name: /^sessions$/i }))
+    })
+
+    // Command palette input should not be visible
+    assert.equal(screen.queryByPlaceholderText('Type a command…'), null)
+  })
+
+  it('shows the command palette when Cmd+K is pressed', async () => {
+    renderLayoutWithRefs('/')
+
+    await waitFor(() => {
+      assert.ok(screen.queryByRole('link', { name: /^sessions$/i }))
+    })
+
+    // Dispatch Cmd+K on document
+    fireEvent.keyDown(document, {
+      key: 'k',
+      metaKey: true,
+    })
+
+    // The command palette input should now be visible (via Portal)
+    await waitFor(() => {
+      assert.ok(screen.getByPlaceholderText('Type a command…'))
+    })
+  })
+
+  it('shows the command palette when Cmd+P is pressed', async () => {
+    renderLayoutWithRefs('/')
+
+    await waitFor(() => {
+      assert.ok(screen.queryByRole('link', { name: /^sessions$/i }))
+    })
+
+    // Dispatch Cmd+P on document
+    fireEvent.keyDown(document, {
+      key: 'p',
+      metaKey: true,
+    })
+
+    // The command palette input should now be visible
+    await waitFor(() => {
+      assert.ok(screen.getByPlaceholderText('Type a command…'))
     })
   })
 })
