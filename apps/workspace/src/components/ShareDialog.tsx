@@ -162,33 +162,23 @@ export const ShareDialog = ({
             Anyone with this link can view the recording and use the DevTools to
             debug it — just like a workspace member.
           </Block>
-          <Col gap={spacing.xs}>
-            <Row gap={spacing.sm} alignItems="baseline">
-              <Block {...textStyles.body} color={color.text.secondary}>
-                &bull;
-              </Block>
-              <Block {...textStyles.body} color={color.text.secondary}>
-                Recording title, URL, and description
-              </Block>
-            </Row>
-            <Row gap={spacing.sm} alignItems="baseline">
-              <Block {...textStyles.body} color={color.text.secondary}>
-                &bull;
-              </Block>
-              <Block {...textStyles.body} color={color.text.secondary}>
-                Browser, operating system, and duration
-              </Block>
-            </Row>
-            <Row gap={spacing.sm} alignItems="baseline">
-              <Block {...textStyles.body} color={color.text.secondary}>
-                &bull;
-              </Block>
-              <Block {...textStyles.body} color={color.text.secondary}>
-                Full playback with DevTools (Elements, Console, Network, and
-                other panels)
-              </Block>
-            </Row>
-          </Col>
+          <Block
+            component="ul"
+            margin={spacing.none}
+            paddingLeft={spacing.lg}
+            listStyleType="disc"
+            {...textStyles.body}
+            color={color.text.secondary}
+          >
+            <Block component="li">Recording title, URL, and description</Block>
+            <Block component="li">
+              Browser, operating system, and duration
+            </Block>
+            <Block component="li">
+              Full playback with DevTools (Elements, Console, Network, and other
+              panels)
+            </Block>
+          </Block>
         </Col>
 
         {shareToken ? (
