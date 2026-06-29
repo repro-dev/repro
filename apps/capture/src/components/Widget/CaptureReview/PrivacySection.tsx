@@ -35,6 +35,7 @@ const SUGGESTIONS: Array<{ label: string; selector: string }> = [
 ]
 
 const SUGGESTION_CLOSE_DELAY_MS = 200
+const PREVIEW_REVERT_DELAY_MS = 3000
 const PREVIEW_OUTLINE_WIDTH = '3px'
 const PREVIEW_OUTLINE_OFFSET = '2px'
 
@@ -311,11 +312,10 @@ export const PrivacySection: React.FC<PrivacySectionProps> = ({
           htmlEl.style.outline = `${PREVIEW_OUTLINE_WIDTH} solid #f59e0b`
           /* eslint-enable @repro/oxlint-plugin-design/no-hardcoded-color */
           htmlEl.style.outlineOffset = PREVIEW_OUTLINE_OFFSET
-          // Revert after 3 seconds
           setTimeout(() => {
             htmlEl.style.outline = originalOutline
             htmlEl.style.outlineOffset = originalOutlineOffset
-          }, 3000)
+          }, PREVIEW_REVERT_DELAY_MS)
         })
       } catch {
         // Invalid selector — ignore silently

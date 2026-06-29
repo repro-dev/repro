@@ -188,7 +188,7 @@ describe('PrivacySection', () => {
     )
   })
 
-  it('preview button is visible when overrides are active', async () => {
+  it('preview button highlights matching elements on click', async () => {
     render(<PrivacySection />)
     await screen.findByText(/Workspace default:/i)
 
@@ -197,7 +197,103 @@ describe('PrivacySection', () => {
     fireEvent.click(toggle)
 
     // Preview button should be visible
-    const previewButton = await screen.findByText(/Preview/i)
+    const previewButton = screen.getByText(/Preview/i)
     assert.ok(previewButton, 'Preview button should be visible')
+
+    // Add a selector tag
+    const maskedInput = await screen.findByPlaceholderText(
+      /Mask content matching/i
+    )
+    fireEvent.input(maskedInput, { target: { value: '.highlight-me' } })
+    fireEvent.keyDown(maskedInput, { key: 'Enter', code: 'Enter' })
+
+    // Add a matching element to the DOM
+    const el = document.createElement('div')
+    el.className = 'highlight-me'
+    document.body.appendChild(el)
+
+    // Click the preview button
+    fireEvent.click(previewButton)
+
+    // Verify the matching element gets the outline style applied
+    assert.equal(
+      el.style.outline,
+      '3px solid #f59e0b',
+      'Element should have preview outline applied'
+    )
+    assert.equal(
+      el.style.outlineOffset,
+      '2px',
+      'Element should have preview outline offset applied'
+    )
+
+    // Clean up
+    document.body.removeChild(el)
+  })
+
+  it('calls onOverridesChange when masked selector is added', async () => {
+    const onChange = mock.fn()
+
+    render(<PrivacySection onOverridesChange={onChange} />)
+    await screen.findByText(/Workspace default:/i)
+
+    // Enable overrides
+    const toggle = screen.getByRole('switch')
+    fireEvent.click(toggle)
+
+    // Add a masked selector tag
+    const maskedInput = await screen.findByPlaceholderText(
+      /Mask content matching/i
+    )
+    fireEvent.input(maskedInput, { target: { value: '.my-class' } })
+    fireEvent.keyDown(maskedInput, { key: 'Enter', code: 'Enter' })
+
+    // Verify callback was called with the correct payload
+    assert.equal(onChange.mock.callCount(), 1)
+    const callArgs = onChange.mock.calls[0]
+    assert.ok(callArgs, 'Callback should have been called')
+    assert.deepEqual(callArgs.arguments[0], {
+      maskedSelectors: ['.my-class'],
+      ignoredSelectors: [],
+    })
+  })
+
+  it('does not persist per-recording privacy state after unmount', async () => {
+    const { unmount } = render(<PrivacySection />)
+    await screen.findByText(/Workspace default:/i)
+
+    // Enable overrides and add a tag
+    const toggle = screen.getByRole('switch')
+    fireEvent.click(toggle)
+
+    const maskedInput = await screen.findByPlaceholderText(
+      /Mask content matching/i
+    )
+    fireEvent.input(maskedInput, { target: { value: '.my-class' } })
+    fireEvent.keyDown(maskedInput, { key: 'Enter', code: 'Enter' })
+
+    // Verify tag exists before unmount
+    assert.ok(screen.getByText('.my-class'), 'Tag should exist before unmount')
+
+    // Unmount (simulate modal close)
+    unmount()
+
+    // Remount
+    render(<PrivacySection />)
+    await screen.findByText(/Workspace default:/i)
+
+    // Override controls should not be visible — toggle should be off
+    assert.equal(
+      screen.queryByPlaceholderText(/Mask content matching/i),
+      null,
+      'Masked input should not be visible after remount'
+    )
+
+    // Tag should not persist
+    assert.equal(
+      screen.queryByText('.my-class'),
+      null,
+      'Tag should not persist after remount'
+    )
   })
 })
