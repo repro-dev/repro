@@ -240,7 +240,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                 },
           }}
         >
-          <Col padding={spacing.xl} gap={spacing.xs}>
+          <Col padding={spacing.xl} gap={spacing.md}>
             <Input
               ref={inputRef}
               aria-label="Search commands"
@@ -261,7 +261,6 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             ) : (
               <Col
                 gap={spacing.xs}
-                paddingTop={spacing.xs}
                 props={{
                   role: 'listbox',
                   'aria-label': 'Commands',

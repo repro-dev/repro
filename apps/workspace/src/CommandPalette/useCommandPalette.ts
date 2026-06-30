@@ -23,7 +23,14 @@ export function useCommandPalette(): UseCommandPaletteReturn {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      // Skip if the event originated from an input-like element
+      // Escape always closes the palette, even from inside input elements
+      if (event.key === 'Escape' && isOpen) {
+        event.preventDefault()
+        setIsOpen(false)
+        return
+      }
+
+      // Skip Cmd+K / Cmd+P if the event originated from an input-like element
       const target = event.target as Node | null
       if (target && target.nodeType === Node.ELEMENT_NODE) {
         const el = target as HTMLElement
@@ -35,12 +42,6 @@ export function useCommandPalette(): UseCommandPaletteReturn {
         ) {
           return
         }
-      }
-
-      if (event.key === 'Escape' && isOpen) {
-        event.preventDefault()
-        setIsOpen(false)
-        return
       }
 
       // Cmd+K or Cmd+P toggles palette
