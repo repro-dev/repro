@@ -188,15 +188,11 @@ export const SimpleTimeline: React.FC<Props> = ({
           .subscribe(([offset, value]) => {
             updateBarOffset(ghost, offset)
             const markerText = markerTooltipRef.current
-            if (markerText) {
-              updateTooltip(tooltip, offset, markerText)
-            } else {
-              updateTooltipText(
-                tooltip,
-                offset,
-                `${formatTime(value, 'millis')}`
-              )
-            }
+            updateTooltip(
+              tooltip,
+              offset,
+              markerText ?? `${formatTime(value, 'millis')}`
+            )
             showTooltip(tooltip)
           })
       )
@@ -607,12 +603,6 @@ function updateTooltip(target: HTMLElement, offset: number, value: string) {
   target.style.left = `${offset * 100}%`
   target.innerHTML = value
   target.style.whiteSpace = 'normal'
-}
-
-function updateTooltipText(target: HTMLElement, offset: number, value: string) {
-  target.style.left = `${offset * 100}%`
-  target.textContent = value
-  target.style.whiteSpace = 'nowrap'
 }
 
 function updateElapsedTime(target: HTMLElement | null, value: string) {
