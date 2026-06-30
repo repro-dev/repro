@@ -84,6 +84,7 @@ const events = new List(SourceEventView, [
         },
         frameworkState: null,
         cssRules: null,
+        colorScheme: null,
       },
     })
   ),
@@ -173,6 +174,41 @@ const eventsWithErrors = new List(SourceEventView, [
         },
         frameworkState: null,
         cssRules: null,
+        colorScheme: null,
+      },
+    })
+  ),
+
+  // Cluster 1: tight group around 200ms
+  SourceEventView.encode(
+    new Box({
+      type: SourceEventType.Console,
+      time: 190,
+      data: {
+        level: LogLevel.Error,
+        parts: [
+          new Box({
+            type: MessagePartType.String,
+            value: "TypeError: Cannot read property 'value' of null",
+          }),
+        ],
+        stack: [],
+      },
+    })
+  ),
+  SourceEventView.encode(
+    new Box({
+      type: SourceEventType.Console,
+      time: 195,
+      data: {
+        level: LogLevel.Error,
+        parts: [
+          new Box({
+            type: MessagePartType.String,
+            value: 'Uncaught Error: Something went wrong',
+          }),
+        ],
+        stack: [],
       },
     })
   ),
@@ -192,45 +228,10 @@ const eventsWithErrors = new List(SourceEventView, [
       },
     })
   ),
-
   SourceEventView.encode(
     new Box({
       type: SourceEventType.Console,
-      time: 500,
-      data: {
-        level: LogLevel.Error,
-        parts: [
-          new Box({
-            type: MessagePartType.String,
-            value: "TypeError: Cannot read property 'value' of null",
-          }),
-        ],
-        stack: [],
-      },
-    })
-  ),
-
-  SourceEventView.encode(
-    new Box({
-      type: SourceEventType.Console,
-      time: 700,
-      data: {
-        level: LogLevel.Error,
-        parts: [
-          new Box({
-            type: MessagePartType.String,
-            value: 'Uncaught Error: Something went wrong',
-          }),
-        ],
-        stack: [],
-      },
-    })
-  ),
-
-  SourceEventView.encode(
-    new Box({
-      type: SourceEventType.Console,
-      time: 1000,
+      time: 205,
       data: {
         level: LogLevel.Warning,
         parts: [
@@ -243,8 +244,108 @@ const eventsWithErrors = new List(SourceEventView, [
       },
     })
   ),
-
   SourceEventView.encode(
+    new Box({
+      type: SourceEventType.Console,
+      time: 215,
+      data: {
+        level: LogLevel.Error,
+        parts: [
+          new Box({
+            type: MessagePartType.String,
+            value: 'ReferenceError: foo is not defined at script.js:10:20',
+          }),
+        ],
+        stack: [],
+      },
+    })
+  ),
+
+  // Cluster 2: flurry around 600ms
+  SourceEventView.encode(
+    new Box({
+      type: SourceEventType.Console,
+      time: 590,
+      data: {
+        level: LogLevel.Error,
+        parts: [
+          new Box({
+            type: MessagePartType.String,
+            value: 'TypeError: Failed to fetch',
+          }),
+        ],
+        stack: [],
+      },
+    })
+  ),
+  SourceEventView.encode(
+    new Box({
+      type: SourceEventType.Console,
+      time: 600,
+      data: {
+        level: LogLevel.Error,
+        parts: [
+          new Box({
+            type: MessagePartType.String,
+            value: 'POST https://api.example.com/submit → 500',
+          }),
+        ],
+        stack: [],
+      },
+    })
+  ),
+  SourceEventView.encode(
+    new Box({
+      type: SourceEventType.Console,
+      time: 610,
+      data: {
+        level: LogLevel.Error,
+        parts: [
+          new Box({
+            type: MessagePartType.String,
+            value: 'WebSocket connection error',
+          }),
+        ],
+        stack: [],
+      },
+    })
+  ),
+  SourceEventView.encode(
+    new Box({
+      type: SourceEventType.Console,
+      time: 612,
+      data: {
+        level: LogLevel.Warning,
+        parts: [
+          new Box({
+            type: MessagePartType.String,
+            value: 'WebSocket reconnecting',
+          }),
+        ],
+        stack: [],
+      },
+    })
+  ),
+
+  // Cluster 3: single warning later
+  SourceEventView.encode(
+    new Box({
+      type: SourceEventType.Console,
+      time: 1000,
+      data: {
+        level: LogLevel.Warning,
+        parts: [
+          new Box({
+            type: MessagePartType.String,
+            value: 'Large layout shift detected',
+          }),
+        ],
+        stack: [],
+      },
+    })
+  ),
+
+  SourceEventView.from(
     new Box({
       type: SourceEventType.DOMPatch,
       time: 1250,
