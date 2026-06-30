@@ -98,6 +98,8 @@ export const SimpleTimeline: React.FC<Props> = ({
   const progressRef = useRef<HTMLDivElement | null>(null)
   const elapsedTimeRef = useRef<HTMLDivElement | null>(null)
   const markerTooltipRef = useRef<string | null>(null)
+  const onMarkerClickRef = useRef(onMarkerClick)
+  onMarkerClickRef.current = onMarkerClick
   const playback = usePlayback()
 
   useEffect(() => {
@@ -372,7 +374,7 @@ export const SimpleTimeline: React.FC<Props> = ({
           marker.addEventListener('pointerdown', (e: PointerEvent) => {
             e.stopPropagation()
             playback.seekToTime(entry.time)
-            onMarkerClick?.(entry)
+            onMarkerClickRef.current?.(entry)
             Analytics.track('playback:seek-to-marker')
           })
 

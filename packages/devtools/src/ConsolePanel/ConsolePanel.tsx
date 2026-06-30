@@ -76,7 +76,13 @@ export const ConsolePanel: React.FC = () => {
 
   useEffect(() => {
     const subscription = playback.$latestControlFrame
-      .pipe(filter(controlFrame => controlFrame === ControlFrame.SeekToEvent))
+      .pipe(
+        filter(
+          controlFrame =>
+            controlFrame === ControlFrame.SeekToEvent ||
+            controlFrame === ControlFrame.SeekToTime
+        )
+      )
       .subscribe(() => {
         const activeIndex = playback.getActiveIndex()
         const listIndex = filteredConsoleEvents.findIndex(
