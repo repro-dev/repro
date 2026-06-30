@@ -188,7 +188,6 @@ export const SimpleTimeline: React.FC<Props> = ({
           .subscribe(([offset, value]) => {
             updateBarOffset(ghost, offset)
             const markerText = markerTooltipRef.current
-            tooltip.style.minWidth = markerText ? '140px' : ''
             updateTooltip(
               tooltip,
               offset,
@@ -335,7 +334,9 @@ export const SimpleTimeline: React.FC<Props> = ({
             ? (color.danger as string)
             : (color.warning as string)
 
-          const compositeTooltip = [
+          const compositeTooltip = `<div style="${composeStyles([
+            ['min-width', '140px'],
+          ])}">${[
             `<div style="${composeStyles([
               ['font-variant-numeric', 'tabular-nums'],
               ['opacity', '.8'],
@@ -351,7 +352,7 @@ export const SimpleTimeline: React.FC<Props> = ({
               ['border-top', '1px solid currentColor'],
               ['opacity', '.15'],
             ])}"></div>`
-          )
+          )}</div>`
 
           const marker = document.createElement('div')
           marker.style.position = 'absolute'
