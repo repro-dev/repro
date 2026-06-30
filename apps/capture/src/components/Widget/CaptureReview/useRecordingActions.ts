@@ -8,8 +8,9 @@ import { UploadProgress } from '@repro/recording-api'
 import { toBinaryWireFormat, toByteString } from '@repro/wire-formats'
 import { detect } from 'detect-browser'
 import { fork } from 'fluture'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Subscription, switchMap, timer } from 'rxjs'
+import type { PrivacyOverrides } from './PrivacySection'
 
 const browser = detect()
 
@@ -49,6 +50,7 @@ export interface RecordingActions {
   uploadState: UploadState
   pollUploadProgress(ref: string): void
   setUploadState(state: Partial<UploadState>): void
+  setPrivacyOverrides(overrides: PrivacyOverrides): void
 }
 
 export function useRecordingActions(
@@ -58,6 +60,8 @@ export function useRecordingActions(
   selectedDuration: number
 ): RecordingActions {
   const agent = useMessaging()
+  const privacyOverridesRef = useRef<PrivacyOverrides | null>(null)
+
   const [uploadState, setUploadStateInner] = useState<UploadState>({
     isUploading: false,
     progress: null,
@@ -71,6 +75,10 @@ export function useRecordingActions(
     },
     [setUploadStateInner]
   )
+
+  const setPrivacyOverrides = useCallback((overrides: PrivacyOverrides) => {
+    privacyOverridesRef.current = overrides
+  }, [])
 
   const getSelectedRecording = useCallback((): SelectedRecording => {
     const sourceEvents = playback.getSourceEvents()
@@ -134,6 +142,31 @@ export function useRecordingActions(
           .toString(),
       })
 
+      const payload: Record<string, unknown> = {
+        projectId: resolvedProjectId,
+        title: values.title,
+        description: values.description,
+        url: typeof location !== 'undefined' ? location.href : '',
+        duration: selected.duration,
+        mode: recordingMode,
+        events: byteStrings,
+        browserName: browser && browser.name,
+        browserVersion: browser && browser.version,
+        operatingSystem: browser && browser.os,
+      }
+
+      const currentOverrides = privacyOverridesRef.current
+      if (
+        currentOverrides &&
+        (currentOverrides.maskedSelectors.length > 0 ||
+          currentOverrides.ignoredSelectors.length > 0)
+      ) {
+        payload.privacyOverrides = {
+          maskedSelectors: currentOverrides.maskedSelectors,
+          ignoredSelectors: currentOverrides.ignoredSelectors,
+        }
+      }
+
       fork((error: Error) => {
         setUploadState({ error, isUploading: false })
       })((ref: unknown) => {
@@ -141,22 +174,18 @@ export function useRecordingActions(
       })(
         agent.raiseIntent({
           type: 'upload:enqueue',
-          payload: {
-            projectId: resolvedProjectId,
-            title: values.title,
-            description: values.description,
-            url: typeof location !== 'undefined' ? location.href : '',
-            duration: selected.duration,
-            mode: recordingMode,
-            events: byteStrings,
-            browserName: browser && browser.name,
-            browserVersion: browser && browser.version,
-            operatingSystem: browser && browser.os,
-          },
+          payload,
         })
       )
     },
-    [recordingMode, agent, projectId, setUploadState, getSelectedRecording]
+    [
+      recordingMode,
+      agent,
+      projectId,
+      setUploadState,
+      getSelectedRecording,
+      privacyOverridesRef,
+    ]
   )
 
   const downloadLocally = useCallback(() => {
@@ -245,6 +274,7 @@ export function useRecordingActions(
     uploadState,
     pollUploadProgress,
     setUploadState,
+    setPrivacyOverrides,
     isEmpty,
   }
 }

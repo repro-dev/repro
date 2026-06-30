@@ -168,6 +168,7 @@ mock.module('./CaptureUploadProvider', {
       React.createElement(React.Fragment, null, children),
     useCaptureUpload: () => ({
       enqueueUpload: () => {},
+      setPrivacyOverrides: () => {},
       uploadState: {
         isUploading: false,
         progress: null,

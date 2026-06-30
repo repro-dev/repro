@@ -14,11 +14,12 @@ import { View } from '@repro/devtools/src/types'
 import { RecordingMode } from '@repro/domain'
 import { Playback, PlaybackProvider, SimpleTimeline } from '@repro/playback'
 import { findErrorAndWarningEvents } from '@repro/source-utils'
-import React, { useMemo } from 'react'
+import React, { useEffect, useMemo } from 'react'
 import { AsideRegion, Layout, PlaybackRegion } from '../ReportForm/Layout'
 import { ProgressOverlay } from '../ReportForm/ProgressOverlay'
 import { AgenticSection } from './AgenticSection'
 import { useCaptureUpload } from './CaptureUploadProvider'
+import { type PrivacyOverrides } from './PrivacySection'
 import { RecordingActions } from './useRecordingActions'
 
 const DEFAULT_SELECTED_DURATION = 60_000
@@ -30,6 +31,7 @@ interface CaptureReviewProps {
   recordingMode: RecordingMode
   selectedDuration: number
   setSelectedDuration: (duration: number) => void
+  privacyOverrides: PrivacyOverrides
 }
 
 export const CaptureReview: React.FC<CaptureReviewProps> = ({
@@ -39,6 +41,7 @@ export const CaptureReview: React.FC<CaptureReviewProps> = ({
   recordingMode,
   selectedDuration,
   setSelectedDuration,
+  privacyOverrides,
 }) => {
   const maxTime = playback.getDuration()
   const minTime = Math.max(0, maxTime - selectedDuration)
@@ -59,7 +62,15 @@ export const CaptureReview: React.FC<CaptureReviewProps> = ({
     setSelectedDuration(Math.min(DEFAULT_SELECTED_DURATION, maxTime))
   }, [maxTime, setSelectedDuration])
 
-  const { uploadState } = useCaptureUpload()
+  const { uploadState, setPrivacyOverrides: setUploadPrivacyOverrides } =
+    useCaptureUpload()
+
+  // Sync privacy overrides into the upload provider so its enqueueUpload
+  // includes them in the upload payload. Actual event transforms happen
+  // at save/download time (tracked in a follow-up issue).
+  useEffect(() => {
+    setUploadPrivacyOverrides(privacyOverrides)
+  }, [privacyOverrides, setUploadPrivacyOverrides])
 
   const [, setView] = useDevToolsView()
   const [, setInspecting] = useInspecting()

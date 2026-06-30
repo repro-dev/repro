@@ -391,4 +391,60 @@ describe('useRecordingActions', () => {
 
     assert.equal(trackedIntents.length, 0)
   })
+
+  it('enqueueUpload includes privacy overrides in payload when configured', () => {
+    const playback = createMockPlayback()
+    const actions = renderHook(playback, 'proj-1', 1, 60000)
+
+    actions.setPrivacyOverrides({
+      maskedSelectors: ['.repro-mask'],
+      ignoredSelectors: ['.repro-ignore'],
+    })
+
+    actions.enqueueUpload({ title: 'Test', description: null })
+
+    assert.equal(trackedIntents.length, 1)
+    const payload = trackedIntents[0]!.payload as Record<string, unknown>
+    assert.ok(payload.privacyOverrides, 'privacyOverrides should be in payload')
+    const overrides = payload.privacyOverrides as Record<string, string[]>
+    assert.deepEqual(overrides.maskedSelectors, ['.repro-mask'])
+    assert.deepEqual(overrides.ignoredSelectors, ['.repro-ignore'])
+  })
+
+  it('enqueueUpload omits privacy overrides from payload when none configured', () => {
+    const playback = createMockPlayback()
+    const actions = renderHook(playback, 'proj-1', 1, 60000)
+
+    actions.enqueueUpload({ title: 'Test', description: null })
+
+    assert.equal(trackedIntents.length, 1)
+    const payload = trackedIntents[0]!.payload as Record<string, unknown>
+    assert.equal(
+      payload.privacyOverrides,
+      undefined,
+      'privacyOverrides should not be in payload when none configured'
+    )
+  })
+
+  it('upload payload structure is backwards-compatible (existing fields unchanged)', () => {
+    const playback = createMockPlayback()
+    const actions = renderHook(playback, 'proj-1', 1, 60000)
+
+    actions.setPrivacyOverrides({
+      maskedSelectors: ['.repro-mask'],
+      ignoredSelectors: [],
+    })
+
+    actions.enqueueUpload({ title: 'Test', description: 'Desc' })
+
+    assert.equal(trackedIntents.length, 1)
+    const payload = trackedIntents[0]!.payload as Record<string, unknown>
+    // Existing fields unchanged
+    assert.equal(payload.projectId, 'proj-1')
+    assert.equal(payload.title, 'Test')
+    assert.equal(payload.description, 'Desc')
+    assert.equal(payload.mode, 1)
+    // New field present
+    assert.ok(payload.privacyOverrides)
+  })
 })
