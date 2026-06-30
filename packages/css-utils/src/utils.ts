@@ -7,7 +7,7 @@ export interface GroupedCSSPropertyMap {
   propertyMap: CSSPropertyMap
 }
 
-type Side = 'top' | 'right' | 'bottom' | 'left'
+export type Side = 'top' | 'right' | 'bottom' | 'left'
 
 export function createCSSPropertyMap(styles: CSSStyleDeclaration) {
   return (
@@ -98,7 +98,7 @@ export function createGroupedCSSPropertyMap(
   ]
 }
 
-function hasBorder(styleMap: CSSPropertyMap, side: Side) {
+export function hasBorder(styleMap: CSSPropertyMap, side: Side) {
   return styleMap.hasOwnProperty(`border-${side}-width`)
 }
 
@@ -106,7 +106,7 @@ function hasOutline(styleMap: CSSPropertyMap) {
   return styleMap.hasOwnProperty('outline-width')
 }
 
-function hasMargin(styleMap: CSSPropertyMap) {
+export function hasMargin(styleMap: CSSPropertyMap) {
   return (
     styleMap.hasOwnProperty('margin-left') ||
     styleMap.hasOwnProperty('margin-top') ||
@@ -115,7 +115,7 @@ function hasMargin(styleMap: CSSPropertyMap) {
   )
 }
 
-function hasPadding(styleMap: CSSPropertyMap) {
+export function hasPadding(styleMap: CSSPropertyMap) {
   return (
     styleMap.hasOwnProperty('padding-left') ||
     styleMap.hasOwnProperty('padding-top') ||
@@ -124,9 +124,9 @@ function hasPadding(styleMap: CSSPropertyMap) {
   )
 }
 
-type Box = Record<Side, number>
+export type Box = Record<Side, number>
 
-function getMargin(styleMap: CSSPropertyMap): Box {
+export function getMargin(styleMap: CSSPropertyMap): Box {
   return {
     left: resolveValue(styleMap['margin-left']),
     right: resolveValue(styleMap['margin-right']),
@@ -135,7 +135,7 @@ function getMargin(styleMap: CSSPropertyMap): Box {
   }
 }
 
-function getPadding(styleMap: CSSPropertyMap) {
+export function getPadding(styleMap: CSSPropertyMap) {
   return {
     left: resolveValue(styleMap['padding-left']),
     right: resolveValue(styleMap['padding-right']),
@@ -144,7 +144,16 @@ function getPadding(styleMap: CSSPropertyMap) {
   }
 }
 
-function resolveValue(value: string | undefined): number {
+export function getBorder(styleMap: CSSPropertyMap): Box {
+  return {
+    top: resolveValue(styleMap['border-top-width']),
+    right: resolveValue(styleMap['border-right-width']),
+    bottom: resolveValue(styleMap['border-bottom-width']),
+    left: resolveValue(styleMap['border-left-width']),
+  }
+}
+
+export function resolveValue(value: string | undefined): number {
   return value !== undefined
     ? parseInt(value.substring(0, value.length - 2), 10) || 0
     : 0

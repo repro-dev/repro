@@ -14,5 +14,15 @@ export {
   tokenizeSelector,
 } from './specificity'
 export type { SelectorToken } from './specificity'
-export { createCSSPropertyMap, createGroupedCSSPropertyMap } from './utils'
-export type { CSSPropertyMap, GroupedCSSPropertyMap } from './utils'
+export {
+  createCSSPropertyMap,
+  createGroupedCSSPropertyMap,
+  getBorder,
+  getMargin,
+  getPadding,
+  hasBorder,
+  hasMargin,
+  hasPadding,
+  resolveValue,
+} from './utils'
+export type { Box, CSSPropertyMap, GroupedCSSPropertyMap, Side } from './utils'
