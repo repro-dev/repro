@@ -3,6 +3,9 @@ import 'global-jsdom/register'
 // Polyfill requestIdleCallback for jsdom (ElementTree uses it for
 // scroll-into-view). The existing ElementsPanel tests never mount ElementTree
 // because snapshot.dom is null, but the new durable-guard tests do.
+// NOTE: The polyfill defers via setTimeout(cb, 0). Tests that assert side
+// effects from a requestIdleCallback must await a macrotask flush
+// (e.g. await new Promise(r => setTimeout(r, 0))) before the assertion.
 if (typeof globalThis.requestIdleCallback !== 'function') {
   ;(globalThis as any).requestIdleCallback = (
     cb: IdleRequestCallback,
@@ -296,5 +299,90 @@ describe('ElementsPanel tab integration', () => {
 
     // Should fall back to body element
     assert.equal($testSelectedNode.getValue(), bodyId)
+  })
+
+  // ── Test 4: AC#2 — pick updates selection when inspector is already open ──
+  it('preserves selection when pick updates to a valid node (inspector already open)', async t => {
+    const bodyId = 'body1'
+    const pickedA = 'pickedA'
+    const pickedB = 'pickedB'
+
+    // Both vtree sources agree (inspector already mounted)
+    const vtree = makeVtree(bodyId, [pickedA, pickedB])
+    mockSnapshotVTree = vtree
+    $testPlaybackSnapshot.next({
+      dom: vtree,
+      cssRules: [],
+      interaction: null,
+      frameworkState: null,
+      colorScheme: null,
+    })
+    mockActiveBreakpointValue = { type: 0, nodeId: pickedA }
+    $testSelectedNode.next(pickedA)
+
+    const { ElementsPanel } = await setupTest(t)
+    const { rerender } = render(<ElementsPanel />)
+
+    // Simulate a subsequent pick to pickedB
+    testSetSelectedNode(pickedB)
+
+    // Refresh snapshot.dom to a new reference so the MainPane validation
+    // effect re-runs and validates the new selection against the live vtree
+    const updatedVtree = makeVtree(bodyId, [pickedA, pickedB])
+    mockSnapshotVTree = updatedVtree
+    $testPlaybackSnapshot.next({
+      dom: updatedVtree,
+      cssRules: [],
+      interaction: null,
+      frameworkState: null,
+      colorScheme: null,
+    })
+    rerender(<ElementsPanel />)
+
+    // Selection should be updated and preserved (not reverted to body)
+    assert.equal($testSelectedNode.getValue(), pickedB)
+  })
+
+  // ── Test 5: AC#4 — scroll-into-view guard ──
+  it('scrolls to the selected node when ElementTree mounts', async t => {
+    const bodyId = 'body1'
+    const pickedId = 'picked1'
+
+    // Spy on scrollIntoView and restore in finally so the spy doesn't
+    // leak to other tests
+    const originalScrollIntoView = Element.prototype.scrollIntoView
+    let scrollIntoViewCalled = false
+    Element.prototype.scrollIntoView = function () {
+      scrollIntoViewCalled = true
+    }
+
+    try {
+      const vtree = makeVtree(bodyId, [pickedId])
+      mockSnapshotVTree = vtree
+      $testPlaybackSnapshot.next({
+        dom: vtree,
+        cssRules: [],
+        interaction: null,
+        frameworkState: null,
+        colorScheme: null,
+      })
+      mockActiveBreakpointValue = { type: 0, nodeId: pickedId }
+      $testSelectedNode.next(pickedId)
+
+      const { ElementsPanel } = await setupTest(t)
+      render(<ElementsPanel />)
+
+      // The requestIdleCallback polyfill defers via setTimeout(cb, 0).
+      // Await a macrotask flush so ElementTree's scroll-into-view
+      // callback has fired before we assert.
+      await new Promise(r => setTimeout(r, 0))
+
+      assert.ok(
+        scrollIntoViewCalled,
+        'scrollIntoView must be called for the selected node on mount'
+      )
+    } finally {
+      Element.prototype.scrollIntoView = originalScrollIntoView
+    }
   })
 })
