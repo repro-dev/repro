@@ -1,7 +1,6 @@
 import { Block, Col, Row } from '@jsxstyle/react'
 import {
   color,
-  Input,
   Portal,
   radius,
   shadow,
@@ -14,6 +13,7 @@ import {
   FolderIcon,
   KeyIcon,
   PlayIcon,
+  SearchIcon,
   SettingsIcon,
 } from 'lucide-react'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -240,66 +240,97 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                 },
           }}
         >
-          <Col padding={spacing.xl} gap={spacing.md}>
-            <Input
-              ref={inputRef}
-              aria-label="Search commands"
-              placeholder="Type a command…"
-              value={query}
-              onChange={handleInputChange}
-              autoFocus
-            />
-
-            {filteredItems.length === 0 ? (
-              <Block
-                padding={spacing.lg}
-                {...textStyles.body}
-                color={color.text.secondary}
-              >
-                No commands found
+          {/* Input area with padding — plain input, no focus ring */}
+          <Block
+            paddingH={spacing.xl}
+            paddingTop={spacing.xl}
+            paddingBottom={spacing.md}
+          >
+            <Row
+              alignItems="center"
+              gap={spacing.md}
+              // eslint-disable-next-line @repro/oxlint-plugin-design/no-hardcoded-spacing, @repro/oxlint-plugin-design/no-hardcoded-color
+              borderBottom={`1px solid ${color.border.default}`}
+            >
+              <Block color={color.text.muted} flexShrink={0}>
+                <SearchIcon size={16} />
               </Block>
-            ) : (
-              <Col
-                gap={spacing.xs}
+              {/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing -- zero native input reset */}
+              <Block
+                component="input"
+                flex={1}
+                padding={0}
+                margin={0}
+                background="transparent"
+                border="none"
+                outline="none"
+                fontSize={textStyles.body.fontSize}
+                lineHeight={textStyles.body.lineHeight}
+                color={color.text.default}
                 props={{
-                  role: 'listbox',
-                  'aria-label': 'Commands',
+                  ref: inputRef,
+                  type: 'text',
+                  autoFocus: true,
+                  autoComplete: 'off',
+                  spellCheck: false,
+                  'aria-label': 'Search commands',
+                  placeholder: 'Type a command\u2026',
+                  value: query,
+                  onChange: handleInputChange,
                 }}
-              >
-                {filteredItems.map((item, index) => {
-                  const IconComponent = item.icon
-                  const isHighlighted = index === selectedIndex
+              />
+              {/* eslint-enable @repro/oxlint-plugin-design/no-hardcoded-spacing */}
+            </Row>
+          </Block>
 
-                  return (
-                    <Row
-                      key={item.label}
-                      alignItems="center"
-                      gap={spacing.md}
-                      paddingH={spacing.md}
-                      paddingV={spacing.sm}
-                      cursor="pointer"
-                      backgroundColor={
-                        isHighlighted ? color.bg.hover : 'transparent'
-                      }
-                      borderRadius={radius.sm}
-                      props={{
-                        role: 'option',
-                        'aria-selected': isHighlighted,
-                        onClick: () => handleItemClick(item.route),
-                        onMouseEnter: () => setSelectedIndex(index),
-                      }}
-                    >
-                      <Block color={color.text.secondary} flexShrink={0}>
-                        <IconComponent size={16} />
-                      </Block>
+          {filteredItems.length === 0 ? (
+            <Block
+              paddingH={spacing.xl}
+              paddingV={spacing.lg}
+              {...textStyles.body}
+              color={color.text.secondary}
+            >
+              No commands found
+            </Block>
+          ) : (
+            <Col
+              props={{
+                role: 'listbox',
+                'aria-label': 'Commands',
+              }}
+            >
+              {filteredItems.map((item, index) => {
+                const IconComponent = item.icon
+                const isHighlighted = index === selectedIndex
 
-                      <Block {...textStyles.body}>{item.label}</Block>
-                    </Row>
-                  )
-                })}
-              </Col>
-            )}
-          </Col>
+                return (
+                  <Row
+                    key={item.label}
+                    alignItems="center"
+                    gap={spacing.md}
+                    paddingH={spacing.xl}
+                    paddingV={spacing.md}
+                    cursor="pointer"
+                    backgroundColor={
+                      isHighlighted ? color.bg.hover : 'transparent'
+                    }
+                    props={{
+                      role: 'option',
+                      'aria-selected': isHighlighted,
+                      onClick: () => handleItemClick(item.route),
+                      onMouseEnter: () => setSelectedIndex(index),
+                    }}
+                  >
+                    <Block color={color.text.secondary} flexShrink={0}>
+                      <IconComponent size={16} />
+                    </Block>
+
+                    <Block {...textStyles.body}>{item.label}</Block>
+                  </Row>
+                )
+              })}
+            </Col>
+          )}
         </Col>
       </Col>
     </Portal>
