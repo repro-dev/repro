@@ -1,6 +1,7 @@
 import { Block, Col, Row } from '@jsxstyle/react'
 import {
   color,
+  Input,
   Portal,
   radius,
   shadow,
@@ -13,7 +14,6 @@ import {
   FolderIcon,
   KeyIcon,
   PlayIcon,
-  SearchIcon,
   SettingsIcon,
 } from 'lucide-react'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -240,47 +240,15 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                 },
           }}
         >
-          {/* Input area with padding — plain input, no focus ring */}
-          <Block
-            paddingH={spacing.xl}
-            paddingTop={spacing.xl}
-            paddingBottom={spacing.md}
-          >
-            <Row
-              alignItems="center"
-              gap={spacing.md}
-              // eslint-disable-next-line @repro/oxlint-plugin-design/no-hardcoded-spacing, @repro/oxlint-plugin-design/no-hardcoded-color
-              borderBottom={`1px solid ${color.border.default}`}
-            >
-              <Block color={color.text.muted} flexShrink={0}>
-                <SearchIcon size={16} />
-              </Block>
-              {/* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing -- zero native input reset */}
-              <Block
-                component="input"
-                flex={1}
-                padding={0}
-                margin={0}
-                background="transparent"
-                border="none"
-                outline="none"
-                fontSize={textStyles.body.fontSize}
-                lineHeight={textStyles.body.lineHeight}
-                color={color.text.default}
-                props={{
-                  ref: inputRef,
-                  type: 'text',
-                  autoFocus: true,
-                  autoComplete: 'off',
-                  spellCheck: false,
-                  'aria-label': 'Search commands',
-                  placeholder: 'Type a command\u2026',
-                  value: query,
-                  onChange: handleInputChange,
-                }}
-              />
-              {/* eslint-enable @repro/oxlint-plugin-design/no-hardcoded-spacing */}
-            </Row>
+          <Block padding={spacing.xl}>
+            <Input
+              ref={inputRef}
+              aria-label="Search commands"
+              placeholder="Type a command…"
+              value={query}
+              onChange={handleInputChange}
+              autoFocus
+            />
           </Block>
 
           {filteredItems.length === 0 ? (
