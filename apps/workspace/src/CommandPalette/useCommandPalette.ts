@@ -10,9 +10,8 @@ interface UseCommandPaletteReturn {
 /**
  * Global keyboard shortcut hook for the command palette.
  *
- * Cmd+K / Cmd+P toggles the palette.
+ * Cmd+K / Cmd+P toggles the palette from any element.
  * Escape closes when open.
- * Skips events originating from `<input>`, `<textarea>`, or `[contenteditable]`.
  */
 export function useCommandPalette(): UseCommandPaletteReturn {
   const [isOpen, setIsOpen] = useState(false)
@@ -23,28 +22,14 @@ export function useCommandPalette(): UseCommandPaletteReturn {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      // Escape always closes the palette, even from inside input elements
+      // Escape closes the palette when open
       if (event.key === 'Escape' && isOpen) {
         event.preventDefault()
         setIsOpen(false)
         return
       }
 
-      // Skip Cmd+K / Cmd+P if the event originated from an input-like element
-      const target = event.target as Node | null
-      if (target && target.nodeType === Node.ELEMENT_NODE) {
-        const el = target as HTMLElement
-        const tagName = el.tagName.toLowerCase()
-        if (
-          tagName === 'input' ||
-          tagName === 'textarea' ||
-          el.isContentEditable
-        ) {
-          return
-        }
-      }
-
-      // Cmd+K or Cmd+P toggles palette
+      // Cmd+K or Cmd+P toggles palette — globally, from any element
       if (
         (event.metaKey || event.ctrlKey) &&
         (event.key === 'k' || event.key === 'p')
