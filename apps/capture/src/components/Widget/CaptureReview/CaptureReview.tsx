@@ -12,10 +12,10 @@ import { DevTools } from '@repro/devtools'
 import { RecordingMode } from '@repro/domain'
 import { Playback, PlaybackProvider, SimpleTimeline } from '@repro/playback'
 import React from 'react'
-import { AsideRegion, Layout, PlaybackRegion } from '../ReportForm/Layout'
-import { ProgressOverlay } from '../ReportForm/ProgressOverlay'
 import { AgenticSection } from './AgenticSection'
 import { useCaptureUpload } from './CaptureUploadProvider'
+import { AsideRegion, Layout, PlaybackRegion } from './Layout'
+import { ProgressOverlay } from './ProgressOverlay'
 import { RecordingActions } from './useRecordingActions'
 
 const DEFAULT_SELECTED_DURATION = 60_000

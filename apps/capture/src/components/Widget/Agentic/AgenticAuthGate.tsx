@@ -3,7 +3,7 @@ import { Button, EmptyState, FullPageLoading } from '@repro/design'
 import { forget } from '@repro/future-utils'
 import { LockIcon } from 'lucide-react'
 import React, { useEffect } from 'react'
-import type { RecordingActions } from '../../CaptureReview/useRecordingActions'
+import type { RecordingActions } from '../CaptureReview/useRecordingActions'
 import { Agentic } from './Agentic.hoc'
 
 interface AgenticAuthGateProps {

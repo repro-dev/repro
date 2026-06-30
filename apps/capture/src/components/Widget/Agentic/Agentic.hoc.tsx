@@ -15,7 +15,7 @@ import { detect } from 'detect-browser'
 import { parse } from 'event-stream-parser'
 import { attemptP, chain, fork, resolve } from 'fluture'
 import React, { useEffect, useMemo } from 'react'
-import type { RecordingActions } from '../../CaptureReview/useRecordingActions'
+import type { RecordingActions } from '../CaptureReview/useRecordingActions'
 
 async function hashPromptVersion(prompt: string) {
   const encoder = new TextEncoder()

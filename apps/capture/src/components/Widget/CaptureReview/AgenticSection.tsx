@@ -1,5 +1,5 @@
 import React from 'react'
-import { AgenticAuthGate } from '../ReportForm/Agentic/AgenticAuthGate'
+import { AgenticAuthGate } from '../Agentic/AgenticAuthGate'
 import type { RecordingActions } from './useRecordingActions'
 
 interface AgenticSectionProps {

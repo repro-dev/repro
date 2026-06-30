@@ -5,4 +5,6 @@ export {
   CaptureUploadProvider,
   useCaptureUpload,
 } from './CaptureUploadProvider'
+export { AsideRegion, Layout, PlaybackRegion } from './Layout'
+export { ProgressOverlay } from './ProgressOverlay'
 export { useRecordingActions } from './useRecordingActions'
