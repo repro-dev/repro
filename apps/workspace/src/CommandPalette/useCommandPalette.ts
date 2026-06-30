@@ -39,8 +39,8 @@ export function useCommandPalette(): UseCommandPaletteReturn {
       }
     }
 
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
+    document.addEventListener('keydown', handleKeyDown, true)
+    return () => document.removeEventListener('keydown', handleKeyDown, true)
   }, [isOpen])
 
   return { isOpen, open, close, toggle }

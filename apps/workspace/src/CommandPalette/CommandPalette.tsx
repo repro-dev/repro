@@ -120,8 +120,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       }
     }
 
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
+    document.addEventListener('keydown', handleKeyDown, true)
+    return () => document.removeEventListener('keydown', handleKeyDown, true)
   }, [open, onClose])
 
   const filteredItems = useMemo(() => {
