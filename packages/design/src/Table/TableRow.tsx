@@ -128,6 +128,7 @@ export const TableRow = forwardRef<HTMLTableRowElement, TableRowProps>(
           >
             <Checkbox
               label="Select all rows"
+              hideLabel
               checked={allSelected}
               onChange={handleSelectAll}
               size="small"
@@ -148,6 +149,7 @@ export const TableRow = forwardRef<HTMLTableRowElement, TableRowProps>(
           >
             <Checkbox
               label="Select row"
+              hideLabel
               checked={isSelected}
               onChange={handleCheckboxChange}
               size="small"

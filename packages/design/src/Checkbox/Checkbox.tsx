@@ -1,5 +1,6 @@
 /* eslint-disable @repro/oxlint-plugin-design/no-hardcoded-spacing */
 import { Block, Col, Row } from '@jsxstyle/react'
+import { visuallyHidden } from '@repro/a11y'
 import { Check } from 'lucide-react'
 import React, { forwardRef, useId } from 'react'
 import { color } from '../tokens/colors'
@@ -16,6 +17,11 @@ export interface CheckboxProps {
   size?: 'small' | 'medium' | 'large'
   disabled?: boolean
   description?: string
+  /**
+   * When true, the label text is rendered using visuallyHidden so it remains
+   * accessible to screen readers but is not displayed visually.
+   */
+  hideLabel?: boolean
 }
 
 const sizes = {
@@ -41,6 +47,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
       size = 'medium',
       disabled = false,
       description,
+      hideLabel = false,
     },
     ref
   ) => {
@@ -111,13 +118,25 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
         </Block>
 
         <Col gap={spacing.xs}>
-          <Block
-            fontSize={fontSize}
-            lineHeight={`${labelLineHeight}`}
-            color={color.text.default}
-          >
-            {label}
-          </Block>
+          {hideLabel ? (
+            <Block
+              component="span"
+              fontSize={fontSize}
+              lineHeight={`${labelLineHeight}`}
+              color={color.text.default}
+              props={{ style: visuallyHidden }}
+            >
+              {label}
+            </Block>
+          ) : (
+            <Block
+              fontSize={fontSize}
+              lineHeight={`${labelLineHeight}`}
+              color={color.text.default}
+            >
+              {label}
+            </Block>
+          )}
           {description && (
             <Block
               fontSize={Math.max(base * 1.25, MINIMUM_FONT_SIZE)}
