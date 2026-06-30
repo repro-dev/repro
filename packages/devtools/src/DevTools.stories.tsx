@@ -3,13 +3,20 @@ import { colors } from '@repro/design'
 import {
   AttributePatch,
   InteractionType,
+  LogLevel,
+  MessagePartType,
   PatchType,
   PointerState,
   SourceEventType,
   SourceEventView,
 } from '@repro/domain'
-import { createSourcePlayback, PlaybackProvider } from '@repro/playback'
+import {
+  createSourcePlayback,
+  PlaybackProvider,
+  SimpleTimeline,
+} from '@repro/playback'
 import { html2VTree } from '@repro/recording'
+import { findErrorAndWarningEvents } from '@repro/source-utils'
 import { Box, List } from '@repro/tdl'
 import { findElementsByClassName } from '@repro/vdom-utils'
 import type { Meta, StoryObj } from '@storybook/react'
@@ -136,6 +143,135 @@ export const Default: StoryObj = {
   decorators: [
     Story => (
       <PlaybackProvider playback={createSourcePlayback(events, 1250, {})}>
+        <Block
+          height="80vh"
+          borderColor={colors.slate['300']}
+          borderStyle="solid"
+          borderWidth={1}
+          boxShadow={`0 2px 4px ${colors.slate['100']}`}
+        >
+          <Story />
+        </Block>
+      </PlaybackProvider>
+    ),
+  ],
+}
+
+const eventsWithErrors = new List(SourceEventView, [
+  SourceEventView.from(
+    new Box({
+      type: SourceEventType.Snapshot,
+      time: 0,
+      data: {
+        dom: vtree,
+        interaction: {
+          pageURL: '',
+          pointer: [10, 10],
+          pointerState: PointerState.Up,
+          scroll: {},
+          viewport: [400, 400],
+        },
+        frameworkState: null,
+        cssRules: null,
+      },
+    })
+  ),
+
+  SourceEventView.from(
+    new Box({
+      type: SourceEventType.Console,
+      time: 200,
+      data: {
+        level: LogLevel.Warning,
+        parts: [
+          new Box({
+            type: MessagePartType.String,
+            value: 'Viewport height should not exceed 900px',
+          }),
+        ],
+        stack: [],
+      },
+    })
+  ),
+
+  SourceEventView.from(
+    new Box({
+      type: SourceEventType.Console,
+      time: 500,
+      data: {
+        level: LogLevel.Error,
+        parts: [
+          new Box({
+            type: MessagePartType.String,
+            value: "TypeError: Cannot read property 'value' of null",
+          }),
+        ],
+        stack: [],
+      },
+    })
+  ),
+
+  SourceEventView.from(
+    new Box({
+      type: SourceEventType.Console,
+      time: 700,
+      data: {
+        level: LogLevel.Error,
+        parts: [
+          new Box({
+            type: MessagePartType.String,
+            value: 'Uncaught Error: Something went wrong',
+          }),
+        ],
+        stack: [],
+      },
+    })
+  ),
+
+  SourceEventView.from(
+    new Box({
+      type: SourceEventType.Console,
+      time: 1000,
+      data: {
+        level: LogLevel.Warning,
+        parts: [
+          new Box({
+            type: MessagePartType.String,
+            value: 'Deprecated API: useModal() is deprecated',
+          }),
+        ],
+        stack: [],
+      },
+    })
+  ),
+
+  SourceEventView.from(
+    new Box({
+      type: SourceEventType.DOMPatch,
+      time: 1250,
+      data: new Box(patch),
+    })
+  ),
+])
+
+const markerEntries = findErrorAndWarningEvents(eventsWithErrors)
+
+export const WithClusteredErrors: StoryObj = {
+  args: {
+    timeline: <SimpleTimeline errorAndWarningEvents={markerEntries} />,
+  },
+  parameters: {
+    docs: {
+      story: {
+        inline: true,
+      },
+    },
+  },
+  decorators: [
+    Story => (
+      <PlaybackProvider
+        playback={createSourcePlayback(eventsWithErrors, 1250, {})}
+      >
         <Block
           height="80vh"
           borderColor={colors.slate['300']}
