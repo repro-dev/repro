@@ -18,6 +18,7 @@ import {
   fetchIssues,
   fetchIssuesByIdentifiers,
   fetchProjectMilestones,
+  fetchSearchIssues,
   normalizeText,
   resolveDefaultBacklogStates,
   resolveLabels,
@@ -290,6 +291,7 @@ function topLevelHelp() {
     "  login",
     "  whoami",
     "  issue list",
+    "  issue search <term>",
     "  issue create",
     "  issue show <id>",
     "  issue children <id>",
@@ -344,6 +346,29 @@ function issueListHelp() {
   ].join("\n");
 }
 
+function issueSearchHelp() {
+  return [
+    "Usage: linear issue search <term> [options]",
+    "",
+    "Search issues by free-text term.",
+    "",
+    "Options:",
+    "  --project <name>",
+    "  --status <name> (repeatable)",
+    "  --label <name> (repeatable)",
+    "  --priority <urgent|high|medium|low|none>",
+    "  --assignee <name|email>",
+    "  --mine",
+    "  --unblocked",
+    "  --leaf",
+    "  --open",
+    "  --limit <n> (max 250)",
+    "  --json [<fields>]",
+    "    Flat projection only; e.g. --json id,identifier,title,priority",
+    "    Supported detail fields: comments, relations",
+  ].join("\n");
+}
+
 function loginHelp() {
   return [
     "Usage: linear login [options]",
@@ -362,6 +387,7 @@ function issueHelp() {
     "",
     "Subcommands:",
     "  list",
+    "  search <term>",
     "  create --title <title> --project <name>",
     "    --description <markdown>",
     "    --label <name> (repeatable)",
@@ -1549,6 +1575,178 @@ async function issueListCommand(args, context) {
         ? await resolveLabels(team)
         : []
       : [];
+
+  const items = await Promise.all(
+    responseIssues.map((issue) =>
+      serializeIssueListItem(issue, issueLabels, jsonOutputProjection),
+    ),
+  );
+
+  if (context.json) {
+    if (jsonProjection) {
+      return {
+        code: 0,
+        stdout: toJson(
+          items.map((item) => projectJsonFields(item, jsonProjection)),
+        ),
+        stderr: "",
+      };
+    }
+
+    return {
+      code: 0,
+      stdout: toJson(buildJsonEnvelope(items, pageInfo)),
+      stderr: "",
+    };
+  }
+
+  const lines = items.map(renderIssueLine);
+  if (pageInfo.hasNextPage && pageInfo.endCursor) {
+    lines.push(`Next cursor: ${pageInfo.endCursor}`);
+  }
+
+  return { code: 0, stdout: `${lines.join("\n")}\n`, stderr: "" };
+}
+
+async function issueSearchCommand(args, context) {
+  const options = parseOptions(args, [
+    "--project",
+    "--status",
+    "--label",
+    "--priority",
+    "--assignee",
+    "--limit",
+    "--mine",
+    "--unblocked",
+    "--leaf",
+    "--open",
+  ]);
+  if (options.help)
+    return { code: 0, stdout: `${issueSearchHelp()}\n`, stderr: "" };
+
+  const term = options._[0];
+  if (!term) usageError("Usage: linear issue search <term> [options]");
+
+  const jsonProjection = context.json
+    ? parseIssueListJsonProjection(options._.slice(1))
+    : null;
+  if (!context.json && options._.length > 1) {
+    usageError("Usage: linear issue search <term> [options]");
+  }
+
+  const limit = options.limit ? parseLimit(options.limit) : 50;
+  const { config, client } = await resolveLinearContext(context);
+  if (options.mine && options.assignee) {
+    usageError("--mine and --assignee are mutually exclusive.");
+  }
+  if (!config.team) {
+    runtimeError(missingTeamError());
+  }
+
+  const team = await resolveTeam(client, config.team);
+  const explicitFilters = [
+    options.project,
+    options.statuses?.length,
+    options.labels?.length,
+    options.priority,
+    options.assignee,
+    options.mine,
+    options.unblocked,
+    options.leaf,
+    options.open,
+  ].some(normalizeBool);
+
+  const states =
+    !explicitFilters || options.statuses?.length
+      ? await resolveStates(team)
+      : [];
+  const viewer = options.mine ? await resolveViewer(client) : null;
+  const labels = options.labels?.length ? await resolveLabels(team) : [];
+
+  const project = options.project
+    ? await resolveProject(team, options.project)
+    : null;
+  const assignee = options.mine
+    ? viewer
+    : options.assignee
+    ? await resolveUser(client, options.assignee)
+    : null;
+  const resolvedStatuses = options.statuses?.length
+    ? resolveStatuses(states, options.statuses)
+    : [];
+  const resolvedLabels = options.labels?.length
+    ? resolveLabelsByName(labels, options.labels)
+    : [];
+  const defaultBacklogStates = explicitFilters
+    ? []
+    : resolveDefaultBacklogStates(states);
+
+  const filter = buildIssueFilter({
+    project,
+    milestone: null,
+    statusIds: resolvedStatuses.map((state) => state.id),
+    labelIds: resolvedLabels.map((label) => label.id),
+    assignee: options.assignee ? assignee : null,
+    viewer,
+    priority: options.priority ? parsePriority(options.priority) : null,
+    mine: options.mine,
+    unblocked: options.unblocked,
+    leaf: options.leaf,
+    open: options.open,
+    defaultBacklogStateIds: defaultBacklogStates.map((state) => state.id),
+  });
+
+  const jsonOutputProjection = context.json
+    ? jsonProjection ?? ISSUE_LIST_DEFAULT_JSON_PROJECTION
+    : null;
+  const useGraphQLProjection = Boolean(
+    jsonOutputProjection &&
+      issueListProjectionNeedsGraphQL(jsonOutputProjection),
+  );
+  const listProjection = context.json
+    ? useGraphQLProjection
+      ? jsonOutputProjection
+      : null
+    : ISSUE_LIST_DISPLAY_FIELDS;
+
+  const fetchSearchPage = async ({ after, first, filter: pageFilter }) => {
+    return fetchSearchIssues(client, {
+      term,
+      filter: pageFilter,
+      first,
+      after: after ?? undefined,
+      teamId: team.id,
+      fields: listProjection,
+    });
+  };
+
+  const { items: responseIssues, pageInfo } = await fetchIssueListPages(
+    fetchSearchPage,
+    {
+      after: undefined,
+      first: limit,
+      filter,
+    },
+  );
+
+  const issueLabelsRequested =
+    context.json && jsonOutputProjection?.includes("labels");
+  const issueLabelIds =
+    !useGraphQLProjection && issueLabelsRequested
+      ? collectLabelIds(responseIssues)
+      : [];
+  const issueLabels =
+    !useGraphQLProjection && issueLabelsRequested
+      ? labels.length
+        ? labels
+        : issueLabelIds.length
+        ? await resolveLabels(team)
+        : []
+      : [];
+
+  if (responseIssues.length === 0) {
+    return { code: 0, stdout: "No results.\n", stderr: "" };
+  }
 
   const items = await Promise.all(
     responseIssues.map((issue) =>
@@ -2889,6 +3087,8 @@ async function helpCommand(args) {
     return { code: 0, stdout: `${issueHelp()}\n`, stderr: "" };
   if (topic === "issue" && args[1] === "list")
     return { code: 0, stdout: `${issueListHelp()}\n`, stderr: "" };
+  if (topic === "issue" && args[1] === "search")
+    return { code: 0, stdout: `${issueSearchHelp()}\n`, stderr: "" };
   if (topic === "issue" && args[1] === "create")
     return {
       code: 0,
@@ -3064,6 +3264,8 @@ export async function execute(argv = process.argv.slice(2), deps = {}) {
       const subcommand = command === "issues" ? "list" : tail[0];
       const args = command === "issues" ? tail : tail.slice(1);
       if (subcommand === "list") return await issueListCommand(args, context);
+      if (subcommand === "search")
+        return await issueSearchCommand(args, context);
       if (subcommand === "create")
         return await issueCreateCommand(args, context);
       if (subcommand === "show") return await issueShowCommand(args, context);
@@ -3077,7 +3279,7 @@ export async function execute(argv = process.argv.slice(2), deps = {}) {
       if (subcommand === "attach")
         return await issueAttachCommand(args, context);
       usageError(
-        "Usage: linear issue <list|create|show|children|start|update|comment|attach>",
+        "Usage: linear issue <list|search|create|show|children|start|update|comment|attach>",
       );
     }
 
@@ -3123,7 +3325,14 @@ export async function execute(argv = process.argv.slice(2), deps = {}) {
     usageError(`Unknown command: ${command}`);
   } catch (error) {
     const code = error instanceof CliError ? error.code : 1;
-    const message = error instanceof Error ? error.message : String(error);
+    let message = error instanceof Error ? error.message : String(error);
+    // Surface a retry hint for rate-limit errors when the SDK error lacks one
+    if (
+      !/retry/i.test(message) &&
+      (message.includes("429") || /rate.?limit/i.test(message))
+    ) {
+      message += " Wait a few minutes and try again.";
+    }
     return { code, stdout: "", stderr: `${message}\n` };
   }
 }

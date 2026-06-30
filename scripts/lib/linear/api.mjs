@@ -478,6 +478,113 @@ export async function createIssueRelationWithFallback(receiver, payload) {
   return null;
 }
 
+export function buildSearchIssuesQuery(fields) {
+  const requestedFields = new Set(fields ?? []);
+  const selectStatus = !fields || requestedFields.has("status");
+  const selectProject = !fields || requestedFields.has("project");
+  const selectMilestone = !fields || requestedFields.has("milestone");
+  const selectAssignee = !fields || requestedFields.has("assignee");
+  const selectLabels = !fields || requestedFields.has("labels");
+  const selectDescription = !fields || requestedFields.has("description");
+  const selectComments = !fields || requestedFields.has("comments");
+  const selectRelations = !fields || requestedFields.has("relations");
+
+  const issueFields = [
+    "id",
+    "identifier",
+    "title",
+    "url",
+    "priority",
+    "priorityLabel",
+    "updatedAt",
+    selectDescription ? "description" : null,
+    selectStatus ? "state { id name type }" : null,
+    selectProject ? "project { id name url updatedAt }" : null,
+    selectMilestone
+      ? [
+          "projectMilestone {",
+          "  id",
+          "  name",
+          "  targetDate",
+          "  updatedAt",
+          "  project { id name url updatedAt }",
+          "}",
+        ].join("\n        ")
+      : null,
+    selectAssignee ? "assignee { id name displayName email }" : null,
+    selectLabels ? "labels { nodes { id name } }" : null,
+    selectComments
+      ? [
+          "comments {",
+          "  nodes {",
+          "    id",
+          "    body",
+          "    createdAt",
+          "    updatedAt",
+          "    user { id name displayName email }",
+          "  }",
+          "}",
+        ].join("\n        ")
+      : null,
+    selectRelations
+      ? [
+          "relations {",
+          "  nodes {",
+          "    id",
+          "    type",
+          `    issue {\n        ${ISSUE_BY_NUMBER_SUMMARY_FIELDS}\n      }`,
+          `    relatedIssue {\n        ${ISSUE_BY_NUMBER_SUMMARY_FIELDS}\n      }`,
+          "  }",
+          "}",
+          "inverseRelations {",
+          "  nodes {",
+          "    id",
+          "    type",
+          `    issue {\n        ${ISSUE_BY_NUMBER_SUMMARY_FIELDS}\n      }`,
+          `    relatedIssue {\n        ${ISSUE_BY_NUMBER_SUMMARY_FIELDS}\n      }`,
+          "  }",
+          "}",
+        ].join("\n        ")
+      : null,
+  ]
+    .filter(Boolean)
+    .join("\n        ");
+
+  return [
+    "query IssueSearch($term: String!, $filter: IssueFilter, $first: Int, $after: String, $teamId: String) {",
+    "  searchIssues(",
+    "    term: $term",
+    "    filter: $filter",
+    "    first: $first",
+    "    after: $after",
+    "    teamId: $teamId",
+    "  ) {",
+    "    nodes {",
+    `      ${issueFields}`,
+    "    }",
+    "    pageInfo {",
+    "      hasNextPage",
+    "      endCursor",
+    "    }",
+    "    totalCount",
+    "  }",
+    "}",
+  ].join("\n");
+}
+
+export async function fetchSearchIssues(client, variables) {
+  const { term, filter, first, after, teamId, fields } = variables;
+  const query = buildSearchIssuesQuery(fields ?? null);
+  const response = await requestLinearGraphQL(client, query, {
+    term,
+    filter,
+    first,
+    after,
+    teamId,
+  });
+  return response?.searchIssues ?? null;
+}
+
 export async function fetchProject(projectId, client) {
   if (client.project) {
     return callBoundMethod(client, client.project, projectId);
