@@ -97,7 +97,9 @@ describe('SelectedNodeBoxModel', () => {
       'box-sizing': 'content-box',
     })
     cleanup()
-    const { container: fullContainer } = render(<SelectedNodeBoxModel />)
+    const { container: fullContainer, getAllByText } = render(
+      <SelectedNodeBoxModel />
+    )
 
     assert.ok(
       fullContainer.textContent?.includes('box-sizing: content-box'),
@@ -117,57 +119,57 @@ describe('SelectedNodeBoxModel', () => {
       'should show padding region name'
     )
 
-    // All four margin edge values
+    // All four margin edge values — exact-text queries
     assert.ok(
-      fullContainer.textContent?.includes('31px'),
+      getAllByText('31', { exact: true }).length >= 1,
       'should show margin-top value'
     )
     assert.ok(
-      fullContainer.textContent?.includes('42px'),
+      getAllByText('42', { exact: true }).length >= 1,
       'should show margin-right value'
     )
     assert.ok(
-      fullContainer.textContent?.includes('53px'),
+      getAllByText('53', { exact: true }).length >= 1,
       'should show margin-bottom value'
     )
     assert.ok(
-      fullContainer.textContent?.includes('64px'),
+      getAllByText('64', { exact: true }).length >= 1,
       'should show margin-left value'
     )
 
-    // All four border edge values
+    // All four border edge values — exact-text queries
     assert.ok(
-      fullContainer.textContent?.includes('5px'),
+      getAllByText('5', { exact: true }).length >= 1,
       'should show border-top value'
     )
     assert.ok(
-      fullContainer.textContent?.includes('7px'),
+      getAllByText('7', { exact: true }).length >= 1,
       'should show border-right value'
     )
     assert.ok(
-      fullContainer.textContent?.includes('8px'),
+      getAllByText('8', { exact: true }).length >= 1,
       'should show border-bottom value'
     )
     assert.ok(
-      fullContainer.textContent?.includes('9px'),
+      getAllByText('9', { exact: true }).length >= 1,
       'should show border-left value'
     )
 
-    // All four padding edge values
+    // All four padding edge values — exact-text queries
     assert.ok(
-      fullContainer.textContent?.includes('10px'),
+      getAllByText('10', { exact: true }).length >= 1,
       'should show padding-top value'
     )
     assert.ok(
-      fullContainer.textContent?.includes('20px'),
+      getAllByText('20', { exact: true }).length >= 1,
       'should show padding-right value'
     )
     assert.ok(
-      fullContainer.textContent?.includes('30px'),
+      getAllByText('30', { exact: true }).length >= 1,
       'should show padding-bottom value'
     )
     assert.ok(
-      fullContainer.textContent?.includes('40px'),
+      getAllByText('40', { exact: true }).length >= 1,
       'should show padding-left value'
     )
 
@@ -204,24 +206,27 @@ describe('SelectedNodeBoxModel', () => {
       height: '75px',
     })
     cleanup()
-    const { container: zeroContainer } = render(<SelectedNodeBoxModel />)
+    const { container: zeroContainer, getAllByText: zeroGetAllByText } = render(
+      <SelectedNodeBoxModel />
+    )
 
     // Should not crash
     assert.ok(zeroContainer.textContent, 'should render without crashing')
 
     assert.ok(
-      zeroContainer.textContent?.includes('12px'),
+      zeroGetAllByText('12', { exact: true }).length >= 1,
       'should show margin values (non-zero)'
     )
     assert.ok(
-      zeroContainer.textContent?.includes('4px'),
+      zeroGetAllByText('4', { exact: true }).length >= 1,
       'should show border values (non-zero)'
     )
-    // With hasVisible guard removed, '0px' IS now in output (four dimmed
+    // With hasVisible guard removed, '0' IS now in output (four dimmed
     // padding labels). No 0-containing values elsewhere in the fixture.
-    assert.ok(
-      zeroContainer.textContent?.includes('0px'),
-      'should show four 0px padding values (no longer hidden)'
+    assert.equal(
+      zeroGetAllByText('0', { exact: true }).length,
+      4,
+      'four dimmed 0 padding labels'
     )
 
     // Test 6: box-sizing: border-box

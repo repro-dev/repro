@@ -49,7 +49,7 @@ const EdgeLabel: React.FC<{ value: number }> = ({ value }) => (
     padding={spacing.xs}
     textAlign="center"
   >
-    {value}px
+    {value}
   </Block>
 )
 
