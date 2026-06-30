@@ -1,5 +1,4 @@
 import { Block, Col, Row } from '@jsxstyle/react'
-import { useApiClient } from '@repro/api-client'
 import {
   Button,
   FormField,
@@ -11,9 +10,8 @@ import {
   radius,
   spacing,
 } from '@repro/design'
-import { type Cancel, fork } from 'fluture'
-import { SettingsIcon, XIcon } from 'lucide-react'
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { EyeOffIcon, XIcon } from 'lucide-react'
+import React, { useCallback, useState } from 'react'
 
 export interface PrivacyOverrides {
   maskedSelectors: string[]
@@ -36,22 +34,6 @@ const SUGGESTIONS: Array<{ label: string; selector: string }> = [
 ]
 
 const SUGGESTION_CLOSE_DELAY_MS = 200
-
-type PresetName = 'strict' | 'standard' | 'off'
-
-const PRESET_LABELS: Record<PresetName, string> = {
-  strict: 'Strict',
-  standard: 'Standard',
-  off: 'Off',
-}
-
-const PRESET_DESCRIPTIONS: Record<PresetName, string> = {
-  strict:
-    'All forms, inputs, and text content are masked by default in recordings.',
-  standard:
-    'Password and credit card fields are masked by default in recordings.',
-  off: 'No automatic masking is applied to recordings.',
-}
 
 interface TagInputProps {
   placeholder: string
@@ -209,43 +191,8 @@ export const PrivacySection: React.FC<PrivacySectionProps> = ({
   onOpenChange,
   onOverridesChange,
 }) => {
-  const apiClient = useApiClient()
-  const fetchCancelRef = useRef<Cancel | null>(null)
-
-  const [preset, setPreset] = useState<PresetName | null>(null)
-  const [presetLoading, setPresetLoading] = useState(true)
-  const [presetError, setPresetError] = useState(false)
   const [maskedSelectors, setMaskedSelectors] = useState<string[]>([])
   const [ignoredSelectors, setIgnoredSelectors] = useState<string[]>([])
-
-  useEffect(() => {
-    if (!open) return
-
-    setPresetLoading(true)
-    setPresetError(false)
-
-    const future = apiClient.fetch('/account/privacy')
-
-    fetchCancelRef.current = fork((_error: Error) => {
-      setPresetLoading(false)
-      setPresetError(true)
-    })((data: unknown) => {
-      setPresetLoading(false)
-      const d = data as { recordingPrivacyPreset?: PresetName }
-      if (d.recordingPrivacyPreset) {
-        setPreset(d.recordingPrivacyPreset)
-      } else {
-        setPresetError(true)
-      }
-    })(future)
-
-    return () => {
-      if (fetchCancelRef.current) {
-        fetchCancelRef.current()
-        fetchCancelRef.current = null
-      }
-    }
-  }, [open, apiClient])
 
   const hasOverrides = maskedSelectors.length > 0 || ignoredSelectors.length > 0
 
@@ -279,42 +226,25 @@ export const PrivacySection: React.FC<PrivacySectionProps> = ({
           userSelect="none"
           cursor="pointer"
         >
-          <SettingsIcon size={16} />
+          <EyeOffIcon size={14} />
+          Privacy Controls
         </Row>
       </Popover.Trigger>
 
       <Popover.Content
-        aria-label="Recording privacy controls"
+        aria-label="Privacy Controls"
         side="bottom"
         align="end"
         style={{ outline: 'none' }}
       >
-        <Col gap={spacing.md} minWidth={300}>
-          <Text variant="heading3">Recording privacy</Text>
-
-          {presetLoading && (
+        <Col gap={spacing.md} minWidth={320}>
+          <Col gap={spacing.xs}>
+            <Text variant="heading3">Privacy Controls</Text>
             <Text variant="caption" color={color.text.secondary}>
-              Loading workspace settings…
+              Apply masking and content suppression to this recording to prevent
+              sensitive data from being leaked.
             </Text>
-          )}
-
-          {presetError && (
-            <Text variant="caption" color={color.text.secondary}>
-              Privacy settings unavailable
-            </Text>
-          )}
-
-          {preset && !presetLoading && !presetError && (
-            <Col gap={spacing.xs}>
-              <Text variant="caption" color={color.text.secondary}>
-                Workspace default:{' '}
-                <Text variant="caption" as="strong" weight="bold">
-                  {PRESET_LABELS[preset]}
-                </Text>
-                . {PRESET_DESCRIPTIONS[preset]}
-              </Text>
-            </Col>
-          )}
+          </Col>
 
           <FormField>
             <Label>Mask content matching…</Label>

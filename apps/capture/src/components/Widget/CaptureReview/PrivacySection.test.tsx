@@ -1,27 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { reject, resolve, type FutureInstance } from 'fluture'
 import assert from 'node:assert/strict'
 import { afterEach, describe, it, mock } from 'node:test'
 import React from 'react'
-
-/**
- * Controlled mock fetch — tests can reassign this to control API behavior.
- */
-let mockFetch: (
-  path: string,
-  options?: { method?: string; body?: string }
-) => FutureInstance<any, any> = () =>
-  resolve({
-    recordingPrivacyPreset: 'standard',
-  })
-
-mock.module('@repro/api-client', {
-  namedExports: {
-    useApiClient: () => ({
-      fetch: mockFetch,
-    }),
-  },
-})
 
 const MockPopoverTrigger = ({ children }: any) => <>{children}</>
 const MockPopoverContent = ({ children }: any) => <>{children}</>
@@ -111,10 +91,6 @@ const { PrivacySection } =
 describe('PrivacySection', () => {
   afterEach(() => {
     cleanup()
-    mockFetch = () =>
-      resolve({
-        recordingPrivacyPreset: 'standard',
-      })
   })
 
   const defaultProps = {
@@ -123,95 +99,68 @@ describe('PrivacySection', () => {
     onOverridesChange: mock.fn() as () => void,
   }
 
-  it('renders popover with workspace preset label when open', async () => {
+  it('renders heading and subtitle when open', () => {
     render(<PrivacySection {...defaultProps} />)
 
-    // Heading should be visible
-    const heading = await screen.findByText('Recording privacy')
-    assert.ok(heading, 'Popover heading should be visible')
+    const headings = screen.getAllByText('Privacy Controls')
+    assert.ok(headings.length >= 1, 'Heading should be visible')
+
+    const subtitle = screen.getByText(/Apply masking and content suppression/)
+    assert.ok(subtitle, 'Subtitle should be visible')
   })
 
-  it('fetches workspace privacy preset when opened and displays it', async () => {
-    render(<PrivacySection {...defaultProps} />)
-
-    // Wait for the workspace default text to appear
-    const workspaceDefault = await screen.findByText(/Workspace default:/i)
-    assert.ok(
-      workspaceDefault,
-      'Workspace default label should be displayed after fetch'
-    )
-  })
-
-  it('handles API fetch failure gracefully', async () => {
-    mockFetch = () =>
-      reject(new Error('Network error')) as FutureInstance<any, any>
-
-    render(<PrivacySection {...defaultProps} />)
-
-    const fallback = await screen.findByText(/unavailable/i)
-    assert.ok(fallback, 'Fallback text should appear on fetch failure')
-  })
-
-  it('handles 403 error gracefully (non-admin user)', async () => {
-    mockFetch = () => reject(new Error('Forbidden')) as FutureInstance<any, any>
-
-    render(<PrivacySection {...defaultProps} />)
-
-    const fallback = await screen.findByText(/unavailable/i)
-    assert.ok(fallback, 'Fallback text should appear on 403')
-  })
-
-  it('does not fetch when closed', () => {
+  it('does not render when closed', () => {
     render(<PrivacySection {...defaultProps} open={false} />)
 
-    // Popover content should not be rendered when closed
     assert.equal(
-      screen.queryByText('Recording privacy'),
+      screen.queryByText('Privacy Controls'),
       null,
-      'Popover heading should not be visible when closed'
+      'Heading should not be visible when closed'
     )
   })
 
-  it('form fields are always visible (no toggle)', async () => {
+  it('form fields are always visible', () => {
     render(<PrivacySection {...defaultProps} />)
 
-    const maskLabel = screen.getByText(/Mask content matching/i)
-    assert.ok(maskLabel, 'Mask label should be visible')
-
-    const excludeLabel = screen.getByText(/Exclude elements matching/i)
-    assert.ok(excludeLabel, 'Exclude label should be visible')
+    assert.ok(
+      screen.getByText(/Mask content matching/i),
+      'Mask label should be visible'
+    )
+    assert.ok(
+      screen.getByText(/Exclude elements matching/i),
+      'Exclude label should be visible'
+    )
   })
 
-  it('masked selector input accepts and displays tag entries', async () => {
+  it('masked selector input accepts and displays tag entries', () => {
     render(<PrivacySection {...defaultProps} />)
 
-    // Find the masked selector input and add a tag
     const maskedInput = screen.getByPlaceholderText(/Mask content matching/)
     fireEvent.input(maskedInput, { target: { value: '.my-class' } })
     fireEvent.keyDown(maskedInput, { key: 'Enter', code: 'Enter' })
 
-    // The tag should be displayed
-    const tag = screen.getByText('.my-class')
-    assert.ok(tag, 'Tag should appear after pressing Enter')
+    assert.ok(
+      screen.getByText('.my-class'),
+      'Tag should appear after pressing Enter'
+    )
   })
 
-  it('ignored selector input accepts and displays tag entries', async () => {
+  it('ignored selector input accepts and displays tag entries', () => {
     render(<PrivacySection {...defaultProps} />)
 
-    // Find the ignored selector input
     const ignoredInput = screen.getByPlaceholderText(
       /Exclude elements matching/
     )
-    assert.ok(ignoredInput, 'Ignored input should be visible')
-
     fireEvent.input(ignoredInput, { target: { value: '.ignore-me' } })
     fireEvent.keyDown(ignoredInput, { key: 'Enter', code: 'Enter' })
 
-    const tag = screen.getByText('.ignore-me')
-    assert.ok(tag, 'Tag should appear after pressing Enter')
+    assert.ok(
+      screen.getByText('.ignore-me'),
+      'Tag should appear after pressing Enter'
+    )
   })
 
-  it('"Reset to defaults" clears all per-recording overrides', async () => {
+  it('"Reset to defaults" clears all per-recording overrides', () => {
     render(<PrivacySection {...defaultProps} />)
 
     const maskedInput = screen.getByPlaceholderText(/Mask content matching/)
@@ -220,12 +169,9 @@ describe('PrivacySection', () => {
 
     assert.ok(screen.getByText('.my-class'), 'Tag should exist')
 
-    // Click Reset to defaults
     const resetButton = screen.getByText(/Reset to defaults/i)
-    assert.ok(resetButton, 'Reset button should be visible')
     fireEvent.click(resetButton)
 
-    // Tag should be gone
     assert.equal(
       screen.queryByText('.my-class'),
       null,
@@ -233,7 +179,7 @@ describe('PrivacySection', () => {
     )
   })
 
-  it('Apply button calls onOverridesChange and closes popover', async () => {
+  it('Apply button calls onOverridesChange and closes popover', () => {
     const onOverridesChange = mock.fn()
     const onOpenChange = mock.fn()
 
@@ -244,9 +190,7 @@ describe('PrivacySection', () => {
         onOverridesChange={onOverridesChange}
       />
     )
-    await screen.findByText(/Workspace default:/i)
 
-    // Click Apply (no overrides)
     const applyButton = screen.getByText('Apply')
     fireEvent.click(applyButton)
 
@@ -255,7 +199,7 @@ describe('PrivacySection', () => {
     assert.equal(onOpenChange.mock.calls[0]?.arguments[0], false)
   })
 
-  it('Apply calls onOverridesChange with selectors when configured', async () => {
+  it('Apply calls onOverridesChange with selectors when configured', () => {
     const onOverridesChange = mock.fn()
 
     render(
@@ -265,43 +209,34 @@ describe('PrivacySection', () => {
         onOverridesChange={onOverridesChange}
       />
     )
-    await screen.findByText(/Workspace default:/i)
 
-    // Add a masked tag and click Apply
     const maskedInput = screen.getByPlaceholderText(/Mask content matching/)
     fireEvent.input(maskedInput, { target: { value: '.test' } })
     fireEvent.keyDown(maskedInput, { key: 'Enter', code: 'Enter' })
 
-    // Click Apply
     const applyButton = screen.getByText('Apply')
     fireEvent.click(applyButton)
 
     assert.equal(onOverridesChange.mock.callCount(), 1)
-    const callArgs = onOverridesChange.mock.calls[0]
-    assert.deepEqual(callArgs?.arguments[0], {
+    assert.deepEqual(onOverridesChange.mock.calls[0]?.arguments[0], {
       maskedSelectors: ['.test'],
       ignoredSelectors: [],
     })
   })
 
-  it('does not persist per-recording privacy state after remount', async () => {
+  it('does not persist per-recording privacy state after remount', () => {
     const { unmount } = render(<PrivacySection {...defaultProps} />)
 
-    // Add a tag
     const maskedInput = screen.getByPlaceholderText(/Mask content matching/)
     fireEvent.input(maskedInput, { target: { value: '.my-class' } })
     fireEvent.keyDown(maskedInput, { key: 'Enter', code: 'Enter' })
 
     assert.ok(screen.getByText('.my-class'), 'Tag should exist')
 
-    // Unmount (simulate close)
     unmount()
 
-    // Remount with fresh state
     render(<PrivacySection {...defaultProps} />)
-    await screen.findByText(/Workspace default:/i)
 
-    // No tag should persist
     assert.equal(
       screen.queryByText('.my-class'),
       null,
