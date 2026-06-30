@@ -75,7 +75,7 @@ export const ProgressOverlay: React.FC<Props> = ({
   const isIndeterminate = !progress && !effectiveError
 
   return (
-    <>
+    <Block minWidth={260}>
       {/* Error state — from either prop or progress.error */}
       {effectiveError && (
         <Col gap={spacing.lg}>
@@ -231,6 +231,6 @@ export const ProgressOverlay: React.FC<Props> = ({
           </Block>
         </Fragment>
       )}
-    </>
+    </Block>
   )
 }
