@@ -9,6 +9,7 @@ import { SimpleTimeline } from './SimpleTimeline'
 export interface Props {
   onChange?: (min: number, max: number) => void
   errorAndWarningEvents?: Array<ErrorOrWarningEntry>
+  onMarkerClick?: (entry: ErrorOrWarningEntry) => void
 }
 
 function useCallbackRef<T extends (...args: any[]) => unknown>(
@@ -26,6 +27,7 @@ function useCallbackRef<T extends (...args: any[]) => unknown>(
 export const RangeTimeline: React.FC<Props> = ({
   onChange,
   errorAndWarningEvents,
+  onMarkerClick,
 }) => {
   const playback = usePlayback()
   const onChangeRef = useCallbackRef(onChange)
@@ -196,7 +198,10 @@ export const RangeTimeline: React.FC<Props> = ({
 
   return (
     <Block position="relative">
-      <SimpleTimeline errorAndWarningEvents={errorAndWarningEvents}>
+      <SimpleTimeline
+        errorAndWarningEvents={errorAndWarningEvents}
+        onMarkerClick={onMarkerClick}
+      >
         <Block
           position="absolute"
           left={0}

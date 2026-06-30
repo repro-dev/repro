@@ -1,6 +1,7 @@
 import { Block, Row } from '@jsxstyle/react'
 import { Button, color, fontSize, spacing } from '@repro/design'
-import { DevTools } from '@repro/devtools'
+import { DevTools, useDevToolsView } from '@repro/devtools'
+import { View } from '@repro/devtools/src/types'
 import {
   PlaybackProvider,
   RangeTimeline,
@@ -29,6 +30,12 @@ export const InstantReplayPane: React.FC = () => {
     () => findErrorAndWarningEvents(events),
     [events]
   )
+
+  const [, setView] = useDevToolsView()
+
+  const handleMarkerClick = (_: unknown) => {
+    setView(View.Console)
+  }
 
   const [min, setMin] = useState(0)
   const [max, setMax] = useState(playback.getDuration())
@@ -113,6 +120,7 @@ export const InstantReplayPane: React.FC = () => {
               <RangeTimeline
                 onChange={onUpdateRange}
                 errorAndWarningEvents={errorAndWarningEvents}
+                onMarkerClick={handleMarkerClick}
               />
             }
           />

@@ -85,6 +85,7 @@ export interface Props {
   min?: number
   max?: number
   errorAndWarningEvents?: Array<ErrorOrWarningEntry>
+  onMarkerClick?: (entry: ErrorOrWarningEntry) => void
 }
 
 export const SimpleTimeline: React.FC<Props> = ({
@@ -92,6 +93,7 @@ export const SimpleTimeline: React.FC<Props> = ({
   min,
   max,
   errorAndWarningEvents,
+  onMarkerClick,
 }) => {
   const progressRef = useRef<HTMLDivElement | null>(null)
   const elapsedTimeRef = useRef<HTMLDivElement | null>(null)
@@ -335,7 +337,6 @@ export const SimpleTimeline: React.FC<Props> = ({
           marker.style.display = 'flex'
           marker.style.alignItems = 'center'
           marker.style.justifyContent = 'center'
-          marker.title = entry.summary
 
           marker.appendChild(
             isError
@@ -343,9 +344,23 @@ export const SimpleTimeline: React.FC<Props> = ({
               : createWarningIcon(iconSize, markerColor)
           )
 
+          const compositeTooltip = `${formatTime(entry.time, 'millis')}\n${
+            entry.summary
+          }`
+
+          marker.addEventListener('pointerenter', () => {
+            updateTooltip(tooltip, offset, compositeTooltip)
+            showTooltip(tooltip)
+          })
+
+          marker.addEventListener('pointerleave', () => {
+            hideTooltip(tooltip)
+          })
+
           marker.addEventListener('pointerdown', (e: PointerEvent) => {
             e.stopPropagation()
             playback.seekToTime(entry.time)
+            onMarkerClick?.(entry)
             Analytics.track('playback:seek-to-marker')
           })
 
@@ -551,6 +566,7 @@ function createTooltipElement() {
     ['display', 'none'],
     ['fontSize', `${fontSize.xs}px`],
     ['left', '0'],
+    ['maxWidth', '280px'],
     ['padding', '8px'],
     ['position', 'absolute'],
     ['top', '0'],
@@ -573,6 +589,7 @@ function updateBarOffset(target: HTMLElement, offset: number) {
 function updateTooltip(target: HTMLElement, offset: number, value: string) {
   target.style.left = `${offset * 100}%`
   target.textContent = value
+  target.style.whiteSpace = 'pre-line'
 }
 
 function updateElapsedTime(target: HTMLElement | null, value: string) {

@@ -8,7 +8,8 @@ import {
   shadow,
   spacing,
 } from '@repro/design'
-import { DevTools } from '@repro/devtools'
+import { DevTools, useDevToolsView } from '@repro/devtools'
+import { View } from '@repro/devtools/src/types'
 import { RecordingMode } from '@repro/domain'
 import { Playback, PlaybackProvider, SimpleTimeline } from '@repro/playback'
 import { findErrorAndWarningEvents } from '@repro/source-utils'
@@ -59,10 +60,16 @@ export const CaptureReview: React.FC<CaptureReviewProps> = ({
 
   const { uploadState } = useCaptureUpload()
 
+  const [, setView] = useDevToolsView()
+
   const errorAndWarningEvents = useMemo(
     () => findErrorAndWarningEvents(playback.getSourceEvents()),
     [playback]
   )
+
+  const handleMarkerClick = (_: unknown) => {
+    setView(View.Console)
+  }
 
   return (
     <PlaybackProvider playback={playback}>
@@ -103,6 +110,7 @@ export const CaptureReview: React.FC<CaptureReviewProps> = ({
                 min={minTime}
                 max={maxTime}
                 errorAndWarningEvents={errorAndWarningEvents}
+                onMarkerClick={handleMarkerClick}
               />
             }
           />
