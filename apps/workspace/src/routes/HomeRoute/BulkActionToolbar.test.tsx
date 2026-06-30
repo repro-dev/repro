@@ -14,7 +14,6 @@ describe('BulkActionToolbar', () => {
       <BulkActionToolbar
         selectedCount={0}
         onDelete={() => {}}
-        onExport={() => {}}
         onClearSelection={() => {}}
       />
     )
@@ -27,7 +26,6 @@ describe('BulkActionToolbar', () => {
       <BulkActionToolbar
         selectedCount={3}
         onDelete={() => {}}
-        onExport={() => {}}
         onClearSelection={() => {}}
       />
     )
@@ -35,18 +33,16 @@ describe('BulkActionToolbar', () => {
     assert.ok(screen.getByText('3 selected'))
   })
 
-  it('renders Delete, Export, and Clear selection buttons', () => {
+  it('renders Delete and Clear selection buttons', () => {
     render(
       <BulkActionToolbar
         selectedCount={2}
         onDelete={() => {}}
-        onExport={() => {}}
         onClearSelection={() => {}}
       />
     )
 
     assert.ok(screen.getByText('Delete'))
-    assert.ok(screen.getByText('Export'))
     assert.ok(screen.getByText('Clear selection'))
   })
 
@@ -58,7 +54,6 @@ describe('BulkActionToolbar', () => {
         onDelete={() => {
           deleteCalled = true
         }}
-        onExport={() => {}}
         onClearSelection={() => {}}
       />
     )
@@ -67,30 +62,12 @@ describe('BulkActionToolbar', () => {
     assert.equal(deleteCalled, true)
   })
 
-  it('calls onExport when Export button is clicked', () => {
-    let exportCalled = false
-    render(
-      <BulkActionToolbar
-        selectedCount={1}
-        onDelete={() => {}}
-        onExport={() => {
-          exportCalled = true
-        }}
-        onClearSelection={() => {}}
-      />
-    )
-
-    fireEvent.click(screen.getByText('Export'))
-    assert.equal(exportCalled, true)
-  })
-
   it('calls onClearSelection when Clear selection is clicked', () => {
     let clearCalled = false
     render(
       <BulkActionToolbar
         selectedCount={1}
         onDelete={() => {}}
-        onExport={() => {}}
         onClearSelection={() => {
           clearCalled = true
         }}

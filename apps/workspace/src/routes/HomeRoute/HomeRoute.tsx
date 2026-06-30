@@ -256,18 +256,6 @@ export const HomeRoute = ({
     setSelectedRowIds(new Set())
   }, [])
 
-  const handleExportSelected = useCallback(() => {
-    const selectedRecordings = items.filter(item => selectedRowIds.has(item.id))
-    const json = JSON.stringify(selectedRecordings, null, 2)
-    const blob = new Blob([json], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const anchor = document.createElement('a')
-    anchor.href = url
-    anchor.download = 'selected-sessions.json'
-    anchor.click()
-    URL.revokeObjectURL(url)
-  }, [items, selectedRowIds])
-
   const handleRequestDelete = useCallback(() => {
     setShowDeleteConfirm(true)
   }, [])
@@ -456,7 +444,6 @@ export const HomeRoute = ({
               <BulkActionToolbar
                 selectedCount={selectedRowIds.size}
                 onDelete={handleRequestDelete}
-                onExport={handleExportSelected}
                 onClearSelection={handleClearSelection}
               />
 

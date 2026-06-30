@@ -453,7 +453,7 @@ describe('HomeRoute', () => {
       assert.ok(screen.getByText(/3 selected/))
     })
 
-    it('should show the BulkActionToolbar with Delete and Export buttons when rows are selected', async () => {
+    it('should show the BulkActionToolbar with Delete button when rows are selected', async () => {
       const getProjectRecordings = (
         _apiClient: ApiClient,
         _projectId: string
@@ -472,9 +472,8 @@ describe('HomeRoute', () => {
       const selectAllCheckbox = screen.getByLabelText('Select all rows')
       fireEvent.click(selectAllCheckbox)
 
-      // Should show Delete and Export buttons
+      // Should show Delete and Clear selection buttons
       assert.ok(screen.getByText('Delete'))
-      assert.ok(screen.getByText('Export'))
       assert.ok(screen.getByText('Clear selection'))
     })
 

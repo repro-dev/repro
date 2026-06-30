@@ -1,19 +1,17 @@
 import { Block, Row } from '@jsxstyle/react'
 import { Button, color, radius, spacing, textStyles } from '@repro/design'
-import { DownloadIcon, TrashIcon } from 'lucide-react'
+import { TrashIcon } from 'lucide-react'
 import React from 'react'
 
 interface BulkActionToolbarProps {
   selectedCount: number
   onDelete: () => void
-  onExport: () => void
   onClearSelection: () => void
 }
 
 export const BulkActionToolbar: React.FC<BulkActionToolbarProps> = ({
   selectedCount,
   onDelete,
-  onExport,
   onClearSelection,
 }) => {
   if (selectedCount === 0) {
@@ -45,19 +43,6 @@ export const BulkActionToolbar: React.FC<BulkActionToolbarProps> = ({
           <Row alignItems="center" gap={spacing.xs}>
             <TrashIcon size={14} />
             <Block component="span">Delete</Block>
-          </Row>
-        </Button>
-
-        <Button
-          variant="outlined"
-          context="neutral"
-          size="small"
-          rounded
-          onClick={onExport}
-        >
-          <Row alignItems="center" gap={spacing.xs}>
-            <DownloadIcon size={14} />
-            <Block component="span">Export</Block>
           </Row>
         </Button>
 
