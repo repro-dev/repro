@@ -188,6 +188,7 @@ export const SimpleTimeline: React.FC<Props> = ({
           .subscribe(([offset, value]) => {
             updateBarOffset(ghost, offset)
             const markerText = markerTooltipRef.current
+            tooltip.style.minWidth = markerText ? '140px' : ''
             updateTooltip(
               tooltip,
               offset,
@@ -589,7 +590,6 @@ function createTooltipElement() {
     ['fontSize', `${fontSize.xs}px`],
     ['left', '0'],
     ['maxWidth', '280px'],
-    ['minWidth', '140px'],
     ['padding', `${spacing.md}px`],
     ['position', 'absolute'],
     ['top', '0'],
