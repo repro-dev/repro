@@ -275,7 +275,6 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                       key={item.label}
                       alignItems="center"
                       gap={spacing.md}
-                      paddingH={spacing.md}
                       paddingV={spacing.sm}
                       cursor="pointer"
                       backgroundColor={
