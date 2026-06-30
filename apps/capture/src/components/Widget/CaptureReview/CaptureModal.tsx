@@ -8,6 +8,7 @@ import { useRecordingMode } from '~/state'
 import { Modal } from '../Modal'
 import { CaptureReview } from './CaptureReview'
 import { CaptureUploadProvider } from './CaptureUploadProvider'
+import { PrivacySection, type PrivacyOverrides } from './PrivacySection'
 import { SaveRecordingPopover } from './SaveRecordingPopover'
 import { useRecordingActions } from './useRecordingActions'
 const DEFAULT_SELECTED_DURATION = 60_000
@@ -38,12 +39,33 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
 
   const isAuthed = session !== null
 
+  const [privacyOpen, setPrivacyOpen] = useState(false)
+  const [privacyOverrides, setPrivacyOverridesState] =
+    useState<PrivacyOverrides>({
+      maskedSelectors: [],
+      ignoredSelectors: [],
+    })
+
+  const handlePrivacyChange = useCallback(
+    (overrides: PrivacyOverrides) => {
+      setPrivacyOverridesState(overrides)
+      actions.setPrivacyOverrides(overrides)
+    },
+    [actions]
+  )
+
   const onDownloadLocally = useCallback(() => {
     actions.downloadLocally()
   }, [actions])
 
   const headerActions = (
     <>
+      <PrivacySection
+        open={privacyOpen}
+        onOpenChange={setPrivacyOpen}
+        onOverridesChange={handlePrivacyChange}
+      />
+
       <Row
         alignItems="center"
         paddingH={spacing.lg}
@@ -103,6 +125,7 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
           recordingMode={recordingMode}
           selectedDuration={selectedDuration}
           setSelectedDuration={setSelectedDuration}
+          privacyOverrides={privacyOverrides}
         />
       </Modal>
     </CaptureUploadProvider>
