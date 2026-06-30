@@ -7,7 +7,6 @@ import {
   Label,
   Popover,
   Text,
-  Toggle,
   color,
   radius,
   spacing,
@@ -216,7 +215,6 @@ export const PrivacySection: React.FC<PrivacySectionProps> = ({
   const [preset, setPreset] = useState<PresetName | null>(null)
   const [presetLoading, setPresetLoading] = useState(true)
   const [presetError, setPresetError] = useState(false)
-  const [overridesEnabled, setOverridesEnabled] = useState(false)
   const [maskedSelectors, setMaskedSelectors] = useState<string[]>([])
   const [ignoredSelectors, setIgnoredSelectors] = useState<string[]>([])
 
@@ -253,30 +251,15 @@ export const PrivacySection: React.FC<PrivacySectionProps> = ({
 
   const handleApply = useCallback(() => {
     onOverridesChange({
-      maskedSelectors: overridesEnabled ? maskedSelectors : [],
-      ignoredSelectors: overridesEnabled ? ignoredSelectors : [],
+      maskedSelectors,
+      ignoredSelectors,
     })
     onOpenChange(false)
-  }, [
-    overridesEnabled,
-    maskedSelectors,
-    ignoredSelectors,
-    onOverridesChange,
-    onOpenChange,
-  ])
+  }, [maskedSelectors, ignoredSelectors, onOverridesChange, onOpenChange])
 
   const handleReset = useCallback(() => {
     setMaskedSelectors([])
     setIgnoredSelectors([])
-    setOverridesEnabled(false)
-  }, [])
-
-  const handleOverridesEnabledChange = useCallback((checked: boolean) => {
-    setOverridesEnabled(checked)
-    if (!checked) {
-      setMaskedSelectors([])
-      setIgnoredSelectors([])
-    }
   }, [])
 
   return (
@@ -333,46 +316,33 @@ export const PrivacySection: React.FC<PrivacySectionProps> = ({
             </Col>
           )}
 
-          <Row alignItems="center">
-            <Toggle
-              checked={overridesEnabled}
-              onChange={handleOverridesEnabledChange}
-              label="Customize for this recording"
+          <FormField>
+            <Label>Mask content matching…</Label>
+            <TagInput
+              placeholder="Mask content matching (e.g. .my-class)"
+              selectors={maskedSelectors}
+              onChange={setMaskedSelectors}
             />
-          </Row>
+          </FormField>
 
-          {overridesEnabled && (
-            <Col gap={spacing.md}>
-              <FormField>
-                <Label>Mask content matching…</Label>
-                <TagInput
-                  placeholder="Mask content matching (e.g. .my-class)"
-                  selectors={maskedSelectors}
-                  onChange={setMaskedSelectors}
-                />
-              </FormField>
+          <FormField>
+            <Label>Exclude elements matching…</Label>
+            <TagInput
+              placeholder="Exclude elements matching (e.g. .ignore-me)"
+              selectors={ignoredSelectors}
+              onChange={setIgnoredSelectors}
+            />
+          </FormField>
 
-              <FormField>
-                <Label>Exclude elements matching…</Label>
-                <TagInput
-                  placeholder="Exclude elements matching (e.g. .ignore-me)"
-                  selectors={ignoredSelectors}
-                  onChange={setIgnoredSelectors}
-                />
-              </FormField>
-
-              <Button
-                variant="text"
-                size="small"
-                disabled={!hasOverrides}
-                onClick={handleReset}
-              >
-                Reset to defaults
-              </Button>
-            </Col>
-          )}
-
-          <Row justifyContent="flex-end">
+          <Row justifyContent="flex-end" gap={spacing.sm}>
+            <Button
+              variant="text"
+              size="small"
+              disabled={!hasOverrides}
+              onClick={handleReset}
+            >
+              Reset to defaults
+            </Button>
             <Button variant="contained" size="small" onClick={handleApply}>
               Apply
             </Button>

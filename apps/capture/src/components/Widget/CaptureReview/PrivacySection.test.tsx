@@ -172,36 +172,18 @@ describe('PrivacySection', () => {
     )
   })
 
-  it('toggle expands/collapses the override controls', async () => {
+  it('form fields are always visible (no toggle)', async () => {
     render(<PrivacySection {...defaultProps} />)
-    await screen.findByText(/Workspace default:/i)
 
-    const toggleLabel = screen.queryByText(/Customize for this recording/i)
-    assert.ok(toggleLabel, 'Toggle label should be visible')
-
-    // Override controls should not be visible initially
-    assert.equal(
-      screen.queryByText(/Mask content matching/i),
-      null,
-      'Mask label should not be visible initially'
-    )
-
-    // Click the toggle to enable overrides
-    const toggle = screen.getByRole('switch')
-    fireEvent.click(toggle)
-
-    // Override controls should now be visible
     const maskLabel = screen.getByText(/Mask content matching/i)
-    assert.ok(maskLabel, 'Mask label should appear after toggle on')
+    assert.ok(maskLabel, 'Mask label should be visible')
+
+    const excludeLabel = screen.getByText(/Exclude elements matching/i)
+    assert.ok(excludeLabel, 'Exclude label should be visible')
   })
 
   it('masked selector input accepts and displays tag entries', async () => {
     render(<PrivacySection {...defaultProps} />)
-    await screen.findByText(/Workspace default:/i)
-
-    // Enable overrides
-    const toggle = screen.getByRole('switch')
-    fireEvent.click(toggle)
 
     // Find the masked selector input and add a tag
     const maskedInput = screen.getByPlaceholderText(/Mask content matching/)
@@ -215,11 +197,6 @@ describe('PrivacySection', () => {
 
   it('ignored selector input accepts and displays tag entries', async () => {
     render(<PrivacySection {...defaultProps} />)
-    await screen.findByText(/Workspace default:/i)
-
-    // Enable overrides
-    const toggle = screen.getByRole('switch')
-    fireEvent.click(toggle)
 
     // Find the ignored selector input
     const ignoredInput = screen.getByPlaceholderText(
@@ -236,11 +213,6 @@ describe('PrivacySection', () => {
 
   it('"Reset to defaults" clears all per-recording overrides', async () => {
     render(<PrivacySection {...defaultProps} />)
-    await screen.findByText(/Workspace default:/i)
-
-    // Enable overrides and add a tag
-    const toggle = screen.getByRole('switch')
-    fireEvent.click(toggle)
 
     const maskedInput = screen.getByPlaceholderText(/Mask content matching/)
     fireEvent.input(maskedInput, { target: { value: '.my-class' } })
@@ -295,10 +267,7 @@ describe('PrivacySection', () => {
     )
     await screen.findByText(/Workspace default:/i)
 
-    // Enable overrides and add a masked tag
-    const toggle = screen.getByRole('switch')
-    fireEvent.click(toggle)
-
+    // Add a masked tag and click Apply
     const maskedInput = screen.getByPlaceholderText(/Mask content matching/)
     fireEvent.input(maskedInput, { target: { value: '.test' } })
     fireEvent.keyDown(maskedInput, { key: 'Enter', code: 'Enter' })
@@ -317,12 +286,8 @@ describe('PrivacySection', () => {
 
   it('does not persist per-recording privacy state after remount', async () => {
     const { unmount } = render(<PrivacySection {...defaultProps} />)
-    await screen.findByText(/Workspace default:/i)
 
-    // Enable overrides and add a tag
-    const toggle = screen.getByRole('switch')
-    fireEvent.click(toggle)
-
+    // Add a tag
     const maskedInput = screen.getByPlaceholderText(/Mask content matching/)
     fireEvent.input(maskedInput, { target: { value: '.my-class' } })
     fireEvent.keyDown(maskedInput, { key: 'Enter', code: 'Enter' })
@@ -336,18 +301,11 @@ describe('PrivacySection', () => {
     render(<PrivacySection {...defaultProps} />)
     await screen.findByText(/Workspace default:/i)
 
-    // No tag should persist and toggle should be off
+    // No tag should persist
     assert.equal(
       screen.queryByText('.my-class'),
       null,
       'Tag should not persist after remount'
-    )
-
-    const toggleAfter = screen.getByRole('switch')
-    assert.equal(
-      (toggleAfter as HTMLInputElement).checked,
-      false,
-      'Toggle should be off after remount'
     )
   })
 })
