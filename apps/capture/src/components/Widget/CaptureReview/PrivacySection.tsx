@@ -247,21 +247,29 @@ export const PrivacySection: React.FC<PrivacySectionProps> = ({
           </Col>
 
           <FormField>
-            <Label>Mask content matching…</Label>
+            <Label>Masked selectors</Label>
             <TagInput
               placeholder="Mask content matching (e.g. .my-class)"
               selectors={maskedSelectors}
               onChange={setMaskedSelectors}
             />
+            <Text variant="caption" color={color.text.secondary}>
+              Elements matching these selectors will have their content masked
+              in the recording.
+            </Text>
           </FormField>
 
           <FormField>
-            <Label>Exclude elements matching…</Label>
+            <Label>Ignored selectors</Label>
             <TagInput
               placeholder="Exclude elements matching (e.g. .ignore-me)"
               selectors={ignoredSelectors}
               onChange={setIgnoredSelectors}
             />
+            <Text variant="caption" color={color.text.secondary}>
+              Elements matching these selectors will be excluded from the
+              recording entirely.
+            </Text>
           </FormField>
 
           <Row justifyContent="flex-end" gap={spacing.sm}>

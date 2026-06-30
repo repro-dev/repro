@@ -123,11 +123,11 @@ describe('PrivacySection', () => {
     render(<PrivacySection {...defaultProps} />)
 
     assert.ok(
-      screen.getByText(/Mask content matching/i),
+      screen.getByText('Masked selectors'),
       'Mask label should be visible'
     )
     assert.ok(
-      screen.getByText(/Exclude elements matching/i),
+      screen.getByText('Ignored selectors'),
       'Exclude label should be visible'
     )
   })
