@@ -335,12 +335,23 @@ export const SimpleTimeline: React.FC<Props> = ({
             : (color.warning as string)
 
           const compositeTooltip = [
-            `<div style="font-variant-numeric:tabular-nums;opacity:.8;margin-bottom:${
-              spacing.sm
-            }px">${formatTime(entry.time, 'millis')}</div>`,
-            `<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${entry.summary}</div>`,
+            `<div style="${composeStyles([
+              ['font-variant-numeric', 'tabular-nums'],
+              ['opacity', '.8'],
+              ['margin-bottom', `${spacing.sm}px`],
+            ])}">${formatTime(entry.time, 'millis')}</div>`,
+            `<div style="${composeStyles([
+              ['overflow', 'hidden'],
+              ['text-overflow', 'ellipsis'],
+              ['white-space', 'nowrap'],
+            ])}">${entry.summary}</div>`,
           ].join(
-            `<div style="height:0;margin:${spacing.sm}px -${spacing.md}px;border-top:1px solid currentColor;opacity:.15"></div>`
+            `<div style="${composeStyles([
+              ['height', '0'],
+              ['margin', `${spacing.sm}px -${spacing.md}px`],
+              ['border-top', '1px solid currentColor'],
+              ['opacity', '.15'],
+            ])}"></div>`
           )
 
           const marker = document.createElement('div')
@@ -618,5 +629,9 @@ function showTooltip(target: HTMLElement) {
 
 function hideTooltip(target: HTMLElement) {
   target.style.display = 'none'
+}
+
+function composeStyles(styles: readonly (readonly [string, string])[]) {
+  return styles.map(([k, v]) => `${k}:${v}`).join(';')
 }
 /* eslint-enable */
