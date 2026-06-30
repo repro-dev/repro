@@ -338,15 +338,17 @@ export function createTotpService(database: Database, env: Env) {
 
   function disableTotp(userId: number): FutureInstance<Error, void> {
     return attemptQuery(async () => {
-      await database
-        .deleteFrom('totp_credentials')
-        .where('userId', '=', userId)
-        .execute()
+      await database.transaction().execute(async tx => {
+        await tx
+          .deleteFrom('totp_credentials')
+          .where('userId', '=', userId)
+          .execute()
 
-      await database
-        .deleteFrom('totp_backup_codes')
-        .where('userId', '=', userId)
-        .execute()
+        await tx
+          .deleteFrom('totp_backup_codes')
+          .where('userId', '=', userId)
+          .execute()
+      })
     })
   }
 
@@ -382,21 +384,18 @@ export function createTotpService(database: Database, env: Env) {
     const tokenHash = hashMfaToken(token)
 
     return attemptQuery(async () => {
+      // Atomic delete-and-return: consumes the token in one statement,
+      // preventing race conditions where two concurrent requests both
+      // pass the existence check before either deletes.
       const rows = await database
-        .selectFrom('mfa_pending_tokens')
-        .select(['id', 'userId', 'createdAt'])
+        .deleteFrom('mfa_pending_tokens')
         .where('tokenHash', '=', tokenHash)
+        .returning(['id', 'userId', 'createdAt'])
         .execute()
 
       if (rows.length === 0) {
         throw notFound('Invalid or expired MFA token')
       }
-
-      // Delete all rows for this hash (single-use)
-      await database
-        .deleteFrom('mfa_pending_tokens')
-        .where('tokenHash', '=', tokenHash)
-        .execute()
 
       const row = rows[0]!
       const now = Date.now()
@@ -481,15 +480,18 @@ export function createTotpService(database: Database, env: Env) {
           }
           await Promise.all(hashTasks)
 
-          await database
-            .deleteFrom('totp_backup_codes')
-            .where('userId', '=', userId)
-            .execute()
+          // Atomic delete-and-insert to prevent leaving zero backup codes on crash
+          await database.transaction().execute(async tx => {
+            await tx
+              .deleteFrom('totp_backup_codes')
+              .where('userId', '=', userId)
+              .execute()
 
-          await database
-            .insertInto('totp_backup_codes')
-            .values(backupCodeInserts)
-            .execute()
+            await tx
+              .insertInto('totp_backup_codes')
+              .values(backupCodeInserts)
+              .execute()
+          })
 
           return { items: plaintextCodes }
         })

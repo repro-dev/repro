@@ -8,8 +8,6 @@ import {
   LoadingState,
   Text,
   color,
-  fontFamily,
-  fontSize,
   radius,
   spacing,
 } from '@repro/design'
@@ -20,7 +18,7 @@ import {
   ShieldCheckIcon,
   ShieldOffIcon,
 } from 'lucide-react'
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { TotpSetupFlow } from './TotpSetupFlow'
 
 interface TotpStatus {
@@ -42,12 +40,21 @@ export const ManageTotpSection: React.FC = () => {
   const [regenerateSuccess, setRegenerateSuccess] =
     useState<Array<string> | null>(null)
   const [copied, setCopied] = useState(false)
+  const mountedRef = useRef(true)
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
 
   const fetchStatus = useCallback(() => {
     setLoading(true)
     apiClient.fetch<TotpStatus>('/account/totp/status').pipe(
       fork(() => {
-        setError('Failed to load TOTP status')
+        setError(
+          'Failed to load TOTP status. Your session may have expired or the server may be unavailable. Refresh the page or sign in again.'
+        )
         setLoading(false)
       })((result: TotpStatus) => {
         setStatus(result)
@@ -102,7 +109,9 @@ export const ManageTotpSection: React.FC = () => {
       )
       .pipe(
         fork(() => {
-          setError('Failed to regenerate backup codes.')
+          setError(
+            'Failed to regenerate backup codes. Your session may have expired or the server may be unavailable. Refresh the page or sign in again.'
+          )
         })((result: { items: Array<string> }) => {
           setRegenerateSuccess(result.items)
           setShowRegenerateConfirm(false)
@@ -161,13 +170,9 @@ export const ManageTotpSection: React.FC = () => {
               borderRadius={radius.md}
             >
               {regenerateSuccess.map((code, i) => (
-                <Block
-                  key={i}
-                  fontFamily={fontFamily.mono}
-                  fontSize={fontSize.md}
-                >
+                <Text key={i} variant="code" color={color.text.default}>
                   {code}
-                </Block>
+                </Text>
               ))}
             </Block>
             <Row gap={spacing.sm}>
@@ -177,7 +182,9 @@ export const ManageTotpSection: React.FC = () => {
                 onClick={() => {
                   navigator.clipboard.writeText(regenerateSuccess.join('\n'))
                   setCopied(true)
-                  setTimeout(() => setCopied(false), 2000)
+                  setTimeout(() => {
+                    if (mountedRef.current) setCopied(false)
+                  }, 2000)
                 }}
               >
                 {copied ? 'Copied!' : 'Copy codes'}

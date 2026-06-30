@@ -9,14 +9,12 @@ import {
   LoadingState,
   Text,
   color,
-  fontFamily,
-  fontSize,
   radius,
   spacing,
 } from '@repro/design'
 import { fork } from 'fluture'
 import { AlertCircleIcon, CheckCircleIcon } from 'lucide-react'
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 
 interface TotpSetupResult {
   secret: string
@@ -48,6 +46,13 @@ export const TotpSetupFlow: React.FC<Props> = ({
   const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const mountedRef = useRef(true)
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
 
   useEffect(() => {
     apiClient
@@ -77,7 +82,9 @@ export const TotpSetupFlow: React.FC<Props> = ({
       })
       .pipe(
         fork(() => {
-          setError('Invalid code. Please try again.')
+          setError(
+            "Invalid code. Please try again. TOTP codes are time-sensitive — make sure your authenticator app's clock is correct, then try again."
+          )
         })((result: TotpConfirmResult) => {
           setConfirmResult(result)
           setStep('done')
@@ -121,7 +128,9 @@ export const TotpSetupFlow: React.FC<Props> = ({
                 onClick={() => {
                   navigator.clipboard.writeText(confirmResult.items.join('\n'))
                   setCopied(true)
-                  setTimeout(() => setCopied(false), 2000)
+                  setTimeout(() => {
+                    if (mountedRef.current) setCopied(false)
+                  }, 2000)
                 }}
               >
                 {copied ? 'Copied!' : 'Copy codes'}
@@ -134,14 +143,9 @@ export const TotpSetupFlow: React.FC<Props> = ({
             >
               <Col gap={spacing.xs}>
                 {confirmResult.items.map((code, i) => (
-                  <Block
-                    key={i}
-                    fontFamily={fontFamily.mono}
-                    fontSize={fontSize.md}
-                    color={color.text.default}
-                  >
+                  <Text key={i} variant="code" color={color.text.default}>
                     {code}
-                  </Block>
+                  </Text>
                 ))}
               </Col>
             </Block>
@@ -182,13 +186,9 @@ export const TotpSetupFlow: React.FC<Props> = ({
 
       <Col gap={spacing.xs}>
         <Label>Or enter this key manually</Label>
-        <Block
-          fontFamily={fontFamily.mono}
-          fontSize={fontSize.md}
-          color={color.text.secondary}
-        >
+        <Text variant="code" color={color.text.secondary}>
           {setupResult.secret}
-        </Block>
+        </Text>
       </Col>
 
       <Col gap={spacing.xs}>

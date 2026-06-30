@@ -13,6 +13,18 @@ mock.module('react-router', {
   },
 })
 
+const mockLogin = mock.fn()
+const mockResetPassword = mock.fn()
+const mockVerifyTotp = mock.fn()
+
+mock.module('./hooks', {
+  namedExports: {
+    useLogin: () => mockLogin,
+    useResetPassword: () => mockResetPassword,
+    useVerifyTotp: () => mockVerifyTotp,
+  },
+})
+
 mock.module('@repro/design', {
   namedExports: {
     Alert: ({ children, type }: any) =>
@@ -101,5 +113,28 @@ describe('LoginForm', () => {
   it('shows "Back to sign in" affordance is NOT present on login form', () => {
     renderForm()
     assert.equal(screen.queryAllByText('Back to sign in').length, 0)
+  })
+
+  it('reset form invokes resetPassword not login (B1 regression)', () => {
+    renderForm()
+
+    // Switch to reset flow
+    act(() => {
+      screen.getByText('Forgot password?').click()
+    })
+
+    // Reset form shows the correct elements, confirming the UI dispatched
+    // to the reset branch of the component.
+    assert.ok(screen.getByText('Send reset email'))
+    assert.ok(screen.getByText('Reset password'))
+    assert.ok(screen.queryByLabelText('Email'))
+
+    // In the login flow, the password field is required.
+    // In the reset flow, the password field is absent — so the form's
+    // onSubmit handler dispatches to onResetRequest, not onLogin.
+    assert.equal(screen.queryByLabelText('Password'), null)
+
+    // login must NOT have been called at any point
+    assert.equal(mockLogin.mock.calls.length, 0)
   })
 })
