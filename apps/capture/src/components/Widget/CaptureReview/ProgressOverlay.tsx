@@ -1,7 +1,6 @@
 import { Block, Col, Row } from '@jsxstyle/react'
 import {
   Button,
-  Card,
   FX,
   Meter,
   color,
@@ -24,26 +23,8 @@ interface Props {
   progress?: UploadProgress | null
   error?: Error | null
   projectId: string | null
-  width?: string | number
-  onClose: () => void
+  onClose?: () => void
 }
-
-const Backdrop: React.FC<React.PropsWithChildren<{}>> = ({ children }) => (
-  <Row
-    alignItems="center"
-    justifyContent="center"
-    position="absolute"
-    top={0}
-    left={0}
-    bottom={0}
-    right={0}
-    backgroundColor={color.bg.overlay}
-    backdropFilter="blur(5px)"
-    borderRadius={4}
-  >
-    {children}
-  </Row>
-)
 
 const Label: React.FC<React.PropsWithChildren<{}>> = ({ children }) => {
   return (
@@ -57,13 +38,8 @@ const Label: React.FC<React.PropsWithChildren<{}>> = ({ children }) => {
   )
 }
 
-const List: React.FC<React.PropsWithChildren<{ width?: string | number }>> = ({
-  children,
-  width,
-}) => (
-  <Col gap={spacing.xl} width={width}>
-    {children}
-  </Col>
+const List: React.FC<React.PropsWithChildren<{}>> = ({ children }) => (
+  <Col gap={spacing.xl}>{children}</Col>
 )
 
 const ListItem: React.FC<React.PropsWithChildren<{}>> = ({ children }) => (
@@ -81,7 +57,6 @@ export const ProgressOverlay: React.FC<Props> = ({
   error,
   projectId,
   onClose,
-  width = 240,
 }) => {
   // Determine the effective error: prefer the explicit `error` prop, then progress.error
   const effectiveError = error ?? progress?.error ?? null
@@ -100,164 +75,162 @@ export const ProgressOverlay: React.FC<Props> = ({
   const isIndeterminate = !progress && !effectiveError
 
   return (
-    <Backdrop>
-      <Card shadow="md">
-        {/* Error state — from either prop or progress.error */}
-        {effectiveError && (
-          <Col gap={spacing.lg}>
-            <Row alignItems="center" gap={spacing.lg}>
-              <AlertTriangleIcon size={32} color={color.danger} />
-              <Block>
-                <Block
-                  fontSize={fontSize.xs}
-                  fontWeight={fontWeight.bold}
-                  color={color.danger}
-                  textTransform="uppercase"
-                >
-                  Could not create recording
-                </Block>
-
-                <Row
-                  gap={spacing.sm}
-                  alignItems="center"
-                  fontSize={fontSize.md}
-                  marginTop={spacing.lg}
-                >
-                  {effectiveError.message}
-                </Row>
-              </Block>
-            </Row>
-            <Block alignSelf="center">
-              <Button variant="text" onClick={onClose}>
-                <CornerUpLeftIcon size={16} /> Return To Page
-              </Button>
-            </Block>
-          </Col>
-        )}
-
-        {/* Completed state */}
-        {progress?.completed && !effectiveError && (
-          <Col gap={spacing.lg}>
-            <Row alignItems="center" gap={spacing.lg}>
-              <CheckCircle2Icon size={32} color={color.success} />
+    <>
+      {/* Error state — from either prop or progress.error */}
+      {effectiveError && (
+        <Col gap={spacing.lg}>
+          <Row alignItems="center" gap={spacing.lg}>
+            <AlertTriangleIcon size={32} color={color.danger} />
+            <Block>
               <Block
                 fontSize={fontSize.xs}
                 fontWeight={fontWeight.bold}
-                color={color.text.default}
+                color={color.danger}
                 textTransform="uppercase"
               >
-                Recording Created
+                Could not create recording
               </Block>
-            </Row>
-            <Row gap={spacing.md} justifyContent="center">
-              {recordingUrl && (
-                <Button
-                  variant="contained"
-                  size="small"
-                  onClick={() => window.open(recordingUrl, '_blank')}
-                >
-                  Open in Repro
-                </Button>
-              )}
-              <Button
-                variant="outlined"
-                context="info"
-                size="small"
-                disabled={!recordingUrl}
-                onClick={copyToClipboard}
+
+              <Row
+                gap={spacing.sm}
+                alignItems="center"
+                fontSize={fontSize.md}
+                marginTop={spacing.lg}
               >
-                <CopyIcon size={18} />
-              </Button>
-            </Row>
-            <Block alignSelf="center">
-              <Button variant="text" onClick={onClose}>
-                <CornerUpLeftIcon size={16} /> Return To Page
-              </Button>
+                {effectiveError.message}
+              </Row>
             </Block>
-          </Col>
-        )}
+          </Row>
+          <Block alignSelf="center">
+            <Button variant="text" onClick={onClose}>
+              <CornerUpLeftIcon size={16} /> Return To Page
+            </Button>
+          </Block>
+        </Col>
+      )}
 
-        {/* Indeterminate state — preparing upload */}
-        {isIndeterminate && (
-          <Col gap={spacing.lg} alignItems="center">
-            <FX.Spin>
-              <LoaderIcon size={24} />
-            </FX.Spin>
+      {/* Completed state */}
+      {progress?.completed && !effectiveError && (
+        <Col gap={spacing.lg}>
+          <Row alignItems="center" gap={spacing.lg}>
+            <CheckCircle2Icon size={32} color={color.success} />
             <Block
               fontSize={fontSize.xs}
               fontWeight={fontWeight.bold}
               color={color.text.default}
               textTransform="uppercase"
             >
-              Preparing upload...
+              Recording Created
             </Block>
-          </Col>
-        )}
-
-        {/* In-progress state */}
-        {progress && !progress.completed && !effectiveError && (
-          <Fragment>
-            <Block
-              fontSize={fontSize.xs}
-              fontWeight={fontWeight.bold}
-              color={color.text.default}
-              textTransform="uppercase"
+          </Row>
+          <Row gap={spacing.md} justifyContent="center">
+            {recordingUrl && (
+              <Button
+                variant="contained"
+                size="small"
+                onClick={() => window.open(recordingUrl, '_blank')}
+              >
+                Open in Repro
+              </Button>
+            )}
+            <Button
+              variant="outlined"
+              context="info"
+              size="small"
+              disabled={!recordingUrl}
+              onClick={copyToClipboard}
             >
-              Uploading Recording
-            </Block>
+              <CopyIcon size={18} />
+            </Button>
+          </Row>
+          <Block alignSelf="center">
+            <Button variant="text" onClick={onClose}>
+              <CornerUpLeftIcon size={16} /> Return To Page
+            </Button>
+          </Block>
+        </Col>
+      )}
 
-            <Block marginTop={spacing.xl}>
-              <List width={width}>
-                {/* Overall progress bar */}
-                <ListItem>
-                  <Label>Overall progress</Label>
-                  <Meter
-                    min={0}
-                    max={1}
-                    value={computeOverallProgress(progress.stages)}
-                  />
-                </ListItem>
+      {/* Indeterminate state — preparing upload */}
+      {isIndeterminate && (
+        <Col gap={spacing.lg} alignItems="center">
+          <FX.Spin>
+            <LoaderIcon size={24} />
+          </FX.Spin>
+          <Block
+            fontSize={fontSize.xs}
+            fontWeight={fontWeight.bold}
+            color={color.text.default}
+            textTransform="uppercase"
+          >
+            Preparing upload...
+          </Block>
+        </Col>
+      )}
 
-                <ListItem>
-                  <Label>Saving recording details</Label>
-                  <Meter
-                    min={0}
-                    max={1}
-                    value={progress.stages[UploadStage.CreateRecording]}
-                  />
-                </ListItem>
+      {/* In-progress state */}
+      {progress && !progress.completed && !effectiveError && (
+        <Fragment>
+          <Block
+            fontSize={fontSize.xs}
+            fontWeight={fontWeight.bold}
+            color={color.text.default}
+            textTransform="uppercase"
+          >
+            Uploading Recording
+          </Block>
 
-                <ListItem>
-                  <Label>Saving events</Label>
-                  <Meter
-                    min={0}
-                    max={1}
-                    value={progress.stages[UploadStage.SaveEvents]}
-                  />
-                </ListItem>
+          <Block marginTop={spacing.xl}>
+            <List>
+              {/* Overall progress bar */}
+              <ListItem>
+                <Label>Overall progress</Label>
+                <Meter
+                  min={0}
+                  max={1}
+                  value={computeOverallProgress(progress.stages)}
+                />
+              </ListItem>
 
-                <ListItem>
-                  <Label>Reading resources</Label>
-                  <Meter
-                    min={0}
-                    max={1}
-                    value={progress.stages[UploadStage.ReadResources]}
-                  />
-                </ListItem>
+              <ListItem>
+                <Label>Saving recording details</Label>
+                <Meter
+                  min={0}
+                  max={1}
+                  value={progress.stages[UploadStage.CreateRecording]}
+                />
+              </ListItem>
 
-                <ListItem>
-                  <Label>Uploading resources</Label>
-                  <Meter
-                    min={0}
-                    max={1}
-                    value={progress.stages[UploadStage.SaveResources]}
-                  />
-                </ListItem>
-              </List>
-            </Block>
-          </Fragment>
-        )}
-      </Card>
-    </Backdrop>
+              <ListItem>
+                <Label>Saving events</Label>
+                <Meter
+                  min={0}
+                  max={1}
+                  value={progress.stages[UploadStage.SaveEvents]}
+                />
+              </ListItem>
+
+              <ListItem>
+                <Label>Reading resources</Label>
+                <Meter
+                  min={0}
+                  max={1}
+                  value={progress.stages[UploadStage.ReadResources]}
+                />
+              </ListItem>
+
+              <ListItem>
+                <Label>Uploading resources</Label>
+                <Meter
+                  min={0}
+                  max={1}
+                  value={progress.stages[UploadStage.SaveResources]}
+                />
+              </ListItem>
+            </List>
+          </Block>
+        </Fragment>
+      )}
+    </>
   )
 }

@@ -13,9 +13,7 @@ import { RecordingMode } from '@repro/domain'
 import { Playback, PlaybackProvider, SimpleTimeline } from '@repro/playback'
 import React from 'react'
 import { AgenticSection } from './AgenticSection'
-import { useCaptureUpload } from './CaptureUploadProvider'
 import { AsideRegion, Layout, PlaybackRegion } from './Layout'
-import { ProgressOverlay } from './ProgressOverlay'
 import { RecordingActions } from './useRecordingActions'
 
 const DEFAULT_SELECTED_DURATION = 60_000
@@ -30,7 +28,7 @@ interface CaptureReviewProps {
 }
 
 export const CaptureReview: React.FC<CaptureReviewProps> = ({
-  onClose,
+  onClose: _onClose,
   actions,
   playback,
   recordingMode,
@@ -55,8 +53,6 @@ export const CaptureReview: React.FC<CaptureReviewProps> = ({
   React.useEffect(() => {
     setSelectedDuration(Math.min(DEFAULT_SELECTED_DURATION, maxTime))
   }, [maxTime, setSelectedDuration])
-
-  const { uploadState } = useCaptureUpload()
 
   return (
     <PlaybackProvider playback={playback}>
@@ -99,17 +95,6 @@ export const CaptureReview: React.FC<CaptureReviewProps> = ({
         <AsideRegion>
           <AgenticSection getSelectedRecording={actions.getSelectedRecording} />
         </AsideRegion>
-
-        {(uploadState.isUploading ||
-          uploadState.progress ||
-          uploadState.error) && (
-          <ProgressOverlay
-            progress={uploadState.progress}
-            error={uploadState.error}
-            projectId={uploadState.uploadProjectId}
-            onClose={onClose}
-          />
-        )}
       </Layout>
     </PlaybackProvider>
   )

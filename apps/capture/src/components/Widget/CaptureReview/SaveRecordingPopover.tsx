@@ -18,6 +18,7 @@ import { type Cancel, fork } from 'fluture'
 import { CloudUploadIcon, LockIcon } from 'lucide-react'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useCaptureUpload } from './CaptureUploadProvider'
+import { ProgressOverlay } from './ProgressOverlay'
 
 const CREATE_SENTINEL = '__create__'
 
@@ -44,7 +45,10 @@ export const SaveRecordingPopover: React.FC<SaveRecordingPopoverProps> = ({
   apiClientRef.current = apiClient
 
   const { enqueueUpload, uploadState } = useCaptureUpload()
-  const isUploading = uploadState.isUploading
+  const inUploadLifecycle =
+    uploadState.isUploading ||
+    uploadState.progress !== null ||
+    uploadState.error !== null
 
   const [savePopoverOpen, setSavePopoverOpen] = useState(false)
   const [saveTitle, setSaveTitle] = useState('')
@@ -94,7 +98,6 @@ export const SaveRecordingPopover: React.FC<SaveRecordingPopoverProps> = ({
   const handleSave = useCallback(() => {
     if (selectedProjectId !== null) {
       enqueueUpload(selectedProjectId, saveTitle, null)
-      setSavePopoverOpen(false)
     } else if (createMode && newProjectName.trim()) {
       setCreating(true)
       setCreateError(null)
@@ -112,7 +115,6 @@ export const SaveRecordingPopover: React.FC<SaveRecordingPopoverProps> = ({
           enqueueUpload(data.id, saveTitle, null)
           setSelectedProjectId(data.id)
           setRefetchTrigger(t => t + 1)
-          setSavePopoverOpen(false)
         }
       })(
         apiClientRef.current.fetch('/projects', {
@@ -134,10 +136,15 @@ export const SaveRecordingPopover: React.FC<SaveRecordingPopoverProps> = ({
     }
   }, [])
 
+  const handleUploadClose = useCallback(() => {
+    setSavePopoverOpen(false)
+  }, [])
+
   return (
     <Popover
       open={savePopoverOpen}
       onOpenChange={open => {
+        if (!open && inUploadLifecycle) return
         if (open && !isAuthed) return
         setSavePopoverOpen(open)
       }}
@@ -152,14 +159,14 @@ export const SaveRecordingPopover: React.FC<SaveRecordingPopoverProps> = ({
           backgroundColor="rgba(255, 255, 255, 0.1)"
           color={color.infoTint}
           hoverBackgroundColor={
-            isAuthed && !isUploading ? color.infoFg : undefined
+            isAuthed && !inUploadLifecycle ? color.infoFg : undefined
           }
           borderRadius={2}
           transition="all 100ms ease-in-out"
           lineHeight={lineHeight.tight}
           userSelect="none"
-          cursor={isAuthed && !isUploading ? 'pointer' : 'not-allowed'}
-          opacity={!isAuthed || isUploading ? 0.4 : 1}
+          cursor={isAuthed && !inUploadLifecycle ? 'pointer' : 'not-allowed'}
+          opacity={!isAuthed || inUploadLifecycle ? 0.4 : 1}
         >
           <Tooltip>
             {isAuthed ? (
@@ -181,90 +188,100 @@ export const SaveRecordingPopover: React.FC<SaveRecordingPopoverProps> = ({
         align="end"
         style={{ outline: 'none' }}
       >
-        <Col gap={spacing.md} minWidth={260}>
-          <Text variant="heading3">Save recording</Text>
+        {inUploadLifecycle ? (
+          <ProgressOverlay
+            progress={uploadState.progress}
+            error={uploadState.error}
+            projectId={uploadState.uploadProjectId}
+            onClose={handleUploadClose}
+          />
+        ) : (
+          <Col gap={spacing.md} minWidth={260}>
+            <Text variant="heading3">Save recording</Text>
 
-          {/* Project selection — always visible when projects exist */}
-          <Col gap={spacing.sm} marginBottom={spacing.lg}>
+            {/* Project selection — always visible when projects exist */}
+            <Col gap={spacing.sm} marginBottom={spacing.lg}>
+              <FormField>
+                <Label>Project</Label>
+                {projectsLoading ? (
+                  <Select
+                    size="small"
+                    value=""
+                    onChange={() => {}}
+                    options={[]}
+                    placeholder="Loading projects…"
+                    disabled
+                    aria-label="Select project"
+                  />
+                ) : projects.length > 0 ? (
+                  <Select
+                    size="small"
+                    value={selectedProjectId ?? ''}
+                    onChange={handleSelectChange}
+                    options={[
+                      ...projects.map(p => ({
+                        value: p.id,
+                        label: p.name,
+                      })),
+                      { value: CREATE_SENTINEL, label: 'Create new project…' },
+                    ]}
+                    placeholder="Select a project…"
+                    aria-label="Select project"
+                  />
+                ) : null}
+              </FormField>
+
+              {/* Inline project name input (visible in create mode or when no projects exist) */}
+              {(createMode || (projects.length === 0 && !projectsLoading)) && (
+                <Col gap={spacing.sm}>
+                  <Input
+                    size="small"
+                    value={newProjectName}
+                    onChange={e =>
+                      setNewProjectName((e.target as HTMLInputElement).value)
+                    }
+                    placeholder="Project name"
+                  />
+                  {createError && (
+                    <Text variant="caption" color={color.danger}>
+                      {createError}
+                    </Text>
+                  )}
+                </Col>
+              )}
+            </Col>
+
+            {/* Title */}
             <FormField>
-              <Label>Project</Label>
-              {projectsLoading ? (
-                <Select
-                  size="small"
-                  value=""
-                  onChange={() => {}}
-                  options={[]}
-                  placeholder="Loading projects…"
-                  disabled
-                  aria-label="Select project"
-                />
-              ) : projects.length > 0 ? (
-                <Select
-                  size="small"
-                  value={selectedProjectId ?? ''}
-                  onChange={handleSelectChange}
-                  options={[
-                    ...projects.map(p => ({
-                      value: p.id,
-                      label: p.name,
-                    })),
-                    { value: CREATE_SENTINEL, label: 'Create new project…' },
-                  ]}
-                  placeholder="Select a project…"
-                  aria-label="Select project"
-                />
-              ) : null}
+              <Label>Title</Label>
+              <Input
+                value={saveTitle}
+                onChange={e =>
+                  setSaveTitle((e.target as HTMLInputElement).value)
+                }
+                size="small"
+                placeholder="What did you record?"
+                autoFocus={true}
+              />
             </FormField>
 
-            {/* Inline project name input (visible in create mode or when no projects exist) */}
-            {(createMode || (projects.length === 0 && !projectsLoading)) && (
-              <Col gap={spacing.sm}>
-                <Input
-                  size="small"
-                  value={newProjectName}
-                  onChange={e =>
-                    setNewProjectName((e.target as HTMLInputElement).value)
-                  }
-                  placeholder="Project name"
-                />
-                {createError && (
-                  <Text variant="caption" color={color.danger}>
-                    {createError}
-                  </Text>
-                )}
-              </Col>
-            )}
+            <Row justifyContent="flex-end">
+              <Button
+                variant="contained"
+                size="small"
+                disabled={
+                  (!selectedProjectId &&
+                    !(createMode && newProjectName.trim())) ||
+                  creating ||
+                  !saveTitle.trim()
+                }
+                onClick={handleSave}
+              >
+                Save
+              </Button>
+            </Row>
           </Col>
-
-          {/* Title */}
-          <FormField>
-            <Label>Title</Label>
-            <Input
-              value={saveTitle}
-              onChange={e => setSaveTitle((e.target as HTMLInputElement).value)}
-              size="small"
-              placeholder="What did you record?"
-              autoFocus={true}
-            />
-          </FormField>
-
-          <Row justifyContent="flex-end">
-            <Button
-              variant="contained"
-              size="small"
-              disabled={
-                (!selectedProjectId &&
-                  !(createMode && newProjectName.trim())) ||
-                isUploading ||
-                creating ||
-                !saveTitle.trim()
-              }
-              onClick={handleSave}
-            >
-              Save
-            </Button>
-          </Row>
-        </Col>
+        )}
         <Popover.Arrow />
       </Popover.Content>
     </Popover>

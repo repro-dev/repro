@@ -1,19 +1,12 @@
 import { Block } from '@jsxstyle/react'
-import { colors } from '@repro/design'
+import { Card, colors } from '@repro/design'
 import { UploadStage } from '@repro/recording-api'
 import type { Meta, StoryObj } from '@storybook/react'
 import React, { PropsWithChildren } from 'react'
 import { ProgressOverlay } from './ProgressOverlay'
 
-interface Args {
-  projectId: string | null
-  onClose: () => void
-}
-
 const Wrapper: React.FC<PropsWithChildren<{}>> = ({ children }) => (
   <Block
-    position="relative"
-    height="100%"
     fontFamily="sans-serif"
     fontSize={10}
     fontWeight="normal"
@@ -21,11 +14,11 @@ const Wrapper: React.FC<PropsWithChildren<{}>> = ({ children }) => (
     color={colors.slate['900']}
     textAlign="initial"
   >
-    {children}
+    <Card shadow="md">{children}</Card>
   </Block>
 )
 
-const meta: Meta<Args> = {
+const meta = {
   title: 'Apps/Capture/ProgressOverlay',
   tags: ['experimental'],
   argTypes: {
@@ -35,27 +28,22 @@ const meta: Meta<Args> = {
   args: {
     projectId: 'demo-project',
   },
-}
+} satisfies Meta
 
 export default meta
 
-type Story = StoryObj<Args>
+type Story = StoryObj<typeof meta>
 
 export const Indeterminate: Story = {
-  render: ({ onClose }) => (
+  render: () => (
     <Wrapper>
-      <ProgressOverlay
-        progress={null}
-        error={null}
-        projectId={null}
-        onClose={onClose}
-      />
+      <ProgressOverlay progress={null} error={null} projectId={null} />
     </Wrapper>
   ),
 }
 
 export const InProgress: Story = {
-  render: ({ onClose }) => (
+  render: () => (
     <Wrapper>
       <ProgressOverlay
         progress={{
@@ -74,27 +62,25 @@ export const InProgress: Story = {
         }}
         error={null}
         projectId={null}
-        onClose={onClose}
       />
     </Wrapper>
   ),
 }
 
 export const ErrorFromProp: Story = {
-  render: ({ onClose }) => (
+  render: () => (
     <Wrapper>
       <ProgressOverlay
         progress={null}
         error={new Error('Upload request failed: network error')}
         projectId={null}
-        onClose={onClose}
       />
     </Wrapper>
   ),
 }
 
 export const ErrorFromProgress: Story = {
-  render: ({ onClose }) => (
+  render: () => (
     <Wrapper>
       <ProgressOverlay
         progress={{
@@ -113,14 +99,13 @@ export const ErrorFromProgress: Story = {
         }}
         error={null}
         projectId={null}
-        onClose={onClose}
       />
     </Wrapper>
   ),
 }
 
 export const Completed: Story = {
-  render: ({ projectId, onClose }) => (
+  render: () => (
     <Wrapper>
       <ProgressOverlay
         progress={{
@@ -138,8 +123,7 @@ export const Completed: Story = {
           },
         }}
         error={null}
-        projectId={projectId}
-        onClose={onClose}
+        projectId="demo-project"
       />
     </Wrapper>
   ),
