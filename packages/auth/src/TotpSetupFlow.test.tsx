@@ -29,6 +29,12 @@ mock.module('@repro/design', {
     Col: ({ children }: any) => React.createElement('div', null, children),
     Input: (props: any) => React.createElement('input', props),
     Label: ({ children }: any) => React.createElement('label', null, children),
+    LoadingState: () =>
+      React.createElement(
+        'div',
+        { 'data-testid': 'loading-state' },
+        'Loading...'
+      ),
     Row: ({ children }: any) => React.createElement('div', null, children),
     Text: ({ children, variant, as }: any) =>
       React.createElement(as || 'span', { 'data-variant': variant }, children),
@@ -39,6 +45,9 @@ mock.module('@repro/design', {
       danger: '#be123c',
       bg: { subtle: '#f8fafc' },
     },
+    fontFamily: { mono: 'monospace' },
+    fontSize: { md: 14 },
+    radius: { md: 8, none: 0, sm: 4, lg: 16, full: '9999px' },
     spacing: { none: 0, xs: 2, sm: 4, md: 8, lg: 12, xl: 16, '2xl': 24 },
   },
 })
@@ -58,13 +67,7 @@ const setupResult = {
 }
 
 const confirmResult = {
-  backupCodes: [
-    'ABCD-EFGH',
-    'IJKL-MNOP',
-    'QRST-UVWX',
-    'YZAB-CDEF',
-    'GHIJ-KLMN',
-  ],
+  items: ['ABCD-EFGH', 'IJKL-MNOP', 'QRST-UVWX', 'YZAB-CDEF', 'GHIJ-KLMN'],
 }
 
 // ---------------------------------------------------------------------------

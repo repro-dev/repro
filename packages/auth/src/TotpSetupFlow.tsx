@@ -6,10 +6,12 @@ import {
   Card,
   Input,
   Label,
+  LoadingState,
   Text,
   color,
   fontFamily,
   fontSize,
+  radius,
   spacing,
 } from '@repro/design'
 import { fork } from 'fluture'
@@ -23,7 +25,7 @@ interface TotpSetupResult {
 }
 
 interface TotpConfirmResult {
-  backupCodes: Array<string>
+  items: Array<string>
 }
 
 interface Props {
@@ -45,6 +47,7 @@ export const TotpSetupFlow: React.FC<Props> = ({
   )
   const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     apiClient
@@ -84,11 +87,9 @@ export const TotpSetupFlow: React.FC<Props> = ({
 
   if (step === 'loading') {
     return (
-      <Col gap={spacing.md} alignItems="center" padding={spacing.xl}>
-        <Text variant="body" color={color.text.secondary}>
-          Setting up two-factor authentication...
-        </Text>
-      </Col>
+      <Block height={160}>
+        <LoadingState />
+      </Block>
     )
   }
 
@@ -108,14 +109,31 @@ export const TotpSetupFlow: React.FC<Props> = ({
 
         <Card padding={spacing.lg}>
           <Col gap={spacing.md}>
-            <Label>Backup codes</Label>
+            <Row
+              gap={spacing.md}
+              alignItems="center"
+              justifyContent="spaceBetween"
+            >
+              <Label>Backup codes</Label>
+              <Button
+                size="small"
+                variant="text"
+                onClick={() => {
+                  navigator.clipboard.writeText(confirmResult.items.join('\n'))
+                  setCopied(true)
+                  setTimeout(() => setCopied(false), 2000)
+                }}
+              >
+                {copied ? 'Copied!' : 'Copy codes'}
+              </Button>
+            </Row>
             <Block
               backgroundColor={color.bg.subtle}
               padding={spacing.md}
-              borderRadius={8}
+              borderRadius={radius.md}
             >
               <Col gap={spacing.xs}>
-                {confirmResult.backupCodes.map((code, i) => (
+                {confirmResult.items.map((code, i) => (
                   <Block
                     key={i}
                     fontFamily={fontFamily.mono}

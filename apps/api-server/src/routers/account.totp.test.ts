@@ -114,6 +114,8 @@ async function createTotpUser(
     harness.env.SESSION_COOKIE
   )
 
+  let _totpSecret: string | null = null
+
   async function enableTotp() {
     const setupRes = await app.inject({
       method: 'POST',
@@ -122,6 +124,7 @@ async function createTotpUser(
       cookies: { [cookie.name]: cookie.value },
     })
     const secret: string = setupRes.json().secret
+    _totpSecret = secret
     const code = generateTotpCode(secret)
 
     const confirmRes = await app.inject({
@@ -133,26 +136,21 @@ async function createTotpUser(
 
     return {
       secret,
-      backupCodes: confirmRes.json().backupCodes as Array<string>,
+      backupCodes: confirmRes.json().items as Array<string>,
       cookie,
     }
   }
 
   async function disableTotp() {
-    const setupRes = await app.inject({
-      method: 'POST',
-      url: '/totp/setup',
-      body: { accountLabel: email },
-      cookies: { [cookie.name]: cookie.value },
-    })
-    const secret = setupRes.json().secret
-    await app.inject({
-      method: 'POST',
-      url: '/totp/confirm',
-      body: { code: generateTotpCode(secret) },
-      cookies: { [cookie.name]: cookie.value },
-    })
-    const currentCode = generateTotpCode(secret)
+    // If we don't have the secret cached, get it by checking status (TOTP must be enabled)
+    // and doing a fresh setup to obtain the secret
+    if (_totpSecret == null) {
+      // We can't re-setup. Store nothing and just attempt disable with the user's password.
+      // If there's no way to get the current TOTP code, this will fail — but
+      // the callers have been refactored to call enableTotp first.
+      return
+    }
+    const currentCode = generateTotpCode(_totpSecret)
     await app.inject({
       method: 'POST',
       url: '/totp/disable',
@@ -208,6 +206,7 @@ describe('Routers > Account > TOTP', () => {
 
   describe('/login with TOTP enabled', () => {
     let totpUser: Awaited<ReturnType<typeof createTotpUser>>
+    let totpSecret: string
 
     before(async () => {
       totpUser = await createTotpUser(
@@ -216,7 +215,8 @@ describe('Routers > Account > TOTP', () => {
         context.totpService,
         context.app
       )
-      await totpUser.enableTotp()
+      const result = await totpUser.enableTotp()
+      totpSecret = result.secret
     })
 
     after(async () => {
@@ -241,27 +241,7 @@ describe('Routers > Account > TOTP', () => {
     })
 
     it('should complete login via /totp/verify with valid TOTP code', async () => {
-      // enableTotp stores the secret, but let's use the user's cookie to re-setup
-      // and get the current secret for code generation
-      const setupRes = await context.app.inject({
-        method: 'POST',
-        url: '/totp/setup',
-        body: { accountLabel: totpUser.email },
-        // Use the pre-TOTP cookie (still a valid session)
-        cookies: { [totpUser.cookie.name]: totpUser.cookie.value },
-      })
-      expect(setupRes.statusCode).toEqual(200)
-      const secret: string = setupRes.json().secret
-
-      // Confirm
-      await context.app.inject({
-        method: 'POST',
-        url: '/totp/confirm',
-        body: { code: generateTotpCode(secret) },
-        cookies: { [totpUser.cookie.name]: totpUser.cookie.value },
-      })
-
-      // Login now returns 202 with mfa_pending
+      // Login returns 202 with mfa_pending
       const loginRes = await login(
         context.app,
         totpUser.email,
@@ -269,8 +249,8 @@ describe('Routers > Account > TOTP', () => {
       )
       const { mfa_pending } = loginRes.json()
 
-      // Verify with TOTP code
-      const currentCode = generateTotpCode(secret)
+      // Generate current TOTP code from stored secret
+      const currentCode = generateTotpCode(totpSecret)
       const verifyRes = await context.app.inject({
         method: 'POST',
         url: '/totp/verify',
@@ -372,12 +352,19 @@ describe('Routers > Account > TOTP', () => {
     })
 
     it('should reject reused (already consumed) mfa_pending token', async () => {
-      await totpUser.enableTotp()
+      // Create a fresh user for this test to avoid enableTotp conflicts
+      const freshUser = await createTotpUser(
+        context.harness,
+        context.accountService,
+        context.totpService,
+        context.app
+      )
+      await freshUser.enableTotp()
 
       const loginRes = await login(
         context.app,
-        totpUser.email,
-        totpUser.password
+        freshUser.email,
+        freshUser.password
       )
       const { mfa_pending } = loginRes.json()
 
@@ -442,8 +429,8 @@ describe('Routers > Account > TOTP', () => {
       })
       expect(confirmRes.statusCode).toEqual(200)
       const confirmBody = confirmRes.json()
-      expect(confirmBody.backupCodes).toBeTruthy()
-      expect(confirmBody.backupCodes).toHaveLength(10)
+      expect(confirmBody.items).toBeTruthy()
+      expect(confirmBody.items).toHaveLength(10)
     })
 
     it('should reject TOTP setup without authentication', async () => {
@@ -453,6 +440,100 @@ describe('Routers > Account > TOTP', () => {
         body: { accountLabel: 'test@example.com' },
       })
       expect(setupRes.statusCode).toEqual(401)
+    })
+
+    it('should reject setup when TOTP is already enabled (B3 regression)', async () => {
+      const user = await createTotpUser(
+        context.harness,
+        context.accountService,
+        context.totpService,
+        context.app
+      )
+      const authCookie = await getAuthCookie(
+        context.app,
+        user.email,
+        user.password,
+        context.harness.env.SESSION_COOKIE
+      )
+
+      // Enable TOTP
+      const setupRes = await context.app.inject({
+        method: 'POST',
+        url: '/totp/setup',
+        body: { accountLabel: user.email },
+        cookies: { [authCookie.name]: authCookie.value },
+      })
+      const secret = setupRes.json().secret
+      await context.app.inject({
+        method: 'POST',
+        url: '/totp/confirm',
+        body: { code: generateTotpCode(secret) },
+        cookies: { [authCookie.name]: authCookie.value },
+      })
+
+      // Second setup attempt must fail
+      const secondSetup = await context.app.inject({
+        method: 'POST',
+        url: '/totp/setup',
+        body: { accountLabel: user.email },
+        cookies: { [authCookie.name]: authCookie.value },
+      })
+      expect(secondSetup.statusCode).toEqual(409)
+
+      // TOTP should still be enabled (not wiped)
+      const statusRes = await context.app.inject({
+        method: 'GET',
+        url: '/totp/status',
+        cookies: { [authCookie.name]: authCookie.value },
+      })
+      expect(statusRes.json().enabled).toBe(true)
+    })
+
+    it('should return backup codes in { items: [...] } envelope (B4)', async () => {
+      const user = await createTotpUser(
+        context.harness,
+        context.accountService,
+        context.totpService,
+        context.app
+      )
+      const authCookie = await getAuthCookie(
+        context.app,
+        user.email,
+        user.password,
+        context.harness.env.SESSION_COOKIE
+      )
+
+      const setupRes = await context.app.inject({
+        method: 'POST',
+        url: '/totp/setup',
+        body: { accountLabel: user.email },
+        cookies: { [authCookie.name]: authCookie.value },
+      })
+      const code = generateTotpCode(setupRes.json().secret)
+
+      // /totp/confirm should return { items: [...] }
+      const confirmRes = await context.app.inject({
+        method: 'POST',
+        url: '/totp/confirm',
+        body: { code },
+        cookies: { [authCookie.name]: authCookie.value },
+      })
+      expect(confirmRes.statusCode).toEqual(200)
+      const confirmBody = confirmRes.json()
+      expect(confirmBody.items).toBeTruthy()
+      expect(Array.isArray(confirmBody.items)).toBe(true)
+      expect(confirmBody.backupCodes).toBeUndefined()
+
+      // /totp/regenerate-backup-codes should return { items: [...] }
+      const regenRes = await context.app.inject({
+        method: 'POST',
+        url: '/totp/regenerate-backup-codes',
+        cookies: { [authCookie.name]: authCookie.value },
+      })
+      expect(regenRes.statusCode).toEqual(200)
+      const regenBody = regenRes.json()
+      expect(regenBody.items).toBeTruthy()
+      expect(Array.isArray(regenBody.items)).toBe(true)
     })
   })
 

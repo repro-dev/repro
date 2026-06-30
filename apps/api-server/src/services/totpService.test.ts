@@ -110,6 +110,32 @@ describe('Services > TotpService', () => {
 
       expect(secondSecret.secret).not.toEqual(firstSecret.secret)
     })
+
+    it('should reject setup when TOTP is already enabled (B3 regression)', async () => {
+      const setup = await promise(totpService.setupTotp(userId, accountLabel))
+      const code = new otpauth.TOTP({
+        secret: otpauth.Secret.fromBase32(setup.secret),
+        algorithm: 'SHA1',
+        digits: 6,
+        period: 30,
+      }).generate()
+
+      // Confirm first
+      await promise(totpService.confirmTotp(userId, code))
+
+      // Second setup must fail
+      await expect(
+        promise(totpService.setupTotp(userId, accountLabel))
+      ).rejects.toThrow('TOTP already enabled')
+
+      // Original credential must still be intact
+      const credential = await db
+        .selectFrom('totp_credentials')
+        .select('enabledAt')
+        .where('userId', '=', userId)
+        .executeTakeFirst()
+      expect(credential?.enabledAt).not.toBeNull()
+    })
   })
 
   describe('confirmTotp', () => {
@@ -127,9 +153,9 @@ describe('Services > TotpService', () => {
 
       const result = await promise(totpService.confirmTotp(userId, code))
 
-      expect(result.backupCodes).toHaveLength(10)
+      expect(result.items).toHaveLength(10)
       // Backup codes should be non-empty strings
-      result.backupCodes.forEach(code => {
+      result.items.forEach(code => {
         expect(code.length).toBeGreaterThanOrEqual(8)
       })
 
@@ -326,11 +352,9 @@ describe('Services > TotpService', () => {
         period: 30,
       }).generate()
 
-      const { backupCodes } = await promise(
-        totpService.confirmTotp(userId, code)
-      )
+      const { items } = await promise(totpService.confirmTotp(userId, code))
 
-      const backupCode = backupCodes[0]!
+      const backupCode = items[0]!
       await promise(totpService.verifyBackupCode(userId, backupCode))
 
       // Code should be consumed
@@ -353,11 +377,9 @@ describe('Services > TotpService', () => {
         period: 30,
       }).generate()
 
-      const { backupCodes } = await promise(
-        totpService.confirmTotp(userId, code)
-      )
+      const { items } = await promise(totpService.confirmTotp(userId, code))
 
-      const backupCode = backupCodes[0]!
+      const backupCode = items[0]!
       await promise(totpService.verifyBackupCode(userId, backupCode))
 
       // Second use should fail
@@ -379,6 +401,50 @@ describe('Services > TotpService', () => {
 
       await expect(
         promise(totpService.verifyBackupCode(userId, 'INVALIDCODE'))
+      ).rejects.toThrow('Invalid backup code')
+    })
+
+    it('should reject with uniform error when no unused codes remain (B7 + B2)', async () => {
+      const setup = await promise(totpService.setupTotp(userId, accountLabel))
+      const code = new otpauth.TOTP({
+        secret: otpauth.Secret.fromBase32(setup.secret),
+        algorithm: 'SHA1',
+        digits: 6,
+        period: 30,
+      }).generate()
+
+      const { items } = await promise(totpService.confirmTotp(userId, code))
+
+      // Consume all 10 backup codes
+      for (const backupCode of items) {
+        await promise(totpService.verifyBackupCode(userId, backupCode))
+      }
+
+      // Try to verify any backup code when none remain — should get the same
+      // "Invalid backup code" error (not "not found" or different message)
+      await expect(
+        promise(totpService.verifyBackupCode(userId, 'SOME-CODE'))
+      ).rejects.toThrow('Invalid backup code')
+    })
+
+    it('should reject a code already consumed by concurrent conditional UPDATE (B2 race)', async () => {
+      const setup = await promise(totpService.setupTotp(userId, accountLabel))
+      const code = new otpauth.TOTP({
+        secret: otpauth.Secret.fromBase32(setup.secret),
+        algorithm: 'SHA1',
+        digits: 6,
+        period: 30,
+      }).generate()
+
+      const { items } = await promise(totpService.confirmTotp(userId, code))
+      const backupCode = items[0]!
+
+      // First consumption succeeds
+      await promise(totpService.verifyBackupCode(userId, backupCode))
+
+      // Second consumption (simulates concurrent race) must fail
+      await expect(
+        promise(totpService.verifyBackupCode(userId, backupCode))
       ).rejects.toThrow('Invalid backup code')
     })
   })
@@ -534,7 +600,7 @@ describe('Services > TotpService', () => {
       const newPlaintext = await promise(
         totpService.regenerateBackupCodes(userId)
       )
-      expect(newPlaintext).toHaveLength(10)
+      expect(newPlaintext.items).toHaveLength(10)
 
       const remainingCodes = await db
         .selectFrom('totp_backup_codes')
@@ -544,7 +610,9 @@ describe('Services > TotpService', () => {
       expect(remainingCodes).toHaveLength(10)
 
       // Old codes should be gone and new ones should work
-      await promise(totpService.verifyBackupCode(userId, newPlaintext[0]!))
+      await promise(
+        totpService.verifyBackupCode(userId, newPlaintext.items[0]!)
+      )
     })
 
     it('should reject if TOTP not enabled', async () => {

@@ -19,7 +19,7 @@ import { useNavigate } from 'react-router'
 import z from 'zod'
 import { GoogleSignInButton } from './GoogleSignInButton'
 import { MfaPendingResponse } from './createState'
-import { useLogin, useVerifyTotp } from './hooks'
+import { useLogin, useResetPassword, useVerifyTotp } from './hooks'
 
 const loginFormSchema = z.object({
   email: z.string().email(),
@@ -61,6 +61,7 @@ export const LoginForm: React.FC<Props> = ({
 
   const navigate = useNavigate()
   const login = useLogin()
+  const resetPassword = useResetPassword()
   const verifyTotp = useVerifyTotp()
 
   const methods = useForm({
@@ -87,7 +88,7 @@ export const LoginForm: React.FC<Props> = ({
     })(() => {
       setShowPostResetMessage(true)
       setShowResetFlow(false)
-    })(login(data.email, ''))
+    })(resetPassword(data.email))
   }
 
   function onLogin(data: LoginFormState) {
@@ -141,7 +142,9 @@ export const LoginForm: React.FC<Props> = ({
     setLoading(true)
 
     return fork((_err: Error) => {
-      setErrorMessage('Invalid code. Please try again.')
+      setErrorMessage(
+        'Verification failed. The code may be incorrect, your authenticator app clock may be out of sync, or the challenge may have expired. Double-check the code in your authenticator app, ensure your device time is correct, or go back and sign in again to restart.'
+      )
       setLoading(false)
     })(() => {
       onSuccess()
@@ -243,6 +246,22 @@ export const LoginForm: React.FC<Props> = ({
                   {useBackupCode
                     ? 'Use authenticator code instead'
                     : 'Use a backup code instead'}
+                </Button>
+              </Block>
+
+              <Block alignSelf="center">
+                <Button
+                  size="small"
+                  type="button"
+                  variant="text"
+                  onClick={() => {
+                    setShowChallenge(false)
+                    setMfaPending(null)
+                    setUseBackupCode(false)
+                    setErrorMessage('')
+                  }}
+                >
+                  Back to sign in
                 </Button>
               </Block>
             </>

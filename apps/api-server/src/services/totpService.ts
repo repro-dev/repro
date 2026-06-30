@@ -1,7 +1,7 @@
 import * as argon2 from '@node-rs/argon2'
 import { createExportedKeyF, decryptF, encryptF } from '@repro/encryption'
 import { FutureInstance, attemptP, chain, map, reject, resolve } from 'fluture'
-import { createHash, randomBytes } from 'node:crypto'
+import { createHash, randomBytes, randomInt } from 'node:crypto'
 import * as otpauth from 'otpauth'
 import * as qrcode from 'qrcode'
 import { Env } from '~/config/createEnv'
@@ -15,10 +15,9 @@ const BACKUP_CODE_COUNT = 10
 const MFA_PENDING_TOKEN_TTL_MS = 5 * 60 * 1000 // 5 minutes
 
 function generateBackupCode(): string {
-  const bytes = randomBytes(BACKUP_CODE_LENGTH)
   let code = ''
   for (let i = 0; i < BACKUP_CODE_LENGTH; i++) {
-    code += BACKUP_CODE_CHARS[bytes[i]! % BACKUP_CODE_CHARS.length]
+    code += BACKUP_CODE_CHARS[randomInt(BACKUP_CODE_CHARS.length)]!
   }
   return code
 }
@@ -34,7 +33,7 @@ export interface TotpSetupResult {
 }
 
 export interface TotpConfirmResult {
-  backupCodes: Array<string>
+  items: Array<string>
 }
 
 export interface TotpStatusResult {
@@ -114,8 +113,19 @@ export function createTotpService(database: Database, env: Env) {
       chain(qrDataUrl =>
         encryptSecret(secret.base32).pipe(
           chain(encryptedSecret =>
-            // Upsert: delete existing pending credential, insert new one
             attemptQuery(async () => {
+              // Check if TOTP is already enabled — reject if so
+              const existing = await database
+                .selectFrom('totp_credentials')
+                .select('enabledAt')
+                .where('userId', '=', userId)
+                .executeTakeFirst()
+
+              if (existing?.enabledAt != null) {
+                throw resourceConflict('TOTP already enabled')
+              }
+
+              // Delete existing pending credential, insert new one
               await database
                 .deleteFrom('totp_credentials')
                 .where('userId', '=', userId)
@@ -167,41 +177,55 @@ export function createTotpService(database: Database, env: Env) {
               return reject(badRequest('Invalid TOTP code'))
             }
 
-            // Generate backup codes
-            const plaintextCodes: Array<string> = []
-            const backupCodeInserts: Array<{
-              userId: number
-              codeHash: string
-            }> = []
-
-            for (let i = 0; i < BACKUP_CODE_COUNT; i++) {
-              const code = generateBackupCode()
-              plaintextCodes.push(code)
-              backupCodeInserts.push({
-                userId,
-                codeHash: argon2.hashSync(code),
-              })
-            }
-
             return attemptQuery(async () => {
+              // Generate backup codes with async argon2 hashing
+              const plaintextCodes: Array<string> = []
+              const backupCodeInserts: Array<{
+                userId: number
+                codeHash: string
+              }> = []
+              const hashTasks: Array<Promise<void>> = []
+
+              for (let i = 0; i < BACKUP_CODE_COUNT; i++) {
+                const code = generateBackupCode()
+                plaintextCodes.push(code)
+                hashTasks.push(
+                  argon2.hash(code).then(hash => {
+                    backupCodeInserts.push({
+                      userId,
+                      codeHash: hash,
+                    })
+                  })
+                )
+              }
+
+              // Wait for all argon2 hashes in parallel
+              await Promise.all(hashTasks)
+
               const now = new Date()
-              await database
-                .updateTable('totp_credentials')
-                .set({ enabledAt: now, lastUsedAt: now })
-                .where('id', '=', row.id)
-                .execute()
 
-              // Delete old backup codes and insert new ones
-              await database
-                .deleteFrom('totp_backup_codes')
-                .where('userId', '=', userId)
-                .execute()
+              // Use database.transaction() for atomic multi-statement mutation
+              return database.transaction().execute(async tx => {
+                await tx
+                  .updateTable('totp_credentials')
+                  .set({ enabledAt: now, lastUsedAt: now })
+                  .where('id', '=', row.id)
+                  .execute()
 
-              await database
-                .insertInto('totp_backup_codes')
-                .values(backupCodeInserts)
-                .execute()
-            }).pipe(map(() => ({ backupCodes: plaintextCodes })))
+                // Delete old backup codes and insert new ones
+                await tx
+                  .deleteFrom('totp_backup_codes')
+                  .where('userId', '=', userId)
+                  .execute()
+
+                await tx
+                  .insertInto('totp_backup_codes')
+                  .values(backupCodeInserts)
+                  .execute()
+
+                return { items: plaintextCodes }
+              })
+            })
           })
         )
       })
@@ -275,23 +299,39 @@ export function createTotpService(database: Database, env: Env) {
         .where('usedAt', 'is', null)
         .execute()
 
-      if (codes.length === 0) {
-        throw notFound('No unused backup codes')
-      }
+      // Perform constant-time argon2 work even when no codes remain,
+      // to reduce timing/branch signal.
+      let matchedId: number | null = null
 
       for (const row of codes) {
         const verified = await argon2.verify(row.codeHash, code)
         if (verified) {
-          await database
-            .updateTable('totp_backup_codes')
-            .set({ usedAt: new Date() })
-            .where('id', '=', row.id)
-            .execute()
-
-          return undefined as void
+          matchedId = row.id
         }
       }
 
+      // Dummy verify when no codes exist to keep timing uniform
+      if (codes.length === 0) {
+        await argon2.verify('$argon2id$v=19$m=19456,t=2,p=1$YmVuY2htYXJr', code)
+      }
+
+      if (matchedId != null) {
+        // Atomic consume: conditional UPDATE prevents double-spend race
+        const result = await database
+          .updateTable('totp_backup_codes')
+          .set({ usedAt: new Date() })
+          .where('id', '=', matchedId)
+          .where('usedAt', 'is', null)
+          .executeTakeFirst()
+
+        if (result.numUpdatedRows === 0n) {
+          throw badRequest('Invalid backup code')
+        }
+
+        return undefined as void
+      }
+
+      // Uniform error: same message whether codes were exhausted or code was wrong
       throw badRequest('Invalid backup code')
     })
   }
@@ -317,6 +357,16 @@ export function createTotpService(database: Database, env: Env) {
     const tokenHash = hashMfaToken(rawToken)
 
     return attemptQuery(async () => {
+      // Opportunistic purge of expired tokens
+      await database
+        .deleteFrom('mfa_pending_tokens')
+        .where(
+          'createdAt',
+          '<',
+          new Date(Date.now() - MFA_PENDING_TOKEN_TTL_MS)
+        )
+        .execute()
+
       await database
         .insertInto('mfa_pending_tokens')
         .values({ userId, tokenHash })
@@ -404,29 +454,33 @@ export function createTotpService(database: Database, env: Env) {
 
   function regenerateBackupCodes(
     userId: number
-  ): FutureInstance<Error, Array<string>> {
+  ): FutureInstance<Error, { items: Array<string> }> {
     return isTotpEnabled(userId).pipe(
       chain(enabled => {
         if (!enabled) {
           return reject(badRequest('TOTP is not enabled'))
         }
 
-        const plaintextCodes: Array<string> = []
-        const backupCodeInserts: Array<{
-          userId: number
-          codeHash: string
-        }> = []
-
-        for (let i = 0; i < BACKUP_CODE_COUNT; i++) {
-          const code = generateBackupCode()
-          plaintextCodes.push(code)
-          backupCodeInserts.push({
-            userId,
-            codeHash: argon2.hashSync(code),
-          })
-        }
-
         return attemptQuery(async () => {
+          const plaintextCodes: Array<string> = []
+          const backupCodeInserts: Array<{
+            userId: number
+            codeHash: string
+          }> = []
+
+          // Async argon2 hashing in parallel
+          const hashTasks: Array<Promise<void>> = []
+          for (let i = 0; i < BACKUP_CODE_COUNT; i++) {
+            const code = generateBackupCode()
+            plaintextCodes.push(code)
+            hashTasks.push(
+              argon2.hash(code).then(hash => {
+                backupCodeInserts.push({ userId, codeHash: hash })
+              })
+            )
+          }
+          await Promise.all(hashTasks)
+
           await database
             .deleteFrom('totp_backup_codes')
             .where('userId', '=', userId)
@@ -436,7 +490,9 @@ export function createTotpService(database: Database, env: Env) {
             .insertInto('totp_backup_codes')
             .values(backupCodeInserts)
             .execute()
-        }).pipe(map(() => plaintextCodes))
+
+          return { items: plaintextCodes }
+        })
       })
     )
   }

@@ -28,6 +28,12 @@ mock.module('@repro/design', {
       React.createElement('div', { className: 'card' }, children),
     Col: ({ children }: any) => React.createElement('div', null, children),
     Input: (props: any) => React.createElement('input', props),
+    LoadingState: () =>
+      React.createElement(
+        'div',
+        { 'data-testid': 'loading-state' },
+        'Loading...'
+      ),
     Row: ({ children }: any) => React.createElement('div', null, children),
     Text: ({ children, variant, as }: any) =>
       React.createElement(as || 'span', { 'data-variant': variant }, children),
@@ -39,6 +45,9 @@ mock.module('@repro/design', {
       bg: { subtle: '#f8fafc' },
       border: { default: '#e2e8f0' },
     },
+    fontFamily: { mono: 'monospace' },
+    fontSize: { md: 14 },
+    radius: { md: 8, none: 0, sm: 4, lg: 16, full: '9999px' },
     spacing: { none: 0, xs: 2, sm: 4, md: 8, lg: 12, xl: 16, '2xl': 24 },
   },
 })
@@ -64,7 +73,7 @@ const { ManageTotpSection } =
 
 const disabledStatus = { enabled: false, backupCodesRemaining: 0 }
 const enabledStatus = { enabled: true, backupCodesRemaining: 7 }
-const regenCodes = ['NEW1-CODE', 'NEW2-CODE', 'NEW3-CODE']
+const regenCodes = { items: ['NEW1-CODE', 'NEW2-CODE', 'NEW3-CODE'] }
 
 // ---------------------------------------------------------------------------
 // Helpers

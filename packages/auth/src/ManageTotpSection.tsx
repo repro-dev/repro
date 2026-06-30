@@ -5,10 +5,12 @@ import {
   Button,
   Card,
   Input,
+  LoadingState,
   Text,
   color,
   fontFamily,
   fontSize,
+  radius,
   spacing,
 } from '@repro/design'
 import { fork } from 'fluture'
@@ -39,6 +41,7 @@ export const ManageTotpSection: React.FC = () => {
   const [disableError, setDisableError] = useState<string | null>(null)
   const [regenerateSuccess, setRegenerateSuccess] =
     useState<Array<string> | null>(null)
+  const [copied, setCopied] = useState(false)
 
   const fetchStatus = useCallback(() => {
     setLoading(true)
@@ -91,14 +94,17 @@ export const ManageTotpSection: React.FC = () => {
 
   function handleRegenerate() {
     apiClient
-      .fetch<Array<string>>('/account/totp/regenerate-backup-codes', {
-        method: 'POST',
-      })
+      .fetch<{ items: Array<string> }>(
+        '/account/totp/regenerate-backup-codes',
+        {
+          method: 'POST',
+        }
+      )
       .pipe(
         fork(() => {
           setError('Failed to regenerate backup codes.')
-        })((codes: Array<string>) => {
-          setRegenerateSuccess(codes)
+        })((result: { items: Array<string> }) => {
+          setRegenerateSuccess(result.items)
           setShowRegenerateConfirm(false)
           fetchStatus()
         })
@@ -117,12 +123,9 @@ export const ManageTotpSection: React.FC = () => {
   if (loading) {
     return (
       <Col gap={spacing.md}>
-        <Col gap={spacing.xs}>
-          <Text variant="heading2">Two-factor authentication</Text>
-          <Text variant="bodySmall" color={color.text.muted}>
-            Loading...
-          </Text>
-        </Col>
+        <Block height={120}>
+          <LoadingState />
+        </Block>
       </Col>
     )
   }
@@ -155,7 +158,7 @@ export const ManageTotpSection: React.FC = () => {
             <Block
               backgroundColor={color.bg.subtle}
               padding={spacing.md}
-              borderRadius={8}
+              borderRadius={radius.md}
             >
               {regenerateSuccess.map((code, i) => (
                 <Block
@@ -167,13 +170,26 @@ export const ManageTotpSection: React.FC = () => {
                 </Block>
               ))}
             </Block>
-            <Button
-              size="small"
-              variant="outlined"
-              onClick={() => setRegenerateSuccess(null)}
-            >
-              Dismiss
-            </Button>
+            <Row gap={spacing.sm}>
+              <Button
+                size="small"
+                variant="text"
+                onClick={() => {
+                  navigator.clipboard.writeText(regenerateSuccess.join('\n'))
+                  setCopied(true)
+                  setTimeout(() => setCopied(false), 2000)
+                }}
+              >
+                {copied ? 'Copied!' : 'Copy codes'}
+              </Button>
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={() => setRegenerateSuccess(null)}
+              >
+                Dismiss
+              </Button>
+            </Row>
           </Col>
         </Card>
       )}

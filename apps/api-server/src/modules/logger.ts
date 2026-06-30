@@ -49,6 +49,7 @@ export function createFastifyLoggerOptions({
       'req.body.resetToken',
       'req.body.secret',
       'req.body.clientSecret',
+      'req.body.mfa_pending',
       'req.body.webhookSecret',
       'res.headers["set-cookie"]',
     ],

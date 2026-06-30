@@ -34,7 +34,7 @@ Emitted by `sendEmailInBackground` in `src/modules/email.ts`.
 
 ### Redaction
 
-Sensitive fields are redacted by Pino before serialisation (see `createFastifyLoggerOptions` for the full path list). Redacted values appear as `"[Redacted]"` in log output. Covered paths: `req.headers.authorization`, `req.headers.cookie`, `req.body.password`, `req.body.newPassword`, `req.body.token`, `req.body.sessionToken`, `req.body.verificationToken`, `req.body.invitationToken`, `req.body.resetToken`, `req.body.secret`, `req.body.clientSecret`, `req.body.webhookSecret`, `res.headers["set-cookie"]`.
+Sensitive fields are redacted by Pino before serialisation (see `createFastifyLoggerOptions` for the full path list). Redacted values appear as `"[Redacted]"` in log output. Covered paths: `req.headers.authorization`, `req.headers.cookie`, `req.body.password`, `req.body.newPassword`, `req.body.token`, `req.body.sessionToken`, `req.body.verificationToken`, `req.body.invitationToken`, `req.body.resetToken`, `req.body.secret`, `req.body.clientSecret`, `req.body.webhookSecret`, `req.body.mfa_pending`, `res.headers["set-cookie"]`.
 
 ### Logger injection
 

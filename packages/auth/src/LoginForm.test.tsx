@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, render, screen } from '@testing-library/react'
 import assert from 'node:assert/strict'
 import { afterEach, describe, it, mock } from 'node:test'
 import React from 'react'
@@ -41,10 +41,10 @@ mock.module('@repro/design', {
       ),
     color: {
       primary: '#2563eb',
-      text: { muted: '#64748b' },
+      text: { muted: '#64748b', default: '#0f172a', secondary: '#334155' },
       success: '#16a34a',
     },
-    spacing: { md: 8, sm: 4, xl: 16 },
+    spacing: { md: 8, sm: 4, xl: 16, xs: 2, lg: 16 },
   },
 })
 
@@ -79,5 +79,27 @@ describe('LoginForm', () => {
   it('renders a sign-up link', () => {
     renderForm()
     assert.ok(screen.getByText('Sign up now'))
+  })
+
+  it('shows reset password form after clicking "Forgot password?"', () => {
+    renderForm()
+    // The initial form is the login form (heading + button)
+    const loginTexts = screen.getAllByText('Log in')
+    assert.equal(loginTexts.length, 2)
+
+    // Click "Forgot password?"
+    act(() => {
+      screen.getByText('Forgot password?').click()
+    })
+
+    // Should now show reset form
+    assert.ok(screen.getByText('Reset password'))
+    assert.ok(screen.getByText('Send reset email'))
+    assert.ok(screen.getByText('Back to login'))
+  })
+
+  it('shows "Back to sign in" affordance is NOT present on login form', () => {
+    renderForm()
+    assert.equal(screen.queryAllByText('Back to sign in').length, 0)
   })
 })
