@@ -97,6 +97,7 @@ export const SimpleTimeline: React.FC<Props> = ({
 }) => {
   const progressRef = useRef<HTMLDivElement | null>(null)
   const elapsedTimeRef = useRef<HTMLDivElement | null>(null)
+  const markerTooltipRef = useRef<string | null>(null)
   const playback = usePlayback()
 
   useEffect(() => {
@@ -184,7 +185,11 @@ export const SimpleTimeline: React.FC<Props> = ({
           )
           .subscribe(([offset, value]) => {
             updateBarOffset(ghost, offset)
-            updateTooltip(tooltip, offset, `${formatTime(value, 'millis')}`)
+            updateTooltip(
+              tooltip,
+              offset,
+              markerTooltipRef.current ?? `${formatTime(value, 'millis')}`
+            )
             showTooltip(tooltip)
           })
       )
@@ -300,15 +305,15 @@ export const SimpleTimeline: React.FC<Props> = ({
       // Render error/warning markers
       if (errorAndWarningEvents && errorAndWarningEvents.length > 0) {
         const markersContainer = document.createElement('div')
-        const iconSize = 14
+        const iconSize = 16
 
         const containerStyles = [
+          ['height', '100%'],
           ['left', '0'],
           ['pointerEvents', 'none'],
           ['position', 'absolute' as const],
-          ['top', `-${iconSize + 2}px`],
+          ['top', '0'],
           ['width', '100%'],
-          ['height', `${iconSize}px`],
           ['zIndex', '10'],
         ] as const
 
@@ -326,10 +331,15 @@ export const SimpleTimeline: React.FC<Props> = ({
             ? (color.danger as string)
             : (color.warning as string)
 
+          const compositeTooltip = `${formatTime(entry.time, 'millis')}\n${
+            entry.summary
+          }`
+
           const marker = document.createElement('div')
           marker.style.position = 'absolute'
           marker.style.left = `${offset * 100}%`
-          marker.style.transform = 'translateX(-50%)'
+          marker.style.top = '50%'
+          marker.style.transform = 'translate(-50%, -50%)'
           marker.style.width = `${iconSize}px`
           marker.style.height = `${iconSize}px`
           marker.style.cursor = 'pointer'
@@ -344,17 +354,12 @@ export const SimpleTimeline: React.FC<Props> = ({
               : createWarningIcon(iconSize, markerColor)
           )
 
-          const compositeTooltip = `${formatTime(entry.time, 'millis')}\n${
-            entry.summary
-          }`
-
           marker.addEventListener('pointerenter', () => {
-            updateTooltip(tooltip, offset, compositeTooltip)
-            showTooltip(tooltip)
+            markerTooltipRef.current = compositeTooltip
           })
 
           marker.addEventListener('pointerleave', () => {
-            hideTooltip(tooltip)
+            markerTooltipRef.current = null
           })
 
           marker.addEventListener('pointerdown', (e: PointerEvent) => {
