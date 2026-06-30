@@ -185,11 +185,12 @@ export const SimpleTimeline: React.FC<Props> = ({
           )
           .subscribe(([offset, value]) => {
             updateBarOffset(ghost, offset)
-            updateTooltip(
-              tooltip,
-              offset,
-              markerTooltipRef.current ?? `${formatTime(value, 'millis')}`
-            )
+            const markerText = markerTooltipRef.current
+            if (markerText) {
+              updateTooltip(tooltip, offset, markerText)
+            } else {
+              updateTooltipText(tooltip, `${formatTime(value, 'millis')}`)
+            }
             showTooltip(tooltip)
           })
       )
@@ -331,9 +332,15 @@ export const SimpleTimeline: React.FC<Props> = ({
             ? (color.danger as string)
             : (color.warning as string)
 
-          const compositeTooltip = `${formatTime(entry.time, 'millis')}\n${
-            entry.summary
-          }`
+          const compositeTooltip = [
+            `<div style="font-variant-numeric:tabular-nums;opacity:.8;margin-bottom:4px">${formatTime(
+              entry.time,
+              'millis'
+            )}</div>`,
+            `<div style="line-height:1.35">${entry.summary}</div>`,
+          ].join(
+            `<div style="height:0;margin:4px 0;border-top:1px solid currentColor;opacity:.15"></div>`
+          )
 
           const marker = document.createElement('div')
           marker.style.position = 'absolute'
@@ -593,8 +600,13 @@ function updateBarOffset(target: HTMLElement, offset: number) {
 
 function updateTooltip(target: HTMLElement, offset: number, value: string) {
   target.style.left = `${offset * 100}%`
+  target.innerHTML = value
+  target.style.whiteSpace = 'normal'
+}
+
+function updateTooltipText(target: HTMLElement, value: string) {
   target.textContent = value
-  target.style.whiteSpace = 'pre-line'
+  target.style.whiteSpace = 'nowrap'
 }
 
 function updateElapsedTime(target: HTMLElement | null, value: string) {
