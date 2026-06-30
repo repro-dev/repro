@@ -55,14 +55,14 @@ const MainPane: React.FC = React.memo(() => {
 
   useEffect(() => {
     setSelectedNode(selectedNode => {
-      const vtree = playback.$snapshot.getValue().dom
+      const vtree = snapshot.dom
 
       if (vtree) {
         if (selectedNode && vNodeExists(vtree, selectedNode)) {
           return selectedNode
         }
 
-        const bodyElement = getBodyVElement(vtree)
+        const bodyElement = vtree ? getBodyVElement(vtree) : null
 
         if (bodyElement) {
           return bodyElement.id
@@ -71,7 +71,7 @@ const MainPane: React.FC = React.memo(() => {
 
       return null
     })
-  }, [setSelectedNode, snapshot.dom, playback])
+  }, [setSelectedNode, snapshot.dom])
 
   const handleToggleBreakpoint = useCallback(
     (nodeId: NodeId) => {

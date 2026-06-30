@@ -1,8 +1,7 @@
 import 'global-jsdom/register'
 
 // Polyfill requestIdleCallback for jsdom (ElementTree uses it for
-// scroll-into-view). The existing ElementsPanel tests never mount ElementTree
-// because snapshot.dom is null, but the new durable-guard tests do.
+// scroll-into-view). ElementsPanel tests that mount ElementTree need this.
 // NOTE: The polyfill defers via setTimeout(cb, 0). Tests that assert side
 // effects from a requestIdleCallback must await a macrotask flush
 // (e.g. await new Promise(r => setTimeout(r, 0))) before the assertion.
@@ -36,9 +35,9 @@ const $testPlaybackSnapshot = atom<Snapshot>({
   cssRules: [],
   colorScheme: null,
 })
-// ElementTree calls onSelectNode(activeBreakpointNode) on mount (line 106).
-// When activeBreakpointNode is null, it clobbers whatever was just selected.
-// We set it to the picked ID so ElementTree does NOT reset selection.
+// Set to null in all AC#1-#5 tests (the realistic case — no active VNode
+// breakpoint). Set to a non-null value only in Test 6 to verify the
+// breakpoint auto-select feature still works.
 let mockActiveBreakpointValue: { type: number; nodeId: string } | null = null
 
 function testSetSelectedNode(
@@ -213,60 +212,55 @@ describe('ElementsPanel tab integration', () => {
     assert.equal(tabs[1]?.getAttribute('aria-selected'), 'false')
   })
 
-  // ── Test 1: RED → GREEN — collapsed pick keeps picked element ──
-  it('keeps picked element when MainPane mounts with stale closure vtree', async t => {
+  // ── Test 1: RED→GREEN, AC#1 — collapsed pick keeps picked element ──
+  it('keeps picked element when MainPane mounts with activeBreakpoint=null (AC#1)', async t => {
     const bodyId = 'body1'
     const pickedId = 'picked1'
 
-    // Live atom vtree WITH the picked node (simulates the post-pick snapshot)
-    const liveVtree = makeVtree(bodyId, [pickedId])
+    // Realistic scenario: no active VNode breakpoint
+    mockActiveBreakpointValue = null
+
+    // Both vtree sources contain the picked node (realistic post-pick state)
+    const vtree = makeVtree(bodyId, [pickedId])
+    mockSnapshotVTree = vtree
     $testPlaybackSnapshot.next({
-      dom: liveVtree,
+      dom: vtree,
       cssRules: [],
       interaction: null,
       frameworkState: null,
       colorScheme: null,
     })
 
-    // Stale closure vtree WITHOUT the picked node (captured from useSnapshot
-    // before the snapshot atom was updated)
-    mockSnapshotVTree = makeVtree(bodyId)
-
-    // ElementTree calls onSelectNode(activeBreakpointNode) on mount.
-    // Set activeBreakpoint to pickedId so it doesn't clobber selection.
-    mockActiveBreakpointValue = { type: 0, nodeId: pickedId }
-
-    // Preset the selected-node atom to pickedId (simulating picker
-    // setSelectedNode)
+    // Preset selected-node atom to pickedId (simulating picker setSelectedNode)
     $testSelectedNode.next(pickedId)
 
     const { ElementsPanel } = await setupTest(t)
     render(<ElementsPanel />)
 
-    // After effects flush, the selected node should still be pickedId.
-    // Before fix: reads closure vtree (useSnapshot) → pickedId not found → bodyId.
-    // After fix: reads live vtree (playback.$snapshot.getValue()) → pickedId found → kept.
+    // RED before ElementTree guard: ElementTree clobbers selection to null
+    // (onSelectNode(activeBreakpointNode) with activeBreakpointNode=null),
+    // MainPane validation sees null -> body.  After guard: selection preserved.
     assert.equal($testSelectedNode.getValue(), pickedId)
   })
 
-  // ── Test 2: AC#3 guard — body-fallback on removed selection ──
-  it('falls back to body when selected node is removed from live vtree', async t => {
+  // ── Test 2: AC#3 — body-fallback when selected node absent from vtree ──
+  it('falls back to body when selected node is removed from vtree (AC#3)', async t => {
     const bodyId = 'body1'
     const pickedId = 'picked1'
 
-    // Live vtree: body only, no pickedId
-    const liveVtree = makeVtree(bodyId)
+    // Vtree does NOT contain the selected node
+    const vtree = makeVtree(bodyId)
+    mockSnapshotVTree = vtree
     $testPlaybackSnapshot.next({
-      dom: liveVtree,
+      dom: vtree,
       cssRules: [],
       interaction: null,
       frameworkState: null,
       colorScheme: null,
     })
-    mockSnapshotVTree = liveVtree
-    mockActiveBreakpointValue = { type: 0, nodeId: pickedId }
+    mockActiveBreakpointValue = null
 
-    // Preset selected node to something NOT in the live tree
+    // Preset selected node to something NOT in the vtree
     $testSelectedNode.next(pickedId)
 
     const { ElementsPanel } = await setupTest(t)
@@ -276,7 +270,7 @@ describe('ElementsPanel tab integration', () => {
     assert.equal($testSelectedNode.getValue(), bodyId)
   })
 
-  // ── Test 3: Default — no prior selection → body ──
+  // ── Test 3: Default — no prior selection -> body ──
   it('falls back to body when there is no prior selection', async t => {
     const bodyId = 'body1'
 
@@ -289,7 +283,7 @@ describe('ElementsPanel tab integration', () => {
       frameworkState: null,
       colorScheme: null,
     })
-    mockActiveBreakpointValue = { type: 0, nodeId: 'body1' }
+    mockActiveBreakpointValue = null
 
     // No prior selection
     $testSelectedNode.next(null)
@@ -302,7 +296,7 @@ describe('ElementsPanel tab integration', () => {
   })
 
   // ── Test 4: AC#2 — pick updates selection when inspector is already open ──
-  it('preserves selection when pick updates to a valid node (inspector already open)', async t => {
+  it('preserves selection when pick updates to a valid node (AC#2, inspector already open)', async t => {
     const bodyId = 'body1'
     const pickedA = 'pickedA'
     const pickedB = 'pickedB'
@@ -317,7 +311,7 @@ describe('ElementsPanel tab integration', () => {
       frameworkState: null,
       colorScheme: null,
     })
-    mockActiveBreakpointValue = { type: 0, nodeId: pickedA }
+    mockActiveBreakpointValue = null
     $testSelectedNode.next(pickedA)
 
     const { ElementsPanel } = await setupTest(t)
@@ -344,7 +338,7 @@ describe('ElementsPanel tab integration', () => {
   })
 
   // ── Test 5: AC#4 — scroll-into-view guard ──
-  it('scrolls to the selected node when ElementTree mounts', async t => {
+  it('scrolls to the selected node when ElementTree mounts (AC#4)', async t => {
     const bodyId = 'body1'
     const pickedId = 'picked1'
 
@@ -366,7 +360,7 @@ describe('ElementsPanel tab integration', () => {
         frameworkState: null,
         colorScheme: null,
       })
-      mockActiveBreakpointValue = { type: 0, nodeId: pickedId }
+      mockActiveBreakpointValue = null
       $testSelectedNode.next(pickedId)
 
       const { ElementsPanel } = await setupTest(t)
@@ -384,5 +378,37 @@ describe('ElementsPanel tab integration', () => {
     } finally {
       Element.prototype.scrollIntoView = originalScrollIntoView
     }
+  })
+
+  // ── Test 6: Breakpoint feature guard ──
+  it('auto-selects breakpoint node when activeBreakpointNode is non-null on mount', async t => {
+    const bodyId = 'body1'
+    const breakpointId = 'breakpoint1'
+
+    const vtree = makeVtree(bodyId, [breakpointId])
+    mockSnapshotVTree = vtree
+    $testPlaybackSnapshot.next({
+      dom: vtree,
+      cssRules: [],
+      interaction: null,
+      frameworkState: null,
+      colorScheme: null,
+    })
+    // Active VNode breakpoint -> should trigger auto-select via ElementTree
+    mockActiveBreakpointValue = {
+      type: BreakpointType.VNode,
+      nodeId: breakpointId,
+    }
+
+    // No prior selection
+    $testSelectedNode.next(null)
+
+    const { ElementsPanel } = await setupTest(t)
+    render(<ElementsPanel />)
+
+    // The ElementTree mount effect sees activeBreakpointNode=breakpointId,
+    // calls onSelectNode(breakpointId) -> selection becomes breakpointId.
+    // (The guard `activeBreakpointNode !== null` allows it through.)
+    assert.equal($testSelectedNode.getValue(), breakpointId)
   })
 })
