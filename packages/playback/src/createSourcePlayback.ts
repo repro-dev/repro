@@ -725,7 +725,7 @@ export function createSourcePlayback(
       )
 
       setSnapshot(snapshot || EMPTY_SNAPSHOT)
-      setActiveIndex(activeIndexOffset + before.size())
+      setActiveIndex(activeIndexOffset + before.size() - 1)
 
       withMutexLock(() => {
         setElapsed(elapsed)

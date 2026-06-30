@@ -1,6 +1,7 @@
 import { Block, Row } from '@jsxstyle/react'
 import { Button, color, fontSize, spacing } from '@repro/design'
-import { DevTools } from '@repro/devtools'
+import { DevTools, useDevToolsView } from '@repro/devtools'
+import { View } from '@repro/devtools/src/types'
 import {
   PlaybackProvider,
   RangeTimeline,
@@ -8,7 +9,10 @@ import {
 } from '@repro/playback'
 import { randomString } from '@repro/random-string'
 import { useRecordingStream } from '@repro/recording'
-import { calculateDuration } from '@repro/source-utils'
+import {
+  calculateDuration,
+  findErrorAndWarningEvents,
+} from '@repro/source-utils'
 import { DownloadIcon, HistoryIcon } from 'lucide-react'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { exportReplayEvents } from './exportReplayEvents'
@@ -21,6 +25,17 @@ export const InstantReplayPane: React.FC = () => {
     () => createSourcePlayback(events, duration, {}),
     [events]
   )
+
+  const errorAndWarningEvents = useMemo(
+    () => findErrorAndWarningEvents(events),
+    [events]
+  )
+
+  const [, setView] = useDevToolsView()
+
+  const handleMarkerClick = (_: unknown) => {
+    setView(View.Console)
+  }
 
   const [min, setMin] = useState(0)
   const [max, setMax] = useState(playback.getDuration())
@@ -100,7 +115,15 @@ export const InstantReplayPane: React.FC = () => {
           borderRadius={4}
           overflow="hidden"
         >
-          <DevTools timeline={<RangeTimeline onChange={onUpdateRange} />} />
+          <DevTools
+            timeline={
+              <RangeTimeline
+                onChange={onUpdateRange}
+                errorAndWarningEvents={errorAndWarningEvents}
+                onMarkerClick={handleMarkerClick}
+              />
+            }
+          />
         </Block>
       </Block>
     </PlaybackProvider>

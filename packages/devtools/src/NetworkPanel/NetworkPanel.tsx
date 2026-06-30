@@ -45,7 +45,13 @@ export const NetworkPanel: React.FC = () => {
 
   useEffect(() => {
     const subscription = playback.$latestControlFrame
-      .pipe(filter(controlFrame => controlFrame === ControlFrame.SeekToEvent))
+      .pipe(
+        filter(
+          controlFrame =>
+            controlFrame === ControlFrame.SeekToEvent ||
+            controlFrame === ControlFrame.SeekToTime
+        )
+      )
       .subscribe(() => {
         const activeIndex = playback.getActiveIndex()
 

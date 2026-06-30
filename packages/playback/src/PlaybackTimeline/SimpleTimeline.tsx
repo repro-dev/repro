@@ -2,6 +2,7 @@ import { Block, Row } from '@jsxstyle/react'
 import { Analytics } from '@repro/analytics'
 import { formatTime } from '@repro/date-utils'
 import { color, fontSize, spacing } from '@repro/design'
+import type { ErrorOrWarningEntry } from '@repro/source-utils'
 import React, { useEffect, useRef } from 'react'
 import { NEVER, Observable, Subscription, combineLatest, fromEvent } from 'rxjs'
 import {
@@ -18,15 +19,87 @@ import { PlayAction } from './PlayAction'
 import { PlaybackKeyboardShortcuts } from './PlaybackKeyboardShortcuts'
 import { SpeedControl } from './SpeedControl'
 
+const SVG_NS = 'http://www.w3.org/2000/svg'
+
+function createErrorIcon(size: number, fillColor: string): SVGSVGElement {
+  const svg = document.createElementNS(SVG_NS, 'svg')
+  svg.setAttribute('width', `${size}`)
+  svg.setAttribute('height', `${size}`)
+  svg.setAttribute('viewBox', '0 0 16 16')
+  svg.setAttribute('fill', 'none')
+
+  const circle = document.createElementNS(SVG_NS, 'circle')
+  circle.setAttribute('cx', '8')
+  circle.setAttribute('cy', '8')
+  circle.setAttribute('r', '7')
+  circle.setAttribute('fill', fillColor)
+
+  const path = document.createElementNS(SVG_NS, 'path')
+  path.setAttribute('d', 'M5.5 5.5l5 5M10.5 5.5l-5 5')
+  path.setAttribute('stroke', '#fff')
+  path.setAttribute('stroke-width', '1.5')
+  path.setAttribute('stroke-linecap', 'round')
+
+  svg.appendChild(circle)
+  svg.appendChild(path)
+  return svg
+}
+
+function createWarningIcon(size: number, fillColor: string): SVGSVGElement {
+  const svg = document.createElementNS(SVG_NS, 'svg')
+  svg.setAttribute('width', `${size}`)
+  svg.setAttribute('height', `${size}`)
+  svg.setAttribute('viewBox', '0 0 16 16')
+  svg.setAttribute('fill', 'none')
+
+  const triangle = document.createElementNS(SVG_NS, 'path')
+  triangle.setAttribute('d', 'M8 2L1 14h14L8 2z')
+  triangle.setAttribute('fill', fillColor)
+  triangle.setAttribute('stroke', fillColor)
+  triangle.setAttribute('stroke-width', '0.5')
+  triangle.setAttribute('stroke-linejoin', 'round')
+
+  const line = document.createElementNS(SVG_NS, 'line')
+  line.setAttribute('x1', '8')
+  line.setAttribute('y1', '6')
+  line.setAttribute('x2', '8')
+  line.setAttribute('y2', '10')
+  line.setAttribute('stroke', '#fff')
+  line.setAttribute('stroke-width', '1.5')
+  line.setAttribute('stroke-linecap', 'round')
+
+  const dot = document.createElementNS(SVG_NS, 'circle')
+  dot.setAttribute('cx', '8')
+  dot.setAttribute('cy', '12.5')
+  dot.setAttribute('r', '0.75')
+  dot.setAttribute('fill', '#fff')
+
+  svg.appendChild(triangle)
+  svg.appendChild(line)
+  svg.appendChild(dot)
+  return svg
+}
+
 export interface Props {
   children?: React.ReactNode
   min?: number
   max?: number
+  errorAndWarningEvents?: Array<ErrorOrWarningEntry>
+  onMarkerClick?: (entry: ErrorOrWarningEntry) => void
 }
 
-export const SimpleTimeline: React.FC<Props> = ({ children, min, max }) => {
+export const SimpleTimeline: React.FC<Props> = ({
+  children,
+  min,
+  max,
+  errorAndWarningEvents,
+  onMarkerClick,
+}) => {
   const progressRef = useRef<HTMLDivElement | null>(null)
   const elapsedTimeRef = useRef<HTMLDivElement | null>(null)
+  const markerTooltipRef = useRef<string | null>(null)
+  const onMarkerClickRef = useRef(onMarkerClick)
+  onMarkerClickRef.current = onMarkerClick
   const playback = usePlayback()
 
   useEffect(() => {
@@ -114,7 +187,12 @@ export const SimpleTimeline: React.FC<Props> = ({ children, min, max }) => {
           )
           .subscribe(([offset, value]) => {
             updateBarOffset(ghost, offset)
-            updateTooltip(tooltip, offset, `${formatTime(value, 'millis')}`)
+            const markerText = markerTooltipRef.current
+            updateTooltip(
+              tooltip,
+              offset,
+              markerText ?? `${formatTime(value, 'millis')}`
+            )
             showTooltip(tooltip)
           })
       )
@@ -226,6 +304,95 @@ export const SimpleTimeline: React.FC<Props> = ({ children, min, max }) => {
             updateElapsedTime(elapsedTime, formatTime(elapsed, 'seconds'))
           })
       )
+
+      // Render error/warning markers
+      if (errorAndWarningEvents && errorAndWarningEvents.length > 0) {
+        const markersContainer = document.createElement('div')
+        const iconSize = 16
+
+        const containerStyles = [
+          ['height', '100%'],
+          ['left', '0'],
+          ['pointerEvents', 'none'],
+          ['position', 'absolute' as const],
+          ['top', '0'],
+          ['width', '100%'],
+          ['zIndex', '10'],
+        ] as const
+
+        for (const [key, value] of containerStyles) {
+          markersContainer.style[key] = value
+        }
+
+        for (const entry of errorAndWarningEvents) {
+          const offset = mapValueToOffset(entry.time)
+          // Only render markers within the visible range
+          if (offset < 0 || offset > 1) continue
+
+          const isError = entry.severity === 'error'
+          const markerColor = isError
+            ? (color.danger as string)
+            : (color.warning as string)
+
+          const compositeTooltip = `<div style="${composeStyles([
+            ['min-width', '140px'],
+          ])}">${[
+            `<div style="${composeStyles([
+              ['font-variant-numeric', 'tabular-nums'],
+              ['opacity', '.8'],
+              ['margin-bottom', `${spacing.sm}px`],
+            ])}">${formatTime(entry.time, 'millis')}</div>`,
+            `<div style="${composeStyles([['line-height', '1.35']])}">${
+              entry.summary
+            }</div>`,
+          ].join(
+            `<div style="${composeStyles([
+              ['height', '0'],
+              ['margin', `${spacing.sm}px -${spacing.md}px`],
+              ['border-top', '1px solid currentColor'],
+              ['opacity', '.15'],
+            ])}"></div>`
+          )}</div>`
+
+          const marker = document.createElement('div')
+          marker.style.position = 'absolute'
+          marker.style.left = `${offset * 100}%`
+          marker.style.top = '50%'
+          marker.style.transform = 'translate(-50%, -50%)'
+          marker.style.width = `${iconSize}px`
+          marker.style.height = `${iconSize}px`
+          marker.style.cursor = 'pointer'
+          marker.style.pointerEvents = 'auto'
+          marker.style.display = 'flex'
+          marker.style.alignItems = 'center'
+          marker.style.justifyContent = 'center'
+
+          marker.appendChild(
+            isError
+              ? createErrorIcon(iconSize, markerColor)
+              : createWarningIcon(iconSize, markerColor)
+          )
+
+          marker.addEventListener('pointerenter', () => {
+            markerTooltipRef.current = compositeTooltip
+          })
+
+          marker.addEventListener('pointerleave', () => {
+            markerTooltipRef.current = null
+          })
+
+          marker.addEventListener('pointerdown', (e: PointerEvent) => {
+            e.stopPropagation()
+            playback.seekToTime(entry.time)
+            onMarkerClickRef.current?.(entry)
+            Analytics.track('playback:seek-to-marker')
+          })
+
+          markersContainer.appendChild(marker)
+        }
+
+        root.appendChild(markersContainer)
+      }
     }
 
     return () => {
@@ -237,7 +404,7 @@ export const SimpleTimeline: React.FC<Props> = ({ children, min, max }) => {
         }
       }
     }
-  }, [playback, elapsedTimeRef, progressRef, min, max])
+  }, [playback, elapsedTimeRef, progressRef, min, max, errorAndWarningEvents])
 
   return (
     <Row alignItems="center" height="100%" gap={spacing.md}>
@@ -423,7 +590,8 @@ function createTooltipElement() {
     ['display', 'none'],
     ['fontSize', `${fontSize.xs}px`],
     ['left', '0'],
-    ['padding', '8px'],
+    ['maxWidth', '280px'],
+    ['padding', `${spacing.md}px`],
     ['position', 'absolute'],
     ['top', '0'],
     ['transform', 'translate(-50%, -125%)'],
@@ -444,7 +612,8 @@ function updateBarOffset(target: HTMLElement, offset: number) {
 
 function updateTooltip(target: HTMLElement, offset: number, value: string) {
   target.style.left = `${offset * 100}%`
-  target.textContent = value
+  target.innerHTML = value
+  target.style.whiteSpace = 'normal'
 }
 
 function updateElapsedTime(target: HTMLElement | null, value: string) {
@@ -459,5 +628,9 @@ function showTooltip(target: HTMLElement) {
 
 function hideTooltip(target: HTMLElement) {
   target.style.display = 'none'
+}
+
+function composeStyles(styles: readonly (readonly [string, string])[]) {
+  return styles.map(([k, v]) => `${k}:${v}`).join(';')
 }
 /* eslint-enable */

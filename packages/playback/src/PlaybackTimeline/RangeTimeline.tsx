@@ -1,5 +1,6 @@
 import { Block } from '@jsxstyle/react'
 import { color } from '@repro/design'
+import type { ErrorOrWarningEntry } from '@repro/source-utils'
 import React, { useEffect, useRef } from 'react'
 import { Subscription, fromEvent, map, switchMap, take, takeUntil } from 'rxjs'
 import { usePlayback } from '../hooks'
@@ -7,6 +8,8 @@ import { SimpleTimeline } from './SimpleTimeline'
 
 export interface Props {
   onChange?: (min: number, max: number) => void
+  errorAndWarningEvents?: Array<ErrorOrWarningEntry>
+  onMarkerClick?: (entry: ErrorOrWarningEntry) => void
 }
 
 function useCallbackRef<T extends (...args: any[]) => unknown>(
@@ -21,7 +24,11 @@ function useCallbackRef<T extends (...args: any[]) => unknown>(
   return ref
 }
 
-export const RangeTimeline: React.FC<Props> = ({ onChange }) => {
+export const RangeTimeline: React.FC<Props> = ({
+  onChange,
+  errorAndWarningEvents,
+  onMarkerClick,
+}) => {
   const playback = usePlayback()
   const onChangeRef = useCallbackRef(onChange)
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -191,7 +198,10 @@ export const RangeTimeline: React.FC<Props> = ({ onChange }) => {
 
   return (
     <Block position="relative">
-      <SimpleTimeline>
+      <SimpleTimeline
+        errorAndWarningEvents={errorAndWarningEvents}
+        onMarkerClick={onMarkerClick}
+      >
         <Block
           position="absolute"
           left={0}
