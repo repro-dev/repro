@@ -59,9 +59,6 @@ const RegionLayer: React.FC<{
   bgColor: string
   children?: React.ReactNode
 }> = ({ box, label, bgColor, children }) => {
-  const hasVisible =
-    box.top > 0 || box.bottom > 0 || box.left > 0 || box.right > 0
-
   return (
     <Block backgroundColor={bgColor} padding={spacing.xs} position="relative">
       {/* Region name label — always visible, compact top-left within the band */}
@@ -78,31 +75,23 @@ const RegionLayer: React.FC<{
         {label}
       </Block>
       <Col>
-        {hasVisible && (
-          <Row justifyContent="center">
-            <EdgeLabel value={box.top} />
-          </Row>
-        )}
+        <Row justifyContent="center">
+          <EdgeLabel value={box.top} />
+        </Row>
         <Row alignItems="stretch">
-          {hasVisible && (
-            <Col alignItems="center" justifyContent="center">
-              <EdgeLabel value={box.left} />
-            </Col>
-          )}
+          <Col alignItems="center" justifyContent="center">
+            <EdgeLabel value={box.left} />
+          </Col>
           <Block flex="1" minWidth={0}>
             {children}
           </Block>
-          {hasVisible && (
-            <Col alignItems="center" justifyContent="center">
-              <EdgeLabel value={box.right} />
-            </Col>
-          )}
+          <Col alignItems="center" justifyContent="center">
+            <EdgeLabel value={box.right} />
+          </Col>
         </Row>
-        {hasVisible && (
-          <Row justifyContent="center">
-            <EdgeLabel value={box.bottom} />
-          </Row>
-        )}
+        <Row justifyContent="center">
+          <EdgeLabel value={box.bottom} />
+        </Row>
       </Col>
     </Block>
   )

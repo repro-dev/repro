@@ -77,20 +77,21 @@ describe('SelectedNodeBoxModel', () => {
     const { container: nullContainer } = render(<SelectedNodeBoxModel />)
     assert.equal(nullContainer.textContent, '')
 
-    // Test 3: Selected element with edge values
+    // Test 3: Selected element with edge values — all 12 distinct to
+    // prevent false-positive substring matches
     mockElement = makeMockElement({
-      'margin-top': '10px',
-      'margin-right': '20px',
-      'margin-bottom': '30px',
-      'margin-left': '40px',
-      'border-top-width': '2px',
-      'border-right-width': '4px',
-      'border-bottom-width': '6px',
-      'border-left-width': '8px',
-      'padding-top': '8px',
-      'padding-right': '16px',
-      'padding-bottom': '12px',
-      'padding-left': '4px',
+      'margin-top': '31px',
+      'margin-right': '42px',
+      'margin-bottom': '53px',
+      'margin-left': '64px',
+      'border-top-width': '5px',
+      'border-right-width': '7px',
+      'border-bottom-width': '8px',
+      'border-left-width': '9px',
+      'padding-top': '10px',
+      'padding-right': '20px',
+      'padding-bottom': '30px',
+      'padding-left': '40px',
       width: '100px',
       height: '50px',
       'box-sizing': 'content-box',
@@ -118,44 +119,56 @@ describe('SelectedNodeBoxModel', () => {
 
     // All four margin edge values
     assert.ok(
-      fullContainer.textContent?.includes('10px'),
+      fullContainer.textContent?.includes('31px'),
       'should show margin-top value'
     )
     assert.ok(
-      fullContainer.textContent?.includes('20px'),
+      fullContainer.textContent?.includes('42px'),
       'should show margin-right value'
     )
     assert.ok(
-      fullContainer.textContent?.includes('30px'),
+      fullContainer.textContent?.includes('53px'),
       'should show margin-bottom value'
     )
     assert.ok(
-      fullContainer.textContent?.includes('40px'),
+      fullContainer.textContent?.includes('64px'),
       'should show margin-left value'
     )
 
-    // Border edge values
+    // All four border edge values
     assert.ok(
-      fullContainer.textContent?.includes('2px'),
+      fullContainer.textContent?.includes('5px'),
       'should show border-top value'
     )
     assert.ok(
-      fullContainer.textContent?.includes('4px'),
+      fullContainer.textContent?.includes('7px'),
       'should show border-right value'
     )
     assert.ok(
       fullContainer.textContent?.includes('8px'),
+      'should show border-bottom value'
+    )
+    assert.ok(
+      fullContainer.textContent?.includes('9px'),
       'should show border-left value'
     )
 
-    // Padding edge values
+    // All four padding edge values
     assert.ok(
-      fullContainer.textContent?.includes('16px'),
+      fullContainer.textContent?.includes('10px'),
+      'should show padding-top value'
+    )
+    assert.ok(
+      fullContainer.textContent?.includes('20px'),
       'should show padding-right value'
     )
     assert.ok(
-      fullContainer.textContent?.includes('12px'),
+      fullContainer.textContent?.includes('30px'),
       'should show padding-bottom value'
+    )
+    assert.ok(
+      fullContainer.textContent?.includes('40px'),
+      'should show padding-left value'
     )
 
     // Test 4: Content width × height
@@ -170,35 +183,45 @@ describe('SelectedNodeBoxModel', () => {
       'should show content width × height'
     )
 
-    // Test 5: Zero padding renders without crash
+    // Test 5: Zero padding — must show four 0px labels (no longer hidden).
+    // Margin/border/width/height values avoid digit 0 to prevent false-positive
+    // substring match with 0px (e.g. 10px contains 0px). Also avoid values
+    // that collide with width=111px (11px is a substring of 111px).
     mockElement = makeMockElement({
-      'margin-top': '10px',
-      'margin-right': '10px',
-      'margin-bottom': '10px',
-      'margin-left': '10px',
-      'border-top-width': '2px',
-      'border-right-width': '2px',
-      'border-bottom-width': '2px',
-      'border-left-width': '2px',
+      'margin-top': '12px',
+      'margin-right': '12px',
+      'margin-bottom': '12px',
+      'margin-left': '12px',
+      'border-top-width': '4px',
+      'border-right-width': '4px',
+      'border-bottom-width': '4px',
+      'border-left-width': '4px',
       'padding-top': '0px',
       'padding-right': '0px',
       'padding-bottom': '0px',
       'padding-left': '0px',
-      width: '100px',
-      height: '50px',
+      width: '111px',
+      height: '75px',
     })
     cleanup()
     const { container: zeroContainer } = render(<SelectedNodeBoxModel />)
 
     // Should not crash
     assert.ok(zeroContainer.textContent, 'should render without crashing')
+
     assert.ok(
-      zeroContainer.textContent?.includes('10px'),
-      'should still show margin values'
+      zeroContainer.textContent?.includes('12px'),
+      'should show margin values (non-zero)'
     )
     assert.ok(
-      zeroContainer.textContent?.includes('2px'),
-      'should still show border values'
+      zeroContainer.textContent?.includes('4px'),
+      'should show border values (non-zero)'
+    )
+    // With hasVisible guard removed, '0px' IS now in output (four dimmed
+    // padding labels). No 0-containing values elsewhere in the fixture.
+    assert.ok(
+      zeroContainer.textContent?.includes('0px'),
+      'should show four 0px padding values (no longer hidden)'
     )
 
     // Test 6: box-sizing: border-box
