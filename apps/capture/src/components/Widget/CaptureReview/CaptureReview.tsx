@@ -11,7 +11,8 @@ import {
 import { DevTools } from '@repro/devtools'
 import { RecordingMode } from '@repro/domain'
 import { Playback, PlaybackProvider, SimpleTimeline } from '@repro/playback'
-import React from 'react'
+import { findErrorAndWarningEvents } from '@repro/source-utils'
+import React, { useMemo } from 'react'
 import { AsideRegion, Layout, PlaybackRegion } from '../ReportForm/Layout'
 import { ProgressOverlay } from '../ReportForm/ProgressOverlay'
 import { AgenticSection } from './AgenticSection'
@@ -58,6 +59,11 @@ export const CaptureReview: React.FC<CaptureReviewProps> = ({
 
   const { uploadState } = useCaptureUpload()
 
+  const errorAndWarningEvents = useMemo(
+    () => findErrorAndWarningEvents(playback.getSourceEvents()),
+    [playback]
+  )
+
   return (
     <PlaybackProvider playback={playback}>
       <Layout>
@@ -92,7 +98,13 @@ export const CaptureReview: React.FC<CaptureReviewProps> = ({
 
           <DevTools
             hideInspectorOnOpen
-            timeline={<SimpleTimeline min={minTime} max={maxTime} />}
+            timeline={
+              <SimpleTimeline
+                min={minTime}
+                max={maxTime}
+                errorAndWarningEvents={errorAndWarningEvents}
+              />
+            }
           />
         </PlaybackRegion>
 

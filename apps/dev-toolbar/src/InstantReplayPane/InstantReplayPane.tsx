@@ -8,7 +8,10 @@ import {
 } from '@repro/playback'
 import { randomString } from '@repro/random-string'
 import { useRecordingStream } from '@repro/recording'
-import { calculateDuration } from '@repro/source-utils'
+import {
+  calculateDuration,
+  findErrorAndWarningEvents,
+} from '@repro/source-utils'
 import { DownloadIcon, HistoryIcon } from 'lucide-react'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { exportReplayEvents } from './exportReplayEvents'
@@ -19,6 +22,11 @@ export const InstantReplayPane: React.FC = () => {
   const duration = useMemo(() => calculateDuration(events), [events])
   const playback = useMemo(
     () => createSourcePlayback(events, duration, {}),
+    [events]
+  )
+
+  const errorAndWarningEvents = useMemo(
+    () => findErrorAndWarningEvents(events),
     [events]
   )
 
@@ -100,7 +108,14 @@ export const InstantReplayPane: React.FC = () => {
           borderRadius={4}
           overflow="hidden"
         >
-          <DevTools timeline={<RangeTimeline onChange={onUpdateRange} />} />
+          <DevTools
+            timeline={
+              <RangeTimeline
+                onChange={onUpdateRange}
+                errorAndWarningEvents={errorAndWarningEvents}
+              />
+            }
+          />
         </Block>
       </Block>
     </PlaybackProvider>
