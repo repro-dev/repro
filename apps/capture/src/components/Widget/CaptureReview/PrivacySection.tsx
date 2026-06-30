@@ -237,7 +237,7 @@ export const PrivacySection: React.FC<PrivacySectionProps> = ({
         align="end"
         style={{ outline: 'none' }}
       >
-        <Col gap={spacing.md} maxWidth={360}>
+        <Col gap={spacing.lg} maxWidth={360}>
           <Col gap={spacing.xs}>
             <Text variant="heading3">Privacy Controls</Text>
             <Text variant="caption" color={color.text.secondary}>
