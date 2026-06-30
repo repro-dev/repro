@@ -12,6 +12,11 @@ interface Props {
   sortColumn: string | null
   sortDirection: 'asc' | 'desc' | null
   onSort(columnId: string): void
+  selectionMode?: 'none' | 'single' | 'multi'
+  selectedRows?: ReadonlySet<string>
+  onSelectRow?: (rowId: string, selected: boolean) => void
+  onSelectAll?: (selected: boolean) => void
+  allRowIds?: readonly string[]
 }
 
 export const SessionTable: React.FC<Props> = ({
@@ -20,6 +25,11 @@ export const SessionTable: React.FC<Props> = ({
   sortColumn,
   sortDirection,
   onSort,
+  selectionMode = 'none',
+  selectedRows = new Set(),
+  onSelectRow,
+  onSelectAll,
+  allRowIds = [],
 }) => {
   return (
     <Table
@@ -27,6 +37,11 @@ export const SessionTable: React.FC<Props> = ({
       sortColumn={sortColumn}
       sortDirection={sortDirection}
       onSort={onSort}
+      selectionMode={selectionMode}
+      selectedRows={selectedRows}
+      onSelectRow={onSelectRow}
+      onSelectAll={onSelectAll}
+      allRowIds={allRowIds}
     >
       <Table.Header>
         <Table.Row>
@@ -52,7 +67,7 @@ export const SessionTable: React.FC<Props> = ({
 
       <Table.Body>
         {recordings.map(recording => (
-          <Table.Row key={recording.id}>
+          <Table.Row key={recording.id} rowId={recording.id}>
             <Table.Cell>
               <Block
                 component={Link}

@@ -1,4 +1,5 @@
 import { ApiClient, ApiProvider, createApiClient } from '@repro/api-client'
+import { PortalRootProvider } from '@repro/design'
 import { RecordingInfo, RecordingMode } from '@repro/domain'
 import {
   act,
@@ -103,9 +104,11 @@ function makeWrapper(initialProjectId = 'proj-1') {
     return (
       <MemoryRouter>
         <ApiProvider client={mockApiClient}>
-          <ProjectProvider getProjects={getProjects}>
-            {children}
-          </ProjectProvider>
+          <PortalRootProvider>
+            <ProjectProvider getProjects={getProjects}>
+              {children}
+            </ProjectProvider>
+          </PortalRootProvider>
         </ApiProvider>
       </MemoryRouter>
     )
@@ -344,5 +347,5 @@ function getRowTitles(): Array<string> {
   return screen
     .getAllByRole('row')
     .slice(1)
-    .map(row => (row as HTMLTableRowElement).cells[0]?.textContent ?? '')
+    .map(row => (row as HTMLTableRowElement).cells[1]?.textContent ?? '')
 }

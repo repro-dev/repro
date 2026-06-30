@@ -16,9 +16,12 @@ import {
 import { ProjectSettingsNavItem } from '~/components/ProjectSettingsNavItem'
 import { ProjectSwitcher } from '~/components/ProjectSwitcher'
 import { WorkspaceHeader } from '~/components/WorkspaceHeader'
+import { CommandPalette } from './CommandPalette/CommandPalette'
+import { useCommandPalette } from './CommandPalette/useCommandPalette'
 import { ProjectProvider, useProjectContext } from './ProjectContext'
 
 export const Layout: React.FC = () => {
+  const { isOpen: paletteOpen, close: closePalette } = useCommandPalette()
   const sessionsActive = useMatch({ path: '/', end: true })
   const session = useSession()
   // Billing lives under /settings/billing; match it separately so the
@@ -109,6 +112,8 @@ export const Layout: React.FC = () => {
           <Outlet />
         </AppShell.Content>
       </AppShell>
+
+      <CommandPalette open={paletteOpen} onClose={closePalette} />
     </ProjectProvider>
   )
 }
