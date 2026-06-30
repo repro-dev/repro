@@ -340,11 +340,9 @@ export const SimpleTimeline: React.FC<Props> = ({
               ['opacity', '.8'],
               ['margin-bottom', `${spacing.sm}px`],
             ])}">${formatTime(entry.time, 'millis')}</div>`,
-            `<div style="${composeStyles([
-              ['overflow', 'hidden'],
-              ['text-overflow', 'ellipsis'],
-              ['white-space', 'nowrap'],
-            ])}">${entry.summary}</div>`,
+            `<div style="${composeStyles([['line-height', '1.35']])}">${
+              entry.summary
+            }</div>`,
           ].join(
             `<div style="${composeStyles([
               ['height', '0'],
