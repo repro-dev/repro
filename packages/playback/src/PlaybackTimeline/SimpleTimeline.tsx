@@ -19,6 +19,67 @@ import { PlayAction } from './PlayAction'
 import { PlaybackKeyboardShortcuts } from './PlaybackKeyboardShortcuts'
 import { SpeedControl } from './SpeedControl'
 
+const SVG_NS = 'http://www.w3.org/2000/svg'
+
+function createErrorIcon(size: number, fillColor: string): SVGSVGElement {
+  const svg = document.createElementNS(SVG_NS, 'svg')
+  svg.setAttribute('width', `${size}`)
+  svg.setAttribute('height', `${size}`)
+  svg.setAttribute('viewBox', '0 0 16 16')
+  svg.setAttribute('fill', 'none')
+
+  const circle = document.createElementNS(SVG_NS, 'circle')
+  circle.setAttribute('cx', '8')
+  circle.setAttribute('cy', '8')
+  circle.setAttribute('r', '7')
+  circle.setAttribute('fill', fillColor)
+
+  const path = document.createElementNS(SVG_NS, 'path')
+  path.setAttribute('d', 'M5.5 5.5l5 5M10.5 5.5l-5 5')
+  path.setAttribute('stroke', '#fff')
+  path.setAttribute('stroke-width', '1.5')
+  path.setAttribute('stroke-linecap', 'round')
+
+  svg.appendChild(circle)
+  svg.appendChild(path)
+  return svg
+}
+
+function createWarningIcon(size: number, fillColor: string): SVGSVGElement {
+  const svg = document.createElementNS(SVG_NS, 'svg')
+  svg.setAttribute('width', `${size}`)
+  svg.setAttribute('height', `${size}`)
+  svg.setAttribute('viewBox', '0 0 16 16')
+  svg.setAttribute('fill', 'none')
+
+  const triangle = document.createElementNS(SVG_NS, 'path')
+  triangle.setAttribute('d', 'M8 2L1 14h14L8 2z')
+  triangle.setAttribute('fill', fillColor)
+  triangle.setAttribute('stroke', fillColor)
+  triangle.setAttribute('stroke-width', '0.5')
+  triangle.setAttribute('stroke-linejoin', 'round')
+
+  const line = document.createElementNS(SVG_NS, 'line')
+  line.setAttribute('x1', '8')
+  line.setAttribute('y1', '6')
+  line.setAttribute('x2', '8')
+  line.setAttribute('y2', '10')
+  line.setAttribute('stroke', '#fff')
+  line.setAttribute('stroke-width', '1.5')
+  line.setAttribute('stroke-linecap', 'round')
+
+  const dot = document.createElementNS(SVG_NS, 'circle')
+  dot.setAttribute('cx', '8')
+  dot.setAttribute('cy', '12.5')
+  dot.setAttribute('r', '0.75')
+  dot.setAttribute('fill', '#fff')
+
+  svg.appendChild(triangle)
+  svg.appendChild(line)
+  svg.appendChild(dot)
+  return svg
+}
+
 export interface Props {
   children?: React.ReactNode
   min?: number
@@ -237,14 +298,15 @@ export const SimpleTimeline: React.FC<Props> = ({
       // Render error/warning markers
       if (errorAndWarningEvents && errorAndWarningEvents.length > 0) {
         const markersContainer = document.createElement('div')
+        const iconSize = 14
 
         const containerStyles = [
-          ['height', '100%'],
           ['left', '0'],
           ['pointerEvents', 'none'],
           ['position', 'absolute' as const],
-          ['top', '0'],
+          ['top', `-${iconSize + 2}px`],
           ['width', '100%'],
+          ['height', `${iconSize}px`],
           ['zIndex', '10'],
         ] as const
 
@@ -257,24 +319,29 @@ export const SimpleTimeline: React.FC<Props> = ({
           // Only render markers within the visible range
           if (offset < 0 || offset > 1) continue
 
-          const marker = document.createElement('div')
           const isError = entry.severity === 'error'
           const markerColor = isError
             ? (color.danger as string)
             : (color.warning as string)
-          const size = 8
 
+          const marker = document.createElement('div')
           marker.style.position = 'absolute'
           marker.style.left = `${offset * 100}%`
-          marker.style.top = '50%'
-          marker.style.transform = 'translate(-50%, -50%)'
-          marker.style.width = `${size}px`
-          marker.style.height = `${size}px`
-          marker.style.borderRadius = '50%'
-          marker.style.backgroundColor = markerColor
+          marker.style.transform = 'translateX(-50%)'
+          marker.style.width = `${iconSize}px`
+          marker.style.height = `${iconSize}px`
           marker.style.cursor = 'pointer'
           marker.style.pointerEvents = 'auto'
+          marker.style.display = 'flex'
+          marker.style.alignItems = 'center'
+          marker.style.justifyContent = 'center'
           marker.title = entry.summary
+
+          marker.appendChild(
+            isError
+              ? createErrorIcon(iconSize, markerColor)
+              : createWarningIcon(iconSize, markerColor)
+          )
 
           marker.addEventListener('pointerdown', (e: PointerEvent) => {
             e.stopPropagation()
