@@ -174,7 +174,7 @@ describe('CommandPalette', () => {
     assert.ok(input)
   })
 
-  it('handles Escape key via Modal', () => {
+  it('handles Escape key', () => {
     let closed = false
     const handleClose = () => {
       closed = true
@@ -182,9 +182,7 @@ describe('CommandPalette', () => {
 
     renderCommandPalette(true, handleClose)
 
-    // The Modal component handles Escape via its own keydown listener
-    const backdrop = screen.getByTestId('modal-backdrop')
-    fireEvent.keyDown(backdrop, { key: 'Escape' })
+    fireEvent.keyDown(document, { key: 'Escape' })
 
     assert.equal(closed, true)
   })

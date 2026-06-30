@@ -1,5 +1,14 @@
 import { Block, Col, Row } from '@jsxstyle/react'
-import { color, Input, Modal, radius, spacing, textStyles } from '@repro/design'
+import {
+  color,
+  Input,
+  Portal,
+  radius,
+  shadow,
+  spacing,
+  textStyles,
+  useReducedMotion,
+} from '@repro/design'
 import {
   CreditCardIcon,
   FolderIcon,
@@ -10,6 +19,28 @@ import {
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useProjectContext } from '../ProjectContext'
+
+// ---------------------------------------------------------------------------
+// CSS keyframe for command palette entrance animation.
+// ---------------------------------------------------------------------------
+
+const KEYFRAMES = `
+@keyframes command-palette-in {
+  from { opacity: 0; transform: scale(0.98) translateY(-4px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0); }
+}
+`
+
+let keyframesInjected = false
+
+function injectKeyframes(): void {
+  if (keyframesInjected || typeof document === 'undefined') return
+  const style = document.createElement('style')
+  style.id = 'repro-command-palette-keyframes'
+  style.textContent = KEYFRAMES
+  document.head.appendChild(style)
+  keyframesInjected = true
+}
 
 interface CommandItem {
   label: string
@@ -55,6 +86,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   open,
   onClose,
 }) => {
+  injectKeyframes()
+
   const navigate = useNavigate()
   const { selectedProject } = useProjectContext()
   const hasProject = selectedProject != null
@@ -62,6 +95,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   const [query, setQuery] = useState('')
   const [selectedIndex, setSelectedIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const isReducedMotion = useReducedMotion()
 
   // Reset state when the palette is opened or closed
   useEffect(() => {
@@ -69,10 +104,25 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       // Reset on open so it's fresh each time
       setQuery('')
       setSelectedIndex(0)
-      // Auto-focus the input after a tick so the Modal is mounted
+      // Auto-focus the input after a tick so the container is mounted
       requestAnimationFrame(() => inputRef.current?.focus())
     }
   }, [open])
+
+  // Escape key handler
+  useEffect(() => {
+    if (!open || !onClose) return
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        onClose()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [open, onClose])
 
   const filteredItems = useMemo(() => {
     const lowerQuery = query.toLowerCase()
@@ -142,77 +192,117 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     []
   )
 
+  const handleBackdropClick = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      if (event.target === event.currentTarget && onClose) {
+        onClose()
+      }
+    },
+    [onClose]
+  )
+
+  if (!open) return null
+
   return (
-    <Modal
-      width={480}
-      height="auto"
-      open={open}
-      onClose={onClose}
-      aria-label="Command palette"
-    >
-      <Modal.Body>
-        <Col gap={spacing.xs}>
-          <Input
-            ref={inputRef}
-            aria-label="Search commands"
-            placeholder="Type a command…"
-            value={query}
-            onChange={handleInputChange}
-            autoFocus
-          />
+    <Portal>
+      <Col
+        alignItems="center"
+        background={color.bg.overlay}
+        position="fixed"
+        top={0}
+        left={0}
+        bottom={0}
+        right={0}
+        // eslint-disable-next-line @repro/oxlint-plugin-design/no-hardcoded-spacing
+        paddingTop="20vh"
+        props={
+          {
+            onClick: handleBackdropClick,
+            'data-testid': 'command-palette-backdrop',
+          } as React.HTMLAttributes<HTMLDivElement>
+        }
+      >
+        <Col
+          width={480}
+          background={color.bg.surface}
+          boxShadow={shadow.lg}
+          borderRadius={radius.md}
+          overflow="hidden"
+          props={{
+            ref: containerRef,
+            role: 'dialog',
+            'aria-modal': 'true',
+            'aria-label': 'Command palette',
+            style: isReducedMotion
+              ? undefined
+              : {
+                  animation: 'command-palette-in 200ms ease-out forwards',
+                },
+          }}
+        >
+          <Col padding={spacing.xl} gap={spacing.xs}>
+            <Input
+              ref={inputRef}
+              aria-label="Search commands"
+              placeholder="Type a command…"
+              value={query}
+              onChange={handleInputChange}
+              autoFocus
+            />
 
-          {filteredItems.length === 0 ? (
-            <Block
-              padding={spacing.lg}
-              {...textStyles.body}
-              color={color.text.secondary}
-            >
-              No commands found
-            </Block>
-          ) : (
-            <Col
-              gap={spacing.xs}
-              paddingTop={spacing.xs}
-              props={{
-                role: 'listbox',
-                'aria-label': 'Commands',
-              }}
-            >
-              {filteredItems.map((item, index) => {
-                const IconComponent = item.icon
-                const isHighlighted = index === selectedIndex
+            {filteredItems.length === 0 ? (
+              <Block
+                padding={spacing.lg}
+                {...textStyles.body}
+                color={color.text.secondary}
+              >
+                No commands found
+              </Block>
+            ) : (
+              <Col
+                gap={spacing.xs}
+                paddingTop={spacing.xs}
+                props={{
+                  role: 'listbox',
+                  'aria-label': 'Commands',
+                }}
+              >
+                {filteredItems.map((item, index) => {
+                  const IconComponent = item.icon
+                  const isHighlighted = index === selectedIndex
 
-                return (
-                  <Row
-                    key={item.label}
-                    alignItems="center"
-                    gap={spacing.md}
-                    paddingH={spacing.md}
-                    paddingV={spacing.sm}
-                    cursor="pointer"
-                    backgroundColor={
-                      isHighlighted ? color.bg.hover : 'transparent'
-                    }
-                    borderRadius={radius.sm}
-                    props={{
-                      role: 'option',
-                      'aria-selected': isHighlighted,
-                      onClick: () => handleItemClick(item.route),
-                      onMouseEnter: () => setSelectedIndex(index),
-                    }}
-                  >
-                    <Block color={color.text.secondary} flexShrink={0}>
-                      <IconComponent size={16} />
-                    </Block>
+                  return (
+                    <Row
+                      key={item.label}
+                      alignItems="center"
+                      gap={spacing.md}
+                      paddingH={spacing.md}
+                      paddingV={spacing.sm}
+                      cursor="pointer"
+                      backgroundColor={
+                        isHighlighted ? color.bg.hover : 'transparent'
+                      }
+                      borderRadius={radius.sm}
+                      props={{
+                        role: 'option',
+                        'aria-selected': isHighlighted,
+                        onClick: () => handleItemClick(item.route),
+                        onMouseEnter: () => setSelectedIndex(index),
+                      }}
+                    >
+                      <Block color={color.text.secondary} flexShrink={0}>
+                        <IconComponent size={16} />
+                      </Block>
 
-                    <Block {...textStyles.body}>{item.label}</Block>
-                  </Row>
-                )
-              })}
-            </Col>
-          )}
+                      <Block {...textStyles.body}>{item.label}</Block>
+                    </Row>
+                  )
+                })}
+              </Col>
+            )}
+          </Col>
         </Col>
-      </Modal.Body>
-    </Modal>
+      </Col>
+    </Portal>
   )
 }
