@@ -5,16 +5,9 @@ import type { Meta, StoryObj } from '@storybook/react'
 import React, { PropsWithChildren } from 'react'
 import { ProgressOverlay } from './ProgressOverlay'
 
-interface ExampleArgs {
+interface Args {
+  projectId: string | null
   onClose: () => void
-  completed: boolean
-  error: string
-  recordingId: string
-  enqueued: number
-  createRecording: number
-  saveEvents: number
-  readResources: number
-  saveResources: number
 }
 
 const Wrapper: React.FC<PropsWithChildren<{}>> = ({ children }) => (
@@ -32,82 +25,120 @@ const Wrapper: React.FC<PropsWithChildren<{}>> = ({ children }) => (
   </Block>
 )
 
-const meta: Meta<ExampleArgs> = {
+const meta: Meta<Args> = {
   title: 'Apps/Capture/ProgressOverlay',
   tags: ['experimental'],
   argTypes: {
-    onClose: {
-      action: 'close',
-    },
-    completed: {
-      control: { type: 'boolean' },
-    },
-    error: {
-      control: { type: 'text' },
-    },
-    recordingId: {
-      control: { type: 'text' },
-    },
-    enqueued: {
-      control: { type: 'range', min: 0, max: 1, step: 0.01 },
-    },
-    createRecording: {
-      control: { type: 'range', min: 0, max: 1, step: 0.01 },
-    },
-    saveEvents: {
-      control: { type: 'range', min: 0, max: 1, step: 0.01 },
-    },
-    readResources: {
-      control: { type: 'range', min: 0, max: 1, step: 0.01 },
-    },
-    saveResources: {
-      control: { type: 'range', min: 0, max: 1, step: 0.01 },
-    },
+    onClose: { action: 'close' },
+    projectId: { control: { type: 'text' } },
   },
   args: {
-    completed: false,
-    error: '',
-    recordingId: 'foo',
-    enqueued: 1,
-    createRecording: 0,
-    saveEvents: 0,
-    readResources: 0,
-    saveResources: 0,
+    projectId: 'demo-project',
   },
 }
 
 export default meta
 
-type Story = StoryObj<ExampleArgs>
+type Story = StoryObj<Args>
 
-export const Example: Story = {
-  render: ({
-    onClose,
-    completed,
-    error,
-    recordingId,
-    enqueued,
-    createRecording,
-    saveEvents,
-    readResources,
-    saveResources,
-  }) => (
+export const Indeterminate: Story = {
+  render: ({ onClose }) => (
+    <Wrapper>
+      <ProgressOverlay
+        progress={null}
+        error={null}
+        projectId={null}
+        onClose={onClose}
+      />
+    </Wrapper>
+  ),
+}
+
+export const InProgress: Story = {
+  render: ({ onClose }) => (
     <Wrapper>
       <ProgressOverlay
         progress={{
-          ref: 'foo',
-          recordingId,
+          ref: 'upload-1',
+          recordingId: null,
           encryptionKey: null,
-          completed,
-          error: error ? new Error(error) : null,
+          completed: false,
+          error: null,
           stages: {
-            [UploadStage.Enqueued]: enqueued,
-            [UploadStage.CreateRecording]: createRecording,
-            [UploadStage.SaveEvents]: saveEvents,
-            [UploadStage.ReadResources]: readResources,
-            [UploadStage.SaveResources]: saveResources,
+            [UploadStage.Enqueued]: 1,
+            [UploadStage.CreateRecording]: 0.6,
+            [UploadStage.SaveEvents]: 0.3,
+            [UploadStage.ReadResources]: 0,
+            [UploadStage.SaveResources]: 0,
           },
         }}
+        error={null}
+        projectId={null}
+        onClose={onClose}
+      />
+    </Wrapper>
+  ),
+}
+
+export const ErrorFromProp: Story = {
+  render: ({ onClose }) => (
+    <Wrapper>
+      <ProgressOverlay
+        progress={null}
+        error={new Error('Upload request failed: network error')}
+        projectId={null}
+        onClose={onClose}
+      />
+    </Wrapper>
+  ),
+}
+
+export const ErrorFromProgress: Story = {
+  render: ({ onClose }) => (
+    <Wrapper>
+      <ProgressOverlay
+        progress={{
+          ref: 'upload-2',
+          recordingId: null,
+          encryptionKey: null,
+          completed: true,
+          error: new Error('Failed to save events: server returned 500'),
+          stages: {
+            [UploadStage.Enqueued]: 1,
+            [UploadStage.CreateRecording]: 1,
+            [UploadStage.SaveEvents]: 0.4,
+            [UploadStage.ReadResources]: 0,
+            [UploadStage.SaveResources]: 0,
+          },
+        }}
+        error={null}
+        projectId={null}
+        onClose={onClose}
+      />
+    </Wrapper>
+  ),
+}
+
+export const Completed: Story = {
+  render: ({ projectId, onClose }) => (
+    <Wrapper>
+      <ProgressOverlay
+        progress={{
+          ref: 'upload-3',
+          recordingId: 'rec-abc123',
+          encryptionKey: null,
+          completed: true,
+          error: null,
+          stages: {
+            [UploadStage.Enqueued]: 1,
+            [UploadStage.CreateRecording]: 1,
+            [UploadStage.SaveEvents]: 1,
+            [UploadStage.ReadResources]: 1,
+            [UploadStage.SaveResources]: 1,
+          },
+        }}
+        error={null}
+        projectId={projectId}
         onClose={onClose}
       />
     </Wrapper>
