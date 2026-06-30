@@ -176,8 +176,7 @@ const eventsWithErrors = new List(SourceEventView, [
       },
     })
   ),
-
-  SourceEventView.from(
+  SourceEventView.encode(
     new Box({
       type: SourceEventType.Console,
       time: 200,
@@ -194,7 +193,7 @@ const eventsWithErrors = new List(SourceEventView, [
     })
   ),
 
-  SourceEventView.from(
+  SourceEventView.encode(
     new Box({
       type: SourceEventType.Console,
       time: 500,
@@ -211,7 +210,7 @@ const eventsWithErrors = new List(SourceEventView, [
     })
   ),
 
-  SourceEventView.from(
+  SourceEventView.encode(
     new Box({
       type: SourceEventType.Console,
       time: 700,
@@ -228,7 +227,7 @@ const eventsWithErrors = new List(SourceEventView, [
     })
   ),
 
-  SourceEventView.from(
+  SourceEventView.encode(
     new Box({
       type: SourceEventType.Console,
       time: 1000,
@@ -245,7 +244,7 @@ const eventsWithErrors = new List(SourceEventView, [
     })
   ),
 
-  SourceEventView.from(
+  SourceEventView.encode(
     new Box({
       type: SourceEventType.DOMPatch,
       time: 1250,
