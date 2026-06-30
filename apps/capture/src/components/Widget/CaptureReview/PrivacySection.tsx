@@ -2,6 +2,7 @@ import { Block, Col, Row } from '@jsxstyle/react'
 import { useApiClient } from '@repro/api-client'
 import {
   Button,
+  FormField,
   Input,
   Label,
   Popover,
@@ -57,14 +58,12 @@ interface TagInputProps {
   placeholder: string
   selectors: string[]
   onChange: (selectors: string[]) => void
-  id: string
 }
 
 const TagInput: React.FC<TagInputProps> = ({
   placeholder,
   selectors,
   onChange,
-  id,
 }) => {
   const [inputValue, setInputValue] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -148,7 +147,6 @@ const TagInput: React.FC<TagInputProps> = ({
       )}
       <Block position="relative" onKeyDown={handleKeyDown}>
         <Input
-          id={id}
           size="small"
           value={inputValue}
           placeholder={placeholder}
@@ -345,29 +343,23 @@ export const PrivacySection: React.FC<PrivacySectionProps> = ({
 
           {overridesEnabled && (
             <Col gap={spacing.md}>
-              <Col gap={spacing.sm}>
-                <Label htmlFor="masked-selectors-input">
-                  Mask content matching…
-                </Label>
+              <FormField>
+                <Label>Mask content matching…</Label>
                 <TagInput
-                  id="masked-selectors-input"
                   placeholder="Mask content matching (e.g. .my-class)"
                   selectors={maskedSelectors}
                   onChange={setMaskedSelectors}
                 />
-              </Col>
+              </FormField>
 
-              <Col gap={spacing.sm}>
-                <Label htmlFor="ignored-selectors-input">
-                  Exclude elements matching…
-                </Label>
+              <FormField>
+                <Label>Exclude elements matching…</Label>
                 <TagInput
-                  id="ignored-selectors-input"
                   placeholder="Exclude elements matching (e.g. .ignore-me)"
                   selectors={ignoredSelectors}
                   onChange={setIgnoredSelectors}
                 />
-              </Col>
+              </FormField>
 
               <Button
                 variant="text"

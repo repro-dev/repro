@@ -56,6 +56,7 @@ mock.module('@repro/design', {
         />
       )
     ),
+    FormField: ({ children }: any) => <div>{children}</div>,
     Label: ({ children, ...props }: any) => (
       <label {...props}>{children}</label>
     ),
