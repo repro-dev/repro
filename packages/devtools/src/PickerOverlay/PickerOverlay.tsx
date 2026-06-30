@@ -1,6 +1,6 @@
 import { Block } from '@jsxstyle/react'
 import { color } from '@repro/design'
-import { isIFrameElement } from '@repro/dom-utils'
+import { isIFrameElement, isInert } from '@repro/dom-utils'
 import React, { MutableRefObject, useEffect, useRef, useState } from 'react'
 import { Subscription, fromEvent } from 'rxjs'
 import { distinctUntilChanged, map, share } from 'rxjs/operators'
@@ -15,37 +15,53 @@ import {
 } from '../hooks'
 import { View } from '../types'
 
-function getTargetElementAtPoint(
+function pick(candidates: Element[]): Element | null {
+  for (const candidate of candidates) {
+    if (isIFrameElement(candidate)) {
+      return candidate
+    }
+    if (!isInert(candidate)) {
+      return candidate
+    }
+  }
+  return null
+}
+
+export function getTargetElementAtPoint(
   boundingBox: DOMRect,
   doc: Document | null,
   x: number,
   y: number
-) {
+): Element | null {
   if (!doc) {
     return null
   }
 
   const scalingFactor = doc.documentElement.clientWidth / boundingBox.width
 
-  let targetElement = doc.elementsFromPoint(
-    scalingFactor * (x - boundingBox.left),
-    scalingFactor * (y - boundingBox.top)
-  )[0]
+  let targetElement = pick(
+    doc.elementsFromPoint(
+      scalingFactor * (x - boundingBox.left),
+      scalingFactor * (y - boundingBox.top)
+    )
+  )
 
   while (targetElement && isIFrameElement(targetElement)) {
-    const doc = targetElement.contentDocument
+    const iframeDoc = targetElement.contentDocument
+    if (!iframeDoc) {
+      break
+    }
     const offsetX = targetElement.offsetLeft
     const offsetY = targetElement.offsetTop
-
-    if (doc) {
-      targetElement = doc.elementsFromPoint(
+    targetElement = pick(
+      iframeDoc.elementsFromPoint(
         scalingFactor * (x - offsetX - boundingBox.left),
         scalingFactor * (y - offsetY - boundingBox.top)
-      )[0]
-    }
+      )
+    )
   }
 
-  return targetElement || null
+  return targetElement ?? null
 }
 
 export const PickerOverlay: React.FC = React.memo(() => {
@@ -124,9 +140,9 @@ export const PickerOverlay: React.FC = React.memo(() => {
             setSelectedNode(nodeId)
             setTargetElement(null)
             setFocusedNode(null)
-            setPicker(false)
 
             if (nodeId !== null) {
+              setPicker(false)
               setView(View.Elements)
               setInspecting(true)
             }

@@ -42,6 +42,14 @@ export function isIFrameElement(
   return matches(element.nodeName, 'iframe')
 }
 
+export function closestInert(element: Element): Element | null {
+  return element.closest('[inert]')
+}
+
+export function isInert(element: Element): boolean {
+  return element.closest('[inert]') !== null
+}
+
 export function isInputElement(node: Node): node is HTMLInputElement {
   return matches(node.nodeName, 'input')
 }
