@@ -163,6 +163,16 @@ describe('StylesPane', () => {
     // Inherited heading should be sentence case with ancestor label
     assert.ok(container.textContent!.includes('Inherited from'))
     assert.ok(container.textContent!.includes('div#parent.container'))
+    // SelectorText colored elements should be rendered inside ancestor heading
+    const ancestorHeading = container.querySelector(
+      '[title="Inherited from div#parent.container"]'
+    )
+    assert.ok(ancestorHeading, 'expected ancestor heading element')
+    const inlineElements = ancestorHeading!.querySelectorAll('div')
+    assert.ok(
+      inlineElements.length > 0,
+      'expected SelectorText colored elements in ancestor heading'
+    )
     // Inherited rule content should be visible
     assert.ok(container.textContent!.includes('green'))
     // Selector header is NOT shown for inherited rules — the source label

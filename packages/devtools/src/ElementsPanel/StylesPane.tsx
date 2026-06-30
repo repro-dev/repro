@@ -2,6 +2,8 @@ import { Block } from '@jsxstyle/react'
 import { color, fontSize, fontWeight, lineHeight, spacing } from '@repro/design'
 import React from 'react'
 
+import { SelectorText } from './SelectorText'
+
 import type { MatchedCSSRulesResult } from '../hooks'
 import { useMatchedCSSRules, useSelectedElement } from '../hooks'
 import { MatchedRule } from './MatchedRule'
@@ -63,7 +65,7 @@ const Inner: React.FC<{ result: MatchedCSSRulesResult }> = ({ result }) => {
             textOverflow="ellipsis"
             props={{ title: `Inherited from ${group.ancestorLabel}` }}
           >
-            Inherited from {group.ancestorLabel}
+            Inherited from <SelectorText text={group.ancestorLabel} />
           </Block>
           {group.rules.map((rule, j) => (
             <MatchedRule

@@ -1,6 +1,11 @@
 import expect from 'expect'
 import { describe, it } from 'node:test'
-import { compareSpecificity, computeSpecificity } from './specificity'
+import {
+  compareSpecificity,
+  computeSpecificity,
+  getTokenColor,
+  tokenizeSelector,
+} from './specificity'
 
 describe('computeSpecificity', () => {
   it('returns zeros for empty selector', () => {
@@ -168,5 +173,145 @@ describe('compareSpecificity', () => {
   it('compares type layer when ID and class layers are equal', () => {
     expect(compareSpecificity([0, 0, 3], [0, 0, 7])).toBe(-1)
     expect(compareSpecificity([2, 3, 5], [2, 3, 1])).toBe(1)
+  })
+})
+
+describe('tokenizeSelector', () => {
+  it('tokenizes a type selector', () => {
+    const tokens = tokenizeSelector('div')
+    expect(tokens).toEqual([{ type: 'type', value: 'div' }])
+  })
+
+  it('tokenizes a class selector', () => {
+    const tokens = tokenizeSelector('.foo')
+    expect(tokens).toEqual([{ type: '.', value: '.foo' }])
+  })
+
+  it('tokenizes an ID selector', () => {
+    const tokens = tokenizeSelector('#bar')
+    expect(tokens).toEqual([{ type: '#', value: '#bar' }])
+  })
+
+  it('tokenizes a universal selector', () => {
+    const tokens = tokenizeSelector('*')
+    expect(tokens).toEqual([{ type: '*', value: '*' }])
+  })
+
+  it('collapses consecutive whitespace into a single token', () => {
+    const tokens = tokenizeSelector('div  p')
+    expect(tokens).toEqual([
+      { type: 'type', value: 'div' },
+      { type: ' ', value: ' ' },
+      { type: 'type', value: 'p' },
+    ])
+  })
+
+  it('emits combinator tokens', () => {
+    const tokens = tokenizeSelector('div > p')
+    expect(tokens).toEqual([
+      { type: 'type', value: 'div' },
+      { type: ' ', value: ' ' },
+      { type: 'combinator', value: '>' },
+      { type: ' ', value: ' ' },
+      { type: 'type', value: 'p' },
+    ])
+  })
+
+  it('emits combinator + and ~', () => {
+    expect(tokenizeSelector('div + p')).toEqual([
+      { type: 'type', value: 'div' },
+      { type: ' ', value: ' ' },
+      { type: 'combinator', value: '+' },
+      { type: ' ', value: ' ' },
+      { type: 'type', value: 'p' },
+    ])
+    expect(tokenizeSelector('div ~ p')).toEqual([
+      { type: 'type', value: 'div' },
+      { type: ' ', value: ' ' },
+      { type: 'combinator', value: '~' },
+      { type: ' ', value: ' ' },
+      { type: 'type', value: 'p' },
+    ])
+  })
+
+  it('emits comma tokens between selector parts', () => {
+    const tokens = tokenizeSelector('div.foo, span.bar')
+    expect(tokens).toEqual([
+      { type: 'type', value: 'div' },
+      { type: '.', value: '.foo' },
+      { type: ',', value: ',' },
+      { type: ' ', value: ' ' },
+      { type: 'type', value: 'span' },
+      { type: '.', value: '.bar' },
+    ])
+  })
+
+  it('tokenizes attribute selectors', () => {
+    const tokens = tokenizeSelector('[type="text"]')
+    expect(tokens).toEqual([{ type: '[', value: '[type="text"]' }])
+  })
+
+  it('tokenizes pseudo-classes', () => {
+    const tokens = tokenizeSelector(':hover')
+    expect(tokens).toEqual([{ type: ':', value: ':hover' }])
+  })
+
+  it('tokenizes pseudo-elements', () => {
+    const tokens = tokenizeSelector('::before')
+    expect(tokens).toEqual([{ type: '::', value: '::before' }])
+  })
+
+  it('tokenizes functional pseudo-classes with args', () => {
+    const tokens = tokenizeSelector(':nth-child(2n+1)')
+    expect(tokens).toEqual([{ type: 'fn', value: ':nth-child', args: '2n+1' }])
+  })
+
+  it('tokenizes a compound selector', () => {
+    const tokens = tokenizeSelector(
+      'div.container > ul li:nth-child(2)::before'
+    )
+    expect(tokens.length).toBeGreaterThan(3)
+    // Verify order of important token types
+    const types = tokens.map(t => t.type)
+    expect(types).toContain('type')
+    expect(types).toContain('.')
+    expect(types).toContain('combinator')
+    expect(types).toContain(' ')
+    expect(types).toContain('fn')
+    expect(types).toContain('::')
+  })
+
+  it('handles empty selector', () => {
+    expect(tokenizeSelector('')).toEqual([])
+  })
+
+  it('handles whitespace-only selector', () => {
+    expect(tokenizeSelector('   ')).toEqual([])
+  })
+})
+
+describe('getTokenColor', () => {
+  it('returns a color string for known token types', () => {
+    expect(typeof getTokenColor('type')).toBe('string')
+    expect(typeof getTokenColor('.')).toBe('string')
+    expect(typeof getTokenColor('#')).toBe('string')
+    expect(typeof getTokenColor(':')).toBe('string')
+    expect(typeof getTokenColor('::')).toBe('string')
+    expect(typeof getTokenColor('[')).toBe('string')
+    expect(typeof getTokenColor('combinator')).toBe('string')
+    expect(typeof getTokenColor('*')).toBe('string')
+    expect(typeof getTokenColor('fn')).toBe('string')
+  })
+
+  it('returns undefined for unknown token types', () => {
+    expect(getTokenColor('unknown')).toBeUndefined()
+  })
+
+  it('returns undefined for whitespace token type', () => {
+    expect(getTokenColor(' ')).toBeUndefined()
+  })
+
+  it('returns undefined for comma token type', () => {
+    expect(getTokenColor(',')).toBeUndefined()
   })
 })

@@ -139,13 +139,16 @@ describe('MatchedRule', () => {
     )
 
     // Mock truncation on the selector block: make scrollWidth > clientWidth
-    // Find the deepest element whose text content matches the selector
-    // (the truncated block rendered by MatchedRule)
+    // Find the element whose text content matches the selector and that has
+    // child elements (the parent block wrapping SelectorText spans).
+    // Previously the selector was plain text in a leaf node, but now it is
+    // rendered as multiple colored <span> elements by SelectorText.
     const allElements = container.querySelectorAll('*')
     let selectorBlock: Element | null = null
     for (const el of allElements) {
-      if (el.textContent?.trim() === longSelector && !el.querySelector('*')) {
-        // Deepest element with matching text (leaf node)
+      if (el.textContent?.trim() === longSelector && el.querySelector('*')) {
+        // Non-leaf element whose text content matches the selector (the
+        // parent block wrapping the highlighted SelectorText spans)
         selectorBlock = el
         break
       }

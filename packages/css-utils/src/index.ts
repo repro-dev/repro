@@ -7,6 +7,12 @@ export type { RuleWithOverrides } from './override-detection'
 export { ReferenceStyleProvider, useReferenceStyle } from './reference-styles'
 export { matchCSSRules, matchCSSRulesVTree } from './rule-matching'
 export type { VTreeContext } from './rule-matching'
-export { compareSpecificity, computeSpecificity } from './specificity'
+export {
+  compareSpecificity,
+  computeSpecificity,
+  getTokenColor,
+  tokenizeSelector,
+} from './specificity'
+export type { SelectorToken } from './specificity'
 export { createCSSPropertyMap, createGroupedCSSPropertyMap } from './utils'
 export type { CSSPropertyMap, GroupedCSSPropertyMap } from './utils'
