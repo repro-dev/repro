@@ -1,11 +1,5 @@
 import { PortalRootProvider } from '@repro/design'
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import expect from 'expect'
 import { afterEach, describe, it, mock } from 'node:test'
 import React from 'react'
@@ -75,16 +69,14 @@ describe('SpeedControl', () => {
     // Hover to show tooltip
     fireEvent.pointerEnter(trigger)
 
-    // Wait for tooltip content to appear
-    await waitFor(() => {
-      expect(screen.getByText('Playback speed')).toBeDefined()
-    })
-
-    // Keycap hints present
-    expect(screen.getByText('=')).toBeDefined()
-    expect(screen.getByText('-')).toBeDefined()
-    expect(screen.getByText('increase')).toBeDefined()
-    expect(screen.getByText('decrease')).toBeDefined()
+    // Wait for tooltip to appear
+    const tooltip = await screen.findByRole('tooltip')
+    expect(tooltip.getAttribute('aria-hidden')).toBe('false')
+    expect(tooltip.textContent).toContain('Playback speed')
+    expect(tooltip.textContent).toContain('=')
+    expect(tooltip.textContent).toContain('-')
+    expect(tooltip.textContent).toContain('increase')
+    expect(tooltip.textContent).toContain('decrease')
 
     // No `+` advertised
     expect(screen.queryByText('+')).toBeNull()

@@ -1,11 +1,5 @@
 import { PortalRootProvider } from '@repro/design'
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import expect from 'expect'
 import { afterEach, describe, it, mock } from 'node:test'
 import React from 'react'
@@ -79,12 +73,12 @@ describe('PlayAction', () => {
     const trigger = screen.getByLabelText('Play / Pause (Space)')
     expect(trigger).toBeDefined()
 
-    // --- Test 2: Tooltip shows Space keycap ---
+    // --- Test 2: Tooltip shows keycap and description ---
     fireEvent.pointerEnter(trigger)
-    await waitFor(() => {
-      expect(screen.getByText('Space')).toBeDefined()
-    })
-    expect(screen.getByText('Play / Pause')).toBeDefined()
+    const tooltip = await screen.findByRole('tooltip')
+    expect(tooltip.getAttribute('aria-hidden')).toBe('false')
+    expect(tooltip.textContent).toContain('Play / Pause')
+    expect(tooltip.textContent).toContain('Space')
 
     // --- Test 3: Icon renders (paused -> PlayIcon via lucide) ---
     const playIcon = trigger.querySelector('svg')
@@ -93,6 +87,25 @@ describe('PlayAction', () => {
     // --- Test 4: Click calls play() (component was paused) ---
     fireEvent.click(trigger)
     expect(play.mock.calls.length).toBe(1)
+
+    // --- Test 5: Playing state shows PauseIcon and calls pause() ---
+    playbackState = PlaybackState.Playing
+    cleanup()
+
+    render(
+      <PortalRootProvider>
+        <PlayAction />
+      </PortalRootProvider>
+    )
+
+    const triggerPlaying = screen.getByLabelText('Play / Pause (Space)')
+    expect(triggerPlaying).toBeDefined()
+
+    const pauseIcon = triggerPlaying.querySelector('svg')
+    expect(pauseIcon).toBeDefined()
+
+    fireEvent.click(triggerPlaying)
+    expect(pause.mock.calls.length).toBe(1)
 
     cleanup()
   })
