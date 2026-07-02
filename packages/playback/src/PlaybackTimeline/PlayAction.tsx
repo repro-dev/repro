@@ -1,6 +1,6 @@
-import { Row } from '@jsxstyle/react'
+import { Block, Row } from '@jsxstyle/react'
 import { Analytics } from '@repro/analytics'
-import { color } from '@repro/design'
+import { Tooltip, color } from '@repro/design'
 import { Pause as PauseIcon, Play as PlayIcon } from 'lucide-react'
 import React, { useCallback, useEffect } from 'react'
 import { tinykeys } from 'tinykeys'
@@ -9,6 +9,7 @@ import { usePlayback } from '../hooks'
 import { usePlaybackHud } from '../PlaybackCanvas/PlaybackHudContext'
 import { PlaybackState } from '../types'
 import { shouldIgnoreKeyboardEvent } from './keyboardIgnore'
+import { Keycap } from './Keycap'
 
 export const PlayAction: React.FC = () => {
   const playback = usePlayback()
@@ -60,9 +61,17 @@ export const PlayAction: React.FC = () => {
       color={color.primary}
       borderRadius={4}
       cursor="pointer"
-      props={{ onClick: togglePlayback }}
+      props={{
+        onClick: togglePlayback,
+        'aria-label': 'Play / Pause (Space)',
+      }}
     >
-      {playing ? <PauseIcon size={14} /> : <PlayIcon size={14} />}
+      <Block>
+        <Tooltip position="top">
+          Play / Pause <Keycap label="Space" />
+        </Tooltip>
+        {playing ? <PauseIcon size={14} /> : <PlayIcon size={14} />}
+      </Block>
     </Row>
   )
 }

@@ -1,4 +1,4 @@
-import { Block, Row } from '@jsxstyle/react'
+import { Block, Col, Row } from '@jsxstyle/react'
 import {
   Tooltip,
   color,
@@ -13,6 +13,7 @@ import { usePlayback, useSpeed } from '../hooks'
 import { usePlaybackHud } from '../PlaybackCanvas/PlaybackHudContext'
 import { PlaybackSpeed, VALID_SPEEDS } from '../types'
 import { shouldIgnoreKeyboardEvent } from './keyboardIgnore'
+import { Keycap } from './Keycap'
 
 function getNextSpeed(
   current: PlaybackSpeed,
@@ -89,7 +90,15 @@ export const SpeedControl: React.FC = () => {
       props={{ onClick: cycleSpeed }}
     >
       <Block>
-        <Tooltip position="top">Playback speed</Tooltip>
+        <Tooltip position="top">
+          <Col gap={spacing.xs}>
+            <Block>Playback speed</Block>
+            <Row gap={spacing.xs} alignItems="center">
+              <Keycap label="=" /> <Block>increase</Block>
+              <Keycap label="-" /> <Block>decrease</Block>
+            </Row>
+          </Col>
+        </Tooltip>
         {speed.toFixed(1)}x
       </Block>
     </Row>
