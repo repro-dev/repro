@@ -175,7 +175,6 @@ export const AgenticView: React.FC<{
           bottom={0}
           boxShadow="0 -4px 8px rgba(0, 0, 0, 0.05)"
           left={0}
-          marginBlock={-spacing['2xl']}
           marginInline={-spacing['2xl']}
           overflow="hidden"
           paddingBlock={spacing['3xl']}
