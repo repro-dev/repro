@@ -6,13 +6,15 @@ import {
   ConfirmDialog,
   Delay,
   EmptyState,
+  ListPageFooter,
   PageFrame,
+  RefreshProgressBar,
   Skeleton,
   spacing,
   Table,
+  usePaginatedResource,
 } from '@repro/design'
 import type { RecordingInfo } from '@repro/domain'
-import { useFuture } from '@repro/future-utils'
 import { getProjectRecordings as defaultGetProjectRecordings } from '@repro/workspace-api'
 import { FutureInstance, resolve } from 'fluture'
 import { PuzzleIcon } from 'lucide-react'
@@ -37,6 +39,8 @@ import { SessionTableToolbar } from './SessionTableToolbar'
 // The real Chrome Web Store listing for the Repro capture extension.
 const CHROME_WEB_STORE_URL =
   'https://chrome.google.com/webstore/detail/repro/ecmbphfjfhnifmhbjhpejbpdnpanpice'
+
+const PAGE_SIZE = 10
 
 type ProjectRecordingsFuture = FutureInstance<unknown, RecordingInfo[]>
 
@@ -81,18 +85,33 @@ export const HomeRoute = ({
     filters.searchText
   )
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+
+  // Reset to page 1 when filters, sort, or project changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [debouncedSearchText, filters.selectedModes, sortOrder, projectId])
+
   // Re-fetch whenever the selected project changes.
-  const { loading, data: recordings } = useFuture<
-    unknown,
-    RecordingInfo[]
-  >(() => {
-    if (!projectId) {
-      // No project selected — resolve immediately with an empty list so the
-      // empty state renders rather than hanging in a loading state.
-      return emptyRecordings
-    }
-    return getProjectRecordings(apiClient, projectId)
-  }, [apiClient, projectId, getProjectRecordings])
+  const {
+    result,
+    displayedData,
+    showRefreshProgress,
+    completeRefreshProgress,
+  } = usePaginatedResource<RecordingInfo[], unknown>({
+    fetcher: () => {
+      if (!projectId) {
+        // No project selected — resolve immediately with an empty list so the
+        // empty state renders rather than hanging in a loading state.
+        return emptyRecordings
+      }
+      return getProjectRecordings(apiClient, projectId)
+    },
+    deps: [apiClient, projectId, getProjectRecordings],
+  })
+
+  const recordings = displayedData
 
   // Track which projectId the current `recordings` data was actually fetched
   // for.  useFuture briefly returns loading=false with stale data during the
@@ -100,13 +119,13 @@ export const HomeRoute = ({
   // we gate display on whether the completed fetch matches the current project.
   const [confirmedProjectId, setConfirmedProjectId] = useState(projectId)
   useEffect(() => {
-    if (!loading) {
+    if (!result.loading) {
       setConfirmedProjectId(projectId)
     }
-  }, [loading, projectId])
+  }, [result.loading, projectId])
 
   const isDataCurrent = confirmedProjectId === projectId
-  const effectiveLoading = projectsLoading || loading || !isDataCurrent
+  const effectiveLoading = projectsLoading || result.loading || !isDataCurrent
 
   const currentProjectId = isDataCurrent ? confirmedProjectId : null
   const items: RecordingInfo[] = isDataCurrent ? recordings ?? [] : []
@@ -194,6 +213,12 @@ export const HomeRoute = ({
     [debouncedSearchText, filters.selectedModes, items, sortOrder]
   )
 
+  const totalPages = Math.max(1, Math.ceil(visibleItems.length / PAGE_SIZE))
+  const paginatedItems = visibleItems.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  )
+
   const hasActiveFilters = isSessionListFilteringActive(filters)
 
   const tableSortColumn = sortOrder.startsWith('duration')
@@ -244,12 +269,12 @@ export const HomeRoute = ({
   const handleSelectAll = useCallback(
     (selected: boolean) => {
       if (selected) {
-        setSelectedRowIds(new Set(visibleItems.map(item => item.id)))
+        setSelectedRowIds(new Set(paginatedItems.map(item => item.id)))
       } else {
         setSelectedRowIds(new Set())
       }
     },
-    [visibleItems]
+    [paginatedItems]
   )
 
   const handleClearSelection = useCallback(() => {
@@ -271,8 +296,8 @@ export const HomeRoute = ({
   }, [])
 
   const visibleItemIds = useMemo(
-    () => visibleItems.map(item => item.id),
-    [visibleItems]
+    () => paginatedItems.map(item => item.id),
+    [paginatedItems]
   )
 
   if (effectiveLoading) {
@@ -448,7 +473,7 @@ export const HomeRoute = ({
               />
 
               <SessionTable
-                recordings={visibleItems}
+                recordings={paginatedItems}
                 projectId={currentProjectId}
                 sortColumn={tableSortColumn}
                 sortDirection={tableSortDirection}
@@ -458,7 +483,30 @@ export const HomeRoute = ({
                 onSelectRow={handleSelectRow}
                 onSelectAll={handleSelectAll}
                 allRowIds={visibleItemIds}
+                bleed
+                bleedTop={
+                  <RefreshProgressBar
+                    show={showRefreshProgress}
+                    complete={completeRefreshProgress}
+                    ariaLabel="Refreshing sessions"
+                  />
+                }
+                density="compact"
+                edgePadding={spacing['2xl']}
+                surface="transparent"
               />
+
+              {paginatedItems.length > 0 && (
+                <ListPageFooter
+                  footerText={`Showing up to ${PAGE_SIZE} sessions per page`}
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  hasPreviousPage={currentPage > 1}
+                  hasNextPage={currentPage < totalPages}
+                  ariaLabel="Sessions pagination"
+                  onPageChange={setCurrentPage}
+                />
+              )}
             </>
           )}
         </Col>

@@ -1,8 +1,16 @@
 import { Block } from '@jsxstyle/react'
 import { formatDate, formatTime } from '@repro/date-utils'
-import { Badge, Table, Tooltip, color, textStyles } from '@repro/design'
+import {
+  Badge,
+  Table,
+  Tooltip,
+  color,
+  spacing,
+  textStyles,
+} from '@repro/design'
 import type { RecordingInfo } from '@repro/domain'
 import { RecordingMode } from '@repro/domain'
+import type { CSSProperties } from 'react'
 import React from 'react'
 import { Link } from 'react-router-dom'
 
@@ -17,6 +25,11 @@ interface Props {
   onSelectRow?: (rowId: string, selected: boolean) => void
   onSelectAll?: (selected: boolean) => void
   allRowIds?: readonly string[]
+  bleed?: boolean
+  bleedTop?: React.ReactNode
+  density?: 'compact' | 'default'
+  edgePadding?: CSSProperties['paddingLeft']
+  surface?: 'default' | 'transparent'
 }
 
 export const SessionTable: React.FC<Props> = ({
@@ -30,6 +43,11 @@ export const SessionTable: React.FC<Props> = ({
   onSelectRow,
   onSelectAll,
   allRowIds = [],
+  bleed,
+  bleedTop,
+  density,
+  edgePadding = spacing['2xl'],
+  surface = 'transparent',
 }) => {
   return (
     <Table
@@ -42,6 +60,11 @@ export const SessionTable: React.FC<Props> = ({
       onSelectRow={onSelectRow}
       onSelectAll={onSelectAll}
       allRowIds={allRowIds}
+      bleed={bleed}
+      bleedTop={bleedTop}
+      density={density}
+      edgePadding={edgePadding}
+      surface={surface}
     >
       <Table.Header>
         <Table.Row>

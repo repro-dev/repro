@@ -2,7 +2,7 @@ import { Cancel, chain, fork, FutureInstance, map, mapRej } from 'fluture'
 import { useEffect, useRef, useState } from 'react'
 import { Observable } from 'rxjs'
 
-interface ResolvedFuture<R> {
+export interface ResolvedFuture<R> {
   success: true
   loading: false
   error: null
@@ -12,7 +12,7 @@ interface ResolvedFuture<R> {
   result: R
 }
 
-interface RejectedFuture<L> {
+export interface RejectedFuture<L> {
   success: false
   loading: false
   error: L
@@ -22,7 +22,7 @@ interface RejectedFuture<L> {
   result: null
 }
 
-interface PendingFuture {
+export interface PendingFuture {
   success: false
   loading: true
   error: null
@@ -32,7 +32,10 @@ interface PendingFuture {
   result: null
 }
 
-type FutureResult<L, R> = PendingFuture | ResolvedFuture<R> | RejectedFuture<L>
+export type FutureResult<L, R> =
+  | PendingFuture
+  | ResolvedFuture<R>
+  | RejectedFuture<L>
 
 export function useFuture<L, R>(
   factory: () => FutureInstance<L, R>,

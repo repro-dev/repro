@@ -1707,6 +1707,9 @@ importers:
       '@repro/domain':
         specifier: workspace:*
         version: link:../domain
+      '@repro/future-utils':
+        specifier: workspace:*
+        version: link:../future-utils
       '@repro/logger':
         specifier: workspace:*
         version: link:../logger
@@ -1719,6 +1722,9 @@ importers:
       '@tsparticles/preset-ambient':
         specifier: ^4.0.2
         version: 4.0.2
+      fluture:
+        specifier: ^14.0.0
+        version: 14.0.0
       lucide-react:
         specifier: 1.9.0
         version: 1.9.0(react@18.3.1)

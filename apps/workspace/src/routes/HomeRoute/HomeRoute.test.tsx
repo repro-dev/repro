@@ -532,4 +532,83 @@ describe('HomeRoute', () => {
       assert.ok(screen.getByText('Delete selected sessions?'))
     })
   })
+
+  describe('pagination', () => {
+    function makeManyRecordings(count: number): Array<RecordingInfo> {
+      return Array.from({ length: count }, (_, i) => ({
+        id: `rec-${i + 1}`,
+        title: `Recording ${i + 1}`,
+        url: `https://example.com/${i + 1}`,
+        description: '',
+        mode: RecordingMode.Live,
+        duration: 60 + i,
+        createdAt: `2026-06-${String(i + 1).padStart(2, '0')}T00:00:00.000Z`,
+        browserName: 'Chrome',
+        browserVersion: '120',
+        operatingSystem: null,
+        codecVersion: '1.0.0',
+      }))
+    }
+
+    it('renders pagination footer when there are more items than page size', async () => {
+      const recordings = makeManyRecordings(12)
+      const getProjectRecordings = (
+        _apiClient: ApiClient,
+        _projectId: string
+      ): FutureInstance<unknown, RecordingInfo[]> => resolve(recordings)
+      const wrapper = makeWrapper()
+
+      render(<HomeRoute getProjectRecordings={getProjectRecordings} />, {
+        wrapper,
+      })
+
+      await waitFor(() => {
+        assert.ok(screen.getByText('Showing up to 10 sessions per page'))
+        assert.ok(screen.getByRole('button', { name: 'Next page' }))
+      })
+    })
+
+    it('shows first 10 items on page 1 and hides page 2 items', async () => {
+      const recordings = makeManyRecordings(12)
+      const getProjectRecordings = (
+        _apiClient: ApiClient,
+        _projectId: string
+      ): FutureInstance<unknown, RecordingInfo[]> => resolve(recordings)
+      const wrapper = makeWrapper()
+
+      render(<HomeRoute getProjectRecordings={getProjectRecordings} />, {
+        wrapper,
+      })
+
+      await waitFor(() => {
+        assert.ok(screen.getByText('Recording 1'))
+        assert.ok(screen.getByText('Recording 10'))
+        assert.equal(screen.queryByText('Recording 11'), null)
+        assert.equal(screen.queryByText('Recording 12'), null)
+      })
+    })
+
+    it('scopes select-all to paginated items on the current page', async () => {
+      const recordings = makeManyRecordings(12)
+      const getProjectRecordings = (
+        _apiClient: ApiClient,
+        _projectId: string
+      ): FutureInstance<unknown, RecordingInfo[]> => resolve(recordings)
+      const wrapper = makeWrapper()
+
+      render(<HomeRoute getProjectRecordings={getProjectRecordings} />, {
+        wrapper,
+      })
+
+      await waitFor(() => {
+        assert.ok(screen.getByText('Recording 1'))
+      })
+
+      // Select all — should only select the 10 visible items, not 12
+      const selectAllCheckbox = screen.getByLabelText('Select all rows')
+      fireEvent.click(selectAllCheckbox)
+
+      assert.ok(screen.getByText(/10 selected/))
+    })
+  })
 })
