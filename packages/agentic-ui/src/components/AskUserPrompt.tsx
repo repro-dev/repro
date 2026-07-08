@@ -7,10 +7,14 @@ import {
   RadioGroup,
   TextField,
   color,
+  focusRing,
+  lineHeight,
   radius,
   spacing,
   textStyles,
+  transition,
 } from '@repro/design'
+import { ArrowUpIcon } from 'lucide-react'
 import React, { useCallback, useState } from 'react'
 
 interface AskUserPromptProps {
@@ -72,7 +76,16 @@ export const AskUserPrompt: React.FC<AskUserPromptProps> = ({
   }, [disabled, submitted, onSubmit])
 
   const isSubmitDisabled =
-    disabled || submitted || (hasChoices && selectedValues.size === 0)
+    disabled ||
+    submitted ||
+    (hasChoices && selectedValues.size === 0) ||
+    (isFreeformOnly && freeformValue.trim() === '')
+
+  const hasValue = isFreeformOnly
+    ? freeformValue.trim() !== ''
+    : hasChoices
+    ? selectedValues.size > 0
+    : false
 
   return (
     <Col
@@ -157,14 +170,33 @@ export const AskUserPrompt: React.FC<AskUserPromptProps> = ({
             Got it
           </Button>
         ) : (
-          <Button
-            variant="contained"
-            size="small"
-            disabled={isSubmitDisabled}
-            props={{ onClick: handleSubmit }}
+          <Block
+            alignItems="center"
+            backgroundColor={
+              hasValue && !submitted ? color.danger : color.bg.muted
+            }
+            blockSize={spacing['3xl']}
+            border="none"
+            borderRadius={radius.sm}
+            color={color.text.inverse}
+            component="button"
+            display="flex"
+            inlineSize={spacing['3xl']}
+            justifyContent="center"
+            lineHeight={lineHeight.tight}
+            transition={transition.fast}
+            cursor={isSubmitDisabled ? 'default' : 'pointer'}
+            opacity={submitted ? 0.5 : 1}
+            props={{
+              type: 'button',
+              'aria-label': 'Submit answer',
+              disabled: isSubmitDisabled,
+              onClick: handleSubmit,
+            }}
+            {...focusRing()}
           >
-            {submitted ? 'Submitted' : 'Submit'}
-          </Button>
+            <ArrowUpIcon size={16} />
+          </Block>
         )}
       </Row>
     </Col>

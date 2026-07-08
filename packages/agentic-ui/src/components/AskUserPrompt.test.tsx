@@ -179,7 +179,7 @@ describe('AskUserPrompt', () => {
     )
 
     fireEvent.click(screen.getByRole('radio', { name: 'Option A' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Submit answer' }))
 
     expect(submitted).toEqual({ answer: 'a' })
   })
@@ -206,7 +206,7 @@ describe('AskUserPrompt', () => {
 
     fireEvent.click(screen.getByRole('checkbox', { name: 'A' }))
     fireEvent.click(screen.getByRole('checkbox', { name: 'C' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Submit answer' }))
 
     expect(submitted).toEqual({ answer: ['a', 'c'] })
   })
@@ -234,7 +234,7 @@ describe('AskUserPrompt', () => {
         target: { value: 'some extra info' },
       }
     )
-    fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Submit answer' }))
 
     expect(submitted).toEqual({
       answer: 'a',
@@ -274,11 +274,10 @@ describe('AskUserPrompt', () => {
     )
 
     fireEvent.click(screen.getByRole('radio', { name: 'A' }))
-    const submitBtn = screen.getByRole('button', { name: 'Submit' })
+    const submitBtn = screen.getByRole('button', { name: 'Submit answer' })
     fireEvent.click(submitBtn)
 
-    // After submit, button should show "Submitted"
-    expect(screen.getByRole('button', { name: 'Submitted' })).toBeDefined()
+    expect((submitBtn as HTMLButtonElement).disabled).toBe(true)
   })
 
   it('renders choice description when provided', () => {
