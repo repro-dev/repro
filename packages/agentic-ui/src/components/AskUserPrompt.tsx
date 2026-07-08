@@ -82,7 +82,7 @@ export const AskUserPrompt: React.FC<AskUserPromptProps> = ({
       padding={spacing.lg}
       gap={spacing.md}
     >
-      <Block {...textStyles.body}>{prompt}</Block>
+      <Block {...textStyles.bodySmall}>{prompt}</Block>
 
       {hasChoices && !isMultiSelect && (
         <RadioGroup
