@@ -82,7 +82,7 @@ export const AskUserPrompt: React.FC<AskUserPromptProps> = ({
       borderWidth={fullBleed ? 0 : 1}
       borderRadius={fullBleed ? 0 : radius.md}
       padding={fullBleed ? 0 : spacing.lg}
-      gap={fullBleed ? spacing.lg : spacing.md}
+      gap={fullBleed ? spacing.xl : spacing.md}
     >
       <Block {...textStyles.bodySmall}>{prompt}</Block>
 

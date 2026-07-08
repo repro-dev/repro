@@ -178,8 +178,7 @@ export const AgenticView: React.FC<{
           marginBlock={-spacing['2xl']}
           marginInline={-spacing['2xl']}
           overflow="hidden"
-          paddingBlockStart={spacing['2xl']}
-          paddingBlockEnd={spacing['3xl']}
+          paddingBlock={spacing['3xl']}
           paddingInline={spacing['2xl']}
           position="absolute"
           right={0}
