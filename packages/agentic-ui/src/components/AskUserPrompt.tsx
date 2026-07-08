@@ -18,6 +18,7 @@ interface AskUserPromptProps {
   toolCallId: string
   onSubmit: (result: AskUserResult) => void
   disabled?: boolean
+  fullBleed?: boolean
 }
 
 export const AskUserPrompt: React.FC<AskUserPromptProps> = ({
@@ -25,6 +26,7 @@ export const AskUserPrompt: React.FC<AskUserPromptProps> = ({
   toolCallId,
   onSubmit,
   disabled = false,
+  fullBleed = false,
 }) => {
   const { prompt, choices, multiple, allowFreeform } = request
   const [selectedValues, setSelectedValues] = useState<Set<string>>(new Set())
@@ -74,12 +76,12 @@ export const AskUserPrompt: React.FC<AskUserPromptProps> = ({
 
   return (
     <Col
-      backgroundColor={color.bg.surface}
-      borderColor={color.border.default}
-      borderStyle="solid"
-      borderWidth={1}
-      borderRadius={radius.md}
-      padding={spacing.lg}
+      backgroundColor={fullBleed ? undefined : color.bg.surface}
+      borderColor={fullBleed ? undefined : color.border.default}
+      borderStyle={fullBleed ? undefined : 'solid'}
+      borderWidth={fullBleed ? 0 : 1}
+      borderRadius={fullBleed ? 0 : radius.md}
+      padding={fullBleed ? 0 : spacing.lg}
       gap={spacing.md}
     >
       <Block {...textStyles.bodySmall}>{prompt}</Block>
