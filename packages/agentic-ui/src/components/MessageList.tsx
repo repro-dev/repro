@@ -109,10 +109,15 @@ export const MessageList: React.FC<MessageListProps> = ({
             )
           }
 
+          const visiblePairs = item.pairs.filter(
+            p => p.toolCall.function.name !== 'askUser'
+          )
+          if (visiblePairs.length === 0) return null
+
           return (
             <ToolCallGroup
-              key={`tool-group-${item.pairs[0]?.toolCall.id}`}
-              pairs={item.pairs}
+              key={`tool-group-${visiblePairs[0]?.toolCall.id}`}
+              pairs={visiblePairs}
               isExecuting={loading === 'tool-executing'}
               wasCancelled={wasCancelled}
               onGoToTime={onGoToTime}

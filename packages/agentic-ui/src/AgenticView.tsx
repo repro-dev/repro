@@ -173,16 +173,13 @@ export const AgenticView: React.FC<{
           borderBlockStartWidth={1}
           borderRadius={0}
           bottom={0}
-          boxShadow={
-            pendingInteraction != null
-              ? '0 -4px 8px rgba(0, 0, 0, 0.05)'
-              : 'none'
-          }
+          boxShadow="0 -4px 8px rgba(0, 0, 0, 0.05)"
           left={0}
           marginBlock={-spacing['2xl']}
           marginInline={-spacing['2xl']}
           overflow="hidden"
-          paddingBlock={spacing['2xl']}
+          paddingBlockStart={spacing['2xl']}
+          paddingBlockEnd={spacing['3xl']}
           paddingInline={spacing['2xl']}
           position="absolute"
           right={0}
