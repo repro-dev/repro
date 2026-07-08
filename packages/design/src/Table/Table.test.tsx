@@ -814,6 +814,98 @@ describe('Table — TableCell font size', () => {
 })
 
 // ---------------------------------------------------------------------------
+// Bleed variant
+// ---------------------------------------------------------------------------
+
+describe('Table — bleed variant', () => {
+  it('renders bleedTop content before the table when bleed=true', () => {
+    render(
+      <Table
+        aria-label="Bleed table"
+        bleed
+        bleedTop={<div data-testid="bleed-top">Progress bar</div>}
+      >
+        <Table.Header>
+          <Table.Row>
+            <Table.HeaderCell>Name</Table.HeaderCell>
+          </Table.Row>
+        </Table.Header>
+        <Table.Body />
+      </Table>
+    )
+
+    const bleedTop = document.querySelector('[data-testid="bleed-top"]')
+    expect(bleedTop).not.toBeNull()
+    expect(bleedTop?.textContent).toBe('Progress bar')
+
+    // bleedTop must be rendered before the <table> element
+    const table = document.querySelector('table')
+    const outer = table?.parentElement
+    const bleedTopIndex = Array.from(outer?.children ?? []).indexOf(bleedTop!)
+    const tableIndex = Array.from(outer?.children ?? []).indexOf(table!)
+    expect(bleedTopIndex).toBeLessThan(tableIndex)
+  })
+
+  it('does not render bleedTop when bleed is false', () => {
+    render(
+      <Table
+        aria-label="No bleed table"
+        bleedTop={<div data-testid="bleed-top">Should not appear</div>}
+      >
+        <Table.Header>
+          <Table.Row>
+            <Table.HeaderCell>Name</Table.HeaderCell>
+          </Table.Row>
+        </Table.Header>
+        <Table.Body />
+      </Table>
+    )
+
+    const bleedTop = document.querySelector('[data-testid="bleed-top"]')
+    expect(bleedTop).toBeNull()
+  })
+
+  it('does not render bleedTop when bleed is true but bleedTop is not provided', () => {
+    render(
+      <Table aria-label="Bleed table" bleed>
+        <Table.Header>
+          <Table.Row>
+            <Table.HeaderCell>Name</Table.HeaderCell>
+          </Table.Row>
+        </Table.Header>
+        <Table.Body />
+      </Table>
+    )
+
+    // No extra element should appear before the table
+    const table = document.querySelector('table')
+    expect(table).not.toBeNull()
+  })
+
+  it('renders correctly when bleed is true (no JS error)', () => {
+    render(
+      <Table
+        aria-label="Bleed table"
+        bleed
+        density="compact"
+        surface="transparent"
+      >
+        <Table.Header>
+          <Table.Row>
+            <Table.HeaderCell>Name</Table.HeaderCell>
+          </Table.Row>
+        </Table.Header>
+        <Table.Body />
+      </Table>
+    )
+
+    // Verify the table still renders
+    expect(document.querySelector('table')).not.toBeNull()
+    expect(document.querySelector('th')).not.toBeNull()
+  })
+})
+
+// ---------------------------------------------------------------------------
 // TableCell — colSpan via props bag
 // ---------------------------------------------------------------------------
 

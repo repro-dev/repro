@@ -365,6 +365,45 @@ export const Loading: Story = {
 }
 
 // ---------------------------------------------------------------------------
+// Bleed — edge-bleed container with bleedTop slot
+// ---------------------------------------------------------------------------
+
+/** Edge-bleed table with a bleedTop refresh-progress bar slot, matching the
+ * listing-page chrome used in AccountsRoute and RecordingsRoute. */
+export const Bleed: Story = {
+  tags: ['autodocs', 'design-system'],
+  render: () => (
+    <Table
+      aria-label="Bleed table"
+      bleed
+      density="compact"
+      edgePadding={spacing['2xl']}
+      surface="transparent"
+    >
+      <Table.Header>
+        <Table.Row>
+          <Table.HeaderCell>Name</Table.HeaderCell>
+          <Table.HeaderCell>Status</Table.HeaderCell>
+          <Table.HeaderCell>Date</Table.HeaderCell>
+        </Table.Row>
+      </Table.Header>
+      <Table.Body>
+        <Table.Row>
+          <Table.Cell>Alice</Table.Cell>
+          <Table.Cell>Active</Table.Cell>
+          <Table.Cell>2024-03-01</Table.Cell>
+        </Table.Row>
+        <Table.Row>
+          <Table.Cell>Bob</Table.Cell>
+          <Table.Cell>Inactive</Table.Cell>
+          <Table.Cell>2024-03-02</Table.Cell>
+        </Table.Row>
+      </Table.Body>
+    </Table>
+  ),
+}
+
+// ---------------------------------------------------------------------------
 // StickyHeader — header stays visible while scrolling
 // ---------------------------------------------------------------------------
 

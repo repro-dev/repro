@@ -2,6 +2,7 @@ import { Block } from '@jsxstyle/react'
 import type { CSSProperties } from 'react'
 import React, { forwardRef } from 'react'
 import { color } from '../tokens/colors'
+import { spacing } from '../tokens/spacing'
 import {
   TableContext,
   type SelectionMode,
@@ -24,6 +25,17 @@ export interface TableProps {
   density?: TableDensity
   edgePadding?: CSSProperties['paddingLeft']
   surface?: TableSurface
+  /**
+   * When true, wraps the table in an edge-bleed container with negative
+   * marginInline and a top border, matching the route-level listing-page
+   * chrome in AccountsRoute/RecordingsRoute.
+   */
+  bleed?: boolean
+  /**
+   * Optional node rendered at the top of the bleed wrapper, before the
+   * overflow container. Intended for the refresh-progress bar.
+   */
+  bleedTop?: React.ReactNode
   'aria-label'?: string
   'aria-labelledby'?: string
 }
@@ -57,6 +69,8 @@ export interface TableProps {
  *   </Table.Body>
  * </Table>
  */
+const BLEED_INLINE_MARGIN = spacing['2xl']
+
 export const Table = forwardRef<HTMLDivElement, TableProps>(
   (
     {
@@ -73,11 +87,15 @@ export const Table = forwardRef<HTMLDivElement, TableProps>(
       density = 'default',
       edgePadding,
       surface = 'default',
+      bleed = false,
+      bleedTop,
       'aria-label': ariaLabel,
       'aria-labelledby': ariaLabelledby,
     },
     ref
   ) => {
+    const contentBleedWidth = `calc(100% + ${BLEED_INLINE_MARGIN * 2}px)`
+
     return (
       <TableContext.Provider
         value={{
@@ -103,10 +121,15 @@ export const Table = forwardRef<HTMLDivElement, TableProps>(
          * scrolling on narrow viewports.
          */}
         <Block
+          overflow={bleed ? 'hidden' : undefined}
           overflowX={stickyHeader ? undefined : 'auto'}
-          width="100%"
+          width={bleed ? contentBleedWidth : '100%'}
+          marginInline={bleed ? -BLEED_INLINE_MARGIN : undefined}
+          borderTop={bleed ? `1px solid ${color.border.default}` : undefined}
+          position={bleed ? 'relative' : undefined}
           props={{ ref }}
         >
+          {bleed && bleedTop}
           <table
             style={{
               width: '100%',
