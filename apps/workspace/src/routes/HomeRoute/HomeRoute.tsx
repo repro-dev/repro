@@ -8,7 +8,6 @@ import {
   EmptyState,
   ListPageFooter,
   PageFrame,
-  RefreshProgressBar,
   Skeleton,
   spacing,
   Table,
@@ -94,12 +93,10 @@ export const HomeRoute = ({
   }, [debouncedSearchText, filters.selectedModes, sortOrder, projectId])
 
   // Re-fetch whenever the selected project changes.
-  const {
-    result,
-    displayedData,
-    showRefreshProgress,
-    completeRefreshProgress,
-  } = usePaginatedResource<RecordingInfo[], unknown>({
+  const { result, displayedData } = usePaginatedResource<
+    RecordingInfo[],
+    unknown
+  >({
     fetcher: () => {
       if (!projectId) {
         // No project selected — resolve immediately with an empty list so the
@@ -214,9 +211,10 @@ export const HomeRoute = ({
   )
 
   const totalPages = Math.max(1, Math.ceil(visibleItems.length / PAGE_SIZE))
+  const safeCurrentPage = Math.min(currentPage, totalPages)
   const paginatedItems = visibleItems.slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE
+    (safeCurrentPage - 1) * PAGE_SIZE,
+    safeCurrentPage * PAGE_SIZE
   )
 
   const hasActiveFilters = isSessionListFilteringActive(filters)
@@ -484,13 +482,6 @@ export const HomeRoute = ({
                 onSelectAll={handleSelectAll}
                 allRowIds={visibleItemIds}
                 bleed
-                bleedTop={
-                  <RefreshProgressBar
-                    show={showRefreshProgress}
-                    complete={completeRefreshProgress}
-                    ariaLabel="Refreshing sessions"
-                  />
-                }
                 density="compact"
                 edgePadding={spacing['2xl']}
                 surface="transparent"
