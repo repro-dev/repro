@@ -46,15 +46,9 @@ describe('AskUserPrompt', () => {
 
     expect(screen.getByText('Option A')).toBeDefined()
     expect(screen.getByText('Option B')).toBeDefined()
-    // Should be radio buttons (not checkboxes)
-    expect(screen.getByDisplayValue('a')).toBeDefined()
-    expect(screen.getByDisplayValue('b')).toBeDefined()
-    expect((screen.getByDisplayValue('a') as HTMLInputElement).type).toBe(
-      'radio'
-    )
-    expect((screen.getByDisplayValue('b') as HTMLInputElement).type).toBe(
-      'radio'
-    )
+    // Should be radio buttons from RadioGroup
+    expect(screen.getByRole('radio', { name: 'Option A' })).toBeDefined()
+    expect(screen.getByRole('radio', { name: 'Option B' })).toBeDefined()
   })
 
   it('single-select: selecting one deselects others', () => {
@@ -71,8 +65,12 @@ describe('AskUserPrompt', () => {
       />
     )
 
-    const radioA = screen.getByDisplayValue('a') as HTMLInputElement
-    const radioB = screen.getByDisplayValue('b') as HTMLInputElement
+    const radioA = screen.getByRole('radio', {
+      name: 'Option A',
+    }) as HTMLInputElement
+    const radioB = screen.getByRole('radio', {
+      name: 'Option B',
+    }) as HTMLInputElement
 
     fireEvent.click(radioA)
     expect(radioA.checked).toBe(true)
@@ -99,11 +97,12 @@ describe('AskUserPrompt', () => {
       />
     )
 
-    const cbA = screen.getByDisplayValue('a') as HTMLInputElement
-    const cbB = screen.getByDisplayValue('b') as HTMLInputElement
-
-    expect(cbA.type).toBe('checkbox')
-    expect(cbB.type).toBe('checkbox')
+    const cbA = screen.getByRole('checkbox', {
+      name: 'Option A',
+    }) as HTMLInputElement
+    const cbB = screen.getByRole('checkbox', {
+      name: 'Option B',
+    }) as HTMLInputElement
 
     fireEvent.click(cbA)
     fireEvent.click(cbB)
@@ -124,7 +123,10 @@ describe('AskUserPrompt', () => {
       />
     )
 
-    expect(screen.getByPlaceholderText('Type your answer…')).toBeDefined()
+    // TextField wraps the textarea with a label showing the prompt text
+    expect(
+      screen.getByRole('textbox', { name: 'What would you like to do?' })
+    ).toBeDefined()
   })
 
   it('mixed mode (select + freeform): renders both choice list and textarea', () => {
@@ -141,7 +143,7 @@ describe('AskUserPrompt', () => {
 
     expect(screen.getByText('Choice 1')).toBeDefined()
     expect(
-      screen.getByPlaceholderText('Additional details (optional)')
+      screen.getByRole('textbox', { name: 'Additional details' })
     ).toBeDefined()
   })
 
@@ -179,7 +181,7 @@ describe('AskUserPrompt', () => {
       />
     )
 
-    fireEvent.click(screen.getByDisplayValue('a'))
+    fireEvent.click(screen.getByRole('radio', { name: 'Option A' }))
     fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
 
     expect(submitted).toEqual({ answer: 'a' })
@@ -205,8 +207,8 @@ describe('AskUserPrompt', () => {
       />
     )
 
-    fireEvent.click(screen.getByDisplayValue('a'))
-    fireEvent.click(screen.getByDisplayValue('c'))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'A' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'C' }))
     fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
 
     expect(submitted).toEqual({ answer: ['a', 'c'] })
@@ -228,9 +230,9 @@ describe('AskUserPrompt', () => {
       />
     )
 
-    fireEvent.click(screen.getByDisplayValue('a'))
+    fireEvent.click(screen.getByRole('radio', { name: 'A' }))
     fireEvent.change(
-      screen.getByPlaceholderText('Additional details (optional)'),
+      screen.getByRole('textbox', { name: 'Additional details' }),
       {
         target: { value: 'some extra info' },
       }
@@ -274,7 +276,7 @@ describe('AskUserPrompt', () => {
       />
     )
 
-    fireEvent.click(screen.getByDisplayValue('a'))
+    fireEvent.click(screen.getByRole('radio', { name: 'A' }))
     const submitBtn = screen.getByRole('button', { name: 'Submit' })
     fireEvent.click(submitBtn)
 

@@ -1,6 +1,16 @@
 import { Block, Col, Row } from '@jsxstyle/react'
 import type { AskUserRequest, AskUserResult } from '@repro/agentic'
-import { Button, color, radius, spacing, textStyles } from '@repro/design'
+import {
+  Button,
+  Checkbox,
+  Radio,
+  RadioGroup,
+  TextField,
+  color,
+  radius,
+  spacing,
+  textStyles,
+} from '@repro/design'
 import React, { useCallback, useState } from 'react'
 
 interface AskUserPromptProps {
@@ -25,26 +35,7 @@ export const AskUserPrompt: React.FC<AskUserPromptProps> = ({
   const hasChoices = !!choices && choices.length > 0
   const isMultiSelect = multiple === true
   const isFreeformOnly = !choices && !!allowFreeform
-
-  const handleToggleChoice = useCallback(
-    (value: string) => {
-      if (disabled || submitted) return
-      if (isMultiSelect) {
-        setSelectedValues(prev => {
-          const next = new Set(prev)
-          if (next.has(value)) {
-            next.delete(value)
-          } else {
-            next.add(value)
-          }
-          return next
-        })
-      } else {
-        setSelectedValues(new Set([value]))
-      }
-    },
-    [disabled, submitted, isMultiSelect]
-  )
+  const selectedValue = Array.from(selectedValues)[0] ?? ''
 
   const handleSubmit = useCallback(() => {
     if (disabled || submitted) return
@@ -81,6 +72,8 @@ export const AskUserPrompt: React.FC<AskUserPromptProps> = ({
   const isSubmitDisabled =
     disabled || submitted || (hasChoices && selectedValues.size === 0)
 
+  const showPromptText = isPromptOnly || (isMultiSelect && hasChoices)
+
   return (
     <Col
       backgroundColor={color.bg.surface}
@@ -91,63 +84,65 @@ export const AskUserPrompt: React.FC<AskUserPromptProps> = ({
       padding={spacing.lg}
       gap={spacing.md}
     >
-      <Block {...textStyles.body}>{prompt}</Block>
+      {showPromptText && <Block {...textStyles.body}>{prompt}</Block>}
 
-      {hasChoices &&
-        choices!.map(choice => {
-          const isSelected = selectedValues.has(choice.value)
-
-          return (
-            <Row
+      {hasChoices && !isMultiSelect && (
+        <RadioGroup
+          label={prompt}
+          value={selectedValue}
+          onChange={(value: string) => setSelectedValues(new Set([value]))}
+          disabled={disabled || submitted}
+        >
+          {choices!.map(choice => (
+            <Radio
               key={choice.value}
-              alignItems="flex-start"
-              gap={spacing.sm}
-              cursor={disabled ? 'default' : 'pointer'}
-              padding={spacing.sm}
-              borderRadius={radius.sm}
-              hoverBackgroundColor={disabled ? undefined : color.bg.hover}
-              component="label"
-            >
-              <input
-                type={isMultiSelect ? 'checkbox' : 'radio'}
-                name={toolCallId}
-                value={choice.value}
-                checked={isSelected}
-                onChange={() => handleToggleChoice(choice.value)}
-                disabled={disabled || submitted}
-              />
-              <Col gap={spacing.xs}>
-                <Block {...textStyles.body}>{choice.label}</Block>
-                {choice.description && (
-                  <Block {...textStyles.caption} color={color.text.secondary}>
-                    {choice.description}
-                  </Block>
-                )}
-              </Col>
-            </Row>
-          )
-        })}
+              value={choice.value}
+              label={choice.label}
+              description={choice.description}
+            />
+          ))}
+        </RadioGroup>
+      )}
+
+      {hasChoices && isMultiSelect && (
+        <Col gap={spacing.sm}>
+          {choices!.map(choice => (
+            <Checkbox
+              key={choice.value}
+              label={choice.label}
+              checked={selectedValues.has(choice.value)}
+              onChange={(checked: boolean) => {
+                if (disabled || submitted) return
+                setSelectedValues(prev => {
+                  const next = new Set(prev)
+                  if (checked) {
+                    next.add(choice.value)
+                  } else {
+                    next.delete(choice.value)
+                  }
+                  return next
+                })
+              }}
+              description={choice.description}
+              disabled={disabled || submitted}
+            />
+          ))}
+        </Col>
+      )}
 
       {allowFreeform && (
-        <Block
-          component="textarea"
-          width="100%"
-          padding={spacing.sm}
-          borderRadius={radius.sm}
-          borderWidth={1}
-          borderColor={color.border.default}
-          borderStyle="solid"
-          resize="vertical"
-          props={{
-            rows: 3,
-            value: freeformValue,
-            onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) =>
-              setFreeformValue(e.target.value),
-            disabled: disabled || submitted,
-            placeholder: isFreeformOnly
+        <TextField
+          label={isFreeformOnly ? prompt : 'Additional details'}
+          value={freeformValue}
+          onChange={e => setFreeformValue(e.currentTarget.value)}
+          placeholder={
+            isFreeformOnly
               ? 'Type your answer…'
-              : 'Additional details (optional)',
-          }}
+              : 'Additional details (optional)'
+          }
+          rows={3}
+          disabled={disabled || submitted}
+          name={toolCallId}
         />
       )}
 
