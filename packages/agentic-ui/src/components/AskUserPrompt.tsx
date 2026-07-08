@@ -105,7 +105,7 @@ export const AskUserPrompt: React.FC<AskUserPromptProps> = ({
       )}
 
       {hasChoices && isMultiSelect && (
-        <Col gap={spacing.sm}>
+        <Col gap={spacing.lg}>
           {choices!.map(choice => (
             <Checkbox
               key={choice.value}
