@@ -72,8 +72,6 @@ export const AskUserPrompt: React.FC<AskUserPromptProps> = ({
   const isSubmitDisabled =
     disabled || submitted || (hasChoices && selectedValues.size === 0)
 
-  const showPromptText = isPromptOnly || (isMultiSelect && hasChoices)
-
   return (
     <Col
       backgroundColor={color.bg.surface}
@@ -84,11 +82,11 @@ export const AskUserPrompt: React.FC<AskUserPromptProps> = ({
       padding={spacing.lg}
       gap={spacing.md}
     >
-      {showPromptText && <Block {...textStyles.body}>{prompt}</Block>}
+      <Block {...textStyles.body}>{prompt}</Block>
 
       {hasChoices && !isMultiSelect && (
         <RadioGroup
-          label={prompt}
+          label="Select an option"
           value={selectedValue}
           onChange={(value: string) => setSelectedValues(new Set([value]))}
           disabled={disabled || submitted}
@@ -132,7 +130,7 @@ export const AskUserPrompt: React.FC<AskUserPromptProps> = ({
 
       {allowFreeform && (
         <TextField
-          label={isFreeformOnly ? prompt : 'Additional details'}
+          label={isFreeformOnly ? 'Your answer' : 'Additional details'}
           value={freeformValue}
           onChange={e => setFreeformValue(e.currentTarget.value)}
           placeholder={

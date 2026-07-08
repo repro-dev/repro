@@ -123,10 +123,7 @@ describe('AskUserPrompt', () => {
       />
     )
 
-    // TextField wraps the textarea with a label showing the prompt text
-    expect(
-      screen.getByRole('textbox', { name: 'What would you like to do?' })
-    ).toBeDefined()
+    expect(screen.getByRole('textbox', { name: 'Your answer' })).toBeDefined()
   })
 
   it('mixed mode (select + freeform): renders both choice list and textarea', () => {
