@@ -87,7 +87,7 @@ export const SessionTable: React.FC<Props> = ({
             <Table.Cell>
               <Link
                 to={`/projects/${projectId}/recordings/${recording.id}`}
-                style={{ textDecoration: 'none' }}
+                style={{ textDecoration: 'none', color: 'inherit' }}
               >
                 <Text variant="label" as="span">
                   {recording.title}
