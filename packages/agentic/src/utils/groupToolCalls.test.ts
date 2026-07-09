@@ -235,6 +235,28 @@ describe('groupToolCalls with truncatedBeforeId', () => {
     assert.equal(result[3]!.type, 'tool-call-group')
   })
 
+  it('groups askUser tool calls like any other tool call', () => {
+    const entries: Array<Entry> = [
+      makeAssistant('a1', '', ['ask1']),
+      makeTool('t1', 'ask1', '{"answer": "acknowledged"}'),
+    ]
+    const result = groupToolCalls(entries)
+    assert.equal(result.length, 1)
+    assert.equal(result[0]!.type, 'tool-call-group')
+    const group = result[0] as ToolCallGroupItem
+    assert.equal(group.pairs.length, 1)
+    assert.equal(group.pairs[0]!.toolCall.function.name, 'tool_ask1')
+  })
+
+  it('handles askUser tool call without result (pending)', () => {
+    const entries: Array<Entry> = [makeAssistant('a1', '', ['ask1'])]
+    const result = groupToolCalls(entries)
+    assert.equal(result.length, 1)
+    assert.equal(result[0]!.type, 'tool-call-group')
+    const group = result[0] as ToolCallGroupItem
+    assert.equal(group.pairs[0]!.result, null)
+  })
+
   it('inserts indicator at the very first position when first entry id matches', () => {
     const entries: Array<Entry> = [makeUser('u1', 'a'), makeUser('u2', 'b')]
     const result = groupToolCalls(entries, 'u1')

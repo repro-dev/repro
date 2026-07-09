@@ -1,6 +1,7 @@
 import { Block, Col } from '@jsxstyle/react'
 import { Md } from '@m2d/react-markdown'
-import { AgenticError, Entry, Loading, groupToolCalls } from '@repro/agentic'
+import type { AgenticError, Entry, Loading } from '@repro/agentic'
+import { groupToolCalls } from '@repro/agentic'
 import { color, fontSize, lineHeight, spacing } from '@repro/design'
 import React, { useMemo } from 'react'
 import {
@@ -108,10 +109,15 @@ export const MessageList: React.FC<MessageListProps> = ({
             )
           }
 
+          const visiblePairs = item.pairs.filter(
+            p => p.toolCall.function.name !== 'askUser'
+          )
+          if (visiblePairs.length === 0) return null
+
           return (
             <ToolCallGroup
-              key={`tool-group-${item.pairs[0]?.toolCall.id}`}
-              pairs={item.pairs}
+              key={`tool-group-${visiblePairs[0]?.toolCall.id}`}
+              pairs={visiblePairs}
               isExecuting={loading === 'tool-executing'}
               wasCancelled={wasCancelled}
               onGoToTime={onGoToTime}

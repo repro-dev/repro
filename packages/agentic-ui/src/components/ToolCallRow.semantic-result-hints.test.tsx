@@ -462,3 +462,31 @@ describe('ToolCallRow semantic result hints', () => {
     expect(screen.queryByText('undefined')).toBeNull()
   })
 })
+
+describe('ToolCallRow askUser label', () => {
+  it('renders "Ask user" label for askUser tool calls', () => {
+    render(
+      <ToolCallRow
+        toolName="askUser"
+        result={null}
+        isExecuting={false}
+        wasCancelled={false}
+      />
+    )
+
+    expect(screen.getByText('Ask user')).toBeDefined()
+  })
+
+  it('renders "Ask user" even when executing', () => {
+    render(
+      <ToolCallRow
+        toolName="askUser"
+        result={null}
+        isExecuting={true}
+        wasCancelled={false}
+      />
+    )
+
+    expect(screen.getByText('Ask user')).toBeDefined()
+  })
+})
