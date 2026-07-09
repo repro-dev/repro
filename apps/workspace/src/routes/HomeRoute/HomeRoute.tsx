@@ -3,7 +3,6 @@ import { ApiClient, useApiClient } from '@repro/api-client'
 import {
   Button,
   Card,
-  ConfirmDialog,
   Delay,
   EmptyState,
   ListPageFooter,
@@ -18,9 +17,9 @@ import { getProjectRecordings as defaultGetProjectRecordings } from '@repro/work
 import { FutureInstance, resolve } from 'fluture'
 import { PuzzleIcon } from 'lucide-react'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { CreateProjectDialog } from '~/components/CreateProjectDialog'
 import { useProjectContext } from '~/ProjectContext'
-import { BulkActionToolbar } from './BulkActionToolbar'
 import {
   deriveVisibleSessionRecordings,
   getDefaultSessionListFilters,
@@ -62,15 +61,6 @@ export const HomeRoute = ({
 
   const projectId = selectedProject?.id ?? null
   const [showCreateDialog, setShowCreateDialog] = useState(false)
-
-  // Bulk selection state
-  const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set())
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-
-  // Clear selection when project changes
-  useEffect(() => {
-    setSelectedRowIds(new Set())
-  }, [projectId])
 
   const [sortOrder, setSortOrder] = useState<SessionListSortOrder>(() =>
     readSessionListSortOrder(globalThis.localStorage)
@@ -201,6 +191,15 @@ export const HomeRoute = ({
     setSessionListFilters(projectId, nextFilters)
   }, [projectId])
 
+  const navigate = useNavigate()
+
+  const handleRowClick = useCallback(
+    (rowId: string) => {
+      navigate(`/projects/${currentProjectId}/recordings/${rowId}`)
+    },
+    [navigate, currentProjectId]
+  )
+
   const visibleItems = useMemo(
     () =>
       deriveVisibleSessionRecordings(items, sortOrder, {
@@ -249,53 +248,6 @@ export const HomeRoute = ({
       writeSessionListSortOrder(globalThis.localStorage, nextSortOrder)
     },
     [sortOrder]
-  )
-
-  // Bulk selection handlers
-  const handleSelectRow = useCallback((rowId: string, selected: boolean) => {
-    setSelectedRowIds(prev => {
-      const next = new Set(prev)
-      if (selected) {
-        next.add(rowId)
-      } else {
-        next.delete(rowId)
-      }
-      return next
-    })
-  }, [])
-
-  const handleSelectAll = useCallback(
-    (selected: boolean) => {
-      if (selected) {
-        setSelectedRowIds(new Set(paginatedItems.map(item => item.id)))
-      } else {
-        setSelectedRowIds(new Set())
-      }
-    },
-    [paginatedItems]
-  )
-
-  const handleClearSelection = useCallback(() => {
-    setSelectedRowIds(new Set())
-  }, [])
-
-  const handleRequestDelete = useCallback(() => {
-    setShowDeleteConfirm(true)
-  }, [])
-
-  const handleConfirmDelete = useCallback(() => {
-    // Client-side delete for now — remove selected items from the local list
-    setShowDeleteConfirm(false)
-    setSelectedRowIds(new Set())
-  }, [])
-
-  const handleCancelDelete = useCallback(() => {
-    setShowDeleteConfirm(false)
-  }, [])
-
-  const visibleItemIds = useMemo(
-    () => paginatedItems.map(item => item.id),
-    [paginatedItems]
   )
 
   if (effectiveLoading) {
@@ -464,23 +416,12 @@ export const HomeRoute = ({
             </EmptyState>
           ) : (
             <>
-              <BulkActionToolbar
-                selectedCount={selectedRowIds.size}
-                onDelete={handleRequestDelete}
-                onClearSelection={handleClearSelection}
-              />
-
               <SessionTable
                 recordings={paginatedItems}
-                projectId={currentProjectId}
                 sortColumn={tableSortColumn}
                 sortDirection={tableSortDirection}
                 onSort={handleTableSort}
-                selectionMode="multi"
-                selectedRows={selectedRowIds}
-                onSelectRow={handleSelectRow}
-                onSelectAll={handleSelectAll}
-                allRowIds={visibleItemIds}
+                onSelectRow={handleRowClick}
                 bleed
                 density="compact"
                 edgePadding={spacing['2xl']}
@@ -502,16 +443,6 @@ export const HomeRoute = ({
           )}
         </Col>
       </PageFrame.Body>
-
-      <ConfirmDialog
-        open={showDeleteConfirm}
-        title="Delete selected sessions?"
-        description={`This will delete ${selectedRowIds.size} selected session(s). This action cannot be undone.`}
-        confirmLabel="Delete"
-        variant="destructive"
-        onConfirm={handleConfirmDelete}
-        onCancel={handleCancelDelete}
-      />
     </PageFrame>
   )
 }
