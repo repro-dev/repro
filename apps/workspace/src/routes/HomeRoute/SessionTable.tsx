@@ -1,13 +1,6 @@
 import { Block } from '@jsxstyle/react'
 import { formatDate, formatTime } from '@repro/date-utils'
-import {
-  Badge,
-  Table,
-  Tooltip,
-  color,
-  spacing,
-  textStyles,
-} from '@repro/design'
+import { Badge, Table, Text, Tooltip, spacing, textStyles } from '@repro/design'
 import type { RecordingInfo } from '@repro/domain'
 import { RecordingMode } from '@repro/domain'
 import type { CSSProperties } from 'react'
@@ -92,15 +85,14 @@ export const SessionTable: React.FC<Props> = ({
         {recordings.map(recording => (
           <Table.Row key={recording.id} rowId={recording.id}>
             <Table.Cell>
-              <Block
-                component={Link}
-                color={color.primary}
-                props={{
-                  to: `/projects/${projectId}/recordings/${recording.id}`,
-                }}
+              <Link
+                to={`/projects/${projectId}/recordings/${recording.id}`}
+                style={{ textDecoration: 'none' }}
               >
-                {recording.title}
-              </Block>
+                <Text variant="label" as="span">
+                  {recording.title}
+                </Text>
+              </Link>
             </Table.Cell>
 
             <Table.Cell>
