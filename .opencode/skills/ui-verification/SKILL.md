@@ -5,7 +5,7 @@ description: Practical post-change UI verification workflow — use after non-tr
 
 # UI Verification
 
-Use this skill after you have changed a UI surface and need to confirm it behaves correctly and still reads well in the browser. It is for validating implemented UI, not for shaping direction or running a broad audit. If a `## Targeted Design Edit` block exists, treat its `Verification Evidence` section as the browser brief. If a `## Design Handoff Context` block exists, treat it as the browser brief and do not invent new direction.
+Use this skill after you have changed a UI surface and need to confirm it behaves correctly and still reads well in the browser. It is for validating implemented UI, not for shaping direction or running a broad audit.
 
 **Extension escape hatch:** if the changed surface is a browser extension, stop here and load `extension-verification` instead.
 
@@ -29,7 +29,7 @@ For normal app pages, bring up the worktree-local app under test with `reproctl 
 
 Use `reproctl launch` only for one-off human preview; it opens the system browser and is not the standard `agent-browser` entrypoint.
 
-Do **not** use this skill as the default audit/polish workflow. If you need a broad audit, scoring pass, or design-system compliance review, load `audit-ui-quality` instead.
+Do **not** use this skill as the default audit/polish workflow.
 
 ## What counts as non-trivial UI work
 
@@ -57,7 +57,6 @@ Tiny copy tweaks or isolated token swaps are usually trivial unless they change 
    agent-browser open <url>
    ```
 4. Snapshot the initial state before interacting.
-   - If a `## Targeted Design Edit` block exists, use its `Verification Evidence` section to choose the scenarios, states, and screenshots to capture.
 5. Exercise relevant interaction states:
    - hover, focus, active, disabled, loading
    - empty, error, success, and retry states
@@ -110,11 +109,8 @@ Keep filenames descriptive and short. Include the scenario name, browser target,
 
 If verification reveals brittle async behavior, teardown problems, race conditions, missing loading/error boundaries, or other resilience gaps, switch to `harden` for the repair work.
 
-## ui-verification vs. extension-verification vs. audit-ui-quality
+## ui-verification vs. extension-verification
 
-- `design-direction` = upstream intent capture for ambiguous or net-new UI
-- `design-handoff` = preserved UI direction that must survive planning, implementation, review, audit, and browser verification
 - `design-system` = implementation of the captured direction
-- `audit-ui-quality` = broader audit, polish, scoring, and reporting pass across scoped UI surfaces
 - `ui-verification` = routine post-change validation of a specific changed surface using `reproctl start --wait --full-stack` + `agent-browser`, including authenticated runs when needed, plus a lightweight browser check that intended hierarchy and visual cues still survive; store browser evidence and notes under `tmp/ui-verification/<issue-or-surface>/`
 - `extension-verification` = browser-extension verification workflow with `agent-browser`, isolated profiles, and `tmp/extension-verification/...` artifacts

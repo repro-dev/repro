@@ -6,32 +6,8 @@
       "model": "openrouter/minimax/minimax-m2.7",
       "template": ""
     },
-    "groom": {
-      "model": "openrouter/minimax/minimax-m2.7",
-      "template": ""
-    },
-    "enrich-issues": {
-      "model": "openrouter/z-ai/glm-5.1",
-      "template": ""
-    },
     "review": {
       "model": "openrouter/z-ai/glm-5.1",
-      "template": ""
-    },
-    "ledger": {
-      "model": "openrouter/minimax/minimax-m2.7",
-      "template": ""
-    },
-    "handoff": {
-      "model": "openrouter/minimax/minimax-m2.7",
-      "template": ""
-    },
-    "audit-skills": {
-      "model": "openrouter/z-ai/glm-5.1",
-      "template": ""
-    },
-    "update-visual-baselines": {
-      "model": "openrouter/minimax/minimax-m2.7",
       "template": ""
     }
   },

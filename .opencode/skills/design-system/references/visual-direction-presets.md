@@ -1,6 +1,6 @@
 # Visual Direction Presets
 
-Use these after `design-direction` has settled the brief into a concrete scaffold. They are implementation cues, not a replacement for upstream intent capture.
+Use these after upstream intent has settled the brief into a concrete scaffold. They are implementation cues, not a replacement for upstream intent capture.
 
 Choose one preset, record it in the durable context artifact, then resolve it through `@repro/design` tokens/components. Do **not** use these as theme packs, brand clones, or raw style-token shopping lists.
 
@@ -70,4 +70,4 @@ Use when the screen needs to be easy to review, easy to continue, and easy to im
 - Do not ask for “make it look like [brand/system].”
 - Do not copy a public system’s palette, icon language, spacing ratios, or motion personality.
 - Do not solve the brief by inventing ad hoc tokens when existing `@repro/design` tokens already express the need.
-- If the chosen preset must survive downstream work unchanged, capture it in `## Design Handoff Context` with `design-handoff`.
+- If the chosen preset must survive downstream work unchanged, capture it in the durable context artifact.
