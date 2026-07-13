@@ -332,7 +332,7 @@ Delegate test runs to the `filtered-runner` subagent so verbose build output sta
    }
    ```
 
-   Collect the structured JSON result returned by the subagent. Do not render raw pnpm output in the orchestrator.
+   Collect the structured JSON result returned by the subagent. Do not render raw moon output in the orchestrator.
 
 3. After collecting results from all affected packages, aggregate them:
 
