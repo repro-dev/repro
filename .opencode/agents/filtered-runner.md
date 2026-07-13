@@ -1,6 +1,7 @@
 ---
 description: Runs pnpm lint, typecheck, and test commands for a given package and returns only structured JSON errors — isolates verbose build output from the orchestrator context.
 mode: subagent
+reasoningEffort: low
 model: anthropic/claude-haiku-4-20250514
 temperature: 0.0
 permission:
@@ -9,7 +10,6 @@ permission:
   read:
     "*": "allow"
   edit: "deny"
-  write: "deny"
   webfetch: "deny"
   task: "deny"
 ---
