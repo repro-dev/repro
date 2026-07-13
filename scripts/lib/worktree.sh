@@ -112,6 +112,38 @@ _herdr_worktree_open() {
   return 0
 }
 
+_herdr_workspace_add_sibling() {
+  local wt_path="$1"
+  local label="${2:-}"
+
+  if ! _herdr_is_running; then
+    return 0
+  fi
+
+  local herdr_stderr
+  herdr_stderr="$(mktemp "$MAIN_CHECKOUT/tmp/herdr.XXXXXX")"
+
+  # NO --cwd → sibling workspace (not nested child of main checkout)
+  local json_output
+  json_output="$(herdr worktree open --path "$wt_path" --label "$label" --no-focus --json 2>"$herdr_stderr")" || {
+    rm -f "$herdr_stderr"
+    return 0
+  }
+  rm -f "$herdr_stderr"
+
+  if [[ -z "$json_output" ]]; then
+    return 0
+  fi
+
+  # Extract workspace_id using jq
+  local ws_id
+  ws_id="$(printf '%s' "$json_output" | jq -r '.workspace_id // empty' 2>/dev/null)" || ws_id=""
+
+  if [[ -n "$ws_id" && "$ws_id" != "null" ]]; then
+    printf '%s\n' "$ws_id"
+  fi
+}
+
 _herdr_workspace_close_for_path() {
   local wt_path="$1"
 
