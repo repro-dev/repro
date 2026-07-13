@@ -15,6 +15,9 @@
     "develop": {
       "model": "openai/gpt-5.5"
     },
+    "filtered-runner": {
+      "model": "openai/gpt-5.5"
+    },
     "librarian": {
       "model": "openai/gpt-5.5"
     },

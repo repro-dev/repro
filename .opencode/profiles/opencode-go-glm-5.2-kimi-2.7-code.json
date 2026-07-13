@@ -15,6 +15,9 @@
     "develop": {
       "model": "opencode-go/kimi-k2.7-code"
     },
+    "filtered-runner": {
+      "model": "opencode-go/kimi-k2.7-code"
+    },
     "librarian": {
       "model": "opencode-go/kimi-k2.7-code"
     },

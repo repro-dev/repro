@@ -15,6 +15,9 @@
     "develop": {
       "model": "github-copilot/claude-sonnet-4.6"
     },
+    "filtered-runner": {
+      "model": "github-copilot/claude-sonnet-4.6"
+    },
     "librarian": {
       "model": "github-copilot/claude-sonnet-4.6"
     },

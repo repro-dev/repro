@@ -307,6 +307,8 @@ Return the REP-1081 proof bundle first. Required fields: browser evidence paths,
 
 After the `develop` agent finishes, run existing tests for the issue. This step is informational only — test failures do not halt the pipeline.
 
+Delegate test runs to the `filtered-runner` subagent so verbose build output stays isolated from the orchestrator context.
+
 1. Determine affected packages from the worktree diff:
 
    ```sh
@@ -315,20 +317,25 @@ After the `develop` agent finishes, run existing tests for the issue. This step 
 
    Extract the first path segment from every line that starts with `apps/` or `packages/` (e.g. `packages/agentic/src/foo.ts` → `agentic`). Deduplicate. Skip all other paths (e.g. `.opencode/`, root config files).
 
-2. For each affected package `<name>`, run:
+2. For each affected package `<name>`, launch the `filtered-runner` subagent via the Task tool with this payload:
 
-   ```sh
-   pnpm --filter @repro/<name> test
+   ```json
+   {
+     "package": "<name>",
+     "command": "test",
+     "worktree": "<absolute-worktree-path>"
+   }
    ```
 
-   If pnpm exits because the package has no `test` script (error output contains "missing script: test"), skip that package — this is not a test failure.
+   Collect the structured JSON result returned by the subagent. Do not render raw moon output in the orchestrator.
 
-3. **If all tests pass** (or no testable packages were touched): record `smoke_test_result: pass` for this issue. Do not alter the review prompt.
+3. After collecting results from all affected packages, aggregate them:
 
-4. **If one or more tests fail**: record `smoke_test_result: fail` for this issue with a structured failure summary:
-   - Package name (`@repro/<name>`)
-   - Failing test file(s)
-   - Condensed error output (first ~10 lines per failing file)
+   - If every result has an empty `errors` array: record `smoke_test_result: pass` for this issue. Do not alter the review prompt.
+   - If one or more results have non-empty `errors`: record `smoke_test_result: fail` with the aggregated failure summary:
+     - Package name (`@repro/<name>`)
+     - Per-error: `command`, `file`, `message`
+     - The `summary` string from each result
 
 Store the smoke test result in memory for use in the review prompt.
 
