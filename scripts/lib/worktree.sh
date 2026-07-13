@@ -535,8 +535,7 @@ _wt_has_orchestration_artifacts() {
     "$wt_path"/tmp/context-* \
     "$wt_path"/tmp/test-plan-* \
     "$wt_path"/tmp/plan-* \
-    "$wt_path"/tmp/ledger-* \
-    "$wt_path"/tmp/debug-* \
+    "$wt_path"/tmp/bugfix-* \
     "$wt_path"/tmp/friction.md; do
     if [ -e "$artifact" ]; then
       return 0

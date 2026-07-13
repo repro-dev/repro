@@ -95,7 +95,7 @@ Return a summary of what was implemented. The response is invalid unless it incl
 
 ```
 ## Artifacts
-<which `tmp/context-*`, `tmp/test-plan-*`, or `tmp/debug-*` artifacts were consumed or updated>
+<which `tmp/context-*`, `tmp/test-plan-*`, or `tmp/bugfix-*` artifacts were consumed or updated>
 
 ## REP-1081 Proof Bundle (required)
 <browser evidence paths>
