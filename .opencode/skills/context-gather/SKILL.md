@@ -22,7 +22,7 @@ Write the artifact to `tmp/context-<issue-id>.md` when the issue is known, or `t
 3. Project and milestone context.
    - Only pull these when they clarify the intended outcome, rollout expectations, or adjacent work.
 4. Prior local context.
-   - Check `tmp/ledger-*.md`, existing `tmp/context-*.md`, and plan files relevant to the current branch or issue.
+   - Check existing `tmp/context-*.md` and plan files relevant to the current branch or issue.
 5. Codebase shape.
    - Identify likely packages, entry points, tests, and nearby patterns with jcodemunch before reading full files.
 

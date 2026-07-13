@@ -21,7 +21,7 @@ description: Review contract for branch and PR reviews — changed-code focus, s
 - Fetch every referenced Linear issue and read the full description, decisions, requirements, and considerations.
 - Fetch the parent project and milestone when they help explain the intended outcome.
 - When issue-scoped artifacts exist in `tmp/` (for example `tmp/context-REP-123.md` or `tmp/test-plan-REP-123.md`), use them as supplemental review context rather than ignoring the documented plan/history.
-- For UI diffs, also consult the matching durable context artifact's `## Targeted Design Edit`, `## Design Direction`, and any `## Design Handoff Context` block (or the dedicated artifacts when they exist) so review reflects captured intent instead of inventing it.
+- For UI diffs, consult the matching durable context artifact so review reflects captured intent instead of inventing it.
 - For non-Linear work, use the matching topic-scoped artifacts (for example `tmp/context-foo.md` or `tmp/test-plan-foo.md`) when they exist.
 - Treat missing browser evidence, missing viewport/state/interaction notes, or stale handoff artifacts as ordinary requirement gaps rather than mere polish issues.
 
@@ -58,7 +58,7 @@ Classify every finding using one of these four levels:
 - Lead with context: briefly note which Linear issues were reviewed and any decisions that affected the review.
 - Note which `tmp/` artifacts were consulted, or state that none were present.
 - Note which `tmp/` artifacts still need updating before the next implementation or handoff step, or state that none do.
-- For UI diffs, state whether `## Targeted Design Edit`, `## Design Direction`, and any `## Design Handoff Context` were consulted and which artifact supplied them.
+- For UI diffs, state whether the context artifact was consulted and which artifact supplied it.
 - Classify every finding using the severity levels above.
 - State merge-readiness explicitly.
 - Reference issue requirements by ID when noting gaps.
@@ -75,13 +75,5 @@ Classify every finding using one of these four levels:
 ## UI review gate
 
 If the PR touches UI code, verify the interactive states, motion, accessibility, copy, and token usage at a review level.
-
-If a captured design-direction artifact or `## Design Direction` section exists, use it as supplemental context for UI review; if it does not, note the absence rather than inferring direction retroactively.
-
-If a `## Targeted Design Edit` block exists, verify that the change stayed within the named scope boundary, implemented the intended delta without broad regeneration, and includes before/after evidence when the edit is visually meaningful.
-
-Treat the context artifact update note as part of the requirement: if the block says the artifact should be updated, confirm that the handoff reflects it.
-
-For a deeper scored audit across tokens, components, layout, interaction states, accessibility, copy, type safety, resilience, and authored-vs-generic UI judgment, load the `audit-ui-quality` skill.
 
 If the PR touches only non-UI code (migrations, API routes, utilities, or skill files), skip this gate.

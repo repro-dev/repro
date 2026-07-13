@@ -14,7 +14,7 @@ Check whether the change followed the repository guidance that explicitly applie
 ## What to inspect
 
 1. Which skills should have applied.
-   - Examples: `design-system` for UI, `database` for migrations, `bug-rigor` for bug fixes, `build-and-test` for verification work.
+   - Examples: `design-system` for UI, `database` for migrations, `bugfix` for bug fixes, `build-and-test` for verification work.
 2. Relevant `AGENTS.md` guidance.
 3. Package-level `AGENTS.md` files for touched packages.
 
@@ -41,7 +41,7 @@ Check whether the change followed the repository guidance that explicitly applie
 
 ## Examples of good findings
 
-- Bug work changed behavior without adding a regression test required by `bug-rigor`.
+- Bug work changed behavior without adding a regression test required by `bugfix`.
 - UI code introduced raw appearance styling where `design-system` requires design components or tokens.
 - A new command duplicates orchestration logic instead of delegating to a skill.
 

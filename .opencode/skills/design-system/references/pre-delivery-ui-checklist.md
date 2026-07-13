@@ -1,6 +1,6 @@
 # Pre-Delivery UI Checklist
 
-Use this as the last shared pass before a UI change ships. It is a synthesis layer, not a replacement for `audit-ui-quality` or `ui-verification`.
+Use this as the last shared pass before a UI change ships. It is a synthesis layer, not a replacement for `ui-verification`.
 
 ## Check
 

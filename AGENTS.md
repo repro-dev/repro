@@ -6,31 +6,23 @@ This file is loaded automatically at session start. It covers cross-cutting rule
 
 ### Workflow skills
 
-- `delivery-workflow` — feature/fix orchestration
-- `bug-rigor` — root-cause-first bug fixing
+- `delivery-workflow` — feature/fix orchestration, planning, delegation, quality gates
+- `bugfix` — full bug diagnosis and fix pipeline: evidence-first debugging, escalation, root-cause-first fix
 - `implementation-rigor` — red/green/refactor and verification order
 - `review-standards` — branch/PR review contract
 - `context-gather` — compact planning context
 - `test-plan` — explicit test strategy before implementation
-- `issue-shaping-workflow` — goal-to-issue planning
-- `gtm-strategy-workflow` — launch goal to durable GTM plan
-- `feedback-synthesis-workflow` — customer feedback clustering and briefing
-- `debug-workflow` — evidence-first debugging
 
 ### Discipline skills
 
 - `database` — PostgreSQL, Kysely, migrations
 - `recording-playback` — capture/playback subsystem work
 - `agentic` — agentic debugger runtime, tools, UI, and API routes/services
-- `authentication`, `billing`, `dev-toolbar`, `api-server` — product/domain surfaces
+- `authentication`, `billing`, `api-server` — product/domain surfaces
 
 ### UI-specific skills
 
-- `design-direction` — upstream visual intent
-- `design-edit` — localized follow-up edits on an existing UI surface
-- `design-handoff` — preserve settled UI decisions across handoffs
 - `design-system` — UI implementation, components, tokens, and reference files
-- `audit-ui-quality` — scored authored-vs-generic UI audit
 - `ui-verification` — browser evidence after a UI change
 - `extension-verification` — browser-extension verification
 
@@ -44,10 +36,7 @@ This file is loaded automatically at session start. It covers cross-cutting rule
 
 ### Meta skills
 
-- `skill-architecture` — skill taxonomy and migration boundaries
 - `skill-compliance` — verify skill/AGENTS adherence
-- `instruction-artifact-workflow` — author and review instruction artifacts
-- `command-thin-shim` — command-file structure
 - `harden` — resilience follow-up when needed
 
 ## Code Style & Conventions
@@ -185,7 +174,6 @@ Update a skill proactively when any of these stronger triggers occur:
 - `.opencode/skills/<domain>/SKILL.md` for cross-cutting domain knowledge.
 - A package-level `AGENTS.md` for conventions too specific for a shared skill.
 - If no skill file exists for the domain and the knowledge is reusable, create one following the structure of existing skill files.
-- Use `instruction-artifact-workflow` when creating or materially changing OpenCode skills, agents, commands, or `AGENTS.md` guidance so placement stays lean and reviewable.
 - For command-specific workflow glue, keep `.opencode/commands/*.md` thin and move reusable operating logic into skills.
 - New skill files are discovered on session startup. In the same session that creates a skill, read the new `SKILL.md` directly instead of assuming the `skill` tool can load it by name immediately.
 
@@ -274,7 +262,7 @@ The typical flow for a feature or fix:
 
 ### Artifact lifecycle
 
-- `tmp/context-<issue-id>.md`: required before planner delegation once work spans 3+ packages, depends on prior investigation threads, or has scope scattered across related issues/comments/docs. For unresolved UI direction, this same artifact should carry the `## Design Direction` block from the `design-direction` workflow. For bounded follow-up UI edits, it may also carry a `## Targeted Design Edit` block from the `design-edit` workflow. Use `tmp/context-<topic>.md` for non-Linear work.
+- `tmp/context-<issue-id>.md`: required before planner delegation once work spans 3+ packages, depends on prior investigation threads, or has scope scattered across related issues/comments/docs. Use `tmp/context-<topic>.md` for non-Linear work.
 - `tmp/test-plan-<issue-id>.md`: required before `develop` for new behavior, bug fixes, and public contract changes. Use `tmp/test-plan-<topic>.md` for non-Linear work.
 - Review and handoff workflows should explicitly note which `tmp/` artifacts were consumed and which still need updating.
 
