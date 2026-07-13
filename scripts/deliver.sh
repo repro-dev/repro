@@ -200,7 +200,6 @@ _create_worktree_and_launch() {
   fi
 
   echo ""
-  _step 1 4 "Creating worktree for branch: ${CLR_BOLD}${branch}${CLR_RESET}"
 
   if [[ "$dry_run" == "true" ]]; then
     echo "  ${CLR_DIM}[dry-run]${CLR_RESET} Mode: ${mode}"
@@ -214,6 +213,8 @@ _create_worktree_and_launch() {
     echo "${CLR_DIM}[dry-run] No changes were made.${CLR_RESET}"
     return 0
   fi
+
+  _step 1 4 "Creating worktree for branch: ${CLR_BOLD}${branch}${CLR_RESET}"
 
   # Stage 1: Worktree creation
   if [[ "$mode" == "issue_id" ]]; then
@@ -299,7 +300,7 @@ _create_worktree_and_launch() {
   local pane_id
   pane_id="$(herdr pane list --workspace "$ws_id" --json 2>/dev/null | jq -r '.[0].pane_id // .[0].id // empty' 2>/dev/null || true)"
   if [[ -n "$pane_id" && "$pane_id" != "null" ]]; then
-    herdr pane run "$pane_id" "cd '$wt_path' && pnpm bootstrap" 2>/dev/null || true
+    herdr pane run "$pane_id" "cd \"$wt_path\" && pnpm bootstrap" 2>/dev/null || true
     _ok "Bootstrap started in workspace pane"
   else
     _warn "Could not find a pane for the workspace — bootstrap skipped."
@@ -484,7 +485,7 @@ fi
 
 case "$mode" in
   issue_id)
-    _step "" "" "Resolving issue ${mode_arg}..."
+    echo "Resolving issue ${mode_arg}..."
     issue_data="$(_mode_issue_id "$mode_arg")"
     issue_id="$(sed -n '1p' <<< "$issue_data")"
     branch="$(sed -n '2p' <<< "$issue_data")"
@@ -512,7 +513,7 @@ case "$mode" in
     ;;
 
   pr)
-    _step "" "" "Resolving PR #${mode_arg}..."
+    echo "Resolving PR #${mode_arg}..."
     pr_data="$(_mode_pr "$mode_arg")"
     pr_issue_id="$(sed -n '1p' <<< "$pr_data")"
     pr_branch="$(sed -n '2p' <<< "$pr_data")"
@@ -549,7 +550,7 @@ case "$mode" in
     ;;
 
   prompt)
-    _step "" "" "Generating branch for prompt mode..."
+    echo "Generating branch for prompt mode..."
     prompt_data="$(_mode_prompt "$mode_arg")"
     prompt_branch="$(sed -n '1p' <<< "$prompt_data")"
     prompt_title="$(sed -n '2p' <<< "$prompt_data")"
@@ -579,7 +580,7 @@ case "$mode" in
     ;;
 
   bare_branch)
-    _step "" "" "Resolving bare branch..."
+    echo "Resolving bare branch..."
     branch_data="$(_mode_bare_branch "$mode_arg")"
     bare_issue_id="$(sed -n '1p' <<< "$branch_data")"
     bare_branch="$(sed -n '2p' <<< "$branch_data")"
