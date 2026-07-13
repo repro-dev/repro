@@ -39,6 +39,9 @@
     "develop": {
       "model": "deepseek/deepseek-v4-flash"
     },
+    "filtered-runner": {
+      "model": "deepseek/deepseek-v4-flash"
+    },
     "librarian": {
       "model": "deepseek/deepseek-v4-flash"
     },
