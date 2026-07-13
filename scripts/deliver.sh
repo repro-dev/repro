@@ -187,6 +187,7 @@ _create_worktree_and_launch() {
   local profile_arg="${7:-}"
   local nightshift="${8:-false}"
   local dry_run="${9:-false}"
+  local mode_arg="${10:-}"
 
   local wt_path prompt_arg
   wt_path="$(worktree_path "$slug")"
@@ -219,6 +220,40 @@ _create_worktree_and_launch() {
     # Use reproctl for full issue workflow (fetch from Linear, branch creation, etc.)
     # Note: --open is deliberately omitted; herdr workspace is handled via sibling workspace below
     "$SCRIPT_DIR/reproctl.sh" wt create --from-issue "$issue_id" --no-status-update
+
+    # Resolve the actual worktree path (reproctl may have suffixed the slug with a timestamp)
+    local resolved_wt_path
+    resolved_wt_path="$(_worktree_path_for_branch "$branch")"
+    if [[ -z "$resolved_wt_path" ]]; then
+      # reproctl suffixed the branch; search worktrees for a matching branch
+      local wt_entry_dir="" wt_entry_branch=""
+      while IFS= read -r line; do
+        case "$line" in
+          worktree\ *) wt_entry_dir="${line#worktree }" ;;
+          branch\ *)   wt_entry_branch="${line#branch }"; wt_entry_branch="${wt_entry_branch#refs/heads/}" ;;
+          "")
+            if [[ -n "$wt_entry_branch" && "$wt_entry_branch" == "$branch-"* ]]; then
+              resolved_wt_path="$wt_entry_dir"
+            fi
+            wt_entry_dir="" wt_entry_branch=""
+            ;;
+        esac
+      done < <(git worktree list --porcelain)
+    fi
+    if [[ -n "$resolved_wt_path" ]]; then
+      wt_path="$resolved_wt_path"
+    fi
+  elif [[ "$mode" == "pr" ]]; then
+    # Fetch PR head ref from GitHub
+    git fetch origin "pull/${mode_arg}/head" 2>/dev/null || {
+      _err "Could not fetch PR #${mode_arg}. The branch may have been deleted."
+      echo "  Try: git fetch origin pull/${mode_arg}/head" >&2
+      exit 1
+    }
+    git worktree add "$wt_path" "FETCH_HEAD"
+    # Create a local branch at this ref so it can be pushed
+    git -C "$wt_path" checkout -b "$branch"
+    git push -u origin "$branch" 2>/dev/null || true
   elif [[ "$mode" == "bare_branch" ]]; then
     # Bare branch mode — checkout existing branch or create from HEAD
     if git rev-parse --verify --quiet "refs/heads/$branch" >/dev/null 2>&1; then
@@ -228,7 +263,7 @@ _create_worktree_and_launch() {
     fi
     git push -u origin "$branch" 2>/dev/null || true
   else
-    # PR and prompt modes — create new branch from latest main
+    # Prompt mode — create new branch from latest main
     local start_ref=""
     if git remote get-url origin >/dev/null 2>&1; then
       git fetch origin main >/dev/null 2>&1 || true
@@ -509,7 +544,8 @@ case "$mode" in
       "$delivery_command" \
       "$profile" \
       "$nightshift" \
-      "$dry_run"
+      "$dry_run" \
+      "$mode_arg"
     ;;
 
   prompt)
