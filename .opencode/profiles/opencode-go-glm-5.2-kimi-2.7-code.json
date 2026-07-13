@@ -6,32 +6,8 @@
       "model": "opencode-go/kimi-k2.7-code",
       "template": ""
     },
-    "groom": {
-      "model": "opencode-go/kimi-k2.7-code",
-      "template": ""
-    },
-    "enrich-issues": {
-      "model": "opencode-go/glm-5.2",
-      "template": ""
-    },
     "review": {
       "model": "opencode-go/glm-5.2",
-      "template": ""
-    },
-    "ledger": {
-      "model": "opencode-go/kimi-k2.7-code",
-      "template": ""
-    },
-    "handoff": {
-      "model": "opencode-go/kimi-k2.7-code",
-      "template": ""
-    },
-    "audit-skills": {
-      "model": "opencode-go/glm-5.2",
-      "template": ""
-    },
-    "update-visual-baselines": {
-      "model": "opencode-go/kimi-k2.7-code",
       "template": ""
     }
   },

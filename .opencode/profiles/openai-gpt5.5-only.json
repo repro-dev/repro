@@ -6,31 +6,7 @@
       "model": "openai/gpt-5.5",
       "template": ""
     },
-    "groom": {
-      "model": "openai/gpt-5.5",
-      "template": ""
-    },
-    "enrich-issues": {
-      "model": "openai/gpt-5.5",
-      "template": ""
-    },
     "review": {
-      "model": "openai/gpt-5.5",
-      "template": ""
-    },
-    "ledger": {
-      "model": "openai/gpt-5.5",
-      "template": ""
-    },
-    "handoff": {
-      "model": "openai/gpt-5.5",
-      "template": ""
-    },
-    "audit-skills": {
-      "model": "openai/gpt-5.5",
-      "template": ""
-    },
-    "update-visual-baselines": {
       "model": "openai/gpt-5.5",
       "template": ""
     }
