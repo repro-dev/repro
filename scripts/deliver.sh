@@ -11,7 +11,7 @@ Usage: deliver [--profile <name> | --pick] [--help] <issue-id>
   OpenCode session with the appropriate delivery command.
 
   Routing:
-    Bug issues    → /debug
+    Bug issues    → /bugfix
     All others    → /build
 
   Flags:
@@ -33,7 +33,7 @@ usage() {
 }
 
 # Resolve delivery command based on Linear issue labels.
-# Bug → /debug, everything else → /build (fail-open default).
+# Bug → /bugfix, everything else → /build (fail-open default).
 resolve_command() {
   local issue_id="$1"
 
@@ -62,7 +62,7 @@ for label in labels:
         sys.exit(0)
 sys.exit(1)
 " 2>/dev/null; then
-    echo "/debug"
+    echo "/bugfix"
   else
     echo "/build"
   fi
