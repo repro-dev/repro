@@ -3,7 +3,7 @@ import { randomString } from '@repro/random-string'
 import { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import { resolve } from 'fluture'
 import { sql } from 'kysely'
-import { Env, createEnv } from '~/config/createEnv'
+import { Env, Replacer, createEnv } from '~/config/createEnv'
 import { createSessionDecorator } from '~/decorators/session'
 import { createStubPaddleClient } from '~/modules/billing'
 import type { UpdateSubscriptionParams } from '~/modules/billing/stubPaddleClient'
@@ -32,14 +32,17 @@ import { fromRouter } from './utils'
 export interface Harness {
   db: Database
   storage: Storage
-  env: Env
+  env: Env & Replacer
   sendEmail: typeof defaultSendEmail
   emailModule: EmailModule
   services: Services
   getLastUpdateSubscriptionParams(): UpdateSubscriptionParams | null
   getSentEmails(): Array<EmailMessage>
 
-  bootstrap(router: FastifyPluginAsync): FastifyInstance
+  bootstrap(
+    router: FastifyPluginAsync,
+    options?: { prefix?: string }
+  ): FastifyInstance
   generateRandomEmailAddress(): string
   loadFixtures<T extends Array<Fixture<unknown>>>(
     fixtures: [...T]
@@ -97,8 +100,11 @@ export async function createTestHarness(
 
   const sessionDecorator = createSessionDecorator(accountService, env)
 
-  function bootstrap(router: FastifyPluginAsync) {
-    return fromRouter(router, [sessionDecorator])
+  function bootstrap(
+    router: FastifyPluginAsync,
+    options?: { prefix?: string }
+  ) {
+    return fromRouter(router, [sessionDecorator], options)
   }
 
   const curriedLoadFixtures = loadFixtures.bind(

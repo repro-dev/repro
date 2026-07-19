@@ -57,6 +57,7 @@ const envSchema = z.object({
   STORAGE_KEY_PREFIX: z.string().default(''),
   SESSION_SECRET: z.string().default('this-is-a-session-secret'),
   SESSION_COOKIE: z.string().default('sessid'),
+  STAFF_SESSION_COOKIE: z.string().default('staff.sessid'),
   SESSION_SOFT_EXPIRY: numericStringTransform.default(3600),
   SESSION_HARD_EXPIRY: numericStringTransform.default(28 * 24 * 3600),
   SESSION_CLEANUP_INTERVAL: positiveIntegerStringTransform.default(3600),
@@ -95,7 +96,7 @@ const envSchema = z.object({
 
 export type Env = z.infer<typeof envSchema>
 
-type Replacer = {
+export type Replacer = {
   replace<K extends keyof Env>(key: K, value: Env[K]): () => void
 }
 
