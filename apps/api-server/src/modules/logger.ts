@@ -48,6 +48,7 @@ export function createFastifyLoggerOptions({
       'req.body.invitationToken',
       'req.body.resetToken',
       'req.body.secret',
+      'req.body.code',
       'req.body.clientSecret',
       'req.body.mfa_pending',
       'req.body.webhookSecret',

@@ -160,6 +160,11 @@ export function createAccountRouter(
       )
   }
 
+  function getNumericUserId(encodedId: string): FutureInstance<Error, number> {
+    const id = decodeId(encodedId)
+    return id != null ? resolve(id) : reject(notAuthenticated())
+  }
+
   return async function (fastify) {
     const app = fastify.withTypeProvider<ZodTypeProvider>()
 
@@ -343,12 +348,12 @@ export function createAccountRouter(
             )
 
           if (totpService != null) {
-            const numericId = decodeId(user.id)
-            const totpEnabled = yield totpService.isTotpEnabled(numericId ?? 0)
+            const numericId = yield getNumericUserId(user.id)
+            const totpEnabled = yield totpService.isTotpEnabled(numericId)
 
             if (totpEnabled) {
               const mfaPending = yield totpService.createMfaPendingToken(
-                numericId ?? 0
+                numericId
               )
               return { mfa_pending: mfaPending, totpRequired: true as const }
             }
@@ -383,100 +388,151 @@ export function createAccountRouter(
       }>('/totp/setup', { schema: totpSetupSchema }, (req, res) => {
         respondWith(
           res,
-          req.getCurrentUser().pipe(
-            chain(user => {
-              const numericId = decodeId(user.id) ?? 0
-              return totpService.setupTotp(numericId, req.body.accountLabel)
-            })
-          )
+          req
+            .getCurrentUser()
+            .pipe(
+              chain(user =>
+                getNumericUserId(user.id).pipe(
+                  chain(id => totpService.setupTotp(id, req.body.accountLabel))
+                )
+              )
+            )
         )
       })
 
       app.post<{
         Body: z.infer<typeof totpConfirmSchema.body>
-      }>('/totp/confirm', { schema: totpConfirmSchema }, (req, res) => {
-        respondWith(
-          res,
-          req.getCurrentUser().pipe(
-            chain(user => {
-              const numericId = decodeId(user.id) ?? 0
-              return totpService.confirmTotp(numericId, req.body.code)
-            })
+      }>(
+        '/totp/confirm',
+        {
+          schema: totpConfirmSchema,
+          config: {
+            rateLimit: {
+              max: 10,
+              timeWindow: '15 minutes',
+            },
+          },
+        },
+        (req, res) => {
+          respondWith(
+            res,
+            req
+              .getCurrentUser()
+              .pipe(
+                chain(user =>
+                  getNumericUserId(user.id).pipe(
+                    chain(id => totpService.confirmTotp(id, req.body.code))
+                  )
+                )
+              )
           )
-        )
-      })
+        }
+      )
 
       app.post<{
         Body: z.infer<typeof totpDisableSchema.body>
-      }>('/totp/disable', { schema: totpDisableSchema }, (req, res) => {
-        respondWith(
-          res,
-          req.getCurrentUser().pipe(
-            chain(currentUser => {
-              if (!('email' in currentUser) || currentUser.type !== 'user') {
-                return reject(permissionDenied())
-              }
-              const email = (currentUser as User).email
-              return accountService
-                .getUserByEmailAndPassword(email, req.body.password)
-                .pipe(
-                  chain(user => {
-                    const numericId = decodeId(user.id) ?? 0
-                    return totpService
-                      .verifyTotpCode(numericId, req.body.code)
-                      .pipe(chain(() => totpService.disableTotp(numericId)))
-                  })
-                )
-            })
+      }>(
+        '/totp/disable',
+        {
+          schema: totpDisableSchema,
+          config: {
+            rateLimit: {
+              max: 5,
+              timeWindow: '15 minutes',
+            },
+          },
+        },
+        (req, res) => {
+          respondWith(
+            res,
+            req.getCurrentUser().pipe(
+              chain(currentUser => {
+                if (!('email' in currentUser) || currentUser.type !== 'user') {
+                  return reject(permissionDenied())
+                }
+                const email = (currentUser as User).email
+                return accountService
+                  .getUserByEmailAndPassword(email, req.body.password)
+                  .pipe(
+                    chain(user =>
+                      getNumericUserId(user.id).pipe(
+                        chain(id =>
+                          totpService
+                            .verifyTotpCode(id, req.body.code)
+                            .pipe(chain(() => totpService.disableTotp(id)))
+                        )
+                      )
+                    )
+                  )
+              })
+            )
           )
-        )
-      })
+        }
+      )
 
       app.post<{
         Body: z.infer<typeof totpVerifySchema.body>
-      }>('/totp/verify', { schema: totpVerifySchema }, (req, res) => {
-        respondWith(
-          res,
-          go(function* () {
-            const numericId = yield totpService.validateMfaPendingToken(
-              req.body.mfa_pending
-            )
-            const userId = encodeId(numericId)
-            const user = yield accountService.getUserById(userId)
+      }>(
+        '/totp/verify',
+        {
+          schema: totpVerifySchema,
+          config: {
+            rateLimit: {
+              max: 10,
+              timeWindow: '5 minutes',
+            },
+          },
+        },
+        (req, res) => {
+          respondWith(
+            res,
+            go(function* () {
+              const numericId = yield totpService.validateMfaPendingToken(
+                req.body.mfa_pending
+              )
+              const userId = encodeId(numericId)
+              const user = yield accountService.getUserById(userId)
 
-            if (req.body.codeType === 'totp') {
-              yield totpService.verifyTotpCode(numericId, req.body.code)
-            } else {
-              yield totpService.verifyBackupCode(numericId, req.body.code)
-            }
+              if (req.body.codeType === 'totp') {
+                yield totpService.verifyTotpCode(numericId, req.body.code)
+              } else {
+                yield totpService.verifyBackupCode(numericId, req.body.code)
+              }
 
-            yield req.createSession(user)
-            return user
-          })
-        )
-      })
+              yield req.createSession(user)
+              return user
+            })
+          )
+        }
+      )
 
       app.get('/totp/status', (req, res) => {
         respondWith(
           res,
-          req.getCurrentUser().pipe(
-            chain(user => {
-              const numericId = decodeId(user.id) ?? 0
-              return totpService.getTotpStatus(numericId)
-            })
-          )
+          req
+            .getCurrentUser()
+            .pipe(
+              chain(user =>
+                getNumericUserId(user.id).pipe(
+                  chain(id => totpService.getTotpStatus(id))
+                )
+              )
+            )
         )
       })
 
       app.post('/totp/regenerate-backup-codes', (req, res) => {
         respondWith(
           res,
-          req.getCurrentUser().pipe(
-            chain(user => {
-              const numericId = decodeId(user.id) ?? 0
-              return totpService.regenerateBackupCodes(numericId)
-            })
-          )
+          req
+            .getCurrentUser()
+            .pipe(
+              chain(user =>
+                getNumericUserId(user.id).pipe(
+                  chain(id => totpService.regenerateBackupCodes(id))
+                )
+              )
+            )
         )
       })
     }

@@ -1,3 +1,4 @@
+import { createExportedKey } from '@repro/encryption'
 import expect from 'expect'
 import { promise } from 'fluture'
 import { createHash } from 'node:crypto'
@@ -21,6 +22,9 @@ type TotpTestContext = {
 async function createTotpTestContext(): Promise<TotpTestContext> {
   const harness = await createTestHarness()
   const accountService = harness.services.accountService
+  const encryptionKey = await createExportedKey()
+  // env has a replace() method from the Replacer interface (not exposed on Env type)
+  ;(harness.env as any).replace('TOTP_ENCRYPTION_KEY', encryptionKey)
   const totpService = createTotpService(harness.db, harness.env)
 
   const app = harness.bootstrap(async app => {

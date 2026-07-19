@@ -1,3 +1,4 @@
+import { createExportedKey } from '@repro/encryption'
 import expect from 'expect'
 import { promise } from 'fluture'
 import { after, before, beforeEach, describe, it } from 'node:test'
@@ -21,7 +22,8 @@ describe('Services > TotpService', () => {
     db = setup.db
     closeDb = setup.close
 
-    const env = createEnv()
+    const encryptionKey = await createExportedKey()
+    const env = createEnv({ TOTP_ENCRYPTION_KEY: encryptionKey })
     totpService = createTotpService(db, env)
 
     const accountService = createAccountService(db, {

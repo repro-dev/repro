@@ -1,5 +1,5 @@
 import * as argon2 from '@node-rs/argon2'
-import { createExportedKeyF, decryptF, encryptF } from '@repro/encryption'
+import { decryptF, encryptF } from '@repro/encryption'
 import { FutureInstance, attemptP, chain, map, reject, resolve } from 'fluture'
 import { createHash, randomBytes, randomInt } from 'node:crypto'
 import * as otpauth from 'otpauth'
@@ -42,21 +42,14 @@ export interface TotpStatusResult {
 }
 
 export function createTotpService(database: Database, env: Env) {
-  // Cache the generated key so encrypt/decrypt within a session use the same key
-  let _cachedKey: string | null = null
-
   function getEncryptionKey(): FutureInstance<Error, string> {
     if (env.TOTP_ENCRYPTION_KEY) {
       return resolve(env.TOTP_ENCRYPTION_KEY)
     }
-    if (_cachedKey != null) {
-      return resolve(_cachedKey)
-    }
-    return createExportedKeyF().pipe(
-      map(key => {
-        _cachedKey = key
-        return key
-      })
+    return reject(
+      new Error(
+        'TOTP_ENCRYPTION_KEY is not configured. TOTP 2FA cannot operate.'
+      )
     )
   }
 
@@ -510,7 +503,6 @@ export function createTotpService(database: Database, env: Env) {
     isTotpEnabled,
     getTotpStatus,
     regenerateBackupCodes,
-    getEncryptionKey,
   }
 }
 
