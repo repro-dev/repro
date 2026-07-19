@@ -11,19 +11,19 @@ export function describePreset(override: RedactionOverride): {
   label: string
   summary: string
 } {
-  if (override.maskImages) {
-    return {
-      label: 'Strict',
-      summary:
-        'Masks all input elements, textareas, contenteditable regions, and <img> elements by default. Auth headers and PII-like values are also automatically redacted.',
-    }
-  }
-
   if (override.maskedSelectors.length === 0) {
     return {
       label: 'Off',
       summary:
         'Minimal filtering — only authentication headers (cookies, authorization tokens) are redacted. All other page content is captured as-is.',
+    }
+  }
+
+  if (override.maskedSelectors.includes('img')) {
+    return {
+      label: 'Strict',
+      summary:
+        'Masks all input elements, textareas, contenteditable regions, and <img> elements by default. Auth headers and PII-like values are also automatically redacted.', // impeccable-disable-line broken-image
     }
   }
 

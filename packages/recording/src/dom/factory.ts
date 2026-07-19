@@ -96,7 +96,7 @@ export function createVElement(
     attributes.value = redactText(String(attributes.value ?? ''))
   }
 
-  // Blank <img> src when masked (strict preset maskImages behavior)
+  // Blank <img> src when masked (strict preset maskImages behavior) // impeccable-disable-line broken-image
   if (isMasked && element.tagName === 'IMG' && 'src' in attributes) {
     attributes.src = ''
   }

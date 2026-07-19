@@ -39,7 +39,7 @@ const PRESET_OPTIONS: Array<PresetInfo> = [
     value: 'strict',
     label: 'Strict',
     description:
-      'Masks all input elements, textareas, contenteditable regions, and <img> elements by default. Auth headers and PII-like values are also automatically redacted.',
+      'Masks all input elements, textareas, contenteditable regions, and <img> elements by default. Auth headers and PII-like values are also automatically redacted.', // impeccable-disable-line broken-image
   },
   {
     value: 'standard',

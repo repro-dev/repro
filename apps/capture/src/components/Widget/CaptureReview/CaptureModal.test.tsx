@@ -180,6 +180,21 @@ mock.module('./CaptureUploadProvider', {
   },
 })
 
+mock.module('~/useRecordingPrivacyPreset', {
+  namedExports: {
+    useRecordingPrivacyPreset: () => ({
+      preset: 'standard' as const,
+      override: {
+        maskedSelectors: ['.repro-mask'],
+        redaction: undefined,
+        maskImages: false,
+      },
+      loading: false,
+      error: null,
+    }),
+  },
+})
+
 // Must require() after mock registration so the mocks take effect
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { CaptureModal } =

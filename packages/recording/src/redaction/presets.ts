@@ -1,6 +1,7 @@
 import type { RecordingPrivacyPreset } from '@repro/domain'
 import type { RedactionConfig } from './types'
 
+// impeccable-disable broken-image — `<img>` in doc below is honest copy about engine behavior
 /**
  * Per-preset override of redaction and masking config.
  *

@@ -22,6 +22,18 @@ export const DEFAULT_REDACTION_CONFIG: RedactionConfig = {
   maskedSelectors: [],
 }
 
+/**
+ * Merges a partial override into a base RedactionConfig.
+ *
+ * **Semantic contract (post-REP-1275):** replacement-on-explicit-field. Any
+ * field explicitly set in `overrides` replaces the base value entirely;
+ * fields absent in `overrides` keep the base default. This allows the `off`
+ * preset to clear PII fields (empty arrays/sets) while preserving the
+ * credential floor (sensitiveHeaderNames omitted from the override, so the
+ * base DEFAULT persists). The previous additive-union contract has been
+ * removed — there are no additive consumers. Sole caller is
+ * `setRedactionConfig()`.
+ */
 export function mergeRedactionConfig(
   base: RedactionConfig,
   overrides: Partial<RedactionConfig>
