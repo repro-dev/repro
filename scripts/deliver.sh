@@ -111,13 +111,13 @@ _mode_pr() {
   if ! command -v gh >/dev/null 2>&1; then
     _err "gh CLI is required for PR mode."
     echo "  Install it: brew install gh" >&2
-    exit 1
+    return 1
   fi
 
   local pr_json
   pr_json="$(gh pr view "$pr_number" --json headRefName,body,title 2>/dev/null)" || {
     _err "Could not fetch PR #${pr_number}. Check that the PR exists and you are authenticated."
-    exit 1
+    return 1
   }
 
   local branch title body
@@ -498,7 +498,7 @@ case "$mode" in
     echo "  Command: ${delivery_command}"
 
     label="$issue_id"
-    slug="$(printf '%s' "$issue_id" | tr '[:upper:]' '[:lower:]')"
+    slug="$(slugify "$issue_id")"
 
     _create_worktree_and_launch \
       "issue_id" \
@@ -514,7 +514,7 @@ case "$mode" in
 
   pr)
     echo "Resolving PR #${mode_arg}..."
-    pr_data="$(_mode_pr "$mode_arg")"
+    pr_data="$(_mode_pr "$mode_arg")" || exit $?
     pr_issue_id="$(sed -n '1p' <<< "$pr_data")"
     pr_branch="$(sed -n '2p' <<< "$pr_data")"
     pr_title="$(sed -n '3p' <<< "$pr_data")"
@@ -534,7 +534,7 @@ case "$mode" in
     fi
 
     label="${pr_issue_id:-pr-${mode_arg}}"
-    slug="$(printf '%s' "$label" | tr '[:upper:]' '[:lower:]')"
+    slug="$(slugify "$label")"
 
     _create_worktree_and_launch \
       "pr" \
@@ -565,7 +565,7 @@ case "$mode" in
     echo "  Workspace: ${prompt_title:-$prompt_branch}"
 
     label="${prompt_title:-$prompt_branch}"
-    slug="$(printf '%s' "$prompt_branch" | tr '[:upper:]' '[:lower:]')"
+    slug="$(slugify "$prompt_branch")"
 
     _create_worktree_and_launch \
       "prompt" \
@@ -594,7 +594,7 @@ case "$mode" in
     fi
 
     label="${bare_issue_id:-$bare_branch}"
-    slug="$(printf '%s' "$label" | tr '[:upper:]' '[:lower:]')"
+    slug="$(slugify "$label")"
 
     _create_worktree_and_launch \
       "bare_branch" \
