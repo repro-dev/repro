@@ -1,7 +1,11 @@
 import { Block, Row } from '@jsxstyle/react'
 import { IfGate } from '@repro/auth'
 import { color, spacing } from '@repro/design'
-import { PlaybackNavigation, SimpleTimeline } from '@repro/playback'
+import {
+  PlaybackNavigation,
+  PlaybackShortcutsHelp,
+  SimpleTimeline,
+} from '@repro/playback'
 import {
   Maximize2 as EnterFullscreenIcon,
   Minimize2 as ExitFullscreenIcon,
@@ -43,6 +47,8 @@ export const Toolbar: React.FC<Props> = ({
         fullscreen={fullscreen}
         onToggleFullscreen={onToggleFullscreen}
       />
+      <Separator />
+      <PlaybackShortcutsHelp />
     </Container>
   )
 }

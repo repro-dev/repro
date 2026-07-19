@@ -1,4 +1,4 @@
-import { Block, Col, Row } from '@jsxstyle/react'
+import { Block, Row } from '@jsxstyle/react'
 import { Analytics } from '@repro/analytics'
 import { formatTime } from '@repro/date-utils'
 import { color, fontSize, spacing } from '@repro/design'
@@ -15,7 +15,6 @@ import {
 } from 'rxjs/operators'
 import { usePlayback } from '../hooks'
 import { PlaybackState } from '../types'
-import { Keycap } from './Keycap'
 import { PlayAction } from './PlayAction'
 import { PlaybackKeyboardShortcuts } from './PlaybackKeyboardShortcuts'
 import { SpeedControl } from './SpeedControl'
@@ -413,54 +412,27 @@ export const SimpleTimeline: React.FC<Props> = ({
       <SpeedControl />
       <PlaybackKeyboardShortcuts />
 
-      <Col flex={1} height="100%" gap={spacing.xs} alignItems="stretch">
-        <Row alignItems="center" flex={1} width="100%" position="relative">
-          <Block
-            position="relative"
-            width="100%"
-            height={8}
-            hoverHeight={12}
-            transition="height 100ms ease-in-out"
-            props={{ ref: progressRef }}
-          />
+      <Row alignItems="center" flex={1} width="100%" position="relative">
+        <Block
+          position="relative"
+          width="100%"
+          height={8}
+          hoverHeight={12}
+          transition="height 100ms ease-in-out"
+          props={{ ref: progressRef }}
+        />
 
-          <Block
-            position="absolute"
-            top={0}
-            left={0}
-            right={0}
-            height="100%"
-            pointerEvents="none"
-          >
-            {children}
-          </Block>
-        </Row>
-
-        <Row
-          gap={spacing.sm}
-          alignItems="center"
-          justifyContent="center"
-          paddingTop={spacing.xs}
-          fontFamily="monospace"
-          fontSize={fontSize.xs}
-          color={color.text.muted}
-          userSelect="none"
+        <Block
+          position="absolute"
+          top={0}
+          left={0}
+          right={0}
+          height="100%"
+          pointerEvents="none"
         >
-          <Row gap={spacing.xs} alignItems="center">
-            <Keycap muted label="←" />
-            <Keycap muted label="→" />
-            <Block>seek</Block>
-          </Row>
-          <Row gap={spacing.xs} alignItems="center">
-            <Keycap muted label="Home" />
-            <Block>start</Block>
-          </Row>
-          <Row gap={spacing.xs} alignItems="center">
-            <Keycap muted label="End" />
-            <Block>end</Block>
-          </Row>
-        </Row>
-      </Col>
+          {children}
+        </Block>
+      </Row>
 
       <Row
         gap={spacing.xs}
