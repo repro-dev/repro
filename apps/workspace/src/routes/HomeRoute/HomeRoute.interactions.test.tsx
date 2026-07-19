@@ -123,7 +123,7 @@ function makeManyRecordings(count: number): Array<RecordingInfo> {
     description: '',
     mode: RecordingMode.Live,
     duration: 60 + i,
-    createdAt: `2026-06-${String(i + 1).padStart(2, '0')}T00:00:00.000Z`,
+    createdAt: `2026-06-${String(count - i).padStart(2, '0')}T00:00:00.000Z`,
     browserName: 'Chrome',
     browserVersion: '120',
     operatingSystem: null,
