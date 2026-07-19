@@ -1,5 +1,11 @@
 import { PortalRootProvider } from '@repro/design'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react'
 import expect from 'expect'
 import { afterEach, describe, it, mock } from 'node:test'
 import React from 'react'
@@ -66,20 +72,28 @@ describe('SpeedControl', () => {
     const trigger = screen.getByText('1.0x')
     expect(trigger).toBeDefined()
 
+    // Tooltip exists in DOM but is aria-hidden initially
+    const tooltip = document.querySelector('[role="tooltip"]')
+    expect(tooltip).not.toBeNull()
+    expect(tooltip!.getAttribute('aria-hidden')).toBe('true')
+
     // Hover to show tooltip
     fireEvent.pointerEnter(trigger)
 
-    // Wait for tooltip to appear
-    const tooltip = await screen.findByRole('tooltip')
-    expect(tooltip.getAttribute('aria-hidden')).toBe('false')
-    expect(tooltip.textContent).toContain('Playback speed')
-    expect(tooltip.textContent).toContain('=')
-    expect(tooltip.textContent).toContain('-')
-    expect(tooltip.textContent).toContain('increase')
-    expect(tooltip.textContent).toContain('decrease')
+    // Wait for tooltip to become visible
+    await waitFor(() => {
+      expect(tooltip!.getAttribute('aria-hidden')).toBe('false')
+    })
+
+    // Keycap hints present
+    expect(tooltip!.textContent).toContain('Playback speed')
+    expect(tooltip!.textContent).toContain('=')
+    expect(tooltip!.textContent).toContain('-')
+    expect(tooltip!.textContent).toContain('increase')
+    expect(tooltip!.textContent).toContain('decrease')
 
     // No `+` advertised
-    expect(screen.queryByText('+')).toBeNull()
+    expect(tooltip!.textContent).not.toContain('+')
 
     cleanup()
   })

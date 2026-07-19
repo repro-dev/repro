@@ -8,7 +8,6 @@ afterEach(cleanup)
 
 describe('SimpleTimeline', () => {
   it('renders seeking keycap hints and no old popover', async t => {
-    // Mock the hooks module that SimpleTimeline and its children import
     const mockAtom = {
       pipe: () => ({
         subscribe: () => ({ unsubscribe: () => {} }),
@@ -50,6 +49,18 @@ describe('SimpleTimeline', () => {
     t.mock.module('@repro/analytics', {
       exports: {
         Analytics: { track: () => {} },
+      },
+    })
+
+    t.mock.module('../keyboardIgnore', {
+      exports: {
+        shouldIgnoreKeyboardEvent: () => false,
+      },
+    })
+
+    t.mock.module('../../PlaybackCanvas/PlaybackHudContext', {
+      exports: {
+        usePlaybackHud: () => ({ showHud: () => {} }),
       },
     })
 

@@ -87,7 +87,10 @@ export const SpeedControl: React.FC = () => {
       cursor="pointer"
       whiteSpace="nowrap"
       transition={transition.default}
-      props={{ onClick: cycleSpeed }}
+      props={{
+        'aria-label': 'Playback speed',
+        onClick: cycleSpeed,
+      }}
     >
       <Block>
         <Tooltip position="top">

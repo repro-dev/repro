@@ -1,5 +1,11 @@
 import { PortalRootProvider } from '@repro/design'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react'
 import expect from 'expect'
 import { afterEach, describe, it, mock } from 'node:test'
 import React from 'react'
@@ -33,7 +39,6 @@ describe('PlayAction', () => {
       },
     })
 
-    // The component imports usePlaybackState from '..' which resolves to ../../index
     t.mock.module('../../index', {
       exports: {
         usePlayback: () => mockPlayback,
@@ -74,11 +79,19 @@ describe('PlayAction', () => {
     expect(trigger).toBeDefined()
 
     // --- Test 2: Tooltip shows keycap and description ---
-    fireEvent.pointerEnter(trigger)
-    const tooltip = await screen.findByRole('tooltip')
-    expect(tooltip.getAttribute('aria-hidden')).toBe('false')
-    expect(tooltip.textContent).toContain('Play / Pause')
-    expect(tooltip.textContent).toContain('Space')
+    const tooltip = document.querySelector('[role="tooltip"]')
+    expect(tooltip).not.toBeNull()
+    expect(tooltip!.getAttribute('aria-hidden')).toBe('true')
+
+    const tooltipAnchor = trigger.firstElementChild as HTMLElement
+    fireEvent.pointerEnter(tooltipAnchor)
+
+    await waitFor(() => {
+      expect(tooltip!.getAttribute('aria-hidden')).toBe('false')
+    })
+
+    expect(tooltip!.textContent).toContain('Play / Pause')
+    expect(tooltip!.textContent).toContain('Space')
 
     // --- Test 3: Icon renders (paused -> PlayIcon via lucide) ---
     const playIcon = trigger.querySelector('svg')
