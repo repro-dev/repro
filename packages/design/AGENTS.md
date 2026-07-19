@@ -29,3 +29,19 @@ Default to the Moon commands above first. Use the direct single-test invocation 
 ## Note on JSX transform
 
 This package uses `"jsx": "react"` (classic transform), so every `.tsx` file must have `import React from 'react'`. Without it, JSX compiles to `React.createElement` calls that fail at runtime.
+
+## Internal imports
+
+Components and hooks inside `packages/design/src/` must import from local relative paths, not from `@repro/design` itself (circular self-reference). Use the tokens barrel for design tokens:
+```tsx
+import { color, spacing } from '../tokens'
+```
+
+For other internal components, import directly:
+```tsx
+import { Pagination } from '../Pagination'
+```
+
+## Shared hooks depending on external types
+
+Hooks that wrap `@repro/future-utils` (e.g. `usePaginatedResource`) must ensure that any types from `@repro/future-utils` used in the return type (`PendingFuture`, `ResolvedFuture`, `RejectedFuture`, `FutureResult`) are exported from `@repro/future-utils`. TypeScript's declaration file generation cannot name un-exported types referenced in exported function signatures, causing TS4058 errors. Add `export` to the type definitions in `packages/future-utils/src/index.ts` if they are not already exported.

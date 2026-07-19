@@ -409,12 +409,32 @@ describe('HomeRoute', () => {
     })
   })
 
-  describe('bulk select', () => {
-    it('should not show bulk toolbar when no rows are selected', async () => {
+  describe('pagination', () => {
+    function makeManyRecordings(count: number): Array<RecordingInfo> {
+      return Array.from({ length: count }, (_, i) => ({
+        id: `rec-${i + 1}`,
+        title: `Recording ${i + 1}`,
+        url: `https://example.com/${i + 1}`,
+        description: '',
+        mode: RecordingMode.Live,
+        duration: 60 + i,
+        createdAt: `2026-06-${String(count - i).padStart(
+          2,
+          '0'
+        )}T00:00:00.000Z`,
+        browserName: 'Chrome',
+        browserVersion: '120',
+        operatingSystem: null,
+        codecVersion: '1.0.0',
+      }))
+    }
+
+    it('renders pagination footer when there are more items than page size', async () => {
+      const recordings = makeManyRecordings(12)
       const getProjectRecordings = (
         _apiClient: ApiClient,
         _projectId: string
-      ): FutureInstance<unknown, RecordingInfo[]> => resolve(mockRecordings)
+      ): FutureInstance<unknown, RecordingInfo[]> => resolve(recordings)
       const wrapper = makeWrapper()
 
       render(<HomeRoute getProjectRecordings={getProjectRecordings} />, {
@@ -422,18 +442,17 @@ describe('HomeRoute', () => {
       })
 
       await waitFor(() => {
-        assert.ok(screen.getByText('Alpha Recording'))
+        assert.ok(screen.getByText('Showing up to 10 sessions per page'))
+        assert.ok(screen.getByRole('button', { name: 'Next page' }))
       })
-
-      // Bulk toolbar should not be rendered with 0 selected
-      assert.equal(screen.queryByText(/selected/), null)
     })
 
-    it('should show bulk toolbar with selection count when checkbox is clicked', async () => {
+    it('shows first 10 items on page 1 and hides page 2 items', async () => {
+      const recordings = makeManyRecordings(12)
       const getProjectRecordings = (
         _apiClient: ApiClient,
         _projectId: string
-      ): FutureInstance<unknown, RecordingInfo[]> => resolve(mockRecordings)
+      ): FutureInstance<unknown, RecordingInfo[]> => resolve(recordings)
       const wrapper = makeWrapper()
 
       render(<HomeRoute getProjectRecordings={getProjectRecordings} />, {
@@ -441,23 +460,19 @@ describe('HomeRoute', () => {
       })
 
       await waitFor(() => {
-        assert.ok(screen.getByText('Alpha Recording'))
+        assert.ok(screen.getByText('Recording 1'))
+        assert.ok(screen.getByText('Recording 10'))
+        assert.equal(screen.queryByText('Recording 11'), null)
+        assert.equal(screen.queryByText('Recording 12'), null)
       })
-
-      // Find the select-all checkbox in the table header and click it
-      // The Table component renders "Select all rows" checkbox for multi-select
-      const selectAllCheckbox = screen.getByLabelText('Select all rows')
-      fireEvent.click(selectAllCheckbox)
-
-      // Should show the selected count
-      assert.ok(screen.getByText(/3 selected/))
     })
 
-    it('should show the BulkActionToolbar with Delete button when rows are selected', async () => {
+    it('renders table rows with cursor pointer in single-select mode', async () => {
+      const recordings = makeManyRecordings(12)
       const getProjectRecordings = (
         _apiClient: ApiClient,
         _projectId: string
-      ): FutureInstance<unknown, RecordingInfo[]> => resolve(mockRecordings)
+      ): FutureInstance<unknown, RecordingInfo[]> => resolve(recordings)
       const wrapper = makeWrapper()
 
       render(<HomeRoute getProjectRecordings={getProjectRecordings} />, {
@@ -465,71 +480,18 @@ describe('HomeRoute', () => {
       })
 
       await waitFor(() => {
-        assert.ok(screen.getByText('Alpha Recording'))
+        assert.ok(screen.getByText('Recording 1'))
       })
 
-      // Select all rows
-      const selectAllCheckbox = screen.getByLabelText('Select all rows')
-      fireEvent.click(selectAllCheckbox)
+      // Table should be in single-select mode — rows have rowId set
+      const rows = screen
+        .getByLabelText('Sessions')
+        .querySelectorAll('tbody tr')
+      assert.ok(rows.length === 10)
 
-      // Should show Delete and Clear selection buttons
-      assert.ok(screen.getByText('Delete'))
-      assert.ok(screen.getByText('Clear selection'))
-    })
-
-    it('should clear selection when Clear selection is clicked', async () => {
-      const getProjectRecordings = (
-        _apiClient: ApiClient,
-        _projectId: string
-      ): FutureInstance<unknown, RecordingInfo[]> => resolve(mockRecordings)
-      const wrapper = makeWrapper()
-
-      render(<HomeRoute getProjectRecordings={getProjectRecordings} />, {
-        wrapper,
-      })
-
-      await waitFor(() => {
-        assert.ok(screen.getByText('Alpha Recording'))
-      })
-
-      // Select all rows
-      const selectAllCheckbox = screen.getByLabelText('Select all rows')
-      fireEvent.click(selectAllCheckbox)
-
-      // Should show the count
-      assert.ok(screen.getByText(/3 selected/))
-
-      // Click Clear selection
-      fireEvent.click(screen.getByText('Clear selection'))
-
-      // Selection should be cleared
-      assert.equal(screen.queryByText(/selected/), null)
-    })
-
-    it('should show confirm dialog when Delete is clicked', async () => {
-      const getProjectRecordings = (
-        _apiClient: ApiClient,
-        _projectId: string
-      ): FutureInstance<unknown, RecordingInfo[]> => resolve(mockRecordings)
-      const wrapper = makeWrapper()
-
-      render(<HomeRoute getProjectRecordings={getProjectRecordings} />, {
-        wrapper,
-      })
-
-      await waitFor(() => {
-        assert.ok(screen.getByText('Alpha Recording'))
-      })
-
-      // Select a row and click Delete
-      const selectAllCheckbox = screen.getByLabelText('Select all rows')
-      fireEvent.click(selectAllCheckbox)
-
-      // Click Delete
-      fireEvent.click(screen.getByText('Delete'))
-
-      // Confirm dialog should appear
-      assert.ok(screen.getByText('Delete selected sessions?'))
+      // Each row should have aria-selected="false" (single-select mode)
+      const row = rows[0] as HTMLTableRowElement
+      assert.equal(row.getAttribute('aria-selected'), 'false')
     })
   })
 })

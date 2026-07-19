@@ -1,6 +1,8 @@
 import { Row } from '@jsxstyle/react'
-import { Pagination, Text, color, spacing } from '@repro/design'
 import React from 'react'
+import { Pagination } from '../Pagination'
+import { Text } from '../Text'
+import { color, spacing } from '../tokens'
 
 export interface ListPageFooterProps {
   /** Muted text on the left side of the footer (e.g. "Showing up to 50 accounts per page"). */

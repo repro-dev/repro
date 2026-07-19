@@ -1,6 +1,6 @@
 import { Block } from '@jsxstyle/react'
-import { color, duration, easing, radius, spacing } from '@repro/design'
 import React from 'react'
+import { color, duration, easing, radius, spacing } from '../tokens'
 
 export interface RefreshProgressBarProps {
   show: boolean

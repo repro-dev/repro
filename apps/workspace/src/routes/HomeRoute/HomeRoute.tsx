@@ -3,23 +3,23 @@ import { ApiClient, useApiClient } from '@repro/api-client'
 import {
   Button,
   Card,
-  ConfirmDialog,
   Delay,
   EmptyState,
+  ListPageFooter,
   PageFrame,
   Skeleton,
   spacing,
   Table,
+  usePaginatedResource,
 } from '@repro/design'
 import type { RecordingInfo } from '@repro/domain'
-import { useFuture } from '@repro/future-utils'
 import { getProjectRecordings as defaultGetProjectRecordings } from '@repro/workspace-api'
 import { FutureInstance, resolve } from 'fluture'
 import { PuzzleIcon } from 'lucide-react'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { CreateProjectDialog } from '~/components/CreateProjectDialog'
 import { useProjectContext } from '~/ProjectContext'
-import { BulkActionToolbar } from './BulkActionToolbar'
 import {
   deriveVisibleSessionRecordings,
   getDefaultSessionListFilters,
@@ -37,6 +37,8 @@ import { SessionTableToolbar } from './SessionTableToolbar'
 // The real Chrome Web Store listing for the Repro capture extension.
 const CHROME_WEB_STORE_URL =
   'https://chrome.google.com/webstore/detail/repro/ecmbphfjfhnifmhbjhpejbpdnpanpice'
+
+const PAGE_SIZE = 10
 
 type ProjectRecordingsFuture = FutureInstance<unknown, RecordingInfo[]>
 
@@ -60,15 +62,6 @@ export const HomeRoute = ({
   const projectId = selectedProject?.id ?? null
   const [showCreateDialog, setShowCreateDialog] = useState(false)
 
-  // Bulk selection state
-  const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set())
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-
-  // Clear selection when project changes
-  useEffect(() => {
-    setSelectedRowIds(new Set())
-  }, [projectId])
-
   const [sortOrder, setSortOrder] = useState<SessionListSortOrder>(() =>
     readSessionListSortOrder(globalThis.localStorage)
   )
@@ -81,18 +74,31 @@ export const HomeRoute = ({
     filters.searchText
   )
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+
+  // Reset to page 1 when filters, sort, or project changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [debouncedSearchText, filters.selectedModes, sortOrder, projectId])
+
   // Re-fetch whenever the selected project changes.
-  const { loading, data: recordings } = useFuture<
-    unknown,
-    RecordingInfo[]
-  >(() => {
-    if (!projectId) {
-      // No project selected — resolve immediately with an empty list so the
-      // empty state renders rather than hanging in a loading state.
-      return emptyRecordings
-    }
-    return getProjectRecordings(apiClient, projectId)
-  }, [apiClient, projectId, getProjectRecordings])
+  const { result, displayedData } = usePaginatedResource<
+    RecordingInfo[],
+    unknown
+  >({
+    fetcher: () => {
+      if (!projectId) {
+        // No project selected — resolve immediately with an empty list so the
+        // empty state renders rather than hanging in a loading state.
+        return emptyRecordings
+      }
+      return getProjectRecordings(apiClient, projectId)
+    },
+    deps: [apiClient, projectId, getProjectRecordings],
+  })
+
+  const recordings = displayedData
 
   // Track which projectId the current `recordings` data was actually fetched
   // for.  useFuture briefly returns loading=false with stale data during the
@@ -100,13 +106,13 @@ export const HomeRoute = ({
   // we gate display on whether the completed fetch matches the current project.
   const [confirmedProjectId, setConfirmedProjectId] = useState(projectId)
   useEffect(() => {
-    if (!loading) {
+    if (!result.loading) {
       setConfirmedProjectId(projectId)
     }
-  }, [loading, projectId])
+  }, [result.loading, projectId])
 
   const isDataCurrent = confirmedProjectId === projectId
-  const effectiveLoading = projectsLoading || loading || !isDataCurrent
+  const effectiveLoading = projectsLoading || result.loading || !isDataCurrent
 
   const currentProjectId = isDataCurrent ? confirmedProjectId : null
   const items: RecordingInfo[] = isDataCurrent ? recordings ?? [] : []
@@ -185,6 +191,15 @@ export const HomeRoute = ({
     setSessionListFilters(projectId, nextFilters)
   }, [projectId])
 
+  const navigate = useNavigate()
+
+  const handleRowClick = useCallback(
+    (rowId: string) => {
+      navigate(`/projects/${currentProjectId}/recordings/${rowId}`)
+    },
+    [navigate, currentProjectId]
+  )
+
   const visibleItems = useMemo(
     () =>
       deriveVisibleSessionRecordings(items, sortOrder, {
@@ -192,6 +207,13 @@ export const HomeRoute = ({
         selectedModes: filters.selectedModes,
       }),
     [debouncedSearchText, filters.selectedModes, items, sortOrder]
+  )
+
+  const totalPages = Math.max(1, Math.ceil(visibleItems.length / PAGE_SIZE))
+  const safeCurrentPage = Math.min(currentPage, totalPages)
+  const paginatedItems = visibleItems.slice(
+    (safeCurrentPage - 1) * PAGE_SIZE,
+    safeCurrentPage * PAGE_SIZE
   )
 
   const hasActiveFilters = isSessionListFilteringActive(filters)
@@ -226,53 +248,6 @@ export const HomeRoute = ({
       writeSessionListSortOrder(globalThis.localStorage, nextSortOrder)
     },
     [sortOrder]
-  )
-
-  // Bulk selection handlers
-  const handleSelectRow = useCallback((rowId: string, selected: boolean) => {
-    setSelectedRowIds(prev => {
-      const next = new Set(prev)
-      if (selected) {
-        next.add(rowId)
-      } else {
-        next.delete(rowId)
-      }
-      return next
-    })
-  }, [])
-
-  const handleSelectAll = useCallback(
-    (selected: boolean) => {
-      if (selected) {
-        setSelectedRowIds(new Set(visibleItems.map(item => item.id)))
-      } else {
-        setSelectedRowIds(new Set())
-      }
-    },
-    [visibleItems]
-  )
-
-  const handleClearSelection = useCallback(() => {
-    setSelectedRowIds(new Set())
-  }, [])
-
-  const handleRequestDelete = useCallback(() => {
-    setShowDeleteConfirm(true)
-  }, [])
-
-  const handleConfirmDelete = useCallback(() => {
-    // Client-side delete for now — remove selected items from the local list
-    setShowDeleteConfirm(false)
-    setSelectedRowIds(new Set())
-  }, [])
-
-  const handleCancelDelete = useCallback(() => {
-    setShowDeleteConfirm(false)
-  }, [])
-
-  const visibleItemIds = useMemo(
-    () => visibleItems.map(item => item.id),
-    [visibleItems]
   )
 
   if (effectiveLoading) {
@@ -441,38 +416,33 @@ export const HomeRoute = ({
             </EmptyState>
           ) : (
             <>
-              <BulkActionToolbar
-                selectedCount={selectedRowIds.size}
-                onDelete={handleRequestDelete}
-                onClearSelection={handleClearSelection}
-              />
-
               <SessionTable
-                recordings={visibleItems}
-                projectId={currentProjectId}
+                recordings={paginatedItems}
                 sortColumn={tableSortColumn}
                 sortDirection={tableSortDirection}
                 onSort={handleTableSort}
-                selectionMode="multi"
-                selectedRows={selectedRowIds}
-                onSelectRow={handleSelectRow}
-                onSelectAll={handleSelectAll}
-                allRowIds={visibleItemIds}
+                onSelectRow={handleRowClick}
+                bleed
+                density="compact"
+                edgePadding={spacing['2xl']}
+                surface="transparent"
               />
+
+              {paginatedItems.length > 0 && (
+                <ListPageFooter
+                  footerText={`Showing up to ${PAGE_SIZE} sessions per page`}
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  hasPreviousPage={currentPage > 1}
+                  hasNextPage={currentPage < totalPages}
+                  ariaLabel="Sessions pagination"
+                  onPageChange={setCurrentPage}
+                />
+              )}
             </>
           )}
         </Col>
       </PageFrame.Body>
-
-      <ConfirmDialog
-        open={showDeleteConfirm}
-        title="Delete selected sessions?"
-        description={`This will delete ${selectedRowIds.size} selected session(s). This action cannot be undone.`}
-        confirmLabel="Delete"
-        variant="destructive"
-        onConfirm={handleConfirmDelete}
-        onCancel={handleCancelDelete}
-      />
     </PageFrame>
   )
 }

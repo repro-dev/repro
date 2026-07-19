@@ -6,18 +6,19 @@ import {
   EmptyState,
   FullPageError,
   FullPageLoading,
+  ListPageFooter,
   PageFrame,
+  RefreshProgressBar,
   Table,
   Text,
   color,
   spacing,
+  usePaginatedResource,
 } from '@repro/design'
 import { ListResponse, RecordingInfo, RecordingMode } from '@repro/domain'
 import { Inbox as InboxIcon } from 'lucide-react'
 import React, { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ListPageFooter, RefreshProgressBar } from '../components/listing'
-import { usePaginatedResource } from '../hooks/usePaginatedResource'
 
 function browserLabel(recording: RecordingInfo): string | null {
   if (recording.browserName == null) {

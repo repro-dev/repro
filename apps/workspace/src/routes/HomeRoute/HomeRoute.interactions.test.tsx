@@ -115,6 +115,22 @@ function makeWrapper(initialProjectId = 'proj-1') {
   }
 }
 
+function makeManyRecordings(count: number): Array<RecordingInfo> {
+  return Array.from({ length: count }, (_, i) => ({
+    id: `rec-${i + 1}`,
+    title: `Recording ${i + 1}`,
+    url: `https://example.com/${i + 1}`,
+    description: '',
+    mode: RecordingMode.Live,
+    duration: 60 + i,
+    createdAt: `2026-06-${String(count - i).padStart(2, '0')}T00:00:00.000Z`,
+    browserName: 'Chrome',
+    browserVersion: '120',
+    operatingSystem: null,
+    codecVersion: '1.0.0',
+  }))
+}
+
 describe('HomeRoute interactions', () => {
   afterEach(() => {
     cleanup()
@@ -341,11 +357,93 @@ describe('HomeRoute interactions', () => {
       assert.ok(screen.getByRole('checkbox', { name: 'Replay' }))
     })
   })
+
+  describe('pagination', () => {
+    it('resets to page 1 when filter changes', async () => {
+      const recordings = makeManyRecordings(12)
+      const getProjectRecordings = (
+        _apiClient: ApiClient,
+        _projectId: string
+      ): FutureInstance<unknown, RecordingInfo[]> => resolve(recordings)
+      const wrapper = makeWrapper()
+
+      render(<HomeRoute getProjectRecordings={getProjectRecordings} />, {
+        wrapper,
+      })
+
+      // Wait for first page — shows items 1-10
+      await waitFor(() => {
+        assert.ok(screen.getByText('Recording 1'))
+        assert.ok(screen.getByText('Recording 10'))
+      })
+
+      // Navigate to page 2
+      fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
+
+      await waitFor(() => {
+        assert.ok(screen.getByText('Recording 11'))
+        assert.ok(screen.getByText('Recording 12'))
+      })
+
+      // Change filter — should reset to page 1
+      fireEvent.change(
+        screen.getByRole('textbox', { name: 'Search sessions' }),
+        {
+          target: { value: 'Recording' },
+        }
+      )
+
+      await new Promise(r => setTimeout(r, 350))
+
+      // Should show items 1-10 again
+      assert.ok(screen.getByText('Recording 1'))
+      assert.ok(screen.getByText('Recording 10'))
+      assert.equal(screen.queryByText('Recording 11'), null)
+    })
+
+    it('navigates between pages showing different items', async () => {
+      const recordings = makeManyRecordings(12)
+      const getProjectRecordings = (
+        _apiClient: ApiClient,
+        _projectId: string
+      ): FutureInstance<unknown, RecordingInfo[]> => resolve(recordings)
+      const wrapper = makeWrapper()
+
+      render(<HomeRoute getProjectRecordings={getProjectRecordings} />, {
+        wrapper,
+      })
+
+      await waitFor(() => {
+        assert.ok(screen.getByText('Recording 1'))
+      })
+
+      // Page 1 shows items 1-10
+      assert.ok(screen.getByText('Recording 1'))
+      assert.ok(screen.getByText('Recording 10'))
+      assert.equal(screen.queryByText('Recording 11'), null)
+
+      // Click next page
+      fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
+
+      await waitFor(() => {
+        assert.ok(screen.getByText('Recording 11'))
+        assert.equal(screen.queryByText('Recording 1'), null)
+      })
+
+      // Click previous page
+      fireEvent.click(screen.getByRole('button', { name: 'Previous page' }))
+
+      await waitFor(() => {
+        assert.ok(screen.getByText('Recording 1'))
+        assert.equal(screen.queryByText('Recording 11'), null)
+      })
+    })
+  })
 })
 
 function getRowTitles(): Array<string> {
   return screen
     .getAllByRole('row')
     .slice(1)
-    .map(row => (row as HTMLTableRowElement).cells[1]?.textContent ?? '')
+    .map(row => (row as HTMLTableRowElement).cells[0]?.textContent ?? '')
 }

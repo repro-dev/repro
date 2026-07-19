@@ -1,35 +1,35 @@
 import { Block } from '@jsxstyle/react'
 import { formatDate, formatTime } from '@repro/date-utils'
-import { Badge, Table, Tooltip, color, textStyles } from '@repro/design'
+import { Badge, Table, Text, Tooltip, spacing, textStyles } from '@repro/design'
 import type { RecordingInfo } from '@repro/domain'
 import { RecordingMode } from '@repro/domain'
+import type { CSSProperties } from 'react'
 import React from 'react'
-import { Link } from 'react-router-dom'
 
 interface Props {
   recordings: RecordingInfo[]
-  projectId: string
   sortColumn: string | null
   sortDirection: 'asc' | 'desc' | null
   onSort(columnId: string): void
-  selectionMode?: 'none' | 'single' | 'multi'
-  selectedRows?: ReadonlySet<string>
-  onSelectRow?: (rowId: string, selected: boolean) => void
-  onSelectAll?: (selected: boolean) => void
-  allRowIds?: readonly string[]
+  onSelectRow?: (rowId: string) => void
+  bleed?: boolean
+  bleedTop?: React.ReactNode
+  density?: 'compact' | 'default'
+  edgePadding?: CSSProperties['paddingLeft']
+  surface?: 'default' | 'transparent'
 }
 
 export const SessionTable: React.FC<Props> = ({
   recordings,
-  projectId,
   sortColumn,
   sortDirection,
   onSort,
-  selectionMode = 'none',
-  selectedRows = new Set(),
   onSelectRow,
-  onSelectAll,
-  allRowIds = [],
+  bleed,
+  bleedTop,
+  density,
+  edgePadding = spacing['2xl'],
+  surface = 'transparent',
 }) => {
   return (
     <Table
@@ -37,11 +37,13 @@ export const SessionTable: React.FC<Props> = ({
       sortColumn={sortColumn}
       sortDirection={sortDirection}
       onSort={onSort}
-      selectionMode={selectionMode}
-      selectedRows={selectedRows}
+      selectionMode="single"
       onSelectRow={onSelectRow}
-      onSelectAll={onSelectAll}
-      allRowIds={allRowIds}
+      bleed={bleed}
+      bleedTop={bleedTop}
+      density={density}
+      edgePadding={edgePadding}
+      surface={surface}
     >
       <Table.Header>
         <Table.Row>
@@ -69,15 +71,9 @@ export const SessionTable: React.FC<Props> = ({
         {recordings.map(recording => (
           <Table.Row key={recording.id} rowId={recording.id}>
             <Table.Cell>
-              <Block
-                component={Link}
-                color={color.primary}
-                props={{
-                  to: `/projects/${projectId}/recordings/${recording.id}`,
-                }}
-              >
+              <Text variant="label" as="span">
                 {recording.title}
-              </Block>
+              </Text>
             </Table.Cell>
 
             <Table.Cell>
