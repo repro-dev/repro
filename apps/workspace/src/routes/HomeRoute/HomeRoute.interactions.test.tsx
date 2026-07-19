@@ -445,5 +445,5 @@ function getRowTitles(): Array<string> {
   return screen
     .getAllByRole('row')
     .slice(1)
-    .map(row => (row as HTMLTableRowElement).cells[1]?.textContent ?? '')
+    .map(row => (row as HTMLTableRowElement).cells[0]?.textContent ?? '')
 }
