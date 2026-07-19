@@ -56,6 +56,10 @@ import {
   TOOL_DEFINITION as getEventsAroundTimeDef,
 } from './get-events-around-time'
 import {
+  handler as getLayoutSummary,
+  TOOL_DEFINITION as getLayoutSummaryDef,
+} from './get-layout-summary'
+import {
   handler as getNetworkRequests,
   TOOL_DEFINITION as getNetworkRequestsDef,
 } from './get-network-requests'
@@ -88,6 +92,7 @@ export const tools = [
   getElementDetailsDef,
   getEventsDef,
   getEventsAroundTimeDef,
+  getLayoutSummaryDef,
   getDOMDiffDef,
   getUserActionsDef,
   advanceStageDef,
@@ -122,6 +127,7 @@ const toolHandlers: Record<string, ToolHandler> = {
   getElementDetails,
   getEvents,
   getEventsAroundTime,
+  getLayoutSummary,
   getDOMDiff,
   getUserActions,
   advanceStage,
