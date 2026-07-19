@@ -18,23 +18,33 @@ export const PlaybackShortcutsHelp: React.FC = () => (
   <Popover>
     <Popover.Trigger>
       <Row
+        position="relative"
         alignItems="center"
-        justifyContent="center"
-        width={32}
-        height={32}
-        color={color.primary}
-        borderRadius={4}
         cursor="pointer"
-        props={{ 'aria-label': 'Keyboard shortcuts', role: 'button' }}
+        paddingH={spacing.sm}
       >
-        <HelpIcon size={14} />
+        <Row
+          alignItems="center"
+          justifyContent="center"
+          width={32}
+          height={32}
+          hoverBackgroundColor={color.bg.hover}
+          color={color.primary}
+          borderRadius={4}
+          title="Keyboard shortcuts"
+          props={{ 'aria-label': 'Keyboard shortcuts', role: 'button' }}
+        >
+          <HelpIcon size={14} />
+        </Row>
       </Row>
     </Popover.Trigger>
     <Popover.Content
       aria-label="Playback keyboard shortcuts"
       side="top"
       align="end"
+      style={{ outline: 'none' }}
     >
+      <Popover.Arrow />
       <Col gap={spacing.md}>
         {SHORTCUTS.map(({ key, action }) => (
           <Row key={key} gap={spacing.md} alignItems="center">
