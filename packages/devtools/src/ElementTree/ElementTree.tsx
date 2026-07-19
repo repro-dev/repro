@@ -100,7 +100,7 @@ export const ElementTree: React.FC<Props> = ({
   }, [activeRef, selectedNode, openNode])
 
   useEffect(() => {
-    if (!activeRef.current) {
+    if (!activeRef.current && activeBreakpointNode !== null) {
       openNode(activeBreakpointNode)
       setSelectedNodeTag('open')
       onSelectNode(activeBreakpointNode)
