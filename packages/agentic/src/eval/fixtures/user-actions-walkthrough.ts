@@ -81,6 +81,7 @@ export function createFixture(): EvalFixture {
         interaction: null,
         frameworkState: null,
         cssRules: null,
+        colorScheme: null,
       }
     }
 
@@ -149,9 +150,11 @@ export function createFixture(): EvalFixture {
           }),
         },
       },
+      colorScheme: null,
       interaction: null,
       frameworkState: null,
       cssRules: null,
+      colorScheme: null,
     }
   }
 

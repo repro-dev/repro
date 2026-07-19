@@ -126,7 +126,7 @@ Sort ready candidates by composite signal strength. Weight thematic connection a
 
 ### 2d. Surface reprioritization recommendations
 
-Compare the ranked order against Linear's assigned priorities. Flag cases where a lower-priority issue outranks a higher-priority one — this may indicate stale prioritization in Linear. Collect these as **reprioritization recommendations** for the output artifacts. Do not mutate Linear — this is a non-binding nudge. Suggest a follow-up `/groom` run to correct priorities.
+Compare the ranked order against Linear's assigned priorities. Flag cases where a lower-priority issue outranks a higher-priority one — this may indicate stale prioritization in Linear. Collect these as **reprioritization recommendations** for the output artifacts. Do not mutate Linear — this is a non-binding nudge. Suggest a follow-up backlog grooming pass to correct priorities.
 
 Build the deferred list: collect all skipped issues with their skip reason and the rubric bucket they fell into.
 
@@ -199,7 +199,7 @@ Ready candidates sequenced by thematic connection, recency, and priority — sta
 
 ## Reprioritization Recommendations
 
-Non-binding suggestions — run `/groom` to apply.
+Non-binding suggestions — review and update priorities in Linear directly.
 
 | Issue | Current Priority | Suggested | Because |
 | ----- | ---------------- | --------- | ------- |
@@ -208,7 +208,7 @@ Non-binding suggestions — run `/groom` to apply.
 ## Next Actions
 
 1. Deliver the top candidates with `/build REP-xxx`
-2. Run `/groom <project>` to review the reprioritization recommendations above
+2. Review the reprioritization recommendations above and update priorities in Linear
 3. Review **Deferred** issues and resolve blockers or add specification before the next discovery
 ```
 
@@ -233,7 +233,7 @@ After writing artifacts, print the candidate list inline and **stop**. The opera
 
 ### Reprioritization suggestions
 
-REP-5 (Medium) outranks REP-3 (High). Consider /groom <project> to review.
+REP-5 (Medium) outranks REP-3 (High). Review and update priority in Linear.
 
 ### Deferred (K)
 

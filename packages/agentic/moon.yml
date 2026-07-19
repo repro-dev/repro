@@ -5,6 +5,9 @@ tags:
   - type.package
   - role.util
 tasks:
+  # Eval is an LLM-nondeterministic harness (needs OPENROUTER_API_KEY + network); it runs
+  # via the nightly/weekly workflows and manually with `moon run repro/agentic:eval`.
+  # Exclude it from `moon ci` so it never gates pre-push or PR CI. Full decoupling: REP-1545.
   eval:
     command: tsx src/eval/index.ts
     deps:
@@ -13,6 +16,8 @@ tasks:
       - src/eval/**/*.ts
     env:
       OPENROUTER_API_KEY: $OPENROUTER_API_KEY
+    options:
+      runInCI: false
   apply-prompt-suggestions:
     command: tsx src/eval/applyPromptSuggestions.ts
     deps:

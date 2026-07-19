@@ -1,4 +1,4 @@
-import { PmConnection, PmProvider } from '@repro/domain'
+import { PmConnection, PmOAuthProviders, PmProvider } from '@repro/domain'
 import { generateState } from 'arctic'
 import { FastifyPluginAsync } from 'fastify'
 import { FutureInstance, chain, encaseP, go, map, reject } from 'fluture'
@@ -13,20 +13,6 @@ import { createResponseUtils } from '~/utils/response'
 
 // Five-minute max-age for the PM OAuth state cookie.
 const PM_OAUTH_COOKIE_MAX_AGE = 300
-
-export interface PmOAuthProvider {
-  createAuthorizationURL(state: string, scopes: string[]): URL
-  validateAuthorizationCode(code: string): Promise<{
-    accessToken(): string
-    hasRefreshToken(): boolean
-    refreshToken(): string
-    accessTokenExpiresAt(): Date
-    scopes(): string[]
-  }>
-  fetchWorkspaceInfo(accessToken: string): Promise<{ id: string; name: string }>
-}
-
-export type PmOAuthProviders = Record<string, PmOAuthProvider>
 
 function toSafeConnection(row: {
   id: number

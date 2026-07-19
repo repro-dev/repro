@@ -26,7 +26,6 @@ Use this skill when the changed surface is a browser extension rather than a nor
 Use the service that matches the extension you are verifying:
 
 - `capture` for capture-extension work
-- `dev-toolbar` for toolbar-extension work
 
 The common pattern is to use `reproctl start --wait <service>` so the extension build/watch pipeline and any required local services are ready before browser automation begins.
 

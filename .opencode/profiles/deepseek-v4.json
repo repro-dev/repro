@@ -6,37 +6,16 @@
       "model": "deepseek/deepseek-v4-pro",
       "template": ""
     },
-    "groom": {
-      "model": "deepseek/deepseek-v4-pro",
-      "template": ""
-    },
-    "enrich-issues": {
-      "model": "deepseek/deepseek-v4-pro",
-      "template": ""
-    },
     "review": {
-      "model": "deepseek/deepseek-v4-pro",
-      "template": ""
-    },
-    "ledger": {
-      "model": "deepseek/deepseek-v4-flash",
-      "template": ""
-    },
-    "handoff": {
-      "model": "deepseek/deepseek-v4-flash",
-      "template": ""
-    },
-    "audit-skills": {
-      "model": "deepseek/deepseek-v4-pro",
-      "template": ""
-    },
-    "update-visual-baselines": {
       "model": "deepseek/deepseek-v4-pro",
       "template": ""
     }
   },
   "agent": {
     "develop": {
+      "model": "deepseek/deepseek-v4-flash"
+    },
+    "filtered-runner": {
       "model": "deepseek/deepseek-v4-flash"
     },
     "librarian": {

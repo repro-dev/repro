@@ -1,6 +1,6 @@
 ---
 description: Single-track implementation — build one issue in the current worktree
-return: "After the PR is published, run /ledger to capture the session summary for continuity. Do not treat local verification as completion; PR creation is the publish gate."
+return: "Do not treat local verification as completion; PR creation is the publish gate."
 ---
 
 You are the orchestrator for `/build`.

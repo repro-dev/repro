@@ -173,7 +173,7 @@ The repo includes standalone visual regression tooling in `scripts/`. It is usef
 
 ### Baseline storage
 
-- **`tmp/visual-baselines/`** (main checkout) — machine-local PNG reference images, git-ignored. Run `/update-visual-baselines` to populate or refresh after an intentional visual change is merged.
+- **`tmp/visual-baselines/`** (main checkout) — machine-local PNG reference images, git-ignored. Run `bash scripts/visual-regression.sh --update-baselines` to populate or refresh after an intentional visual change is merged.
 - **`<worktree>/tmp/visual-baselines-ref/`** — baselines copied from main into the worktree for the diff run. Transient; recreated on each run.
 - **`<worktree>/tmp/visual-screenshots/`** — current-branch screenshots captured during the check.
 - **`<worktree>/tmp/visual-diffs/`** — diff PNGs written when a story exceeds the pixel threshold. Included in escalation messages.
@@ -192,7 +192,7 @@ Pass `--stories '[]'` to check all stories. The script outputs JSON (same shape 
 
 ### Updating baselines
 
-Run the `/update-visual-baselines` command (or directly):
+Update baselines directly:
 
 ```sh
 bash scripts/visual-regression.sh \

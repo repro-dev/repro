@@ -12,6 +12,7 @@ import {
 import { History, SquarePen } from 'lucide-react'
 import React, { useEffect, useRef, useState } from 'react'
 import { AgenticInputSection } from './components/AgenticInputSection'
+import { AskUserPrompt } from './components/AskUserPrompt'
 import { CopyForCodingAgentButton } from './components/CopyForCodingAgentButton'
 import { HypothesisList } from './components/HypothesisList'
 import { JumpToEndButton } from './components/JumpToEndButton'
@@ -41,6 +42,7 @@ export const AgenticView: React.FC<{
   const wasCancelled = useAtomValue(agentic.$wasCancelled)
   const stage = useAtomValue(agentic.$stage)
   const hypotheses = useAtomValue(agentic.$hypotheses)
+  const pendingInteraction = useAtomValue(agentic.$pendingInteraction)
 
   const lastPromptRef = useRef('')
 
@@ -147,7 +149,7 @@ export const AgenticView: React.FC<{
       </Col>
 
       <AgenticInputSection
-        disabled={isActive}
+        disabled={isActive || pendingInteraction != null}
         entries={entries}
         shouldRaise={shouldRaiseInput}
         hasConversationStarted={entries.length > 0}
@@ -155,10 +157,39 @@ export const AgenticView: React.FC<{
         onSubmit={handleSubmit}
       />
 
-      <LoadingIndicator
-        loading={loading}
-        onCancel={isActive ? agentic.cancel : undefined}
-      />
+      {pendingInteraction == null && (
+        <LoadingIndicator
+          loading={loading}
+          onCancel={isActive ? agentic.cancel : undefined}
+        />
+      )}
+
+      {pendingInteraction != null && (
+        <Block
+          backgroundColor={color.bg.surface}
+          borderColor={color.border.default}
+          borderStyle="solid"
+          borderWidth={0}
+          borderBlockStartWidth={1}
+          borderRadius={0}
+          bottom={0}
+          boxShadow="0 -4px 8px rgba(0, 0, 0, 0.05)"
+          left={0}
+          marginInline={-spacing['2xl']}
+          overflow="hidden"
+          paddingBlock={spacing['3xl']}
+          paddingInline={spacing['2xl']}
+          position="absolute"
+          right={0}
+        >
+          <AskUserPrompt
+            request={pendingInteraction.request}
+            toolCallId={pendingInteraction.toolCallId}
+            onSubmit={answer => agentic.submitAskUserAnswer(answer)}
+            fullBleed
+          />
+        </Block>
+      )}
 
       <JumpToEndButton
         shouldShow={shouldShowJumpToEndAction}

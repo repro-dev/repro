@@ -4,6 +4,7 @@ import helmet from '@fastify/helmet'
 import rateLimit from '@fastify/rate-limit'
 import { buildRateLimitOptions } from '~/rateLimit'
 
+import { PmOAuthProviders } from '@repro/domain'
 import { Google, Linear } from 'arctic'
 import fastify, { FastifyPluginAsync } from 'fastify'
 import {
@@ -29,10 +30,7 @@ import { createBillingWebhookRouter } from '~/routers/billingWebhook'
 import { createFeatureGateRouter } from '~/routers/featureGate'
 import { createHealthRouter } from '~/routers/health'
 import { createOAuthRouter } from '~/routers/oauth'
-import {
-  createPmIntegrationRouter,
-  PmOAuthProviders,
-} from '~/routers/pmIntegrations'
+import { createPmIntegrationRouter } from '~/routers/pmIntegrations'
 import { createProjectRouter } from '~/routers/project'
 import { createSocialAuthRouter } from '~/routers/socialAuth'
 import { createAccountService } from '~/services/account'
@@ -156,6 +154,41 @@ function createLinearProvider(callbackPath: string) {
 
       return { id: org.id, name: org.name }
     },
+    refreshAccessToken: async (refreshToken: string) => {
+      const tokenResp = await fetch('https://api.linear.app/oauth/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          grant_type: 'refresh_token',
+          refresh_token: refreshToken,
+          client_id: env.LINEAR_CLIENT_ID!,
+          client_secret: env.LINEAR_CLIENT_SECRET!,
+        }),
+      })
+
+      if (!tokenResp.ok) {
+        throw new Error(`Linear token refresh failed: HTTP ${tokenResp.status}`)
+      }
+
+      const json = (await tokenResp.json()) as {
+        access_token?: string
+        refresh_token?: string
+        expires_in?: number
+      }
+
+      if (!json.access_token) {
+        throw new Error('Linear token refresh returned no access token')
+      }
+
+      const expiresAt = new Date(Date.now() + (json.expires_in ?? 3600) * 1000)
+
+      return {
+        accessToken: () => json.access_token!,
+        hasRefreshToken: () => json.refresh_token != null,
+        refreshToken: () => json.refresh_token ?? refreshToken,
+        accessTokenExpiresAt: () => expiresAt,
+      }
+    },
   }
 }
 
@@ -243,7 +276,6 @@ async function bootstrap() {
   )
   const shareService = createShareService(database, env.REPRO_APP_URL)
   const socialAuthService = createSocialAuthService(database)
-  const pmIntegrationService = createPmIntegrationService(database)
 
   const googleProvider = createGoogleProvider('/account/oauth/google/callback')
   const socialAuthRouter = createSocialAuthRouter(
@@ -270,6 +302,7 @@ async function bootstrap() {
       'PM integration providers configured'
     )
   }
+  const pmIntegrationService = createPmIntegrationService(database, pmProviders)
   const pmIntegrationRouter = createPmIntegrationRouter(
     accountService,
     pmIntegrationService,
@@ -336,7 +369,8 @@ async function bootstrap() {
   const registerSessionDecorator = createSessionDecorator(
     accountService,
     env,
-    apiKeyService
+    apiKeyService,
+    { staffPathPrefix: '/staff' }
   )
 
   const accountPlugins: FastifyPluginAsync = async app => {

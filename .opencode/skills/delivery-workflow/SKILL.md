@@ -50,21 +50,16 @@ When keeping the status table updated, make backoff explicit so the operator can
 - `build-and-test` — test runners, typecheck, and formatting commands
 - `testing-workflow` — repo-specific harness guidance, mock conventions, and test triage
 - `git-workflow` — commits, PR mechanics, and Linear status lifecycle
-- `bug-rigor` — root-cause-first bug workflow for genuine defects and regressions
+- `bugfix` — full bug diagnosis and fix pipeline for genuine defects and regressions
 - `context-gather` — assemble issue, dependency, and prior-work context before planning
 - `test-plan` — write the test strategy explicitly when coverage needs coordination
-- `design-direction` — upstream UI intent capture for ambiguous or net-new visual direction
-- `design-edit` — localized follow-up edits on an existing UI surface
-- `design-handoff` — preserve settled UI direction across planning, implementation, review, audit, and browser verification
 - Domain skills — only when the changed code lives in that domain
-
-For non-trivial UI changes, use `design-direction` only when the direction is still unresolved. Use `design-edit` when the work is a bounded follow-up on an existing surface. Use `design-handoff` when the direction is already settled and needs to survive downstream handoffs. Otherwise, use `design-system` for implementation, `ui-verification` for post-change browser validation, and `audit-ui-quality` only for broader audits, scoring, or polish passes.
 
 ## 1. Pre-flight
 
 1. Fetch the Linear issue via `linear issue show REP-123 --json`. For non-Linear work, establish a stable topic label for `tmp/context-<topic>.md`.
-2. Load support skills needed. If the work is a genuine bug fix or regression, load `bug-rigor` before implementation begins. If non-trivial UI work still needs visual direction, load `design-direction` before planning starts.
-3. Create `tmp/context-<issue-id>.md` and `tmp/test-plan-<issue-id>.md` under the worktree root. For UI work, extend the context artifact with `## Design Direction`, `## Targeted Design Edit`, or `## Design Handoff Context` blocks as appropriate. For non-Linear work, write `tmp/context-<topic>.md`.
+2. Load support skills needed. If the work is a genuine bug fix or regression, load `bugfix` before implementation begins.
+3. Create `tmp/context-<issue-id>.md` and `tmp/test-plan-<issue-id>.md` under the worktree root. For non-Linear work, write `tmp/context-<topic>.md`.
 4. If the issue spans 3+ packages, depends on prior investigation threads, or the relevant scope is scattered across related issues/comments/docs, run `context-gather`.
 5. Treat missing required artifacts as a pre-flight failure. Create the missing artifact first, then retry the blocked step instead of continuing with degraded context.
 
@@ -92,22 +87,16 @@ Before proceeding to planning, run these readiness checks:
    > "Issue REP-<id> does not have enough concrete detail for autonomous implementation. Add missing scope or split off child issues, then re-run `/build`."
    Add the `needs-spec` label, add the issue ID to `escalated_issues`, and stop.
 
-6. **UI context recovery**: If the issue is UI-bearing and the only missing prerequisite is recoverable UI context (no `## Design Direction`, `## Targeted Design Edit`, or `## Design Handoff Context` in `tmp/context-<issue-id>.md`), run the matching design workflow, re-read the context artifact, and retry boundedness before escalating. Do **not** add `needs-spec` for this recoverable path.
-
-7. If a stop condition was triggered by recoverable missing UI context, handle as in step 6. If still failing after context capture, add `needs-spec`, add to `escalated_issues`, and stop.
-
-8. If all checks pass, set the issue to **In Progress** and continue to planning.
+6. If all checks pass, set the issue to **In Progress** and continue to planning.
 
 ## 2. Planning
 
 1. Break the issue into concrete tasks.
 2. Identify affected packages and read any package-level `AGENTS.md` files.
 3. Use jcodemunch before full-file reads: `resolve_repo` → `search_symbols` → `get_file_outline` → `get_blast_radius`.
-4. If the issue is UI-bearing with unresolved visual direction and the worktree-local `tmp/context-<issue-id>.md` does not yet contain the `## Design Direction` block, pause, resolve design-direction first, and retry after the context artifact is populated. For bounded UI follow-up edits, require `## Targeted Design Edit`. For settled decisions that must not be reinterpreted, require `## Design Handoff Context`.
-5. Delegate planning to a single `planner` subagent for the issue. Do not delegate to `planner` until the matching `tmp/context-<issue-id>.md` or `tmp/context-<topic>.md` artifact exists, and make sure any unresolved UI direction is already captured in that artifact.
+4. Delegate planning to a single `planner` subagent for the issue. Do not delegate to `planner` until the matching `tmp/context-<issue-id>.md` or `tmp/context-<topic>.md` artifact exists.
 6. For non-trivial behavior changes, produce a small `tmp/test-plan-<issue-id>.md` artifact before implementation starts. If a `develop` agent will implement this, the test plan is required.
 7. When a required `tmp/context-*` or `tmp/test-plan-*` artifact is the only blocker, enter an enforce-and-retry loop: create the artifact, then retry the blocked planning step.
-8. Capture session context with `/ledger` when the work will span sessions.
 
 ### Inline skill matching (before each planner spawn)
 
@@ -120,7 +109,6 @@ Before composing the planner prompt, run the following matching inline — do **
 | `.opencode/skills/agentic/SKILL.md`            | `packages/agentic`, `packages/agentic-ui`, `apps/capture` (Agentic.hoc.tsx), agentic routes or services in `apps/api-server`                                                                                        |
 | `.opencode/skills/database/SKILL.md`           | `packages/data`, Kysely, migrations, schema changes, database queries                                                                                                                                               |
 | `.opencode/skills/design-system/SKILL.md`      | `packages/design`, `@repro/design`, UI components, design tokens                                                                                                                                                    |
-| `.opencode/skills/design-direction/SKILL.md`   | UI direction, visual direction, design intent, UI polish, redesign, ambiguous interface, net-new screen                                                                                                             |
 | `.opencode/skills/recording-playback/SKILL.md` | `apps/capture`, `packages/recording`, `packages/playback`, `packages/recording-api`, `packages/buffer-utils`, `packages/vdom-renderer`, `packages/source-utils`, `packages/observer-utils`, `packages/wire-formats` |
 | `.opencode/skills/build-and-test/SKILL.md`     | build system, moon, pnpm workspaces, CI, reproctl, tool version pinning                                                                                                                                             |
 
@@ -133,13 +121,11 @@ General-purpose skills (`delivery-workflow`, `implementation-rigor`, `git-workfl
 3. Collect all matching skill file paths.
 4. If more than 3 match, keep the 3 most specific (prefer full package-path matches over keyword-only matches; prefer longer path segments over shorter ones).
 5. If 0 rows match, skip injection — use the prompt template below unchanged.
-6. If the issue is a bounded UI follow-up and the current `tmp/context-<issue-id>.md` lacks a `## Targeted Design Edit` block, inject `.opencode/skills/design-edit/SKILL.md` even when no path-pattern row matched. If the issue is UI-bearing with unresolved visual direction and lacks a `## Design Direction` block, inject `.opencode/skills/design-direction/SKILL.md`. If direction is already settled and only needs preservation, inject `.opencode/skills/design-handoff/SKILL.md` when the context artifact lacks `## Design Handoff Context`.
+
 
 ### Planner prompt template
 
 When 1–3 skills matched in the inline skill matching step above, include the `## Relevant conventions` block (shown below between `[INJECT IF MATCHED]` and `[END INJECT]`) immediately after the `Worktree:` line. Omit the block entirely when 0 skills matched.
-
-If the targeted-edit, UI-direction, or design-handoff gate applies, also tell the planner to treat the current `tmp/context-<issue-id>.md` as authoritative UI context and to read its `## Targeted Design Edit` block when present, plus any `## Design Direction` and `## Design Handoff Context` blocks, before planning unless the plan explicitly calls out a strategic mismatch.
 
 ```
 Produce an implementation plan for Linear issue REP-xxx in worktree <absolute-worktree-path>.
@@ -222,8 +208,7 @@ After both QC checks pass (or produce advisory-only results):
 
 If the planner returns `not ready` or includes unresolved questions that prevent confident implementation:
 
-- First check whether the blocker is recoverable missing UI context (`## Design Direction`, `## Targeted Design Edit`, or `## Design Handoff Context`). If so, run the matching design workflow, re-read the context artifact, and retry planner launch before escalating. Do **not** add `needs-spec` for this recoverable path.
-- If the issue is still not ready after context capture, post a concise Linear comment describing the blocking questions and the next action: tighten the issue scope, create child issues if needed, remove `needs-spec` when the issue is bounded, and rerun `/build` on the refined issue.
+- Post a concise Linear comment describing the blocking questions and the next action: tighten the issue scope, create child issues if needed, remove `needs-spec` when the issue is bounded, and rerun `/build` on the refined issue.
 - Set the issue state back to **Todo** and add the `needs-spec` label with `linear issue update <issue-id> --add-label needs-spec --status "Todo" --json`
 - Add the issue ID to `escalated_issues`
 
@@ -253,7 +238,7 @@ Store the risk level alongside the issue in the status table for the rest of the
 
 Launch `develop` for the issue. Use `develop` for any implementation touching 2+ files. Use `test` after implementation to audit coverage and add regressions.
 
-Do not launch `develop` until the issue has a completed planner result plus the required context and test-plan artifacts. If the issue is UI-bearing and the work is a bounded follow-up edit, the context artifact must already carry the `## Targeted Design Edit` block; if the issue is UI-bearing with unresolved visual direction, it must carry the `## Design Direction` block; if settled UI decisions must not be reinterpreted, it must also carry `## Design Handoff Context`. If a required artifact is missing, create it and retry the launch instead of improvising the implementation path.
+Do not launch `develop` until the issue has a completed planner result plus the required context and test-plan artifacts. If a required artifact is missing, create it and retry the launch instead of improvising the implementation path.
 
 ### `/impeccable` hand-off mandate (issue-driven)
 
@@ -291,8 +276,18 @@ Plan: <worktree>/tmp/plan-REP-xxx.md
 Read the plan first and follow it. The plan file is authoritative.
 Do not re-explore the codebase from scratch unless the plan clearly points you there.
 Do not push or create a PR.
-Read the plan, the current context artifact, and the test plan before coding. For UI-bearing issues, a `## Targeted Design Edit` block is authoritative for localized follow-up scope, a `## Design Direction` block is authoritative upstream intent unless the plan calls out a strategic mismatch, and any `## Design Handoff Context` block must be preserved for settled decisions that must not drift.
-For UI-bearing issues, run `audit-ui-quality` on the implementation before returning and keep authored polish separate from design-system compliance; if the audit finds low-polish output, return concrete fixes rather than a ship-as-is handoff. When a `## Targeted Design Edit` block is present, the final handoff must tie back to its scope boundary and verification evidence expectations. The final handoff must include browser evidence paths, the viewport/state/interaction notes, artifact-lint status, and a ship-readiness summary tied back to the consumed context artifact.
+Read the plan, the current context artifact, and the test plan before coding.
+
+Tactical implementation-level deviations are allowed if they still satisfy the plan and issue.
+If you discover a strategic mismatch that invalidates the plan, stop and report it instead of improvising a larger redesign.
+
+Write temporary output only under <absolute-worktree-path>/tmp/.
+
+Friction logging: if you encounter friction during implementation (unclear patterns, missing documentation, ambiguous conventions, surprising codebase state), append an entry to `<absolute-worktree-path>/tmp/friction.md` in this format:
+  [Brief description]
+  - Phase: implementation
+  - Root cause: <one of: missing-docs, unclear-pattern, tooling-gap, stale-code>
+Do not stop or change your approach — log and continue.
 
 Tactical implementation-level deviations are allowed if they still satisfy the plan and issue.
 If you discover a strategic mismatch that invalidates the plan, stop and report it instead of improvising a larger redesign.
@@ -312,6 +307,8 @@ Return the REP-1081 proof bundle first. Required fields: browser evidence paths,
 
 After the `develop` agent finishes, run existing tests for the issue. This step is informational only — test failures do not halt the pipeline.
 
+Delegate test runs to the `filtered-runner` subagent so verbose build output stays isolated from the orchestrator context.
+
 1. Determine affected packages from the worktree diff:
 
    ```sh
@@ -320,20 +317,25 @@ After the `develop` agent finishes, run existing tests for the issue. This step 
 
    Extract the first path segment from every line that starts with `apps/` or `packages/` (e.g. `packages/agentic/src/foo.ts` → `agentic`). Deduplicate. Skip all other paths (e.g. `.opencode/`, root config files).
 
-2. For each affected package `<name>`, run:
+2. For each affected package `<name>`, launch the `filtered-runner` subagent via the Task tool with this payload:
 
-   ```sh
-   pnpm --filter @repro/<name> test
+   ```json
+   {
+     "package": "<name>",
+     "command": "test",
+     "worktree": "<absolute-worktree-path>"
+   }
    ```
 
-   If pnpm exits because the package has no `test` script (error output contains "missing script: test"), skip that package — this is not a test failure.
+   Collect the structured JSON result returned by the subagent. Do not render raw moon output in the orchestrator.
 
-3. **If all tests pass** (or no testable packages were touched): record `smoke_test_result: pass` for this issue. Do not alter the review prompt.
+3. After collecting results from all affected packages, aggregate them:
 
-4. **If one or more tests fail**: record `smoke_test_result: fail` for this issue with a structured failure summary:
-   - Package name (`@repro/<name>`)
-   - Failing test file(s)
-   - Condensed error output (first ~10 lines per failing file)
+   - If every result has an empty `errors` array: record `smoke_test_result: pass` for this issue. Do not alter the review prompt.
+   - If one or more results have non-empty `errors`: record `smoke_test_result: fail` with the aggregated failure summary:
+     - Package name (`@repro/<name>`)
+     - Per-error: `command`, `file`, `message`
+     - The `summary` string from each result
 
 Store the smoke test result in memory for use in the review prompt.
 
@@ -367,12 +369,11 @@ Spawn reviewers based on the risk level computed in the risk classification phas
 
 **Standard-risk issues**: launch a single `review` agent using the standard prompt template below.
 
-**High-risk issues**: spawn 3–4 focused `review` agents in parallel, each with a scoped prompt:
+**High-risk issues**: spawn 2–3 focused `review` agents in parallel, each with a scoped prompt:
 
 1. **Correctness + Security reviewer** — always spawned for high-risk issues
 2. **Architecture + Conventions reviewer** — always spawned for high-risk issues
 3. **Performance reviewer** — only spawned when data-heavy changes are detected (e.g. data model changes signal, large batch operations, streaming or pipeline patterns in Sequence Notes)
-4. **UI quality reviewer** — always spawned for UI-bearing issues; required for high-risk UI changes so authored-polish critique can gate publishability
 
 When `smoke_test_result` is `fail` for this issue, append this block to every reviewer prompt:
 
@@ -429,21 +430,6 @@ Focus exclusively on performance:
 5. Return the structured output required by .opencode/agents/review.md — but only report findings in the performance category. Assign each finding `role: performance` in the structured output.
 ```
 
-**UI quality reviewer** (spawned for UI-bearing issues; always include on high-risk UI changes):
-
-```
-Review the implementation for REP-xxx in worktree <absolute-worktree-path>.
-
-Focus exclusively on authored polish and generic-drift risk:
-1. Load the `audit-ui-quality` skill for the critique rubric and named anti-pattern vocabulary.
-2. Fetch Linear issue REP-xxx via `linear issue show REP-xxx --json`.
-3. Review the committed branch diff with: `git diff main...HEAD`.
-4. Read the matching `tmp/context-<issue-id>.md` artifact, including `## Targeted Design Edit`, `## Design Direction`, and `## Design Handoff Context` when present.
-5. If `## Targeted Design Edit` is present, use its scope boundary, intended delta, and verification evidence as the review brief.
-6. Evaluate authored polish separately from compliance, require concrete fix hints for any drift, and treat low-authored-polish output as a blocker or major rather than a vague note.
-7. Return the structured output required by .opencode/agents/review.md — but only report findings in the conventions category. Assign each finding `role: ui-quality` in the structured output.
-```
-
 ### Finding merge and deduplication
 
 Each finding in the structured output includes a `category` field. Because combined reviewer roles (Correctness+Security, Architecture+Conventions) produce findings with multiple category values, deduplication uses the reviewer's role rather than category.
@@ -451,7 +437,6 @@ Each finding in the structured output includes a `category` field. Because combi
 - Correctness + Security reviewer → findings tagged `role: correctness-security`
 - Architecture + Conventions reviewer → findings tagged `role: architecture-conventions`
 - Performance reviewer → findings tagged `role: performance`
-- UI quality reviewer → findings tagged `role: ui-quality`
 
 For deduplication across reviewers, use the merge key: `<file-path>:<line-number>:<role>`
 
@@ -460,7 +445,6 @@ Role vocabulary:
 - `correctness-security` — logic errors, off-by-one, unhandled edge cases, broken error paths, injection, auth bypass, data exposure, unsafe deserialization
 - `architecture-conventions` — side effects, pattern inconsistency, approach misalignment, import/naming/style violations, missing design tokens, package AGENTS.md violations
 - `performance` — algorithmic regressions, unnecessary iteration, missing pagination, large in-memory collections
-- `ui-quality` — weak authored polish, generic drift, missing anti-pattern vocabulary, ship-as-is blocked by critique gate
 
 ### Review prompt template (standard risk)
 
@@ -619,11 +603,7 @@ After publish has been handled:
 
 Post-publish waiting, CI monitoring, merge handling, and automatic continuation belong to follow-on work, not this command.
 
-After stopping, if this session will not immediately continue:
-
-- Run `/ledger` to capture a session handoff. This allows a future session to resume triage without re-exploring.
-
-Then proceed to the manual test plan phase.
+After stopping, proceed to the manual test plan phase.
 
 ## 7. Manual test plan (post-publish)
 
@@ -637,7 +617,7 @@ For the published issue:
    - The Linear issue description and acceptance criteria (`linear issue show <issue-id> --json`)
    - The implementation diff (`git diff origin/main...HEAD` in the worktree)
    - The review findings from the review phase (both blockers resolved and non-blockers swept)
-   - The `tmp/context-<issue-id>.md` artifact if one exists (for UI design direction, targeted edits, etc.)
+   - The `tmp/context-<issue-id>.md` artifact if one exists
 
 2. **Derive manual verification steps** from those inputs:
    - Map each acceptance criterion to one or more concrete manual steps
@@ -702,7 +682,7 @@ Use `gh pr edit <pr-number> --body "<updated-body>"` to update the PR descriptio
 
 After the manual test plan is written, printed verbatim, and the PR body is updated:
 
-- Proceed to the existing post-publish stop and `/ledger` handoff
+- Proceed to the existing post-publish stop
 
 ## Throughout
 

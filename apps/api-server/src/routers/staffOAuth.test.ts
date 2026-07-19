@@ -66,7 +66,8 @@ describe('Routers > StaffOAuth', () => {
     app = harness.bootstrap(
       createStaffOAuthRouter(harness.services.accountService, harness.env, {
         google: createStubGoogleProvider() as any,
-      })
+      }),
+      { prefix: '/staff' }
     )
   })
 
@@ -82,7 +83,7 @@ describe('Routers > StaffOAuth', () => {
     it('should redirect to Google authorization URL', async () => {
       const res = await app.inject({
         method: 'GET',
-        url: '/oauth/google',
+        url: '/staff/oauth/google',
       })
 
       expect(res.statusCode).toEqual(302)
@@ -93,7 +94,7 @@ describe('Routers > StaffOAuth', () => {
     it('should set short-lived oauth_state and oauth_code_verifier cookies', async () => {
       const res = await app.inject({
         method: 'GET',
-        url: '/oauth/google',
+        url: '/staff/oauth/google',
       })
 
       const stateCookie = res.cookies.find(c => c.name === 'oauth_state')
@@ -111,7 +112,7 @@ describe('Routers > StaffOAuth', () => {
     it('should return 400 for unsupported provider', async () => {
       const res = await app.inject({
         method: 'GET',
-        url: '/oauth/unknown-provider',
+        url: '/staff/oauth/unknown-provider',
       })
 
       expect(res.statusCode).toEqual(400)
@@ -122,7 +123,7 @@ describe('Routers > StaffOAuth', () => {
     async function getStateCookies() {
       const initRes = await app.inject({
         method: 'GET',
-        url: '/oauth/google',
+        url: '/staff/oauth/google',
       })
 
       const stateCookie = initRes.cookies.find(c => c.name === 'oauth_state')!
@@ -151,7 +152,7 @@ describe('Routers > StaffOAuth', () => {
 
       const res = await app.inject({
         method: 'GET',
-        url: `/oauth/google/callback?code=valid-code&state=${stateValue}`,
+        url: `/staff/oauth/google/callback?code=valid-code&state=${stateValue}`,
         cookies: {
           oauth_state: stateCookie.value,
           oauth_code_verifier: verifierCookie.value,
@@ -161,7 +162,7 @@ describe('Routers > StaffOAuth', () => {
       // Should redirect to admin app with a staff session
       expect(res.statusCode).toEqual(302)
       const sessionCookie = res.cookies.find(
-        c => c.name === harness.env.SESSION_COOKIE
+        c => c.name === harness.env.STAFF_SESSION_COOKIE
       )
       expect(sessionCookie).toBeDefined()
     })
@@ -213,7 +214,7 @@ describe('Routers > StaffOAuth', () => {
     it('should return 400 when state cookie is missing', async () => {
       const res = await app.inject({
         method: 'GET',
-        url: '/oauth/google/callback?code=valid-code&state=random-state',
+        url: '/staff/oauth/google/callback?code=valid-code&state=random-state',
       })
 
       expect(res.statusCode).toEqual(400)
@@ -224,7 +225,7 @@ describe('Routers > StaffOAuth', () => {
 
       const res = await app.inject({
         method: 'GET',
-        url: '/oauth/google/callback?code=valid-code&state=tampered-state',
+        url: '/staff/oauth/google/callback?code=valid-code&state=tampered-state',
         cookies: {
           oauth_state: stateCookie.value,
           oauth_code_verifier: verifierCookie.value,
@@ -237,7 +238,7 @@ describe('Routers > StaffOAuth', () => {
     it('should return 400 for unsupported provider callback', async () => {
       const res = await app.inject({
         method: 'GET',
-        url: '/oauth/bad-provider/callback?code=x&state=y',
+        url: '/staff/oauth/bad-provider/callback?code=x&state=y',
       })
 
       expect(res.statusCode).toEqual(400)
@@ -249,7 +250,7 @@ describe('Routers > StaffOAuth', () => {
 
       const res = await app.inject({
         method: 'GET',
-        url: `/oauth/google/callback?code=valid-code&state=${stateValue}`,
+        url: `/staff/oauth/google/callback?code=valid-code&state=${stateValue}`,
         cookies: {
           oauth_state: stateCookie.value,
           oauth_code_verifier: verifierCookie.value,
@@ -259,9 +260,9 @@ describe('Routers > StaffOAuth', () => {
       // Should redirect to admin app
       expect(res.statusCode).toEqual(302)
 
-      // Session cookie should be set
+      // Session cookie should be set to the staff cookie name
       const sessionCookie = res.cookies.find(
-        c => c.name === harness.env.SESSION_COOKIE
+        c => c.name === harness.env.STAFF_SESSION_COOKIE
       )
       expect(sessionCookie).toBeDefined()
 
@@ -291,7 +292,7 @@ describe('Routers > StaffOAuth', () => {
       const first = await getStateCookies()
       await app.inject({
         method: 'GET',
-        url: `/oauth/google/callback?code=valid-code&state=${first.stateValue}`,
+        url: `/staff/oauth/google/callback?code=valid-code&state=${first.stateValue}`,
         cookies: {
           oauth_state: first.stateCookie.value,
           oauth_code_verifier: first.verifierCookie.value,
@@ -302,7 +303,7 @@ describe('Routers > StaffOAuth', () => {
       const second = await getStateCookies()
       const res = await app.inject({
         method: 'GET',
-        url: `/oauth/google/callback?code=valid-code&state=${second.stateValue}`,
+        url: `/staff/oauth/google/callback?code=valid-code&state=${second.stateValue}`,
         cookies: {
           oauth_state: second.stateCookie.value,
           oauth_code_verifier: second.verifierCookie.value,
@@ -311,7 +312,7 @@ describe('Routers > StaffOAuth', () => {
 
       expect(res.statusCode).toEqual(302)
       const sessionCookie = res.cookies.find(
-        c => c.name === harness.env.SESSION_COOKIE
+        c => c.name === harness.env.STAFF_SESSION_COOKIE
       )
       expect(sessionCookie).toBeDefined()
 

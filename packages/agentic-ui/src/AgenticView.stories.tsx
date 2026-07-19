@@ -51,7 +51,8 @@ function makeState(
   error: AgenticError | null = null,
   truncatedBeforeId: string | null = null,
   stage: 'idle' | 'orient' | 'hypotheses' | 'evidence' | 'conclusion' = 'idle',
-  hypotheses: Array<Hypothesis> = []
+  hypotheses: Array<Hypothesis> = [],
+  pendingInteraction: PendingAskUserInteraction | null = null
 ): AgenticState {
   return {
     $entries: atom<Array<Entry>>(entries),
@@ -60,7 +61,9 @@ function makeState(
     $wasCancelled: atom<boolean>(false),
     $stage: atom(stage),
     $hypotheses: atom(hypotheses),
-    $pendingInteraction: atom<PendingAskUserInteraction | null>(null),
+    $pendingInteraction: atom<PendingAskUserInteraction | null>(
+      pendingInteraction
+    ),
     $truncatedBefore: atom<string | null>(truncatedBeforeId),
     cancel: () => {},
     destroy: () => {},
@@ -252,6 +255,71 @@ export const ToolExecuting: StoryObj = {
           },
         ],
         'tool-executing'
+      )
+    ),
+  ],
+}
+
+export const AskUserPrompting: StoryObj = {
+  decorators: [
+    withState(
+      makeState(
+        [
+          {
+            id: '1',
+            timestamp: new Date(),
+            role: 'user',
+            content:
+              'Why did the checkout button stop working after the discount was applied?',
+          },
+          {
+            id: '2',
+            timestamp: new Date(),
+            role: 'assistant',
+            content:
+              'I found console errors around the time of the discount application and a failed POST to `/api/checkout`. To narrow this down further, I have a question.',
+            toolCalls: [
+              {
+                id: 'tc1',
+                index: 0,
+                function: {
+                  name: 'askUser',
+                  arguments: JSON.stringify({
+                    prompt: 'Which discount code did you apply?',
+                    choices: [
+                      { label: 'SUMMER20', value: 'summer20' },
+                      { label: 'WELCOME10', value: 'welcome10' },
+                      { label: 'FREESHIP', value: 'freeship' },
+                      { label: 'FLASH50', value: 'flash50' },
+                      { label: "Other (I'll specify)", value: 'other' },
+                    ],
+                  }),
+                },
+              },
+            ],
+          },
+        ],
+        'tool-executing',
+        null,
+        null,
+        'evidence',
+        [],
+        {
+          id: 'pi1',
+          toolCallId: 'tc1',
+          createdAt: new Date(),
+          request: {
+            prompt: 'Which discount code did you apply?',
+            choices: [
+              { label: 'SUMMER20', value: 'summer20' },
+              { label: 'WELCOME10', value: 'welcome10' },
+              { label: 'FREESHIP', value: 'freeship' },
+              { label: 'FLASH50', value: 'flash50' },
+              { label: "Other (I'll specify)", value: 'other' },
+            ],
+            allowFreeform: true,
+          },
+        }
       )
     ),
   ],

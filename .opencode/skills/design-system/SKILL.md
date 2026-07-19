@@ -5,7 +5,7 @@ description: UI implementation with @repro/design — component selection, desig
 
 # Design System
 
-Comprehensive reference for building UI in the Repro codebase. Load this skill before implementing any UI work; if the visual direction is still unresolved, load `design-direction` first and return here once intent is captured.
+Comprehensive reference for building UI in the Repro codebase. Load this skill before implementing any UI work.
 
 ## Core implementation rules
 
@@ -340,7 +340,7 @@ They are complementary, not overlapping. Both gates must pass in CI.
 
 Use this workflow when bringing existing UI back toward design-system conventions. Consult the sub-reference files in `references/` (`references/anti-patterns.md`, `references/palette-surface-spacing.md`, `references/typography-readability.md`, `references/interaction-responsive.md`, `references/layering-and-overlays.md`, `references/accessibility-as-ux.md`, `references/forms-input-interference.md`, `references/persistence-hygiene.md`, `references/error-recovery-containment.md`, `references/mobile-touch-app-surface.md`, `references/tokens.md`, `references/component-contract.md`, `references/layouts.md`, `references/forms-and-state.md`) rather than searching the codebase for conventions.
 
-After the implementation pass, hand off broader scoring/polish to `audit-ui-quality`, then use `ui-verification` for the `reproctl start --wait --full-stack` + `agent-browser` browser loop. Use `references/pre-delivery-ui-checklist.md` to record final shipping readiness.
+After the implementation pass, use `ui-verification` for the `reproctl start --wait --full-stack` + `agent-browser` browser loop. Use `references/pre-delivery-ui-checklist.md` to record final shipping readiness.
 
 ### Plan
 
