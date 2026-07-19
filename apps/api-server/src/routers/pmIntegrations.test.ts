@@ -1,4 +1,5 @@
 import { sign } from '@fastify/cookie'
+import { PmOAuthProvider } from '@repro/domain'
 import expect from 'expect'
 import { FastifyInstance } from 'fastify'
 import { promise } from 'fluture'
@@ -6,7 +7,7 @@ import { after, before, beforeEach, describe, it } from 'node:test'
 import { Env } from '~/config/createEnv'
 import { decodeId } from '~/modules/database'
 import { Harness, createTestHarness } from '~/testing'
-import { PmOAuthProvider, createPmIntegrationRouter } from './pmIntegrations'
+import { createPmIntegrationRouter } from './pmIntegrations'
 
 // Stub Linear provider for testing without real network calls
 function createStubLinearProvider(): PmOAuthProvider {
@@ -27,6 +28,12 @@ function createStubLinearProvider(): PmOAuthProvider {
     fetchWorkspaceInfo: async (_accessToken: string) => ({
       id: 'wrkspc-linear-org',
       name: 'Test Linear Org',
+    }),
+    refreshAccessToken: async (_refreshToken: string) => ({
+      accessToken: () => 'stub-refreshed-access-token',
+      hasRefreshToken: () => true,
+      refreshToken: () => 'stub-refreshed-refresh-token',
+      accessTokenExpiresAt: () => new Date(Date.now() + 3600_000),
     }),
   }
 }

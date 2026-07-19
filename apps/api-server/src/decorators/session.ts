@@ -36,13 +36,23 @@ type AnyFastifyInstance = FastifyInstance<any, any, any, any, any>
 export function createSessionDecorator(
   accountService: AccountService,
   env: Env,
-  apiKeyService?: ApiKeyService
+  apiKeyService?: ApiKeyService,
+  options?: { staffPathPrefix?: string }
 ) {
   return function registerSessionDecorator(fastify: AnyFastifyInstance) {
     const app = fastify.withTypeProvider<ZodTypeProvider>()
+    const staffPathPrefix = options?.staffPathPrefix ?? '/staff'
+
+    function resolveCookieName(req: Request): string {
+      const path = (req.url ?? '').split('?')[0]!
+      if (path === staffPathPrefix || path.startsWith(staffPathPrefix + '/')) {
+        return env.STAFF_SESSION_COOKIE
+      }
+      return env.SESSION_COOKIE
+    }
 
     function getSessionToken<T extends Request>(req: T) {
-      const rawCookie = req.cookies[env.SESSION_COOKIE]
+      const rawCookie = req.cookies[resolveCookieName(req)]
 
       if (rawCookie != null) {
         // Cookie is signed (value is "token.hmac_sig"). Unsign before lookup.
@@ -217,7 +227,7 @@ export function createSessionDecorator(
       }
 
       if (req.session.revoked) {
-        res.clearCookie(env.SESSION_COOKIE)
+        res.clearCookie(resolveCookieName(req))
         return callback()
       }
 
@@ -237,7 +247,7 @@ export function createSessionDecorator(
         addMinutes(createdAt, policy.hardExpirySeconds / 60),
       ])
 
-      res.setCookie(env.SESSION_COOKIE, req.session.sessionToken, {
+      res.setCookie(resolveCookieName(req), req.session.sessionToken, {
         httpOnly: true,
         path: '/',
         sameSite: 'none',

@@ -1,3 +1,4 @@
+import { sign } from '@fastify/cookie'
 import expect from 'expect'
 import { FastifyInstance } from 'fastify'
 import { promise } from 'fluture'
@@ -45,6 +46,14 @@ async function createApiKeyHarness() {
     ])
   }
 
+  function bootstrapStaff() {
+    return fromRouter(
+      createAccountRouter(accountService, emailModule),
+      [sessionDecorator],
+      { prefix: '/staff' }
+    )
+  }
+
   async function reset() {
     await sql`
       DO $$ DECLARE
@@ -62,16 +71,27 @@ async function createApiKeyHarness() {
     await closeStorage()
   }
 
-  return { env, db, accountService, apiKeyService, bootstrap, reset, close }
+  return {
+    env,
+    db,
+    accountService,
+    apiKeyService,
+    bootstrap,
+    bootstrapStaff,
+    reset,
+    close,
+  }
 }
 
 describe('Decorators > Session — Bearer token / API key auth', () => {
   let harness: Awaited<ReturnType<typeof createApiKeyHarness>>
   let app: FastifyInstance
+  let staffApp: FastifyInstance
 
   before(async () => {
     harness = await createApiKeyHarness()
     app = harness.bootstrap()
+    staffApp = harness.bootstrapStaff()
   })
 
   beforeEach(async () => {
@@ -166,11 +186,10 @@ describe('Decorators > Session — Bearer token / API key auth', () => {
   }
 
   function getSessionCookieExpires(
-    res: Awaited<ReturnType<typeof app.inject>>
+    res: Awaited<ReturnType<typeof app.inject>>,
+    cookieName: string
   ) {
-    const sessionCookie = res.cookies.find(
-      c => c.name === harness.env.SESSION_COOKIE
-    )
+    const sessionCookie = res.cookies.find(c => c.name === cookieName)
 
     expect(sessionCookie).toBeDefined()
     expect(sessionCookie?.expires).toBeDefined()
@@ -218,6 +237,7 @@ describe('Decorators > Session — Bearer token / API key auth', () => {
 
       const cookieNames = res.cookies.map(c => c.name)
       expect(cookieNames).not.toContain(harness.env.SESSION_COOKIE)
+      expect(cookieNames).not.toContain(harness.env.STAFF_SESSION_COOKIE)
     })
 
     it('should not leak the raw API key value into any response header', async () => {
@@ -290,9 +310,9 @@ describe('Decorators > Session — Bearer token / API key auth', () => {
         })
 
         expect(res.statusCode).toEqual(200)
-        expect(getSessionCookieExpires(res).getTime()).toEqual(
-          fixedNow.getTime() + 30 * 24 * 3600 * 1000
-        )
+        expect(
+          getSessionCookieExpires(res, harness.env.SESSION_COOKIE).getTime()
+        ).toEqual(fixedNow.getTime() + 30 * 24 * 3600 * 1000)
       } finally {
         mock.timers.reset()
       }
@@ -315,9 +335,9 @@ describe('Decorators > Session — Bearer token / API key auth', () => {
         })
 
         expect(res.statusCode).toEqual(200)
-        expect(getSessionCookieExpires(res).getTime()).toEqual(
-          createdAt.getTime() + 90 * 24 * 3600 * 1000
-        )
+        expect(
+          getSessionCookieExpires(res, harness.env.SESSION_COOKIE).getTime()
+        ).toEqual(createdAt.getTime() + 90 * 24 * 3600 * 1000)
       } finally {
         mock.timers.reset()
       }
@@ -330,18 +350,24 @@ describe('Decorators > Session — Bearer token / API key auth', () => {
       try {
         const session = await createStaffSession(fixedNow)
 
-        const res = await app.inject({
+        const res = await staffApp.inject({
           method: 'GET',
-          url: '/me',
+          url: '/staff/me',
           cookies: {
-            [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
+            [harness.env.STAFF_SESSION_COOKIE]: sign(
+              session.sessionToken,
+              harness.env.SESSION_SECRET
+            ),
           },
         })
 
         expect(res.statusCode).toEqual(200)
-        expect(getSessionCookieExpires(res).getTime()).toEqual(
-          fixedNow.getTime() + 12 * 3600 * 1000
-        )
+        expect(
+          getSessionCookieExpires(
+            res,
+            harness.env.STAFF_SESSION_COOKIE
+          ).getTime()
+        ).toEqual(fixedNow.getTime() + 12 * 3600 * 1000)
       } finally {
         mock.timers.reset()
       }
@@ -355,18 +381,24 @@ describe('Decorators > Session — Bearer token / API key auth', () => {
         const createdAt = new Date(fixedNow.getTime() - 6.75 * 24 * 3600 * 1000)
         const session = await createStaffSession(createdAt)
 
-        const res = await app.inject({
+        const res = await staffApp.inject({
           method: 'GET',
-          url: '/me',
+          url: '/staff/me',
           cookies: {
-            [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
+            [harness.env.STAFF_SESSION_COOKIE]: sign(
+              session.sessionToken,
+              harness.env.SESSION_SECRET
+            ),
           },
         })
 
         expect(res.statusCode).toEqual(200)
-        expect(getSessionCookieExpires(res).getTime()).toEqual(
-          createdAt.getTime() + 7 * 24 * 3600 * 1000
-        )
+        expect(
+          getSessionCookieExpires(
+            res,
+            harness.env.STAFF_SESSION_COOKIE
+          ).getTime()
+        ).toEqual(createdAt.getTime() + 7 * 24 * 3600 * 1000)
       } finally {
         mock.timers.reset()
       }
