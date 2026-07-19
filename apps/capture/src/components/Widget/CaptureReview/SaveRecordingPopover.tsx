@@ -44,7 +44,7 @@ export const SaveRecordingPopover: React.FC<SaveRecordingPopoverProps> = ({
   const apiClientRef = useRef(apiClient)
   apiClientRef.current = apiClient
 
-  const { enqueueUpload, uploadState } = useCaptureUpload()
+  const { enqueueUpload, resetUploadState, uploadState } = useCaptureUpload()
   const inUploadLifecycle =
     uploadState.isUploading ||
     uploadState.progress !== null ||
@@ -137,8 +137,9 @@ export const SaveRecordingPopover: React.FC<SaveRecordingPopoverProps> = ({
   }, [])
 
   const handleUploadClose = useCallback(() => {
+    resetUploadState()
     setSavePopoverOpen(false)
-  }, [])
+  }, [resetUploadState])
 
   return (
     <Popover

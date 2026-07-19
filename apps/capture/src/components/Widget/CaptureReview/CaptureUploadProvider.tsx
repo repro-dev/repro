@@ -35,6 +35,7 @@ interface CaptureUploadContextValue {
     title: string,
     description: string | null
   ): void
+  resetUploadState(): void
 }
 
 const CaptureUploadContext =
@@ -102,6 +103,16 @@ export const CaptureUploadProvider: React.FC<CaptureUploadProviderProps> = ({
       })
     }
   }, [open])
+
+  const resetUploadState = useCallback(() => {
+    setUploadStateInner({
+      isUploading: false,
+      progress: null,
+      error: null,
+      uploadRef: null,
+      uploadProjectId: null,
+    })
+  }, [setUploadStateInner])
 
   const getSelectedRecording = useCallback((): SelectedRecording => {
     const sourceEvents = playback.getSourceEvents()
@@ -230,8 +241,8 @@ export const CaptureUploadProvider: React.FC<CaptureUploadProviderProps> = ({
   }, [setUploadState, uploadState.uploadRef, uploadState.isUploading, agent])
 
   const value = useMemo(
-    () => ({ uploadState, enqueueUpload }),
-    [uploadState, enqueueUpload]
+    () => ({ uploadState, enqueueUpload, resetUploadState }),
+    [uploadState, enqueueUpload, resetUploadState]
   )
 
   return (
