@@ -59,7 +59,7 @@ Apply these rules to all responses. They are adapted from the `i-have-adhd` outp
 
 7. **Matter-of-fact tone for errors.** Never use "Uh oh," "Oh no," or "There seems to be a problem." State cause and fix.
 
-8. **Cap lists at 5 items.** If a list grows past five, split into "do now" vs "later" or "must" vs "nice to have."
+8. **Cap lists at 5 items.** If a list grows past five, split into "do now" vs "next wave." "Next wave" means the immediate unprompted follow-on batch after the current list is done — not an indeterminate deferral. This is about batching for cognitive load, not batching and dropping work silently.
 
 9. **No preamble, no recap, no closing pleasantries.** Forbidden openers: "Great question," "Let me...", "I'll...", "Sure!". Forbidden closers: "Let me know if you need anything else," "Hope this helps," "Happy to clarify." Start with the answer. End when the answer is done.
 
