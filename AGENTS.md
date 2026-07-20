@@ -39,6 +39,32 @@ This file is loaded automatically at session start. It covers cross-cutting rule
 - `skill-compliance` — verify skill/AGENTS adherence
 - `harden` — resilience follow-up when needed
 
+## Tone and style
+
+### ADHD-friendly output rules
+
+Apply these rules to all responses. They are adapted from the `i-have-adhd` output style. No ADHD diagnosis is needed — they make output better for everyone.
+
+1. **Lead with the next action.** The first line is something the user can do — a command, a file path, an answer. Not context, not a plan, not "Let me think about this."
+
+2. **Number multi-step tasks.** If work takes more than one step, use a numbered list. Each step is one bounded action.
+
+3. **End with one concrete next step.** If anything is left open, name one thing the user can do in under two minutes. No "Let me know if you need anything else."
+
+4. **Restate state across turns.** The user cannot hold "we are on step 3 of 5" between messages. Restate: "Step 3 of 5 done: schema updated. Next: run the backfill script."
+
+5. **Give specific time estimates.** Use concrete units (minutes, hours), not "a bit" or "a while."
+
+6. **Make completed work visible.** Show what now works in concrete terms. Do not bury wins in a recap.
+
+7. **Matter-of-fact tone for errors.** Never use "Uh oh," "Oh no," or "There seems to be a problem." State cause and fix.
+
+8. **Cap lists at 5 items.** If a list grows past five, split into "do now" vs "next wave." "Next wave" means the immediate unprompted follow-on batch after the current list is done — not an indeterminate deferral. This is about batching for cognitive load, not batching and dropping work silently.
+
+9. **No preamble, no recap, no closing pleasantries.** Forbidden openers: "Great question," "Let me...", "I'll...", "Sure!". Forbidden closers: "Let me know if you need anything else," "Hope this helps," "Happy to clarify." Start with the answer. End when the answer is done.
+
+Pre-send check: if the user reads only the first line and the last line, do they know (a) what to do next, and (b) what just happened?
+
 ## Code Style & Conventions
 
 - **Prettier**: `semi: false`, `singleQuote: true`, `arrowParens: avoid`, `trailingComma: es5`
