@@ -13,6 +13,12 @@ import { PlaybackShortcutsHelp } from '../PlaybackShortcutsHelp'
 
 afterEach(cleanup)
 
+function getTrigger(): HTMLElement {
+  const el = document.querySelector('[aria-expanded]')
+  if (!el) throw new Error('Trigger element not found')
+  return el as HTMLElement
+}
+
 describe('PlaybackShortcutsHelp', () => {
   it('renders trigger with accessible name and starts collapsed', () => {
     render(
@@ -21,10 +27,8 @@ describe('PlaybackShortcutsHelp', () => {
       </PortalRootProvider>
     )
 
-    // The PopoverTrigger clones the outer Row, so aria-expanded is on the parent
-    const innerRow = screen.getByLabelText('Keyboard shortcuts')
-    const trigger = innerRow.parentElement!
-    expect(trigger.getAttribute('aria-expanded')).toBe('false')
+    expect(screen.getByLabelText('Keyboard shortcuts')).toBeDefined()
+    expect(getTrigger().getAttribute('aria-expanded')).toBe('false')
   })
 
   it('opens popover on click showing all 7 shortcuts with correct glyphs', async () => {
@@ -34,8 +38,7 @@ describe('PlaybackShortcutsHelp', () => {
       </PortalRootProvider>
     )
 
-    const innerRow = screen.getByLabelText('Keyboard shortcuts')
-    const trigger = innerRow.parentElement!
+    const trigger = getTrigger()
     fireEvent.click(trigger)
 
     await waitFor(() => {
@@ -47,7 +50,6 @@ describe('PlaybackShortcutsHelp', () => {
     })
     expect(popover).toBeDefined()
 
-    // Verify each keycap glyph is shown
     expect(screen.getByText('Space')).toBeDefined()
     expect(screen.getByText('←')).toBeDefined()
     expect(screen.getByText('→')).toBeDefined()
@@ -55,12 +57,9 @@ describe('PlaybackShortcutsHelp', () => {
     expect(screen.getByText('End')).toBeDefined()
     expect(screen.getByText('+')).toBeDefined()
     expect(screen.getByText('-')).toBeDefined()
-
-    // Verify = and * are NOT shown
     expect(screen.queryByText('=')).toBeNull()
     expect(screen.queryByText('*')).toBeNull()
 
-    // Verify action descriptions
     expect(screen.getByText('Play / Pause')).toBeDefined()
     expect(screen.getByText('Seek backward 5s')).toBeDefined()
     expect(screen.getByText('Seek forward 5s')).toBeDefined()
@@ -77,9 +76,7 @@ describe('PlaybackShortcutsHelp', () => {
       </PortalRootProvider>
     )
 
-    const innerRow = screen.getByLabelText('Keyboard shortcuts')
-    const trigger = innerRow.parentElement!
-
+    const trigger = getTrigger()
     fireEvent.click(trigger)
     await waitFor(() => {
       expect(trigger.getAttribute('aria-expanded')).toBe('true')
@@ -102,9 +99,7 @@ describe('PlaybackShortcutsHelp', () => {
       </PortalRootProvider>
     )
 
-    const innerRow = screen.getByLabelText('Keyboard shortcuts')
-    const trigger = innerRow.parentElement!
-
+    const trigger = getTrigger()
     fireEvent.click(trigger)
     await waitFor(() => {
       expect(trigger.getAttribute('aria-expanded')).toBe('true')

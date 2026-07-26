@@ -15,28 +15,31 @@ const SHORTCUTS = [
 ] as const
 
 export const PlaybackShortcutsHelp: React.FC = () => (
+  /* eslint-disable react/forbid-elements */
   <Popover>
     <Popover.Trigger>
-      <Row
-        position="relative"
-        alignItems="center"
-        cursor="pointer"
-        paddingH={spacing.sm}
-      >
+      <span>
         <Row
+          position="relative"
           alignItems="center"
-          justifyContent="center"
-          width={32}
-          height={32}
-          hoverBackgroundColor={color.bg.hover}
-          color={color.primary}
-          borderRadius={4}
-          title="Keyboard shortcuts"
-          props={{ 'aria-label': 'Keyboard shortcuts', role: 'button' }}
+          cursor="pointer"
+          paddingH={spacing.sm}
         >
-          <HelpIcon size={14} />
+          <Row
+            alignItems="center"
+            justifyContent="center"
+            width={32}
+            height={32}
+            hoverBackgroundColor={color.bg.hover}
+            color={color.primary}
+            borderRadius={4}
+            title="Keyboard shortcuts"
+            props={{ 'aria-label': 'Keyboard shortcuts', role: 'button' }}
+          >
+            <HelpIcon size={14} />
+          </Row>
         </Row>
-      </Row>
+      </span>
     </Popover.Trigger>
     <Popover.Content
       aria-label="Playback keyboard shortcuts"
@@ -69,3 +72,4 @@ export const PlaybackShortcutsHelp: React.FC = () => (
     </Popover.Content>
   </Popover>
 )
+/* eslint-enable react/forbid-elements */
