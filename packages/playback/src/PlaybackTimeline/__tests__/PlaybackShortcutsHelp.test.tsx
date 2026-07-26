@@ -21,7 +21,9 @@ describe('PlaybackShortcutsHelp', () => {
       </PortalRootProvider>
     )
 
-    const trigger = screen.getByLabelText('Keyboard shortcuts')
+    // The PopoverTrigger clones the outer Row, so aria-expanded is on the parent
+    const innerRow = screen.getByLabelText('Keyboard shortcuts')
+    const trigger = innerRow.parentElement!
     expect(trigger.getAttribute('aria-expanded')).toBe('false')
   })
 
@@ -32,14 +34,14 @@ describe('PlaybackShortcutsHelp', () => {
       </PortalRootProvider>
     )
 
-    const trigger = screen.getByLabelText('Keyboard shortcuts')
+    const innerRow = screen.getByLabelText('Keyboard shortcuts')
+    const trigger = innerRow.parentElement!
     fireEvent.click(trigger)
 
     await waitFor(() => {
       expect(trigger.getAttribute('aria-expanded')).toBe('true')
     })
 
-    // All 7 shortcuts should be present
     const popover = screen.getByRole('dialog', {
       name: 'Playback keyboard shortcuts',
     })
@@ -51,7 +53,7 @@ describe('PlaybackShortcutsHelp', () => {
     expect(screen.getByText('→')).toBeDefined()
     expect(screen.getByText('Home')).toBeDefined()
     expect(screen.getByText('End')).toBeDefined()
-    expect(screen.getByText('+')).toBeDefined() // Display glyph +
+    expect(screen.getByText('+')).toBeDefined()
     expect(screen.getByText('-')).toBeDefined()
 
     // Verify = and * are NOT shown
@@ -75,15 +77,14 @@ describe('PlaybackShortcutsHelp', () => {
       </PortalRootProvider>
     )
 
-    const trigger = screen.getByLabelText('Keyboard shortcuts')
+    const innerRow = screen.getByLabelText('Keyboard shortcuts')
+    const trigger = innerRow.parentElement!
 
-    // Open
     fireEvent.click(trigger)
     await waitFor(() => {
       expect(trigger.getAttribute('aria-expanded')).toBe('true')
     })
 
-    // Press Escape
     fireEvent.keyDown(document.activeElement ?? document.body, {
       key: 'Escape',
       code: 'Escape',
@@ -101,15 +102,14 @@ describe('PlaybackShortcutsHelp', () => {
       </PortalRootProvider>
     )
 
-    const trigger = screen.getByLabelText('Keyboard shortcuts')
+    const innerRow = screen.getByLabelText('Keyboard shortcuts')
+    const trigger = innerRow.parentElement!
 
-    // Open
     fireEvent.click(trigger)
     await waitFor(() => {
       expect(trigger.getAttribute('aria-expanded')).toBe('true')
     })
 
-    // Close via second click
     fireEvent.click(trigger)
     await waitFor(() => {
       expect(trigger.getAttribute('aria-expanded')).toBe('false')
