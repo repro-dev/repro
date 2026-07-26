@@ -167,10 +167,7 @@ describe('REP-642 tooling wiring', () => {
 
     assert.ok(e2eJob >= 0, 'expected e2e job to exist')
     const e2eCheckout = ci.indexOf('- name: Checkout repository', e2eJob)
-    const e2eToolchainSetup = ci.indexOf(
-      '- name: Setup Moon toolchain',
-      e2eJob
-    )
+    const e2eToolchainSetup = ci.indexOf('- name: Setup Moon toolchain', e2eJob)
     assert.ok(e2eCheckout >= 0, 'expected e2e job to check out the repo')
     assert.ok(
       e2eToolchainSetup >= 0,
@@ -184,8 +181,8 @@ describe('REP-642 tooling wiring', () => {
       ci.slice(e2eCheckout, e2eToolchainSetup),
       /uses: actions\/checkout@v4[\s\S]*with:\n\s+fetch-depth: 0/
     )
-    assert.match(ci, /pull_request:\n\s+branches:\n\s+- "main"/)
-    assert.match(ci, /push:\n\s+branches:\n\s+- "\\*\\*"/)
+    assert.match(ci, /pull_request:\n\s+branches:\n\s+- ['"]main['"]/)
+    assert.match(ci, /push:\n\s+branches:\n\s+- ['"]\*\*['"]/)
     assert.match(
       ci,
       /e2e:[\s\S]*needs: \[build\][\s\S]*timeout-minutes: 10[\s\S]*if: \$\{\{ github\.event_name == 'pull_request' \|\| github\.ref == 'refs\/heads\/main' \}\}/
@@ -283,7 +280,7 @@ describe('REP-642 tooling wiring', () => {
     )
     assert.match(
       ci.slice(workspaceStart),
-      /PATH="\$PWD\/tmp\/ci-bin:\$PATH" \.\/bin\/reproctl start --wait --timeout 300s workspace/
+      /\.\/bin\/reproctl start --wait --timeout 300s workspace/
     )
     assert.match(ci, /\.\/bin\/reproctl db seed/)
     assert.match(

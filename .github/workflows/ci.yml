@@ -4,12 +4,12 @@ on:
   workflow_dispatch:
   pull_request:
     branches:
-      - "main"
+      - 'main'
   push:
     branches:
-      - "**"
+      - '**'
     tags:
-      - "v*"
+      - 'v*'
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -133,7 +133,7 @@ jobs:
           echo '::endgroup::'
         env:
           MOON_LOG: warn
-          NODE_OPTIONS: "--test-reporter spec"
+          NODE_OPTIONS: '--test-reporter spec'
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -188,6 +188,9 @@ jobs:
 
       - name: Install Playwright Chromium
         run: pnpm exec playwright install chromium
+
+      - name: Build capture extension
+        run: pnpm -C apps/capture run build
 
       - name: Install ctlptl
         run: |

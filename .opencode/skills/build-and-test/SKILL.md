@@ -112,13 +112,13 @@ When upgrading a tool version, update **all** pinning locations together.
 The Node pin surface is wider than the table above. When bumping Node, update every location and keep
 the exact patch identical in the first four:
 
-| Location | Form |
-| -------- | ---- |
-| `.prototools` | `node = "<exact>"` (single source of truth; CI reads it via `moonrepo/setup-toolchain@v0`) |
-| `package.json` | `engines.node: "<exact>"` |
-| `packages/agentic-ui/moon.yml` | `toolchains.node.version: "<exact>"` (per-package override — easy to miss) |
-| `infra/Dockerfile` | `FROM node:<major>-slim` (major-only tag, by convention) |
-| `docs/man/reproctl-help-json.7.md` | example `expected`/`actual` values (doc accuracy) |
+| Location                           | Form                                                                                       |
+| ---------------------------------- | ------------------------------------------------------------------------------------------ |
+| `.prototools`                      | `node = "<exact>"` (single source of truth; CI reads it via `moonrepo/setup-toolchain@v0`) |
+| `package.json`                     | `engines.node: "<exact>"`                                                                  |
+| `packages/agentic-ui/moon.yml`     | `toolchains.node.version: "<exact>"` (per-package override — easy to miss)                 |
+| `infra/Dockerfile`                 | `FROM node:<major>-slim` (major-only tag, by convention)                                   |
+| `docs/man/reproctl-help-json.7.md` | example `expected`/`actual` values (doc accuracy)                                          |
 
 Locations that need **no** edit: CI workflows (Node comes from `.prototools`), `.moon/toolchains.yml`
 (`node: {}` is empty/inherited), `Brewfile` (no Node pin). `package.json` `@types/node` is a types
@@ -254,7 +254,7 @@ Use this section as a reference for measuring and improving frontend performance
 Use dynamic `import()` for routes and heavy components in apps whose build target supports it. In this repo, that generally means the Vite-based apps can use it without special changes, but some targets may explicitly disallow dynamic imports, so follow the app's existing build configuration.
 
 ```ts
-const HeavyComponent = React.lazy(() => import("./HeavyComponent"));
+const HeavyComponent = React.lazy(() => import('./HeavyComponent'))
 ```
 
 ### Render Optimisation
@@ -271,11 +271,11 @@ Batch DOM reads before writes to avoid forced synchronous layouts:
 
 ```ts
 // BAD — read/write interleaved triggers layout thrashing
-element.style.height = element.offsetHeight + "px";
+element.style.height = element.offsetHeight + 'px'
 
 // GOOD — batch reads, then writes
-const height = element.offsetHeight;
-element.style.height = height + "px";
+const height = element.offsetHeight
+element.style.height = height + 'px'
 ```
 
 ### GPU-Accelerated Animation
