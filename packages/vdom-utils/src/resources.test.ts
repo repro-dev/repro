@@ -20,6 +20,7 @@ function makeSnapshotEvent(dom: VTree): SourceEvent {
       frameworkState: null,
       cssRules: null,
       interaction: null,
+      colorScheme: null,
     },
   })
 }
