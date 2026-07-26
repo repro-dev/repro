@@ -14,13 +14,19 @@ function mockDoc(stack: Element[]): Document {
 
 function mockIframe(
   contentDoc: Document | null,
-  el?: HTMLIFrameElement
+  ownerDoc?: Document
 ): HTMLIFrameElement {
-  const iframe = el ?? document.createElement('iframe')
+  const iframe = document.createElement('iframe')
   Object.defineProperty(iframe, 'contentDocument', {
     value: contentDoc,
     configurable: true,
   })
+  if (ownerDoc) {
+    Object.defineProperty(iframe, 'ownerDocument', {
+      value: ownerDoc,
+      configurable: true,
+    })
+  }
   return iframe
 }
 
@@ -53,9 +59,25 @@ describe('getTargetElementAtPoint', () => {
     const inertIframe = mockIframe(innerDoc)
     inertIframe.setAttribute('inert', '')
     const doc = mockDoc([inertIframe])
+    // Set ownerDocument to topDoc so the wrapper-iframe exemption applies
+    Object.defineProperty(inertIframe, 'ownerDocument', {
+      value: doc,
+      configurable: true,
+    })
     const result = getTargetElementAtPoint(bb, doc, 50, 50)
     // The iframe is descended into, so innerNormal is returned
     assert.equal(result, innerNormal)
+  })
+
+  it('skips an inert iframe that is not the wrapper', () => {
+    const innerDoc = mockDoc([])
+    const innerInertIframe = mockIframe(innerDoc, innerDoc)
+    innerInertIframe.setAttribute('inert', '')
+    const normalDiv = document.createElement('div')
+    const doc = mockDoc([innerInertIframe, normalDiv])
+    const result = getTargetElementAtPoint(bb, doc, 50, 50)
+    // The inert iframe (not the wrapper) is skipped, normalDiv is returned
+    assert.equal(result, normalDiv)
   })
 
   it('honors inert inside the replayed document', () => {

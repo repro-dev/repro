@@ -15,10 +15,16 @@ import {
 } from '../hooks'
 import { View } from '../types'
 
-function pick(candidates: Element[]): Element | null {
+function pick(candidates: Element[], topDoc: Document): Element | null {
   for (const candidate of candidates) {
     if (isIFrameElement(candidate)) {
-      return candidate
+      if (!isInert(candidate)) {
+        return candidate
+      }
+      if (candidate.ownerDocument === topDoc) {
+        return candidate
+      }
+      continue
     }
     if (!isInert(candidate)) {
       return candidate
@@ -43,7 +49,8 @@ export function getTargetElementAtPoint(
     doc.elementsFromPoint(
       scalingFactor * (x - boundingBox.left),
       scalingFactor * (y - boundingBox.top)
-    )
+    ),
+    doc
   )
 
   while (targetElement && isIFrameElement(targetElement)) {
@@ -57,7 +64,8 @@ export function getTargetElementAtPoint(
       iframeDoc.elementsFromPoint(
         scalingFactor * (x - offsetX - boundingBox.left),
         scalingFactor * (y - offsetY - boundingBox.top)
-      )
+      ),
+      doc
     )
   }
 
