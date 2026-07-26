@@ -16,7 +16,7 @@ import {
   color,
   spacing,
 } from '@repro/design'
-import { BillingPlanWithEntitlements } from '@repro/domain'
+import { BillingPlanWithEntitlements, ListResponse } from '@repro/domain'
 import { useFuture } from '@repro/future-utils'
 import { fork } from 'fluture'
 import React, { useCallback, useEffect, useRef, useState } from 'react'

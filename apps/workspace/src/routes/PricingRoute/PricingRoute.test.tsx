@@ -19,7 +19,15 @@ import { afterEach, describe, it, mock } from 'node:test'
 import React from 'react'
 import { MemoryRouter } from 'react-router-dom'
 
-const mockSession = { userId: 'user-1', teamId: 'team-1' }
+let mockSession: { userId: string; teamId: string } | null = {
+  userId: 'user-1',
+  teamId: 'team-1',
+}
+let mockLocationSearch = ''
+
+const mockNavigate = mock.fn((_path: string) => {
+  void _path
+})
 
 mock.module('@repro/auth', {
   namedExports: {
@@ -28,14 +36,10 @@ mock.module('@repro/auth', {
   },
 })
 
-const mockNavigate = mock.fn((_path: string) => {
-  void _path
-})
-
 mock.module('react-router', {
   namedExports: {
     useNavigate: () => mockNavigate,
-    useLocation: () => ({ search: '' }),
+    useLocation: () => ({ search: mockLocationSearch }),
   },
 })
 
@@ -43,7 +47,19 @@ mock.module('react-router', {
 const { PricingRoute } =
   require('./PricingRoute') as typeof import('./PricingRoute')
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  mockNavigate.mock.resetCalls()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ;(mockBillingClient.init as any).mock.resetCalls()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ;(mockBillingClient.openCheckout as any).mock.resetCalls()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ;(mockBillingClient.closeCheckout as any).mock.resetCalls()
+  lastCheckoutCallbacks = undefined
+  mockSession = { userId: 'user-1', teamId: 'team-1' }
+  mockLocationSearch = ''
+})
 
 const mockPlans: BillingPlanWithEntitlements[] = [
   {
@@ -135,6 +151,12 @@ describe('PricingRoute', () => {
       </MemoryRouter>
     )
 
+    await waitFor(() => screen.getByRole('button', { name: /get started/i }))
+
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: /get started/i }))
+    })
+
     await waitFor(() => {
       assert.ok(screen.getByRole('button', { name: /loading/i }))
     })
@@ -177,7 +199,8 @@ describe('PricingRoute', () => {
     await waitFor(() => {
       assert.equal((mockBillingClient.openCheckout as any).mock.calls.length, 1)
       assert.deepEqual(
-        (mockBillingClient.openCheckout as any).mock.calls[0]!.arguments[0] as unknown,
+        (mockBillingClient.openCheckout as any).mock.calls[0]!
+          .arguments[0] as unknown,
         { transactionId: 'txn-123' }
       )
     })
@@ -323,6 +346,87 @@ describe('PricingRoute', () => {
 
     await waitFor(() => {
       assert.ok(screen.getByText(/checkout failed/i))
+    })
+  })
+
+  it('redirects unauthenticated user to register with planId', async () => {
+    mockSession = null
+
+    const mockApiClient = createMockApiClient((url: string) => {
+      if (url === '/billing/plans') {
+        return resolve({ items: mockPlans }) as FutureInstance<Error, unknown>
+      }
+
+      return resolve({}) as FutureInstance<Error, unknown>
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/pricing']}>
+        <ApiProvider
+          client={mockApiClient as Parameters<typeof ApiProvider>[0]['client']}
+        >
+          <BillingProvider config={{ token: '' }} client={mockBillingClient}>
+            <PricingRoute />
+          </BillingProvider>
+        </ApiProvider>
+      </MemoryRouter>
+    )
+
+    await waitFor(() => screen.getByRole('button', { name: /get started/i }))
+
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: /get started/i }))
+    })
+
+    assert.equal(mockNavigate.mock.calls.length, 1)
+    const navigatedTo = mockNavigate.mock.calls[0]!.arguments[0] as string
+    assert.ok(
+      navigatedTo.startsWith('/account/register?redirect='),
+      `Expected redirect to register page, got: ${navigatedTo}`
+    )
+    assert.ok(
+      navigatedTo.includes(encodeURIComponent('/pricing?planId=')),
+      `Expected redirect to include planId, got: ${navigatedTo}`
+    )
+  })
+
+  it('auto-triggers checkout when planId is in URL', async () => {
+    mockLocationSearch = '?planId=plan-pro'
+
+    const mockApiClient = createMockApiClient((url: string) => {
+      if (url === '/billing/plans') {
+        return resolve({ items: mockPlans }) as FutureInstance<Error, unknown>
+      }
+
+      if (url === '/billing/checkout') {
+        return resolve({ transactionId: 'txn-auto' }) as FutureInstance<
+          Error,
+          unknown
+        >
+      }
+
+      return resolve({}) as FutureInstance<Error, unknown>
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/pricing?planId=plan-pro']}>
+        <ApiProvider
+          client={mockApiClient as Parameters<typeof ApiProvider>[0]['client']}
+        >
+          <BillingProvider config={{ token: '' }} client={mockBillingClient}>
+            <PricingRoute />
+          </BillingProvider>
+        </ApiProvider>
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      assert.equal((mockBillingClient.openCheckout as any).mock.calls.length, 1)
+      assert.deepEqual(
+        (mockBillingClient.openCheckout as any).mock.calls[0]!
+          .arguments[0] as unknown,
+        { transactionId: 'txn-auto' }
+      )
     })
   })
 })
