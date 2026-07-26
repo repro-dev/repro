@@ -29,6 +29,7 @@ This file is loaded automatically at session start. It covers cross-cutting rule
 ### Lifecycle / tooling skills
 
 - `worktree-workflow` — isolated worktrees
+- `herdr-orchestration` — cross-workspace coordination, context injection into OpenCode sessions, and multi-session playbooks
 - `build-and-test` — moon, typecheck, formatter, and verification commands
 - `testing-workflow` — repo-specific harness guidance
 - `git-workflow` — commits, PRs, and Linear lifecycle
