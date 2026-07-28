@@ -38,12 +38,18 @@ function findScreens(nodes: PenNode[]): PenNode[] {
 
 async function main(): Promise<void> {
   // Auth check — non-blocking for local dev
-  if (!process.env.PENCIL_CLI_KEY) {
-    console.error('PENCIL_CLI_KEY environment variable is not set.')
+  if (!process.env.PEN_CLI_KEY && !process.env.PENCIL_CLI_KEY) {
+    console.error('PEN_CLI_KEY environment variable is not set.')
     console.error(
-      'Skipping pen export. Set PENCIL_CLI_KEY to authenticate with pencil.dev.'
+      'Skipping pen export. Set PEN_CLI_KEY (or deprecated PENCIL_CLI_KEY) to authenticate with pen.dev.'
     )
     process.exit(0)
+  }
+
+  // @pen.dev/cli only reads PEN_CLI_KEY — translate from the deprecated name
+  const spawnEnv = { ...process.env }
+  if (!spawnEnv.PEN_CLI_KEY && spawnEnv.PENCIL_CLI_KEY) {
+    spawnEnv.PEN_CLI_KEY = spawnEnv.PENCIL_CLI_KEY
   }
 
   // Ensure output directory
@@ -77,39 +83,37 @@ async function main(): Promise<void> {
     console.error(`Queued: ${screen.name} (${screen.id}) → ${outPath}`)
   }
 
-  console.error(
-    `Exporting ${nodeIds.length} screen(s) via pencil interactive...`
-  )
+  console.error(`Exporting ${nodeIds.length} screen(s) via pen interactive...`)
 
-  // Build the command(s) to pipe into the pencil interactive session
+  // Build the command(s) to pipe into the pen interactive session
   const exportCmd = `export_nodes({ nodeIds: ${JSON.stringify(
     nodeIds
   )}, outputDir: ${JSON.stringify(OUTPUT_DIR)}, format: "png" })`
   const commands = [exportCmd, 'exit()'].join('\n')
 
   await new Promise<void>((resolvePromise, reject) => {
-    const pencil = spawn(
-      'pencil',
+    const pen = spawn(
+      'pen',
       ['interactive', '-i', PEN_FILE, '-o', '/dev/null'],
       {
         stdio: ['pipe', 'pipe', 'pipe'],
-        env: { ...process.env },
+        env: spawnEnv,
       }
     )
 
     let stderr = ''
 
-    pencil.stderr.on('data', (data: Buffer) => {
+    pen.stderr.on('data', (data: Buffer) => {
       stderr += data.toString()
     })
 
-    pencil.on('error', err => {
-      reject(new Error(`Failed to start pencil CLI: ${err.message}`))
+    pen.on('error', err => {
+      reject(new Error(`Failed to start pen CLI: ${err.message}`))
     })
 
-    pencil.on('close', code => {
+    pen.on('close', code => {
       if (code !== 0) {
-        const msg = `pencil interactive exited with code ${code}`
+        const msg = `pen interactive exited with code ${code}`
         console.error(msg)
         if (stderr) console.error('stderr:', stderr)
         reject(new Error(msg))
@@ -121,8 +125,8 @@ async function main(): Promise<void> {
     })
 
     // Pipe commands to the interactive session
-    pencil.stdin.write(commands)
-    pencil.stdin.end()
+    pen.stdin.write(commands)
+    pen.stdin.end()
   })
 }
 
