@@ -38,10 +38,10 @@ function findScreens(nodes: PenNode[]): PenNode[] {
 
 async function main(): Promise<void> {
   // Auth check — non-blocking for local dev
-  if (!process.env.PENCIL_CLI_KEY) {
-    console.error('PENCIL_CLI_KEY environment variable is not set.')
+  if (!process.env.PEN_CLI_KEY && !process.env.PENCIL_CLI_KEY) {
+    console.error('PEN_CLI_KEY environment variable is not set.')
     console.error(
-      'Skipping pen export. Set PENCIL_CLI_KEY to authenticate with pencil.dev.'
+      'Skipping pen export. Set PEN_CLI_KEY to authenticate with pen.dev.'
     )
     process.exit(0)
   }
