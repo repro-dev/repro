@@ -92,6 +92,10 @@ _herdr_is_running() {
   herdr status &>/dev/null
 }
 
+_herdr_is_installed() {
+  command -v herdr >/dev/null 2>&1
+}
+
 _herdr_worktree_open() {
   local wt_path="$1"
   local label="${2:-}"
@@ -116,7 +120,16 @@ _herdr_workspace_add_sibling() {
   local wt_path="$1"
   local label="${2:-}"
 
+  if ! _herdr_is_installed; then
+    echo "${CLR_RED}herdr binary not found in PATH.${CLR_RESET}" >&2
+    echo "  Install it: brew install herdr" >&2
+    echo "  Or add /opt/homebrew/bin to your PATH." >&2
+    return 0
+  fi
+
   if ! _herdr_is_running; then
+    echo "${CLR_RED}herdr daemon is not running.${CLR_RESET}" >&2
+    echo "  Start it with: herdr start" >&2
     return 0
   fi
 
@@ -126,21 +139,29 @@ _herdr_workspace_add_sibling() {
   # NO --cwd → sibling workspace (not nested child of main checkout)
   local json_output
   json_output="$(herdr worktree open --path "$wt_path" --label "$label" --no-focus --json 2>"$herdr_stderr")" || {
+    echo "${CLR_RED}herdr worktree open failed for ${wt_path}${CLR_RESET}" >&2
+    if [[ -s "$herdr_stderr" ]]; then
+      echo "  herdr error: $(cat "$herdr_stderr")" >&2
+    fi
     rm -f "$herdr_stderr"
     return 0
   }
   rm -f "$herdr_stderr"
 
   if [[ -z "$json_output" ]]; then
+    echo "${CLR_RED}herdr worktree open returned empty response for ${wt_path}${CLR_RESET}" >&2
     return 0
   fi
 
   # Extract workspace_id using jq
   local ws_id
-  ws_id="$(printf '%s' "$json_output" | jq -r '.workspace_id // empty' 2>/dev/null)" || ws_id=""
+  ws_id="$(printf '%s' "$json_output" | jq -r '.result.workspace.workspace_id // .workspace_id // empty' 2>/dev/null)" || ws_id=""
 
   if [[ -n "$ws_id" && "$ws_id" != "null" ]]; then
     printf '%s\n' "$ws_id"
+  else
+    echo "${CLR_RED}herdr worktree open response missing workspace_id${CLR_RESET}" >&2
+    return 0
   fi
 }
 
@@ -159,7 +180,7 @@ _herdr_workspace_close_for_path() {
   fi
 
   local ws_id
-  ws_id="$(printf '%s' "$list_output" | jq -r --arg path "$wt_path" 'map(select(.path == $path)) | .[0].workspace_id // .[0].id // empty' 2>/dev/null)" || return 0
+  ws_id="$(printf '%s' "$list_output" | jq -r --arg path "$wt_path" '.result.worktrees // [] | map(select(.path == $path)) | .[0].open_workspace_id // .[0].id // empty' 2>/dev/null)" || return 0
 
   if [ -n "$ws_id" ] && [ "$ws_id" != "null" ]; then
     herdr workspace close "$ws_id" 2>/dev/null || true
