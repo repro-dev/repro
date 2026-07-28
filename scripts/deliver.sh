@@ -220,46 +220,50 @@ _create_worktree_and_launch() {
   if [[ "$mode" == "issue_id" ]]; then
     # Use reproctl for full issue workflow (fetch from Linear, branch creation, etc.)
     # Note: --open is deliberately omitted; herdr workspace is handled via sibling workspace below
-    "$SCRIPT_DIR/reproctl.sh" wt create --from-issue "$issue_id" --no-status-update
+    # Capture reproctl output to extract the actual worktree path (avoids git worktree list race)
+    local reproctl_output
+    reproctl_output="$("$SCRIPT_DIR/reproctl.sh" wt create --from-issue "$issue_id" --no-status-update 2>&1)"
+    printf '%s\n' "$reproctl_output"
 
-    # Resolve the actual worktree path (reproctl may have suffixed the slug with a timestamp)
+    # Extract the actual worktree path from reproctl's output
     local resolved_wt_path
-    resolved_wt_path="$(_worktree_path_for_branch "$branch")"
+    resolved_wt_path="$(printf '%s' "$reproctl_output" | sed -n 's/^[[:space:]]*Path:[[:space:]]*//p' | tail -1)"
     if [[ -z "$resolved_wt_path" ]]; then
-      # reproctl suffixed the branch; search worktrees for a matching branch
-      # Use issue-id slug as a fallback pattern when branch is empty
-      local branch_pattern
-      if [[ -n "$branch" ]]; then
-        branch_pattern="${branch}-*"
-      else
-        branch_pattern="*-$(printf '%s' "$issue_id" | tr '[:upper:]' '[:lower:]')-*"
-      fi
-      local wt_entry_dir="" wt_entry_branch="" latest_wt=""
-      while IFS= read -r line; do
-        case "$line" in
-          worktree\ *) wt_entry_dir="${line#worktree }" ;;
-          branch\ *)   wt_entry_branch="${line#branch }"; wt_entry_branch="${wt_entry_branch#refs/heads/}" ;;
-          "")
-            if [[ -n "$wt_entry_branch" ]]; then
-              if [[ -n "$branch" ]] && [[ "$wt_entry_branch" == "$branch_pattern" ]]; then
-                resolved_wt_path="$wt_entry_dir"
-              elif [[ -z "$branch" ]]; then
-                local lower_branch
-                lower_branch="$(printf '%s' "$wt_entry_branch" | tr '[:upper:]' '[:lower:]')"
-                local lower_pattern
-                lower_pattern="$(printf '%s' "$issue_id" | tr '[:upper:]' '[:lower:]')"
-                if [[ "$lower_branch" == *"$lower_pattern"* ]]; then
-                  latest_wt="$wt_entry_dir"
+      # Fallback: scan git worktree list if reproctl output didn't contain a path
+      resolved_wt_path="$(_worktree_path_for_branch "$branch")"
+      if [[ -z "$resolved_wt_path" ]]; then
+        local branch_pattern
+        if [[ -n "$branch" ]]; then
+          branch_pattern="${branch}-*"
+        else
+          branch_pattern="*-$(printf '%s' "$issue_id" | tr '[:upper:]' '[:lower:]')-*"
+        fi
+        local wt_entry_dir="" wt_entry_branch="" latest_wt=""
+        while IFS= read -r line; do
+          case "$line" in
+            worktree\ *) wt_entry_dir="${line#worktree }" ;;
+            branch\ *)   wt_entry_branch="${line#branch }"; wt_entry_branch="${wt_entry_branch#refs/heads/}" ;;
+            "")
+              if [[ -n "$wt_entry_branch" ]]; then
+                if [[ -n "$branch" ]] && [[ "$wt_entry_branch" == "$branch_pattern" ]]; then
+                  resolved_wt_path="$wt_entry_dir"
+                elif [[ -z "$branch" ]]; then
+                  local lower_branch
+                  lower_branch="$(printf '%s' "$wt_entry_branch" | tr '[:upper:]' '[:lower:]')"
+                  local lower_pattern
+                  lower_pattern="$(printf '%s' "$issue_id" | tr '[:upper:]' '[:lower:]')"
+                  if [[ "$lower_branch" == *"$lower_pattern"* ]]; then
+                    latest_wt="$wt_entry_dir"
+                  fi
                 fi
               fi
-            fi
-            wt_entry_dir="" wt_entry_branch=""
-            ;;
-        esac
-      done < <(git worktree list --porcelain)
-      # Use latest matching worktree when branch was empty
-      if [[ -z "$resolved_wt_path" && -n "$latest_wt" ]]; then
-        resolved_wt_path="$latest_wt"
+              wt_entry_dir="" wt_entry_branch=""
+              ;;
+          esac
+        done < <(git worktree list --porcelain)
+        if [[ -z "$resolved_wt_path" && -n "$latest_wt" ]]; then
+          resolved_wt_path="$latest_wt"
+        fi
       fi
     fi
     if [[ -n "$resolved_wt_path" ]]; then
