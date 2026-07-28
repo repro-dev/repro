@@ -321,19 +321,16 @@ _create_worktree_and_launch() {
   fi
   _ok "Workspace: ${label} (${ws_id})"
 
-  # Stage 3: Bootstrap (async)
-  _step 3 4 "Bootstrapping workspace (async)..."
+  # Stage 3: No-op. Worktree is already bootstrapped by reproctl.sh wt create
+  # (pnpm install + moon run :build + direnv allow).
+  _step 3 4 "Launching OpenCode agent..."
+
   local pane_id
   pane_id="$(herdr pane list --workspace "$ws_id" 2>/dev/null | jq -r '.result.panes[0].pane_id // .result.panes[0].id // empty' 2>/dev/null || true)"
-  if [[ -n "$pane_id" && "$pane_id" != "null" ]]; then
-    herdr pane run "$pane_id" "cd \"$wt_path\" && pnpm bootstrap" 2>/dev/null || true
-    _ok "Bootstrap started in workspace pane"
-  else
-    _warn "Could not find a pane for the workspace — bootstrap skipped."
+  if [[ -z "$pane_id" || "$pane_id" == "null" ]]; then
+    _warn "Could not find a pane for the workspace — agent launch skipped."
+    return 0
   fi
-
-  # Stage 4: Agent launch
-  _step 4 4 "Launching OpenCode agent..."
 
   # Build the opencode launch command
   local opencode_cmd
@@ -348,9 +345,10 @@ _create_worktree_and_launch() {
 
   # Start agent detection in background BEFORE sending the launch command.
   # herdr agent start blocks until the agent is detected in the pane (via --timeout).
-  local agent_name
+  local agent_name agent_stderr
   agent_name="$(printf '%s' "opencode-${label}" | tr '[:upper:]' '[:lower:]')"
-  herdr agent start "$agent_name" --kind opencode --pane "$pane_id" --timeout 60000 &
+  agent_stderr="$(mktemp "$MAIN_CHECKOUT/tmp/herdr.XXXXXX")"
+  herdr agent start "$agent_name" --kind opencode --pane "$pane_id" --timeout 60000 2>"$agent_stderr" &
   local agent_pid=$!
 
   # Brief pause for herdr to set up agent detection
@@ -359,13 +357,25 @@ _create_worktree_and_launch() {
   # Send the opencode launch command to the pane
   herdr pane run "$pane_id" "cd \"$wt_path\" && $opencode_cmd" || {
     kill "$agent_pid" 2>/dev/null || true
+    rm -f "$agent_stderr"
     _warn "Failed to send OpenCode launch command to pane ${pane_id}."
     return 0
   }
 
   # Wait for herdr to detect the agent (blocks until ready or timeout)
-  wait "$agent_pid" 2>/dev/null || true
-  _ok "OpenCode agent launched in workspace"
+  wait "$agent_pid" 2>/dev/null
+  local agent_rc=$?
+  if [[ $agent_rc -eq 0 ]] && ! grep -q '"error"' "$agent_stderr" 2>/dev/null; then
+    _ok "OpenCode agent launched in workspace"
+  else
+    if [[ -s "$agent_stderr" ]]; then
+      _warn "Agent registration failed — opencode may still be starting in the workspace."
+      echo "  $(cat "$agent_stderr")" >&2
+    else
+      _warn "Agent registration timed out — opencode may still be starting in the workspace."
+    fi
+  fi
+  rm -f "$agent_stderr"
 }
 
 # ── Main ───────────────────────────────────────────────────────────
