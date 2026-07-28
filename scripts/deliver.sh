@@ -98,8 +98,8 @@ _mode_issue_id() {
   issue_json="$(linear issue show "$issue_id" --json 2>/dev/null || true)"
 
   if [[ -n "$issue_json" ]]; then
-    branch="$(printf '%s' "$issue_json" | jq -r '.branchName // empty' 2>/dev/null || true)"
-    title="$(printf '%s' "$issue_json" | jq -r '.title // empty' 2>/dev/null || true)"
+    branch="$(printf '%s' "$issue_json" | jq -r '.item.branchName // .branchName // empty' 2>/dev/null || true)"
+    title="$(printf '%s' "$issue_json" | jq -r '.item.title // .title // empty' 2>/dev/null || true)"
   fi
 
   printf '%s\n%s\n%s\n%s\n' "$issue_id" "${branch:-}" "${title:-}" "$delivery_command"
@@ -227,19 +227,40 @@ _create_worktree_and_launch() {
     resolved_wt_path="$(_worktree_path_for_branch "$branch")"
     if [[ -z "$resolved_wt_path" ]]; then
       # reproctl suffixed the branch; search worktrees for a matching branch
-      local wt_entry_dir="" wt_entry_branch=""
+      # Use issue-id slug as a fallback pattern when branch is empty
+      local branch_pattern
+      if [[ -n "$branch" ]]; then
+        branch_pattern="${branch}-*"
+      else
+        branch_pattern="*-$(printf '%s' "$issue_id" | tr '[:upper:]' '[:lower:]')-*"
+      fi
+      local wt_entry_dir="" wt_entry_branch="" latest_wt=""
       while IFS= read -r line; do
         case "$line" in
           worktree\ *) wt_entry_dir="${line#worktree }" ;;
           branch\ *)   wt_entry_branch="${line#branch }"; wt_entry_branch="${wt_entry_branch#refs/heads/}" ;;
           "")
-            if [[ -n "$wt_entry_branch" && "$wt_entry_branch" == "$branch-"* ]]; then
-              resolved_wt_path="$wt_entry_dir"
+            if [[ -n "$wt_entry_branch" ]]; then
+              if [[ -n "$branch" ]] && [[ "$wt_entry_branch" == "$branch_pattern" ]]; then
+                resolved_wt_path="$wt_entry_dir"
+              elif [[ -z "$branch" ]]; then
+                local lower_branch
+                lower_branch="$(printf '%s' "$wt_entry_branch" | tr '[:upper:]' '[:lower:]')"
+                local lower_pattern
+                lower_pattern="$(printf '%s' "$issue_id" | tr '[:upper:]' '[:lower:]')"
+                if [[ "$lower_branch" == *"$lower_pattern"* ]]; then
+                  latest_wt="$wt_entry_dir"
+                fi
+              fi
             fi
             wt_entry_dir="" wt_entry_branch=""
             ;;
         esac
       done < <(git worktree list --porcelain)
+      # Use latest matching worktree when branch was empty
+      if [[ -z "$resolved_wt_path" && -n "$latest_wt" ]]; then
+        resolved_wt_path="$latest_wt"
+      fi
     fi
     if [[ -n "$resolved_wt_path" ]]; then
       wt_path="$resolved_wt_path"
@@ -287,7 +308,8 @@ _create_worktree_and_launch() {
   ws_id="$(_herdr_workspace_add_sibling "$wt_path" "$label")"
 
   if [[ -z "$ws_id" ]]; then
-    _warn "herdr not available — worktree created but no OpenCode session was opened."
+    _warn "Could not open herdr workspace — worktree created but no OpenCode session was opened."
+    echo "  See errors above for the specific reason."
     echo ""
     echo "  cd $wt_path"
     echo "  opencode run -i \"$prompt_arg\""
@@ -298,7 +320,7 @@ _create_worktree_and_launch() {
   # Stage 3: Bootstrap (async)
   _step 3 4 "Bootstrapping workspace (async)..."
   local pane_id
-  pane_id="$(herdr pane list --workspace "$ws_id" --json 2>/dev/null | jq -r '.[0].pane_id // .[0].id // empty' 2>/dev/null || true)"
+  pane_id="$(herdr pane list --workspace "$ws_id" 2>/dev/null | jq -r '.result.panes[0].pane_id // .result.panes[0].id // empty' 2>/dev/null || true)"
   if [[ -n "$pane_id" && "$pane_id" != "null" ]]; then
     herdr pane run "$pane_id" "cd \"$wt_path\" && pnpm bootstrap" 2>/dev/null || true
     _ok "Bootstrap started in workspace pane"
@@ -308,26 +330,38 @@ _create_worktree_and_launch() {
 
   # Stage 4: Agent launch
   _step 4 4 "Launching OpenCode agent..."
-  local nightshift_flags=""
-  if [[ "$nightshift" == "true" ]]; then
-    nightshift_flags="--permission-mode acceptEdits --disallowed-tools AskUserQuestion"
-  fi
 
-  local agent_name="opencode-${label}"
-
+  # Build the opencode launch command
+  local opencode_cmd
   if [[ -n "$profile_arg" ]]; then
-    exec herdr agent start "$agent_name" \
-      --workspace "$ws_id" \
-      --focus \
-      $nightshift_flags \
-      -- bash -c 'cd "$1" && exec "$2" opencode --profile "$3" --prompt "$4"' _ "$wt_path" "$SCRIPT_DIR/reproctl.sh" "$profile_arg" "$prompt_arg"
+    opencode_cmd="\"$SCRIPT_DIR/reproctl.sh\" opencode --profile \"$profile_arg\" --prompt \"$prompt_arg\""
   else
-    exec herdr agent start "$agent_name" \
-      --workspace "$ws_id" \
-      --focus \
-      $nightshift_flags \
-      -- bash -c 'cd "$1" && REPRO_OPENCODE_PROFILE="$2" exec "$3" opencode --prompt "$4"' _ "$wt_path" "${REPRO_OPENCODE_PROFILE:-deepseek-v4}" "$SCRIPT_DIR/reproctl.sh" "$prompt_arg"
+    opencode_cmd="REPRO_OPENCODE_PROFILE=\"${REPRO_OPENCODE_PROFILE:-deepseek-v4}\" \"$SCRIPT_DIR/reproctl.sh\" opencode --prompt \"$prompt_arg\""
   fi
+  if [[ "$nightshift" == "true" ]]; then
+    opencode_cmd="$opencode_cmd --permission-mode acceptEdits --disallowed-tools AskUserQuestion"
+  fi
+
+  # Start agent detection in background BEFORE sending the launch command.
+  # herdr agent start blocks until the agent is detected in the pane (via --timeout).
+  local agent_name
+  agent_name="$(printf '%s' "opencode-${label}" | tr '[:upper:]' '[:lower:]')"
+  herdr agent start "$agent_name" --kind opencode --pane "$pane_id" --timeout 60000 &
+  local agent_pid=$!
+
+  # Brief pause for herdr to set up agent detection
+  sleep 1
+
+  # Send the opencode launch command to the pane
+  herdr pane run "$pane_id" "cd \"$wt_path\" && $opencode_cmd" || {
+    kill "$agent_pid" 2>/dev/null || true
+    _warn "Failed to send OpenCode launch command to pane ${pane_id}."
+    return 0
+  }
+
+  # Wait for herdr to detect the agent (blocks until ready or timeout)
+  wait "$agent_pid" 2>/dev/null || true
+  _ok "OpenCode agent launched in workspace"
 }
 
 # ── Main ───────────────────────────────────────────────────────────
