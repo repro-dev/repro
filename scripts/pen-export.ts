@@ -1,4 +1,10 @@
 #!/usr/bin/env node
+// Deferred: library-split export of reusable components as a shared Pen library.
+// pen CLI v0.3.0 cannot resolve import URIs in headless (non-interactive) mode,
+// so export_nodes() cannot cross-reference library nodes. When a pen CLI version
+// supports headless URI resolution, move the reusable frames into a separate
+// library .pen file and update this script to export from both files.
+// See: REP-1594 review finding (Major — architecture).
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
@@ -37,20 +43,8 @@ function findScreens(nodes: PenNode[]): PenNode[] {
 }
 
 async function main(): Promise<void> {
-  // Auth check — non-blocking for local dev
-  if (!process.env.PEN_CLI_KEY && !process.env.PENCIL_CLI_KEY) {
-    console.error('PEN_CLI_KEY environment variable is not set.')
-    console.error(
-      'Skipping pen export. Set PEN_CLI_KEY (or deprecated PENCIL_CLI_KEY) to authenticate with pen.dev.'
-    )
-    process.exit(0)
-  }
-
-  // @pen.dev/cli only reads PEN_CLI_KEY — translate from the deprecated name
-  const spawnEnv = { ...process.env }
-  if (!spawnEnv.PEN_CLI_KEY && spawnEnv.PENCIL_CLI_KEY) {
-    spawnEnv.PEN_CLI_KEY = spawnEnv.PENCIL_CLI_KEY
-  }
+  // Auth is handled by bin/pen, which injects PEN_CLI_KEY via envchain.
+  // Pass process.env through as-is so the wrapper can detect the key.
 
   // Ensure output directory
   if (!existsSync(OUTPUT_DIR)) {
@@ -97,7 +91,7 @@ async function main(): Promise<void> {
       ['interactive', '-i', PEN_FILE, '-o', '/dev/null'],
       {
         stdio: ['pipe', 'pipe', 'pipe'],
-        env: spawnEnv,
+        env: process.env,
       }
     )
 

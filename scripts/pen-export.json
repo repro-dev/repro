@@ -1,5 +1,5 @@
 {
-  "description": "Batch export configuration for repro.pen screens",
+  "description": "Batch export configuration for repro.pen screens. Library split (design-system.lib.pen) deferred — pen CLI v0.3.0 headless mode does not resolve import URIs.",
   "sourceFile": "repro.pen",
   "screens": [
     {
