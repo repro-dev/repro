@@ -98,6 +98,13 @@ Pre-send check: if the user reads only the first line and the last line, do they
   - **Install path**: Impeccable commands live in `.opencode/skills/impeccable/`, installed via `npx impeccable install` (OpenCode-native).
   - **Update path**: `npx impeccable update`. Run this to refresh the local skill bundle.
 
+### Design Files (.pen)
+
+- **Design-before-code**: Any UI change must be represented in a `.pen` file before implementation code. The design defines the intended output; code follows it.
+- **Structure**: `design-system.lib.pen` holds shared components; per-screen `.pen` files compose those components into full screens. New UI components are added to the design library first, then screens are composed from them.
+- **Commit `.pen` files** alongside code in PRs — they are source-of-truth artifacts, not auxiliary assets.
+- **Agentic workflows**: Use Pencil MCP tools (`pencil_batch_design`, `pencil_batch_get`, etc.) to read and modify `.pen` files. The `impeccable` skill covers polish and critique; `design-system` covers code-level UI implementation conventions.
+
 ### Async
 
 Use `fluture` (`FutureInstance`) for async operations, **not** Promises. Prefer Future-based signatures in interfaces that may involve I/O.
