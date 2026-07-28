@@ -8,12 +8,12 @@
       "y": 0,
       "name": "Button",
       "reusable": true,
-      "fill": "#1d4ed8",
-      "cornerRadius": 8,
-      "gap": 8,
+      "fill": "$color-primary",
+      "cornerRadius": "$radius-md",
+      "gap": "$spacing-8",
       "padding": [
-        8,
-        16
+        "$spacing-8",
+        "$spacing-16"
       ],
       "justifyContent": "center",
       "alignItems": "center",
@@ -22,11 +22,11 @@
           "type": "text",
           "id": "aNHbE",
           "name": "Label",
-          "fill": "#ffffff",
+          "fill": "$color-white",
           "content": "Button",
           "lineHeight": 1,
           "fontFamily": "Inter",
-          "fontSize": 13,
+          "fontSize": "$font-size-13",
           "fontWeight": "600"
         }
       ]
@@ -38,11 +38,11 @@
       "y": 0,
       "name": "Badge",
       "reusable": true,
-      "fill": "#cbd5e1",
-      "cornerRadius": 9999,
+      "fill": "$color-surface-muted",
+      "cornerRadius": "$radius-full",
       "padding": [
-        2,
-        8
+        "$spacing-2",
+        "$spacing-8"
       ],
       "alignItems": "center",
       "children": [
@@ -50,11 +50,11 @@
           "type": "text",
           "id": "W1uxR",
           "name": "Label",
-          "fill": "#334155",
+          "fill": "$color-text-secondary",
           "content": "Badge",
           "lineHeight": 1,
           "fontFamily": "Inter",
-          "fontSize": 11,
+          "fontSize": "$font-size-11",
           "fontWeight": "600"
         }
       ]
@@ -67,13 +67,13 @@
       "name": "Input",
       "reusable": true,
       "width": 280,
-      "fill": "#ffffff",
-      "cornerRadius": 4,
-      "stroke": "#e2e8f0",
+      "fill": "$color-white",
+      "cornerRadius": "$radius-sm",
+      "stroke": "$color-border",
       "strokeWidth": 1,
       "padding": [
-        8,
-        12
+        "$spacing-8",
+        "$spacing-12"
       ],
       "alignItems": "center",
       "children": [
@@ -81,11 +81,11 @@
           "type": "text",
           "id": "Jtrwu",
           "name": "Placeholder",
-          "fill": "#64748b",
+          "fill": "$color-text-muted",
           "content": "Enter text...",
           "lineHeight": 1.5,
           "fontFamily": "Inter",
-          "fontSize": 13
+          "fontSize": "$font-size-13"
         }
       ]
     },
@@ -96,7 +96,7 @@
       "y": 0,
       "name": "Toggle",
       "reusable": true,
-      "gap": 10,
+      "gap": "$spacing-10",
       "alignItems": "center",
       "children": [
         {
@@ -105,9 +105,9 @@
           "name": "Track",
           "width": 40,
           "height": 24,
-          "fill": "#1d4ed8",
-          "cornerRadius": 9999,
-          "padding": 2,
+          "fill": "$color-primary",
+          "cornerRadius": "$radius-full",
+          "padding": "$spacing-2",
           "justifyContent": "end",
           "alignItems": "center",
           "children": [
@@ -117,8 +117,8 @@
               "name": "Thumb",
               "width": 20,
               "height": 20,
-              "fill": "#ffffff",
-              "cornerRadius": 9999
+              "fill": "$color-white",
+              "cornerRadius": "$radius-full"
             }
           ]
         },
@@ -126,11 +126,11 @@
           "type": "text",
           "id": "tXWjf",
           "name": "Label",
-          "fill": "#0f172a",
+          "fill": "$color-text-primary",
           "content": "Toggle",
           "lineHeight": 1,
           "fontFamily": "Inter",
-          "fontSize": 13,
+          "fontSize": "$font-size-13",
           "fontWeight": "600"
         }
       ]
@@ -143,36 +143,36 @@
       "name": "Card",
       "reusable": true,
       "width": 320,
-      "fill": "#ffffff",
-      "cornerRadius": 8,
-      "stroke": "#e2e8f0",
+      "fill": "$color-white",
+      "cornerRadius": "$radius-md",
+      "stroke": "$color-border",
       "strokeWidth": 1,
       "layout": "vertical",
-      "gap": 16,
-      "padding": 24,
+      "gap": "$spacing-16",
+      "padding": "$spacing-24",
       "children": [
         {
           "type": "text",
           "id": "v7cdH",
           "name": "Title",
-          "fill": "#0f172a",
+          "fill": "$color-text-primary",
           "content": "Card Title",
           "lineHeight": 1.25,
           "fontFamily": "Inter",
-          "fontSize": 16,
+          "fontSize": "$font-size-16",
           "fontWeight": "600"
         },
         {
           "type": "text",
           "id": "eHohz",
           "name": "Body",
-          "fill": "#334155",
+          "fill": "$color-text-secondary",
           "textGrowth": "fixed-width",
           "width": "fill_container",
           "content": "Card description goes here.",
           "lineHeight": 1.5,
           "fontFamily": "Inter",
-          "fontSize": 13
+          "fontSize": "$font-size-13"
         }
       ]
     },
@@ -184,22 +184,22 @@
       "name": "Alert",
       "reusable": true,
       "width": 480,
-      "fill": "#dbeafe",
-      "cornerRadius": 8,
-      "gap": 12,
+      "fill": "$color-alert-bg",
+      "cornerRadius": "$radius-md",
+      "gap": "$spacing-12",
       "padding": [
-        12,
-        16
+        "$spacing-12",
+        "$spacing-16"
       ],
       "children": [
         {
           "type": "text",
           "id": "AJYV1",
           "name": "Icon",
-          "fill": "#1d4ed8",
+          "fill": "$color-primary",
           "content": "i",
           "fontFamily": "Inter",
-          "fontSize": 15,
+          "fontSize": "$font-size-15",
           "fontWeight": "700"
         },
         {
@@ -208,30 +208,30 @@
           "name": "Text Column",
           "width": "fill_container",
           "layout": "vertical",
-          "gap": 4,
+          "gap": "$spacing-4",
           "children": [
             {
               "type": "text",
               "id": "cxIGA",
               "name": "Title",
-              "fill": "#1e3a8a",
+              "fill": "$color-primary-dark",
               "content": "Alert Title",
               "lineHeight": 1.25,
               "fontFamily": "Inter",
-              "fontSize": 13,
+              "fontSize": "$font-size-13",
               "fontWeight": "600"
             },
             {
               "type": "text",
               "id": "metlx",
               "name": "Description",
-              "fill": "#1e3a8a",
+              "fill": "$color-primary-dark",
               "textGrowth": "fixed-width",
               "width": "fill_container",
               "content": "Alert description with helpful context.",
               "lineHeight": 1.5,
               "fontFamily": "Inter",
-              "fontSize": 13
+              "fontSize": "$font-size-13"
             }
           ]
         }
@@ -244,7 +244,7 @@
       "y": 0,
       "name": "Checkbox",
       "reusable": true,
-      "gap": 10,
+      "gap": "$spacing-10",
       "alignItems": "center",
       "children": [
         {
@@ -253,8 +253,8 @@
           "name": "Box",
           "width": 18,
           "height": 18,
-          "fill": "#1d4ed8",
-          "cornerRadius": 4,
+          "fill": "$color-primary",
+          "cornerRadius": "$radius-sm",
           "justifyContent": "center",
           "alignItems": "center",
           "children": [
@@ -262,7 +262,7 @@
               "type": "text",
               "id": "fVXhi",
               "name": "Check",
-              "fill": "#ffffff",
+              "fill": "$color-white",
               "content": "✓",
               "fontFamily": "Inter",
               "fontSize": 12,
@@ -274,11 +274,11 @@
           "type": "text",
           "id": "nMpgb",
           "name": "Label",
-          "fill": "#0f172a",
+          "fill": "$color-text-primary",
           "content": "Checkbox label",
           "lineHeight": 1.5,
           "fontFamily": "Inter",
-          "fontSize": 13
+          "fontSize": "$font-size-13"
         }
       ]
     },
@@ -291,7 +291,7 @@
       "reusable": true,
       "width": 240,
       "layout": "vertical",
-      "gap": 8,
+      "gap": "$spacing-8",
       "children": [
         {
           "type": "frame",
@@ -299,8 +299,8 @@
           "name": "Track",
           "width": "fill_container",
           "height": 8,
-          "fill": "#e2e8f0",
-          "cornerRadius": 9999,
+          "fill": "$color-border",
+          "cornerRadius": "$radius-full",
           "children": [
             {
               "type": "frame",
@@ -308,8 +308,8 @@
               "name": "Fill",
               "width": 160,
               "height": 8,
-              "fill": "#1d4ed8",
-              "cornerRadius": 9999
+              "fill": "$color-primary",
+              "cornerRadius": "$radius-full"
             }
           ]
         },
@@ -317,10 +317,10 @@
           "type": "text",
           "id": "EmALi",
           "name": "Label",
-          "fill": "#64748b",
+          "fill": "$color-text-muted",
           "content": "67% complete",
           "fontFamily": "Inter",
-          "fontSize": 11
+          "fontSize": "$font-size-11"
         }
       ]
     },
@@ -333,8 +333,8 @@
       "reusable": true,
       "width": 30,
       "height": 30,
-      "fill": "#1d4ed8",
-      "cornerRadius": 9999,
+      "fill": "$color-primary",
+      "cornerRadius": "$radius-full",
       "justifyContent": "center",
       "alignItems": "center",
       "children": [
@@ -342,10 +342,10 @@
           "type": "text",
           "id": "LDiLT",
           "name": "Initials",
-          "fill": "#ffffff",
+          "fill": "$color-white",
           "content": "JD",
           "fontFamily": "Inter",
-          "fontSize": 13,
+          "fontSize": "$font-size-13",
           "fontWeight": "600"
         }
       ]
@@ -359,7 +359,7 @@
       "reusable": true,
       "width": 240,
       "layout": "vertical",
-      "gap": 4,
+      "gap": "$spacing-4",
       "children": [
         {
           "type": "frame",
@@ -367,8 +367,8 @@
           "name": "Line 1",
           "width": 200,
           "height": 8,
-          "fill": "#e2e8f0",
-          "cornerRadius": 4
+          "fill": "$color-border",
+          "cornerRadius": "$radius-sm"
         },
         {
           "type": "frame",
@@ -376,8 +376,8 @@
           "name": "Line 2",
           "width": "fill_container",
           "height": 8,
-          "fill": "#e2e8f0",
-          "cornerRadius": 4
+          "fill": "$color-border",
+          "cornerRadius": "$radius-sm"
         },
         {
           "type": "frame",
@@ -385,8 +385,8 @@
           "name": "Line 3",
           "width": 160,
           "height": 8,
-          "fill": "#e2e8f0",
-          "cornerRadius": 4
+          "fill": "$color-border",
+          "cornerRadius": "$radius-sm"
         }
       ]
     },
@@ -399,64 +399,64 @@
       "reusable": true,
       "width": 360,
       "layout": "vertical",
-      "gap": 12,
-      "padding": 32,
+      "gap": "$spacing-12",
+      "padding": "$spacing-32",
       "alignItems": "center",
       "children": [
         {
           "type": "text",
           "id": "BhWQZ",
           "name": "Icon",
-          "fill": "#000000",
+          "fill": "$color-empty-icon",
           "content": "📋",
           "fontFamily": "Inter",
-          "fontSize": 40,
+          "fontSize": "$font-size-40",
           "fontWeight": "normal"
         },
         {
           "type": "text",
           "id": "XmniF",
           "name": "Title",
-          "fill": "#0f172a",
+          "fill": "$color-text-primary",
           "content": "No items yet",
           "lineHeight": 1.25,
           "fontFamily": "Inter",
-          "fontSize": 16,
+          "fontSize": "$font-size-16",
           "fontWeight": "600"
         },
         {
           "type": "text",
           "id": "spLoI",
           "name": "Description",
-          "fill": "#334155",
+          "fill": "$color-text-secondary",
           "textGrowth": "fixed-width",
           "width": "fill_container",
           "content": "Get started by creating your first item.",
           "lineHeight": 1.5,
           "textAlign": "center",
           "fontFamily": "Inter",
-          "fontSize": 13
+          "fontSize": "$font-size-13"
         },
         {
           "type": "frame",
           "id": "j335D",
           "name": "CTA",
-          "fill": "#1d4ed8",
-          "cornerRadius": 8,
+          "fill": "$color-primary",
+          "cornerRadius": "$radius-md",
           "padding": [
-            8,
-            16
+            "$spacing-8",
+            "$spacing-16"
           ],
           "children": [
             {
               "type": "text",
               "id": "b0g0M",
               "name": "Label",
-              "fill": "#ffffff",
+              "fill": "$color-white",
               "content": "Create item",
               "lineHeight": 1,
               "fontFamily": "Inter",
-              "fontSize": 13,
+              "fontSize": "$font-size-13",
               "fontWeight": "600"
             }
           ]
@@ -480,7 +480,7 @@
           "name": "Tab List",
           "width": "fill_container",
           "height": 42,
-          "fill": "#f8fafc",
+          "fill": "$color-background",
           "children": [
             {
               "type": "frame",
@@ -489,8 +489,8 @@
               "width": "fill_container",
               "height": "fill_container",
               "padding": [
-                12,
-                16
+                "$spacing-12",
+                "$spacing-16"
               ],
               "justifyContent": "center",
               "children": [
@@ -498,10 +498,10 @@
                   "type": "text",
                   "id": "E0xlW",
                   "name": "Label",
-                  "fill": "#1d4ed8",
+                  "fill": "$color-primary",
                   "content": "Overview",
                   "fontFamily": "Inter",
-                  "fontSize": 13,
+                  "fontSize": "$font-size-13",
                   "fontWeight": "600"
                 }
               ]
@@ -513,8 +513,8 @@
               "width": "fill_container",
               "height": "fill_container",
               "padding": [
-                12,
-                16
+                "$spacing-12",
+                "$spacing-16"
               ],
               "justifyContent": "center",
               "children": [
@@ -522,10 +522,10 @@
                   "type": "text",
                   "id": "rHtoU",
                   "name": "Label",
-                  "fill": "#334155",
+                  "fill": "$color-text-secondary",
                   "content": "Settings",
                   "fontFamily": "Inter",
-                  "fontSize": 13
+                  "fontSize": "$font-size-13"
                 }
               ]
             },
@@ -536,8 +536,8 @@
               "width": "fill_container",
               "height": "fill_container",
               "padding": [
-                12,
-                16
+                "$spacing-12",
+                "$spacing-16"
               ],
               "justifyContent": "center",
               "children": [
@@ -545,10 +545,10 @@
                   "type": "text",
                   "id": "S5SRX",
                   "name": "Label",
-                  "fill": "#334155",
+                  "fill": "$color-text-secondary",
                   "content": "Billing",
                   "fontFamily": "Inter",
-                  "fontSize": 13
+                  "fontSize": "$font-size-13"
                 }
               ]
             }
@@ -561,7 +561,7 @@
           "width": "fill_container",
           "layout": "vertical",
           "padding": [
-            12,
+            "$spacing-12",
             0
           ],
           "children": [
@@ -569,11 +569,11 @@
               "type": "text",
               "id": "Q5l8Fu",
               "name": "Content",
-              "fill": "#0f172a",
+              "fill": "$color-text-primary",
               "content": "Tab content appears here.",
               "lineHeight": 1.5,
               "fontFamily": "Inter",
-              "fontSize": 13
+              "fontSize": "$font-size-13"
             }
           ]
         }
@@ -594,10 +594,10 @@
           "id": "VlMsQ",
           "name": "Header Row",
           "width": "fill_container",
-          "fill": "#f8fafc",
+          "fill": "$color-background",
           "padding": [
-            8,
-            12
+            "$spacing-8",
+            "$spacing-12"
           ],
           "children": [
             {
@@ -606,8 +606,8 @@
               "name": "Header Name",
               "width": "fill_container",
               "padding": [
-                8,
-                12
+                "$spacing-8",
+                "$spacing-12"
               ],
               "alignItems": "center",
               "children": [
@@ -615,10 +615,10 @@
                   "type": "text",
                   "id": "Z5dY71",
                   "name": "Label",
-                  "fill": "#64748b",
+                  "fill": "$color-text-muted",
                   "content": "Name",
                   "fontFamily": "Inter",
-                  "fontSize": 11,
+                  "fontSize": "$font-size-11",
                   "fontWeight": "600"
                 }
               ]
@@ -629,8 +629,8 @@
               "name": "Header Email",
               "width": "fill_container",
               "padding": [
-                8,
-                12
+                "$spacing-8",
+                "$spacing-12"
               ],
               "alignItems": "center",
               "children": [
@@ -638,10 +638,10 @@
                   "type": "text",
                   "id": "oe1zW",
                   "name": "Label",
-                  "fill": "#64748b",
+                  "fill": "$color-text-muted",
                   "content": "Email",
                   "fontFamily": "Inter",
-                  "fontSize": 11,
+                  "fontSize": "$font-size-11",
                   "fontWeight": "600"
                 }
               ]
@@ -652,8 +652,8 @@
               "name": "Header Role",
               "width": "fill_container",
               "padding": [
-                8,
-                12
+                "$spacing-8",
+                "$spacing-12"
               ],
               "alignItems": "center",
               "children": [
@@ -661,10 +661,10 @@
                   "type": "text",
                   "id": "RF0Me",
                   "name": "Label",
-                  "fill": "#64748b",
+                  "fill": "$color-text-muted",
                   "content": "Role",
                   "fontFamily": "Inter",
-                  "fontSize": 11,
+                  "fontSize": "$font-size-11",
                   "fontWeight": "600"
                 }
               ]
@@ -677,8 +677,8 @@
           "name": "Row 1",
           "width": "fill_container",
           "padding": [
-            8,
-            12
+            "$spacing-8",
+            "$spacing-12"
           ],
           "children": [
             {
@@ -687,8 +687,8 @@
               "name": "Cell 1-1",
               "width": "fill_container",
               "padding": [
-                8,
-                12
+                "$spacing-8",
+                "$spacing-12"
               ],
               "alignItems": "center",
               "children": [
@@ -696,11 +696,11 @@
                   "type": "text",
                   "id": "wNikc",
                   "name": "Value",
-                  "fill": "#0f172a",
+                  "fill": "$color-text-primary",
                   "content": "John Doe",
                   "lineHeight": 1.5,
                   "fontFamily": "Inter",
-                  "fontSize": 13
+                  "fontSize": "$font-size-13"
                 }
               ]
             },
@@ -710,8 +710,8 @@
               "name": "Cell 1-2",
               "width": "fill_container",
               "padding": [
-                8,
-                12
+                "$spacing-8",
+                "$spacing-12"
               ],
               "alignItems": "center",
               "children": [
@@ -719,11 +719,11 @@
                   "type": "text",
                   "id": "RDWFP",
                   "name": "Value",
-                  "fill": "#0f172a",
+                  "fill": "$color-text-primary",
                   "content": "john@example.com",
                   "lineHeight": 1.5,
                   "fontFamily": "Inter",
-                  "fontSize": 13
+                  "fontSize": "$font-size-13"
                 }
               ]
             },
@@ -733,8 +733,8 @@
               "name": "Cell 1-3",
               "width": "fill_container",
               "padding": [
-                8,
-                12
+                "$spacing-8",
+                "$spacing-12"
               ],
               "alignItems": "center",
               "children": [
@@ -742,11 +742,11 @@
                   "type": "text",
                   "id": "U6JV6h",
                   "name": "Value",
-                  "fill": "#0f172a",
+                  "fill": "$color-text-primary",
                   "content": "Admin",
                   "lineHeight": 1.5,
                   "fontFamily": "Inter",
-                  "fontSize": 13
+                  "fontSize": "$font-size-13"
                 }
               ]
             }
@@ -758,8 +758,8 @@
           "name": "Row 2",
           "width": "fill_container",
           "padding": [
-            8,
-            12
+            "$spacing-8",
+            "$spacing-12"
           ],
           "children": [
             {
@@ -768,8 +768,8 @@
               "name": "Cell 2-1",
               "width": "fill_container",
               "padding": [
-                8,
-                12
+                "$spacing-8",
+                "$spacing-12"
               ],
               "alignItems": "center",
               "children": [
@@ -777,11 +777,11 @@
                   "type": "text",
                   "id": "AheC4",
                   "name": "Value",
-                  "fill": "#0f172a",
+                  "fill": "$color-text-primary",
                   "content": "Jane Smith",
                   "lineHeight": 1.5,
                   "fontFamily": "Inter",
-                  "fontSize": 13
+                  "fontSize": "$font-size-13"
                 }
               ]
             },
@@ -791,8 +791,8 @@
               "name": "Cell 2-2",
               "width": "fill_container",
               "padding": [
-                8,
-                12
+                "$spacing-8",
+                "$spacing-12"
               ],
               "alignItems": "center",
               "children": [
@@ -800,11 +800,11 @@
                   "type": "text",
                   "id": "YrJS2",
                   "name": "Value",
-                  "fill": "#0f172a",
+                  "fill": "$color-text-primary",
                   "content": "jane@example.com",
                   "lineHeight": 1.5,
                   "fontFamily": "Inter",
-                  "fontSize": 13
+                  "fontSize": "$font-size-13"
                 }
               ]
             },
@@ -814,8 +814,8 @@
               "name": "Cell 2-3",
               "width": "fill_container",
               "padding": [
-                8,
-                12
+                "$spacing-8",
+                "$spacing-12"
               ],
               "alignItems": "center",
               "children": [
@@ -823,11 +823,11 @@
                   "type": "text",
                   "id": "i49dW",
                   "name": "Value",
-                  "fill": "#0f172a",
+                  "fill": "$color-text-primary",
                   "content": "Editor",
                   "lineHeight": 1.5,
                   "fontFamily": "Inter",
-                  "fontSize": 13
+                  "fontSize": "$font-size-13"
                 }
               ]
             }
@@ -839,8 +839,8 @@
           "name": "Row 3",
           "width": "fill_container",
           "padding": [
-            8,
-            12
+            "$spacing-8",
+            "$spacing-12"
           ],
           "children": [
             {
@@ -849,8 +849,8 @@
               "name": "Cell 3-1",
               "width": "fill_container",
               "padding": [
-                8,
-                12
+                "$spacing-8",
+                "$spacing-12"
               ],
               "alignItems": "center",
               "children": [
@@ -858,11 +858,11 @@
                   "type": "text",
                   "id": "SgojE",
                   "name": "Value",
-                  "fill": "#0f172a",
+                  "fill": "$color-text-primary",
                   "content": "Bob Johnson",
                   "lineHeight": 1.5,
                   "fontFamily": "Inter",
-                  "fontSize": 13
+                  "fontSize": "$font-size-13"
                 }
               ]
             },
@@ -872,8 +872,8 @@
               "name": "Cell 3-2",
               "width": "fill_container",
               "padding": [
-                8,
-                12
+                "$spacing-8",
+                "$spacing-12"
               ],
               "alignItems": "center",
               "children": [
@@ -881,11 +881,11 @@
                   "type": "text",
                   "id": "sgETX",
                   "name": "Value",
-                  "fill": "#0f172a",
+                  "fill": "$color-text-primary",
                   "content": "bob@example.com",
                   "lineHeight": 1.5,
                   "fontFamily": "Inter",
-                  "fontSize": 13
+                  "fontSize": "$font-size-13"
                 }
               ]
             },
@@ -895,8 +895,8 @@
               "name": "Cell 3-3",
               "width": "fill_container",
               "padding": [
-                8,
-                12
+                "$spacing-8",
+                "$spacing-12"
               ],
               "alignItems": "center",
               "children": [
@@ -904,11 +904,11 @@
                   "type": "text",
                   "id": "t3Szh",
                   "name": "Value",
-                  "fill": "#0f172a",
+                  "fill": "$color-text-primary",
                   "content": "Viewer",
                   "lineHeight": 1.5,
                   "fontFamily": "Inter",
-                  "fontSize": 13
+                  "fontSize": "$font-size-13"
                 }
               ]
             }
@@ -932,7 +932,7 @@
           "name": "Line",
           "width": "fill_container",
           "height": 1,
-          "fill": "#e2e8f0"
+          "fill": "$color-border"
         }
       ]
     },
@@ -945,10 +945,10 @@
       "clip": true,
       "width": 960,
       "height": 1600,
-      "fill": "#f8fafc",
+      "fill": "$color-background",
       "layout": "vertical",
-      "gap": 24,
-      "padding": 32,
+      "gap": "$spacing-24",
+      "padding": "$spacing-32",
       "children": [
         {
           "type": "frame",
@@ -956,28 +956,28 @@
           "name": "Header",
           "width": "fill_container",
           "layout": "vertical",
-          "gap": 8,
+          "gap": "$spacing-8",
           "children": [
             {
               "type": "text",
               "id": "fV9CK",
               "name": "Title",
-              "fill": "#0f172a",
+              "fill": "$color-text-primary",
               "content": "Repro Design System",
               "lineHeight": 1.25,
               "fontFamily": "Inter",
-              "fontSize": 24,
+              "fontSize": "$font-size-24",
               "fontWeight": "700"
             },
             {
               "type": "text",
               "id": "pSSDw",
               "name": "Subtitle",
-              "fill": "#334155",
+              "fill": "$color-text-secondary",
               "content": "@repro/design — Component Library",
               "lineHeight": 1.5,
               "fontFamily": "Inter",
-              "fontSize": 15
+              "fontSize": "$font-size-15"
             }
           ]
         },
@@ -987,17 +987,17 @@
           "name": "Section: Buttons",
           "width": "fill_container",
           "layout": "vertical",
-          "gap": 12,
+          "gap": "$spacing-12",
           "children": [
             {
               "type": "text",
               "id": "ItBI8",
               "name": "Section Title",
-              "fill": "#64748b",
+              "fill": "$color-text-muted",
               "content": "Buttons",
               "lineHeight": 1,
               "fontFamily": "Inter",
-              "fontSize": 13,
+              "fontSize": "$font-size-13",
               "fontWeight": "600"
             },
             {
@@ -1005,7 +1005,7 @@
               "id": "Ut35J",
               "name": "Button Row",
               "width": "fill_container",
-              "gap": 12,
+              "gap": "$spacing-12",
               "alignItems": "center",
               "children": [
                 {
@@ -1013,7 +1013,7 @@
                   "type": "ref",
                   "ref": "eqZG0",
                   "name": "Primary",
-                  "fill": "#1d4ed8",
+                  "fill": "$color-primary",
                   "descendants": {
                     "aNHbE": {
                       "content": "Primary"
@@ -1025,7 +1025,7 @@
                   "type": "ref",
                   "ref": "eqZG0",
                   "name": "Success",
-                  "fill": "#15803d",
+                  "fill": "$color-success",
                   "descendants": {
                     "aNHbE": {
                       "content": "Success"
@@ -1037,7 +1037,7 @@
                   "type": "ref",
                   "ref": "eqZG0",
                   "name": "Warning",
-                  "fill": "#b45309",
+                  "fill": "$color-warning",
                   "descendants": {
                     "aNHbE": {
                       "content": "Warning"
@@ -1049,7 +1049,7 @@
                   "type": "ref",
                   "ref": "eqZG0",
                   "name": "Danger",
-                  "fill": "#be123c",
+                  "fill": "$color-danger",
                   "descendants": {
                     "aNHbE": {
                       "content": "Danger"
@@ -1061,7 +1061,7 @@
                   "type": "ref",
                   "ref": "eqZG0",
                   "name": "Neutral",
-                  "fill": "#334155",
+                  "fill": "$color-text-secondary",
                   "descendants": {
                     "aNHbE": {
                       "content": "Neutral"
@@ -1078,17 +1078,17 @@
           "name": "Section: Inputs",
           "width": "fill_container",
           "layout": "vertical",
-          "gap": 12,
+          "gap": "$spacing-12",
           "children": [
             {
               "type": "text",
               "id": "DOgIK",
               "name": "Section Title",
-              "fill": "#64748b",
+              "fill": "$color-text-muted",
               "content": "Inputs",
               "lineHeight": 1,
               "fontFamily": "Inter",
-              "fontSize": 13,
+              "fontSize": "$font-size-13",
               "fontWeight": "600"
             },
             {
@@ -1096,7 +1096,7 @@
               "id": "E5Q53",
               "name": "Input Row",
               "width": "fill_container",
-              "gap": 16,
+              "gap": "$spacing-16",
               "children": [
                 {
                   "id": "SNcNu",
@@ -1109,7 +1109,7 @@
                   "type": "ref",
                   "ref": "KnDBg",
                   "name": "Error Input",
-                  "stroke": "#f43f5e"
+                  "stroke": "$color-error"
                 }
               ]
             }
@@ -1121,17 +1121,17 @@
           "name": "Section: Badges",
           "width": "fill_container",
           "layout": "vertical",
-          "gap": 12,
+          "gap": "$spacing-12",
           "children": [
             {
               "type": "text",
               "id": "fLTP4",
               "name": "Section Title",
-              "fill": "#64748b",
+              "fill": "$color-text-muted",
               "content": "Badges",
               "lineHeight": 1,
               "fontFamily": "Inter",
-              "fontSize": 13,
+              "fontSize": "$font-size-13",
               "fontWeight": "600"
             },
             {
@@ -1139,7 +1139,7 @@
               "id": "p1LiBe",
               "name": "Badge Row",
               "width": "fill_container",
-              "gap": 8,
+              "gap": "$spacing-8",
               "alignItems": "center",
               "children": [
                 {
@@ -1147,11 +1147,11 @@
                   "type": "ref",
                   "ref": "d2CvF",
                   "name": "Neutral",
-                  "fill": "#cbd5e1",
+                  "fill": "$color-surface-muted",
                   "descendants": {
                     "W1uxR": {
                       "content": "Neutral",
-                      "fill": "#334155"
+                      "fill": "$color-text-secondary"
                     }
                   }
                 },
@@ -1160,11 +1160,11 @@
                   "type": "ref",
                   "ref": "d2CvF",
                   "name": "Info",
-                  "fill": "#dbeafe",
+                  "fill": "$color-alert-bg",
                   "descendants": {
                     "W1uxR": {
                       "content": "Info",
-                      "fill": "#1e3a8a"
+                      "fill": "$color-primary-dark"
                     }
                   }
                 },
@@ -1173,11 +1173,11 @@
                   "type": "ref",
                   "ref": "d2CvF",
                   "name": "Success",
-                  "fill": "#dcfce7",
+                  "fill": "$color-success-bg",
                   "descendants": {
                     "W1uxR": {
                       "content": "Success",
-                      "fill": "#14532d"
+                      "fill": "$color-success-text"
                     }
                   }
                 },
@@ -1186,11 +1186,11 @@
                   "type": "ref",
                   "ref": "d2CvF",
                   "name": "Warning",
-                  "fill": "#fef3c7",
+                  "fill": "$color-warning-bg",
                   "descendants": {
                     "W1uxR": {
                       "content": "Warning",
-                      "fill": "#78350f"
+                      "fill": "$color-warning-text"
                     }
                   }
                 },
@@ -1199,11 +1199,11 @@
                   "type": "ref",
                   "ref": "d2CvF",
                   "name": "Danger",
-                  "fill": "#ffe4e6",
+                  "fill": "$color-danger-bg",
                   "descendants": {
                     "W1uxR": {
                       "content": "Danger",
-                      "fill": "#881337"
+                      "fill": "$color-danger-text"
                     }
                   }
                 }
@@ -1217,17 +1217,17 @@
           "name": "Section: Toggles & Checkboxes",
           "width": "fill_container",
           "layout": "vertical",
-          "gap": 12,
+          "gap": "$spacing-12",
           "children": [
             {
               "type": "text",
               "id": "qVV9Z",
               "name": "Section Title",
-              "fill": "#64748b",
+              "fill": "$color-text-muted",
               "content": "Toggles & Checkboxes",
               "lineHeight": 1,
               "fontFamily": "Inter",
-              "fontSize": 13,
+              "fontSize": "$font-size-13",
               "fontWeight": "600"
             },
             {
@@ -1235,7 +1235,7 @@
               "id": "bMrxG",
               "name": "Toggle Row",
               "width": "fill_container",
-              "gap": 24,
+              "gap": "$spacing-24",
               "alignItems": "center",
               "children": [
                 {
@@ -1260,17 +1260,17 @@
           "name": "Section: Alerts",
           "width": "fill_container",
           "layout": "vertical",
-          "gap": 12,
+          "gap": "$spacing-12",
           "children": [
             {
               "type": "text",
               "id": "cxiUS",
               "name": "Section Title",
-              "fill": "#64748b",
+              "fill": "$color-text-muted",
               "content": "Alerts",
               "lineHeight": 1,
               "fontFamily": "Inter",
-              "fontSize": 13,
+              "fontSize": "$font-size-13",
               "fontWeight": "600"
             },
             {
@@ -1288,17 +1288,17 @@
           "name": "Section: Cards",
           "width": "fill_container",
           "layout": "vertical",
-          "gap": 12,
+          "gap": "$spacing-12",
           "children": [
             {
               "type": "text",
               "id": "LUzE2",
               "name": "Section Title",
-              "fill": "#64748b",
+              "fill": "$color-text-muted",
               "content": "Cards",
               "lineHeight": 1,
               "fontFamily": "Inter",
-              "fontSize": 13,
+              "fontSize": "$font-size-13",
               "fontWeight": "600"
             },
             {
@@ -1306,7 +1306,7 @@
               "id": "ojfDH",
               "name": "Card Row",
               "width": "fill_container",
-              "gap": 16,
+              "gap": "$spacing-16",
               "children": [
                 {
                   "id": "DGobH",
@@ -1338,17 +1338,17 @@
           "name": "Section: Meters & Avatars",
           "width": "fill_container",
           "layout": "vertical",
-          "gap": 12,
+          "gap": "$spacing-12",
           "children": [
             {
               "type": "text",
               "id": "OME5Y",
               "name": "Section Title",
-              "fill": "#64748b",
+              "fill": "$color-text-muted",
               "content": "Meters & Avatars",
               "lineHeight": 1,
               "fontFamily": "Inter",
-              "fontSize": 13,
+              "fontSize": "$font-size-13",
               "fontWeight": "600"
             },
             {
@@ -1356,7 +1356,7 @@
               "id": "dnkmt",
               "name": "Meter Row",
               "width": "fill_container",
-              "gap": 24,
+              "gap": "$spacing-24",
               "alignItems": "center",
               "children": [
                 {
@@ -1381,17 +1381,17 @@
           "name": "Section: Tabs",
           "width": "fill_container",
           "layout": "vertical",
-          "gap": 12,
+          "gap": "$spacing-12",
           "children": [
             {
               "type": "text",
               "id": "KglKA",
               "name": "Section Title",
-              "fill": "#64748b",
+              "fill": "$color-text-muted",
               "content": "Tabs",
               "lineHeight": 1,
               "fontFamily": "Inter",
-              "fontSize": 13,
+              "fontSize": "$font-size-13",
               "fontWeight": "600"
             },
             {
@@ -1409,17 +1409,17 @@
           "name": "Section: Table",
           "width": "fill_container",
           "layout": "vertical",
-          "gap": 12,
+          "gap": "$spacing-12",
           "children": [
             {
               "type": "text",
               "id": "Q0zbYG",
               "name": "Section Title",
-              "fill": "#64748b",
+              "fill": "$color-text-muted",
               "content": "Table",
               "lineHeight": 1,
               "fontFamily": "Inter",
-              "fontSize": 13,
+              "fontSize": "$font-size-13",
               "fontWeight": "600"
             },
             {
@@ -1437,17 +1437,17 @@
           "name": "Section: Loading States",
           "width": "fill_container",
           "layout": "vertical",
-          "gap": 12,
+          "gap": "$spacing-12",
           "children": [
             {
               "type": "text",
               "id": "TJA04",
               "name": "Section Title",
-              "fill": "#64748b",
+              "fill": "$color-text-muted",
               "content": "Loading States",
               "lineHeight": 1,
               "fontFamily": "Inter",
-              "fontSize": 13,
+              "fontSize": "$font-size-13",
               "fontWeight": "600"
             },
             {
@@ -1455,7 +1455,7 @@
               "id": "oXqV4",
               "name": "Skeleton Row",
               "width": "fill_container",
-              "gap": 16,
+              "gap": "$spacing-16",
               "children": [
                 {
                   "id": "o2WjYR",
@@ -1485,20 +1485,20 @@
       "clip": true,
       "width": 960,
       "height": 900,
-      "fill": "#f8fafc",
+      "fill": "$color-background",
       "layout": "vertical",
-      "gap": 24,
-      "padding": 32,
+      "gap": "$spacing-24",
+      "padding": "$spacing-32",
       "children": [
         {
           "type": "text",
           "id": "gquSa",
           "name": "Page Title",
-          "fill": "#0f172a",
+          "fill": "$color-text-primary",
           "content": "Account Settings",
           "lineHeight": 1.25,
           "fontFamily": "Inter",
-          "fontSize": 24,
+          "fontSize": "$font-size-24",
           "fontWeight": "700"
         },
         {
@@ -1507,30 +1507,30 @@
           "name": "Content Wrapper",
           "width": "fill_container",
           "layout": "vertical",
-          "gap": 32,
+          "gap": "$spacing-32",
           "children": [
             {
               "type": "frame",
               "id": "dt5GY",
               "name": "Profile Card",
               "width": "fill_container",
-              "fill": "#ffffff",
-              "cornerRadius": 8,
-              "stroke": "#e2e8f0",
+              "fill": "$color-white",
+              "cornerRadius": "$radius-md",
+              "stroke": "$color-border",
               "strokeWidth": 1,
               "layout": "vertical",
-              "gap": 20,
-              "padding": 24,
+              "gap": "$spacing-20",
+              "padding": "$spacing-24",
               "children": [
                 {
                   "type": "text",
                   "id": "jVvb1",
                   "name": "Card Title",
-                  "fill": "#0f172a",
+                  "fill": "$color-text-primary",
                   "content": "Profile",
                   "lineHeight": 1.25,
                   "fontFamily": "Inter",
-                  "fontSize": 16,
+                  "fontSize": "$font-size-16",
                   "fontWeight": "600"
                 },
                 {
@@ -1539,17 +1539,17 @@
                   "name": "Field: Full Name",
                   "width": "fill_container",
                   "layout": "vertical",
-                  "gap": 4,
+                  "gap": "$spacing-4",
                   "children": [
                     {
                       "type": "text",
                       "id": "d6RKsG",
                       "name": "Label",
-                      "fill": "#475569",
+                      "fill": "$color-field-label",
                       "content": "Full Name",
                       "lineHeight": 1,
                       "fontFamily": "Inter",
-                      "fontSize": 13,
+                      "fontSize": "$font-size-13",
                       "fontWeight": "600"
                     },
                     {
@@ -1557,13 +1557,13 @@
                       "id": "K26Px",
                       "name": "Field Input",
                       "width": "fill_container",
-                      "fill": "#ffffff",
-                      "cornerRadius": 4,
-                      "stroke": "#e2e8f0",
+                      "fill": "$color-white",
+                      "cornerRadius": "$radius-sm",
+                      "stroke": "$color-border",
                       "strokeWidth": 1,
                       "padding": [
-                        8,
-                        12
+                        "$spacing-8",
+                        "$spacing-12"
                       ],
                       "alignItems": "center",
                       "children": [
@@ -1571,11 +1571,11 @@
                           "type": "text",
                           "id": "mYh7B",
                           "name": "Value",
-                          "fill": "#0f172a",
+                          "fill": "$color-text-primary",
                           "content": "John Doe",
                           "lineHeight": 1.5,
                           "fontFamily": "Inter",
-                          "fontSize": 13
+                          "fontSize": "$font-size-13"
                         }
                       ]
                     }
@@ -1587,17 +1587,17 @@
                   "name": "Field: Email Address",
                   "width": "fill_container",
                   "layout": "vertical",
-                  "gap": 4,
+                  "gap": "$spacing-4",
                   "children": [
                     {
                       "type": "text",
                       "id": "K7bur",
                       "name": "Label",
-                      "fill": "#475569",
+                      "fill": "$color-field-label",
                       "content": "Email Address",
                       "lineHeight": 1,
                       "fontFamily": "Inter",
-                      "fontSize": 13,
+                      "fontSize": "$font-size-13",
                       "fontWeight": "600"
                     },
                     {
@@ -1605,13 +1605,13 @@
                       "id": "XyUoy",
                       "name": "Field Input",
                       "width": "fill_container",
-                      "fill": "#ffffff",
-                      "cornerRadius": 4,
-                      "stroke": "#e2e8f0",
+                      "fill": "$color-white",
+                      "cornerRadius": "$radius-sm",
+                      "stroke": "$color-border",
                       "strokeWidth": 1,
                       "padding": [
-                        8,
-                        12
+                        "$spacing-8",
+                        "$spacing-12"
                       ],
                       "alignItems": "center",
                       "children": [
@@ -1619,11 +1619,11 @@
                           "type": "text",
                           "id": "dqL35",
                           "name": "Value",
-                          "fill": "#0f172a",
+                          "fill": "$color-text-primary",
                           "content": "john@example.com",
                           "lineHeight": 1.5,
                           "fontFamily": "Inter",
-                          "fontSize": 13
+                          "fontSize": "$font-size-13"
                         }
                       ]
                     }
@@ -1635,17 +1635,17 @@
                   "name": "Field: Display Name",
                   "width": "fill_container",
                   "layout": "vertical",
-                  "gap": 4,
+                  "gap": "$spacing-4",
                   "children": [
                     {
                       "type": "text",
                       "id": "n7Tpsg",
                       "name": "Label",
-                      "fill": "#475569",
+                      "fill": "$color-field-label",
                       "content": "Display Name",
                       "lineHeight": 1,
                       "fontFamily": "Inter",
-                      "fontSize": 13,
+                      "fontSize": "$font-size-13",
                       "fontWeight": "600"
                     },
                     {
@@ -1653,13 +1653,13 @@
                       "id": "T6QFxZ",
                       "name": "Field Input",
                       "width": "fill_container",
-                      "fill": "#ffffff",
-                      "cornerRadius": 4,
-                      "stroke": "#e2e8f0",
+                      "fill": "$color-white",
+                      "cornerRadius": "$radius-sm",
+                      "stroke": "$color-border",
                       "strokeWidth": 1,
                       "padding": [
-                        8,
-                        12
+                        "$spacing-8",
+                        "$spacing-12"
                       ],
                       "alignItems": "center",
                       "children": [
@@ -1667,11 +1667,11 @@
                           "type": "text",
                           "id": "HANqA",
                           "name": "Value",
-                          "fill": "#0f172a",
+                          "fill": "$color-text-primary",
                           "content": "JD",
                           "lineHeight": 1.5,
                           "fontFamily": "Inter",
-                          "fontSize": 13
+                          "fontSize": "$font-size-13"
                         }
                       ]
                     }
@@ -1682,7 +1682,7 @@
                   "type": "ref",
                   "ref": "eqZG0",
                   "name": "Save Button",
-                  "fill": "#1d4ed8",
+                  "fill": "$color-primary",
                   "descendants": {
                     "aNHbE": {
                       "content": "Save Changes"
@@ -1696,23 +1696,23 @@
               "id": "S1wYh",
               "name": "Notifications Card",
               "width": "fill_container",
-              "fill": "#ffffff",
-              "cornerRadius": 8,
-              "stroke": "#e2e8f0",
+              "fill": "$color-white",
+              "cornerRadius": "$radius-md",
+              "stroke": "$color-border",
               "strokeWidth": 1,
               "layout": "vertical",
-              "gap": 16,
-              "padding": 24,
+              "gap": "$spacing-16",
+              "padding": "$spacing-24",
               "children": [
                 {
                   "type": "text",
                   "id": "C3QiNh",
                   "name": "Card Title",
-                  "fill": "#0f172a",
+                  "fill": "$color-text-primary",
                   "content": "Notifications",
                   "lineHeight": 1.25,
                   "fontFamily": "Inter",
-                  "fontSize": 16,
+                  "fontSize": "$font-size-16",
                   "fontWeight": "600"
                 },
                 {
@@ -1755,43 +1755,43 @@
               "id": "k5Qzj",
               "name": "Danger Zone",
               "width": "fill_container",
-              "fill": "#ffffff",
-              "cornerRadius": 8,
-              "stroke": "#f43f5e",
+              "fill": "$color-white",
+              "cornerRadius": "$radius-md",
+              "stroke": "$color-error",
               "strokeWidth": 1,
               "layout": "vertical",
-              "gap": 12,
-              "padding": 24,
+              "gap": "$spacing-12",
+              "padding": "$spacing-24",
               "children": [
                 {
                   "type": "text",
                   "id": "Fqa8J",
                   "name": "Card Title",
-                  "fill": "#be123c",
+                  "fill": "$color-danger",
                   "content": "Danger Zone",
                   "lineHeight": 1.25,
                   "fontFamily": "Inter",
-                  "fontSize": 16,
+                  "fontSize": "$font-size-16",
                   "fontWeight": "600"
                 },
                 {
                   "type": "text",
                   "id": "YwltS",
                   "name": "Description",
-                  "fill": "#881337",
+                  "fill": "$color-danger-text",
                   "textGrowth": "fixed-width",
                   "width": "fill_container",
                   "content": "Permanently delete your account and all associated data. This action cannot be undone.",
                   "lineHeight": 1.5,
                   "fontFamily": "Inter",
-                  "fontSize": 13
+                  "fontSize": "$font-size-13"
                 },
                 {
                   "id": "yvMxG",
                   "type": "ref",
                   "ref": "eqZG0",
                   "name": "Delete Button",
-                  "fill": "#be123c",
+                  "fill": "$color-danger",
                   "descendants": {
                     "aNHbE": {
                       "content": "Delete Account"
@@ -1804,5 +1804,459 @@
         }
       ]
     }
-  ]
+  ],
+  "variables": {
+    "color-primary": {
+      "type": "color",
+      "value": [
+        {
+          "value": "#1d4ed8",
+          "theme": {
+            "mode": "light"
+          }
+        },
+        {
+          "value": "#3b82f6",
+          "theme": {
+            "mode": "dark"
+          }
+        }
+      ]
+    },
+    "color-primary-dark": {
+      "type": "color",
+      "value": [
+        {
+          "value": "#1e3a8a",
+          "theme": {
+            "mode": "light"
+          }
+        },
+        {
+          "value": "#93c5fd",
+          "theme": {
+            "mode": "dark"
+          }
+        }
+      ]
+    },
+    "color-white": {
+      "type": "color",
+      "value": [
+        {
+          "value": "#ffffff",
+          "theme": {
+            "mode": "light"
+          }
+        },
+        {
+          "value": "#1e293b",
+          "theme": {
+            "mode": "dark"
+          }
+        }
+      ]
+    },
+    "color-text-primary": {
+      "type": "color",
+      "value": [
+        {
+          "value": "#0f172a",
+          "theme": {
+            "mode": "light"
+          }
+        },
+        {
+          "value": "#f1f5f9",
+          "theme": {
+            "mode": "dark"
+          }
+        }
+      ]
+    },
+    "color-text-secondary": {
+      "type": "color",
+      "value": [
+        {
+          "value": "#334155",
+          "theme": {
+            "mode": "light"
+          }
+        },
+        {
+          "value": "#cbd5e1",
+          "theme": {
+            "mode": "dark"
+          }
+        }
+      ]
+    },
+    "color-text-muted": {
+      "type": "color",
+      "value": [
+        {
+          "value": "#64748b",
+          "theme": {
+            "mode": "light"
+          }
+        },
+        {
+          "value": "#94a3b8",
+          "theme": {
+            "mode": "dark"
+          }
+        }
+      ]
+    },
+    "color-surface-muted": {
+      "type": "color",
+      "value": [
+        {
+          "value": "#cbd5e1",
+          "theme": {
+            "mode": "light"
+          }
+        },
+        {
+          "value": "#334155",
+          "theme": {
+            "mode": "dark"
+          }
+        }
+      ]
+    },
+    "color-border": {
+      "type": "color",
+      "value": [
+        {
+          "value": "#e2e8f0",
+          "theme": {
+            "mode": "light"
+          }
+        },
+        {
+          "value": "#334155",
+          "theme": {
+            "mode": "dark"
+          }
+        }
+      ]
+    },
+    "color-alert-bg": {
+      "type": "color",
+      "value": [
+        {
+          "value": "#dbeafe",
+          "theme": {
+            "mode": "light"
+          }
+        },
+        {
+          "value": "#1e3a8a",
+          "theme": {
+            "mode": "dark"
+          }
+        }
+      ]
+    },
+    "color-background": {
+      "type": "color",
+      "value": [
+        {
+          "value": "#f8fafc",
+          "theme": {
+            "mode": "light"
+          }
+        },
+        {
+          "value": "#0f172a",
+          "theme": {
+            "mode": "dark"
+          }
+        }
+      ]
+    },
+    "color-empty-icon": {
+      "type": "color",
+      "value": [
+        {
+          "value": "#000000",
+          "theme": {
+            "mode": "light"
+          }
+        },
+        {
+          "value": "#f1f5f9",
+          "theme": {
+            "mode": "dark"
+          }
+        }
+      ]
+    },
+    "color-success": {
+      "type": "color",
+      "value": [
+        {
+          "value": "#15803d",
+          "theme": {
+            "mode": "light"
+          }
+        },
+        {
+          "value": "#4ade80",
+          "theme": {
+            "mode": "dark"
+          }
+        }
+      ]
+    },
+    "color-success-bg": {
+      "type": "color",
+      "value": [
+        {
+          "value": "#dcfce7",
+          "theme": {
+            "mode": "light"
+          }
+        },
+        {
+          "value": "#14532d",
+          "theme": {
+            "mode": "dark"
+          }
+        }
+      ]
+    },
+    "color-success-text": {
+      "type": "color",
+      "value": [
+        {
+          "value": "#14532d",
+          "theme": {
+            "mode": "light"
+          }
+        },
+        {
+          "value": "#bbf7d0",
+          "theme": {
+            "mode": "dark"
+          }
+        }
+      ]
+    },
+    "color-warning": {
+      "type": "color",
+      "value": [
+        {
+          "value": "#b45309",
+          "theme": {
+            "mode": "light"
+          }
+        },
+        {
+          "value": "#fbbf24",
+          "theme": {
+            "mode": "dark"
+          }
+        }
+      ]
+    },
+    "color-warning-bg": {
+      "type": "color",
+      "value": [
+        {
+          "value": "#fef3c7",
+          "theme": {
+            "mode": "light"
+          }
+        },
+        {
+          "value": "#78350f",
+          "theme": {
+            "mode": "dark"
+          }
+        }
+      ]
+    },
+    "color-warning-text": {
+      "type": "color",
+      "value": [
+        {
+          "value": "#78350f",
+          "theme": {
+            "mode": "light"
+          }
+        },
+        {
+          "value": "#fef3c7",
+          "theme": {
+            "mode": "dark"
+          }
+        }
+      ]
+    },
+    "color-danger": {
+      "type": "color",
+      "value": [
+        {
+          "value": "#be123c",
+          "theme": {
+            "mode": "light"
+          }
+        },
+        {
+          "value": "#f87171",
+          "theme": {
+            "mode": "dark"
+          }
+        }
+      ]
+    },
+    "color-danger-bg": {
+      "type": "color",
+      "value": [
+        {
+          "value": "#ffe4e6",
+          "theme": {
+            "mode": "light"
+          }
+        },
+        {
+          "value": "#881337",
+          "theme": {
+            "mode": "dark"
+          }
+        }
+      ]
+    },
+    "color-danger-text": {
+      "type": "color",
+      "value": [
+        {
+          "value": "#881337",
+          "theme": {
+            "mode": "light"
+          }
+        },
+        {
+          "value": "#ffe4e6",
+          "theme": {
+            "mode": "dark"
+          }
+        }
+      ]
+    },
+    "color-error": {
+      "type": "color",
+      "value": [
+        {
+          "value": "#f43f5e",
+          "theme": {
+            "mode": "light"
+          }
+        },
+        {
+          "value": "#f87171",
+          "theme": {
+            "mode": "dark"
+          }
+        }
+      ]
+    },
+    "color-field-label": {
+      "type": "color",
+      "value": [
+        {
+          "value": "#475569",
+          "theme": {
+            "mode": "light"
+          }
+        },
+        {
+          "value": "#94a3b8",
+          "theme": {
+            "mode": "dark"
+          }
+        }
+      ]
+    },
+    "radius-full": {
+      "type": "number",
+      "value": 9999
+    },
+    "radius-md": {
+      "type": "number",
+      "value": 8
+    },
+    "radius-sm": {
+      "type": "number",
+      "value": 4
+    },
+    "font-size-11": {
+      "type": "number",
+      "value": 11
+    },
+    "font-size-13": {
+      "type": "number",
+      "value": 13
+    },
+    "font-size-15": {
+      "type": "number",
+      "value": 15
+    },
+    "font-size-16": {
+      "type": "number",
+      "value": 16
+    },
+    "font-size-24": {
+      "type": "number",
+      "value": 24
+    },
+    "font-size-40": {
+      "type": "number",
+      "value": 40
+    },
+    "spacing-2": {
+      "type": "number",
+      "value": 2
+    },
+    "spacing-4": {
+      "type": "number",
+      "value": 4
+    },
+    "spacing-8": {
+      "type": "number",
+      "value": 8
+    },
+    "spacing-10": {
+      "type": "number",
+      "value": 10
+    },
+    "spacing-12": {
+      "type": "number",
+      "value": 12
+    },
+    "spacing-16": {
+      "type": "number",
+      "value": 16
+    },
+    "spacing-20": {
+      "type": "number",
+      "value": 20
+    },
+    "spacing-24": {
+      "type": "number",
+      "value": 24
+    },
+    "spacing-32": {
+      "type": "number",
+      "value": 32
+    }
+  },
+  "themes": {
+    "mode": [
+      "light",
+      "dark"
+    ]
+  }
 }
