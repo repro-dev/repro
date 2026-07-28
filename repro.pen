@@ -2256,11 +2256,5 @@
       "type": "number",
       "value": 32
     }
-  },
-  "themes": {
-    "mode": [
-      "light",
-      "dark"
-    ]
   }
 }
