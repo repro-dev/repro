@@ -18,6 +18,7 @@ interface MockSnapshot {
   } | null
   frameworkState: null
   cssRules: null
+  colorScheme: string | null
 }
 
 function makeSnapshot(pointer: Point | null): MockSnapshot {
@@ -34,6 +35,7 @@ function makeSnapshot(pointer: Point | null): MockSnapshot {
       : null,
     frameworkState: null,
     cssRules: null,
+    colorScheme: null,
   }
 }
 

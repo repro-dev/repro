@@ -315,6 +315,7 @@ export function makeSimpleSnapshot(): Snapshot {
     interaction: null,
     frameworkState: null,
     cssRules: null,
+    colorScheme: null,
   }
 }
 

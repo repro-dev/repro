@@ -77,6 +77,7 @@ const events = new List(SourceEventView, [
         },
         frameworkState: null,
         cssRules: null,
+        colorScheme: null,
       },
     })
   ),
