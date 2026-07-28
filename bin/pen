@@ -19,12 +19,17 @@ resolve_path() {
   echo "$target"
 }
 
+REAL_SCRIPT="$(resolve_path "$0")"
+SCRIPT_DIR="$(cd "$(dirname "$REAL_SCRIPT")" && pwd)"
+REPO_ROOT="$(dirname "$SCRIPT_DIR")"
+REAL_PEN="$REPO_ROOT/node_modules/.bin/pen"
+
 # Inject PEN_CLI_KEY from the envchain "pen" namespace when it isn't
 # already present in the environment (CI, direnv, etc.) and envchain is
-# installed. Falls through to a direct exec otherwise, so the CLI's own
-# auth error still applies on machines without envchain.
+# installed. Calls the real pen binary by absolute path to avoid
+# circular invocation (PATH includes bin/ which contains this wrapper).
 if [[ -z "${PEN_CLI_KEY:-}" ]] && command -v envchain > /dev/null 2>&1; then
-  exec envchain pen pen "$@"
+  exec envchain pen "$REAL_PEN" "$@"
 fi
 
-exec pen "$@"
+exec "$REAL_PEN" "$@"
