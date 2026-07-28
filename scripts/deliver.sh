@@ -321,16 +321,28 @@ _create_worktree_and_launch() {
   fi
   _ok "Workspace: ${label} (${ws_id})"
 
-  # Stage 3: No-op. Worktree is already bootstrapped by reproctl.sh wt create
-  # (pnpm install + moon run :build + direnv allow).
-  _step 3 4 "Launching OpenCode agent..."
-
-  local pane_id
-  pane_id="$(herdr pane list --workspace "$ws_id" 2>/dev/null | jq -r '.result.panes[0].pane_id // .result.panes[0].id // empty' 2>/dev/null || true)"
-  if [[ -z "$pane_id" || "$pane_id" == "null" ]]; then
+  # Stage 3: Workspace layout — split into terminal + opencode panes
+  # Worktree is already bootstrapped by reproctl.sh wt create.
+  _step 3 4 "Setting up workspace layout..."
+  local term_pane_id opencode_pane_id
+  term_pane_id="$(herdr pane list --workspace "$ws_id" 2>/dev/null | jq -r '.result.panes[0].pane_id // .result.panes[0].id // empty' 2>/dev/null || true)"
+  if [[ -z "$term_pane_id" || "$term_pane_id" == "null" ]]; then
     _warn "Could not find a pane for the workspace — agent launch skipped."
     return 0
   fi
+
+  local split_result
+  split_result="$(herdr pane split --pane "$term_pane_id" --direction right --cwd "$wt_path" --ratio 0.6 --no-focus 2>&1)" || true
+  opencode_pane_id="$(printf '%s' "$split_result" | jq -r '.result.pane.pane_id // .result.pane_id // empty' 2>/dev/null || true)"
+  if [[ -z "$opencode_pane_id" || "$opencode_pane_id" == "null" ]]; then
+    _warn "Pane split failed — falling back to single-pane layout."
+    opencode_pane_id="$term_pane_id"
+  else
+    _ok "Layout: terminal (${term_pane_id}) + opencode (${opencode_pane_id})"
+  fi
+
+  # Stage 4: Agent launch in the opencode pane
+  _step 4 4 "Launching OpenCode agent..."
 
   # Build the opencode launch command
   local opencode_cmd
@@ -348,17 +360,17 @@ _create_worktree_and_launch() {
   local agent_name agent_stderr
   agent_name="$(printf '%s' "opencode-${label}" | tr '[:upper:]' '[:lower:]')"
   agent_stderr="$(mktemp "$MAIN_CHECKOUT/tmp/herdr.XXXXXX")"
-  herdr agent start "$agent_name" --kind opencode --pane "$pane_id" --timeout 60000 2>"$agent_stderr" &
+  herdr agent start "$agent_name" --kind opencode --pane "$opencode_pane_id" --timeout 60000 2>"$agent_stderr" &
   local agent_pid=$!
 
   # Brief pause for herdr to set up agent detection
   sleep 1
 
   # Send the opencode launch command to the pane
-  herdr pane run "$pane_id" "cd \"$wt_path\" && $opencode_cmd" || {
+  herdr pane run "$opencode_pane_id" "cd \"$wt_path\" && $opencode_cmd" || {
     kill "$agent_pid" 2>/dev/null || true
     rm -f "$agent_stderr"
-    _warn "Failed to send OpenCode launch command to pane ${pane_id}."
+    _warn "Failed to send OpenCode launch command to pane ${opencode_pane_id}."
     return 0
   }
 
