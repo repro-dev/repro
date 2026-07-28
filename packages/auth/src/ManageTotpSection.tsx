@@ -6,6 +6,7 @@ import {
   Card,
   Input,
   LoadingState,
+  Modal,
   Text,
   color,
   radius,
@@ -118,15 +119,6 @@ export const ManageTotpSection: React.FC = () => {
           fetchStatus()
         })
       )
-  }
-
-  if (showSetup) {
-    return (
-      <TotpSetupFlow
-        onComplete={handleSetupComplete}
-        onCancel={() => setShowSetup(false)}
-      />
-    )
   }
 
   if (loading) {
@@ -339,6 +331,22 @@ export const ManageTotpSection: React.FC = () => {
           </Col>
         )}
       </Card>
+
+      {showSetup && (
+        <Modal
+          width={480}
+          height="auto"
+          aria-label="Set up two-factor authentication"
+          onClose={() => setShowSetup(false)}
+        >
+          <Modal.Body>
+            <TotpSetupFlow
+              onComplete={handleSetupComplete}
+              onCancel={() => setShowSetup(false)}
+            />
+          </Modal.Body>
+        </Modal>
+      )}
     </Col>
   )
 }

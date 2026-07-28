@@ -34,6 +34,21 @@ mock.module('@repro/design', {
         { 'data-testid': 'loading-state' },
         'Loading...'
       ),
+    Modal: Object.assign(
+      ({ children }: any) =>
+        React.createElement('div', { 'data-testid': 'modal' }, children),
+      {
+        Body: ({ children }: any) =>
+          React.createElement('div', { 'data-testid': 'modal-body' }, children),
+        Header: ({ title, description }: any) =>
+          React.createElement(
+            'div',
+            { 'data-testid': 'modal-header' },
+            React.createElement('h2', null, title),
+            description && React.createElement('p', null, description)
+          ),
+      }
+    ),
     Row: ({ children }: any) => React.createElement('div', null, children),
     Text: ({ children, variant, as }: any) =>
       React.createElement(as || 'span', { 'data-variant': variant }, children),

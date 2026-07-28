@@ -6,7 +6,12 @@ import * as otpauth from 'otpauth'
 import * as qrcode from 'qrcode'
 import { Env } from '~/config/createEnv'
 import { Database, attemptQuery } from '~/modules/database'
-import { badRequest, notFound, resourceConflict } from '~/utils/errors'
+import {
+  badRequest,
+  notFound,
+  resourceConflict,
+  serviceUnavailable,
+} from '~/utils/errors'
 
 // Character set for backup codes: alphanumeric excluding ambiguous chars (0,O,I,l,1)
 const BACKUP_CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
@@ -47,7 +52,7 @@ export function createTotpService(database: Database, env: Env) {
       return resolve(env.TOTP_ENCRYPTION_KEY)
     }
     return reject(
-      new Error(
+      serviceUnavailable(
         'TOTP_ENCRYPTION_KEY is not configured. TOTP 2FA cannot operate.'
       )
     )
