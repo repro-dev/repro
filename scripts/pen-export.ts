@@ -1,4 +1,10 @@
 #!/usr/bin/env node
+// Deferred: library-split export of reusable components as a shared Pen library.
+// pen CLI v0.3.0 cannot resolve import URIs in headless (non-interactive) mode,
+// so export_nodes() cannot cross-reference library nodes. When a pen CLI version
+// supports headless URI resolution, move the reusable frames into a separate
+// library .pen file and update this script to export from both files.
+// See: REP-1594 review finding (Major — architecture).
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
