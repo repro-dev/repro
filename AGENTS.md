@@ -103,7 +103,7 @@ Pre-send check: if the user reads only the first line and the last line, do they
 - **Design-before-code**: Any UI change must be represented in a `.pen` file before implementation code. The design defines the intended output; code follows it.
 - **Structure**: `design-system.lib.pen` holds shared components; per-screen `.pen` files compose those components into full screens. New UI components are added to the design library first, then screens are composed from them.
 - **Commit `.pen` files** alongside code in PRs — they are source-of-truth artifacts, not auxiliary assets.
-- **Agentic workflows**: Use Pencil MCP tools (`pencil_batch_design`, `pencil_batch_get`, etc.) to read and modify `.pen` files. The `impeccable` skill covers polish and critique; `design-system` covers code-level UI implementation conventions.
+- **Agentic workflows**: Use the **pen CLI** (`pen interactive --in <file> --out <file>`) as the primary headless tool for `.pen` manipulation. It provides `batch_design`/`batch_get`/`get_editor_state` without requiring the Pencil desktop app. **MCP tools** (`pencil_batch_design`, `pencil_batch_get`, etc.) require the app to be open — use only for browser import (`pencil_browser`) or live visual review (`pencil_get_screenshot`). Never use `Read` or `Grep` on `.pen` files (encrypted blobs). The `pen-design` skill covers the full CLI workflow; `impeccable` covers polish and critique; `design-system` covers code-level UI implementation conventions.
 
 ### Async
 
