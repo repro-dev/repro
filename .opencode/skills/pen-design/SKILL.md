@@ -248,7 +248,7 @@ Each gets its own entry in `scripts/pen-export.json`.
 {
   "id": "<pencil-frame-id>",
   "name": "Screen: Dashboard – Result",
-  "outputName": "dashboard-result",
+  "outputName": "dashboard  result",
   "width": 960,
   "height": "auto"
 }
