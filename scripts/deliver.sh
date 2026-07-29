@@ -321,24 +321,43 @@ _create_worktree_and_launch() {
   fi
   _ok "Workspace: ${label} (${ws_id})"
 
-  # Stage 3: Workspace layout — split into terminal + opencode panes
+  # Stage 3: Workspace layout
+  #   ┌─────────────────────┬──────────┬──────────┐
+  #   │                     │ terminal │          │
+  #   │   opencode (60%)    │ (20%)    │ neovim   │
+  #   │                     │          │ (20%)    │
+  #   └─────────────────────┴──────────┴──────────┘
   # Worktree is already bootstrapped by reproctl.sh wt create.
   _step 3 4 "Setting up workspace layout..."
-  local term_pane_id opencode_pane_id
-  term_pane_id="$(herdr pane list --workspace "$ws_id" 2>/dev/null | jq -r '.result.panes[0].pane_id // .result.panes[0].id // empty' 2>/dev/null || true)"
-  if [[ -z "$term_pane_id" || "$term_pane_id" == "null" ]]; then
+  local root_pane_id
+  root_pane_id="$(herdr pane list --workspace "$ws_id" 2>/dev/null | jq -r '.result.panes[0].pane_id // .result.panes[0].id // empty' 2>/dev/null || true)"
+  if [[ -z "$root_pane_id" || "$root_pane_id" == "null" ]]; then
     _warn "Could not find a pane for the workspace — agent launch skipped."
     return 0
   fi
 
-  local split_result
-  split_result="$(herdr pane split --pane "$term_pane_id" --direction right --cwd "$wt_path" --ratio 0.6 --no-focus 2>&1)" || true
-  opencode_pane_id="$(printf '%s' "$split_result" | jq -r '.result.pane.pane_id // .result.pane_id // empty' 2>/dev/null || true)"
-  if [[ -z "$opencode_pane_id" || "$opencode_pane_id" == "null" ]]; then
+  # Split root (left 100%) → opencode 60% left + right-column 40% right
+  local right_split_result right_pane_id opencode_pane_id term_pane_id
+  right_split_result="$(herdr pane split --pane "$root_pane_id" --direction right --cwd "$wt_path" --ratio 0.4 --no-focus 2>&1)" || true
+  right_pane_id="$(printf '%s' "$right_split_result" | jq -r '.result.pane.pane_id // .result.pane_id // empty' 2>/dev/null || true)"
+  if [[ -z "$right_pane_id" || "$right_pane_id" == "null" ]]; then
     _warn "Pane split failed — falling back to single-pane layout."
-    opencode_pane_id="$term_pane_id"
+    opencode_pane_id="$root_pane_id"
   else
-    _ok "Layout: terminal (${term_pane_id}) + opencode (${opencode_pane_id})"
+    opencode_pane_id="$root_pane_id"
+
+    # Split right column vertically: terminal (top) + neovim (bottom)
+    local neovim_split_result neovim_pane_id
+    neovim_split_result="$(herdr pane split --pane "$right_pane_id" --direction down --cwd "$wt_path" --ratio 0.5 --no-focus 2>&1)" || true
+    neovim_pane_id="$(printf '%s' "$neovim_split_result" | jq -r '.result.pane.pane_id // .result.pane_id // empty' 2>/dev/null || true)"
+    if [[ -n "$neovim_pane_id" && "$neovim_pane_id" != "null" ]]; then
+      term_pane_id="$right_pane_id"
+      herdr pane run "$neovim_pane_id" "cd \"$wt_path\" && nvim ." 2>/dev/null || true
+      _ok "Layout: opencode (${opencode_pane_id}) | terminal (${term_pane_id}) + neovim (${neovim_pane_id})"
+    else
+      term_pane_id="$right_pane_id"
+      _ok "Layout: opencode (${opencode_pane_id}) + terminal (${term_pane_id})"
+    fi
   fi
 
   # Stage 4: Agent launch in the opencode pane
