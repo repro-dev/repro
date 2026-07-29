@@ -5,14 +5,14 @@
     {
       "id": "q7mC6b",
       "name": "Screen: Component Gallery",
-      "outputName": "screen-component-gallery",
+      "outputName": "component-gallery",
       "width": 960,
       "height": 1600
     },
     {
       "id": "Ff1x2",
       "name": "Screen: Settings Form",
-      "outputName": "screen-settings-form",
+      "outputName": "settings-form",
       "width": 960,
       "height": 900
     },
