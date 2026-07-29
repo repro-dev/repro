@@ -1,15 +1,15 @@
 ---
 name: pencil-design
-description: Work with .pen (Pencil) design files — CLI headless mode, MCP tool usage, multi-file architecture, variable-based tokens, export for review, and batch processing. Load when creating, editing, or manipulating .pen design files, or when a UI change requires a corresponding design file per the design-before-implementation rule.
+description: Work with .pen (Pen) design files — CLI headless mode, MCP tool usage, multi-file architecture, variable-based tokens, export for review, and batch processing. Load when creating, editing, or manipulating .pen design files, or when a UI change requires a corresponding design file per the design-before-implementation rule.
 ---
 
-# Pencil Design
+# Pen Design
 
-Reference for working with `.pen` design files (Pencil) in the Repro codebase. `.pen` files are encrypted design artifacts that serve as the source of truth for UI work — they define the intended output before any code is written.
+Reference for working with `.pen` design files (Pen, formerly Pencil) in the Repro codebase. `.pen` files are encrypted design artifacts that serve as the source of truth for UI work — they define the intended output before any code is written.
 
 ## CLI Headless Mode
 
-The `pen` CLI handles `.pen` files without the Pencil desktop app. Use these commands for automation, CI, or when the desktop app isn't available.
+The `pen` CLI handles `.pen` files without the Pen desktop app. Use these commands for automation, CI, or when the desktop app isn't available.
 
 | Command | Purpose |
 |---|---|
@@ -21,7 +21,7 @@ CLI mode is the fallback when the desktop app isn't running. It supports the sam
 
 ## MCP Tool Reference
 
-Use the `pencil` MCP tools to interact with `.pen` files. The Pencil desktop app must be running for MCP access.
+Use the `pencil` MCP tools to interact with `.pen` files. The Pen desktop app must be running for MCP access.
 
 ### Required first call
 
@@ -40,11 +40,11 @@ This returns the current canvas state and the `.pen` file schema. All four flags
 
 | Tool | Signature | Use |
 |---|---|---|
-| `pencil_execute` | `({ filePath, input })` | Execute Pencil DSL commands on a `.pen` file. Requires `get_app_state` with schema first — the input commands must match the schema. |
+| `pencil_execute` | `({ filePath, input })` | Execute Pen DSL commands on a `.pen` file. Requires `get_app_state` with schema first — the input commands must match the schema. |
 | `pencil_get_screenshot` | `({ filePath, nodeId })` | Take a screenshot of a node. Use `nodeId: "document"` for the full document. Use for review evidence. |
 | `pencil_export_nodes` | `({ filePath, nodeIds, outputDir, format: "png" })` | Export specific nodes as PNG images. Accepts an array of node IDs. |
 | `pencil_export_html` | `({ filePath, nodeIds, outputPath, format: "html-tailwind" })` | Export nodes as HTML (Tailwind or plain CSS). Supports full HTML scaffold. |
-| `pencil_browser` | `({ filePath, action: "load-page", url })` | Load a URL in Pencil's integrated browser. Useful for importing live pages as canvas layers. |
+| `pencil_browser` | `({ filePath, action: "load-page", url })` | Load a URL in Pen's integrated browser. Useful for importing live pages as canvas layers. |
 
 ### Browser integration tools
 
@@ -114,14 +114,14 @@ For multi-file or bulk operations, use these patterns:
 - **Batch export**: Use `pencil_export_nodes` with multiple `nodeIds` to export several assets in one call.
 - **Batch design commands**: Use `pencil_execute` with `.pen` files sequentially when cross-file coordination is needed (e.g. propagating a token change from library to all screens).
 
-## Troubleshooting: Pencil Desktop App Not Running
+## Troubleshooting: Pen Desktop App Not Running
 
-The MCP tools require the Pencil desktop app to be running for network-based access.
+The MCP tools require the Pen desktop app (formerly Pencil) to be running for network-based access.
 
 | Symptom | Likely cause | Resolution |
 |---|---|---|
-| MCP tools return connection refused or timeout errors | Pencil desktop app is not running | Start the Pencil desktop app |
+| MCP tools return connection refused or timeout errors | Pen desktop app is not running | Start the Pen desktop app |
 | `pen` command not found | CLI not installed | Install via `npm install -g @pen/pen` or the project's package manager |
-| Neither MCP nor CLI work | Environment issue | Defer `.pen` work until Pencil is available; note the blocker in the project context |
+| Neither MCP nor CLI work | Environment issue | Defer `.pen` work until Pen is available; note the blocker in the project context |
 
-If neither the desktop app nor the CLI is available, defer `.pen` work until Pencil is available. Do not attempt to edit `.pen` files as raw text — they are encrypted and must be accessed through Pencil tools only.
+If neither the desktop app nor the CLI is available, defer `.pen` work until Pen is available. Do not attempt to edit `.pen` files as raw text — they are encrypted and must be accessed through the `pencil` MCP tools only.

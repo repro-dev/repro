@@ -111,7 +111,7 @@ Before composing the planner prompt, run the following matching inline — do **
 | `.opencode/skills/design-system/SKILL.md`      | `packages/design`, `@repro/design`, UI components, design tokens                                                                                                                                                    |
 | `.opencode/skills/recording-playback/SKILL.md` | `apps/capture`, `packages/recording`, `packages/playback`, `packages/recording-api`, `packages/buffer-utils`, `packages/vdom-renderer`, `packages/source-utils`, `packages/observer-utils`, `packages/wire-formats` |
 | `.opencode/skills/build-and-test/SKILL.md`     | build system, moon, pnpm workspaces, CI, reproctl, tool version pinning                                                                                                                                             |
-| `.opencode/skills/pencil-design/SKILL.md`      | `.pen`, `pencil`, Pencil MCP tools, design files, design-before-implementation                                                                                                                                     |
+| `.opencode/skills/pencil-design/SKILL.md`      | `.pen`, `pencil`, Pen MCP tools, design files, design-before-implementation                                                                                                                                     |
 
 General-purpose skills (`delivery-workflow`, `implementation-rigor`, `git-workflow`, `harden`, `create-issue`) are **never** injected — the planner loads them independently as needed.
 
