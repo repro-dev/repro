@@ -136,9 +136,8 @@ _herdr_workspace_add_sibling() {
   local herdr_stderr
   herdr_stderr="$(mktemp "$MAIN_CHECKOUT/tmp/herdr.XXXXXX")"
 
-  # NO --cwd → sibling workspace (not nested child of main checkout)
   local json_output
-  json_output="$(herdr worktree open --path "$wt_path" --label "$label" --no-focus --json 2>"$herdr_stderr")" || {
+  json_output="$(herdr worktree open --cwd "$MAIN_CHECKOUT" --path "$wt_path" --label "$label" --no-focus --json 2>"$herdr_stderr")" || {
     echo "${CLR_RED}herdr worktree open failed for ${wt_path}${CLR_RESET}" >&2
     if [[ -s "$herdr_stderr" ]]; then
       echo "  herdr error: $(cat "$herdr_stderr")" >&2
