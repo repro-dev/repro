@@ -1,20 +1,335 @@
 {
-  "description": "Batch export configuration for repro.pen screens. Library split (design-system.lib.pen) deferred — pen CLI v0.3.0 headless mode does not resolve import URIs.",
+  "description": "Batch export configuration for repro.pen screens.",
   "sourceFile": "repro.pen",
   "screens": [
     {
       "id": "q7mC6b",
       "name": "Screen: Component Gallery",
-      "outputName": "screen-component-gallery",
+      "outputName": "component gallery",
       "width": 960,
-      "height": 1600
+      "height": "auto"
     },
     {
       "id": "Ff1x2",
       "name": "Screen: Settings Form",
-      "outputName": "screen-settings-form",
+      "outputName": "settings form",
       "width": 960,
-      "height": 900
+      "height": "auto"
+    },
+    {
+      "id": "g4eMa",
+      "name": "Screen: Workspace Projects – Result",
+      "outputName": "workspace projects  result",
+      "width": 960,
+      "height": "auto"
+    },
+    {
+      "id": "Dynk9",
+      "name": "Screen: Workspace Projects – Loading",
+      "outputName": "workspace projects  loading",
+      "width": 960,
+      "height": "auto"
+    },
+    {
+      "id": "7SW44",
+      "name": "Screen: Workspace Projects – Empty",
+      "outputName": "workspace projects  empty",
+      "width": 960,
+      "height": "auto"
+    },
+    {
+      "id": "7n7Ak",
+      "name": "Screen: Workspace Profile Settings – Result",
+      "outputName": "workspace profile settings  result",
+      "width": 960,
+      "height": "auto"
+    },
+    {
+      "id": "eWuWO",
+      "name": "Screen: Workspace Profile Settings – Loading",
+      "outputName": "workspace profile settings  loading",
+      "width": 960,
+      "height": "auto"
+    },
+    {
+      "id": "jQCJJ",
+      "name": "Screen: Workspace Profile Settings – Error",
+      "outputName": "workspace profile settings  error",
+      "width": 960,
+      "height": "auto"
+    },
+    {
+      "id": "2VYoC",
+      "name": "Screen: Workspace Billing Settings – Result",
+      "outputName": "workspace billing settings  result",
+      "width": 960,
+      "height": "auto"
+    },
+    {
+      "id": "ItOGC",
+      "name": "Screen: Workspace Billing Settings – Loading",
+      "outputName": "workspace billing settings  loading",
+      "width": 960,
+      "height": "auto"
+    },
+    {
+      "id": "6BRlB",
+      "name": "Screen: Workspace Billing Settings – Error",
+      "outputName": "workspace billing settings  error",
+      "width": 960,
+      "height": "auto"
+    },
+    {
+      "id": "BcofD",
+      "name": "Screen: Workspace Privacy Controls – Result",
+      "outputName": "workspace privacy controls  result",
+      "width": 960,
+      "height": "auto"
+    },
+    {
+      "id": "kKW0q",
+      "name": "Screen: Workspace Privacy Controls – Loading",
+      "outputName": "workspace privacy controls  loading",
+      "width": 960,
+      "height": "auto"
+    },
+    {
+      "id": "zVhYp",
+      "name": "Screen: Workspace Privacy Controls – Error",
+      "outputName": "workspace privacy controls  error",
+      "width": 960,
+      "height": "auto"
+    },
+    {
+      "id": "EagBL",
+      "name": "Screen: Workspace API Keys – Result",
+      "outputName": "workspace api keys  result",
+      "width": 960,
+      "height": "auto"
+    },
+    {
+      "id": "1wxSS",
+      "name": "Screen: Workspace API Keys – Empty",
+      "outputName": "workspace api keys  empty",
+      "width": 960,
+      "height": "auto"
+    },
+    {
+      "id": "V5QHd",
+      "name": "Screen: Workspace API Keys – Loading",
+      "outputName": "workspace api keys  loading",
+      "width": 960,
+      "height": "auto"
+    },
+    {
+      "id": "eOFE8",
+      "name": "Screen: Workspace API Keys – Error",
+      "outputName": "workspace api keys  error",
+      "width": 960,
+      "height": "auto"
+    },
+    {
+      "id": "iZN26",
+      "name": "Screen: Workspace Account Settings – Result",
+      "outputName": "workspace account settings  result",
+      "width": 960,
+      "height": "auto"
+    },
+    {
+      "id": "c5D7c",
+      "name": "Screen: Workspace Account Settings – Loading",
+      "outputName": "workspace account settings  loading",
+      "width": 960,
+      "height": "auto"
+    },
+    {
+      "id": "r4mmm",
+      "name": "Screen: Workspace Account Settings – Error",
+      "outputName": "workspace account settings  error",
+      "width": 960,
+      "height": "auto"
+    },
+    {
+      "id": "nSRg2",
+      "name": "Screen: Workspace Project Settings – Result",
+      "outputName": "workspace project settings  result",
+      "width": 960,
+      "height": "auto"
+    },
+    {
+      "id": "leL7O",
+      "name": "Screen: Workspace Project Settings – Loading",
+      "outputName": "workspace project settings  loading",
+      "width": 960,
+      "height": "auto"
+    },
+    {
+      "id": "LUtS4",
+      "name": "Screen: Workspace Project Settings – Error",
+      "outputName": "workspace project settings  error",
+      "width": 960,
+      "height": "auto"
+    },
+    {
+      "id": "U8o2i",
+      "name": "Screen: Workspace Sessions Dashboard – Result",
+      "outputName": "workspace sessions dashboard  result",
+      "width": 960,
+      "height": "auto"
+    },
+    {
+      "id": "PQtIj",
+      "name": "Screen: Workspace Sessions Dashboard – Empty (no project)",
+      "outputName": "workspace sessions dashboard  empty no project",
+      "width": 960,
+      "height": "auto"
+    },
+    {
+      "id": "0GCnk",
+      "name": "Screen: Workspace Sessions Dashboard – Empty (no recordings)",
+      "outputName": "workspace sessions dashboard  empty no recordings",
+      "width": 960,
+      "height": "auto"
+    },
+    {
+      "id": "JnS1G",
+      "name": "Screen: Workspace Sessions Dashboard – Empty (filtered)",
+      "outputName": "workspace sessions dashboard  empty filtered",
+      "width": 960,
+      "height": "auto"
+    },
+    {
+      "id": "ZkqWB",
+      "name": "Screen: Workspace Sessions Dashboard – Loading",
+      "outputName": "workspace sessions dashboard  loading",
+      "width": 960,
+      "height": "auto"
+    },
+    {
+      "id": "OV71w",
+      "name": "Screen: Admin Accounts Ledger – Result",
+      "outputName": "admin accounts ledger  result",
+      "width": 960,
+      "height": "auto"
+    },
+    {
+      "id": "DXNjh",
+      "name": "Screen: Admin Accounts Ledger – Empty",
+      "outputName": "admin accounts ledger  empty",
+      "width": 960,
+      "height": "auto"
+    },
+    {
+      "id": "Khdm3",
+      "name": "Screen: Admin Accounts Ledger – Loading",
+      "outputName": "admin accounts ledger  loading",
+      "width": 960,
+      "height": "auto"
+    },
+    {
+      "id": "GmodA",
+      "name": "Screen: Admin Accounts Ledger – Error",
+      "outputName": "admin accounts ledger  error",
+      "width": 960,
+      "height": "auto"
+    },
+    {
+      "id": "vlv7H",
+      "name": "Screen: Admin Recordings – Result",
+      "outputName": "admin recordings  result",
+      "width": 960,
+      "height": "auto"
+    },
+    {
+      "id": "tloXV",
+      "name": "Screen: Admin Recordings – Empty",
+      "outputName": "admin recordings  empty",
+      "width": 960,
+      "height": "auto"
+    },
+    {
+      "id": "swnyA",
+      "name": "Screen: Admin Recordings – Loading",
+      "outputName": "admin recordings  loading",
+      "width": 960,
+      "height": "auto"
+    },
+    {
+      "id": "DNEBR",
+      "name": "Screen: Admin Recordings – Error",
+      "outputName": "admin recordings  error",
+      "width": 960,
+      "height": "auto"
+    },
+    {
+      "id": "ytzgK",
+      "name": "Screen: Admin Account Detail – Result",
+      "outputName": "admin account detail  result",
+      "width": 960,
+      "height": "auto"
+    },
+    {
+      "id": "gbvdY",
+      "name": "Screen: Admin Account Detail – Loading",
+      "outputName": "admin account detail  loading",
+      "width": 960,
+      "height": "auto"
+    },
+    {
+      "id": "1OUlp",
+      "name": "Screen: Admin Account Detail – Error",
+      "outputName": "admin account detail  error",
+      "width": 960,
+      "height": "auto"
+    },
+    {
+      "id": "D8WrG",
+      "name": "Screen: Admin Health Dashboard – Result (all ok)",
+      "outputName": "admin health dashboard  result all ok",
+      "width": 960,
+      "height": "auto"
+    },
+    {
+      "id": "sSkqc",
+      "name": "Screen: Admin Health Dashboard – Result (degraded)",
+      "outputName": "admin health dashboard  result degraded",
+      "width": 960,
+      "height": "auto"
+    },
+    {
+      "id": "WJF45",
+      "name": "Screen: Admin Health Dashboard – Loading",
+      "outputName": "admin health dashboard  loading",
+      "width": 960,
+      "height": "auto"
+    },
+    {
+      "id": "ceWfc",
+      "name": "Screen: Admin Health Dashboard – Error",
+      "outputName": "admin health dashboard  error",
+      "width": 960,
+      "height": "auto"
+    },
+    {
+      "id": "S2Y01",
+      "name": "Screen: Admin User Detail – Result",
+      "outputName": "admin user detail  result",
+      "width": 960,
+      "height": "auto"
+    },
+    {
+      "id": "ozq9H",
+      "name": "Screen: Admin User Detail – Loading",
+      "outputName": "admin user detail  loading",
+      "width": 960,
+      "height": "auto"
+    },
+    {
+      "id": "cwuCr",
+      "name": "Screen: Admin User Detail – Error",
+      "outputName": "admin user detail  error",
+      "width": 960,
+      "height": "auto"
     }
   ],
   "exportSettings": {
