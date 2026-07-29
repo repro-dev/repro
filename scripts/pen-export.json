@@ -15,6 +15,97 @@
       "outputName": "screen-settings-form",
       "width": 960,
       "height": 900
+    },
+    {
+      "id": "sDsh1",
+      "name": "Screen: Workspace Sessions Dashboard",
+      "outputName": "workspace-sessions-dashboard",
+      "width": 960,
+      "height": 1200
+    },
+    {
+      "id": "pSst2",
+      "name": "Screen: Workspace Profile Settings",
+      "outputName": "workspace-profile-settings",
+      "width": 960,
+      "height": 800
+    },
+    {
+      "id": "aSst3",
+      "name": "Screen: Workspace Account Settings",
+      "outputName": "workspace-account-settings",
+      "width": 960,
+      "height": 800
+    },
+    {
+      "id": "bSst4",
+      "name": "Screen: Workspace Billing Settings",
+      "outputName": "workspace-billing-settings",
+      "width": 960,
+      "height": 900
+    },
+    {
+      "id": "pCtl5",
+      "name": "Screen: Workspace Privacy Controls",
+      "outputName": "workspace-privacy-controls",
+      "width": 960,
+      "height": 800
+    },
+    {
+      "id": "aKys6",
+      "name": "Screen: Workspace API Keys",
+      "outputName": "workspace-api-keys",
+      "width": 960,
+      "height": 800
+    },
+    {
+      "id": "pRjs7",
+      "name": "Screen: Workspace Projects",
+      "outputName": "workspace-projects",
+      "width": 960,
+      "height": 800
+    },
+    {
+      "id": "pRst8",
+      "name": "Screen: Workspace Project Settings",
+      "outputName": "workspace-project-settings",
+      "width": 960,
+      "height": 800
+    },
+    {
+      "id": "aAcc9",
+      "name": "Screen: Admin Accounts Ledger",
+      "outputName": "admin-accounts-ledger",
+      "width": 960,
+      "height": 900
+    },
+    {
+      "id": "aAd10",
+      "name": "Screen: Admin Account Detail",
+      "outputName": "admin-account-detail",
+      "width": 960,
+      "height": 1000
+    },
+    {
+      "id": "aRec11",
+      "name": "Screen: Admin Recordings",
+      "outputName": "admin-recordings",
+      "width": 960,
+      "height": 900
+    },
+    {
+      "id": "aHth12",
+      "name": "Screen: Admin Health Dashboard",
+      "outputName": "admin-health-dashboard",
+      "width": 960,
+      "height": 800
+    },
+    {
+      "id": "aUdt13",
+      "name": "Screen: Admin User Detail",
+      "outputName": "admin-user-detail",
+      "width": 960,
+      "height": 900
     }
   ],
   "exportSettings": {
