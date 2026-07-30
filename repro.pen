@@ -5937,37 +5937,6 @@
       ]
     },
     {
-      "type": "text",
-      "id": "pB0g6",
-      "x": -15.5,
-      "y": 149,
-      "name": "Description",
-      "fill": "$color-text-muted",
-      "textGrowth": "fixed-width",
-      "width": 280,
-      "content": "The session failed to load. Try again or return to the library.",
-      "lineHeight": 1.5,
-      "textAlign": "center",
-      "fontFamily": "$font-sans",
-      "fontSize": "$font-size-md",
-      "fontWeight": "normal"
-    },
-    {
-      "type": "text",
-      "id": "Of8nh",
-      "x": 12,
-      "y": 28,
-      "name": "Body",
-      "fill": "$color-text-secondary",
-      "textGrowth": "fixed-width",
-      "width": 196,
-      "content": "Narrow the list by date, app, or status.",
-      "lineHeight": 1.5,
-      "fontFamily": "$font-sans",
-      "fontSize": "$font-size-sm",
-      "fontWeight": "normal"
-    },
-    {
       "type": "frame",
       "id": "idGIq",
       "x": 2800,
