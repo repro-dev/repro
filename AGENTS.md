@@ -22,6 +22,7 @@ This file is loaded automatically at session start. It covers cross-cutting rule
 
 ### UI-specific skills
 
+- `pen-design-workflow` — pen-first UX flow: compose/port screens in repro.pen from masters, component map, verification gates
 - `design-system` — UI implementation, components, tokens, and reference files
 - `ui-verification` — browser evidence after a UI change
 - `extension-verification` — browser-extension verification
