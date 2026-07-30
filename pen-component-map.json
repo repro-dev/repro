@@ -311,7 +311,7 @@
       "masterId": "dXxF1",
       "code": "@repro/design PageFrame (Header/Title/Actions/Body)",
       "dims": { "artboard": "1052x784 (fits AppShell.Content)", "header": "pad [$spacing-xl,$spacing-2xl], border-bottom 1px $color-border-default, ~61h", "title": "heading2 ($font-size-xl w600 lh1.25)", "actions": "row gap $spacing-md", "body": "pad [$spacing-xl,$spacing-2xl]" },
-      "variants": { "default": {}, "constrained body": { "note": "maxWidth 720 centered — code-only, not modeled in master" } },
+      "variants": { "default": {}, "constrained body": { "note": "maxWidth 720 centered — code-only, not modeled in master" }, "detail header": { "descendants": { "CogW2": { "replace": "Col gap=$spacing-sm containing Breadcrumbs ref + Col gap=$spacing-xs [Text heading2 $color-text-default = title, Text body $color-text-secondary = subtitle]" } } } },
       "overrideToProps": { "descendants.Title.content": "page title", "descendants.Actions": "action buttons (small contained default)", "descendants.Body": "page content" }
     },
     "ToolView": {
@@ -380,7 +380,7 @@
     "ListPageFooter": {
       "masterId": "JkTAn",
       "code": "@repro/design ListPageFooter (listing)",
-      "dims": { "width": 960, "layout": "row space-between", "footerText": "$font-size-sm $color-text-muted", "pagerButton": "h28 padH 10 gap 5, $font-size-xs, 1px $color-neutral-border, radius 5, $color-text-secondary" },
+      "dims": { "width": 960, "layout": "row space-between", "footerText": "$font-size-sm $color-text-muted", "pagerButton": "h28 padH 10, 1px $color-neutral-border, radius 5 — icon-only (ChevronLeft/ChevronRight, 16px)" },
       "variants": { "cursor mode (default, prev disabled)": {}, "numbered": { "note": "compose small Buttons as in Pagination master; current = contained $color-info + containedShadow" } },
       "overrideToProps": { "descendants.Footer Text.content": "summary text", "pager button opacity": "disabled=0.5" }
     },
@@ -390,8 +390,26 @@
       "dims": { "track": "960x2 $color-border-default (spans parent, absolute top)", "fill": "35% (336) x2 $color-primary, $radius-full" },
       "variants": { "in progress (default, scaleX 0.35)": {}, "complete": { "descendants": { "q8dWt": { "width": 960 } } } },
       "overrideToProps": { "descendants.q8dWt.width": "progress (0.35->0.82 animates in code; 960=complete)" }
+    },
+    "AdminTable": {
+      "masterId": "g0VkAm",
+      "code": "@repro/design Table (compact, transparent surface, admin reference style)",
+      "dims": { "cellPadding": [8, 12], "headerText": "$font-size-sm w600 $color-text-secondary", "cellText": "$font-size-sm $color-text-default", "mutedText": "$font-size-sm $color-text-muted", "headerRule": "1px bottom $color-border-strong", "rowRule": "1px bottom $color-border-default" },
+      "variants": { "default": {}, "twoLineCol": { "note": "first column is vertical stack: label Text (name) + muted Text (email/subtitle)" } },
+      "overrideToProps": { "root width": "fill_container override required on every instance", "descendants header cell Text.content": "column labels", "descendants col1 Name.content + Email.content": "two-line first column (name, email/subtitle)", "descendants col2-4 Text.content": "cell text" }
     }
   },
   "noMaster": ["Portal", "FrameRealm", "Delay", "ErrorBoundary", "FX", "DragHandle"],
-  "screens": { "Component Gallery": "q7mC6b", "Settings Form": "Ff1x2" }
+  "screens": {
+    "Component Gallery": "q7mC6b",
+    "Settings Form": "Ff1x2",
+    "Admin: Recordings": "HmP9z",
+    "Admin: Recordings (Empty)": "blIBj",
+    "Admin: Recordings (Loading)": "Enjaq",
+    "Admin: Accounts": "U8b6n",
+    "Admin: Account Detail": "heuMx",
+    "Admin: Health": "q9iTP",
+    "Admin: Staff Users": "T15Wa",
+    "Admin: Feature Gates": "G6CyL"
+  }
 }

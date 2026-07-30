@@ -146,6 +146,8 @@ Recommended order: admin first (smallest, hardens the workflow), then workspace,
 4. Widths may be set only on containers, per the recipe. Text nodes that must wrap get `textGrowth: 'fixed-width'`.
 5. Variants = documented override payloads from the map only. No free-form `descendants` edits beyond the table.
 6. After every batch: run gates (§8). Fix mechanically. Screenshot once at the end, not per step.
+7. **Masters ship at demo width, not content width** (Table 560, ListPageFooter 960, RefreshProgressBar 960). When placing an instance in a layout parent, set its root `width: 'fill_container'` explicitly — and the same on internal rows — or the screen renders at demo width while siblings render at another. Verify width on every instance before calling a screen done.
+8. **When replacing a master slot** (PageFrame `ryBqn` Body, AppShell `fBfxT` SideNav), copy the replaced node's padding/layout contract from the map first (e.g. PageFrame Body is `[$spacing-xl, $spacing-2xl]`), then add content. Never invent new spacing for a replaced slot.
 
 ---
 
@@ -157,6 +159,7 @@ Recommended order: admin first (smallest, hardens the workflow), then workspace,
 4. **Clipping scan** — text nodes with fixed width must not overflow their parent frame bounds.
 5. **Variable pairs** — every color variable keeps its light+dark pair; no dangling `$` refs.
 6. **Map sync** — if `repro.pen` is in the PR diff, the §3 session-start sync check passed.
+7. **Master default state** — every master renders in its map-documented default variant (default is almost always `{}` overrides). A master saved in a non-default state (error stroke, invalid input, wrong active tab) poisons every instance silently. Check any master you touched, and spot-check masters your screens consume.
 
 Human gates: screenshot review (Phase 3) and ui-verification against the pen baseline (Phase 5).
 
@@ -170,9 +173,23 @@ Canonical patterns; each prescribes masters + nesting + gap variables so nothing
 |---|---|
 | **settings-page** | Col gap=`$spacing-3xl` → N × Card (inside: Col gap=`$spacing-md`). One logical panel → stacked cards, no Tabs. |
 | **list-page** | PageFrame → header Row [Title + primary Button] → Table. Empty → EmptyState master (icon+title+desc+action). |
+| **admin-list-page** | PageFrame (Actions disabled — admin pages have no header buttons) → RefreshProgressBar → optional filter row (TextField ref + help Text bodySmall `$color-text-muted`) → Table → ListPageFooter. Empty → EmptyState; Loading → FullPageLoading. |
+| **detail-page** | PageFrame (Actions disabled) → Body padding=`[$spacing-xl, 0]` (vertical only; no horizontal — bleed elements span full content width). Col gap=`$spacing-2xl`: info row (padding=`[0,$spacing-2xl]`, horizontal gap=`$spacing-2xl`, N × Col [`$spacing-xs` gap: label Text + value Text bodySmall `$color-text-secondary`]) → Tabs ref → Table in active panel. |
+| **detail-page-header** | PageFrame `CogW2` (Title) replaced with Col gap=`$spacing-sm`: Breadcrumbs ref (2 crumbs: list-link + current) → Col gap=`$spacing-xs` [Text heading2 fill `$color-text-default` = page title, Text body fill `$color-text-secondary` = subtitle]. Use with `detail-page` body; the header grows taller to fit the deeper content above the dividing line. |
 | **form-in-card** | Card → Col gap=`$spacing-md` → TextField/Select/RadioGroup rows → Row justify=end gap=`$spacing-md` [Button outlined "Cancel", Button contained "Save"] |
 | **confirm-destructive** | ConfirmDialog master, destructive variant (danger confirm fill) |
 | **feedback-states** | LoadingState / FullPageError / EmptyState masters — never hand-drawn |
+| **app-shell-screen** | AppShell ref → Replace `fBfxT` (SideNav slot) with surface nav, Replace `ryBqn` (PageFrame Body) with page content, Update `CogW2` title, disable `ti8x3` Actions when page has no header buttons. Master slots yield new IDs on Replace — capture returned IDs before further nested ops. |
+
+### Port lessons (REP-1608, first port)
+
+- **Gate scripts must use `resolveInstances: true`** — refs nested inside AppShell instances (Table, EmptyState inside a replaced Body) are invisible to visitors otherwise, producing false orphan reports.
+- **Disabled nodes still render in gate scans** — skip `enabled: false` subtrees in clipping/fill gates, or clear the node's content instead of disabling.
+- **PageFrame master ships a default Actions Button** — every screen must explicitly disable it unless the page has real header actions.
+- **§4 lane discipline** — screens must start at the surface's lane offset (admin x6240), spaced width+80; `FindEmptySpace` chains drift into neighboring lanes if seeded from the wrong anchor.
+- **Padding object form cost a full review round** — `padding: {left, right}` was silently dropped on 40 nav items, leaving icons hard against the sidebar edge. Array form `[0, "$spacing-lg"]` only (§11.15).
+- **Demo-width masters shipped in screens** — Table/Footer/ProgressBar rendered at 560/960px while their container expected full width. Instance root + internal rows both need `fill_container` (§7.7).
+- **TextField master was saved in its invalid state** (danger stroke baked in) — every instance showed an error border until the master was reset (§11.16). Masters from REP-1602 may carry similar drift; check before consuming.
 
 ---
 
@@ -202,6 +219,8 @@ New components are designed in pen first, but through a promotion gate:
 12. **There is no save API in the MCP tools.** The file flushes to disk only on Cmd+S in the Pencil app. Every automated .pen session ends with "ask the user to save" before commit. (The pen CLI interactive shell has `save()`; the MCP path does not.)
 13. Only Inter is reliably usable as `fontFamily`; system-ui/mono stacks don't resolve. Inter is the stand-in for system-ui everywhere.
 14. `fontWeight '400'/'normal'` = default (omitted); use `'600'` for semibold.
+15. **Invalid property values are silently dropped, never errored.** Known cases: `padding` as a per-side object (`{left, right}` — padding is number-or-array only; only `strokeWidth` supports per-side objects), `$` variable refs in `width`/`height`, `width` on text without `textGrowth`. The dropped value leaves no trace — layout just breaks (zero gutter, zero width). The §8 gates are the only backstop; when something looks unstyled, suspect a dropped value before suspecting the token.
+16. **Masters must be left in their default variant state after any edit.** A master saved mid-variant (error stroke on Input, active wrong tab, checked toggle) ships that state into every existing and future instance with no override trail. After editing a master, diff its rendered state against the map's default variant before moving on.
 
 ## 12. Interface choice: MCP vs pen CLI (verified 2026-07-30, CLI 0.3.0)
 
