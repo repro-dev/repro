@@ -102,9 +102,9 @@ Pre-send check: if the user reads only the first line and the last line, do they
 ### Design Files (.pen)
 
 - **Design-before-code**: Any UI change must be represented in a `.pen` file before implementation code. The design defines the intended output; code follows it.
-- **Structure**: `design-system.lib.pen` holds shared components; per-screen `.pen` files compose those components into full screens. New UI components are added to the design library first, then screens are composed from them.
+- **Structure**: a single `repro.pen` at the repo root is the authoritative UX layer, organized into canvas lanes — masters + Component Gallery on the left, one lane per ported surface, and a lab lane for exploratory sketches. `pen-component-map.json` (repo root) indexes every master and must be updated in the same PR as any `.pen` change. Per-surface `.pen` files are deferred until the pen CLI resolves import URIs headlessly (REP-1605).
 - **Commit `.pen` files** alongside code in PRs — they are source-of-truth artifacts, not auxiliary assets.
-- **Agentic workflows**: Use Pencil MCP tools (`pencil_batch_design`, `pencil_batch_get`, etc.) to read and modify `.pen` files. The `impeccable` skill covers polish and critique; `design-system` covers code-level UI implementation conventions.
+- **Agentic workflows**: Use Pencil MCP tools (`pencil_execute`, `pencil_get_screenshot`, etc.) to read and modify `.pen` files, following the `pen-design-workflow` skill. The `impeccable` skill covers polish and critique; `design-system` covers code-level UI implementation conventions.
 
 ### Async
 
