@@ -56,7 +56,25 @@ Each pane has:
 - `agent_session` — `{ source, agent, kind, value }` with the session ID
 - `label` — human-readable label (e.g. `opencode-REP-1275`)
 - `cwd` — working directory (matches the worktree path)
-- `terminal_id` — raw terminal identifier (alternative target for `agent send`)
+- `terminal_id` — raw terminal identifier (alternative target for `agent prompt`)
+
+### Deliver workspace layout
+
+`deliver` creates workspaces with a 3-pane layout:
+
+```
+┌─────────────────────┬──────────┬──────────┐
+│                     │ terminal │          │
+│   opencode (60%)    │ :p2      │ neovim   │
+│   :p1               │ (20%)    │ :p3 (20%)│
+└─────────────────────┴──────────┴──────────┘
+```
+
+- `:p1` — OpenCode pane (60% left). Agent name: `opencode-REP-XXXX`
+- `:p2` — Terminal shell (top-right 20%)
+- `:p3` — Neovim (bottom-right 20%), launched with `nvim .` in worktree root
+
+If the vertical split fails, falls back to a 2-pane layout (opencode 60% + terminal 40%).
 
 **Find the OpenCode pane**: filter for `agent == "opencode"`. In a `deliver`-created workspace, pane `:p2` is OpenCode and `:p1` is the shell.
 
@@ -101,22 +119,21 @@ Blocks until the agent finishes working or the timeout expires. Useful for chain
 
 ## Context injection
 
-### Primary: send text + Enter to an OpenCode session
+### Primary: send a prompt to an OpenCode session
 
-Two-step pattern (most reliable):
-
-```sh
-herdr agent send <target> "Your message or command here"
-herdr pane send-keys <pane_id> enter
-```
-
-Or as a one-liner:
+`herdr agent prompt` types text into the agent pane and presses Enter. It can optionally wait for the agent to finish:
 
 ```sh
-herdr agent send <target> "message text" && herdr pane send-keys <pane_id> enter
+herdr agent prompt <target> "Your message or command here"
 ```
 
-The `agent send` types literal text as if the user were typing; `pane send-keys enter` submits it. Do NOT use `herdr pane run` for OpenCode panes — that's for shell panes (adds `\n` to a command).
+For synchronous injection (wait until idle):
+
+```sh
+herdr agent prompt <target> "message text" --wait --until idle --timeout 300000
+```
+
+`herdr agent prompt` replaces the v0.7.4 `agent send + pane send-keys enter` pattern. Do NOT use `herdr pane run` for OpenCode panes — that's for shell panes only.
 
 ### Injection message structure
 
@@ -137,7 +154,7 @@ Conventional Commit, and push.
 
 ### Sending to multiple sessions in parallel
 
-Launch all injections in parallel tool calls — each is independent. Use one `bash` call per target with the `herdr agent send && herdr pane send-keys` pattern.
+Launch all injections in parallel tool calls — each is independent. Use one `bash` call per target with `herdr agent prompt`.
 
 ### Post-injection follow-up
 
@@ -238,7 +255,7 @@ done
 
 **Steps**:
 1. Before `deliver REP-123`: `herdr workspace list | jq -r '.result.workspaces[] | select(.worktree.checkout_path | test("rep-123"))'`
-2. If a workspace exists and is idle, inject the delivery command: `herdr agent send opencode-REP-123 "/build REP-123" && herdr pane send-keys <pane_id> enter`
+2. If a workspace exists and is idle, inject the delivery command: `herdr agent prompt opencode-REP-123 "/build REP-123"`
 3. If a workspace exists and is `working`, report to the user: "Session for REP-123 is already active"
 4. If no workspace, proceed with `deliver REP-123`
 
@@ -304,10 +321,11 @@ done
 | `herdr agent list` | List all detected agents |
 | `herdr agent get <target>` | Agent details |
 | `herdr agent read <target>` | Read agent output |
-| `herdr agent send <target> <text>` | Type text into an agent pane |
+| `herdr agent prompt <target> <text> [--wait]` | Send text + Enter to agent (v0.7.5+ replacement for `agent send`) |
 | `herdr agent wait <target> --status idle` | Block until agent is idle |
-| `herdr agent start <name> --cwd PATH -- ...` | Launch a new agent |
-| `herdr pane send-keys <pane_id> enter` | Send Enter key to submit typed text |
+| `herdr agent start <name> --kind KIND --pane ID` | Launch a new agent in an existing pane |
+| `herdr pane send-keys <pane_id> enter` | Send Enter key to a pane |
 | `herdr pane run <pane_id> <cmd>` | Send command + Enter (shell panes only) |
+| `herdr pane split --pane ID --direction right\|down` | Split a pane (used by deliver for layout) |
 | `herdr pane read <pane_id>` | Read raw pane output |
 | `herdr api snapshot` | Full server state snapshot |
