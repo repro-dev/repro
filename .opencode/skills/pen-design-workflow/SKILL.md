@@ -8,7 +8,7 @@ Load this skill before creating or modifying `.pen` files, porting UI surfaces i
 
 Reference files in this directory:
 
-- `pen-component-map.json` — the component catalog: every reusable master in `repro.pen`, its code counterpart, dims, variant override payloads, and override→prop table. **Required reading for any composition or translation task.**
+- `pen-component-map.json` (**repo root**, next to `repro.pen`) — the component catalog: every reusable master in `repro.pen`, its code counterpart, dims, variant override payloads, and override→prop table. **Required reading for any composition or translation task.** It is a project artifact about `repro.pen`, not skill documentation — commit map changes in the same PR as the `.pen` change.
 
 ---
 
@@ -58,9 +58,9 @@ The robustness rule: **a weak model never makes an open-ended visual decision.**
 
 ---
 
-## 3. The component map (`pen-component-map.json`)
+## 3. The component map (`pen-component-map.json`, repo root)
 
-One entry per reusable master:
+Lives at the repo root next to `repro.pen` — it indexes that file, so it stays beside its subject and ships in the same PRs. One entry per reusable master:
 
 - `masterId` — stable Pencil node id; screens reference masters by ref to this id
 - `code` — the `@repro/design` component it mirrors
@@ -186,3 +186,21 @@ New components are designed in pen first, but through a promotion gate:
 12. **There is no save API in the MCP tools.** The file flushes to disk only on Cmd+S in the Pencil app. Every automated .pen session ends with "ask the user to save" before commit. (The pen CLI interactive shell has `save()`; the MCP path does not.)
 13. Only Inter is reliably usable as `fontFamily`; system-ui/mono stacks don't resolve. Inter is the stand-in for system-ui everywhere.
 14. `fontWeight '400'/'normal'` = default (omitted); use `'600'` for semibold.
+
+## 12. Interface choice: MCP vs pen CLI (verified 2026-07-30, CLI 0.3.0)
+
+Three ways to drive a .pen file agentically; they are not interchangeable:
+
+| Task | Interface | Status |
+| --- | --- | --- |
+| Edit the live open document | **MCP server** (`pencil_*` tools) | Only working option |
+| Offline/CI edits, exports, screenshots | `pen interactive -i in.pen -o out.pen` (headless) | Validated: `get_editor_state`, `batch_design`, `save()` all work on piped stdin |
+| CLI → live app (`pen interactive -a desktop`) | — | **Broken**: app rejects the CLI's old tool names (`No handler found for method 'get-editor-state'`). Re-test after a desktop app update |
+
+Facts that don't fit the table:
+
+- The MCP server is the binary inside `Pen.app` (`.../app.asar.unpacked/out/mcp-server-darwin-arm64`); it versions with the desktop app, so MCP↔app mismatch is impossible. The CLI is a separate npm install and can lag the app's protocol.
+- Current protocol (app + MCP + docs.pen.dev): `get_app_state`, `execute`, `get_screenshot`, `export_nodes`, `export_html`, `get_guidelines`, `browser`. CLI 0.3.0's `--app` bridge still speaks `get_editor_state` / `batch_get` / `batch_design` — those names only work in the CLI's own headless runtime.
+- Headless CLI edits a **copy** (`-i` → `-o`); it never touches the document open in the app. Save is explicit via `save()` in the shell; without it no output file is written.
+- Because headless has `save()` and MCP does not (runbook §11.12), a fully unattended pipeline is: headless CLI edit → commit the `-o` output. Live-app work still ends with "ask the user to Cmd+S".
+- Headless import-URI resolution (multi-file library imports) was still blocked as of 0.3.0 — see REP-1605 before attempting per-surface file splits via the CLI.
