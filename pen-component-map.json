@@ -404,12 +404,13 @@
     "Component Gallery": "q7mC6b",
     "Settings Form": "Ff1x2",
     "Admin: Recordings": "HmP9z",
-    "Admin: Recordings (Empty)": "blIBj",
-    "Admin: Recordings (Loading)": "Enjaq",
     "Admin: Accounts": "U8b6n",
     "Admin: Account Detail": "heuMx",
     "Admin: Health": "q9iTP",
     "Admin: Staff Users": "T15Wa",
-    "Admin: Feature Gates": "G6CyL"
+    "Admin: Feature Gates": "G6CyL",
+    "Admin: State: Empty": "g50nhI",
+    "Admin: State: Loading": "Ri8nb",
+    "Admin: State: Error": "SGRtQ"
   }
 }
