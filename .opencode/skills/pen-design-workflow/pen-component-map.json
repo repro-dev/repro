@@ -1,0 +1,299 @@
+{
+  "$schema": "pen-component-map v1 (REP-1606). Every reusable master in repro.pen. Variable naming rule: token path dots become dashes (color.bg.surface ↔ $color-bg-surface; spacing.md ↔ $spacing-md; formControlHeight.medium ↔ $form-height-md). Keep in sync with repro.pen — new master or changed component ⇒ update this file in the same PR.",
+  "components": {
+    "Button": {
+      "masterId": "eqZG0",
+      "code": "@repro/design Button",
+      "dims": { "height": { "small": 28, "medium": 36, "large": 44 }, "paddingH": 14, "gap": 7, "radius": 7, "fontSize": "$font-size-xs" },
+      "variants": {
+        "contained/info (default)": { "fill": "$color-info" },
+        "contained/danger": { "fill": "$color-danger" },
+        "contained/success": { "fill": "$color-success" },
+        "contained/warning": { "fill": "$color-warning", "descendants": { "Label": { "fill": "$color-text-default" } } },
+        "outlined/neutral": { "fill": "transparent", "stroke": "$color-neutral-border", "descendants": { "Label": { "fill": "$color-text-secondary" } } },
+        "text/neutral": { "fill": "transparent", "stroke": null, "descendants": { "Label": { "fill": "$color-text-secondary" } } }
+      },
+      "overrideToProps": { "descendants.Label.content": "children", "fill": "context+variant (see variants)", "height": "size (28=small, 36=medium, 44=large)" }
+    },
+    "Badge": {
+      "masterId": "d2CvF",
+      "code": "@repro/design Badge",
+      "dims": { "padding": ["$spacing-xs", "$spacing-sm"], "radius": "$radius-sm", "fontSize": "$font-size-sm", "fontWeight": 600 },
+      "variants": {
+        "neutral (default)": { "fill": "$color-bg-hover", "stroke": "$color-neutral-border-subtle" },
+        "info": { "fill": "$color-info-subtle", "stroke": "$color-info-border-subtle", "descendants": { "Label": { "fill": "$color-info-fg" } } },
+        "success": { "fill": "$color-success-subtle", "stroke": "$color-success-border-subtle", "descendants": { "Label": { "fill": "$color-success-fg" } } },
+        "warning": { "fill": "$color-warning-subtle", "stroke": "$color-warning-border-subtle", "descendants": { "Label": { "fill": "$color-warning-fg" } } },
+        "danger": { "fill": "$color-danger-subtle", "stroke": "$color-danger-border-subtle", "descendants": { "Label": { "fill": "$color-danger-fg" } } },
+        "rounded": { "cornerRadius": "$radius-full" }
+      },
+      "overrideToProps": { "descendants.Label.content": "children", "fill+stroke": "context (see variants)", "cornerRadius": "rounded ($radius-full when true)" }
+    },
+    "Input": {
+      "masterId": "KnDBg",
+      "code": "@repro/design Input",
+      "dims": { "height": { "small": 28, "medium": 36, "large": 44 }, "paddingH": "$spacing-lg", "radius": "$radius-sm", "stroke": "$color-border-strong (1px inner)", "shadow": "shadow.xs" },
+      "variants": {
+        "normal (default)": {},
+        "error": { "stroke": "$color-danger" },
+        "disabled": { "opacity": 0.5 }
+      },
+      "overrideToProps": { "descendants.Placeholder.content": "placeholder", "stroke": "context (normal|$color-danger)", "height": "size", "width": "width of parent container (Input is width:100%)" }
+    },
+    "Toggle": {
+      "masterId": "OMduR",
+      "code": "@repro/design Toggle",
+      "dims": { "track": "32x20", "knob": 14, "knobOffset": "x2 y3", "radius": "$radius-full", "label": "$font-size-sm" },
+      "variants": {
+        "unchecked (default)": {},
+        "checked": { "descendants": { "Knob": { "x": 16, "fill": "$color-bg-emphasis" } } },
+        "disabled": { "opacity": 0.5 }
+      },
+      "overrideToProps": { "descendants.Label.content": "label", "descendants.Knob.x": "checked (16=true, 2=false)", "descendants.Knob.fill": "checked ($color-bg-emphasis=true, $color-border-emphasis=false)" }
+    },
+    "Checkbox": {
+      "masterId": "dDpF6",
+      "code": "@repro/design Checkbox",
+      "dims": { "box": 16, "checkIcon": 12, "radius": "$radius-sm", "gap": "$spacing-md", "label": "$font-size-sm" },
+      "variants": {
+        "unchecked (default)": {},
+        "checked": { "descendants": { "Box": { "fill": "$color-primary", "stroke": null }, "Check": { "enabled": true } } },
+        "disabled": { "opacity": 0.5 }
+      },
+      "overrideToProps": { "descendants.Label.content": "children (label)", "descendants.Check.enabled": "checked", "descendants.Box.fill": "checked ($color-primary=true, $color-bg-surface=false)" }
+    },
+    "Card": {
+      "masterId": "JFccj",
+      "code": "@repro/design Card",
+      "dims": { "padding": "$spacing-2xl", "gap": "$spacing-md", "radius": "$radius-sm", "fill": "$color-bg-surface", "shadow": "shadow.xs", "strokeWidth": 0 },
+      "variants": {
+        "neutral (default)": {},
+        "danger": { "stroke": "$color-danger-border", "strokeWidth": 1 }
+      },
+      "overrideToProps": { "stroke": "context ($color-danger-border=danger)", "padding": "padding (0=fullBleed)" }
+    },
+    "Alert": {
+      "masterId": "flKba",
+      "code": "@repro/design Alert",
+      "dims": { "padding": "$spacing-xl", "radius": "$radius-sm", "iconSize": 14, "fontSize": "$font-size-xs" },
+      "variants": {
+        "info (default)": { "fill": "$color-info-tint", "stroke": "$color-info-border-subtle" },
+        "success": { "fill": "$color-success-tint", "stroke": "$color-success-border-subtle", "descendants": { "Icon": { "fill": "$color-success" }, "Message": { "fill": "$color-success" } } },
+        "warning": { "fill": "$color-warning-tint", "stroke": "$color-warning-border-subtle", "descendants": { "Icon": { "fill": "$color-warning" }, "Message": { "fill": "$color-warning" } } },
+        "danger": { "fill": "$color-danger-tint", "stroke": "$color-danger-border-subtle", "descendants": { "Icon": { "fill": "$color-danger" }, "Message": { "fill": "$color-danger" } } }
+      },
+      "overrideToProps": { "descendants.Message.content": "children", "fill+stroke+icon/text color": "type (see variants)" }
+    },
+    "Meter": {
+      "masterId": "ZTFZn",
+      "code": "@repro/design Meter",
+      "dims": { "height": 8, "radius": "$radius-sm", "track": "$color-bg-muted", "fill": "$color-primary", "clip": true },
+      "variants": { "60% (default)": {}, "100%": { "descendants": { "Fill": { "fill": "$color-success" } } } },
+      "overrideToProps": { "descendants.Fill.width": "value as % of track width", "descendants.Fill.fill": "$color-success at 100%, else $color-primary" }
+    },
+    "Avatar": {
+      "masterId": "llVi8",
+      "code": "@repro/design Avatar",
+      "dims": { "image": 30, "radius": "circle", "nameFontSize": 15, "gap": "$spacing-md" },
+      "variants": { "full (default)": {}, "text-only": { "descendants": { "Image": { "enabled": false } } } },
+      "overrideToProps": { "descendants.Name.content": "name", "descendants.Image.enabled": "mode (false=text-only)", "width": "size prop scales both image and font" }
+    },
+    "Skeleton": {
+      "masterId": "SrSMv",
+      "code": "@repro/design Skeleton",
+      "dims": { "width": 240, "height": 12, "radius": "$radius-sm", "fill": "$color-border-default" },
+      "variants": { "text (default)": {}, "rectangular": { "height": 100 }, "circular": { "width": 40, "height": 40, "cornerRadius": "$radius-full" } },
+      "overrideToProps": { "width/height/cornerRadius": "variant (text 240x12, rectangular 100h, circular 40x40 full)" }
+    },
+    "Divider": {
+      "masterId": "B7xCh7",
+      "code": "@repro/design Divider",
+      "dims": { "height": 1, "fill": "$color-border-default" },
+      "variants": { "horizontal (default)": {} },
+      "overrideToProps": { "width": "100% of container (horizontal)", "fill": "always $color-border-default" }
+    },
+    "EmptyState": {
+      "masterId": "wbfyU",
+      "code": "@repro/design EmptyState (Icon/Title/Description/Action)",
+      "dims": { "padding": "$spacing-2xl", "gap": "$spacing-lg", "iconSize": 40, "iconColor": "$color-text-muted", "descWidth": 280, "align": "center" },
+      "variants": { "default": {} },
+      "overrideToProps": { "descendants.Icon.name": "icon (Material Symbols Rounded)", "descendants.Title.content": "EmptyState.Title", "descendants.Desc.content": "EmptyState.Description", "descendants.Action": "EmptyState.Action (Button ref)" }
+    },
+    "Tabs": {
+      "masterId": "GGdmj",
+      "code": "@repro/design Tabs (List/Tab/Panel)",
+      "dims": { "tabPaddingH": "$spacing-xl", "tabPaddingV": "$spacing-md", "fontSize": "$font-size-sm", "fontWeight": 600, "indicator": "2px bottom stroke $color-primary", "listBorder": "1px bottom $color-border-default" },
+      "variants": { "first active (default)": {}, "other active": { "descendants": { "Tab1Label": { "fill": "$color-text-secondary" }, "Tab1": { "strokeWidth": 0 }, "Tab2Label": { "fill": "$color-primary" }, "Tab2": { "strokeWidth": { "bottom": 2 } } } } },
+      "overrideToProps": { "descendants.TabNLabel.content": "tab labels", "descendants.TabNLabel.fill": "active=$color-primary, inactive=$color-text-secondary", "descendants.TabN.strokeWidth": "active={bottom:2}, inactive=0" }
+    },
+    "Table": {
+      "masterId": "x1LAI",
+      "code": "@repro/design Table (Header/Row/Cell)",
+      "dims": { "width": 560, "headerPadding": [12, 16], "cellPadding": [12, 16], "headerText": "$font-size-sm w600 $color-text-secondary", "cellText": "$font-size-sm $color-text-default", "headerRule": "$color-border-strong", "rowRule": "$color-border-default" },
+      "variants": { "default density": {} },
+      "overrideToProps": { "descendants header cell contents": "column labels", "descendants body cell contents": "row data (Badge refs for status)", "density": "compact ⇒ padding [8,12]" }
+    },
+    "Text": {
+      "masterId": "VxtLj",
+      "code": "@repro/design Text",
+      "dims": { "heading1": "$font-size-2xl w700", "heading2": "$font-size-xl w600", "heading3": "$font-size-lg w600", "body": "$font-size-md w400 lh1.5", "bodySmall": "$font-size-sm w400 lh1.5", "caption": "$font-size-xs w400 lh1.5", "label": "$font-size-sm w600" },
+      "variants": { "body (default)": {}, "heading1": { "fontSize": "$font-size-2xl", "fontWeight": "700" }, "heading2": { "fontSize": "$font-size-xl", "fontWeight": "600" }, "heading3": { "fontSize": "$font-size-lg", "fontWeight": "600" }, "bodySmall": { "fontSize": "$font-size-sm" }, "caption": { "fontSize": "$font-size-xs" }, "label": { "fontSize": "$font-size-sm", "fontWeight": "600" } },
+      "overrideToProps": { "content": "children", "fontSize+fontWeight": "variant (see variants)", "fill": "color (default $color-text-default)" }
+    },
+    "Label": {
+      "masterId": "NCuiB",
+      "code": "@repro/design Label",
+      "dims": { "fontSize": "$font-size-sm", "fontWeight": 600, "color": "$color-text-label", "requiredIcon": 10, "requiredText": "$font-size-xs $color-text-muted" },
+      "variants": { "default": {}, "required": { "descendants": { "Required": { "enabled": true } } } },
+      "overrideToProps": { "content": "children", "descendants.Required.enabled": "required" }
+    },
+    "Link": {
+      "masterId": "lZDHG",
+      "code": "@repro/design Link",
+      "dims": { "color": "$color-primary", "fontSize": "inherit" },
+      "variants": { "default": {}, "disabled": { "fill": "$color-text-muted" } },
+      "overrideToProps": { "content": "children", "fill": "disabled ? $color-text-muted : $color-primary" }
+    },
+    "Logo": {
+      "masterId": "eYGiE",
+      "code": "@repro/design Logo",
+      "dims": { "badge": "320x320 rx32 in viewBox; scales to height prop", "badgeFill": "$color-primary", "glyphFill": "$color-text-inverse", "wordmarkFill": "$color-bg-emphasis" },
+      "variants": { "default": {}, "inverted": { "descendants": { "Badge": { "fill": "$color-text-inverse" }, "Glyph": { "fill": "$color-primary" }, "Wordmark": { "fill": "$color-text-inverse" } } }, "iconOnly": { "descendants": { "Wordmark": { "enabled": false } } } },
+      "overrideToProps": { "height": "size", "descendants.Wordmark.enabled": "iconOnly (false)", "badge/glyph/wordmark fills": "inverted" }
+    },
+    "FormField": {
+      "masterId": "ANx9O",
+      "code": "@repro/design FormField",
+      "dims": { "layout": "column", "gap": "$spacing-md" },
+      "variants": { "default": {} },
+      "overrideToProps": { "children": "Label + control + help/error in order" }
+    },
+    "FormFieldError": {
+      "masterId": "L0pdQ",
+      "code": "@repro/design FormFieldError",
+      "dims": { "fontSize": "$font-size-xs", "color": "$color-danger" },
+      "variants": { "default": {} },
+      "overrideToProps": { "content": "error.message" }
+    },
+    "TextField": {
+      "masterId": "Q6CWT",
+      "code": "@repro/design TextField",
+      "dims": { "gap": "$spacing-md", "composes": "Label + Input + help($font-size-xs $color-text-muted) + FormFieldError" },
+      "variants": { "default": {}, "with help": { "descendants": { "Help": { "enabled": true } } }, "invalid": { "descendants": { "Input": { "stroke": "$color-danger" }, "Error": { "enabled": true } } } },
+      "overrideToProps": { "descendants.Label.content": "label", "descendants.Input": "input props (see Input)", "descendants.Help.content": "help", "descendants.Error.content": "error.message" }
+    },
+    "Select": {
+      "masterId": "mOtgf",
+      "code": "@repro/design Select",
+      "dims": { "trigger": "as Input + ChevronDown 16 $color-text-muted", "listbox": "minW=trigger, pad $spacing-sm, $radius-md, shadow.md, 1px $color-border-strong", "option": "pad [8,12], $radius-sm, $font-size-sm" },
+      "variants": { "closed (default)": {}, "open": { "descendants": { "Listbox": { "enabled": true } } }, "option selected": { "fill": "$color-primary-subtle", "descendants": { "Label": { "fill": "$color-primary" } } }, "error": { "descendants": { "Trigger": { "stroke": "$color-danger" } } } },
+      "overrideToProps": { "descendants.Value.content": "selected label or placeholder", "descendants.Listbox.enabled": "open state", "option fill": "selected=$color-primary-subtle, hover=$color-bg-hover" }
+    },
+    "RadioGroup": {
+      "masterId": "FUjpH",
+      "code": "@repro/design RadioGroup (Radio)",
+      "dims": { "legend": "$font-size-sm w600", "circle": 16, "radius": "$radius-full", "rowGap": "$spacing-md", "groupGap": "$spacing-lg" },
+      "variants": { "first checked (default)": {}, "other checked": { "descendants": { "Radio1": { "stroke": "$color-border-strong", "strokeWidth": 2 }, "Radio2": { "stroke": "$color-primary", "strokeWidth": 4 } } } },
+      "overrideToProps": { "descendants.Legend.content": "label", "descendants.RadioN.stroke": "checked=$color-primary w4, unchecked=$color-border-strong w2", "descendants.LabelN.content": "option labels" }
+    },
+    "ToggleGroup": {
+      "masterId": "ShJj1",
+      "code": "@repro/design ToggleGroup",
+      "dims": { "pill": "pad [$spacing-sm,$spacing-md], $radius-full, gap $spacing-md", "fontSize": "$font-size-xs", "icon": 14 },
+      "variants": { "inactive (default)": { "fill": "$color-bg-hover" }, "active": { "fill": "$color-bg-emphasis", "descendants": { "Label": { "fill": "$color-text-inverse" }, "Icon": { "fill": "$color-text-inverse", "name": "check_circle" } } } },
+      "overrideToProps": { "descendants.Label.content": "option label", "fill": "selected=$color-bg-emphasis, else $color-bg-hover", "descendants.Icon.name": "selected=check_circle, else circle" }
+    },
+    "Modal": {
+      "masterId": "Z9n2Hz",
+      "code": "@repro/design Modal (Header/Body)",
+      "dims": { "overlay": "$color-bg-overlay", "panel": "$color-bg-surface, $radius-md, shadow.lg", "bodyPadding": "$spacing-xl", "title": "heading2 ($font-size-xl w600)", "description": "body $color-text-secondary" },
+      "variants": { "default": {} },
+      "overrideToProps": { "width/height": "width/height props (required)", "descendants.Title.content": "Modal.Header title", "descendants.Description.content": "Modal.Header description" }
+    },
+    "ConfirmDialog": {
+      "masterId": "QN3He",
+      "code": "@repro/design ConfirmDialog",
+      "dims": { "width": 400, "height": "auto", "actions": "row justify-end gap $spacing-md" },
+      "variants": { "default (info confirm)": {}, "destructive": { "descendants": { "Confirm": { "fill": "$color-danger" } } } },
+      "overrideToProps": { "descendants.Title.content": "title", "descendants.Body.content": "body copy", "descendants.Confirm.fill": "variant (danger=destructive)", "descendants.Confirm.Label.content": "confirmLabel", "descendants.Cancel.Label.content": "cancelLabel" }
+    },
+    "Drawer": {
+      "masterId": "HOyJP",
+      "code": "@repro/design Drawer",
+      "dims": { "overlay": "$color-bg-overlay", "panel": "right-anchored, 35vw min 480, full height, pad $spacing-3xl, $color-bg-surface", "close": "32x32 circle, X 16" },
+      "variants": { "default": {} },
+      "overrideToProps": { "descendants.Content": "children", "width": "fixed 35vw/min480 — not a prop" }
+    },
+    "Tooltip": {
+      "masterId": "dFFD4",
+      "code": "@repro/design Tooltip",
+      "dims": { "fill": "$color-text-secondary", "color": "$color-text-inverse", "fontSize": "$font-size-xs", "padding": "$spacing-md", "radius": "$radius-md" },
+      "variants": { "default": {} },
+      "overrideToProps": { "content": "tooltip text" }
+    },
+    "Popover": {
+      "masterId": "Of9O1",
+      "code": "@repro/design Popover (Content/Arrow)",
+      "dims": { "minWidth": 160, "padding": "$spacing-lg", "gap": "$spacing-sm", "radius": "$radius-md", "stroke": "1px $color-border-strong", "shadow": "shadow.md" },
+      "variants": { "default": {} },
+      "overrideToProps": { "descendants.Content": "children" }
+    },
+    "DropdownMenu": {
+      "masterId": "Hfg5K",
+      "code": "@repro/design DropdownMenu (Content/Item/Separator)",
+      "dims": { "panel": "minW 160, pad $spacing-sm, $radius-md, 1px $color-border-strong, shadow.md", "item": "pad [$spacing-md,$spacing-lg], $radius-sm, $font-size-sm", "separator": "1px $color-border-default, margin 4 0" },
+      "variants": { "item default": {}, "item hover": { "fill": "$color-bg-hover" }, "item destructive": { "descendants": { "Label": { "fill": "$color-danger" } } }, "item disabled": { "opacity": 0.5, "descendants": { "Label": { "fill": "$color-text-muted" } } } },
+      "overrideToProps": { "item fill": "active=$color-bg-hover, destructive active=$color-danger-subtle", "item label fill": "destructive=$color-danger, disabled=$color-text-muted" }
+    },
+    "Toast": {
+      "masterId": "C8oqu",
+      "code": "@repro/design Toast (sonner)",
+      "dims": { "padding": "$spacing-xl", "radius": "$radius-md", "shadow": "shadow.md", "fontSize": "$font-size-sm" },
+      "variants": {
+        "message (default)": { "fill": "$color-bg-surface", "stroke": "$color-border-default" },
+        "success": { "fill": "$color-success-subtle", "stroke": "$color-success-border-subtle", "descendants": { "Message": { "fill": "$color-success-fg" } } },
+        "error": { "fill": "$color-danger-subtle", "stroke": "$color-danger-border-subtle", "descendants": { "Message": { "fill": "$color-danger-fg" } } },
+        "warning": { "fill": "$color-warning-subtle", "stroke": "$color-warning-border-subtle", "descendants": { "Message": { "fill": "$color-warning-fg" } } },
+        "info": { "fill": "$color-info-subtle", "stroke": "$color-info-border-subtle", "descendants": { "Message": { "fill": "$color-info-fg" } } }
+      },
+      "overrideToProps": { "descendants.Message.content": "message", "fill+stroke": "type (see variants)" }
+    },
+    "LoadingState": {
+      "masterId": "W4Qz7",
+      "code": "@repro/design LoadingState",
+      "dims": { "layout": "EmptyState centered, pad $spacing-2xl gap $spacing-lg", "icon": "loader 24 (spins 1000ms)" },
+      "variants": { "default": {} },
+      "overrideToProps": {}
+    },
+    "FullPageLoading": {
+      "masterId": "ZLyaC",
+      "code": "@repro/design FullPageLoading",
+      "dims": { "layout": "centered in parent (100%x100%)", "icon": "loader 24 (spins 1000ms)" },
+      "variants": { "default": {} },
+      "overrideToProps": {}
+    },
+    "FullPageError": {
+      "masterId": "HkYOE",
+      "code": "@repro/design FullPageError",
+      "dims": { "layout": "EmptyState centered", "icon": "alert-triangle 40 $color-danger", "title": "heading3", "description": "body $color-text-muted maxW 400" },
+      "variants": { "default": {}, "with action": { "descendants": { "Action": { "enabled": true } } } },
+      "overrideToProps": { "descendants.Title.content": "title", "descendants.Desc.content": "description", "descendants.Action": "action (Button ref)" }
+    },
+    "Pagination": {
+      "masterId": "hXEYr",
+      "code": "@repro/design Pagination",
+      "dims": { "gap": "$spacing-sm", "button": "small (h28 padH10)", "current": "contained $color-info", "others": "outlined $color-neutral-border", "ellipsis": "$color-text-muted" },
+      "variants": { "default": {} },
+      "overrideToProps": { "page button fill": "current=$color-info+inverse label, else transparent+$color-neutral-border stroke" }
+    },
+    "Breadcrumbs": {
+      "masterId": "vf1Vn",
+      "code": "@repro/design Breadcrumbs (Item)",
+      "dims": { "gap": "$spacing-sm", "fontSize": "$font-size-sm", "separator": "'/' $color-text-muted", "link": "$color-primary", "current": "$color-text-default" },
+      "variants": { "default": {} },
+      "overrideToProps": { "item fill": "link=$color-primary, current page=$color-text-default" }
+    }
+  },
+  "noMaster": ["Portal", "FrameRealm", "Delay", "ErrorBoundary", "FX", "DragHandle"],
+  "screens": { "Component Gallery": "q7mC6b", "Settings Form": "Ff1x2" }
+}
