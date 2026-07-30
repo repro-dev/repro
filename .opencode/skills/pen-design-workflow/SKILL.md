@@ -8,7 +8,7 @@ Load this skill before creating or modifying `.pen` files, porting UI surfaces i
 
 Reference files in this directory:
 
-- `pen-component-map.json` — the component catalog: every reusable master in `repro.pen`, its code counterpart, dims, variant override payloads, and override→prop table. **Required reading for any composition or translation task.**
+- `pen-component-map.json` (**repo root**, next to `repro.pen`) — the component catalog: every reusable master in `repro.pen`, its code counterpart, dims, variant override payloads, and override→prop table. **Required reading for any composition or translation task.** It is a project artifact about `repro.pen`, not skill documentation — commit map changes in the same PR as the `.pen` change.
 
 ---
 
@@ -58,9 +58,9 @@ The robustness rule: **a weak model never makes an open-ended visual decision.**
 
 ---
 
-## 3. The component map (`pen-component-map.json`)
+## 3. The component map (`pen-component-map.json`, repo root)
 
-One entry per reusable master:
+Lives at the repo root next to `repro.pen` — it indexes that file, so it stays beside its subject and ships in the same PRs. One entry per reusable master:
 
 - `masterId` — stable Pencil node id; screens reference masters by ref to this id
 - `code` — the `@repro/design` component it mirrors
