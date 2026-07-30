@@ -72,6 +72,21 @@ Lives at the repo root next to `repro.pen` — it indexes that file, so it stays
 
 When a new master is added to `repro.pen`, add its map entry in the same PR. When a component changes in code, update master + map entry together.
 
+### Drift and the session-start sync check
+
+The map and `repro.pen` drift apart silently: pen.dev has no hooks, so manual or agentic edits in the app are invisible until someone checks. Two drift classes fail **loudly** by design — a deleted master errors on `Insert(ref)`, and an unmapped master trips the "not in map → stop" gate. Two fail **silently** — changed dims, and changed override semantics — and those are what this check exists to catch.
+
+Run this before any .pen work session, and as a self-check on any PR that touches `repro.pen`:
+
+1. Via `pencil_execute`, visitor over the document collecting every `reusable: true` node's `id`, `name`, `width`, `height`.
+2. Load `pen-component-map.json` and diff the two sets:
+   - Master in pen, missing from the map → escalate: unmapped master. Add the entry (same PR) or flag it.
+   - `masterId` in the map that no longer resolves → dangling entry: find the replacement master or remove the entry.
+   - `name`/`dims` mismatch → update the map entry, or flag if the pen change was unintended.
+3. Any finding = resolve before composing or translating. Never work off a map you haven't verified this session.
+
+A CI drift-check (parse `repro.pen` from disk, fail the PR on map disagreement) is the planned hardening once ports land — tracked in REP-1612.
+
 ---
 
 ## 4. File topology (single file, per-surface sections)
@@ -141,6 +156,7 @@ Recommended order: admin first (smallest, hardens the workflow), then workspace,
 3. **No orphan masters** — every `reusable: true` master has ≥ 1 gallery instance.
 4. **Clipping scan** — text nodes with fixed width must not overflow their parent frame bounds.
 5. **Variable pairs** — every color variable keeps its light+dark pair; no dangling `$` refs.
+6. **Map sync** — if `repro.pen` is in the PR diff, the §3 session-start sync check passed.
 
 Human gates: screenshot review (Phase 3) and ui-verification against the pen baseline (Phase 5).
 
