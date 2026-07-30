@@ -292,6 +292,104 @@
       "dims": { "gap": "$spacing-sm", "fontSize": "$font-size-sm", "separator": "'/' $color-text-muted", "link": "$color-primary", "current": "$color-text-default" },
       "variants": { "default": {} },
       "overrideToProps": { "item fill": "link=$color-primary, current page=$color-text-default" }
+    },
+    "AppShell": {
+      "masterId": "lD6Wg",
+      "code": "@repro/design AppShell (Sidebar/Content)",
+      "dims": { "artboard": "1280x800", "sidebarWidth": 220, "content": "x220 y8 w1052 h784, $color-bg-subtle, 1px $color-border-default, $radius-sm", "sidebarHeader": "pad $spacing-lg (Logo h28)", "sidebarFooter": "border-top 1px $color-border-default, pad $spacing-lg (Avatar)" },
+      "variants": { "default": {} },
+      "overrideToProps": { "descendants.SideNav": "nav content (SideNav ref)", "descendants.PageFrame": "page content (PageFrame ref, fill_container both)" }
+    },
+    "SideNav": {
+      "masterId": "idGIq",
+      "code": "@repro/design SideNav (Section/Item)",
+      "dims": { "width": 220, "rootGap": "$spacing-sm", "item": "h32, gap $spacing-md, padH $spacing-lg, left border 4px", "itemText": "$font-size-sm $color-text-default", "itemIcon": "16 $color-text-secondary (constant all states)", "sectionTitle": "11px w600 $color-text-muted pad [4,8]" },
+      "variants": { "item default": {}, "item active": { "fill": "$color-bg-muted", "stroke": "$color-primary" }, "item disabled": { "opacity": 0.5 } },
+      "overrideToProps": { "descendants.Label.content": "item label", "descendants.Icon.name": "lucide icon", "item fill+stroke": "active ($color-bg-muted + 4px left $color-primary)" }
+    },
+    "PageFrame": {
+      "masterId": "dXxF1",
+      "code": "@repro/design PageFrame (Header/Title/Actions/Body)",
+      "dims": { "artboard": "1052x784 (fits AppShell.Content)", "header": "pad [$spacing-xl,$spacing-2xl], border-bottom 1px $color-border-default, ~61h", "title": "heading2 ($font-size-xl w600 lh1.25)", "actions": "row gap $spacing-md", "body": "pad [$spacing-xl,$spacing-2xl]" },
+      "variants": { "default": {}, "constrained body": { "note": "maxWidth 720 centered — code-only, not modeled in master" } },
+      "overrideToProps": { "descendants.Title.content": "page title", "descendants.Actions": "action buttons (small contained default)", "descendants.Body": "page content" }
+    },
+    "ToolView": {
+      "masterId": "Bis3b",
+      "code": "@repro/design ToolView (Header/Content)",
+      "dims": { "artboard": "1280x800", "header": "h45, pad [$spacing-md,$spacing-xl], gap $spacing-md, border-bottom 1px $color-border-default", "backLink": "$font-size-md $color-primary", "title": "$font-size-md w600", "player": "60% (453h) $color-bg-emphasis", "inspector": "40% (302h) $color-bg-surface + border-top 1px $color-border-default" },
+      "variants": { "default": {} },
+      "overrideToProps": { "descendants.Back Link.content": "back navigation label", "descendants.Title.content": "tool title", "header trailing": "actions row (small outlined default)" }
+    },
+    "Stack": {
+      "masterId": "oj0de",
+      "code": "@repro/design Stack",
+      "dims": { "layout": "column", "gap": "$spacing-md (default; any spacing token)" },
+      "variants": { "gap md (default)": {}, "other gap": { "gap": "$spacing-<token>" } },
+      "overrideToProps": { "gap": "gap prop ($spacing-none..$spacing-4xl)" }
+    },
+    "Center": {
+      "masterId": "uMi7H",
+      "code": "@repro/design Center",
+      "dims": { "frame": "300x300 demo (fills parent in code)", "align": "grid center both axes" },
+      "variants": { "default": {}, "maxWidth": { "note": "maxWidth 320/480 — code-only, not modeled" } },
+      "overrideToProps": { "children": "single centered child" }
+    },
+    "DefinitionList": {
+      "masterId": "wWm4d",
+      "code": "@repro/design DefinitionList",
+      "dims": { "width": 480, "keyCol": "160 (code: auto)", "titleRow": "pad [32,8,8,8], $font-size-sm w700 $color-primary", "cell": "pad $spacing-md, $font-size-md lh1.25", "key": "w700 $color-text-secondary", "value": "$color-text-default", "rules": "1px bottom $color-border-default on title + every row" },
+      "variants": { "default": {} },
+      "overrideToProps": { "descendants.Title.content": "title", "pair Key/Value text contents": "pairs" }
+    },
+    "Accordion": {
+      "masterId": "j47Trs",
+      "code": "@repro/design Accordion (Item/Trigger/Content)",
+      "dims": { "width": 640, "radius": "$radius-md", "stroke": "1px $color-border-default + item bottom rules (incl. last — faithful quirk)", "trigger": "pad $spacing-lg, label $font-size-sm w600 lh1 $color-text-default, chevron 16 $color-text-secondary", "content": "pad [0,$spacing-lg,$spacing-lg,$spacing-lg], $font-size-sm lh1.5 $color-text-secondary" },
+      "variants": { "first open (default)": {}, "all closed": { "descendants": { "f4vpCo": { "enabled": false }, "z2NdZ": { "rotation": 0 } } }, "disabled item": { "opacity": 0.6, "descendants": { "Label": { "fill": "$color-text-muted" }, "Chevron": { "fill": "$color-text-muted" } } } },
+      "overrideToProps": { "descendants.Label.content": "item label", "descendants.Content": "item body (enabled=open)", "descendants.Chevron.rotation": "open=180, closed=0" }
+    },
+    "Collapsible": {
+      "masterId": "PWVzn",
+      "code": "@repro/design Collapsible",
+      "dims": { "width": 520, "recipe": "same as Accordion, single item, no item rules" },
+      "variants": { "closed (default)": {}, "open": { "note": "add Content frame as in Accordion", "descendants": { "Chevron": { "rotation": 180 } } }, "disabled": { "opacity": 0.6 } },
+      "overrideToProps": { "descendants.Label.content": "trigger label", "descendants.Chevron.rotation": "open=180, closed=0" }
+    },
+    "Fieldset": {
+      "masterId": "u1jBK",
+      "code": "@repro/design Fieldset",
+      "dims": { "layout": "column gap $spacing-xl, no border/pad", "heading": "legend $font-size-lg w600 lh1.25 + margin-bottom $spacing-md (24 total to first field)", "width": 480 },
+      "variants": { "with heading (default)": {}, "no heading": { "descendants": { "Heading": { "enabled": false } } } },
+      "overrideToProps": { "descendants.Legend.content": "heading", "children": "form fields (Label+Input refs)" }
+    },
+    "InputActionRow": {
+      "masterId": "HS14L",
+      "code": "@repro/design InputActionRow",
+      "dims": { "width": 520, "layout": "row gap $spacing-sm align-start", "inputRegion": "flex 1 (Input fill_container)", "actions": "row gap $spacing-sm" },
+      "variants": { "default": {} },
+      "overrideToProps": { "descendants.Input": "input control", "descendants.Actions": "action buttons (contained default)" }
+    },
+    "AvatarStackSummary": {
+      "masterId": "GAQhh",
+      "code": "@repro/design AvatarStackSummary",
+      "dims": { "gap": "$spacing-md", "avatar": "24 (small default; 30 medium, 36 large), circle $color-bg-muted, 1px outer stroke $color-bg-surface", "overlap": "-4px per subsequent avatar (cluster layout none, x steps of 20)", "label": "$font-size-sm w600 $color-text-secondary", "overflowLabel": "$font-size-sm w400 inherit" },
+      "variants": { "static (default)": {}, "overflow": { "descendants": { "iHoIK": { "content": "and 2 more", "fontWeight": "400" } } }, "linked": { "descendants": { "iHoIK": { "fill": "$color-primary" } } }, "empty": { "descendants": { "AAk9n": { "enabled": false }, "iHoIK": { "content": "No users", "fontWeight": "400", "fill": "$color-text-muted" } } } },
+      "overrideToProps": { "descendants.iHoIK.content": "label / overflowLabel / emptyLabel", "avatar cell width/height": "size (24 small, 30 medium, 36 large)" }
+    },
+    "ListPageFooter": {
+      "masterId": "JkTAn",
+      "code": "@repro/design ListPageFooter (listing)",
+      "dims": { "width": 960, "layout": "row space-between", "footerText": "$font-size-sm $color-text-muted", "pagerButton": "h28 padH 10 gap 5, $font-size-xs, 1px $color-neutral-border, radius 5, $color-text-secondary" },
+      "variants": { "cursor mode (default, prev disabled)": {}, "numbered": { "note": "compose small Buttons as in Pagination master; current = contained $color-info + containedShadow" } },
+      "overrideToProps": { "descendants.Footer Text.content": "summary text", "pager button opacity": "disabled=0.5" }
+    },
+    "RefreshProgressBar": {
+      "masterId": "PL9Ta",
+      "code": "@repro/design RefreshProgressBar (listing)",
+      "dims": { "track": "960x2 $color-border-default (spans parent, absolute top)", "fill": "35% (336) x2 $color-primary, $radius-full" },
+      "variants": { "in progress (default, scaleX 0.35)": {}, "complete": { "descendants": { "q8dWt": { "width": 960 } } } },
+      "overrideToProps": { "descendants.q8dWt.width": "progress (0.35->0.82 animates in code; 960=complete)" }
     }
   },
   "noMaster": ["Portal", "FrameRealm", "Delay", "ErrorBoundary", "FX", "DragHandle"],
