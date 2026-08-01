@@ -222,20 +222,20 @@ New components are designed in pen first, but through a promotion gate:
 15. **Invalid property values are silently dropped, never errored.** Known cases: `padding` as a per-side object (`{left, right}` — padding is number-or-array only; only `strokeWidth` supports per-side objects), `$` variable refs in `width`/`height`, `width` on text without `textGrowth`. The dropped value leaves no trace — layout just breaks (zero gutter, zero width). The §8 gates are the only backstop; when something looks unstyled, suspect a dropped value before suspecting the token.
 16. **Masters must be left in their default variant state after any edit.** A master saved mid-variant (error stroke on Input, active wrong tab, checked toggle) ships that state into every existing and future instance with no override trail. After editing a master, diff its rendered state against the map's default variant before moving on.
 
-## 12. Interface choice: MCP vs pen CLI (verified 2026-07-30, CLI 0.3.0)
+## 12. Interface choice: MCP vs pen CLI (verified 2026-08-01, CLI 0.3.1)
 
 Three ways to drive a .pen file agentically; they are not interchangeable:
 
 | Task | Interface | Status |
 | --- | --- | --- |
 | Edit the live open document | **MCP server** (`pencil_*` tools) | Only working option |
-| Offline/CI edits, exports, screenshots | `pen interactive -i in.pen -o out.pen` (headless) | Validated: `get_editor_state`, `batch_design`, `save()` all work on piped stdin |
+| Offline/CI edits, exports, screenshots | `pen interactive -i in.pen -o out.pen` (headless) | Validated: `get_app_state`, `execute`, `save()` all work on piped stdin |
 | CLI → live app (`pen interactive -a desktop`) | — | **Broken**: app rejects the CLI's old tool names (`No handler found for method 'get-editor-state'`). Re-test after a desktop app update |
 
 Facts that don't fit the table:
 
 - The MCP server is the binary inside `Pen.app` (`.../app.asar.unpacked/out/mcp-server-darwin-arm64`); it versions with the desktop app, so MCP↔app mismatch is impossible. The CLI is a separate npm install and can lag the app's protocol.
-- Current protocol (app + MCP + docs.pen.dev): `get_app_state`, `execute`, `get_screenshot`, `export_nodes`, `export_html`, `get_guidelines`, `browser`. CLI 0.3.0's `--app` bridge still speaks `get_editor_state` / `batch_get` / `batch_design` — those names only work in the CLI's own headless runtime.
+- Current protocol (app + MCP + docs.pen.dev): `get_app_state`, `execute`, `get_screenshot`, `export_nodes`, `export_html`, `get_guidelines`, `browser`. CLI 0.3.1's headless runtime now also speaks `get_app_state` / `execute` — protocol parity with MCP. `batch_get` is removed; use `execute` + `Get`/`Print` visitors for read queries.
 - Headless CLI edits a **copy** (`-i` → `-o`); it never touches the document open in the app. Save is explicit via `save()` in the shell; without it no output file is written.
 - Because headless has `save()` and MCP does not (runbook §11.12), a fully unattended pipeline is: headless CLI edit → commit the `-o` output. Live-app work still ends with "ask the user to Cmd+S".
 - Headless import-URI resolution (multi-file library imports) was still blocked as of 0.3.0 — see REP-1605 before attempting per-surface file splits via the CLI.
