@@ -50,8 +50,8 @@ importers:
         specifier: ^82.0.0
         version: 82.0.0(graphql@16.13.2)
       '@pen.dev/cli':
-        specifier: ^0.3.0
-        version: 0.3.0(@anthropic-ai/sdk@0.104.2(zod@3.24.4))(@modelcontextprotocol/sdk@1.29.0(zod@3.24.4))(@types/node@22.14.0)(zod@3.24.4)
+        specifier: ^0.3.1
+        version: 0.3.1(@anthropic-ai/sdk@0.104.2(zod@3.24.4))(@modelcontextprotocol/sdk@1.29.0(zod@3.24.4))(@types/node@22.14.0)(zod@3.24.4)
       '@playwright/test':
         specifier: ^1.61.1
         version: 1.61.1
@@ -5056,8 +5056,8 @@ packages:
     resolution: {integrity: sha512-EFP1thHb1FVuKGwSJ/+/oj5FvCk3l3adyVy/mpUnDq/MM31RdcAdNn+AZ8qYd0pF4rJxtwXmWMGjXqjHKhKHuA==}
     engines: {node: '>=20'}
 
-  '@pen.dev/cli@0.3.0':
-    resolution: {integrity: sha512-+mC+7wW49iGrzH/VsT32OPZjegGyFRJlGfbVoS8TrYug8x/zAzo2P3hz9hPc7vYN/XFyM14npQBEETwvQvUh/g==}
+  '@pen.dev/cli@0.3.1':
+    resolution: {integrity: sha512-PCDT4/+hn4nyXXQoDraQhDljQP3QCsPNQ2mWIx2+1Gq4oT2adPzMuIeo0zEYiYF4M4c0w7jq6vUqIIcbKv7ubA==}
     engines: {node: '>=18.0.0'}
     hasBin: true
 
@@ -12986,7 +12986,7 @@ snapshots:
 
   '@paddle/paddle-node-sdk@3.6.0': {}
 
-  '@pen.dev/cli@0.3.0(@anthropic-ai/sdk@0.104.2(zod@3.24.4))(@modelcontextprotocol/sdk@1.29.0(zod@3.24.4))(@types/node@22.14.0)(zod@3.24.4)':
+  '@pen.dev/cli@0.3.1(@anthropic-ai/sdk@0.104.2(zod@3.24.4))(@modelcontextprotocol/sdk@1.29.0(zod@3.24.4))(@types/node@22.14.0)(zod@3.24.4)':
     dependencies:
       '@anthropic-ai/claude-agent-sdk': 0.3.220(@anthropic-ai/sdk@0.104.2(zod@3.24.4))(@modelcontextprotocol/sdk@1.29.0(zod@3.24.4))(zod@3.24.4)
       '@inquirer/prompts': 8.5.2(@types/node@22.14.0)

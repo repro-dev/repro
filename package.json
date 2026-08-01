@@ -12,7 +12,7 @@
     "@commitlint/config-conventional": "^20.4.2",
     "@jsxstyle/core": "^3.0.1",
     "@linear/sdk": "^82.0.0",
-    "@pen.dev/cli": "^0.3.0",
+    "@pen.dev/cli": "^0.3.1",
     "@playwright/test": "^1.61.1",
     "@types/pngjs": "^6.0.0",
     "@types/trusted-types": "^2.0.7",
