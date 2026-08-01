@@ -24,5 +24,8 @@ moon ci :build :typecheck :test
 echo "Running workspace lint..."
 pnpm run lint
 
+echo "Checking pen-sync conventions..."
+tsx scripts/pen-sync.ts || exit 1
+
 echo "Checking formatting..."
 pnpm run fmt:check

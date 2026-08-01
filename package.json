@@ -62,9 +62,10 @@
     "prepare": "husky",
     "lint": "oxlint .",
     "fmt:check": "prettier --check \"**/*.{ts,tsx}\" --ignore-path .gitignore",
-    "test:tooling-config": "node --test scripts/tooling-config.test.ts scripts/delivery-fragments.test.ts",
+    "test:tooling-config": "node --test scripts/tooling-config.test.ts scripts/delivery-fragments.test.ts scripts/pen-sync.test.ts scripts/pen-sync.modes.test.ts scripts/pen-sync.export.test.ts",
     "check:test-file-size": "bash scripts/check-test-file-size.sh",
-    "pen:export": "tsx scripts/pen-export.ts"
+    "pen:export": "tsx scripts/pen-export.ts",
+    "pen:sync": "tsx scripts/pen-sync.ts"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
