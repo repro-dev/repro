@@ -27,6 +27,9 @@
     "review": {
       "model": "openrouter/minimax/minimax-m2.7"
     },
+    "adversarial-review": {
+      "model": "openrouter/minimax/minimax-m2.7"
+    },
     "test": {
       "model": "openrouter/minimax/minimax-m2.7"
     },

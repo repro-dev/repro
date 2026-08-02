@@ -27,6 +27,9 @@
     "review": {
       "model": "opencode-go/glm-5.2"
     },
+    "adversarial-review": {
+      "model": "opencode-go/glm-5.2"
+    },
     "test": {
       "model": "opencode-go/kimi-k2.7-code"
     },

@@ -27,6 +27,9 @@
     "review": {
       "model": "openrouter/z-ai/glm-5.1"
     },
+    "adversarial-review": {
+      "model": "openrouter/z-ai/glm-5.1"
+    },
     "test": {
       "model": "openrouter/minimax/minimax-m2.7"
     },
