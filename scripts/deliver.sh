@@ -346,9 +346,11 @@ _create_worktree_and_launch() {
     return 0
   fi
 
-  # Split root (left 100%) → opencode 70% left + terminal 30% right
+  # Split root (left 100%) → opencode 70% left + terminal 30% right.
+  # Note: herdr's --ratio sizes the split node's FIRST (original) pane, so 0.7
+  # sizes opencode at 70% left and leaves the new right pane (terminal) at 30%.
   local right_split_result right_pane_id opencode_pane_id term_pane_id
-  right_split_result="$(herdr pane split --pane "$root_pane_id" --direction right --cwd "$wt_path" --ratio 0.3 --no-focus 2>&1)" || true
+  right_split_result="$(herdr pane split --pane "$root_pane_id" --direction right --cwd "$wt_path" --ratio 0.7 --no-focus 2>&1)" || true
   right_pane_id="$(printf '%s' "$right_split_result" | jq -r '.result.pane.pane_id // .result.pane_id // empty' 2>/dev/null || true)"
   if [[ -z "$right_pane_id" || "$right_pane_id" == "null" ]]; then
     _warn "Pane split failed — falling back to single-pane layout."

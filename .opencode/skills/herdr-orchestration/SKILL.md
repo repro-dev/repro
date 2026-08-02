@@ -60,23 +60,25 @@ Each pane has:
 
 ### Deliver workspace layout
 
-`deliver` creates workspaces with a 3-pane layout:
+`deliver` creates workspaces with a 2-pane layout (opencode left, terminal right):
 
 ```
-┌─────────────────────┬──────────┬──────────┐
-│                     │ terminal │          │
-│   opencode (60%)    │ :p2      │ neovim   │
-│   :p1               │ (20%)    │ :p3 (20%)│
-└─────────────────────┴──────────┴──────────┘
+┌─────────────────────┬──────────┐
+│                     │          │
+│   opencode (70%)    │ terminal │
+│   :p1               │ :p2 (30%)│
+│                     │          │
+└─────────────────────┴──────────┘
 ```
 
-- `:p1` — OpenCode pane (60% left). Agent name: `opencode-REP-XXXX`
-- `:p2` — Terminal shell (top-right 20%)
-- `:p3` — Neovim (bottom-right 20%), launched with `nvim .` in worktree root
+- `:p1` — OpenCode pane (70% left). Agent name: `opencode-REP-XXXX`
+- `:p2` — Terminal shell (right 30%), used for deferred `pnpm install`
 
-If the vertical split fails, falls back to a 2-pane layout (opencode 60% + terminal 40%).
+If the split fails, falls back to a single-pane layout (opencode only) and
+installs dependencies synchronously.
 
-**Find the OpenCode pane**: filter for `agent == "opencode"`. In a `deliver`-created workspace, pane `:p2` is OpenCode and `:p1` is the shell.
+**Find the OpenCode pane**: filter for `agent == "opencode"`. In a
+`deliver`-created workspace, `:p1` is OpenCode and `:p2` is the shell.
 
 ### Resolve a target for herdr commands
 
@@ -326,6 +328,6 @@ done
 | `herdr agent start <name> --kind KIND --pane ID` | Launch a new agent in an existing pane |
 | `herdr pane send-keys <pane_id> enter` | Send Enter key to a pane |
 | `herdr pane run <pane_id> <cmd>` | Send command + Enter (shell panes only) |
-| `herdr pane split --pane ID --direction right\|down` | Split a pane (used by deliver for layout) |
+| `herdr pane split --pane ID --direction right\|down --ratio F` | Split a pane (used by deliver for layout). **`--ratio` sizes the split node's FIRST (original) pane** — on a right split the original stays left at ratio%, the new pane gets the remainder. deliver uses `--ratio 0.7` so opencode (left) gets 70% and terminal (right) 30%. |
 | `herdr pane read <pane_id>` | Read raw pane output |
 | `herdr api snapshot` | Full server state snapshot |
