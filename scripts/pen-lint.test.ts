@@ -8,15 +8,18 @@ import type { PenFile } from './pen-lint.ts'
 import {
   buildScreensIndex,
   checkComponentExport,
-  determinePackagePrefix,
+  collectAllPackageExports,
   extractJsonResponse,
   extractMasters,
   extractScreens,
   extractVariableRefs,
   extractVariables,
+  inferCandidates,
   normalizeScreenName,
   parsePenJson,
+  parseSelectArg,
   resolvePackagePath,
+  runCheck,
   validateMasterName,
   validateVariableRefs,
 } from './pen-lint.ts'
@@ -54,7 +57,7 @@ function fixturePen(): PenFile {
   )
 }
 
-describe('REP-1620 pen-lint data layer', () => {
+describe('REP-1618 pen-lint data layer', () => {
   it('parses a pen file from raw JSON', () => {
     const pen = fixturePen()
     assert.equal(pen.version, '2.14')
@@ -92,30 +95,16 @@ describe('REP-1620 pen-lint data layer', () => {
   })
 })
 
-describe('REP-1620 pen-lint validation', () => {
+describe('REP-1618 pen-lint validation', () => {
   it('validateMasterName enforces package::ComponentName', () => {
     assert.equal(validateMasterName('design::Button'), true)
     assert.equal(validateMasterName('design::Button2'), true)
+    assert.equal(validateMasterName('agentic-ui::EmptyState'), true)
     assert.equal(validateMasterName('button'), false)
     assert.equal(validateMasterName('design::'), false)
     assert.equal(validateMasterName('Design::Button'), false)
     assert.equal(validateMasterName('design::button'), false)
     assert.equal(validateMasterName('design::Button::Extra'), false)
-  })
-
-  it('determinePackagePrefix parses the code field', () => {
-    assert.deepEqual(determinePackagePrefix('@repro/design Button'), {
-      pkg: 'design',
-      comp: 'Button',
-    })
-    assert.deepEqual(
-      determinePackagePrefix('@repro/design Table (Header/Row/Cell)'),
-      {
-        pkg: 'design',
-        comp: 'Table',
-      }
-    )
-    assert.equal(determinePackagePrefix('garbage'), null)
   })
 
   it('resolvePackagePath maps a package to packages/<pkg>/', () => {
@@ -178,7 +167,68 @@ describe('REP-1620 pen-lint validation', () => {
   })
 })
 
-describe('REP-1620 pen-lint export response parsing', () => {
+describe('REP-1618 candidate inference', () => {
+  const exportsByPackage = collectAllPackageExports(repoRoot)
+
+  it('collectAllPackageExports scans every package barrel', () => {
+    assert.ok(exportsByPackage.size > 10, 'expected all packages indexed')
+    assert.ok(
+      exportsByPackage.get('design')!.has('Button'),
+      'design exports Button'
+    )
+    assert.ok(
+      exportsByPackage.get('agentic-ui')!.has('EmptyState'),
+      'agentic-ui exports EmptyState'
+    )
+  })
+
+  it('infers a single exact candidate for a design master', () => {
+    const result = inferCandidates('Button', exportsByPackage)
+    assert.deepEqual(result.exact, ['design::Button'])
+    assert.deepEqual(result.closest, [])
+  })
+
+  it('infers multiple exact candidates ranked alphabetically by package', () => {
+    const result = inferCandidates('EmptyState', exportsByPackage)
+    assert.deepEqual(result.exact, [
+      'agentic-ui::EmptyState',
+      'design::EmptyState',
+    ])
+    assert.deepEqual(result.closest, [])
+  })
+
+  it('reports closest matches and never auto-candidates for AdminTable', () => {
+    const result = inferCandidates('AdminTable', exportsByPackage)
+    assert.deepEqual(result.exact, [])
+    assert.ok(result.closest.length > 0)
+    assert.deepEqual(result.closest[0], {
+      package: 'design',
+      component: 'Table',
+      confidence: 'substring',
+    })
+  })
+
+  it('never auto-candidates case-insensitive matches (Toast)', () => {
+    const result = inferCandidates('Toast', exportsByPackage)
+    assert.deepEqual(result.exact, [])
+    const components = result.closest.map(c => c.component)
+    assert.ok(
+      components.includes('toast'),
+      'lowercase toast must be listed as closest'
+    )
+    assert.ok(
+      components.includes('ToastProvider'),
+      'ToastProvider must be listed as closest'
+    )
+    assert.equal(
+      result.closest[0]!.confidence,
+      'case-insensitive',
+      'case-insensitive tier ranks first'
+    )
+  })
+})
+
+describe('REP-1618 pen-lint export response parsing', () => {
   it('extractJsonResponse pulls the tool JSON from a mixed stream', () => {
     const stream =
       '[INFO] Ready.\n\u001b[36mpen\u001b[39m \u001b[2m>\u001b[22m {\n' +
@@ -197,7 +247,7 @@ describe('REP-1620 pen-lint export response parsing', () => {
   })
 })
 
-describe('REP-1620 screens index', () => {
+describe('REP-1618 screens index', () => {
   it('buildScreensIndex maps normalized screen names to ids', () => {
     const index = buildScreensIndex([
       {
@@ -218,7 +268,32 @@ describe('REP-1620 screens index', () => {
   })
 })
 
-describe('REP-1620 pen-lint wiring', () => {
+describe('REP-1618 --select argument parsing', () => {
+  it('parses comma-separated masterId=package::Component pairs', () => {
+    assert.deepEqual(
+      parseSelectArg(['--select', 'm1=design::Button,m2=design::Badge']),
+      { m1: 'design::Button', m2: 'design::Badge' }
+    )
+  })
+
+  it('silently skips malformed parts (no "=", empty id or name)', () => {
+    assert.deepEqual(
+      parseSelectArg([
+        '--select',
+        'm1=design::Button,garbage,=design::Badge,m2=,m3=design::Card',
+      ]),
+      { m1: 'design::Button', m3: 'design::Card' }
+    )
+  })
+
+  it('returns an empty map when --select is absent', () => {
+    assert.deepEqual(parseSelectArg([]), {})
+    assert.deepEqual(parseSelectArg(['--apply']), {})
+    assert.deepEqual(parseSelectArg(['--select']), {})
+  })
+})
+
+describe('REP-1618 pen-lint wiring', () => {
   it('defers the pen-lint pre-push hook gate to REP-1621', () => {
     // The pre-push hook does not gate on pen-lint yet — wiring is deferred to
     // REP-1621 until pen file violations are reconciled. Assert the deferral.
@@ -230,16 +305,20 @@ describe('REP-1620 pen-lint wiring', () => {
     )
   })
 
-  it('adds the pen:lint script to package.json', () => {
+  it('adds the pen:lint and pen:dry-run scripts to package.json', () => {
     const packageJson = JSON.parse(readText('package.json')) as {
       scripts: Record<string, string>
     }
     assert.equal(packageJson.scripts['pen:lint'], 'tsx scripts/pen-lint.ts')
+    assert.equal(
+      packageJson.scripts['pen:dry-run'],
+      'tsx scripts/pen-lint.ts --dry-run'
+    )
   })
 })
 
-describe('REP-1620 real repro.pen integration (read-only)', () => {
-  it('enumerates masters, screens, and variables with no dangling refs', () => {
+describe('REP-1618 real repro.pen integration (read-only)', () => {
+  it('every master is package::ComponentName-conforming or a known flagged master', () => {
     const pen = parsePenJson(readText('repro.pen'))
     const masters = extractMasters(pen)
     const screens = extractScreens(pen)
@@ -249,15 +328,45 @@ describe('REP-1620 real repro.pen integration (read-only)', () => {
     assert.ok(Object.keys(variables).length >= 50, 'expected 79 variables')
     assert.deepEqual(validateVariableRefs(pen), [])
 
-    // Every master must resolve to a component-map entry by masterId
-    const componentMap = JSON.parse(readText('pen-component-map.json')) as {
-      components: Record<string, { masterId: string; code: string }>
-    }
-    const ids = new Set(
-      Object.values(componentMap.components).map(c => c.masterId)
-    )
+    // Naming convention replaces the component map: every master either
+    // conforms to package::ComponentName with a resolvable export, or is one
+    // of the two flagged masters deferred to REP-1621 (Toast, AdminTable).
+    const flagged = new Set(['Toast', 'AdminTable'])
     for (const master of masters) {
-      assert.ok(ids.has(master.id), `master ${master.id} has no map entry`)
+      if (flagged.has(master.name)) continue
+      assert.ok(
+        validateMasterName(master.name),
+        `master ${master.id} "${master.name}" is not package::ComponentName`
+      )
+      const [pkg, comp] = master.name.split('::') as [string, string]
+      assert.ok(
+        resolvePackagePath(pkg, repoRoot),
+        `master ${master.id}: package "${pkg}" does not exist`
+      )
+      assert.ok(
+        checkComponentExport(pkg, comp, repoRoot),
+        `master ${master.id}: "${comp}" is not exported from @repro/${pkg}`
+      )
     }
+  })
+
+  it('runCheck reports exactly the two flagged masters as violations', () => {
+    const logs: string[] = []
+    const code = runCheck({
+      penFile: path.join(repoRoot, 'repro.pen'),
+      catalogOutput: path.join(repoRoot, 'tmp', 'pen-catalog-test.json'),
+      log: msg => logs.push(msg),
+    })
+    assert.equal(code, 1, 'repro.pen must fail check until REP-1621 lands')
+    const violations = logs.filter(l => l.startsWith('violation:'))
+    assert.equal(violations.length, 2, violations.join('\n'))
+    assert.ok(
+      violations.some(v => v.includes('Toast')),
+      'Toast must be flagged for human resolution'
+    )
+    assert.ok(
+      violations.some(v => v.includes('AdminTable')),
+      'AdminTable must be flagged for human resolution'
+    )
   })
 })
