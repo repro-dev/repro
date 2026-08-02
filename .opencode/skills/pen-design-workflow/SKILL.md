@@ -64,10 +64,10 @@ The robustness rule: **a weak model never makes an open-ended visual decision.**
 Every reusable master in `repro.pen` is named `<package>::<ComponentName>` — e.g. `design::Button`, `agentic-ui::SessionPanel`. The `::` is the namespace separator; dashes inside the package part (like `agentic-ui`) are unambiguous. Scope is always `@repro`, so the bare package name disambiguates.
 
 - The **package part** is the `@repro/<pkg>` import scope.
-- The **component part** is the exported symbol name — always uppercase-first (`design::Button`, never `design::button`).
+- The **component part** is the exported symbol name, matched case-sensitively — component exports are PascalCase (`design::Button`); function exports keep their own case (e.g. `design::toast` for the sonner toast trigger).
 - The `variants`/`dims`/`overrideToProps` tables are gone; the master's saved state in the pen file is the visual spec.
 
-**Conformance is verified by `pnpm run pen:lint`** (check mode): it infers the correct prefix by scanning `packages/*/src` exports and reports each unprefixed master as `did you mean \`design::Button\`?`. Masters with no matching export (e.g. `Toast`, `AdminTable`) are flagged for human resolution (see REP-1621) — pen-lint never invents a namespace.
+**Conformance is verified by `pnpm run pen:lint`** (check mode): it infers the correct prefix by scanning `packages/*/src` exports and reports each unprefixed master as `did you mean \`design::Button\`?`. Masters with no matching export are flagged for human resolution — pen-lint never invents a namespace.
 
 **Candidate inference + `--select` resolution:** a single exact candidate auto-applies in `--apply` mode; multiple candidates prompt in a TTY or require `--select <masterId>=<package>::<ComponentName>`; zero candidates are skipped and reported. `pnpm run pen:dry-run` lists every required resolution as JSON on stdout without touching the pen file.
 
@@ -88,7 +88,7 @@ Run this before any .pen work session, and as a self-check on any PR that touche
    - `name`/`dims` mismatch with the implemented component → flag if the pen change was unintended.
 3. Any finding = resolve before composing or translating. Never work off a pen file you haven't verified this session.
 
-A CI naming-conformance check (parse `repro.pen` from disk, fail the PR on violations) is the planned hardening once ports land and REP-1621 reconciles the flagged masters — tracked in REP-1612.
+A CI naming-conformance check (parse `repro.pen` from disk, fail the PR on violations) is the planned hardening once ports land — tracked in REP-1612 (REP-1621 reconciled the originally flagged masters).
 
 ---
 
@@ -161,7 +161,7 @@ Recommended order: admin first (smallest, hardens the workflow), then workspace,
 3. **No orphan masters** — every `reusable: true` master has ≥ 1 gallery instance.
 4. **Clipping scan** — text nodes with fixed width must not overflow their parent frame bounds.
 5. **Variable pairs** — every color variable keeps its light+dark pair; no dangling `$` refs.
-6. **Master naming conformance** — run `pnpm run pen:lint`; it must report zero violations (or only the known REP-1621 flagged masters).
+6. **Master naming conformance** — run `pnpm run pen:lint`; it must report zero violations.
 7. **Master default state** — every master renders in its documented default variant (default is almost always `{}` overrides). A master saved in a non-default state (error stroke, invalid input, wrong active tab) poisons every instance silently. Check any master you touched, and spot-check masters your screens consume.
 
 Human gates: screenshot review (Phase 3) and ui-verification against the pen baseline (Phase 5).

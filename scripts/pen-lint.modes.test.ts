@@ -108,7 +108,7 @@ describe('REP-1618 pen-lint check mode end-to-end', () => {
   it('flags zero-candidate masters with closest matches and a human-resolution note', () => {
     const dir = mkdtempSync(path.join(tmpdir(), 'pen-lint-check-nocand-'))
     try {
-      const penFile = writePen(dir, fixturePenJson([['m1', 'AdminTable']]))
+      const penFile = writePen(dir, fixturePenJson([['m1', 'NoSuchExport']]))
       const logs: string[] = []
       const code = runCheck({
         penFile,
@@ -117,9 +117,9 @@ describe('REP-1618 pen-lint check mode end-to-end', () => {
       })
       assert.notEqual(code, 0)
       const violation = logs.find(l => l.startsWith('violation:'))!
-      assert.ok(violation.includes('AdminTable'))
-      assert.ok(violation.includes('design::Table'), violation)
-      assert.ok(violation.includes('REP-1621'), violation)
+      assert.ok(violation.includes('NoSuchExport'))
+      assert.ok(violation.includes('closest matches'), violation)
+      assert.ok(violation.includes('Flag for human resolution'), violation)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
@@ -212,7 +212,7 @@ describe('REP-1618 pen-lint dry-run mode', () => {
         dir,
         fixturePenJson([
           ['m1', 'Button'],
-          ['m2', 'AdminTable'],
+          ['m2', 'NoSuchExport'],
         ])
       )
       const jsonOuts: string[] = []
@@ -415,7 +415,7 @@ describe('REP-1618 pen-lint apply mode end-to-end', () => {
       const penFile = writePen(
         dir,
         fixturePenJson([
-          ['m1', 'AdminTable'],
+          ['m1', 'NoSuchExport'],
           ['m2', 'Badge'],
         ])
       )
@@ -423,9 +423,13 @@ describe('REP-1618 pen-lint apply mode end-to-end', () => {
       const code = await runApply({ penFile, log: msg => logs.push(msg) })
       assert.equal(code, 1, 'skipped master must exit non-zero')
       assert.equal(masterOf(readPen(penFile), 'm2').name, 'design::Badge')
-      assert.equal(masterOf(readPen(penFile), 'm1').name, 'AdminTable')
+      assert.equal(masterOf(readPen(penFile), 'm1').name, 'NoSuchExport')
       assert.ok(
-        logs.some(l => l.includes('AdminTable') && l.includes('REP-1621')),
+        logs.some(l => l.includes('NoSuchExport')),
+        logs.join('\n')
+      )
+      assert.ok(
+        logs.some(l => l.includes('Flag for human resolution')),
         logs.join('\n')
       )
     } finally {

@@ -26,3 +26,6 @@ pnpm run lint
 
 echo "Checking formatting..."
 pnpm run fmt:check
+
+echo "Checking pen-lint conventions..."
+tsx scripts/pen-lint.ts || exit 1

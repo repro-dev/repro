@@ -5631,7 +5631,7 @@
       "id": "C8oqu",
       "x": 800,
       "y": 1200,
-      "name": "Toast",
+      "name": "design::toast",
       "reusable": true,
       "fill": "$color-success-subtle",
       "cornerRadius": "$radius-md",
@@ -5685,7 +5685,12 @@
           "fontSize": "$font-size-sm",
           "fontWeight": "normal"
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "toast"
+      }
     },
     {
       "type": "frame",
@@ -10124,7 +10129,7 @@
       "id": "g0VkAm",
       "x": 0,
       "y": -320,
-      "name": "AdminTable",
+      "name": "design::AdminTable",
       "reusable": true,
       "clip": true,
       "width": 720,
@@ -10606,7 +10611,12 @@
             }
           ]
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "AdminTable"
+      }
     },
     {
       "type": "frame",
