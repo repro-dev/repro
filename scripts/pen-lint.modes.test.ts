@@ -105,10 +105,10 @@ describe('REP-1618 pen-lint check mode end-to-end', () => {
     }
   })
 
-  it('flags zero-candidate masters with closest matches and a human-resolution note', () => {
+  it('flags no-exact-candidate masters with real closest matches and a human-resolution note', () => {
     const dir = mkdtempSync(path.join(tmpdir(), 'pen-lint-check-nocand-'))
     try {
-      const penFile = writePen(dir, fixturePenJson([['m1', 'NoSuchExport']]))
+      const penFile = writePen(dir, fixturePenJson([['m1', 'Toast']]))
       const logs: string[] = []
       const code = runCheck({
         penFile,
@@ -117,8 +117,9 @@ describe('REP-1618 pen-lint check mode end-to-end', () => {
       })
       assert.notEqual(code, 0)
       const violation = logs.find(l => l.startsWith('violation:'))!
-      assert.ok(violation.includes('NoSuchExport'))
+      assert.ok(violation.includes('Toast'))
       assert.ok(violation.includes('closest matches'), violation)
+      assert.ok(violation.includes('design::toast'), violation)
       assert.ok(violation.includes('Flag for human resolution'), violation)
     } finally {
       rmSync(dir, { recursive: true, force: true })
@@ -141,6 +142,64 @@ describe('REP-1618 pen-lint check mode end-to-end', () => {
       assert.ok(violation.includes('multiple candidate packages'), violation)
       assert.ok(violation.includes('agentic-ui::EmptyState'), violation)
       assert.ok(violation.includes('design::EmptyState'), violation)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects pattern-valid masters whose export does not exist', async () => {
+    // The relaxed MASTER_NAME_PATTERN accepts lowercase names like
+    // design::toastt; the "not exported" branch (!ex.has(comp)) is the
+    // enforcement point and must fire in every mode.
+    const dir = mkdtempSync(path.join(tmpdir(), 'pen-lint-validnoexport-'))
+    try {
+      const penFile = writePen(dir, fixturePenJson([['m1', 'design::toastt']]))
+      const logs: string[] = []
+
+      const checkCode = runCheck({
+        penFile,
+        catalogOutput: path.join(dir, 'catalog.json'),
+        log: msg => logs.push(msg),
+      })
+      assert.notEqual(checkCode, 0, 'missing export must fail check')
+      const violation = logs.find(l => l.startsWith('violation:'))!
+      assert.ok(violation.includes('toastt'), violation)
+      assert.ok(
+        violation.includes('not exported from @repro/design'),
+        violation
+      )
+
+      const jsonOuts: string[] = []
+      const dryRunCode = runDryRun({
+        penFile,
+        jsonOut: json => jsonOuts.push(json),
+        log: () => {},
+      })
+      assert.equal(dryRunCode, 1, 'missing export must fail dry-run')
+      const report = JSON.parse(jsonOuts.join('\n')) as {
+        resolved: number
+        unresolved: number
+        masters: Array<{
+          masterId: string
+          status: string
+          reason?: string
+        }>
+      }
+      assert.equal(report.resolved, 0)
+      assert.equal(report.unresolved, 1)
+      assert.equal(report.masters[0]!.status, 'violation')
+
+      const applyLogs: string[] = []
+      const applyCode = await runApply({
+        penFile,
+        log: msg => applyLogs.push(msg),
+      })
+      assert.equal(applyCode, 1, 'missing export must fail apply')
+      assert.equal(masterOf(readPen(penFile), 'm1').name, 'design::toastt')
+      assert.ok(
+        applyLogs.some(l => l.includes('not exported from @repro/design')),
+        applyLogs.join('\n')
+      )
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
@@ -212,7 +271,7 @@ describe('REP-1618 pen-lint dry-run mode', () => {
         dir,
         fixturePenJson([
           ['m1', 'Button'],
-          ['m2', 'NoSuchExport'],
+          ['m2', 'Toast'],
         ])
       )
       const jsonOuts: string[] = []
@@ -233,9 +292,13 @@ describe('REP-1618 pen-lint dry-run mode', () => {
       }
       assert.equal(report.resolved, 1)
       assert.equal(report.unresolved, 1)
-      const admin = report.masters.find(m => m.masterId === 'm2')!
-      assert.equal(admin.status, 'no-candidate')
-      assert.ok(Array.isArray(admin.closestMatches))
+      const noCandidate = report.masters.find(m => m.masterId === 'm2')!
+      assert.equal(noCandidate.status, 'no-candidate')
+      assert.ok(Array.isArray(noCandidate.closestMatches))
+      assert.ok(
+        noCandidate.closestMatches!.length > 0,
+        'closest matches must not be empty for a no-candidate master'
+      )
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

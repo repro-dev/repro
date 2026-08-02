@@ -2,6 +2,7 @@ import { cleanup, render, screen } from '@testing-library/react'
 import expect from 'expect'
 import { afterEach, describe, it } from 'node:test'
 import React from 'react'
+import { spacing } from '../tokens/spacing'
 import { AdminTable, Table } from './index'
 
 afterEach(cleanup)
@@ -62,5 +63,48 @@ describe('AdminTable — admin table variant', () => {
     const table = container.querySelector('table') as HTMLTableElement
     // Spreading props after the defaults lets callers opt back into a drawn surface
     expect(table.style.backgroundColor).not.toBe('transparent')
+  })
+
+  it('applies compact density by default', () => {
+    const { container } = render(<LedgerTable />)
+    const th = container.querySelector('th') as HTMLTableCellElement
+    const td = container.querySelector('td') as HTMLTableCellElement
+    expect(th).not.toBeNull()
+    expect(td).not.toBeNull()
+    expect(th.style.paddingTop).toBe(`${spacing.md}px`)
+    expect(th.style.paddingBottom).toBe(`${spacing.md}px`)
+    expect(th.style.paddingLeft).toBe(`${spacing.lg}px`)
+    expect(th.style.paddingRight).toBe(`${spacing.lg}px`)
+    expect(td.style.paddingTop).toBe(`${spacing.md}px`)
+    expect(td.style.paddingBottom).toBe(`${spacing.md}px`)
+    expect(td.style.paddingLeft).toBe(`${spacing.lg}px`)
+    expect(td.style.paddingRight).toBe(`${spacing.lg}px`)
+  })
+
+  it('allows callers to override density back to default', () => {
+    const { container } = render(
+      <AdminTable aria-label="Default density" density="default">
+        <AdminTable.Header>
+          <AdminTable.Row>
+            <AdminTable.HeaderCell>Name</AdminTable.HeaderCell>
+          </AdminTable.Row>
+        </AdminTable.Header>
+        <AdminTable.Body>
+          <AdminTable.Row>
+            <AdminTable.Cell>Alice</AdminTable.Cell>
+          </AdminTable.Row>
+        </AdminTable.Body>
+      </AdminTable>
+    )
+    const th = container.querySelector('th') as HTMLTableCellElement
+    const td = container.querySelector('td') as HTMLTableCellElement
+    expect(th.style.paddingTop).toBe(`${spacing.lg}px`)
+    expect(th.style.paddingBottom).toBe(`${spacing.lg}px`)
+    expect(th.style.paddingLeft).toBe(`${spacing.xl}px`)
+    expect(th.style.paddingRight).toBe(`${spacing.xl}px`)
+    expect(td.style.paddingTop).toBe(`${spacing.lg}px`)
+    expect(td.style.paddingBottom).toBe(`${spacing.lg}px`)
+    expect(td.style.paddingLeft).toBe(`${spacing.xl}px`)
+    expect(td.style.paddingRight).toBe(`${spacing.xl}px`)
   })
 })
