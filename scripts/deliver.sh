@@ -340,6 +340,9 @@ _create_worktree_and_launch() {
   root_pane_id="$(herdr pane list --workspace "$ws_id" 2>/dev/null | jq -r '.result.panes[0].pane_id // .result.panes[0].id // empty' 2>/dev/null || true)"
   if [[ -z "$root_pane_id" || "$root_pane_id" == "null" ]]; then
     _warn "Could not find a pane for the workspace — agent launch skipped."
+    # No pane at all to defer pnpm install to — install synchronously so the
+    # worktree is usable (same contract as the herdr-down fallback above).
+    (cd "$wt_path" && pnpm install) || true
     return 0
   fi
 

@@ -5,7 +5,8 @@
 #   - REP-1448: --profile and --pick flags for OpenCode profile selection.
 #   - REP-1614: --skip-install plumbing into `reproctl.sh wt create`, the
 #     two-pane Stage-3 layout (opencode 70% / terminal 30%, no Neovim), and
-#     the deferred `pnpm install` sent to the terminal pane.
+#     the deferred `pnpm install` sent to the terminal pane. Fallback paths
+#     (herdr-down, split-failure, pane-list-failure) install synchronously.
 
 set -euo pipefail
 
@@ -79,6 +80,10 @@ STUB
   # The pane split case records its arguments so tests can assert the ratio.
   # When HERDR_STUB_WORKTREE_OPEN_FAIL=1, `worktree open` fails (non-zero
   # exit + empty JSON) so the herdr-down fallback path can be exercised.
+  # When HERDR_STUB_PANE_SPLIT_EMPTY=1, `pane split` returns no pane so the
+  # single-pane split-failure fallback is exercised. When
+  # HERDR_STUB_PANE_LIST_EMPTY=1, `pane list` returns no panes so the
+  # pane-list-failure fallback is exercised.
   cat > "$tmpdir/herdr" << 'STUB'
 #!/bin/bash
   case "${1:-}" in
@@ -93,10 +98,21 @@ STUB
     ;;
   pane)
     case "${2:-}" in
-      list) echo '{"result":{"panes":[{"pane_id":"pane-root"}]}}'; exit 0 ;;
+      list)
+        if [ "${HERDR_STUB_PANE_LIST_EMPTY:-0}" = "1" ]; then
+          echo '{"result":{"panes":[]}}'
+        else
+          echo '{"result":{"panes":[{"pane_id":"pane-root"}]}}'
+        fi
+        exit 0
+        ;;
       split)
         printf '%s\n' "$*" > "$(dirname "$0")/herdr_split_args.log"
-        echo '{"result":{"pane":{"pane_id":"pane-right"}}}'
+        if [ "${HERDR_STUB_PANE_SPLIT_EMPTY:-0}" = "1" ]; then
+          echo '{"result":{}}'
+        else
+          echo '{"result":{"pane":{"pane_id":"pane-right"}}}'
+        fi
         exit 0
         ;;
       run) echo "HERDR_PANE_RUN: $*"; exit 0 ;;
@@ -518,6 +534,82 @@ STUB
   fi
 }
 
+# Test 20: split-failure fallback — when `herdr pane split` returns no pane
+# there is no terminal pane to defer pnpm install to, so dependencies must
+# still be installed synchronously in the worktree path.
+test_split_failure_installs_synchronously() {
+  local tmpdir rc=0
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  _write_runner "$tmpdir" "REP-123"
+
+  # A pnpm stub on the sandbox PATH makes the synchronous install cheap and
+  # observable (the reproctl stub reports Path: <tmpdir>/repro-wt-rep-123).
+  cat > "$tmpdir/pnpm" << 'STUB'
+#!/bin/bash
+echo "SYNC_PNPM_INSTALL: $*"
+exit 0
+STUB
+  chmod +x "$tmpdir/pnpm"
+  mkdir -p "$tmpdir/repro-wt-rep-123"
+
+  local output
+  output="$(HERDR_STUB_PANE_SPLIT_EMPTY=1 bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  rm -rf "$tmpdir"
+
+  local ok=1
+  # The split-failure warning is emitted
+  printf '%s\n' "$output" | grep -q 'Pane split failed' || ok=0
+  # pnpm install ran synchronously in the worktree path
+  printf '%s\n' "$output" | grep -q 'SYNC_PNPM_INSTALL: install' || ok=0
+  # The install was NOT deferred to a terminal pane
+  if printf '%s\n' "$output" | grep -q 'HERDR_PANE_RUN:.*pnpm install'; then ok=0; fi
+
+  if [ $ok -eq 1 ]; then
+    _pass "split-failure fallback installs dependencies synchronously in the worktree"
+  else
+    _fail "split-failure fallback installs dependencies synchronously in the worktree" "rc=$rc; output: $output"
+  fi
+}
+
+# Test 21: pane-list-failure fallback — when `herdr pane list` returns no
+# pane there is no terminal pane to defer pnpm install to, so dependencies
+# must still be installed synchronously in the worktree path.
+test_pane_list_failure_installs_synchronously() {
+  local tmpdir rc=0
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  _write_runner "$tmpdir" "REP-123"
+
+  # A pnpm stub on the sandbox PATH makes the synchronous install cheap and
+  # observable (the reproctl stub reports Path: <tmpdir>/repro-wt-rep-123).
+  cat > "$tmpdir/pnpm" << 'STUB'
+#!/bin/bash
+echo "SYNC_PNPM_INSTALL: $*"
+exit 0
+STUB
+  chmod +x "$tmpdir/pnpm"
+  mkdir -p "$tmpdir/repro-wt-rep-123"
+
+  local output
+  output="$(HERDR_STUB_PANE_LIST_EMPTY=1 bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  rm -rf "$tmpdir"
+
+  local ok=1
+  # The pane-list-failure warning is emitted
+  printf '%s\n' "$output" | grep -q 'Could not find a pane' || ok=0
+  # pnpm install ran synchronously in the worktree path
+  printf '%s\n' "$output" | grep -q 'SYNC_PNPM_INSTALL: install' || ok=0
+  # The install was NOT deferred to a terminal pane
+  if printf '%s\n' "$output" | grep -q 'HERDR_PANE_RUN:.*pnpm install'; then ok=0; fi
+
+  if [ $ok -eq 1 ]; then
+    _pass "pane-list-failure fallback installs dependencies synchronously in the worktree"
+  else
+    _fail "pane-list-failure fallback installs dependencies synchronously in the worktree" "rc=$rc; output: $output"
+  fi
+}
+
 # Test 19: deliver.sh file exists
 test_file_exists() {
   if [ -f "$DELIVER_SH" ]; then
@@ -548,6 +640,8 @@ test_profile_overrides_env_var
 test_pick_overrides_env_var
 test_layout_is_two_pane_with_pnpm_install
 test_herdr_down_installs_synchronously
+test_split_failure_installs_synchronously
+test_pane_list_failure_installs_synchronously
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed out of $TESTS_RUN tests"
