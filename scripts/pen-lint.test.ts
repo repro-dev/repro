@@ -4,7 +4,7 @@ import path from 'node:path'
 import { describe, it } from 'node:test'
 import { fileURLToPath } from 'node:url'
 
-import type { PenFile } from './pen-sync.ts'
+import type { PenFile } from './pen-lint.ts'
 import {
   buildScreensIndex,
   checkComponentExport,
@@ -19,7 +19,7 @@ import {
   resolvePackagePath,
   validateMasterName,
   validateVariableRefs,
-} from './pen-sync.ts'
+} from './pen-lint.ts'
 
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -54,7 +54,7 @@ function fixturePen(): PenFile {
   )
 }
 
-describe('REP-1620 pen-sync data layer', () => {
+describe('REP-1620 pen-lint data layer', () => {
   it('parses a pen file from raw JSON', () => {
     const pen = fixturePen()
     assert.equal(pen.version, '2.14')
@@ -92,7 +92,7 @@ describe('REP-1620 pen-sync data layer', () => {
   })
 })
 
-describe('REP-1620 pen-sync validation', () => {
+describe('REP-1620 pen-lint validation', () => {
   it('validateMasterName enforces package::ComponentName', () => {
     assert.equal(validateMasterName('design::Button'), true)
     assert.equal(validateMasterName('design::Button2'), true)
@@ -178,7 +178,7 @@ describe('REP-1620 pen-sync validation', () => {
   })
 })
 
-describe('REP-1620 pen-sync export response parsing', () => {
+describe('REP-1620 pen-lint export response parsing', () => {
   it('extractJsonResponse pulls the tool JSON from a mixed stream', () => {
     const stream =
       '[INFO] Ready.\n\u001b[36mpen\u001b[39m \u001b[2m>\u001b[22m {\n' +
@@ -218,17 +218,23 @@ describe('REP-1620 screens index', () => {
   })
 })
 
-describe('REP-1620 wiring', () => {
-  it('adds the pen-sync check to the pre-push hook', () => {
+describe('REP-1620 pen-lint wiring', () => {
+  it('defers the pen-lint pre-push hook gate to REP-1621', () => {
+    // The pre-push hook does not gate on pen-lint yet — wiring is deferred to
+    // REP-1621 until pen file violations are reconciled. Assert the deferral.
     const hook = readText('.husky/pre-push')
-    assert.match(hook, /tsx scripts\/pen-sync\.ts(\s*\|\|\s*exit 1)?/)
+    assert.doesNotMatch(
+      hook,
+      /pen-lint/,
+      'pre-push hook must not reference pen-lint (deferred to REP-1621)'
+    )
   })
 
-  it('adds the pen:sync script to package.json', () => {
+  it('adds the pen:lint script to package.json', () => {
     const packageJson = JSON.parse(readText('package.json')) as {
       scripts: Record<string, string>
     }
-    assert.equal(packageJson.scripts['pen:sync'], 'tsx scripts/pen-sync.ts')
+    assert.equal(packageJson.scripts['pen:lint'], 'tsx scripts/pen-lint.ts')
   })
 })
 

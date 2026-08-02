@@ -11,7 +11,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, it } from 'node:test'
 
-import { runExport } from './pen-sync.ts'
+import { runExport } from './pen-lint.ts'
 
 const frame = (
   id: string,
@@ -24,7 +24,7 @@ const frame = (
   ...extra,
 })
 
-describe('REP-1620 pen-sync export mode (pen CLI required, skipped otherwise)', () => {
+describe('REP-1620 pen-lint export mode (pen CLI required, skipped otherwise)', () => {
   it('exports PNG + HTML and regenerates the screens index', async t => {
     // pen CLI unavailable (no auth / not installed) — skip the test.
     const probe = spawnSync('pen', ['--help'], { encoding: 'utf8' })
@@ -32,7 +32,7 @@ describe('REP-1620 pen-sync export mode (pen CLI required, skipped otherwise)', 
       t.skip('pen CLI unavailable')
       return
     }
-    const dir = mkdtempSync(path.join(tmpdir(), 'pen-sync-export-'))
+    const dir = mkdtempSync(path.join(tmpdir(), 'pen-lint-export-'))
     try {
       const penFile = path.join(dir, 'fixture.pen')
       const componentMapFile = path.join(dir, 'component-map.json')

@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, it } from 'node:test'
 
-import { runApply, runCheck } from './pen-sync.ts'
+import { runApply, runCheck } from './pen-lint.ts'
 
 const frame = (
   id: string,
@@ -65,9 +65,9 @@ function writeFixture(
   return { penFile, componentMapFile }
 }
 
-describe('REP-1620 pen-sync check mode end-to-end', () => {
+describe('REP-1620 pen-lint check mode end-to-end', () => {
   it('exits non-zero with violations for unapplied masters, zero when clean', () => {
-    const dir = mkdtempSync(path.join(tmpdir(), 'pen-sync-check-'))
+    const dir = mkdtempSync(path.join(tmpdir(), 'pen-lint-check-'))
     try {
       const { penFile, componentMapFile } = writeFixture(
         dir,
@@ -110,7 +110,7 @@ describe('REP-1620 pen-sync check mode end-to-end', () => {
   })
 
   it('flags masters whose code token is not exported from the package', () => {
-    const dir = mkdtempSync(path.join(tmpdir(), 'pen-sync-check-export-'))
+    const dir = mkdtempSync(path.join(tmpdir(), 'pen-lint-check-export-'))
     try {
       const pen = fixturePenJson()
       const componentMap = fixtureComponentMapJson()
@@ -141,9 +141,9 @@ describe('REP-1620 pen-sync check mode end-to-end', () => {
   })
 })
 
-describe('REP-1620 pen-sync apply mode end-to-end', () => {
+describe('REP-1620 pen-lint apply mode end-to-end', () => {
   it('renames masters, sets metadata, and becomes idempotent', () => {
-    const dir = mkdtempSync(path.join(tmpdir(), 'pen-sync-apply-'))
+    const dir = mkdtempSync(path.join(tmpdir(), 'pen-lint-apply-'))
     try {
       const { penFile, componentMapFile } = writeFixture(
         dir,

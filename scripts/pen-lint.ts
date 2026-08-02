@@ -500,12 +500,12 @@ export function runCheck(options: RunOptions = {}): number {
   if (violations.length > 0) {
     for (const violation of violations) log(`violation: ${violation}`)
     log(
-      `${violations.length} violation(s) found — run 'tsx scripts/pen-sync.ts --apply' to auto-fix naming/metadata.`
+      `${violations.length} violation(s) found — run 'tsx scripts/pen-lint.ts --apply' to auto-fix naming/metadata.`
     )
     return 1
   }
   log(
-    'pen-sync check passed: all masters, packages, exports, and variable refs are clean.'
+    'pen-lint check passed: all masters, packages, exports, and variable refs are clean.'
   )
   return 0
 }
@@ -721,7 +721,7 @@ async function exportScreensHTML(
     const exportCmd = `export_html({ nodeIds: ${JSON.stringify([
       screen.id,
     ])}, outputPath: ${JSON.stringify(outputPath)}, format: "html-tailwind" })`
-    const stdoutFile = resolve(outputDir, `.pen-sync-stdout-${screen.id}.txt`)
+    const stdoutFile = resolve(outputDir, `.pen-lint-stdout-${screen.id}.txt`)
     const { code, stdout, stderr } = await runPenInteractive(
       penFile,
       [exportCmd, 'exit()'],
@@ -841,17 +841,17 @@ export async function runExport(options: RunOptions = {}): Promise<number> {
 // ---------------------------------------------------------------------------
 
 function printUsage(): void {
-  console.error(`pen-sync — deterministic pen -> code sync (REP-1620)
+  console.error(`pen-lint — deterministic pen -> code sync (REP-1620)
 
 Usage:
-  tsx scripts/pen-sync.ts               Check mode (default): validate repro.pen
+  tsx scripts/pen-lint.ts               Check mode (default): validate repro.pen
                                         conventions, exit non-zero on violations.
-  tsx scripts/pen-sync.ts --apply       Apply mode: rename masters to
+  tsx scripts/pen-lint.ts --apply       Apply mode: rename masters to
                                         package::ComponentName, set metadata,
                                         save repro.pen. Non-zero if unfixable.
-  tsx scripts/pen-sync.ts --export      Export mode: screens to PNG + HTML and
+  tsx scripts/pen-lint.ts --export      Export mode: screens to PNG + HTML and
                                         regenerate pen-component-map.json screens.
-  tsx scripts/pen-sync.ts --help        Show this help.`)
+  tsx scripts/pen-lint.ts --help        Show this help.`)
 }
 
 async function main(): Promise<void> {
