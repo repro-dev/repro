@@ -485,7 +485,9 @@ test_layout_is_two_pane_with_pnpm_install() {
   printf '%s\n' "$output" | grep -q 'pnpm install' || ok=0
   # Neovim is never launched
   if printf '%s\n' "$output" | grep -qi 'nvim'; then ok=0; fi
-  # Terminal right pane is a single 30% split — no nested vertical split
+  # Terminal right pane is a single 30% split — no nested vertical split.
+  # NOTE: herdr's --ratio sizes the FIRST (original) pane, so 0.7 = opencode 70%
+  # left + terminal 30% right. Do not "correct" this back to 0.3.
   printf '%s\n' "$split_args" | grep -q -- '--ratio 0.7' || ok=0
   if printf '%s\n' "$split_args" | grep -q -- '--direction down'; then ok=0; fi
 
