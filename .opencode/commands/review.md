@@ -1,27 +1,45 @@
 ---
-description: Run the full code review checklist against a branch or PR diff, grouped by severity
+description: Run the full code review checklist against a branch or PR diff, grouped by severity; supports an adversarial mode for skeptical failure-mode review
 ---
 
 Arguments (optional): `$ARGUMENTS`
 
 - A PR number (e.g. `123`) or branch name (e.g. `feat/REP-456-my-feature`) to review.
-- If empty, defaults to the current branch (`git branch --show-current`).
+- A leading `--adversarial` flag switches to adversarial mode: `/review --adversarial`, `/review --adversarial 123`, or `/review --adversarial feat/REP-456`. The remainder after the flag (which may be empty) is the target.
+- If the target is empty, defaults to the current branch (`git branch --show-current`).
 
-> **Tip:** For large diffs (500+ lines changed), consider delegating to the `review` agent directly for more thorough analysis: it loads the full checklist, fetches the Linear issue, and reads the diff in a focused subagent context.
+> **Tip:** For large diffs (500+ lines changed), consider delegating to the `review` agent directly for more thorough analysis — and to the `adversarial-review` agent in adversarial mode: they load the full checklist, fetch the Linear issue, and read the diff in a focused subagent context.
+
+---
+
+## Step 0: Parse the mode and target
+
+Parse `$ARGUMENTS`:
+
+- If `$ARGUMENTS` starts with `--adversarial`, set `MODE=adversarial` and strip the flag; the remainder (which may be empty) is `$TARGET`.
+- Otherwise set `MODE=standard` and `$TARGET=$ARGUMENTS`.
+
+Supported forms:
+
+- `/review --adversarial` — adversarial review of the current branch
+- `/review --adversarial 123` — adversarial review of PR #123
+- `/review --adversarial feat/REP-456` — adversarial review of branch `feat/REP-456`
+
+Use `$TARGET` in place of `$ARGUMENTS` for the remaining steps.
 
 ---
 
 ## Step 1: Resolve the target branch and get the diff
 
-Parse `$ARGUMENTS`:
+Parse `$TARGET`:
 
-- If `$ARGUMENTS` is a number (digits only), treat it as a PR number:
+- If `$TARGET` is a number (digits only), treat it as a PR number:
   ```sh
   gh pr view <number> --json headRefName,title,body
   ```
   Use the returned `headRefName` as the target branch, and keep the PR title/body for issue ID extraction.
-- If `$ARGUMENTS` is a non-empty string that is not a number, treat it as a branch name directly.
-- If `$ARGUMENTS` is empty, use the current branch:
+- If `$TARGET` is a non-empty string that is not a number, treat it as a branch name directly.
+- If `$TARGET` is empty, use the current branch:
   ```sh
   git branch --show-current
   ```
@@ -65,6 +83,9 @@ Load the `review-standards` skill. This is the authoritative source for:
 - The review contract and output structure
 - Severity definitions (Blocker / Major / Minor / Nit)
 - Merge-readiness criteria
+- The `Adversarial review contract` section (required when `MODE=adversarial`)
+
+When `MODE=adversarial`, follow the `Adversarial review contract` in addition to the severity table: apply the seven adversarial techniques, tag every finding `role: adversarial`, and include a `## Techniques applied` section.
 
 Load the `skill-compliance` skill as a second pass when the diff is governed by specific repository skills or package-level guidance.
 
@@ -74,7 +95,9 @@ Do **not** duplicate the checklists inline — follow them from the skills.
 
 ## Step 4: Run the review
 
-Apply the full correctness checklist from `review-standards`.
+In standard mode, apply the full correctness checklist from `review-standards`.
+
+In adversarial mode, apply the seven adversarial techniques from the `Adversarial review contract` instead of a requirements-coverage pass: bug-seeking mindset; edge-case and boundary-value enumeration; happy-path-only logic and untested error paths; acceptance-criterion completeness challenge (met vs sunny-day slice); test-quality attacks (tautological/weak assertions, tests that cannot fail, mocks asserting the mock); hidden coupling (sibling callsites, shared helpers, alternate paths, shared state); and async/time/ordering risks (Futures vs Promises per project convention, races, retry/ordering assumptions, time-dependent logic).
 
 Then run the separate compliance pass from `skill-compliance` when repository or package guidance materially governs the diff.
 
@@ -85,6 +108,8 @@ Classify every finding using the severity table from `review-standards` before w
 ## Step 5: Write the output
 
 Use the output structure from `review-standards`.
+
+When `MODE=adversarial`, keep the same severity schema (Blocker / Major / Minor / Nit) with `fixable_by_agent` fields, tag every finding `role: adversarial`, and add a `## Techniques applied` section listing which techniques were applied and where. Keep the requirements checklist and `tmp/` artifacts sections.
 
 If a compliance pass ran, keep its material findings in a separate section rather than mixing them into correctness findings.
 

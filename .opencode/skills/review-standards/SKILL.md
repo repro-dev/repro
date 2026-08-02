@@ -1,6 +1,6 @@
 ---
 name: review-standards
-description: Review contract for branch and PR reviews — changed-code focus, signal quality, severity, and merge-readiness. Load when reviewing code or using the review agent.
+description: Review contract for branch and PR reviews — changed-code focus, signal quality, severity, merge-readiness, and the adversarial review contract. Load when reviewing code, using the review agent, or running an adversarial pass.
 ---
 
 # Review Standards
@@ -71,6 +71,51 @@ Classify every finding using one of these four levels:
 - For changes governed by repository skills, run a distinct compliance pass after correctness review.
 - Load `skill-compliance` when you need to verify that the applicable skills and `AGENTS.md` guidance were actually followed.
 - Keep compliance findings separate from general correctness findings so the review stays easy to act on.
+
+## Adversarial review contract
+
+### Purpose
+
+The adversarial pass is a skeptical second review that assumes the implementation is wrong and tries to prove it fails. It runs in addition to the standard review for every issue built via `/build`, regardless of risk level. It does not replace the standard review: `review` remains the merge gate for requirements and conventions, and `security-review` remains the policy/security-boundary lane. The adversarial pass is additive and reports only — it never fixes.
+
+### Mindset
+
+- Assume every non-trivial change is broken until shown otherwise.
+- Read for what would make the code fail, not what would make it pass.
+- Attack failure modes instead of re-verifying requirements coverage — the standard review already covers that.
+
+### Techniques
+
+Apply all seven, and note which were applied in `## Techniques applied`:
+
+1. **Bug-seeking mindset** — hunt for ways the implementation fails with concrete counterexamples.
+2. **Edge-case and boundary-value enumeration** — empty, zero, negative, max, and large inputs; off-by-one errors; null and undefined inputs; type coercion surprises.
+3. **Happy-path-only logic and untested error paths** — confirm error paths, fallbacks, and failure branches are implemented and exercised, not just decorated.
+4. **Acceptance-criterion completeness challenge** — distinguish "met" from "sunny-day slice": does each criterion hold under variations, partial data, and realistic misuse, or only in the ideal case?
+5. **Test-quality attacks** — tautological or weak assertions, assertion-free tests, tests that cannot fail, and mocks that assert the mock rather than real behavior.
+6. **Hidden coupling** — sibling callsites, shared helpers, alternate code paths, and shared state that a change to one location silently breaks.
+7. **Async/time/ordering risks** — Futures vs Promises per project convention, races, retry and ordering assumptions, and time-dependent logic.
+
+### Output framing
+
+- Use the same severity schema (Blocker / Major / Minor / Nit) and `fixable_by_agent: true | false` fields as the standard review, so findings feed the existing Blocker loop and non-blocker sweep unchanged.
+- Tag every finding `role: adversarial`. The `<file-path>:<line-number>:<role>` merge key means adversarial findings do not deduplicate against standard-review findings on the same line — that overlap is expected and accepted.
+- Include `## Techniques applied` in the output.
+- State merge-readiness for the adversarial pass itself, but note that the standard review remains the merge gate.
+- End with a verdict: approve, request changes, or discuss.
+
+### Signal quality
+
+- Bias toward concrete counterexamples (input, state, sequence) over speculative noise.
+- Omit low-confidence findings rather than reporting them.
+- False positives are expected from an adversarial pass, but only demonstrable findings may reach Blocker severity.
+- A zero-finding adversarial review is valid: the pass tried to break the implementation and could not.
+
+### Boundary
+
+- `security-review` = policy and security-boundary lane; the adversarial pass hunts for ways bad input breaks code (bug-seeking, edge cases, error paths, test quality).
+- `review` = merge gate for requirements and conventions; the adversarial pass is additive.
+- `bugfix` owns root-cause fixes; the adversarial pass only reports.
 
 ## UI review gate
 
