@@ -27,6 +27,9 @@
     "review": {
       "model": "openai/gpt-5.4"
     },
+    "adversarial-review": {
+      "model": "openai/gpt-5.4"
+    },
     "test": {
       "model": "openai/gpt-5.4-mini"
     },

@@ -73,6 +73,7 @@ Evaluate the diff against these concerns:
 ## Composition rules
 
 - `review` remains the general-purpose review lane; this agent is the specialist pass for security and resilience risk.
+- `adversarial-review` hunts for ways bad input breaks code (bug-seeking mindset, edge cases and boundary values, error paths, test quality) — it is not a security-boundary pass. This agent remains the policy and security-boundary lane. Both agents are read-only and report-only.
 - `bugfix` still owns root-cause-first bug fixes; this agent only judges whether a fix or change introduces security/resilience risk.
 - `harden` still covers UI resilience guidance; use it when the diff is user-facing and error-recovery behavior matters.
 - Domain skills provide area-specific conventions; cite them when relevant rather than inventing new policy.

@@ -69,6 +69,12 @@ Evaluate the changes against each of these categories:
 - Are there concerns that might require re-planning?
 - For UI diffs, did the review consult the matching context artifact blocks and make ship-as-is status explicit in `## Merge-readiness`?
 
+## Composition rules
+
+- `adversarial-review` is a skeptical second pass that assumes the implementation is wrong and hunts for failure modes. It is additive — it does not replace this agent. This agent remains the merge gate for requirements and conventions.
+- `security-review` is the policy and security-boundary lane; use it when the diff touches auth, permissions, secrets, external inputs, or operational safety.
+- All review lanes share the same severity schema (Blocker / Major / Minor / Nit), `fixable_by_agent` fields, and merge via the `<file-path>:<line-number>:<role>` key. Adversarial findings use `role: adversarial` and therefore do not deduplicate against this agent's findings on the same line — that overlap is expected.
+
 ## Output format
 
 Return a structured review in this format:

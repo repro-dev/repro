@@ -10,7 +10,7 @@ Used by the `/build` command for single-track delivery of one issue in the curre
 ## Orchestration boundaries
 
 - Coordinate phases and gates only. Do not plan, implement, review, smoke test, or publish directly in the outer conversation.
-- Treat missing `planner`, `develop`, or `review` delegation as a workflow violation, not a shortcut.
+- Treat missing `planner`, `develop`, `review`, or `adversarial-review` delegation as a workflow violation, not a shortcut.
 - Fail closed if a phase cannot be executed by the expected subagent.
 - Do not perform inline source edits from this orchestrator, even when the change looks small. If implementation is needed, delegate it.
 - The only allowed writes are durable orchestration artifacts (for example `tmp/plan-*`, `tmp/context-*`, `tmp/test-plan-*`) written to the worktree root.
@@ -32,7 +32,7 @@ Used by the `/build` command for single-track delivery of one issue in the curre
 
 ### Shared subagent launch retry policy
 
-Apply this policy only to `planner`, `develop`, and `review` launch failures.
+Apply this policy only to `planner`, `develop`, `review`, and `adversarial-review` launch failures.
 
 - Treat `429`, `rate limit`, `too many requests`, and equivalent provider throttling signals as retryable rate-limit failures.
 - Retry the same launch after **10s**, **30s**, and **90s**.
@@ -365,17 +365,19 @@ If the implementation is later fixed during the bounded review loop, create a ne
 
 ### Conditional reviewer spawning by risk level
 
-Spawn reviewers based on the risk level computed in the risk classification phase:
+Every issue — regardless of risk level — gets an adversarial pass via the `adversarial-review` agent, spawned in parallel with the standard reviewer(s) using the `#### Adversarial review pass` template below. The standard review remains the merge gate for requirements and conventions; the adversarial pass is additive.
 
-**Standard-risk issues**: launch a single `review` agent using the standard prompt template below.
+Spawn the standard reviewers based on the risk level computed in the risk classification phase:
 
-**High-risk issues**: spawn 2–3 focused `review` agents in parallel, each with a scoped prompt:
+**Standard-risk issues**: launch a single `review` agent using the standard prompt template below, plus the adversarial pass.
+
+**High-risk issues**: spawn 2–3 focused `review` agents in parallel, each with a scoped prompt, plus the adversarial pass:
 
 1. **Correctness + Security reviewer** — always spawned for high-risk issues
 2. **Architecture + Conventions reviewer** — always spawned for high-risk issues
 3. **Performance reviewer** — only spawned when data-heavy changes are detected (e.g. data model changes signal, large batch operations, streaming or pipeline patterns in Sequence Notes)
 
-When `smoke_test_result` is `fail` for this issue, append this block to every reviewer prompt:
+When `smoke_test_result` is `fail` for this issue, append this block to every reviewer prompt (standard and adversarial):
 
 ```
 ## Smoke test failures
@@ -430,6 +432,23 @@ Focus exclusively on performance:
 5. Return the structured output required by .opencode/agents/review.md — but only report findings in the performance category. Assign each finding `role: performance` in the structured output.
 ```
 
+#### Adversarial review pass (spawned for every issue, in parallel with the standard reviewer(s))
+
+Spawn the `adversarial-review` agent for every issue, regardless of risk level, in parallel with the standard reviewer(s). It runs after the standard review conceptually but the two may run concurrently; the standard review remains the merge gate.
+
+Adversarial prompt template:
+
+```
+Run the adversarial review pass for REP-xxx in worktree <absolute-worktree-path>.
+
+1. Load the `review-standards` skill — specifically the `Adversarial review contract` section.
+2. Fetch Linear issue REP-xxx via `linear issue show REP-xxx --json`.
+3. Review the committed branch diff with: `git diff main...HEAD`
+4. Assume the implementation is wrong and try to prove it fails. Apply all seven adversarial techniques: bug-seeking mindset; edge-case and boundary-value enumeration; happy-path-only logic and untested error paths; acceptance-criterion completeness challenge (met vs sunny-day slice); test-quality attacks (tautological/weak assertions, tests that cannot fail, mocks asserting the mock); hidden coupling (sibling callsites, shared helpers, alternate paths, shared state); async/time/ordering risks (Futures vs Promises per project conventions, races, retry/ordering assumptions, time-dependent logic).
+5. Do not duplicate the standard review's requirements-coverage pass — attack failure modes instead.
+6. Return the structured output required by .opencode/agents/adversarial-review.md. Assign every finding `role: adversarial`, keep the severity schema (Blocker/Major/Minor/Nit) and `fixable_by_agent` fields, and add a `## Techniques applied` section.
+```
+
 ### Finding merge and deduplication
 
 Each finding in the structured output includes a `category` field. Because combined reviewer roles (Correctness+Security, Architecture+Conventions) produce findings with multiple category values, deduplication uses the reviewer's role rather than category.
@@ -437,6 +456,7 @@ Each finding in the structured output includes a `category` field. Because combi
 - Correctness + Security reviewer → findings tagged `role: correctness-security`
 - Architecture + Conventions reviewer → findings tagged `role: architecture-conventions`
 - Performance reviewer → findings tagged `role: performance`
+- Adversarial reviewer → findings tagged `role: adversarial`
 
 For deduplication across reviewers, use the merge key: `<file-path>:<line-number>:<role>`
 
@@ -445,6 +465,7 @@ Role vocabulary:
 - `correctness-security` — logic errors, off-by-one, unhandled edge cases, broken error paths, injection, auth bypass, data exposure, unsafe deserialization
 - `architecture-conventions` — side effects, pattern inconsistency, approach misalignment, import/naming/style violations, missing design tokens, package AGENTS.md violations
 - `performance` — algorithmic regressions, unnecessary iteration, missing pagination, large in-memory collections
+- `adversarial` — failure-mode findings from the skeptical second pass: edge-case and boundary-value failures, untested error paths, weak test assertions, hidden coupling, async/time/ordering risks
 
 ### Review prompt template (standard risk)
 
@@ -462,17 +483,17 @@ Review the implementation for REP-xxx in worktree <absolute-worktree-path>.
 
 For each issue, apply this iterative loop:
 
-1. **If review approves or returns zero Blockers**: mark the issue publishable.
+1. **If all review passes (standard and adversarial) approve or return zero Blockers**: mark the issue publishable.
 2. **If any blocking issue has `fixable_by_agent: false`**:
    - Escalate immediately
    - Post a concise Linear comment summarizing the blocking findings with `linear issue comment <issue-id> "<blocking findings summary>" --json`
    - Set the issue state back to **Todo** with `linear issue update <issue-id> --status "Todo" --json`
    - Add the issue ID to `escalated_issues`
 3. **If all blocking issues have `fixable_by_agent: true`**:
-   - Re-run `develop` with the original plan plus the current blocking findings
-   - Re-run `review`
+   - Re-run `develop` with the original plan plus the current blocking findings (from both passes)
+   - Re-run `review` (both the standard and adversarial passes)
    - Increment the per-issue fix-attempt counter
-   - Continue looping while the review still has Blockers and every Blocker remains `fixable_by_agent: true`
+   - Continue looping while either review pass still has Blockers and every Blocker remains `fixable_by_agent: true`
 4. **If the loop clears all Blockers within 3 fix attempts**:
    - Mark the issue publishable
 5. **If the loop reaches 3 consecutive fix attempts and the review still has Blockers**:
@@ -489,7 +510,7 @@ This is the entire loop: **review → fix while agent-fixable → review again �
 
 After the Blocker loop clears (or if there were no Blockers to begin with) and the issue is marked publishable, inspect the review output for non-blocking findings:
 
-1. **Collect actionable non-blockers**: scan the review output's Major, Minor, and Nit sections for findings where `fixable_by_agent: true` is present.
+1. **Collect actionable non-blockers**: scan both the standard and adversarial review outputs' Major, Minor, and Nit sections for findings where `fixable_by_agent: true` is present.
 
 2. **Quality gate**: only act on findings that are clearly mechanical and low-risk. Apply this checklist:
    - Typo/misspelling fix (including doc comments and identifiers)

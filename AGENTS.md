@@ -240,6 +240,7 @@ A useful mental shorthand is the **Explorer / Oracle / Fixer** model: Explorers 
 | `test`      | Fixer     | Adds test coverage, writes regression tests, and audits test sufficiency as a standalone utility        | Full read/write/bash                                                   |
 | `planner`   | Oracle    | Explores the codebase and produces a structured implementation plan for `develop` to consume            | Read-only; restricted bash (git log/diff/show only)                    |
 | `review`    | Oracle    | Reviews a branch diff against Linear requirements and project conventions; never fixes, only reports    | Read-only; restricted bash (git log/diff/show and linear issue show\*) |
+| `adversarial-review` | Oracle    | Skeptical second pass on a branch diff — assumes the implementation is wrong, hunts for edge-case and error-path failures; never fixes, only reports | Read-only; restricted bash (git log/diff/show and linear issue show\*) |
 | `explore`   | Explorer  | Answers fast read-only questions about architecture, patterns, and existing code without making changes | Read-only                                                              |
 | `librarian` | Explorer  | Researches external libraries, frameworks, and public APIs from official docs and upstream source       | Read-only                                                              |
 | `general`   | —         | Handles tasks that don't fit another agent's scope (writing docs, analyzing logs, answering questions)  | Varies by task                                                         |
@@ -250,6 +251,7 @@ A useful mental shorthand is the **Explorer / Oracle / Fixer** model: Explorers 
 - **`test`**: after implementation to audit coverage or write targeted regression tests. Not part of the automated pipeline — invoke directly when needed.
 - **`planner`**: when a task involves 3+ packages or requires significant codebase exploration before implementation. For simpler single-package changes, plan inline in the outer conversation.
 - **`review`**: any time you want structured findings against Linear requirements and conventions before publishing a PR. Can also be invoked via `/review` for ad-hoc branch review; restricted bash includes `git log/diff/show` and `linear issue show*`.
+- **`adversarial-review`**: automatic skeptical second pass run by `/build` for every issue alongside the standard review; it assumes the implementation is wrong and hunts for failure modes (edge cases, error paths, test quality, hidden coupling, async/time risks). Also invocable on demand via `/review --adversarial`. Read-only; restricted bash includes `git log/diff/show` and `linear issue show*`.
 - **`explore`**: when you need fast orientation or impact assessment without a full plan. Cheaper than `planner` for pure recon — use it first, then escalate to `planner` if planning is warranted.
 - **`librarian`**: when external dependency behavior is unclear and you need evidence-backed research from official docs, upstream source, or trustworthy examples before planning or implementing.
 - **`general`**: when no more-specific agent applies — e.g. writing a design doc, summarizing a log dump, or answering a question with no code change required.
@@ -264,6 +266,7 @@ This table is normative — agents must treat it as a constraint, not a suggesti
 | `test`               | No         | No       | No             | No                       | No                                 | No                       |
 | `planner`            | No         | No       | No             | No                       | No                                 | No                       |
 | `review`             | No         | No       | No             | No                       | No                                 | No                       |
+| `adversarial-review` | No         | No       | No             | No                       | No                                 | No                       |
 | `explore`            | No         | No       | No             | No                       | No                                 | No                       |
 | `librarian`          | No         | No       | No             | No                       | No                                 | No                       |
 | `general`            | No         | No       | No             | No                       | No                                 | No                       |
