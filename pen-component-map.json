@@ -247,7 +247,7 @@
     },
     "Toast": {
       "masterId": "C8oqu",
-      "code": "@repro/design Toast (sonner)",
+      "code": "@repro/design toast (sonner)",
       "dims": { "padding": "$spacing-xl", "radius": "$radius-md", "shadow": "shadow.md", "fontSize": "$font-size-sm" },
       "variants": {
         "message (default)": { "fill": "$color-bg-surface", "stroke": "$color-border-default" },
@@ -403,12 +403,12 @@
   "screens": {
     "Component Gallery": "q7mC6b",
     "Settings Form": "Ff1x2",
+    "Admin: Staff Users": "T15Wa",
+    "Admin: Feature Gates": "G6CyL",
+    "Admin: Health": "q9iTP",
     "Admin: Recordings": "HmP9z",
     "Admin: Accounts": "U8b6n",
     "Admin: Account Detail": "heuMx",
-    "Admin: Health": "q9iTP",
-    "Admin: Staff Users": "T15Wa",
-    "Admin: Feature Gates": "G6CyL",
     "Admin: State: Empty": "g50nhI",
     "Admin: State: Loading": "Ri8nb",
     "Admin: State: Error": "SGRtQ"
