@@ -179,7 +179,7 @@ _reproctl() {
             case "$prev" in
               --from-issue|-i) return ;; # expect issue id
             esac
-            COMPREPLY=($(compgen -W "--from-issue -i --no-status-update --dry-run -h --help" -- "$cur"))
+            COMPREPLY=($(compgen -W "--from-issue -i --no-status-update --skip-install --dry-run -h --help" -- "$cur"))
             ;;
           remove)
             if [[ "$cur" == -* ]]; then

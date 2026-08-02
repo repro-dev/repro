@@ -220,9 +220,11 @@ _create_worktree_and_launch() {
   if [[ "$mode" == "issue_id" ]]; then
     # Use reproctl for full issue workflow (fetch from Linear, branch creation, etc.)
     # Note: --open is deliberately omitted; herdr workspace is handled via sibling workspace below
-    # Capture reproctl output to extract the actual worktree path (avoids git worktree list race)
+    # Capture reproctl output to extract the actual worktree path (avoids git worktree list race).
+    # --skip-install defers pnpm install + moon run :build; pnpm install is
+    # re-sent to the terminal pane after the workspace layout (see Stage 3).
     local reproctl_output
-    reproctl_output="$("$SCRIPT_DIR/reproctl.sh" wt create --from-issue "$issue_id" --no-status-update 2>&1)"
+    reproctl_output="$("$SCRIPT_DIR/reproctl.sh" wt create --from-issue "$issue_id" --skip-install --no-status-update 2>&1)"
     printf '%s\n' "$reproctl_output"
 
     # Extract the actual worktree path from reproctl's output
@@ -322,11 +324,11 @@ _create_worktree_and_launch() {
   _ok "Workspace: ${label} (${ws_id})"
 
   # Stage 3: Workspace layout
-  #   ┌─────────────────────┬──────────┬──────────┐
-  #   │                     │ terminal │          │
-  #   │   opencode (60%)    │ (20%)    │ neovim   │
-  #   │                     │          │ (20%)    │
-  #   └─────────────────────┴──────────┴──────────┘
+  #   ┌─────────────────────┬──────────┐
+  #   │                     │          │
+  #   │   opencode (70%)    │ terminal │
+  #   │                     │ (30%)    │
+  #   └─────────────────────┴──────────┘
   # Worktree is already bootstrapped by reproctl.sh wt create.
   _step 3 4 "Setting up workspace layout..."
   local root_pane_id
@@ -336,28 +338,24 @@ _create_worktree_and_launch() {
     return 0
   fi
 
-  # Split root (left 100%) → opencode 60% left + right-column 40% right
+  # Split root (left 100%) → opencode 70% left + terminal 30% right
   local right_split_result right_pane_id opencode_pane_id term_pane_id
-  right_split_result="$(herdr pane split --pane "$root_pane_id" --direction right --cwd "$wt_path" --ratio 0.4 --no-focus 2>&1)" || true
+  right_split_result="$(herdr pane split --pane "$root_pane_id" --direction right --cwd "$wt_path" --ratio 0.3 --no-focus 2>&1)" || true
   right_pane_id="$(printf '%s' "$right_split_result" | jq -r '.result.pane.pane_id // .result.pane_id // empty' 2>/dev/null || true)"
   if [[ -z "$right_pane_id" || "$right_pane_id" == "null" ]]; then
     _warn "Pane split failed — falling back to single-pane layout."
     opencode_pane_id="$root_pane_id"
   else
     opencode_pane_id="$root_pane_id"
+    term_pane_id="$right_pane_id"
+    _ok "Layout: opencode (${opencode_pane_id}) | terminal (${term_pane_id})"
+  fi
 
-    # Split right column vertically: terminal (top) + neovim (bottom)
-    local neovim_split_result neovim_pane_id
-    neovim_split_result="$(herdr pane split --pane "$right_pane_id" --direction down --cwd "$wt_path" --ratio 0.5 --no-focus 2>&1)" || true
-    neovim_pane_id="$(printf '%s' "$neovim_split_result" | jq -r '.result.pane.pane_id // .result.pane_id // empty' 2>/dev/null || true)"
-    if [[ -n "$neovim_pane_id" && "$neovim_pane_id" != "null" ]]; then
-      term_pane_id="$right_pane_id"
-      herdr pane run "$neovim_pane_id" "cd \"$wt_path\" && nvim ." 2>/dev/null || true
-      _ok "Layout: opencode (${opencode_pane_id}) | terminal (${term_pane_id}) + neovim (${neovim_pane_id})"
-    else
-      term_pane_id="$right_pane_id"
-      _ok "Layout: opencode (${opencode_pane_id}) + terminal (${term_pane_id})"
-    fi
+  # Deferred install: worktree creation skipped pnpm install via --skip-install
+  # (issue_id mode) or never ran it (PR/bare-branch/prompt modes), so send it
+  # to the terminal pane now, fire-and-forget.
+  if [[ -n "${term_pane_id:-}" ]]; then
+    herdr pane run "$term_pane_id" "cd \"$wt_path\" && pnpm install" 2>/dev/null || true
   fi
 
   # Stage 4: Agent launch in the opencode pane

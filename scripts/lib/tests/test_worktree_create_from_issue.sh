@@ -418,14 +418,113 @@ RUNNER
   trap - RETURN
 }
 
+test_skip_install_skips_pnpm_and_build() {
+  local tmpdir output rc=0
+  tmpdir="$(mktemp -d "$REPO_ROOT/tmp/test_skip_install.XXXXXX")"
+  export tmpdir
+  trap 'rm -rf "$tmpdir"' RETURN
+
+  cat > "$tmpdir/run_test.sh" <<'RUNNER'
+#!/bin/bash
+set -euo pipefail
+
+die() { printf 'Error: %b\n' "$*" >&2; exit 1; }
+_step() { echo "STEP: $*" >&2; }
+_ok() { :; }
+_err() { printf 'x %s\n' "$1" >&2; }
+_warn() { printf '%s\n' "$1" >&2; }
+
+# Minimal PATH so `command -v direnv` fails deterministically (has_direnv=false).
+PATH="/usr/bin:/bin"
+
+CLR_BOLD="" CLR_DIM="" CLR_RED="" CLR_GREEN="" CLR_YELLOW="" CLR_RESET=""
+
+REPO_ROOT="$tmpdir/repro"
+MAIN_CHECKOUT="$tmpdir/repro"
+PARENT_DIR="$tmpdir"
+WORKSPACE_ROOT="$tmpdir"
+SCRIPTS_DIR="$TESTS_DIR/../.."
+TMP_DIR="$tmpdir/tmp"
+mkdir -p "$REPO_ROOT" "$TMP_DIR"
+touch "$MAIN_CHECKOUT/.linear"
+
+slugify() { printf '%s\n' "$1" | sed 's|/|-|g' | sed 's|\.\.|-|g' | sed 's|[^a-zA-Z0-9._-]|-|g' | tr '[:upper:]' '[:lower:]'; }
+worktree_path() { echo "${WORKSPACE_ROOT:-$PARENT_DIR}/repro-wt-$1"; }
+
+source "$WORKTREE_SH"
+
+# Mock external commands so the non-dry-run path of cmd_wt_create is exercised.
+git() {
+  case "$1" in
+    rev-parse) return 1 ;;
+    worktree)
+      local wpath="" a
+      for a in "$@"; do wpath="$a"; done
+      mkdir -p "$wpath"
+      return 0
+      ;;
+    push) return 0 ;;
+    *) return 0 ;;
+  esac
+}
+pnpm() { echo "PNPM_INSTALL_RUN" >&2; }
+moon() { echo "MOON_BUILD_RUN" >&2; }
+
+# A: dry-run + --skip-install → skip note, no install/build Would-run lines.
+WT_SKIP_INSTALL=true
+WT_DRY_RUN=true
+out_a="$(cmd_wt_create feat/rep-999-skip-a rep-999-skip-a 2>&1)" || die "A: cmd_wt_create failed: $out_a"
+printf '%s\n' "$out_a" | grep -q "Would skip: pnpm install + moon run :build (--skip-install)" || die "A: skip note missing: $out_a"
+if printf '%s\n' "$out_a" | grep -q "Would run: pnpm install"; then die "A: install Would-run line present: $out_a"; fi
+if printf '%s\n' "$out_a" | grep -q "Would run: moon run :build"; then die "A: build Would-run line present: $out_a"; fi
+
+# B: dry-run + default → both Would-run lines present.
+WT_SKIP_INSTALL=false
+WT_DRY_RUN=true
+out_b="$(cmd_wt_create feat/rep-999-skip-b rep-999-skip-b 2>&1)" || die "B: cmd_wt_create failed: $out_b"
+printf '%s\n' "$out_b" | grep -q "Would run: pnpm install" || die "B: install Would-run line missing: $out_b"
+printf '%s\n' "$out_b" | grep -q "Would run: moon run :build" || die "B: build Would-run line missing: $out_b"
+
+# C: live + --skip-install → steps [1/2] [2/2], pnpm/moon never invoked.
+WT_SKIP_INSTALL=true
+WT_DRY_RUN=false
+out_c="$(cmd_wt_create feat/rep-999-skip-c rep-999-skip-c 2>&1)" || die "C: cmd_wt_create failed: $out_c"
+printf '%s\n' "$out_c" | grep -q "STEP: 1 2 Creating git worktree" || die "C: step 1/2 missing: $out_c"
+printf '%s\n' "$out_c" | grep -q "STEP: 2 2 Copying local worktree config" || die "C: step 2/2 missing: $out_c"
+if printf '%s\n' "$out_c" | grep -q "PNPM_INSTALL_RUN"; then die "C: pnpm install ran despite skip: $out_c"; fi
+if printf '%s\n' "$out_c" | grep -q "MOON_BUILD_RUN"; then die "C: moon run :build ran despite skip: $out_c"; fi
+
+# D: live + default → steps [3/4] [4/4], pnpm/moon both invoked.
+WT_SKIP_INSTALL=false
+WT_DRY_RUN=false
+out_d="$(cmd_wt_create feat/rep-999-skip-d rep-999-skip-d 2>&1)" || die "D: cmd_wt_create failed: $out_d"
+printf '%s\n' "$out_d" | grep -q "STEP: 3 4 Installing dependencies" || die "D: step 3/4 missing: $out_d"
+printf '%s\n' "$out_d" | grep -q "STEP: 4 4 Building packages" || die "D: step 4/4 missing: $out_d"
+printf '%s\n' "$out_d" | grep -q "PNPM_INSTALL_RUN" || die "D: pnpm install did not run: $out_d"
+printf '%s\n' "$out_d" | grep -q "MOON_BUILD_RUN" || die "D: moon run :build did not run: $out_d"
+RUNNER
+
+  chmod +x "$tmpdir/run_test.sh"
+  output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+
+  if [ ${rc:-0} -eq 0 ]; then
+    _pass 'WT_SKIP_INSTALL skips pnpm install + moon run :build (dry-run + live)'
+  else
+    _fail 'WT_SKIP_INSTALL skips pnpm install + moon run :build (dry-run + live)' "$output"
+  fi
+  rm -rf "$tmpdir"
+  trap - RETURN
+}
+
 test_records_linear_sync_failure
 test_creates_issue_worktree_path_from_metadata
 test_resolve_issue_worktree_metadata_parses_cli_json
 test_resolve_issue_worktree_metadata_rejects_invalid_id
 test_resolve_issue_worktree_metadata_dies_on_empty_branch
 test_no_status_update_skips_linear_cli
+test_skip_install_skips_pnpm_and_build
 
-printf '\nResults: %d passed, %d failed out of 6 tests\n' "$PASS" "$FAIL"
+printf '\nResults: %d passed, %d failed out of 7 tests\n' "$PASS" "$FAIL"
 
 if [ "$FAIL" -gt 0 ]; then
   exit 1
