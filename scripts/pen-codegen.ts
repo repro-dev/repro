@@ -489,6 +489,9 @@ export function renderTextNode(
   indent: number,
   ctx: RenderContext
 ): string {
+  // Spread props come first so explicit pen-file props below are the final
+  // authority (in JSX, later props override earlier spreads).
+  const spreadProps: string[] = []
   const props: string[] = []
   if (typeof node.fill === 'string') {
     // Token refs resolve to design tokens; raw values (hex, named colors)
@@ -521,7 +524,7 @@ export function renderTextNode(
   const preset = matchTextStylePreset(fontProps)
   if (preset) {
     ctx.designImports.add('textStyles')
-    props.push(`{...textStyles.${preset}}`)
+    spreadProps.push(`{...textStyles.${preset}}`)
   } else {
     for (const key of [
       'fontFamily',
@@ -545,7 +548,7 @@ export function renderTextNode(
 
   const content = typeof node.content === 'string' ? node.content : ''
   const childLine = `${'  '.repeat(indent + 1)}{${jsString(content)}}`
-  return element('Block', props, [childLine], indent)
+  return element('Block', [...spreadProps, ...props], [childLine], indent)
 }
 
 /** True when the four resolved font props exactly match one textStyles preset. */
@@ -592,21 +595,29 @@ interface DescendantTarget {
 export function resolveDescendantTarget(
   masterNode: PenNode,
   key: string,
-  masterNodeById: Map<string, PenNode>
+  masterNodeById: Map<string, PenNode>,
+  warnings?: string[]
 ): DescendantTarget | null {
-  let target: PenNode | null
   if (key.includes('/')) {
     const slash = key.indexOf('/')
     const refId = key.slice(0, slash)
     const childId = key.slice(slash + 1)
+    if (childId.includes('/')) {
+      const sink = warnings ?? []
+      sink.push(
+        `descendant override path "${key}" has more than two segments — nested paths are not supported in v1; override skipped`
+      )
+      return null
+    }
     const refNode = findNodeById(masterNode, refId)
     if (!refNode || refNode.type !== 'ref') return null
     const refMaster = masterNodeById.get(String(refNode.ref))
     if (!refMaster) return null
-    target = findNodeById(refMaster, childId)
-  } else {
-    target = findNodeById(masterNode, key)
+    const target = findNodeById(refMaster, childId)
+    if (!target) return null
+    return { type: String(target.type), name: String(target.name) }
   }
+  const target = findNodeById(masterNode, key)
   if (!target) return null
   return { type: String(target.type), name: String(target.name) }
 }
@@ -660,7 +671,12 @@ export function renderRefNode(
     a.localeCompare(b)
   )) {
     if (!override || typeof override !== 'object') continue
-    const target = resolveDescendantTarget(masterNode, key, ctx.masterNodeById)
+    const target = resolveDescendantTarget(
+      masterNode,
+      key,
+      ctx.masterNodeById,
+      ctx.warnings
+    )
     if (!target) continue
 
     const overrides = override as Record<string, unknown>
@@ -756,6 +772,9 @@ export function renderNode(
 /** "Settings Form" -> "SettingsFormScreen". */
 export function screenComponentName(normalizedName: string): string {
   const parts = normalizedName.split(/[^A-Za-z0-9]+/).filter(Boolean)
+  // A name with zero alphanumeric characters (e.g. "!!!" or "") must still
+  // produce a usable component name instead of a degenerate "Screen".
+  if (parts.length === 0) return 'UnnamedScreen'
   const pascal = parts
     .map(part => part[0]!.toUpperCase() + part.slice(1))
     .join('')

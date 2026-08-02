@@ -171,12 +171,35 @@ describe('REP-1622 text node translation', () => {
       lineHeight: 1.25,
     })
     const out = renderNode(node, 0, ctx)!
+    // The textStyles spread comes first so explicit props (color, component)
+    // are the final authority rather than being overridden by the spread.
     assert.match(
       out,
-      /<Block color=\{color\.text\.default\} component="p" \{\.\.\.textStyles\.heading1\}>/
+      /<Block \{\.\.\.textStyles\.heading1\} color=\{color\.text\.default\} component="p">/
     )
     assert.match(out, /\{"Hello"\}/)
     assert.ok(ctx.designImports.has('textStyles'))
+  })
+
+  it('places the textStyles spread before explicit props in output order', () => {
+    const ctx = makeCtx(fixturePen())
+    const node = textNode('t5', 'Title', 'Hello')
+    Object.assign(node, {
+      fill: '$color-text-default',
+      fontFamily: '$font-sans',
+      fontSize: '$font-size-2xl',
+      fontWeight: '700',
+      lineHeight: 1.25,
+    })
+    const out = renderNode(node, 0, ctx)!
+    const spreadIndex = out.indexOf('{...textStyles.heading1}')
+    const colorIndex = out.indexOf('color={')
+    const componentIndex = out.indexOf('component="p"')
+    assert.ok(spreadIndex >= 0, 'spread should be present')
+    assert.ok(
+      spreadIndex < colorIndex && spreadIndex < componentIndex,
+      `spread (${spreadIndex}) must come before color (${colorIndex}) and component (${componentIndex}):\n${out}`
+    )
   })
 
   it('emits individual font props when no preset matches', () => {
@@ -334,6 +357,20 @@ describe('REP-1622 descendant override resolution', () => {
       resolveDescendantTarget(byId.get('cardMaster')!, 'cardIcon/nope', byId),
       null
     )
+  })
+
+  it('warns when a descendant path has more than two segments', () => {
+    const warnings: string[] = []
+    const byId = mastersById(nestedPen())
+    const result = resolveDescendantTarget(
+      byId.get('cardMaster')!,
+      'cardIcon/iconLabel/nope',
+      byId,
+      warnings
+    )
+    assert.equal(result, null)
+    assert.equal(warnings.length, 1)
+    assert.match(warnings[0]!, /not supported in v1/)
   })
 })
 
