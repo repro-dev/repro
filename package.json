@@ -66,7 +66,9 @@
     "check:test-file-size": "bash scripts/check-test-file-size.sh",
     "pen:export": "tsx scripts/pen-export.ts",
     "pen:lint": "tsx scripts/pen-lint.ts",
-    "pen:dry-run": "tsx scripts/pen-lint.ts --dry-run"
+    "pen:dry-run": "tsx scripts/pen-lint.ts --dry-run",
+    "pen:codegen": "tsx scripts/pen-codegen.ts",
+    "pen:codegen:check": "tsx scripts/pen-codegen.ts --dry-run"
   },
   "lint-staged": {
     "*.{ts,tsx}": [

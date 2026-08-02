@@ -174,7 +174,7 @@ export function extractVariables(pen: PenFile): Record<string, PenVariable> {
 // Validation helpers
 // ---------------------------------------------------------------------------
 
-const MASTER_NAME_PATTERN = /^[a-z][a-z0-9-]*::[A-Z][a-zA-Z0-9]*$/
+export const MASTER_NAME_PATTERN = /^[a-z][a-z0-9-]*::[A-Z][a-zA-Z0-9]*$/
 
 /**
  * Masters follow package::ComponentName (:: as namespace separator). The
@@ -187,7 +187,7 @@ export function validateMasterName(name: string): boolean {
 }
 
 /** Split "pkg::Component" into [pkg, Component]. */
-function splitMasterName(name: string): [string, string] {
+export function splitMasterName(name: string): [string, string] {
   const idx = name.indexOf('::')
   return [name.slice(0, idx), name.slice(idx + 2)]
 }
