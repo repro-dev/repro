@@ -104,6 +104,19 @@ describe('REP-1622 master resolution', () => {
     assert.equal(result.ok, false)
     assert.ok(Array.isArray(result.candidates))
   })
+
+  it('never auto-resolves when the explicit package lacks the export', () => {
+    // design::EmptyState names the design package explicitly, but design does
+    // not export EmptyState — agentic-ui does. The explicit namespace must win:
+    // report the candidate, do not silently resolve to agentic-ui.
+    const exports = new Map<string, Set<string>>([
+      ['design', new Set(['Button', 'Input'])],
+      ['agentic-ui', new Set(['EmptyState'])],
+    ])
+    const result = resolveMasterComponent('design::EmptyState', exports)
+    assert.equal(result.ok, false)
+    assert.deepEqual(result.candidates, ['agentic-ui::EmptyState'])
+  })
 })
 
 describe('REP-1622 layout heuristic', () => {
@@ -133,6 +146,16 @@ describe('REP-1622 layout heuristic', () => {
     )
     assert.ok(ctx.jsxstyleImports.has('Col'))
     assert.ok(ctx.designImports.has('spacing'))
+  })
+
+  it('renders a null layout prop as the JS null literal', () => {
+    const ctx = makeCtx(fixturePen())
+    const node = frame('f1', 'Header', {
+      layout: 'vertical',
+      padding: null,
+    })
+    const out = renderNode(node, 0, ctx)!
+    assert.ok(out.includes('padding={null}'))
   })
 })
 
@@ -182,6 +205,25 @@ describe('REP-1622 text node translation', () => {
     assert.match(out, /color=\{"#FF0000"\}/)
     assert.match(out, /component="p"/)
     assert.deepEqual(ctx.warnings, [])
+  })
+
+  it('maps thin/extraLight/extraBold/black numeric weights to tokens', () => {
+    const cases: Array<[string, string]> = [
+      ['100', 'fontWeight.thin'],
+      ['200', 'fontWeight.extraLight'],
+      ['800', 'fontWeight.extraBold'],
+      ['900', 'fontWeight.black'],
+    ]
+    for (const [weight, expected] of cases) {
+      const ctx = makeCtx(fixturePen())
+      const node = textNode('t4', 'Label', 'X')
+      Object.assign(node, { fontWeight: weight })
+      const out = renderNode(node, 0, ctx)!
+      assert.ok(
+        out.includes(`fontWeight={${expected}}`),
+        `weight ${weight} should render ${expected}, got:\n${out}`
+      )
+    }
   })
 })
 
@@ -317,6 +359,33 @@ describe('REP-1622 CLI argument parsing', () => {
     assert.equal(error, undefined)
     assert.equal(options.penFile, 'fixture.pen')
     assert.equal(options.dryRun, true)
+  })
+
+  it('rejects a flag name used as a --screen value', () => {
+    const { options, error } = parseCliArgs(['--screen', '--dry-run'])
+    assert.equal(options.screen, undefined)
+    assert.match(error!, /looks like another flag/)
+  })
+
+  it('rejects flag names used as values for pen-file, output, and catalog', () => {
+    const penFile = parseCliArgs(['--pen-file', '--output', 'x'])
+    assert.equal(penFile.options.penFile, undefined)
+    assert.match(penFile.error!, /looks like another flag/)
+
+    const output = parseCliArgs(['--output', '--screen'])
+    assert.equal(output.options.outputDir, undefined)
+    assert.match(output.error!, /looks like another flag/)
+
+    const catalog = parseCliArgs(['--catalog', '--dry-run'])
+    assert.equal(catalog.options.catalogOutput, undefined)
+    assert.match(catalog.error!, /looks like another flag/)
+  })
+
+  it('reports a missing value for every value-taking flag', () => {
+    for (const flag of ['--screen', '--pen-file', '--output', '--catalog']) {
+      const { error } = parseCliArgs([flag])
+      assert.ok(error, `${flag} should report a missing value`)
+    }
   })
 })
 

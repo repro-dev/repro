@@ -128,6 +128,11 @@ describe('REP-1622 screen code generation', () => {
     assert.equal(sanitizeFileName('Admin: Staff Users'), 'admin-staff-users')
   })
 
+  it('falls back to unnamed-screen when the name sanitizes to nothing', () => {
+    assert.equal(sanitizeFileName('!!!###'), 'unnamed-screen')
+    assert.equal(sanitizeFileName('@#$%^&*()'), 'unnamed-screen')
+  })
+
   it('omits the design import when no design token is referenced', () => {
     const pen = parsePenJson(
       JSON.stringify({

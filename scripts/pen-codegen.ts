@@ -114,12 +114,16 @@ function renderTokenPath(token: string, suffix: string): string {
 // ---------------------------------------------------------------------------
 
 const FONT_WEIGHT_TOKENS: Record<string, string> = {
+  '100': 'thin',
+  '200': 'extraLight',
   '300': 'light',
   '400': 'normal',
   '500': 'normal',
   normal: 'normal',
   '600': 'semibold',
   '700': 'bold',
+  '800': 'extraBold',
+  '900': 'black',
 }
 
 const LINE_HEIGHT_TOKENS: Record<number, string> = {
@@ -239,6 +243,17 @@ export interface MasterResolutionFailure {
 }
 
 /**
+ * Map an inference result to the candidate list for a failure resolution:
+ * exact matches win, otherwise the closest "did you mean?" tier.
+ */
+function failureCandidates(
+  inference: ReturnType<typeof inferCandidates>
+): string[] {
+  if (inference.exact.length > 0) return inference.exact
+  return inference.closest.map(c => `${c.package}::${c.component}`)
+}
+
+/**
  * Resolve a master name to a concrete @repro/<pkg> export. Conforming
  * package::ComponentName masters resolve exactly; anything else falls back
  * to inferCandidates (REP-1618's "did you mean?" model).
@@ -252,21 +267,24 @@ export function resolveMasterComponent(
     if (resolvePackagePath(pkg) && exportsByPackage.get(pkg)?.has(comp)) {
       return { ok: true, pkg, comp }
     }
-    // Conforming name but unresolvable export: fall through to inference so
-    // the closest matches are reported as candidates.
+    // The master explicitly names a package but that package does not export
+    // the component. Never auto-resolve to a different package (the explicit
+    // namespace wins) — report the closest candidates so the author can fix
+    // the name, using the same "did you mean?" model as REP-1618.
+    return {
+      ok: false,
+      candidates: failureCandidates(
+        inferCandidates(masterName, exportsByPackage)
+      ),
+    }
   }
+  // Unprefixed master: fall back to inference (REP-1618 "did you mean?").
   const inference = inferCandidates(masterName, exportsByPackage)
   if (inference.exact.length === 1) {
     const [pkg, comp] = splitMasterName(inference.exact[0]!)
     return { ok: true, pkg, comp }
   }
-  if (inference.exact.length > 1) {
-    return { ok: false, candidates: inference.exact }
-  }
-  return {
-    ok: false,
-    candidates: inference.closest.map(c => `${c.package}::${c.component}`),
-  }
+  return { ok: false, candidates: failureCandidates(inference) }
 }
 
 // ---------------------------------------------------------------------------
@@ -347,6 +365,7 @@ function jsString(value: string): string {
 
 /** Render a pen value (number | string | array) as a JSX prop expression. */
 function renderValue(value: unknown, ctx: RenderContext): string {
+  if (value === null) return 'null'
   if (typeof value === 'number') return String(value)
   if (typeof value === 'boolean') return String(value)
   if (typeof value === 'string') {
@@ -745,11 +764,14 @@ export function screenComponentName(normalizedName: string): string {
 
 /** Lowercase, no colons — safe output filename for a screen. */
 export function sanitizeFileName(name: string): string {
-  return name
+  const sanitized = name
     .replaceAll(':', '')
     .replaceAll(/\s+/g, '-')
     .toLowerCase()
     .replaceAll(/[^a-z0-9-]/g, '')
+  // A name made entirely of stripped characters (e.g. "!!!###") must still
+  // produce a usable filename instead of an empty string.
+  return sanitized.length > 0 ? sanitized : 'unnamed-screen'
 }
 
 function collectImports(ctx: RenderContext): string[] {
@@ -1027,31 +1049,70 @@ export interface CliParseResult {
   error?: string
 }
 
-/** Parse CLI args into CodegenOptions; returns an error for malformed usage. */
+/** Human-readable description of each value-taking flag's expected value. */
+const FLAG_VALUE_DESCRIPTIONS: Record<string, string> = {
+  '--screen': 'screen name, normalized name, or id',
+  '--pen-file': 'path to a .pen file',
+  '--output': 'output directory',
+  '--catalog': 'path to a pen-catalog.json',
+}
+
+/**
+ * Parse CLI args into CodegenOptions; returns an error for malformed usage.
+ *
+ * Args are scanned left-to-right so a flag always consumes the immediately
+ * following token as its value. A value that is itself a flag name
+ * (`--screen --dry-run`) or a missing value (`--output` at end) is rejected
+ * instead of being silently accepted — for all four value-taking flags.
+ */
 export function parseCliArgs(args: string[]): CliParseResult {
   const options: CodegenOptions = {}
-  const screenIdx = args.indexOf('--screen')
-  if (screenIdx !== -1) {
-    const value = args[screenIdx + 1]
-    if (!value) {
-      return {
-        options,
-        error:
-          '--screen requires a value (screen name, normalized name, or id)',
+  const assigners: Record<string, (value: string) => void> = {
+    '--screen': value => {
+      options.screen = value
+    },
+    '--pen-file': value => {
+      options.penFile = value
+    },
+    '--output': value => {
+      options.outputDir = value
+    },
+    '--catalog': value => {
+      options.catalogOutput = value
+    },
+  }
+
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i]!
+    const assign = assigners[arg]
+    if (assign) {
+      const value = args[i + 1]
+      if (value === undefined) {
+        return {
+          options,
+          error: `${arg} requires a value (${
+            FLAG_VALUE_DESCRIPTIONS[arg] ?? 'a value'
+          })`,
+        }
       }
+      if (value.startsWith('--')) {
+        return {
+          options,
+          error: `${arg} value "${value}" looks like another flag; expected ${
+            FLAG_VALUE_DESCRIPTIONS[arg] ?? 'a value'
+          }`,
+        }
+      }
+      assign(value)
+      i++
+      continue
     }
-    options.screen = value
+    if (arg === '--dry-run') {
+      options.dryRun = true
+      continue
+    }
+    return { options, error: `unknown argument "${arg}"` }
   }
-  const penIdx = args.indexOf('--pen-file')
-  if (penIdx !== -1 && args[penIdx + 1]) options.penFile = args[penIdx + 1]
-  const outputIdx = args.indexOf('--output')
-  if (outputIdx !== -1 && args[outputIdx + 1])
-    options.outputDir = args[outputIdx + 1]
-  const catalogIdx = args.indexOf('--catalog')
-  if (catalogIdx !== -1 && args[catalogIdx + 1]) {
-    options.catalogOutput = args[catalogIdx + 1]
-  }
-  options.dryRun = args.includes('--dry-run')
   return { options }
 }
 
