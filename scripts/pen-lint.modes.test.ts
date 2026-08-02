@@ -124,6 +124,27 @@ describe('REP-1618 pen-lint check mode end-to-end', () => {
       rmSync(dir, { recursive: true, force: true })
     }
   })
+
+  it('flags multi-candidate masters with a did-you-mean-one-of message', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'pen-lint-check-multi-'))
+    try {
+      const penFile = writePen(dir, fixturePenJson([['m1', 'EmptyState']]))
+      const logs: string[] = []
+      const code = runCheck({
+        penFile,
+        catalogOutput: path.join(dir, 'catalog.json'),
+        log: msg => logs.push(msg),
+      })
+      assert.equal(code, 1, 'multi-candidate master must fail check')
+      const violation = logs.find(l => l.startsWith('violation:'))!
+      assert.ok(violation.includes('EmptyState'))
+      assert.ok(violation.includes('multiple candidate packages'), violation)
+      assert.ok(violation.includes('agentic-ui::EmptyState'), violation)
+      assert.ok(violation.includes('design::EmptyState'), violation)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
 })
 
 describe('REP-1618 pen-lint dry-run mode', () => {
@@ -318,6 +339,30 @@ describe('REP-1618 pen-lint apply mode end-to-end', () => {
       })
       assert.equal(code, 0)
       assert.equal(masterOf(readPen(penFile), 'm1').name, 'design::EmptyState')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('apply summary counts prompt-resolved masters as accepted, not ambiguous', async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'pen-lint-apply-promptsum-'))
+    try {
+      const penFile = writePen(dir, fixturePenJson([['m1', 'EmptyState']]))
+      const logs: string[] = []
+      const code = await runApply({
+        penFile,
+        tty: true,
+        prompt: async () => 1, // design::EmptyState (agentic-ui sorts first)
+        log: msg => logs.push(msg),
+      })
+      assert.equal(code, 0, logs.join('\n'))
+      assert.equal(masterOf(readPen(penFile), 'm1').name, 'design::EmptyState')
+      const summary = logs.find(l => l.startsWith('apply summary:'))!
+      assert.match(
+        summary,
+        /1 accepted, 0 skipped, 0 ambiguous, 0 unresolved/,
+        summary
+      )
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

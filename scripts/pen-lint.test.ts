@@ -17,6 +17,7 @@ import {
   inferCandidates,
   normalizeScreenName,
   parsePenJson,
+  parseSelectArg,
   resolvePackagePath,
   runCheck,
   validateMasterName,
@@ -264,6 +265,31 @@ describe('REP-1618 screens index', () => {
       'Component Gallery': 'q7mC6b',
       'Admin: Recordings': 'HmP9z',
     })
+  })
+})
+
+describe('REP-1618 --select argument parsing', () => {
+  it('parses comma-separated masterId=package::Component pairs', () => {
+    assert.deepEqual(
+      parseSelectArg(['--select', 'm1=design::Button,m2=design::Badge']),
+      { m1: 'design::Button', m2: 'design::Badge' }
+    )
+  })
+
+  it('silently skips malformed parts (no "=", empty id or name)', () => {
+    assert.deepEqual(
+      parseSelectArg([
+        '--select',
+        'm1=design::Button,garbage,=design::Badge,m2=,m3=design::Card',
+      ]),
+      { m1: 'design::Button', m3: 'design::Card' }
+    )
+  })
+
+  it('returns an empty map when --select is absent', () => {
+    assert.deepEqual(parseSelectArg([]), {})
+    assert.deepEqual(parseSelectArg(['--apply']), {})
+    assert.deepEqual(parseSelectArg(['--select']), {})
   })
 })
 

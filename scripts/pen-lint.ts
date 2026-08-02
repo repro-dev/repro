@@ -902,6 +902,7 @@ export async function runApply(options: RunOptions = {}): Promise<number> {
   const ambiguousEntries: PlanEntry[] = []
   let accepted = 0
   let skipped = 0
+  let resolvedByPrompt = 0
   let changed = false
 
   for (const master of masters) {
@@ -974,6 +975,7 @@ export async function runApply(options: RunOptions = {}): Promise<number> {
       if (tty) {
         const choice = await prompt(master.name, inference.exact)
         if (choice !== null && choice >= 0 && choice < inference.exact.length) {
+          resolvedByPrompt++
           const target = inference.exact[choice]!
           const [pkg, comp] = splitMasterName(target)
           if (applyBinding(node, master.id, target, pkg, comp, log)) {
@@ -1024,7 +1026,10 @@ export async function runApply(options: RunOptions = {}): Promise<number> {
   }
 
   log(
-    `apply summary: ${accepted} accepted, ${skipped} skipped, ${ambiguousEntries.length} ambiguous, ${unresolved.length} unresolved.`
+    `apply summary: ${accepted} accepted, ${skipped} skipped, ${
+      // Prompt-resolved masters are accepted, not ambiguous.
+      ambiguousEntries.length - resolvedByPrompt
+    } ambiguous, ${unresolved.length} unresolved.`
   )
   if (unresolved.length > 0) {
     for (const issue of unresolved) log(`unresolved: ${issue}`)
@@ -1253,7 +1258,7 @@ JSON contract (--dry-run, non-TTY --apply):
 }
 
 /** Parse "--select m1=pkg::Name,m2=pkg::Name" into { masterId: name }. */
-function parseSelectArg(args: string[]): Record<string, string> {
+export function parseSelectArg(args: string[]): Record<string, string> {
   const idx = args.indexOf('--select')
   if (idx === -1 || idx + 1 >= args.length) return {}
   const raw = args[idx + 1]!
