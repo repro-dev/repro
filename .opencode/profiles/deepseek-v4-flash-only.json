@@ -1,0 +1,40 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "deepseek/deepseek-v4-flash",
+  "command": {
+    "deliver": {
+      "model": "deepseek/deepseek-v4-flash",
+      "template": ""
+    },
+    "review": {
+      "model": "deepseek/deepseek-v4-flash",
+      "template": ""
+    }
+  },
+  "agent": {
+    "develop": {
+      "model": "deepseek/deepseek-v4-flash"
+    },
+    "filtered-runner": {
+      "model": "deepseek/deepseek-v4-flash"
+    },
+    "librarian": {
+      "model": "deepseek/deepseek-v4-flash"
+    },
+    "planner": {
+      "model": "deepseek/deepseek-v4-flash"
+    },
+    "review": {
+      "model": "deepseek/deepseek-v4-flash"
+    },
+    "test": {
+      "model": "deepseek/deepseek-v4-flash"
+    },
+    "sequencer": {
+      "model": "deepseek/deepseek-v4-flash"
+    },
+    "release": {
+      "model": "deepseek/deepseek-v4-flash"
+    }
+  }
+}
