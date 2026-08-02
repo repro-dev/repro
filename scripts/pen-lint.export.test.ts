@@ -26,12 +26,6 @@ const frame = (
 
 describe('REP-1620 pen-lint export mode (pen CLI required, skipped otherwise)', () => {
   it('exports PNG + HTML and regenerates the screens index', async t => {
-    // pen CLI unavailable (no auth / not installed) — skip the test.
-    const probe = spawnSync('pen', ['--help'], { encoding: 'utf8' })
-    if (probe.error || probe.status !== 0) {
-      t.skip('pen CLI unavailable')
-      return
-    }
     const dir = mkdtempSync(path.join(tmpdir(), 'pen-lint-export-'))
     try {
       const penFile = path.join(dir, 'fixture.pen')
@@ -67,6 +61,21 @@ describe('REP-1620 pen-lint export mode (pen CLI required, skipped otherwise)', 
         componentMapFile,
         JSON.stringify({ components: {}, noMaster: [], screens: { Old: 'x1' } })
       )
+
+      // pen CLI must be installed AND authenticated — a bare --help probe is
+      // insufficient because CI installs pen without PEN_CLI_KEY, which makes
+      // export_nodes fail with "Authentication required". Probe with a real
+      // interactive session on the fixture so the skip matches what runExport
+      // actually needs.
+      const probe = spawnSync(
+        'pen',
+        ['interactive', '-i', penFile, '-o', '/dev/null'],
+        { encoding: 'utf8', input: 'exit()\n' }
+      )
+      if (probe.error || probe.status !== 0) {
+        t.skip('pen CLI unavailable or not authenticated')
+        return
+      }
 
       const logs: string[] = []
       const code = await runExport({
