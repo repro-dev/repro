@@ -6,7 +6,7 @@
       "id": "eqZG0",
       "x": 0,
       "y": 0,
-      "name": "Button",
+      "name": "design::Button",
       "reusable": true,
       "height": 36,
       "fill": "$color-info",
@@ -43,14 +43,19 @@
           "fontSize": "$font-size-xs",
           "fontWeight": "normal"
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "Button"
+      }
     },
     {
       "type": "frame",
       "id": "d2CvF",
       "x": 116,
       "y": 0,
-      "name": "Badge",
+      "name": "design::Badge",
       "reusable": true,
       "fill": "$color-bg-hover",
       "cornerRadius": "$radius-sm",
@@ -74,14 +79,19 @@
           "fontSize": "$font-size-sm",
           "fontWeight": "600"
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "Badge"
+      }
     },
     {
       "type": "frame",
       "id": "KnDBg",
       "x": 206,
       "y": 0,
-      "name": "Input",
+      "name": "design::Input",
       "reusable": true,
       "width": 280,
       "height": 36,
@@ -129,14 +139,19 @@
           "fontSize": "$font-size-sm",
           "fontWeight": "normal"
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "Input"
+      }
     },
     {
       "type": "frame",
       "id": "OMduR",
       "x": 526,
       "y": 0,
-      "name": "Toggle",
+      "name": "design::Toggle",
       "reusable": true,
       "gap": "$spacing-sm",
       "alignItems": "center",
@@ -177,14 +192,19 @@
           "fontSize": "$font-size-sm",
           "fontWeight": "normal"
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "Toggle"
+      }
     },
     {
       "type": "frame",
       "id": "JFccj",
       "x": 659,
       "y": 0,
-      "name": "Card",
+      "name": "design::Card",
       "reusable": true,
       "width": 360,
       "fill": "$color-bg-surface",
@@ -242,14 +262,19 @@
           "fontSize": "$font-size-md",
           "fontWeight": "normal"
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "Card"
+      }
     },
     {
       "type": "frame",
       "id": "flKba",
       "x": 0,
       "y": 69,
-      "name": "Alert",
+      "name": "design::Alert",
       "reusable": true,
       "width": 480,
       "fill": "$color-info-tint",
@@ -283,14 +308,19 @@
           "fontSize": "$font-size-xs",
           "fontWeight": "normal"
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "Alert"
+      }
     },
     {
       "type": "frame",
       "id": "dDpF6",
       "x": 1019,
       "y": 0,
-      "name": "Checkbox",
+      "name": "design::Checkbox",
       "reusable": true,
       "gap": "$spacing-md",
       "children": [
@@ -334,14 +364,19 @@
           "fontSize": "$font-size-sm",
           "fontWeight": "normal"
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "Checkbox"
+      }
     },
     {
       "type": "frame",
       "id": "ZTFZn",
       "x": 1182,
       "y": 0,
-      "name": "Meter",
+      "name": "design::Meter",
       "reusable": true,
       "clip": true,
       "width": 240,
@@ -361,14 +396,19 @@
           "width": 144,
           "height": 8
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "Meter"
+      }
     },
     {
       "type": "frame",
       "id": "llVi8",
       "x": 1462,
       "y": 0,
-      "name": "Avatar",
+      "name": "design::Avatar",
       "reusable": true,
       "fill": "#00000000",
       "gap": "$spacing-md",
@@ -394,28 +434,38 @@
           "fontSize": 15,
           "fontWeight": "normal"
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "Avatar"
+      }
     },
     {
       "type": "frame",
       "id": "SrSMv",
       "x": 1532,
       "y": 0,
-      "name": "Skeleton",
+      "name": "design::Skeleton",
       "reusable": true,
       "width": 240,
       "height": 12,
       "fill": "$color-border-default",
       "cornerRadius": "$radius-sm",
       "layout": "vertical",
-      "gap": "$spacing-sm"
+      "gap": "$spacing-sm",
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "Skeleton"
+      }
     },
     {
       "type": "frame",
       "id": "wbfyU",
       "x": 1812,
       "y": 0,
-      "name": "EmptyState",
+      "name": "design::EmptyState",
       "reusable": true,
       "width": 360,
       "layout": "vertical",
@@ -470,14 +520,19 @@
             }
           }
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "EmptyState"
+      }
     },
     {
       "type": "frame",
       "id": "GGdmj",
       "x": 0,
       "y": 173,
-      "name": "Tabs",
+      "name": "design::Tabs",
       "reusable": true,
       "width": 440,
       "fill": {
@@ -632,14 +687,19 @@
             }
           ]
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "Tabs"
+      }
     },
     {
       "type": "frame",
       "id": "x1LAI",
       "x": 2212,
       "y": 0,
-      "name": "Table",
+      "name": "design::Table",
       "reusable": true,
       "width": 560,
       "fill": "$color-bg-surface",
@@ -1061,19 +1121,29 @@
             }
           ]
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "Table"
+      }
     },
     {
       "type": "frame",
       "id": "B7xCh7",
       "x": 2772,
       "y": 0,
-      "name": "Divider",
+      "name": "design::Divider",
       "reusable": true,
       "width": 280,
       "height": 1,
       "fill": "$color-border-default",
-      "alignItems": "center"
+      "alignItems": "center",
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "Divider"
+      }
     },
     {
       "type": "frame",
@@ -1112,7 +1182,7 @@
               "id": "rifpv",
               "name": "Subtitle",
               "fill": "$color-text-muted",
-              "content": "@repro/design mirror \u2014 all values from design tokens",
+              "content": "@repro/design mirror — all values from design tokens",
               "lineHeight": 1.5,
               "fontFamily": "$font-sans",
               "fontSize": "$font-size-md",
@@ -2206,7 +2276,7 @@
               "id": "ViG9B",
               "name": "Caption",
               "fill": "$color-text-muted",
-              "content": "Caption \u2014 updated 2 min ago",
+              "content": "Caption — updated 2 min ago",
               "lineHeight": 1.25,
               "fontFamily": "$font-sans",
               "fontSize": "$font-size-xs"
@@ -3361,7 +3431,7 @@
                       "id": "G74H3D",
                       "name": "Ellipsis",
                       "fill": "$color-text-muted",
-                      "content": "\u2026",
+                      "content": "…",
                       "lineHeight": 1,
                       "fontFamily": "$font-sans",
                       "fontSize": "$font-size-xs",
@@ -4250,7 +4320,7 @@
       "id": "VxtLj",
       "x": 0,
       "y": 420,
-      "name": "Text",
+      "name": "design::Text",
       "reusable": true,
       "children": [
         {
@@ -4264,14 +4334,19 @@
           "fontSize": "$font-size-md",
           "fontWeight": "normal"
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "Text"
+      }
     },
     {
       "type": "frame",
       "id": "NCuiB",
       "x": 360,
       "y": 420,
-      "name": "Label",
+      "name": "design::Label",
       "reusable": true,
       "width": 280,
       "justifyContent": "space_between",
@@ -4326,14 +4401,19 @@
             }
           ]
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "Label"
+      }
     },
     {
       "type": "frame",
       "id": "lZDHG",
       "x": 720,
       "y": 420,
-      "name": "Link",
+      "name": "design::Link",
       "reusable": true,
       "children": [
         {
@@ -4347,14 +4427,19 @@
           "fontSize": "$font-size-md",
           "fontWeight": "normal"
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "Link"
+      }
     },
     {
       "type": "frame",
       "id": "eYGiE",
       "x": 1080,
       "y": 420,
-      "name": "Logo",
+      "name": "design::Logo",
       "reusable": true,
       "gap": "$spacing-lg",
       "alignItems": "center",
@@ -4392,14 +4477,19 @@
           "fontSize": "$font-size-2xl",
           "fontWeight": "700"
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "Logo"
+      }
     },
     {
       "type": "frame",
       "id": "ANx9O",
       "x": 1440,
       "y": 420,
-      "name": "FormField",
+      "name": "design::FormField",
       "reusable": true,
       "width": 280,
       "layout": "vertical",
@@ -4433,14 +4523,19 @@
           "fontSize": "$font-size-xs",
           "fontWeight": "normal"
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "FormField"
+      }
     },
     {
       "type": "frame",
       "id": "L0pdQ",
       "x": 1800,
       "y": 420,
-      "name": "FormFieldError",
+      "name": "design::FormFieldError",
       "reusable": true,
       "children": [
         {
@@ -4454,14 +4549,19 @@
           "fontSize": "$font-size-xs",
           "fontWeight": "normal"
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "FormFieldError"
+      }
     },
     {
       "type": "frame",
       "id": "Q6CWT",
       "x": 0,
       "y": 620,
-      "name": "TextField",
+      "name": "design::TextField",
       "reusable": true,
       "width": 280,
       "layout": "vertical",
@@ -4540,14 +4640,19 @@
           "fontSize": "$font-size-xs",
           "fontWeight": "normal"
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "TextField"
+      }
     },
     {
       "type": "frame",
       "id": "mOtgf",
       "x": 360,
       "y": 620,
-      "name": "Select",
+      "name": "design::Select",
       "reusable": true,
       "width": 280,
       "layout": "vertical",
@@ -4745,14 +4850,19 @@
             }
           ]
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "Select"
+      }
     },
     {
       "type": "frame",
       "id": "FUjpH",
       "x": 720,
       "y": 620,
-      "name": "RadioGroup",
+      "name": "design::RadioGroup",
       "reusable": true,
       "width": 280,
       "layout": "vertical",
@@ -4871,14 +4981,19 @@
             }
           ]
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "RadioGroup"
+      }
     },
     {
       "type": "frame",
       "id": "ShJj1",
       "x": 1080,
       "y": 620,
-      "name": "ToggleGroup",
+      "name": "design::ToggleGroup",
       "reusable": true,
       "gap": "$spacing-md",
       "children": [
@@ -4982,14 +5097,19 @@
             }
           ]
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "ToggleGroup"
+      }
     },
     {
       "type": "frame",
       "id": "Z9n2Hz",
       "x": 0,
       "y": 820,
-      "name": "Modal",
+      "name": "design::Modal",
       "reusable": true,
       "width": 560,
       "height": 320,
@@ -5076,14 +5196,19 @@
             }
           ]
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "Modal"
+      }
     },
     {
       "type": "frame",
       "id": "QN3He",
       "x": 640,
       "y": 820,
-      "name": "ConfirmDialog",
+      "name": "design::ConfirmDialog",
       "reusable": true,
       "width": 560,
       "height": 280,
@@ -5188,14 +5313,19 @@
             }
           ]
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "ConfirmDialog"
+      }
     },
     {
       "type": "frame",
       "id": "HOyJP",
       "x": 1280,
       "y": 820,
-      "name": "Drawer",
+      "name": "design::Drawer",
       "reusable": true,
       "width": 560,
       "height": 320,
@@ -5269,14 +5399,19 @@
             }
           ]
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "Drawer"
+      }
     },
     {
       "type": "frame",
       "id": "dFFD4",
       "x": 0,
       "y": 1200,
-      "name": "Tooltip",
+      "name": "design::Tooltip",
       "reusable": true,
       "fill": "$color-text-secondary",
       "cornerRadius": "$radius-md",
@@ -5293,14 +5428,19 @@
           "fontSize": "$font-size-xs",
           "fontWeight": "normal"
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "Tooltip"
+      }
     },
     {
       "type": "frame",
       "id": "Of9O1",
       "x": 240,
       "y": 1200,
-      "name": "Popover",
+      "name": "design::Popover",
       "reusable": true,
       "width": 220,
       "fill": "$color-bg-surface",
@@ -5358,14 +5498,19 @@
           "fontSize": "$font-size-sm",
           "fontWeight": "normal"
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "Popover"
+      }
     },
     {
       "type": "frame",
       "id": "Hfg5K",
       "x": 520,
       "y": 1200,
-      "name": "DropdownMenu",
+      "name": "design::DropdownMenu",
       "reusable": true,
       "width": 200,
       "fill": "$color-bg-surface",
@@ -5474,7 +5619,12 @@
             }
           ]
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "DropdownMenu"
+      }
     },
     {
       "type": "frame",
@@ -5542,7 +5692,7 @@
       "id": "W4Qz7",
       "x": 0,
       "y": 1400,
-      "name": "LoadingState",
+      "name": "design::LoadingState",
       "reusable": true,
       "width": 280,
       "height": 160,
@@ -5562,14 +5712,19 @@
           "library": "Material Symbols Rounded",
           "fill": "$color-text-muted"
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "LoadingState"
+      }
     },
     {
       "type": "frame",
       "id": "ZLyaC",
       "x": 360,
       "y": 1400,
-      "name": "FullPageLoading",
+      "name": "design::FullPageLoading",
       "reusable": true,
       "width": 360,
       "height": 240,
@@ -5588,14 +5743,19 @@
           "library": "Material Symbols Rounded",
           "fill": "$color-text-muted"
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "FullPageLoading"
+      }
     },
     {
       "type": "frame",
       "id": "HkYOE",
       "x": 800,
       "y": 1400,
-      "name": "FullPageError",
+      "name": "design::FullPageError",
       "reusable": true,
       "width": 360,
       "height": 280,
@@ -5654,14 +5814,19 @@
           "fontSize": "$font-size-md",
           "fontWeight": "normal"
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "FullPageError"
+      }
     },
     {
       "type": "frame",
       "id": "hXEYr",
       "x": 0,
       "y": 1740,
-      "name": "Pagination",
+      "name": "design::Pagination",
       "reusable": true,
       "gap": "$spacing-sm",
       "alignItems": "center",
@@ -5804,7 +5969,7 @@
           "id": "i6O7v",
           "name": "Ellipsis",
           "fill": "$color-text-muted",
-          "content": "\u2026",
+          "content": "…",
           "lineHeight": 1,
           "fontFamily": "$font-sans",
           "fontSize": "$font-size-xs",
@@ -5871,14 +6036,19 @@
             }
           ]
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "Pagination"
+      }
     },
     {
       "type": "frame",
       "id": "vf1Vn",
       "x": 520,
       "y": 1740,
-      "name": "Breadcrumbs",
+      "name": "design::Breadcrumbs",
       "reusable": true,
       "gap": "$spacing-sm",
       "alignItems": "center",
@@ -5938,14 +6108,19 @@
           "fontSize": "$font-size-sm",
           "fontWeight": "normal"
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "Breadcrumbs"
+      }
     },
     {
       "type": "frame",
       "id": "idGIq",
       "x": 2800,
       "y": 2000,
-      "name": "SideNav",
+      "name": "design::SideNav",
       "reusable": true,
       "width": 220,
       "layout": "vertical",
@@ -6115,14 +6290,19 @@
             }
           ]
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "SideNav"
+      }
     },
     {
       "type": "frame",
       "id": "oj0de",
       "x": 2440,
       "y": 4100,
-      "name": "Stack",
+      "name": "design::Stack",
       "reusable": true,
       "width": 200,
       "layout": "vertical",
@@ -6161,14 +6341,19 @@
           "justifyContent": "center",
           "alignItems": "center"
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "Stack"
+      }
     },
     {
       "type": "frame",
       "id": "uMi7H",
       "x": 2800,
       "y": 4100,
-      "name": "Center",
+      "name": "design::Center",
       "reusable": true,
       "width": 300,
       "height": 300,
@@ -6181,14 +6366,19 @@
           "ref": "d2CvF",
           "name": "Badge"
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "Center"
+      }
     },
     {
       "type": "frame",
       "id": "wWm4d",
       "x": 0,
       "y": 3800,
-      "name": "DefinitionList",
+      "name": "design::DefinitionList",
       "reusable": true,
       "width": 480,
       "layout": "vertical",
@@ -6454,14 +6644,19 @@
             }
           ]
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "DefinitionList"
+      }
     },
     {
       "type": "frame",
       "id": "j47Trs",
       "x": 560,
       "y": 3800,
-      "name": "Accordion",
+      "name": "design::Accordion",
       "reusable": true,
       "clip": true,
       "width": 640,
@@ -6641,14 +6836,19 @@
             }
           ]
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "Accordion"
+      }
     },
     {
       "type": "frame",
       "id": "PWVzn",
       "x": 1280,
       "y": 3800,
-      "name": "Collapsible",
+      "name": "design::Collapsible",
       "reusable": true,
       "clip": true,
       "width": 520,
@@ -6692,14 +6892,19 @@
             }
           ]
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "Collapsible"
+      }
     },
     {
       "type": "frame",
       "id": "u1jBK",
       "x": 1880,
       "y": 3800,
-      "name": "Fieldset",
+      "name": "design::Fieldset",
       "reusable": true,
       "width": 480,
       "layout": "vertical",
@@ -6841,14 +7046,19 @@
             }
           ]
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "Fieldset"
+      }
     },
     {
       "type": "frame",
       "id": "HS14L",
       "x": 2440,
       "y": 3800,
-      "name": "InputActionRow",
+      "name": "design::InputActionRow",
       "reusable": true,
       "width": 520,
       "gap": "$spacing-sm",
@@ -6893,14 +7103,19 @@
             }
           ]
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "InputActionRow"
+      }
     },
     {
       "type": "frame",
       "id": "GAQhh",
       "x": 0,
       "y": 4100,
-      "name": "AvatarStackSummary",
+      "name": "design::AvatarStackSummary",
       "reusable": true,
       "gap": "$spacing-md",
       "alignItems": "center",
@@ -7010,14 +7225,19 @@
           "fontSize": "$font-size-sm",
           "fontWeight": "600"
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "AvatarStackSummary"
+      }
     },
     {
       "type": "frame",
       "id": "PL9Ta",
       "x": 1400,
       "y": 4100,
-      "name": "RefreshProgressBar",
+      "name": "design::RefreshProgressBar",
       "reusable": true,
       "width": 960,
       "height": 2,
@@ -7044,14 +7264,19 @@
           "width": 336,
           "height": 2
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "RefreshProgressBar"
+      }
     },
     {
       "type": "frame",
       "id": "JkTAn",
       "x": 400,
       "y": 4100,
-      "name": "ListPageFooter",
+      "name": "design::ListPageFooter",
       "reusable": true,
       "width": 960,
       "gap": "$spacing-md",
@@ -7135,14 +7360,19 @@
             }
           ]
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "ListPageFooter"
+      }
     },
     {
       "type": "frame",
       "id": "dXxF1",
       "x": 0,
       "y": 2900,
-      "name": "PageFrame",
+      "name": "design::PageFrame",
       "reusable": true,
       "width": 1052,
       "height": 784,
@@ -7227,14 +7457,19 @@
             }
           ]
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "PageFrame"
+      }
     },
     {
       "type": "frame",
       "id": "Bis3b",
       "x": 1400,
       "y": 2000,
-      "name": "ToolView",
+      "name": "design::ToolView",
       "reusable": true,
       "width": 1280,
       "height": 800,
@@ -7267,7 +7502,7 @@
               "id": "TE9wc",
               "name": "Back Link",
               "fill": "$color-primary",
-              "content": "\u2190 Recordings",
+              "content": "← Recordings",
               "lineHeight": 1.5,
               "fontFamily": "$font-sans",
               "fontSize": "$font-size-md",
@@ -7357,14 +7592,19 @@
           "strokeAlignment": "inner",
           "layout": "vertical"
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "ToolView"
+      }
     },
     {
       "type": "frame",
       "id": "lD6Wg",
       "x": 0,
       "y": 2000,
-      "name": "AppShell",
+      "name": "design::AppShell",
       "reusable": true,
       "width": 1280,
       "height": 800,
@@ -7463,7 +7703,12 @@
             }
           ]
         }
-      ]
+      ],
+      "metadata": {
+        "type": "master",
+        "package": "design",
+        "component": "AppShell"
+      }
     },
     {
       "type": "frame",
@@ -9568,7 +9813,7 @@
                       "id": "HC7Eh",
                       "name": "Subtitle",
                       "fill": "$color-text-secondary",
-                      "content": "admin@acme.co \u00b7 acc_7a3b2c1d4e",
+                      "content": "admin@acme.co · acc_7a3b2c1d4e",
                       "fontFamily": "Inter",
                       "fontSize": "$font-size-sm",
                       "fontWeight": "normal"
@@ -9747,7 +9992,7 @@
                           "id": "jCsdY",
                           "name": "Value",
                           "fill": "$color-text-secondary",
-                          "content": "12 recordings \u00b7 5 users \u00b7 3 projects",
+                          "content": "12 recordings · 5 users · 3 projects",
                           "fontFamily": "Inter",
                           "fontSize": "$font-size-sm",
                           "fontWeight": "normal"

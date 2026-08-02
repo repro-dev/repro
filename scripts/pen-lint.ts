@@ -1,23 +1,28 @@
 #!/usr/bin/env node
-// REP-1620: deterministic pen -> code sync CLI.
+// REP-1618: deterministic pen -> code sync CLI.
 //
-// Replaces LLM-dependent pen -> code translation with a deterministic gate:
-//   - Check mode (default): read-only validation of conventions against
-//     repro.pen. Exits 0 when clean, non-zero on violations. Used as a
-//     pre-push hook.
+// Replaces the component-map registry with a master naming
+// convention: every master is named <package>::<ComponentName> (e.g.
+// design::Button) and the package prefix must resolve to a real export
+// from packages/<package>/src. The scope is always @repro, so the bare
+// package name disambiguates.
+//
+// Modes:
+//   - Check mode (default): read-only validation of the naming convention
+//     and export resolvability against repro.pen. Exits 0 when clean,
+//     non-zero on violations.
+//   - Dry-run mode (--dry-run): lists every required resolution as machine
+//     JSON on stdout (candidate ranking per master) without touching the
+//     pen file. Exit 0 iff every master is resolvable.
 //   - Apply mode (--apply): renames masters to package::ComponentName,
-//     writes metadata on every master, and saves repro.pen. Exits non-zero
-//     for issues it cannot auto-fix.
+//     writes { type: 'master', package, component } metadata, and saves
+//     repro.pen. Single-candidate masters auto-rename; ambiguous masters
+//     prompt in a TTY or emit JSON + exit non-zero otherwise. Exit
+//     non-zero for anything it cannot resolve (see REP-1621 for the
+//     Toast/AdminTable no-candidate masters).
 //   - Export mode (--export): exports screens to PNG + HTML via the pen CLI
-//     and regenerates the screens index in pen-component-map.json.
-//
-// Naming rules (see pen-component-map.json header):
-//   - Master name: <package>::<ComponentName>, e.g. design::Button.
-//   - The component-map KEY is the canonical component name. The `code`
-//     field carries the actual code reference ("@repro/<pkg> <Token>").
-//     Export validation resolves the code token (AdminTable maps to the
-//     Table export), while the master name uses the map key so names stay
-//     unique and resolvable back to the registry.
+//     and regenerates the catalog (with the screens index) in
+//     tmp/pen-catalog.json.
 import { spawn } from 'node:child_process'
 import {
   closeSync,
@@ -25,16 +30,17 @@ import {
   mkdirSync,
   openSync,
   readFileSync,
+  readdirSync,
   rmSync,
   writeFileSync,
 } from 'node:fs'
 import { dirname, resolve } from 'node:path'
+import { createInterface } from 'node:readline/promises'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 export const REPO_ROOT = resolve(__dirname, '..')
 export const PEN_FILE = resolve(REPO_ROOT, 'repro.pen')
-export const COMPONENT_MAP_FILE = resolve(REPO_ROOT, 'pen-component-map.json')
 export const CATALOG_OUTPUT = resolve(REPO_ROOT, 'tmp/pen-catalog.json')
 export const EXPORT_DIR = resolve(REPO_ROOT, 'tmp/pen-screens')
 
@@ -43,6 +49,7 @@ export interface PenNode {
   id: string
   name: string
   reusable?: boolean
+  metadata?: Record<string, string>
   [key: string]: unknown
 }
 
@@ -72,18 +79,6 @@ export interface ScreenInfo {
   normalizedName: string
   width?: unknown
   height?: unknown
-}
-
-export interface ComponentMapEntry {
-  masterId: string
-  code: string
-  [key: string]: unknown
-}
-
-export interface ComponentMap {
-  components: Record<string, ComponentMapEntry>
-  screens?: Record<string, string>
-  [key: string]: unknown
 }
 
 // ---------------------------------------------------------------------------
@@ -187,13 +182,10 @@ export function validateMasterName(name: string): boolean {
   return MASTER_NAME_PATTERN.test(name)
 }
 
-/** Parse "@repro/<pkg> <Token> (notes)" into { pkg, comp }. */
-export function determinePackagePrefix(
-  code: string
-): { pkg: string; comp: string } | null {
-  const match = /^@repro\/([a-z0-9-]+)\s+([A-Za-z0-9_]+)/.exec(code)
-  if (!match) return null
-  return { pkg: match[1]!, comp: match[2]! }
+/** Split "pkg::Component" into [pkg, Component]. */
+function splitMasterName(name: string): [string, string] {
+  const idx = name.indexOf('::')
+  return [name.slice(0, idx), name.slice(idx + 2)]
 }
 
 /** Map a package name to packages/<pkg>/, null when it does not exist. */
@@ -360,7 +352,140 @@ export function findScreenShapeDuplicates(
 }
 
 // ---------------------------------------------------------------------------
-// Catalog (Phase 1) — runs in check and apply modes
+// Candidate inference (replaces the component map)
+// ---------------------------------------------------------------------------
+
+/**
+ * Re-export names per package, computed once per run by reusing the
+ * battle-tested `collectExports` barrel parser. Packages without a
+ * src/index.ts|tsx are skipped.
+ */
+export function collectAllPackageExports(
+  repoRoot: string = REPO_ROOT
+): Map<string, Set<string>> {
+  const result = new Map<string, Set<string>>()
+  const packagesDir = resolve(repoRoot, 'packages')
+  if (!existsSync(packagesDir)) return result
+  for (const entry of readdirSync(packagesDir, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue
+    const srcDir = resolve(packagesDir, entry.name, 'src')
+    const indexFile = [
+      resolve(srcDir, 'index.ts'),
+      resolve(srcDir, 'index.tsx'),
+    ].find(candidate => existsSync(candidate))
+    if (!indexFile) continue
+    result.set(entry.name, collectExports(srcDir, new Set(), 0))
+  }
+  return result
+}
+
+export interface CandidateInfo {
+  package: string
+  component: string
+  confidence: string
+}
+
+/** Standard Levenshtein edit distance (small strings, bounded by export size). */
+function levenshtein(a: string, b: string): number {
+  const m = a.length
+  const n = b.length
+  if (m === 0) return n
+  if (n === 0) return m
+  let prev = Array.from({ length: n + 1 }, (_, j) => j)
+  for (let i = 1; i <= m; i++) {
+    const curr = [i] as number[]
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1
+      curr[j] = Math.min(prev[j]! + 1, curr[j - 1]! + 1, prev[j - 1]! + cost)
+    }
+    prev = curr
+  }
+  return prev[n]!
+}
+
+const byPkgComp = (a: CandidateInfo, b: CandidateInfo): number =>
+  a.package === b.package
+    ? a.component.localeCompare(b.component)
+    : a.package.localeCompare(b.package)
+
+/**
+ * Suggest package::ComponentName bindings for a master name.
+ *
+ * Tier 1 (exact): exported names equal to the master's component-name part
+ * (text after `::`, or the whole name when unprefixed) whose qualified form
+ * passes `validateMasterName` — the ONLY tier that ever auto-applies.
+ * Tier 2 (closest, zero-exact only): case-insensitive exact -> prefix ->
+ * substring -> edit distance, capped at ~3. Never auto-applied.
+ */
+export function inferCandidates(
+  masterName: string,
+  exportsByPackage: Map<string, Set<string>>
+): { exact: string[]; closest: CandidateInfo[] } {
+  const componentPart = masterName.includes('::')
+    ? (masterName.split('::').pop() as string)
+    : masterName
+
+  const exact: string[] = []
+  const caseInsensitive: CandidateInfo[] = []
+  const prefix: CandidateInfo[] = []
+  const substring: CandidateInfo[] = []
+  const edit: Array<CandidateInfo & { distance: number }> = []
+
+  for (const pkg of [...exportsByPackage.keys()].sort()) {
+    const names = exportsByPackage.get(pkg)!
+    for (const name of [...names].sort()) {
+      const qualified = `${pkg}::${name}`
+      if (name === componentPart && validateMasterName(qualified)) {
+        exact.push(qualified)
+        continue
+      }
+      // Closest tiers only matter when there is no exact candidate at all.
+      if (exact.length > 0) continue
+      if (name.toLowerCase() === componentPart.toLowerCase()) {
+        caseInsensitive.push({
+          package: pkg,
+          component: name,
+          confidence: 'case-insensitive',
+        })
+      } else if (name.startsWith(componentPart)) {
+        prefix.push({ package: pkg, component: name, confidence: 'prefix' })
+      } else if (name.includes(componentPart) || componentPart.includes(name)) {
+        substring.push({
+          package: pkg,
+          component: name,
+          confidence: 'substring',
+        })
+      } else {
+        const distance = levenshtein(componentPart, name)
+        if (distance <= Math.max(3, Math.floor(componentPart.length / 3))) {
+          edit.push({
+            package: pkg,
+            component: name,
+            confidence: 'edit',
+            distance,
+          })
+        }
+      }
+    }
+  }
+
+  if (exact.length > 0) return { exact: exact.sort(), closest: [] }
+
+  const editSorted = edit
+    .sort((a, b) => a.distance - b.distance || byPkgComp(a, b))
+    .map(({ distance: _distance, ...rest }) => rest)
+  const closest = [
+    ...caseInsensitive.sort(byPkgComp),
+    ...prefix.sort(byPkgComp),
+    ...substring.sort(byPkgComp),
+    ...editSorted,
+  ].slice(0, 3)
+
+  return { exact, closest }
+}
+
+// ---------------------------------------------------------------------------
+// Catalog (runs in check and export modes)
 // ---------------------------------------------------------------------------
 
 export function buildScreensIndex(
@@ -377,9 +502,11 @@ function writeCatalog(
   log: (msg: string) => void
 ): void {
   mkdirSync(dirname(catalogOutput), { recursive: true })
+  const screens = extractScreens(pen)
   const catalog = {
     masters: extractMasters(pen),
-    screens: extractScreens(pen),
+    screens,
+    screensIndex: buildScreensIndex(screens),
     variables: extractVariables(pen),
   }
   writeFileSync(catalogOutput, JSON.stringify(catalog, null, 2) + '\n')
@@ -387,20 +514,193 @@ function writeCatalog(
 }
 
 // ---------------------------------------------------------------------------
-// Check mode (Phase 2)
+// Modes
 // ---------------------------------------------------------------------------
 
 export interface RunOptions {
   penFile?: string
-  componentMapFile?: string
   catalogOutput?: string
   exportDir?: string
   log?: (msg: string) => void
+  jsonOut?: (json: string) => void
+  select?: Record<string, string>
+  tty?: boolean
+  prompt?: (masterName: string, choices: string[]) => Promise<number | null>
 }
+
+export type MasterStatus =
+  | 'conforming'
+  | 'auto'
+  | 'select'
+  | 'ambiguous'
+  | 'no-candidate'
+  | 'violation'
+
+export interface PlanEntry {
+  masterId: string
+  masterName: string
+  status: MasterStatus
+  proposedName?: string
+  candidates?: CandidateInfo[]
+  closestMatches?: CandidateInfo[]
+  reason?: string
+}
+
+export interface ResolutionPlan {
+  entries: PlanEntry[]
+  resolved: number
+  unresolved: number
+  invalidSelect: string[]
+}
+
+/**
+ * Shared per-master resolution plan used by dry-run: for every master,
+ * decide whether it conforms, can be auto-renamed, needs --select, is
+ * ambiguous, has no candidate, or is a violation.
+ */
+export function buildResolutionPlan(
+  pen: PenFile,
+  exportsByPackage: Map<string, Set<string>>,
+  select: Record<string, string>
+): ResolutionPlan {
+  const masters = extractMasters(pen)
+  const entries: PlanEntry[] = []
+  const seenIds = new Set<string>()
+  let resolved = 0
+  let unresolved = 0
+
+  for (const master of masters) {
+    seenIds.add(master.id)
+    const override = select[master.id]
+    if (override !== undefined) {
+      const validation = validateResolvedName(override, exportsByPackage)
+      if (!validation.ok) {
+        entries.push({
+          masterId: master.id,
+          masterName: master.name,
+          status: 'violation',
+          reason: `--select "${override}" invalid: ${validation.reason}`,
+        })
+        unresolved++
+      } else {
+        entries.push({
+          masterId: master.id,
+          masterName: master.name,
+          status: 'select',
+          proposedName: override,
+          candidates: [
+            {
+              package: validation.pkg,
+              component: validation.comp,
+              confidence: 'exact',
+            },
+          ],
+        })
+        resolved++
+      }
+      continue
+    }
+
+    if (validateMasterName(master.name)) {
+      const [pkg, comp] = splitMasterName(master.name)
+      const ex = exportsByPackage.get(pkg)
+      if (!resolvePackagePath(pkg)) {
+        entries.push({
+          masterId: master.id,
+          masterName: master.name,
+          status: 'violation',
+          reason: `package "${pkg}" does not exist`,
+        })
+        unresolved++
+      } else if (!ex || !ex.has(comp)) {
+        entries.push({
+          masterId: master.id,
+          masterName: master.name,
+          status: 'violation',
+          reason: `"${comp}" is not exported from @repro/${pkg}`,
+        })
+        unresolved++
+      } else {
+        entries.push({
+          masterId: master.id,
+          masterName: master.name,
+          status: 'conforming',
+        })
+        resolved++
+      }
+      continue
+    }
+
+    const inference = inferCandidates(master.name, exportsByPackage)
+    if (inference.exact.length === 1) {
+      const target = inference.exact[0]!
+      const [pkg, comp] = splitMasterName(target)
+      entries.push({
+        masterId: master.id,
+        masterName: master.name,
+        status: 'auto',
+        proposedName: target,
+        candidates: [{ package: pkg, component: comp, confidence: 'exact' }],
+      })
+      resolved++
+    } else if (inference.exact.length > 1) {
+      entries.push({
+        masterId: master.id,
+        masterName: master.name,
+        status: 'ambiguous',
+        candidates: inference.exact.map(target => {
+          const [pkg, comp] = splitMasterName(target)
+          return { package: pkg, component: comp, confidence: 'exact' }
+        }),
+      })
+      unresolved++
+    } else {
+      entries.push({
+        masterId: master.id,
+        masterName: master.name,
+        status: 'no-candidate',
+        closestMatches: inference.closest,
+      })
+      unresolved++
+    }
+  }
+
+  const invalidSelect: string[] = []
+  for (const [id] of Object.entries(select)) {
+    if (!seenIds.has(id)) {
+      invalidSelect.push(`--select references unknown master "${id}"`)
+      unresolved++
+    }
+  }
+
+  return { entries, resolved, unresolved, invalidSelect }
+}
+
+/** Validate a user-supplied package::ComponentName resolution. */
+function validateResolvedName(
+  name: string,
+  exportsByPackage: Map<string, Set<string>>
+): { ok: true; pkg: string; comp: string } | { ok: false; reason: string } {
+  if (!validateMasterName(name)) {
+    return { ok: false, reason: 'not package::ComponentName' }
+  }
+  const [pkg, comp] = splitMasterName(name)
+  if (!resolvePackagePath(pkg)) {
+    return { ok: false, reason: `package "${pkg}" does not exist` }
+  }
+  const ex = exportsByPackage.get(pkg)
+  if (!ex || !ex.has(comp)) {
+    return { ok: false, reason: `"${comp}" is not exported from @repro/${pkg}` }
+  }
+  return { ok: true, pkg, comp }
+}
+
+// ---------------------------------------------------------------------------
+// Check mode (default)
+// ---------------------------------------------------------------------------
 
 export function runCheck(options: RunOptions = {}): number {
   const penFile = options.penFile ?? PEN_FILE
-  const componentMapFile = options.componentMapFile ?? COMPONENT_MAP_FILE
   const catalogOutput = options.catalogOutput ?? CATALOG_OUTPUT
   const log = options.log ?? ((msg: string) => console.error(msg))
 
@@ -415,72 +715,41 @@ export function runCheck(options: RunOptions = {}): number {
 
   const violations: string[] = []
   const masters = extractMasters(pen)
-
-  // Load the component map for name/export expectations.
-  let componentMap: ComponentMap = { components: {} }
-  if (existsSync(componentMapFile)) {
-    componentMap = JSON.parse(
-      readFileSync(componentMapFile, 'utf8')
-    ) as ComponentMap
-  } else {
-    violations.push(`component map missing: ${componentMapFile}`)
-  }
-
-  const masterIds = new Set(
-    Object.values(componentMap.components).map(c => c.masterId)
-  )
+  const exportsByPackage = collectAllPackageExports()
 
   for (const master of masters) {
-    const entry = Object.entries(componentMap.components).find(
-      ([, value]) => value.masterId === master.id
-    )
-    if (entry) {
-      const [mapKey, value] = entry
-      const parsed = determinePackagePrefix(value.code)
-      const expected = parsed ? `${parsed.pkg}::${mapKey}` : null
-      if (expected && master.name !== expected) {
-        violations.push(
-          `master ${master.id} "${master.name}" should be named ${expected}`
-        )
-      }
-      if (!parsed) {
-        violations.push(
-          `master ${master.id} "${master.name}": code field "${value.code}" is not @repro/<pkg> <Token>`
-        )
+    if (validateMasterName(master.name)) {
+      const [pkg, comp] = splitMasterName(master.name)
+      if (!resolvePackagePath(pkg)) {
+        violations.push(`master ${master.id}: package "${pkg}" does not exist`)
         continue
       }
-      if (!resolvePackagePath(parsed.pkg)) {
+      const ex = exportsByPackage.get(pkg)
+      if (!ex || !ex.has(comp)) {
         violations.push(
-          `master ${master.id}: package "${parsed.pkg}" does not exist`
-        )
-      }
-      if (!checkComponentExport(parsed.pkg, parsed.comp)) {
-        violations.push(
-          `master ${master.id}: "${parsed.comp}" is not exported from @repro/${parsed.pkg}`
+          `master ${master.id}: "${comp}" is not exported from @repro/${pkg}`
         )
       }
       continue
     }
 
-    // No component-map entry: fall back to pattern + resolvability checks.
-    if (!validateMasterName(master.name)) {
+    // Unprefixed / non-conforming: recommend candidates, never a command.
+    const inference = inferCandidates(master.name, exportsByPackage)
+    if (inference.exact.length === 1) {
       violations.push(
-        `master ${master.id} "${master.name}" violates package::ComponentName`
+        `master ${master.id} "${master.name}" does not have a package name prefix — did you mean \`${inference.exact[0]}\`?`
+      )
+    } else if (inference.exact.length > 1) {
+      const options = inference.exact.map(n => `\`${n}\``).join(', ')
+      violations.push(
+        `master ${master.id} "${master.name}" has multiple candidate packages — did you mean one of ${options}?`
       )
     } else {
-      const [pkg] = master.name.split('::') as [string, string]
-      if (!resolvePackagePath(pkg)) {
-        violations.push(`master ${master.id}: package "${pkg}" does not exist`)
-      }
-    }
-  }
-
-  // Component-map entries that have no master in the pen are fine (noMaster
-  // components), but masters without an entry are drift.
-  for (const master of masters) {
-    if (!masterIds.has(master.id)) {
+      const matches = inference.closest
+        .map(c => `\`${c.package}::${c.component}\``)
+        .join(', ')
       violations.push(
-        `master ${master.id} "${master.name}" has no pen-component-map.json entry`
+        `master ${master.id} "${master.name}" has no matching component export — closest matches: ${matches}. Flag for human resolution (see REP-1621).`
       )
     }
   }
@@ -511,13 +780,13 @@ export function runCheck(options: RunOptions = {}): number {
 }
 
 // ---------------------------------------------------------------------------
-// Apply mode (Phase 3)
+// Dry-run mode (--dry-run)
 // ---------------------------------------------------------------------------
 
-export function runApply(options: RunOptions = {}): number {
+export function runDryRun(options: RunOptions = {}): number {
   const penFile = options.penFile ?? PEN_FILE
-  const componentMapFile = options.componentMapFile ?? COMPONENT_MAP_FILE
   const log = options.log ?? ((msg: string) => console.error(msg))
+  const jsonOut = options.jsonOut ?? ((json: string) => console.log(json))
 
   let pen: PenFile
   try {
@@ -527,77 +796,242 @@ export function runApply(options: RunOptions = {}): number {
     return 1
   }
 
-  let componentMap: ComponentMap
+  const exportsByPackage = collectAllPackageExports()
+  const plan = buildResolutionPlan(pen, exportsByPackage, options.select ?? {})
+
+  const report = {
+    mode: 'dry-run',
+    clean: plan.unresolved === 0,
+    resolved: plan.resolved,
+    unresolved: plan.unresolved,
+    invalidSelect: plan.invalidSelect,
+    masters: plan.entries,
+  }
+  jsonOut(JSON.stringify(report, null, 2))
+  log(
+    `dry-run: ${plan.resolved} master(s) resolvable, ${plan.unresolved} unresolved.`
+  )
+  return plan.unresolved === 0 ? 0 : 1
+}
+
+// ---------------------------------------------------------------------------
+// Apply mode (--apply)
+// ---------------------------------------------------------------------------
+
+/**
+ * Rename a master node and set its resolved-binding metadata. Returns true
+ * when the node actually changed (name or metadata), so the pen file is only
+ * written when there is a real diff.
+ */
+function applyBinding(
+  node: PenNode,
+  masterId: string,
+  name: string,
+  pkg: string,
+  comp: string,
+  log: (msg: string) => void
+): boolean {
+  let changed = false
+  if (node.name !== name) {
+    log(`renaming master ${masterId} "${node.name}" -> ${name}`)
+    node.name = name
+    changed = true
+  }
+  const metadata: Record<string, string> = {
+    type: 'master',
+    package: pkg,
+    component: comp,
+  }
+  const current =
+    node.metadata && typeof node.metadata === 'object'
+      ? node.metadata
+      : undefined
+  if (
+    !current ||
+    current.type !== 'master' ||
+    current.package !== pkg ||
+    current.component !== comp
+  ) {
+    node.metadata = metadata
+    changed = true
+  }
+  return changed
+}
+
+/** Numbered confirmation prompt for ambiguous masters (TTY only). */
+async function interactivePrompt(
+  masterName: string,
+  choices: string[]
+): Promise<number | null> {
+  const rl = createInterface({ input: process.stdin, output: process.stderr })
   try {
-    componentMap = JSON.parse(
-      readFileSync(componentMapFile, 'utf8')
-    ) as ComponentMap
-  } catch (err) {
-    log(
-      `ERROR: failed to read component map ${componentMapFile}: ${String(err)}`
+    process.stderr.write(
+      `Master "${masterName}" has multiple candidate packages:\n`
     )
+    choices.forEach((c, i) => process.stderr.write(`  [${i + 1}] ${c}\n`))
+    const answer = await rl.question('Select [1-N] / s=skip / q=quit: ')
+    const trimmed = answer.trim()
+    if (trimmed === 's' || trimmed === 'q' || trimmed === '') return null
+    const idx = Number.parseInt(trimmed, 10)
+    if (Number.isNaN(idx) || idx < 1 || idx > choices.length) return null
+    return idx - 1
+  } finally {
+    rl.close()
+  }
+}
+
+export async function runApply(options: RunOptions = {}): Promise<number> {
+  const penFile = options.penFile ?? PEN_FILE
+  const log = options.log ?? ((msg: string) => console.error(msg))
+  const jsonOut = options.jsonOut ?? ((json: string) => console.log(json))
+  const tty = options.tty ?? process.stdout.isTTY
+  const prompt = options.prompt ?? interactivePrompt
+
+  let pen: PenFile
+  try {
+    pen = parsePenJson(readFileSync(penFile, 'utf8'))
+  } catch (err) {
+    log(`ERROR: failed to read or parse ${penFile}: ${String(err)}`)
     return 1
   }
 
+  const exportsByPackage = collectAllPackageExports()
+  const select = options.select ?? {}
   const masters = extractMasters(pen)
-  const unfixable: string[] = []
-  let renamed = 0
+  const unresolved: string[] = []
+  const ambiguousEntries: PlanEntry[] = []
+  let accepted = 0
+  let skipped = 0
+  let changed = false
 
   for (const master of masters) {
-    const entry = Object.entries(componentMap.components).find(
-      ([, value]) => value.masterId === master.id
-    )
-    if (!entry) {
-      unfixable.push(
-        `master ${master.id} "${master.name}" has no pen-component-map.json entry`
-      )
-      continue
-    }
-    const [mapKey, value] = entry
-    const parsed = determinePackagePrefix(value.code)
-    if (!parsed) {
-      unfixable.push(
-        `master ${master.id} "${master.name}": code field "${value.code}" is not @repro/<pkg> <Token>`
-      )
-      continue
-    }
-    if (!resolvePackagePath(parsed.pkg)) {
-      unfixable.push(
-        `master ${master.id}: package "${parsed.pkg}" does not exist`
-      )
-    }
-    if (!checkComponentExport(parsed.pkg, parsed.comp)) {
-      unfixable.push(
-        `master ${master.id}: "${parsed.comp}" is not exported from @repro/${parsed.pkg}`
-      )
-    }
-
-    const expected = `${parsed.pkg}::${mapKey}`
     const node = pen.children.find(child => child.id === master.id)
     if (!node) continue
-    if (node.name !== expected) {
-      log(`renaming master ${master.id} "${node.name}" -> ${expected}`)
-      node.name = expected
-      renamed++
+
+    const override = select[master.id]
+    if (override !== undefined) {
+      const validation = validateResolvedName(override, exportsByPackage)
+      if (!validation.ok) {
+        unresolved.push(
+          `master ${master.id} "${master.name}": --select "${override}" invalid — ${validation.reason}`
+        )
+        continue
+      }
+      if (
+        applyBinding(
+          node,
+          master.id,
+          override,
+          validation.pkg,
+          validation.comp,
+          log
+        )
+      ) {
+        changed = true
+      }
+      accepted++
+      continue
     }
-    node.metadata = {
-      type: 'component-map',
-      package: parsed.pkg,
-      component: mapKey,
+
+    if (validateMasterName(master.name)) {
+      const [pkg, comp] = splitMasterName(master.name)
+      const ex = exportsByPackage.get(pkg)
+      if (!ex || !ex.has(comp)) {
+        unresolved.push(
+          `master ${master.id} "${master.name}": "${comp}" is not exported from @repro/${pkg}`
+        )
+        continue
+      }
+      if (applyBinding(node, master.id, master.name, pkg, comp, log)) {
+        changed = true
+      }
+      accepted++
+      continue
+    }
+
+    const inference = inferCandidates(master.name, exportsByPackage)
+    if (inference.exact.length === 1) {
+      // Single unambiguous candidate -> auto-rename without prompting.
+      const target = inference.exact[0]!
+      const [pkg, comp] = splitMasterName(target)
+      if (applyBinding(node, master.id, target, pkg, comp, log)) {
+        changed = true
+      }
+      accepted++
+      continue
+    }
+    if (inference.exact.length > 1) {
+      const entry: PlanEntry = {
+        masterId: master.id,
+        masterName: master.name,
+        status: 'ambiguous',
+        candidates: inference.exact.map(target => {
+          const [pkg, comp] = splitMasterName(target)
+          return { package: pkg, component: comp, confidence: 'exact' }
+        }),
+      }
+      ambiguousEntries.push(entry)
+      if (tty) {
+        const choice = await prompt(master.name, inference.exact)
+        if (choice !== null && choice >= 0 && choice < inference.exact.length) {
+          const target = inference.exact[choice]!
+          const [pkg, comp] = splitMasterName(target)
+          if (applyBinding(node, master.id, target, pkg, comp, log)) {
+            changed = true
+          }
+          accepted++
+        } else {
+          unresolved.push(
+            `master ${master.id} "${master.name}": skipped in confirmation prompt`
+          )
+        }
+      } else {
+        unresolved.push(
+          `master ${master.id} "${
+            master.name
+          }": ambiguous (${inference.exact.join(
+            ', '
+          )}) — re-run with --select ${master.id}=<package::ComponentName>`
+        )
+      }
+      continue
+    }
+
+    // No candidate: skip, report closest matches, flag for human resolution.
+    skipped++
+    const matches = inference.closest
+      .map(c => `\`${c.package}::${c.component}\``)
+      .join(', ')
+    unresolved.push(
+      `master ${master.id} "${master.name}": no matching component export — closest matches: ${matches}. Flag for human resolution (see REP-1621).`
+    )
+  }
+
+  for (const [id] of Object.entries(select)) {
+    if (!masters.some(m => m.id === id)) {
+      unresolved.push(`--select references unknown master "${id}"`)
     }
   }
 
-  if (unfixable.length > 0) {
-    for (const issue of unfixable) log(`unfixable: ${issue}`)
-    // Save the fixable part anyway so partial progress is not lost.
+  if (ambiguousEntries.length > 0 && !tty) {
+    jsonOut(
+      JSON.stringify({ mode: 'apply', masters: ambiguousEntries }, null, 2)
+    )
+  }
+
+  if (changed) {
     writeFileSync(penFile, JSON.stringify(pen, null, 2) + '\n')
-    log(`${unfixable.length} unfixable issue(s) require manual intervention.`)
+  }
+
+  log(
+    `apply summary: ${accepted} accepted, ${skipped} skipped, ${ambiguousEntries.length} ambiguous, ${unresolved.length} unresolved.`
+  )
+  if (unresolved.length > 0) {
+    for (const issue of unresolved) log(`unresolved: ${issue}`)
     return 1
   }
-
-  writeFileSync(penFile, JSON.stringify(pen, null, 2) + '\n')
-  if (renamed > 0) {
-    log(`Applied ${renamed} master rename(s) and metadata to ${penFile}`)
+  if (changed) {
+    log(`Applied master renames and metadata to ${penFile}`)
   } else {
     log(`pen file already conforming — no changes (${penFile})`)
   }
@@ -605,7 +1039,7 @@ export function runApply(options: RunOptions = {}): number {
 }
 
 // ---------------------------------------------------------------------------
-// Export mode (Phase 4)
+// Export mode (--export)
 // ---------------------------------------------------------------------------
 
 /** Strip ANSI escapes and pull the tool-response JSON from a session stream. */
@@ -746,64 +1180,9 @@ async function exportScreensHTML(
   }
 }
 
-/** Index of the closing brace matching the brace at <open>, string-aware. */
-function matchingBrace(text: string, open: number): number {
-  let depth = 0
-  let inString = false
-  let escaped = false
-  for (let i = open; i < text.length; i++) {
-    const ch = text[i]!
-    if (inString) {
-      if (escaped) escaped = false
-      else if (ch === '\\') escaped = true
-      else if (ch === '"') inString = false
-      continue
-    }
-    if (ch === '"') inString = true
-    else if (ch === '{') depth++
-    else if (ch === '}') {
-      depth--
-      if (depth === 0) return i
-    }
-  }
-  return -1
-}
-
-/**
- * Replace only the "screens" object in pen-component-map.json, preserving the
- * file's compact formatting for everything else.
- */
-function writeScreensIndex(
-  componentMapFile: string,
-  screens: ScreenInfo[],
-  log: (msg: string) => void
-): void {
-  const raw = readFileSync(componentMapFile, 'utf8')
-  const marker = '"screens":'
-  const keyIdx = raw.indexOf(marker)
-  if (keyIdx === -1) {
-    throw new Error(`${componentMapFile} has no "screens" key`)
-  }
-  const braceOpen = raw.indexOf('{', keyIdx + marker.length)
-  if (braceOpen === -1) {
-    throw new Error(`${componentMapFile}: cannot locate screens object`)
-  }
-  const braceClose = matchingBrace(raw, braceOpen)
-  if (braceClose === -1) {
-    throw new Error(`${componentMapFile}: malformed screens object`)
-  }
-  const entries = Object.entries(buildScreensIndex(screens))
-    .map(([name, id]) => `    ${JSON.stringify(name)}: ${JSON.stringify(id)}`)
-    .join(',\n')
-  const replacement = `"screens": {\n${entries}\n  }`
-  const updated = raw.slice(0, keyIdx) + replacement + raw.slice(braceClose + 1)
-  writeFileSync(componentMapFile, updated)
-  log(`Screens index written to ${componentMapFile}`)
-}
-
 export async function runExport(options: RunOptions = {}): Promise<number> {
   const penFile = options.penFile ?? PEN_FILE
-  const componentMapFile = options.componentMapFile ?? COMPONENT_MAP_FILE
+  const catalogOutput = options.catalogOutput ?? CATALOG_OUTPUT
   const exportDir = options.exportDir ?? EXPORT_DIR
   const log = options.log ?? ((msg: string) => console.error(msg))
 
@@ -828,7 +1207,7 @@ export async function runExport(options: RunOptions = {}): Promise<number> {
       log
     )
     await exportScreensHTML(penFile, screens, exportDir, log)
-    writeScreensIndex(componentMapFile, screens, log)
+    writeCatalog(pen, catalogOutput, log)
     return 0
   } catch (err) {
     log(`ERROR: ${String(err)}`)
@@ -841,17 +1220,52 @@ export async function runExport(options: RunOptions = {}): Promise<number> {
 // ---------------------------------------------------------------------------
 
 function printUsage(): void {
-  console.error(`pen-lint — deterministic pen -> code sync (REP-1620)
+  console.error(`pen-lint — deterministic pen -> code sync (REP-1618)
 
 Usage:
-  tsx scripts/pen-lint.ts               Check mode (default): validate repro.pen
-                                        conventions, exit non-zero on violations.
-  tsx scripts/pen-lint.ts --apply       Apply mode: rename masters to
-                                        package::ComponentName, set metadata,
-                                        save repro.pen. Non-zero if unfixable.
-  tsx scripts/pen-lint.ts --export      Export mode: screens to PNG + HTML and
-                                        regenerate pen-component-map.json screens.
-  tsx scripts/pen-lint.ts --help        Show this help.`)
+  tsx scripts/pen-lint.ts                 Check mode (default): validate master
+                                          naming against package exports, write
+                                          the catalog + screens index to
+                                          tmp/pen-catalog.json. Exit non-zero on
+                                          violations.
+  tsx scripts/pen-lint.ts --dry-run       List required resolutions as JSON on
+  [--select id=pkg::Name,...]             stdout without touching repro.pen.
+                                          Exit 0 iff every master is resolvable.
+  tsx scripts/pen-lint.ts --apply         Apply mode: rename masters to
+  [--select id=pkg::Name,...]             package::ComponentName, set metadata,
+                                          save repro.pen. Confirmation prompt for
+                                          ambiguous masters in a TTY; JSON
+                                          candidate list on stdout otherwise.
+  tsx scripts/pen-lint.ts --export        Export mode: screens to PNG + HTML and
+                                          regenerate the catalog + screens index.
+  tsx scripts/pen-lint.ts --help          Show this help.
+
+Exit codes:
+  0  clean / all masters resolved
+  1  violations or unresolved masters (see REP-1621 for Toast/AdminTable)
+
+JSON contract (--dry-run, non-TTY --apply):
+  { "mode": "dry-run", "clean": bool, "resolved": n, "unresolved": n,
+    "invalidSelect": [ ... ], "masters": [ { "masterId", "masterName",
+      "status", "proposedName"?, "candidates"?, "closestMatches"?,
+      "reason"? } ] }
+  status: conforming | auto | select | ambiguous | no-candidate | violation`)
+}
+
+/** Parse "--select m1=pkg::Name,m2=pkg::Name" into { masterId: name }. */
+function parseSelectArg(args: string[]): Record<string, string> {
+  const idx = args.indexOf('--select')
+  if (idx === -1 || idx + 1 >= args.length) return {}
+  const raw = args[idx + 1]!
+  const result: Record<string, string> = {}
+  for (const part of raw.split(',')) {
+    const eq = part.indexOf('=')
+    if (eq === -1) continue
+    const id = part.slice(0, eq).trim()
+    const name = part.slice(eq + 1).trim()
+    if (id && name) result[id] = name
+  }
+  return result
 }
 
 async function main(): Promise<void> {
@@ -860,8 +1274,12 @@ async function main(): Promise<void> {
     printUsage()
     process.exit(0)
   }
+  const select = parseSelectArg(args)
+  if (args.includes('--dry-run')) {
+    process.exit(runDryRun({ select }))
+  }
   if (args.includes('--apply')) {
-    process.exit(runApply())
+    process.exit(await runApply({ select }))
   }
   if (args.includes('--export')) {
     process.exit(await runExport())

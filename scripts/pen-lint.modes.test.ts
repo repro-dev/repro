@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, it } from 'node:test'
 
-import { runApply, runCheck } from './pen-lint.ts'
+import { runApply, runCheck, runDryRun } from './pen-lint.ts'
 
 const frame = (
   id: string,
@@ -18,79 +18,73 @@ const frame = (
   extra: Record<string, unknown> = {}
 ) => ({ type: 'frame', id, name, ...extra })
 
-const entry = (masterId: string, code: string) => ({
-  masterId,
-  code,
-  dims: {},
-  variants: {},
-  overrideToProps: {},
-})
-
-function fixturePenJson(): Record<string, unknown> {
+function fixturePenJson(
+  masters: Array<[string, string]>
+): Record<string, unknown> {
   return {
     version: '2.14',
     children: [
-      frame('m1', 'Button', {
-        reusable: true,
-        height: 36,
-        fill: '$color-info',
-      }),
-      frame('m2', 'Badge', { reusable: true, height: 24 }),
+      ...masters.map(([id, name]) =>
+        frame(id, name, { reusable: true, height: 36, fill: '$color-info' })
+      ),
       frame('s1', 'Screen: Demo', { width: 400, height: 300, children: [] }),
     ],
     variables: { 'color-info': { type: 'color', value: [] } },
   }
 }
 
-function fixtureComponentMapJson(): Record<string, unknown> {
-  return {
-    components: {
-      Button: entry('m1', '@repro/design Button'),
-      Badge: entry('m2', '@repro/design Badge'),
-    },
-    noMaster: [],
-    screens: {},
+function writePen(dir: string, pen: Record<string, unknown>): string {
+  const penFile = path.join(dir, 'fixture.pen')
+  writeFileSync(penFile, JSON.stringify(pen, null, 2))
+  return penFile
+}
+
+function readPen(penFile: string): {
+  children: Array<{
+    id: string
+    name: string
+    reusable?: boolean
+    metadata?: Record<string, string>
+  }>
+} {
+  return JSON.parse(readFileSync(penFile, 'utf8')) as {
+    children: Array<{
+      id: string
+      name: string
+      reusable?: boolean
+      metadata?: Record<string, string>
+    }>
   }
 }
 
-function writeFixture(
-  dir: string,
-  pen: Record<string, unknown>,
-  componentMap: Record<string, unknown>
-): { penFile: string; componentMapFile: string } {
-  const penFile = path.join(dir, 'fixture.pen')
-  const componentMapFile = path.join(dir, 'component-map.json')
-  writeFileSync(penFile, JSON.stringify(pen, null, 2))
-  writeFileSync(componentMapFile, JSON.stringify(componentMap, null, 2))
-  return { penFile, componentMapFile }
-}
+const masterOf = (
+  saved: ReturnType<typeof readPen>,
+  id: string
+): {
+  id: string
+  name: string
+  metadata?: Record<string, string>
+} => saved.children.find(c => c.id === id)!
 
-describe('REP-1620 pen-lint check mode end-to-end', () => {
-  it('exits non-zero with violations for unapplied masters, zero when clean', () => {
+describe('REP-1618 pen-lint check mode end-to-end', () => {
+  it('exits non-zero with did-you-mean recommendations, zero when clean', () => {
     const dir = mkdtempSync(path.join(tmpdir(), 'pen-lint-check-'))
     try {
-      const { penFile, componentMapFile } = writeFixture(
-        dir,
-        fixturePenJson(),
-        fixtureComponentMapJson()
-      )
+      const penFile = writePen(dir, fixturePenJson([['m1', 'Button']]))
       const catalogOutput = path.join(dir, 'catalog.json')
       const logs: string[] = []
 
       const checkCode = runCheck({
         penFile,
-        componentMapFile,
         catalogOutput,
         log: msg => logs.push(msg),
       })
-      assert.notEqual(checkCode, 0, 'unapplied fixture must fail check')
+      assert.notEqual(checkCode, 0, 'unprefixed master must fail check')
       assert.ok(
-        logs.some(l => l.includes('design::Button')),
-        'expected rename violation for Button'
-      )
-      assert.ok(
-        logs.some(l => l.includes('design::Badge')),
-        'expected rename violation for Badge'
+        logs.some(
+          l => l.includes('did you mean') && l.includes('design::Button')
+        ),
+        'expected did-you-mean recommendation'
       )
       assert.ok(
         existsSync(catalogOutput),
@@ -99,81 +93,162 @@ describe('REP-1620 pen-lint check mode end-to-end', () => {
       const catalog = JSON.parse(readFileSync(catalogOutput, 'utf8')) as {
         masters: unknown[]
         screens: unknown[]
+        screensIndex: Record<string, string>
         variables: Record<string, unknown>
       }
-      assert.equal(catalog.masters.length, 2)
+      assert.equal(catalog.masters.length, 1)
       assert.equal(catalog.screens.length, 1)
+      assert.deepEqual(catalog.screensIndex, { Demo: 's1' })
       assert.ok(catalog.variables['color-info'])
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
   })
 
-  it('flags masters whose code token is not exported from the package', () => {
-    const dir = mkdtempSync(path.join(tmpdir(), 'pen-lint-check-export-'))
+  it('flags zero-candidate masters with closest matches and a human-resolution note', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'pen-lint-check-nocand-'))
     try {
-      const pen = fixturePenJson()
-      const componentMap = fixtureComponentMapJson()
-      ;(pen.children as Array<{ reusable?: boolean; name: string }>).forEach(
-        child => {
-          if (child.reusable) child.name = `design::${child.name}`
-        }
-      )
-      ;(
-        componentMap.components as Record<string, { code: string }>
-      ).Button.code = '@repro/design DoesNotExistAnywhere'
-      const { penFile, componentMapFile } = writeFixture(dir, pen, componentMap)
+      const penFile = writePen(dir, fixturePenJson([['m1', 'AdminTable']]))
       const logs: string[] = []
       const code = runCheck({
         penFile,
-        componentMapFile,
         catalogOutput: path.join(dir, 'catalog.json'),
         log: msg => logs.push(msg),
       })
       assert.notEqual(code, 0)
-      assert.ok(
-        logs.some(l => l.includes('DoesNotExistAnywhere')),
-        'expected export violation'
-      )
+      const violation = logs.find(l => l.startsWith('violation:'))!
+      assert.ok(violation.includes('AdminTable'))
+      assert.ok(violation.includes('design::Table'), violation)
+      assert.ok(violation.includes('REP-1621'), violation)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
   })
 })
 
-describe('REP-1620 pen-lint apply mode end-to-end', () => {
-  it('renames masters, sets metadata, and becomes idempotent', () => {
+describe('REP-1618 pen-lint dry-run mode', () => {
+  it('emits machine JSON to stdout and never writes the pen file', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'pen-lint-dryrun-'))
+    try {
+      const penFile = writePen(
+        dir,
+        fixturePenJson([
+          ['m1', 'Button'],
+          ['m2', 'Badge'],
+        ])
+      )
+      const before = readFileSync(penFile, 'utf8')
+      const jsonOuts: string[] = []
+      const logs: string[] = []
+
+      const code = runDryRun({
+        penFile,
+        jsonOut: json => jsonOuts.push(json),
+        log: msg => logs.push(msg),
+      })
+      assert.equal(code, 0, 'all fixture masters are auto-resolvable')
+      assert.equal(
+        readFileSync(penFile, 'utf8'),
+        before,
+        'dry-run must not write the pen file'
+      )
+      const report = JSON.parse(jsonOuts.join('\n')) as {
+        mode: string
+        clean: boolean
+        resolved: number
+        unresolved: number
+        masters: Array<{
+          masterId: string
+          masterName: string
+          status: string
+          proposedName?: string
+          candidates?: Array<{ package: string; component: string }>
+        }>
+      }
+      assert.equal(report.mode, 'dry-run')
+      assert.equal(report.clean, true)
+      assert.equal(report.resolved, 2)
+      assert.equal(report.unresolved, 0)
+      const button = report.masters.find(m => m.masterId === 'm1')!
+      assert.equal(button.status, 'auto')
+      assert.equal(button.proposedName, 'design::Button')
+      assert.deepEqual(button.candidates, [
+        { package: 'design', component: 'Button', confidence: 'exact' },
+      ])
+      assert.ok(
+        logs.some(l => l.includes('2 master(s) resolvable')),
+        'human summary goes to stderr log'
+      )
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('exits non-zero when any master is unresolvable (no-candidate)', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'pen-lint-dryrun-unres-'))
+    try {
+      const penFile = writePen(
+        dir,
+        fixturePenJson([
+          ['m1', 'Button'],
+          ['m2', 'AdminTable'],
+        ])
+      )
+      const jsonOuts: string[] = []
+      const code = runDryRun({
+        penFile,
+        jsonOut: json => jsonOuts.push(json),
+        log: () => {},
+      })
+      assert.equal(code, 1, 'no-candidate master must make dry-run exit 1')
+      const report = JSON.parse(jsonOuts.join('\n')) as {
+        resolved: number
+        unresolved: number
+        masters: Array<{
+          masterId: string
+          status: string
+          closestMatches?: unknown[]
+        }>
+      }
+      assert.equal(report.resolved, 1)
+      assert.equal(report.unresolved, 1)
+      const admin = report.masters.find(m => m.masterId === 'm2')!
+      assert.equal(admin.status, 'no-candidate')
+      assert.ok(Array.isArray(admin.closestMatches))
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('REP-1618 pen-lint apply mode end-to-end', () => {
+  it('auto-renames single-candidate masters, writes metadata, and is idempotent', async () => {
     const dir = mkdtempSync(path.join(tmpdir(), 'pen-lint-apply-'))
     try {
-      const { penFile, componentMapFile } = writeFixture(
+      const penFile = writePen(
         dir,
-        fixturePenJson(),
-        fixtureComponentMapJson()
+        fixturePenJson([
+          ['m1', 'Button'],
+          ['m2', 'Badge'],
+        ])
       )
       const logs: string[] = []
 
-      const applyCode = runApply({
-        penFile,
-        componentMapFile,
-        log: msg => logs.push(msg),
-      })
-      assert.equal(applyCode, 0)
+      const applyCode = await runApply({ penFile, log: msg => logs.push(msg) })
+      assert.equal(applyCode, 0, logs.join('\n'))
 
-      const saved = JSON.parse(readFileSync(penFile, 'utf8')) as {
-        children: Array<{
-          id: string
-          name: string
-          reusable?: boolean
-          metadata?: Record<string, string>
-        }>
-      }
-      const masters = saved.children.filter(c => c.reusable)
-      assert.equal(masters.find(m => m.id === 'm1')!.name, 'design::Button')
-      assert.equal(masters.find(m => m.id === 'm2')!.name, 'design::Badge')
-      assert.deepEqual(masters.find(m => m.id === 'm1')!.metadata, {
-        type: 'component-map',
+      const saved = readPen(penFile)
+      assert.equal(masterOf(saved, 'm1').name, 'design::Button')
+      assert.equal(masterOf(saved, 'm2').name, 'design::Badge')
+      assert.deepEqual(masterOf(saved, 'm1').metadata, {
+        type: 'master',
         package: 'design',
         component: 'Button',
+      })
+      assert.deepEqual(masterOf(saved, 'm2').metadata, {
+        type: 'master',
+        package: 'design',
+        component: 'Badge',
       })
       // Screen frames are untouched by apply
       assert.equal(
@@ -182,19 +257,132 @@ describe('REP-1620 pen-lint apply mode end-to-end', () => {
       )
 
       // Idempotent: second apply is a no-op and check now passes
-      const applyAgain = runApply({
-        penFile,
-        componentMapFile,
-        log: () => {},
-      })
+      const applyAgain = await runApply({ penFile, log: () => {} })
       assert.equal(applyAgain, 0)
-      const checkAfter = runCheck({
+      const code = runCheck({
         penFile,
-        componentMapFile,
         catalogOutput: path.join(dir, 'catalog2.json'),
         log: () => {},
       })
-      assert.equal(checkAfter, 0, 'check must pass after apply')
+      assert.equal(code, 0, 'check must pass after apply')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('ambiguous master in non-TTY emits JSON and exits non-zero', async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'pen-lint-apply-ambig-'))
+    try {
+      const penFile = writePen(dir, fixturePenJson([['m1', 'EmptyState']]))
+      const before = readFileSync(penFile, 'utf8')
+      const jsonOuts: string[] = []
+      const logs: string[] = []
+
+      const code = await runApply({
+        penFile,
+        tty: false,
+        jsonOut: json => jsonOuts.push(json),
+        log: msg => logs.push(msg),
+      })
+      assert.equal(code, 1, 'ambiguous master must exit non-zero in non-TTY')
+      assert.equal(
+        readFileSync(penFile, 'utf8'),
+        before,
+        'non-TTY apply must not rename an ambiguous master'
+      )
+      const emitted = JSON.parse(jsonOuts.join('\n')) as {
+        mode: string
+        masters: Array<{ masterId: string; candidates: unknown[] }>
+      }
+      assert.equal(emitted.mode, 'apply')
+      assert.equal(emitted.masters[0]!.masterId, 'm1')
+      assert.equal(emitted.masters[0]!.candidates.length, 2)
+      assert.ok(
+        logs.some(l => l.includes('--select')),
+        'non-TTY logs must suggest --select'
+      )
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('ambiguous master resolves via the injected prompt in TTY mode', async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'pen-lint-apply-prompt-'))
+    try {
+      const penFile = writePen(dir, fixturePenJson([['m1', 'EmptyState']]))
+      const code = await runApply({
+        penFile,
+        tty: true,
+        prompt: async () => 1, // design::EmptyState (agentic-ui sorts first)
+        log: () => {},
+      })
+      assert.equal(code, 0)
+      assert.equal(masterOf(readPen(penFile), 'm1').name, 'design::EmptyState')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('applies --select resolutions verbatim', async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'pen-lint-apply-select-'))
+    try {
+      const penFile = writePen(
+        dir,
+        fixturePenJson([
+          ['m1', 'Button'],
+          ['m2', 'Badge'],
+        ])
+      )
+      const code = await runApply({
+        penFile,
+        select: { m1: 'design::Card' },
+        log: () => {},
+      })
+      assert.equal(code, 0)
+      assert.equal(masterOf(readPen(penFile), 'm1').name, 'design::Card')
+      assert.equal(masterOf(readPen(penFile), 'm2').name, 'design::Badge')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects invalid --select entries as unresolved', async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'pen-lint-apply-selectbad-'))
+    try {
+      const penFile = writePen(dir, fixturePenJson([['m1', 'Button']]))
+      const logs: string[] = []
+      const code = await runApply({
+        penFile,
+        select: { m1: 'design::NotARealExport' },
+        log: msg => logs.push(msg),
+      })
+      assert.equal(code, 1)
+      assert.ok(logs.some(l => l.includes('NotARealExport')))
+      assert.equal(masterOf(readPen(penFile), 'm1').name, 'Button')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('skips zero-candidate masters, reports them, and continues', async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'pen-lint-apply-skip-'))
+    try {
+      const penFile = writePen(
+        dir,
+        fixturePenJson([
+          ['m1', 'AdminTable'],
+          ['m2', 'Badge'],
+        ])
+      )
+      const logs: string[] = []
+      const code = await runApply({ penFile, log: msg => logs.push(msg) })
+      assert.equal(code, 1, 'skipped master must exit non-zero')
+      assert.equal(masterOf(readPen(penFile), 'm2').name, 'design::Badge')
+      assert.equal(masterOf(readPen(penFile), 'm1').name, 'AdminTable')
+      assert.ok(
+        logs.some(l => l.includes('AdminTable') && l.includes('REP-1621')),
+        logs.join('\n')
+      )
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

@@ -22,7 +22,7 @@ This file is loaded automatically at session start. It covers cross-cutting rule
 
 ### UI-specific skills
 
-- `pen-design-workflow` — pen-first UX flow: compose/port screens in repro.pen from masters, component map, verification gates
+- `pen-design-workflow` — pen-first UX flow: compose/port screens in repro.pen from masters, master naming convention (`package::Name`), verification gates
 - `design-system` — UI implementation, components, tokens, and reference files
 - `ui-verification` — browser evidence after a UI change
 - `extension-verification` — browser-extension verification
@@ -102,7 +102,7 @@ Pre-send check: if the user reads only the first line and the last line, do they
 ### Design Files (.pen)
 
 - **Design-before-code**: Any UI change must be represented in a `.pen` file before implementation code. The design defines the intended output; code follows it.
-- **Structure**: a single `repro.pen` at the repo root is the authoritative UX layer, organized into canvas lanes — masters + Component Gallery on the left, one lane per ported surface, and a lab lane for exploratory sketches. `pen-component-map.json` (repo root) indexes every master and must be updated in the same PR as any `.pen` change. Per-surface `.pen` files are deferred until the pen CLI resolves import URIs headlessly (REP-1605).
+- **Structure**: a single `repro.pen` at the repo root is the authoritative UX layer, organized into canvas lanes — masters + Component Gallery on the left, one lane per ported surface, and a lab lane for exploratory sketches. Masters follow `<package>::<ComponentName>` (e.g. `design::Button`) and are verified by `pnpm run pen:lint`; the screens index is script-generated into `tmp/pen-catalog.json`. Per-surface `.pen` files are deferred until the pen CLI resolves import URIs headlessly (REP-1605).
 - **Commit `.pen` files** alongside code in PRs — they are source-of-truth artifacts, not auxiliary assets.
 - **Agentic workflows**: Use Pencil MCP tools (`pencil_execute`, `pencil_get_screenshot`, etc.) to read and modify `.pen` files, following the `pen-design-workflow` skill. The `impeccable` skill covers polish and critique; `design-system` covers code-level UI implementation conventions.
 

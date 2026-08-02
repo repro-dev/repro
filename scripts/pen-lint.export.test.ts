@@ -24,12 +24,12 @@ const frame = (
   ...extra,
 })
 
-describe('REP-1620 pen-lint export mode (pen CLI required, skipped otherwise)', () => {
-  it('exports PNG + HTML and regenerates the screens index', async t => {
+describe('REP-1618 pen-lint export mode (pen CLI required, skipped otherwise)', () => {
+  it('exports PNG + HTML and regenerates the screens index into the catalog', async t => {
     const dir = mkdtempSync(path.join(tmpdir(), 'pen-lint-export-'))
     try {
       const penFile = path.join(dir, 'fixture.pen')
-      const componentMapFile = path.join(dir, 'component-map.json')
+      const catalogOutput = path.join(dir, 'catalog.json')
       const exportDir = path.join(dir, 'screens')
       writeFileSync(
         penFile,
@@ -57,10 +57,6 @@ describe('REP-1620 pen-lint export mode (pen CLI required, skipped otherwise)', 
           variables: { 'font-sans': { type: 'string', value: 'Inter' } },
         })
       )
-      writeFileSync(
-        componentMapFile,
-        JSON.stringify({ components: {}, noMaster: [], screens: { Old: 'x1' } })
-      )
 
       // pen CLI must be installed AND authenticated — a bare --help probe is
       // insufficient because CI installs pen without PEN_CLI_KEY, which makes
@@ -80,17 +76,18 @@ describe('REP-1620 pen-lint export mode (pen CLI required, skipped otherwise)', 
       const logs: string[] = []
       const code = await runExport({
         penFile,
-        componentMapFile,
+        catalogOutput,
         exportDir,
         log: msg => logs.push(msg),
       })
       assert.equal(code, 0, logs.join('\n'))
       assert.equal(existsSync(path.join(exportDir, 'f1.png')), true)
       assert.equal(existsSync(path.join(exportDir, 'screen-mini.html')), true)
-      const componentMap = JSON.parse(
-        readFileSync(componentMapFile, 'utf8')
-      ) as { screens: Record<string, string> }
-      assert.deepEqual(componentMap.screens, { Mini: 'f1' })
+      // Screens index now lives in the catalog.
+      const catalog = JSON.parse(readFileSync(catalogOutput, 'utf8')) as {
+        screensIndex: Record<string, string>
+      }
+      assert.deepEqual(catalog.screensIndex, { Mini: 'f1' })
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
