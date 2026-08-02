@@ -463,7 +463,7 @@ test_pick_overrides_env_var() {
 }
 
 # Test 17: Stage-3 layout is two panes — pnpm install deferred to the
-# terminal pane, no Neovim split, right pane at 30%.
+# terminal pane, no Neovim split, terminal right pane at 30%.
 test_layout_is_two_pane_with_pnpm_install() {
   local tmpdir rc=0
   tmpdir="$(_make_tmpdir)"
@@ -485,8 +485,8 @@ test_layout_is_two_pane_with_pnpm_install() {
   printf '%s\n' "$output" | grep -q 'pnpm install' || ok=0
   # Neovim is never launched
   if printf '%s\n' "$output" | grep -qi 'nvim'; then ok=0; fi
-  # The right pane is a single 30% split — no nested vertical split
-  printf '%s\n' "$split_args" | grep -q -- '--ratio 0.3' || ok=0
+  # Terminal right pane is a single 30% split — no nested vertical split
+  printf '%s\n' "$split_args" | grep -q -- '--ratio 0.7' || ok=0
   if printf '%s\n' "$split_args" | grep -q -- '--direction down'; then ok=0; fi
 
   if [ $ok -eq 1 ]; then
