@@ -96,13 +96,13 @@ describe('REP-1618 pen-lint data layer', () => {
 })
 
 describe('REP-1618 pen-lint validation', () => {
-  it('validateMasterName accepts exported-symbol component names', () => {
+  it('validateMasterName enforces package::ComponentName', () => {
     assert.equal(validateMasterName('design::Button'), true)
     assert.equal(validateMasterName('design::Button2'), true)
     assert.equal(validateMasterName('agentic-ui::EmptyState'), true)
-    // Component exports are PascalCase, but function exports keep their own
-    // case (e.g. the sonner toast trigger) — resolvability is a separate check.
-    assert.equal(validateMasterName('design::toast'), true)
+    // The component part is always uppercase-first — no lowercase masters
+    // remain, so lowercase component names are pattern violations.
+    assert.equal(validateMasterName('design::button'), false)
     assert.equal(validateMasterName('button'), false)
     assert.equal(validateMasterName('design::'), false)
     assert.equal(validateMasterName('Design::Button'), false)
@@ -128,7 +128,7 @@ describe('REP-1618 pen-lint validation', () => {
     )
     assert.equal(checkComponentExport('design', 'Table', repoRoot), true)
     assert.equal(checkComponentExport('design', 'AdminTable', repoRoot), true)
-    assert.equal(checkComponentExport('design', 'toast', repoRoot), true)
+    assert.equal(checkComponentExport('design', 'Toast', repoRoot), true)
     assert.equal(
       checkComponentExport('design', 'DefinitelyNotAComponent', repoRoot),
       false
@@ -207,26 +207,12 @@ describe('REP-1618 candidate inference', () => {
     assert.deepEqual(result.closest, [])
   })
 
-  it('never auto-candidates case-insensitive matches (Toast)', () => {
-    // A master named "Toast" never auto-binds to the lowercase `toast` export
-    // (exact is case-sensitive); the rename to design::toast is a manual
-    // --select resolution. The case-insensitive tier still ranks first.
+  it('resolves Toast as an exact candidate once the export exists', () => {
+    // Toast is now a real @repro/design export (REP-1621): the uppercase-first
+    // component part binds exactly, so no case-insensitive fallback is needed.
     const result = inferCandidates('Toast', exportsByPackage)
-    assert.deepEqual(result.exact, [])
-    const components = result.closest.map(c => c.component)
-    assert.ok(
-      components.includes('toast'),
-      'lowercase toast must be listed as closest'
-    )
-    assert.ok(
-      components.includes('ToastProvider'),
-      'ToastProvider must be listed as closest'
-    )
-    assert.equal(
-      result.closest[0]!.confidence,
-      'case-insensitive',
-      'case-insensitive tier ranks first'
-    )
+    assert.deepEqual(result.exact, ['design::Toast'])
+    assert.deepEqual(result.closest, [])
   })
 })
 

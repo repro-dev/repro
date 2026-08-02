@@ -1,17 +1,43 @@
-import { Block } from '@jsxstyle/react'
+import { Block, Col } from '@jsxstyle/react'
 import type { Meta, StoryObj } from '@storybook/react'
+import { CheckCircle2, Info, TriangleAlert, XCircle } from 'lucide-react'
 import React from 'react'
 import { Button } from '../Button'
+import { spacing } from '../tokens'
+import { Toast } from './Toast'
 import { useToast } from './useToast'
 
-const meta: Meta = {
+const meta: Meta<typeof Toast> = {
   title: 'Components/Feedback/Toast',
+  component: Toast,
   tags: ['design-system'],
 }
 
 export default meta
 
-type Story = StoryObj
+type Story = StoryObj<typeof Toast>
+
+const ToastVariants = () => (
+  <Col gap={spacing.md} padding={spacing.lg}>
+    <Toast type="success" icon={<CheckCircle2 size={16} />}>
+      Recording uploaded
+    </Toast>
+    <Toast type="error" icon={<XCircle size={16} />}>
+      Upload failed — check your connection
+    </Toast>
+    <Toast type="warning" icon={<TriangleAlert size={16} />}>
+      Storage is nearly full
+    </Toast>
+    <Toast type="info" icon={<Info size={16} />}>
+      Session synced to the cloud
+    </Toast>
+    <Toast>Settings saved</Toast>
+  </Col>
+)
+
+export const Component: Story = {
+  render: () => <ToastVariants />,
+}
 
 const ToastDemo = () => {
   const toast = useToast()

@@ -108,7 +108,10 @@ describe('REP-1618 pen-lint check mode end-to-end', () => {
   it('flags no-exact-candidate masters with real closest matches and a human-resolution note', () => {
     const dir = mkdtempSync(path.join(tmpdir(), 'pen-lint-check-nocand-'))
     try {
-      const penFile = writePen(dir, fixturePenJson([['m1', 'Toast']]))
+      // Toast itself is now a real export (REP-1621), so a PascalCase
+      // non-exported name keeps the no-candidate branch reachable while the
+      // case-insensitive tier still surfaces design::Toast as closest.
+      const penFile = writePen(dir, fixturePenJson([['m1', 'ToastNotReal']]))
       const logs: string[] = []
       const code = runCheck({
         penFile,
@@ -117,9 +120,9 @@ describe('REP-1618 pen-lint check mode end-to-end', () => {
       })
       assert.notEqual(code, 0)
       const violation = logs.find(l => l.startsWith('violation:'))!
-      assert.ok(violation.includes('Toast'))
+      assert.ok(violation.includes('ToastNotReal'))
       assert.ok(violation.includes('closest matches'), violation)
-      assert.ok(violation.includes('design::toast'), violation)
+      assert.ok(violation.includes('design::Toast'), violation)
       assert.ok(violation.includes('Flag for human resolution'), violation)
     } finally {
       rmSync(dir, { recursive: true, force: true })
@@ -148,12 +151,12 @@ describe('REP-1618 pen-lint check mode end-to-end', () => {
   })
 
   it('rejects pattern-valid masters whose export does not exist', async () => {
-    // The relaxed MASTER_NAME_PATTERN accepts lowercase names like
-    // design::toastt; the "not exported" branch (!ex.has(comp)) is the
+    // The strict MASTER_NAME_PATTERN accepts PascalCase names like
+    // design::Toastt; the "not exported" branch (!ex.has(comp)) is the
     // enforcement point and must fire in every mode.
     const dir = mkdtempSync(path.join(tmpdir(), 'pen-lint-validnoexport-'))
     try {
-      const penFile = writePen(dir, fixturePenJson([['m1', 'design::toastt']]))
+      const penFile = writePen(dir, fixturePenJson([['m1', 'design::Toastt']]))
       const logs: string[] = []
 
       const checkCode = runCheck({
@@ -163,7 +166,7 @@ describe('REP-1618 pen-lint check mode end-to-end', () => {
       })
       assert.notEqual(checkCode, 0, 'missing export must fail check')
       const violation = logs.find(l => l.startsWith('violation:'))!
-      assert.ok(violation.includes('toastt'), violation)
+      assert.ok(violation.includes('Toastt'), violation)
       assert.ok(
         violation.includes('not exported from @repro/design'),
         violation
@@ -195,7 +198,7 @@ describe('REP-1618 pen-lint check mode end-to-end', () => {
         log: msg => applyLogs.push(msg),
       })
       assert.equal(applyCode, 1, 'missing export must fail apply')
-      assert.equal(masterOf(readPen(penFile), 'm1').name, 'design::toastt')
+      assert.equal(masterOf(readPen(penFile), 'm1').name, 'design::Toastt')
       assert.ok(
         applyLogs.some(l => l.includes('not exported from @repro/design')),
         applyLogs.join('\n')
@@ -271,7 +274,7 @@ describe('REP-1618 pen-lint dry-run mode', () => {
         dir,
         fixturePenJson([
           ['m1', 'Button'],
-          ['m2', 'Toast'],
+          ['m2', 'ToastNotReal'],
         ])
       )
       const jsonOuts: string[] = []

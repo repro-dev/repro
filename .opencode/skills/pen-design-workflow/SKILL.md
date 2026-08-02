@@ -67,7 +67,7 @@ The robustness rule: **a weak model never makes an open-ended visual decision.**
 Every reusable master in `repro.pen` is named `<package>::<ComponentName>` — e.g. `design::Button`, `agentic-ui::SessionPanel`. The `::` is the namespace separator; dashes inside the package part (like `agentic-ui`) are unambiguous. Scope is always `@repro`, so the bare package name disambiguates.
 
 - The **package part** is the `@repro/<pkg>` import scope.
-- The **component part** is the exported symbol name, matched case-sensitively — component exports are PascalCase (`design::Button`); function exports keep their own case (e.g. `design::toast` for the sonner toast trigger).
+- The **component part** is the exported symbol name — always uppercase-first (`design::Button`, never `design::button`).
 - The `variants`/`dims`/`overrideToProps` tables are gone; the master's saved state in the pen file is the visual spec.
 
 **Conformance is verified by `pnpm run pen:lint`** (check mode): it infers the correct prefix by scanning `packages/*/src` exports and reports each unprefixed master as `did you mean \`design::Button\`?`. Masters with no matching export are flagged for human resolution — pen-lint never invents a namespace.

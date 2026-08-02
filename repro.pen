@@ -5631,7 +5631,7 @@
       "id": "C8oqu",
       "x": 800,
       "y": 1200,
-      "name": "design::toast",
+      "name": "design::Toast",
       "reusable": true,
       "fill": "$color-success-subtle",
       "cornerRadius": "$radius-md",
@@ -5689,7 +5689,7 @@
       "metadata": {
         "type": "master",
         "package": "design",
-        "component": "toast"
+        "component": "Toast"
       }
     },
     {

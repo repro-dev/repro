@@ -174,14 +174,13 @@ export function extractVariables(pen: PenFile): Record<string, PenVariable> {
 // Validation helpers
 // ---------------------------------------------------------------------------
 
-const MASTER_NAME_PATTERN = /^[a-z][a-z0-9-]*::[a-zA-Z][a-zA-Z0-9]*$/
+const MASTER_NAME_PATTERN = /^[a-z][a-z0-9-]*::[A-Z][a-zA-Z0-9]*$/
 
 /**
  * Masters follow package::ComponentName (:: as namespace separator). The
- * component part is the exported symbol name: uppercase-first for component
- * exports, but function exports keep their own case (e.g. design::toast for
- * the sonner toast trigger). Exact-case export resolvability is enforced
- * separately in check/apply modes.
+ * component part is the exported symbol name, always uppercase-first
+ * (design::Button, never design::button). Exact-case export resolvability is
+ * enforced separately in check/apply modes.
  */
 export function validateMasterName(name: string): boolean {
   return MASTER_NAME_PATTERN.test(name)
