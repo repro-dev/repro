@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict'
+import { mkdirSync, writeFileSync } from 'node:fs'
+import path from 'node:path'
 import { describe, it } from 'node:test'
 
 import {
@@ -8,13 +10,20 @@ import {
   refNode,
   syntheticExports,
   textNode,
+  tmpDir,
 } from './pen-codegen.test-helpers.ts'
 import {
   layoutTagFor,
+  parseCliArgs,
   renderNode,
+  resolveDescendantTarget,
   resolveMasterComponent,
   resolveVariableRef,
+  runCodegen,
+  type CodegenViolation,
 } from './pen-codegen.ts'
+import type { PenFile, PenNode } from './pen-lint.ts'
+import { extractMasters, parsePenJson } from './pen-lint.ts'
 
 describe('REP-1622 variable resolution', () => {
   /** Narrow resolveVariableRef to just the resolved code for assertions. */
@@ -155,7 +164,7 @@ describe('REP-1622 text node translation', () => {
       fontFamily: '$font-sans',
       fontSize: '$font-size-sm',
       fontWeight: 'normal',
-      lineHeight: 1.25, // tight-ish line height matches no textStyles preset
+      lineHeight: 1.25, // fontSize.sm + normal + lineHeight.normal is not a defined textStyles preset
     })
     const out = renderNode(node, 0, ctx)!
     assert.match(out, /fontFamily=\{fontFamily\.sans\}/)
@@ -163,6 +172,16 @@ describe('REP-1622 text node translation', () => {
     assert.match(out, /fontWeight=\{fontWeight\.normal\}/)
     assert.match(out, /lineHeight=\{lineHeight\.normal\}/)
     assert.doesNotMatch(out, /textStyles/)
+  })
+
+  it('emits a raw color prop for non-token fill values', () => {
+    const ctx = makeCtx(fixturePen())
+    const node = textNode('t3', 'Badge', 'New')
+    Object.assign(node, { fill: '#FF0000' })
+    const out = renderNode(node, 0, ctx)!
+    assert.match(out, /color=\{"#FF0000"\}/)
+    assert.match(out, /component="p"/)
+    assert.deepEqual(ctx.warnings, [])
   })
 })
 
@@ -196,5 +215,170 @@ describe('REP-1622 ref node translation', () => {
     assert.equal(ctx.violations.length, 1)
     assert.equal(ctx.violations[0]!.refId, 'r3')
     assert.match(ctx.violations[0]!.reason, /Foo/)
+  })
+})
+
+describe('REP-1622 descendant override resolution', () => {
+  const nestedPen = (): PenFile =>
+    parsePenJson(
+      JSON.stringify({
+        version: '2.14',
+        children: [
+          frame('iconMaster', 'design::Icon', {
+            reusable: true,
+            children: [textNode('iconLabel', 'Label', 'x')],
+          }),
+          frame('cardMaster', 'design::Card', {
+            reusable: true,
+            children: [refNode('cardIcon', 'iconMaster', 'Icon')],
+          }),
+        ],
+        variables: {},
+      })
+    )
+
+  const mastersById = (pen: PenFile): Map<string, PenNode> => {
+    const map = new Map<string, PenNode>()
+    for (const master of extractMasters(pen)) {
+      const node = pen.children.find(child => child.id === master.id)
+      if (node) map.set(master.id, node)
+    }
+    return map
+  }
+
+  it('resolves a two-level ref path to a descendant node', () => {
+    const byId = mastersById(nestedPen())
+    assert.deepEqual(
+      resolveDescendantTarget(
+        byId.get('cardMaster')!,
+        'cardIcon/iconLabel',
+        byId
+      ),
+      { type: 'text', name: 'Label' }
+    )
+  })
+
+  it('returns null when the first key segment is not a ref node', () => {
+    const pen = parsePenJson(
+      JSON.stringify({
+        version: '2.14',
+        children: [
+          frame('iconMaster', 'design::Icon', {
+            reusable: true,
+            children: [textNode('iconLabel', 'Label', 'x')],
+          }),
+          frame('cardMaster', 'design::Card', {
+            reusable: true,
+            children: [textNode('cardText', 'Label', 'x')],
+          }),
+        ],
+        variables: {},
+      })
+    )
+    const byId = mastersById(pen)
+    assert.equal(
+      resolveDescendantTarget(
+        byId.get('cardMaster')!,
+        'cardText/iconLabel',
+        byId
+      ),
+      null
+    )
+  })
+
+  it('returns null when the nested child id does not exist', () => {
+    const byId = mastersById(nestedPen())
+    assert.equal(
+      resolveDescendantTarget(byId.get('cardMaster')!, 'cardIcon/nope', byId),
+      null
+    )
+  })
+})
+
+describe('REP-1622 CLI argument parsing', () => {
+  it('parses --screen with a following value', () => {
+    const { options, error } = parseCliArgs(['--screen', 'Demo'])
+    assert.equal(error, undefined)
+    assert.equal(options.screen, 'Demo')
+  })
+
+  it('reports a usage error when --screen is the final argument', () => {
+    const { options, error } = parseCliArgs(['--dry-run', '--screen'])
+    assert.equal(options.screen, undefined)
+    assert.match(error!, /--screen requires a value/)
+  })
+
+  it('parses dry-run and pen-file flags', () => {
+    const { options, error } = parseCliArgs([
+      '--pen-file',
+      'fixture.pen',
+      '--dry-run',
+    ])
+    assert.equal(error, undefined)
+    assert.equal(options.penFile, 'fixture.pen')
+    assert.equal(options.dryRun, true)
+  })
+})
+
+describe('REP-1622 output filename collisions', () => {
+  it('reports a violation when two screens sanitize to the same filename', () => {
+    const penFile = path.join(tmpDir, 'pen-codegen-collision.pen')
+    mkdirSync(tmpDir, { recursive: true })
+    writeFileSync(
+      penFile,
+      JSON.stringify(
+        parsePenJson(
+          JSON.stringify({
+            version: '2.14',
+            children: [
+              frame('btnMaster', 'design::Button', {
+                reusable: true,
+                children: [textNode('btnLabel', 'Label', 'Label')],
+              }),
+              frame('s1', 'Screen: Demo', {
+                children: [
+                  refNode('r1', 'btnMaster', 'Save', {
+                    descendants: { btnLabel: { content: 'A' } },
+                  }),
+                ],
+              }),
+              // "screen demo" sanitizes to the same file as "Screen: Demo".
+              frame('s2', 'screen demo', {
+                children: [
+                  refNode('r2', 'btnMaster', 'Save', {
+                    descendants: { btnLabel: { content: 'B' } },
+                  }),
+                ],
+              }),
+            ],
+            variables: {},
+          })
+        ),
+        null,
+        2
+      ) + '\n'
+    )
+    const logs: string[] = []
+    let json = ''
+    const code = runCodegen({
+      penFile,
+      outputDir: path.join(tmpDir, 'pen-codegen-cli-collision'),
+      exportsByPackage: syntheticExports(),
+      log: msg => logs.push(msg),
+      jsonOut: j => {
+        json = j
+      },
+    })
+    assert.equal(code, 1)
+    const report = JSON.parse(json) as {
+      clean: boolean
+      output: Array<{ file: string }>
+      violations: CodegenViolation[]
+    }
+    assert.equal(report.clean, false)
+    assert.equal(report.violations.length, 1)
+    assert.match(report.violations[0]!.reason, /collides/)
+    // The first screen wins; the colliding screen is not written.
+    assert.equal(report.output.length, 1)
   })
 })

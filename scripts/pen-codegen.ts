@@ -78,7 +78,7 @@ const TOKEN_PREFIXES: TokenPrefix[] = [
 /** Resolve a `$var` pen reference to a deterministic design-token expression. */
 export function resolveVariableRef(
   ref: string,
-  warnings: string[] = []
+  warnings?: string[]
 ): { ok: true; code: string; token: string } | { ok: false } {
   for (const prefix of TOKEN_PREFIXES) {
     if (ref.startsWith(`${prefix.pen}-`)) {
@@ -94,7 +94,8 @@ export function resolveVariableRef(
     }
   }
   // Unknown prefixes fall back to the raw ref emitted as a quoted string.
-  warnings.push(`unknown variable reference $${ref} — emitted as a raw string`)
+  const target = warnings ?? []
+  target.push(`unknown variable reference $${ref} — emitted as a raw string`)
   return { ok: false }
 }
 
@@ -471,10 +472,17 @@ export function renderTextNode(
 ): string {
   const props: string[] = []
   if (typeof node.fill === 'string') {
-    const resolved = resolveVariableRef(node.fill.slice(1), ctx.warnings)
-    if (resolved.ok) {
+    // Token refs resolve to design tokens; raw values (hex, named colors)
+    // become literal color props rather than being silently dropped.
+    const isTokenRef = node.fill.startsWith('$')
+    const resolved = isTokenRef
+      ? resolveVariableRef(node.fill.slice(1), ctx.warnings)
+      : null
+    if (resolved?.ok) {
       ctx.designImports.add(resolved.token)
       props.push(`color={${resolved.code}}`)
+    } else {
+      props.push(`color={${jsString(node.fill)}}`)
     }
   }
 
@@ -562,7 +570,7 @@ interface DescendantTarget {
  * Keys are either a plain node id ("SKrlh") or a nested ref path
  * ("w9QiD/CogW2" — ref id in the master + node id inside that ref's master).
  */
-function resolveDescendantTarget(
+export function resolveDescendantTarget(
   masterNode: PenNode,
   key: string,
   masterNodeById: Map<string, PenNode>
@@ -746,13 +754,15 @@ export function sanitizeFileName(name: string): string {
 
 function collectImports(ctx: RenderContext): string[] {
   const lines: string[] = []
+  lines.push(`import React from 'react'`)
   if (ctx.jsxstyleImports.size > 0) {
     const names = [...ctx.jsxstyleImports].sort()
     lines.push(`import { ${names.join(', ')} } from '@jsxstyle/react'`)
   }
-  const designNames = [...ctx.designImports].sort()
-  lines.push(`import { ${designNames.join(', ')} } from '@repro/design'`)
-  lines.push(`import React from 'react'`)
+  if (ctx.designImports.size > 0) {
+    const designNames = [...ctx.designImports].sort()
+    lines.push(`import { ${designNames.join(', ')} } from '@repro/design'`)
+  }
   return lines
 }
 
@@ -827,6 +837,8 @@ export interface CodegenOptions {
   dryRun?: boolean
   log?: (msg: string) => void
   jsonOut?: (json: string) => void
+  /** Injectable package export map; defaults to a full repo scan. */
+  exportsByPackage?: Map<string, Set<string>>
 }
 
 export interface CodegenReport {
@@ -884,7 +896,8 @@ export function runCodegen(options: CodegenOptions = {}): number {
     const node = pen.children.find(child => child.id === master.id)
     if (node) masterNodeById.set(master.id, node)
   }
-  const exportsByPackage = collectAllPackageExports()
+  const exportsByPackage =
+    options.exportsByPackage ?? collectAllPackageExports()
 
   if (options.screen) {
     const match = screens.find(
@@ -910,7 +923,26 @@ export function runCodegen(options: CodegenOptions = {}): number {
 
   if (!options.dryRun) mkdirSync(outputDir, { recursive: true })
 
+  // Track sanitized output filenames so two screens that normalize to the
+  // same file (e.g. "Screen: Demo" and "screen demo") are reported instead
+  // of silently overwriting one another.
+  const seenFilenames = new Set<string>()
+
   for (const screen of screens) {
+    const fileName = sanitizeFileName(screen.name)
+    if (seenFilenames.has(fileName)) {
+      allViolations.push({
+        screenId: screen.id,
+        screenName: screen.name,
+        refId: screen.id,
+        masterName: screen.name,
+        reason: `screen name "${screen.name}" sanitizes to "${fileName}.tsx", which collides with another screen's output file`,
+        candidates: [],
+      })
+      continue
+    }
+    seenFilenames.add(fileName)
+
     const ctx: RenderContext = {
       masterNodeById,
       exportsByPackage,
@@ -931,7 +963,7 @@ export function runCodegen(options: CodegenOptions = {}): number {
       )
       continue
     }
-    const file = resolve(outputDir, `${sanitizeFileName(screen.name)}.tsx`)
+    const file = resolve(outputDir, `${fileName}.tsx`)
     writeFileSync(file, generated.code)
     output.push({ screen: screen.name, file })
     log(`Generated ${generated.componentName} -> ${file}`)
@@ -990,20 +1022,26 @@ JSON contract (--dry-run / default):
     "warnings": [ ... ], "output": [ { "screen", "file" } ] }`)
 }
 
-const isDirectRun =
-  process.argv[1] !== undefined &&
-  resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+export interface CliParseResult {
+  options: CodegenOptions
+  error?: string
+}
 
-if (isDirectRun) {
-  const args = process.argv.slice(2)
-  if (args.includes('--help') || args.includes('-h')) {
-    printUsage()
-    process.exit(0)
-  }
+/** Parse CLI args into CodegenOptions; returns an error for malformed usage. */
+export function parseCliArgs(args: string[]): CliParseResult {
   const options: CodegenOptions = {}
   const screenIdx = args.indexOf('--screen')
-  if (screenIdx !== -1 && args[screenIdx + 1])
-    options.screen = args[screenIdx + 1]
+  if (screenIdx !== -1) {
+    const value = args[screenIdx + 1]
+    if (!value) {
+      return {
+        options,
+        error:
+          '--screen requires a value (screen name, normalized name, or id)',
+      }
+    }
+    options.screen = value
+  }
   const penIdx = args.indexOf('--pen-file')
   if (penIdx !== -1 && args[penIdx + 1]) options.penFile = args[penIdx + 1]
   const outputIdx = args.indexOf('--output')
@@ -1014,5 +1052,24 @@ if (isDirectRun) {
     options.catalogOutput = args[catalogIdx + 1]
   }
   options.dryRun = args.includes('--dry-run')
+  return { options }
+}
+
+const isDirectRun =
+  process.argv[1] !== undefined &&
+  resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+
+if (isDirectRun) {
+  const args = process.argv.slice(2)
+  if (args.includes('--help') || args.includes('-h')) {
+    printUsage()
+    process.exit(0)
+  }
+  const { options, error } = parseCliArgs(args)
+  if (error) {
+    console.error(`ERROR: ${error}`)
+    printUsage()
+    process.exit(1)
+  }
   process.exit(runCodegen(options))
 }

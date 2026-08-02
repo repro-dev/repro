@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict'
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import path from 'node:path'
-import { describe, it } from 'node:test'
+import { before, describe, it } from 'node:test'
 
 import {
   fixturePen,
@@ -9,6 +15,7 @@ import {
   makeCtx,
   refNode,
   repoRoot,
+  syntheticExports,
   textNode,
   tmpDir,
   writeCleanFixturePen,
@@ -22,7 +29,7 @@ import {
   type CodegenViolation,
   type RenderContext,
 } from './pen-codegen.ts'
-import type { PenNode } from './pen-lint.ts'
+import type { PenFile, PenNode } from './pen-lint.ts'
 import {
   collectAllPackageExports,
   extractMasters,
@@ -120,24 +127,62 @@ describe('REP-1622 screen code generation', () => {
     )
     assert.equal(sanitizeFileName('Admin: Staff Users'), 'admin-staff-users')
   })
+
+  it('omits the design import when no design token is referenced', () => {
+    const pen = parsePenJson(
+      JSON.stringify({
+        version: '2.14',
+        children: [
+          frame('s1', 'Screen: Plain', {
+            children: [textNode('t1', 'Label', 'Hello')],
+          }),
+        ],
+        variables: {},
+      })
+    )
+    const ctx = makeCtx(pen)
+    const generated = generateScreenCode(
+      pen,
+      { id: 's1', name: 'Screen: Plain', normalizedName: 'Plain' },
+      ctx
+    )
+    // Guard against emitting `import {  } from '@repro/design'`.
+    assert.ok(!generated.code.includes('@repro/design'))
+    // React is the first external import.
+    assert.ok(
+      generated.code.indexOf("import React from 'react'") <
+        generated.code.indexOf('@jsxstyle/react')
+    )
+    assert.ok(
+      generated.code.includes("import { Block } from '@jsxstyle/react'")
+    )
+  })
 })
 
 describe('REP-1622 real repro.pen integration (read-only)', () => {
   const realPenFile = path.join(repoRoot, 'repro.pen')
-  const pen = parsePenJson(readFileSync(realPenFile, 'utf8'))
-  const exportsByPackage = collectAllPackageExports(repoRoot)
-
+  let pen: PenFile | null = null
+  let exportsByPackage: Map<string, Set<string>> = new Map()
   const masterNodeById = new Map<string, PenNode>()
-  for (const master of extractMasters(pen)) {
-    const node = pen.children.find(child => child.id === master.id)
-    if (node) masterNodeById.set(master.id, node)
-  }
+
+  // Setup runs in `before` (not at module load) so an absent repro.pen
+  // skips these tests instead of failing every test in the file.
+  before(() => {
+    if (!existsSync(realPenFile)) return
+    pen = parsePenJson(readFileSync(realPenFile, 'utf8'))
+    exportsByPackage = collectAllPackageExports(repoRoot)
+    for (const master of extractMasters(pen)) {
+      const node = pen.children.find(child => child.id === master.id)
+      if (node) masterNodeById.set(master.id, node)
+    }
+  })
 
   const renderScreen = (screen: {
     id: string
     name: string
     normalizedName: string
   }): { ctx: RenderContext; code: string } => {
+    if (!pen) throw new Error('repro.pen not present in this checkout')
     const ctx: RenderContext = {
       masterNodeById,
       exportsByPackage,
@@ -151,7 +196,8 @@ describe('REP-1622 real repro.pen integration (read-only)', () => {
     return { ctx, code: generateScreenCode(pen, screen, ctx).code }
   }
 
-  it('generates every screen with zero violations', () => {
+  it('generates every screen with zero violations', t => {
+    if (!pen) return t.skip('repro.pen not present in this checkout')
     const screens = [
       {
         id: 'Ff1x2',
@@ -185,7 +231,8 @@ describe('REP-1622 real repro.pen integration (read-only)', () => {
     }
   })
 
-  it('produces byte-identical output on repeated generation (determinism)', () => {
+  it('produces byte-identical output on repeated generation (determinism)', t => {
+    if (!pen) return t.skip('repro.pen not present in this checkout')
     const screen = {
       id: 'Ff1x2',
       name: 'Screen: Settings Form',
@@ -205,6 +252,7 @@ describe('REP-1622 CLI exit codes', () => {
     const code = runCodegen({
       penFile,
       outputDir,
+      exportsByPackage: syntheticExports(),
       log: msg => logs.push(msg),
       jsonOut: j => {
         json = j
@@ -247,6 +295,7 @@ describe('REP-1622 CLI exit codes', () => {
     const code = runCodegen({
       penFile,
       outputDir: path.join(tmpDir, 'pen-codegen-cli-bad'),
+      exportsByPackage: syntheticExports(),
       log: msg => logs.push(msg),
       jsonOut: j => {
         json = j
@@ -269,6 +318,7 @@ describe('REP-1622 CLI exit codes', () => {
       penFile,
       screen: 'No Such Screen',
       dryRun: true,
+      exportsByPackage: syntheticExports(),
       log: msg => logs.push(msg),
     })
     assert.equal(code, 1)
@@ -293,6 +343,7 @@ describe('REP-1622 CLI exit codes', () => {
       penFile,
       catalogOutput: catalogFile,
       dryRun: true,
+      exportsByPackage: syntheticExports(),
       log: msg => logs.push(msg),
       jsonOut: j => {
         json = j
