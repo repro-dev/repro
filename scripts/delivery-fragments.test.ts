@@ -78,5 +78,13 @@ describe('REP-1625 adversarial review wiring', () => {
 
     assert.match(skill, /role: adversarial/)
     assert.match(skill, /adversarial-review/)
+
+    // Every-issue spawn rule: the adversarial pass is spawned for every issue,
+    // regardless of risk level.
+    assert.match(skill, /Every issue[^\n]*adversarial pass/)
+
+    // Fix-loop generalization: the bounded review loop applies to every review
+    // pass (standard and adversarial).
+    assert.match(skill, /all review passes|either review pass/)
   })
 })

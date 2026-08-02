@@ -365,7 +365,7 @@ If the implementation is later fixed during the bounded review loop, create a ne
 
 ### Conditional reviewer spawning by risk level
 
-Every issue — regardless of risk level — gets an adversarial pass via the `adversarial-review` agent, spawned in parallel with the standard reviewer(s) using the `### Adversarial review pass` template below. The standard review remains the merge gate for requirements and conventions; the adversarial pass is additive.
+Every issue — regardless of risk level — gets an adversarial pass via the `adversarial-review` agent, spawned in parallel with the standard reviewer(s) using the `#### Adversarial review pass` template below. The standard review remains the merge gate for requirements and conventions; the adversarial pass is additive.
 
 Spawn the standard reviewers based on the risk level computed in the risk classification phase:
 
