@@ -317,6 +317,11 @@ _create_worktree_and_launch() {
     _warn "Could not open herdr workspace — worktree created but no OpenCode session was opened."
     echo "  See errors above for the specific reason."
     echo ""
+    # Worktree creation skipped pnpm install (--skip-install) and there is no
+    # herdr pane to defer it to — install synchronously so the worktree is
+    # usable. Non-fatal: an install failure must not change the return behavior.
+    (cd "$wt_path" && pnpm install) || true
+    echo ""
     echo "  cd $wt_path"
     echo "  opencode run -i \"$prompt_arg\""
     return 0
@@ -345,6 +350,9 @@ _create_worktree_and_launch() {
   if [[ -z "$right_pane_id" || "$right_pane_id" == "null" ]]; then
     _warn "Pane split failed — falling back to single-pane layout."
     opencode_pane_id="$root_pane_id"
+    # No terminal pane to defer pnpm install to — install synchronously so the
+    # worktree is usable (same contract as the herdr-down fallback above).
+    (cd "$wt_path" && pnpm install) || true
   else
     opencode_pane_id="$root_pane_id"
     term_pane_id="$right_pane_id"

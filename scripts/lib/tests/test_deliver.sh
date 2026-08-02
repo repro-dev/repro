@@ -77,11 +77,17 @@ STUB
 
   # herdr stub: status, workspace open, pane list/split/run, agent start.
   # The pane split case records its arguments so tests can assert the ratio.
+  # When HERDR_STUB_WORKTREE_OPEN_FAIL=1, `worktree open` fails (non-zero
+  # exit + empty JSON) so the herdr-down fallback path can be exercised.
   cat > "$tmpdir/herdr" << 'STUB'
 #!/bin/bash
   case "${1:-}" in
   status) exit 0 ;;
   worktree)
+    if [ "${HERDR_STUB_WORKTREE_OPEN_FAIL:-0}" = "1" ]; then
+      echo 'herdr: daemon not ready' >&2
+      exit 1
+    fi
     echo '{"result":{"workspace":{"workspace_id":"ws-123"}}}'
     exit 0
     ;;
@@ -474,7 +480,45 @@ test_layout_is_two_pane_with_pnpm_install() {
   fi
 }
 
-# Test 18: deliver.sh file exists
+# Test 18: herdr-down fallback — when `herdr worktree open` fails there is
+# no pane to defer pnpm install to, so dependencies must still be installed
+# synchronously in the worktree path.
+test_herdr_down_installs_synchronously() {
+  local tmpdir rc=0
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  _write_runner "$tmpdir" "REP-123"
+
+  # A pnpm stub on the sandbox PATH makes the synchronous install cheap and
+  # observable (the reproctl stub reports Path: <tmpdir>/repro-wt-rep-123).
+  cat > "$tmpdir/pnpm" << 'STUB'
+#!/bin/bash
+echo "SYNC_PNPM_INSTALL: $*"
+exit 0
+STUB
+  chmod +x "$tmpdir/pnpm"
+  mkdir -p "$tmpdir/repro-wt-rep-123"
+
+  local output
+  output="$(HERDR_STUB_WORKTREE_OPEN_FAIL=1 bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  rm -rf "$tmpdir"
+
+  local ok=1
+  # The herdr-down warning is emitted
+  printf '%s\n' "$output" | grep -q 'Could not open herdr workspace' || ok=0
+  # pnpm install ran synchronously in the worktree path
+  printf '%s\n' "$output" | grep -q 'SYNC_PNPM_INSTALL: install' || ok=0
+  # The install was NOT deferred to a terminal pane
+  if printf '%s\n' "$output" | grep -q 'HERDR_PANE_RUN:.*pnpm install'; then ok=0; fi
+
+  if [ $ok -eq 1 ]; then
+    _pass "herdr-down fallback installs dependencies synchronously in the worktree"
+  else
+    _fail "herdr-down fallback installs dependencies synchronously in the worktree" "rc=$rc; output: $output"
+  fi
+}
+
+# Test 19: deliver.sh file exists
 test_file_exists() {
   if [ -f "$DELIVER_SH" ]; then
     _pass "deliver.sh exists"
@@ -503,6 +547,7 @@ test_env_var_is_honored
 test_profile_overrides_env_var
 test_pick_overrides_env_var
 test_layout_is_two_pane_with_pnpm_install
+test_herdr_down_installs_synchronously
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed out of $TESTS_RUN tests"

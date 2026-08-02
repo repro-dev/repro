@@ -516,6 +516,58 @@ RUNNER
   trap - RETURN
 }
 
+test_skip_install_guard_rejects_non_create() {
+  local tmpdir output rc=0
+  tmpdir="$(mktemp -d "$REPO_ROOT/tmp/test_skip_install_guard.XXXXXX")"
+  export tmpdir
+  trap 'rm -rf "$tmpdir"' RETURN
+
+  cat > "$tmpdir/run_test.sh" <<'RUNNER'
+#!/bin/bash
+set -euo pipefail
+
+die() { printf 'Error: %b\n' "$*" >&2; exit 1; }
+_step() { :; }
+_ok() { :; }
+_err() { printf 'x %s\n' "$1" >&2; }
+_warn() { printf '%s\n' "$1" >&2; }
+
+REPO_ROOT="$tmpdir/repro"
+MAIN_CHECKOUT="$tmpdir/repro"
+PARENT_DIR="$tmpdir"
+WORKSPACE_ROOT="$tmpdir"
+SCRIPTS_DIR="$TESTS_DIR/../.."
+TMP_DIR="$tmpdir/tmp"
+mkdir -p "$REPO_ROOT" "$TMP_DIR"
+
+slugify() { printf '%s\n' "$1" | sed 's|/|-|g' | sed 's|\.\.|-|g' | sed 's|[^a-zA-Z0-9._-]|-|g' | tr '[:upper:]' '[:lower:]'; }
+worktree_path() { echo "${WORKSPACE_ROOT:-$PARENT_DIR}/repro-wt-$1"; }
+
+source "$WORKTREE_SH"
+
+# cmd_wt list --skip-install must die with the guard message before reaching
+# the list dispatcher.
+if ( cmd_wt list --skip-install ) 2>"$tmpdir/guard.err"; then
+  die "expected cmd_wt list --skip-install to be rejected"
+fi
+
+if ! grep -q -- "--skip-install can only be used with 'create'" "$tmpdir/guard.err"; then
+  die "guard message missing: $(cat "$tmpdir/guard.err")"
+fi
+RUNNER
+
+  chmod +x "$tmpdir/run_test.sh"
+  output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+
+  if [ ${rc:-0} -eq 0 ]; then
+    _pass 'cmd_wt --skip-install on non-create subcommand dies with guard message'
+  else
+    _fail 'cmd_wt --skip-install on non-create subcommand dies with guard message' "$output"
+  fi
+  rm -rf "$tmpdir"
+  trap - RETURN
+}
+
 test_records_linear_sync_failure
 test_creates_issue_worktree_path_from_metadata
 test_resolve_issue_worktree_metadata_parses_cli_json
@@ -523,8 +575,9 @@ test_resolve_issue_worktree_metadata_rejects_invalid_id
 test_resolve_issue_worktree_metadata_dies_on_empty_branch
 test_no_status_update_skips_linear_cli
 test_skip_install_skips_pnpm_and_build
+test_skip_install_guard_rejects_non_create
 
-printf '\nResults: %d passed, %d failed out of 7 tests\n' "$PASS" "$FAIL"
+printf '\nResults: %d passed, %d failed out of 8 tests\n' "$PASS" "$FAIL"
 
 if [ "$FAIL" -gt 0 ]; then
   exit 1
