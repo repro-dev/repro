@@ -1,15 +1,38 @@
 #!/bin/bash
 # scripts/lib/tests/test_deliver.sh
 #
-# Unit tests for the deliver.sh script (REP-1448): --profile and --pick flags
-# for OpenCode profile selection.
+# Unit tests for the deliver.sh script:
+#   - REP-1448: --profile and --pick flags for OpenCode profile selection.
+#   - REP-1614: --skip-install plumbing into `reproctl.sh wt create`, the
+#     two-pane Stage-3 layout (opencode 70% / terminal 30%, no Neovim), and
+#     the deferred `pnpm install` sent to the terminal pane. Fallback paths
+#     (herdr-down, split-failure, pane-list-failure) install synchronously.
 
 set -euo pipefail
 
 TESTS_DIR="$(cd "$(dirname "$0")" && pwd -P)"
 DELIVER_SH="$TESTS_DIR/../../deliver.sh"
+REPO_ROOT="$(cd "$TESTS_DIR/../../.." && pwd -P)"
+
+# Never leak sandboxes: a test that dies early (set -e) would skip its rm -rf.
+trap 'rm -rf "$REPO_ROOT"/tmp/test_deliver.* 2>/dev/null || true' EXIT
 
 # ── Harness ──────────────────────────────────────────────────────────
+#
+# The sandbox (tmpdir) lives under the real repo's tmp/ and is its own git
+# repo, so common.sh resolves REPO_ROOT/MAIN_CHECKOUT to a real git repo
+# with a tmp/ directory while the tests fully control .opencode/profiles,
+# herdr, and linear. CALLER_PWD points at the sandbox — a directory inside
+# the real repo, exactly as common.sh expects.
+#
+# Directory structure:
+#   $tmpdir/scripts/deliver.sh    — copy of real deliver.sh
+#   $tmpdir/scripts/reproctl.sh   — stub
+#   $tmpdir/scripts/lib/          — copy of real scripts/lib
+#   $tmpdir/herdr                 — stub (status/workspace/pane/agent)
+#   $tmpdir/linear                — stub
+#   $tmpdir/.opencode/profiles/   — profile fixtures
+#   $tmpdir/tmp                   — MAIN_CHECKOUT/tmp for herdr mktemp files
 
 PASS=0
 FAIL=0
@@ -18,63 +41,104 @@ TESTS_RUN=0
 _pass() { printf '  ✔ %s\n' "$1"; PASS=$((PASS + 1)); TESTS_RUN=$((TESTS_RUN + 1)); }
 _fail() { printf '  ✖ %s\n  %s\n' "$1" "${2:-}" >&2; FAIL=$((FAIL + 1)); TESTS_RUN=$((TESTS_RUN + 1)); }
 
-# Create a temp directory (Bash 3.2 safe).
+# Create a temp directory under the real repo's tmp/ (Bash 3.2 safe).
 _make_tmpdir() {
-  mktemp -d 2>/dev/null || mktemp -d -t test_deliver
+  mkdir -p "$REPO_ROOT/tmp"
+  mktemp -d "$REPO_ROOT/tmp/test_deliver.XXXXXX"
 }
 
-# Write stubs into a tmpdir.
-# Directory structure:
-#   $tmpdir/scripts/reproctl.sh   — stub
-#   $tmpdir/scripts/deliver.sh     — copy of real deliver.sh
-#   $tmpdir/herdr                 — stub
-#   $tmpdir/python3               — stub
-#   $tmpdir/.opencode/profiles/   — profile fixtures
 _write_stubs() {
   local tmpdir="$1"
 
   mkdir -p "$tmpdir/scripts"
   mkdir -p "$tmpdir/.opencode/profiles"
+  mkdir -p "$tmpdir/tmp"
 
-  # reproctl.sh stub: print received args.
+  # The sandbox must be a git repo so common.sh can resolve REPO_ROOT.
+  git init -q "$tmpdir" || return 1
+
+  # Copy real libs so deliver.sh can source common.sh + worktree.sh.
+  cp -R "$REPO_ROOT/scripts/lib" "$tmpdir/scripts/lib" || return 1
+
+  # reproctl.sh stub: print received args plus a worktree Path line (mirrors
+  # real reproctl output) so deliver.sh skips its git-worktree fallback scan.
   cat > "$tmpdir/scripts/reproctl.sh" << 'STUB'
 #!/bin/bash
 echo "REPROCTL_ARGS: $*"
+echo "Path: $(dirname "$(dirname "$0")")/repro-wt-rep-123"
 STUB
   chmod +x "$tmpdir/scripts/reproctl.sh"
 
-  # herdr stub: handle status, workspace list, and agent start.
+  # linear stub: deterministic JSON, no Bug label.
+  cat > "$tmpdir/linear" << 'STUB'
+#!/bin/bash
+echo '{"item":{"id":"uuid-1","identifier":"REP-123","title":"Test issue","branchName":"feat/rep-123-test","status":{"name":"Todo","type":"unstarted"},"labels":[]}}'
+STUB
+  chmod +x "$tmpdir/linear"
+
+  # herdr stub: status, workspace open, pane list/split/run, agent start.
+  # The pane split case records its arguments so tests can assert the ratio.
+  # When HERDR_STUB_WORKTREE_OPEN_FAIL=1, `worktree open` fails (non-zero
+  # exit + empty JSON) so the herdr-down fallback path can be exercised.
+  # When HERDR_STUB_PANE_SPLIT_EMPTY=1, `pane split` returns no pane so the
+  # single-pane split-failure fallback is exercised. When
+  # HERDR_STUB_PANE_LIST_EMPTY=1, `pane list` returns no panes so the
+  # pane-list-failure fallback is exercised.
   cat > "$tmpdir/herdr" << 'STUB'
 #!/bin/bash
-case "${1:-}" in
+  case "${1:-}" in
   status) exit 0 ;;
-  workspace) echo '{"result":{"workspaces":[{"label":"REP-123","workspace_id":"ws-123","worktree":{"checkout_path":"/tmp/fake-worktree"}}]}}'; exit 0 ;;
-  agent) printf 'HERDR_AGENT_ARGS: %s\n' "$*"; exit 0 ;;
+  worktree)
+    if [ "${HERDR_STUB_WORKTREE_OPEN_FAIL:-0}" = "1" ]; then
+      echo 'herdr: daemon not ready' >&2
+      exit 1
+    fi
+    echo '{"result":{"workspace":{"workspace_id":"ws-123"}}}'
+    exit 0
+    ;;
+  pane)
+    case "${2:-}" in
+      list)
+        if [ "${HERDR_STUB_PANE_LIST_EMPTY:-0}" = "1" ]; then
+          echo '{"result":{"panes":[]}}'
+        else
+          echo '{"result":{"panes":[{"pane_id":"pane-root"}]}}'
+        fi
+        exit 0
+        ;;
+      split)
+        printf '%s\n' "$*" > "$(dirname "$0")/herdr_split_args.log"
+        if [ "${HERDR_STUB_PANE_SPLIT_EMPTY:-0}" = "1" ]; then
+          echo '{"result":{}}'
+        else
+          echo '{"result":{"pane":{"pane_id":"pane-right"}}}'
+        fi
+        exit 0
+        ;;
+      run) echo "HERDR_PANE_RUN: $*"; exit 0 ;;
+      *) echo "HERDR_PANE_UNKNOWN: $*"; exit 0 ;;
+    esac
+    ;;
+  agent) echo "HERDR_AGENT_ARGS: $*"; exit 0 ;;
   *) echo "HERDR_UNKNOWN: $*"; exit 0 ;;
 esac
 STUB
   chmod +x "$tmpdir/herdr"
-
-  # python3 stub: output parsed workspace values (mimics herdr JSON parsing).
-  cat > "$tmpdir/python3" << 'STUB'
-#!/bin/bash
-printf 'ws-123\n/tmp/fake-worktree\n'
-STUB
-  chmod +x "$tmpdir/python3"
 }
 
 # Write a test runner script into $tmpdir/run_test.sh.
 # Copies deliver.sh into the tmpdir scripts/ subdir so SCRIPT_DIR resolves
-# to the mock environment. Stubs are found there for reproctl.sh and via
-# PATH for herdr and python3.
+# to the sandbox. Stubs are found there for reproctl.sh and via PATH for
+# herdr and linear. CALLER_PWD points at the sandbox so common.sh resolves
+# REPO_ROOT/MAIN_CHECKOUT against the sandbox git repo.
 _write_runner() {
   local tmpdir="$1"
   local args="$2"
 
-  cp "$DELIVER_SH" "$tmpdir/scripts/deliver.sh"
+  cp "$DELIVER_SH" "$tmpdir/scripts/deliver.sh" || return 1
 
-  printf '#!/bin/bash\nPATH="%s:$PATH"\nexec bash "%s/scripts/deliver.sh" %s\n' \
-    "$tmpdir" "$tmpdir" "$args" > "$tmpdir/run_test.sh"
+  printf '#!/bin/bash\nexport CALLER_PWD="%s"\nexport PATH="%s:$PATH"\nexec bash "%s/scripts/deliver.sh" %s\n' \
+    "$tmpdir" "$tmpdir" "$tmpdir" "$args" > "$tmpdir/run_test.sh"
   chmod +x "$tmpdir/run_test.sh"
 }
 
@@ -91,7 +155,7 @@ test_no_flags_uses_default() {
   output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
   rm -rf "$tmpdir"
 
-  if printf '%s\n' "$output" | grep -q 'REPROCTL_ARGS: wt create --from-issue REP-123 --open --no-status-update' \
+  if printf '%s\n' "$output" | grep -q 'REPROCTL_ARGS: wt create --from-issue REP-123 --skip-install --no-status-update' \
     && printf '%s\n' "$output" | grep -q 'REPRO_OPENCODE_PROFILE='; then
     _pass "no flags uses REPRO_OPENCODE_PROFILE default (deepseek-v4)"
   else
@@ -111,7 +175,7 @@ test_profile_flag_passes_profile() {
   output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
   rm -rf "$tmpdir"
 
-  if printf '%s\n' "$output" | grep -q 'REPROCTL_ARGS: wt create --from-issue REP-123 --open --no-status-update' \
+  if printf '%s\n' "$output" | grep -q 'REPROCTL_ARGS: wt create --from-issue REP-123 --skip-install --no-status-update' \
     && printf '%s\n' "$output" | grep -qF 'opencode --profile' \
     && printf '%s\n' "$output" | grep -qF -- 'beta'; then
     _pass "--profile beta passes --profile beta to opencode"
@@ -132,7 +196,7 @@ test_profile_flag_before_issue() {
   output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
   rm -rf "$tmpdir"
 
-  if printf '%s\n' "$output" | grep -q 'REPROCTL_ARGS: wt create --from-issue REP-123 --open --no-status-update' \
+  if printf '%s\n' "$output" | grep -q 'REPROCTL_ARGS: wt create --from-issue REP-123 --skip-install --no-status-update' \
     && printf '%s\n' "$output" | grep -qF 'opencode --profile' \
     && printf '%s\n' "$output" | grep -qF -- 'beta'; then
     _pass "--profile beta before issue ID works"
@@ -153,7 +217,7 @@ test_pick_autoselects_single() {
   output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
   rm -rf "$tmpdir"
 
-  if printf '%s\n' "$output" | grep -q 'REPROCTL_ARGS: wt create --from-issue REP-123 --open --no-status-update' \
+  if printf '%s\n' "$output" | grep -q 'REPROCTL_ARGS: wt create --from-issue REP-123 --skip-install --no-status-update' \
     && printf '%s\n' "$output" | grep -qF 'opencode --profile' \
     && printf '%s\n' "$output" | grep -qF -- 'beta' \
     && ! printf '%s\n' "$output" | grep -q -- '--pick'; then
@@ -175,7 +239,7 @@ test_pick_before_issue_autoselects() {
   output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
   rm -rf "$tmpdir"
 
-  if printf '%s\n' "$output" | grep -q 'REPROCTL_ARGS: wt create --from-issue REP-123 --open --no-status-update' \
+  if printf '%s\n' "$output" | grep -q 'REPROCTL_ARGS: wt create --from-issue REP-123 --skip-install --no-status-update' \
     && printf '%s\n' "$output" | grep -qF 'opencode --profile' \
     && printf '%s\n' "$output" | grep -qF -- 'beta'; then
     _pass "--pick before issue ID auto-selects single profile"
@@ -238,21 +302,21 @@ test_missing_args_exits_one() {
   fi
 }
 
-# Test 9: Invalid issue ID format
-test_invalid_issue_id_format() {
+# Test 9: Argument that is not an issue ID / PR / branch errors
+test_invalid_argument_errors() {
   local tmpdir rc=0
   tmpdir="$(_make_tmpdir)"
   _write_stubs "$tmpdir"
-  _write_runner "$tmpdir" "invalid"
+  _write_runner "$tmpdir" "-bad"
 
   local output
   output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
   rm -rf "$tmpdir"
 
-  if [ $rc -ne 0 ] && printf '%s\n' "$output" | grep -q 'Invalid issue ID'; then
-    _pass "invalid issue ID format fails with error message"
+  if [ $rc -ne 0 ] && printf '%s\n' "$output" | grep -q 'Invalid argument'; then
+    _pass "invalid argument fails with error message"
   else
-    _fail "invalid issue ID format fails with error message" "rc=$rc; output: $output"
+    _fail "invalid argument fails with error message" "rc=$rc; output: $output"
   fi
 }
 
@@ -347,7 +411,7 @@ test_env_var_is_honored() {
   output="$(REPRO_OPENCODE_PROFILE=gamma bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
   rm -rf "$tmpdir"
 
-  if printf '%s\n' "$output" | grep -q 'REPROCTL_ARGS: wt create --from-issue REP-123 --open --no-status-update' \
+  if printf '%s\n' "$output" | grep -q 'REPROCTL_ARGS: wt create --from-issue REP-123 --skip-install --no-status-update' \
     && printf '%s\n' "$output" | grep -q 'gamma'; then
     _pass "REPRO_OPENCODE_PROFILE=gamma is honored"
   else
@@ -398,7 +462,155 @@ test_pick_overrides_env_var() {
   fi
 }
 
-# Test 17: deliver.sh file exists
+# Test 17: Stage-3 layout is two panes — pnpm install deferred to the
+# terminal pane, no Neovim split, right pane at 30%.
+test_layout_is_two_pane_with_pnpm_install() {
+  local tmpdir rc=0
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  _write_runner "$tmpdir" "REP-123"
+
+  local output
+  output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  local split_log="$tmpdir/herdr_split_args.log"
+  local split_args=""
+  if [ -f "$split_log" ]; then
+    split_args="$(cat "$split_log")"
+  fi
+  rm -rf "$tmpdir"
+
+  local ok=1
+  # pnpm install is sent to the terminal (right) pane after layout
+  printf '%s\n' "$output" | grep -q 'HERDR_PANE_RUN:.*pane-right' || ok=0
+  printf '%s\n' "$output" | grep -q 'pnpm install' || ok=0
+  # Neovim is never launched
+  if printf '%s\n' "$output" | grep -qi 'nvim'; then ok=0; fi
+  # The right pane is a single 30% split — no nested vertical split
+  printf '%s\n' "$split_args" | grep -q -- '--ratio 0.3' || ok=0
+  if printf '%s\n' "$split_args" | grep -q -- '--direction down'; then ok=0; fi
+
+  if [ $ok -eq 1 ]; then
+    _pass "Stage 3 is a 2-pane layout; pnpm install deferred to terminal pane; no nvim"
+  else
+    _fail "Stage 3 is a 2-pane layout; pnpm install deferred to terminal pane; no nvim" "rc=$rc; output: $output; split_args: $split_args"
+  fi
+}
+
+# Test 18: herdr-down fallback — when `herdr worktree open` fails there is
+# no pane to defer pnpm install to, so dependencies must still be installed
+# synchronously in the worktree path.
+test_herdr_down_installs_synchronously() {
+  local tmpdir rc=0
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  _write_runner "$tmpdir" "REP-123"
+
+  # A pnpm stub on the sandbox PATH makes the synchronous install cheap and
+  # observable (the reproctl stub reports Path: <tmpdir>/repro-wt-rep-123).
+  cat > "$tmpdir/pnpm" << 'STUB'
+#!/bin/bash
+echo "SYNC_PNPM_INSTALL: $*"
+exit 0
+STUB
+  chmod +x "$tmpdir/pnpm"
+  mkdir -p "$tmpdir/repro-wt-rep-123"
+
+  local output
+  output="$(HERDR_STUB_WORKTREE_OPEN_FAIL=1 bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  rm -rf "$tmpdir"
+
+  local ok=1
+  # The herdr-down warning is emitted
+  printf '%s\n' "$output" | grep -q 'Could not open herdr workspace' || ok=0
+  # pnpm install ran synchronously in the worktree path
+  printf '%s\n' "$output" | grep -q 'SYNC_PNPM_INSTALL: install' || ok=0
+  # The install was NOT deferred to a terminal pane
+  if printf '%s\n' "$output" | grep -q 'HERDR_PANE_RUN:.*pnpm install'; then ok=0; fi
+
+  if [ $ok -eq 1 ]; then
+    _pass "herdr-down fallback installs dependencies synchronously in the worktree"
+  else
+    _fail "herdr-down fallback installs dependencies synchronously in the worktree" "rc=$rc; output: $output"
+  fi
+}
+
+# Test 20: split-failure fallback — when `herdr pane split` returns no pane
+# there is no terminal pane to defer pnpm install to, so dependencies must
+# still be installed synchronously in the worktree path.
+test_split_failure_installs_synchronously() {
+  local tmpdir rc=0
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  _write_runner "$tmpdir" "REP-123"
+
+  # A pnpm stub on the sandbox PATH makes the synchronous install cheap and
+  # observable (the reproctl stub reports Path: <tmpdir>/repro-wt-rep-123).
+  cat > "$tmpdir/pnpm" << 'STUB'
+#!/bin/bash
+echo "SYNC_PNPM_INSTALL: $*"
+exit 0
+STUB
+  chmod +x "$tmpdir/pnpm"
+  mkdir -p "$tmpdir/repro-wt-rep-123"
+
+  local output
+  output="$(HERDR_STUB_PANE_SPLIT_EMPTY=1 bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  rm -rf "$tmpdir"
+
+  local ok=1
+  # The split-failure warning is emitted
+  printf '%s\n' "$output" | grep -q 'Pane split failed' || ok=0
+  # pnpm install ran synchronously in the worktree path
+  printf '%s\n' "$output" | grep -q 'SYNC_PNPM_INSTALL: install' || ok=0
+  # The install was NOT deferred to a terminal pane
+  if printf '%s\n' "$output" | grep -q 'HERDR_PANE_RUN:.*pnpm install'; then ok=0; fi
+
+  if [ $ok -eq 1 ]; then
+    _pass "split-failure fallback installs dependencies synchronously in the worktree"
+  else
+    _fail "split-failure fallback installs dependencies synchronously in the worktree" "rc=$rc; output: $output"
+  fi
+}
+
+# Test 21: pane-list-failure fallback — when `herdr pane list` returns no
+# pane there is no terminal pane to defer pnpm install to, so dependencies
+# must still be installed synchronously in the worktree path.
+test_pane_list_failure_installs_synchronously() {
+  local tmpdir rc=0
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  _write_runner "$tmpdir" "REP-123"
+
+  # A pnpm stub on the sandbox PATH makes the synchronous install cheap and
+  # observable (the reproctl stub reports Path: <tmpdir>/repro-wt-rep-123).
+  cat > "$tmpdir/pnpm" << 'STUB'
+#!/bin/bash
+echo "SYNC_PNPM_INSTALL: $*"
+exit 0
+STUB
+  chmod +x "$tmpdir/pnpm"
+  mkdir -p "$tmpdir/repro-wt-rep-123"
+
+  local output
+  output="$(HERDR_STUB_PANE_LIST_EMPTY=1 bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  rm -rf "$tmpdir"
+
+  local ok=1
+  # The pane-list-failure warning is emitted
+  printf '%s\n' "$output" | grep -q 'Could not find a pane' || ok=0
+  # pnpm install ran synchronously in the worktree path
+  printf '%s\n' "$output" | grep -q 'SYNC_PNPM_INSTALL: install' || ok=0
+  # The install was NOT deferred to a terminal pane
+  if printf '%s\n' "$output" | grep -q 'HERDR_PANE_RUN:.*pnpm install'; then ok=0; fi
+
+  if [ $ok -eq 1 ]; then
+    _pass "pane-list-failure fallback installs dependencies synchronously in the worktree"
+  else
+    _fail "pane-list-failure fallback installs dependencies synchronously in the worktree" "rc=$rc; output: $output"
+  fi
+}
+
+# Test 19: deliver.sh file exists
 test_file_exists() {
   if [ -f "$DELIVER_SH" ]; then
     _pass "deliver.sh exists"
@@ -418,7 +630,7 @@ test_pick_before_issue_autoselects
 test_help_exits_zero
 test_h_flag_exits_zero
 test_missing_args_exits_one
-test_invalid_issue_id_format
+test_invalid_argument_errors
 test_profile_missing_value
 test_profile_nonexistent
 test_profile_and_pick_mutually_exclusive
@@ -426,6 +638,10 @@ test_pick_and_profile_mutually_exclusive
 test_env_var_is_honored
 test_profile_overrides_env_var
 test_pick_overrides_env_var
+test_layout_is_two_pane_with_pnpm_install
+test_herdr_down_installs_synchronously
+test_split_failure_installs_synchronously
+test_pane_list_failure_installs_synchronously
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed out of $TESTS_RUN tests"

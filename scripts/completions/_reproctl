@@ -283,6 +283,7 @@ _reproctl_worktree() {
           _arguments \
             '(--from-issue -i)'{--from-issue,-i}'[Fetch branch from Linear issue]:issue id:' \
             '--no-status-update[Skip setting issue to In Progress]' \
+            '--skip-install[Skip pnpm install and moon run :build]' \
             '--dry-run[Preview without making changes]' \
             '(-h --help)'{-h,--help}'[Show help]' \
             '1:branch name:'

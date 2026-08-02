@@ -10,6 +10,7 @@ WT_DRY_RUN=false
 WT_FROM_ISSUE=""
 WT_NO_STATUS_UPDATE=false
 WT_OPEN=false
+WT_SKIP_INSTALL=false
 WT_ISSUE_LINEAR_SYNCED=false
 WT_ISSUE_LINEAR_SYNC_ERROR=""
 
@@ -311,8 +312,12 @@ cmd_wt_create() {
     if [ -f "$MAIN_CHECKOUT/.envrc.local" ]; then
       echo "${CLR_DIM}[dry-run]${CLR_RESET} Would copy: $MAIN_CHECKOUT/.envrc.local -> $wt_path/.envrc.local"
     fi
-    echo "${CLR_DIM}[dry-run]${CLR_RESET} Would run: pnpm install (in $wt_path)"
-    echo "${CLR_DIM}[dry-run]${CLR_RESET} Would run: moon run :build (in $wt_path)"
+    if [ "$WT_SKIP_INSTALL" = true ]; then
+      echo "${CLR_DIM}[dry-run]${CLR_RESET} Would skip: pnpm install + moon run :build (--skip-install)"
+    else
+      echo "${CLR_DIM}[dry-run]${CLR_RESET} Would run: pnpm install (in $wt_path)"
+      echo "${CLR_DIM}[dry-run]${CLR_RESET} Would run: moon run :build (in $wt_path)"
+    fi
 
     if command -v direnv > /dev/null 2>&1; then
       echo "${CLR_DIM}[dry-run]${CLR_RESET} Would run: direnv allow (in $wt_path)"
@@ -336,6 +341,9 @@ cmd_wt_create() {
   local total_steps=4
   if [ "$has_direnv" = true ]; then
     total_steps=5
+  fi
+  if [ "$WT_SKIP_INSTALL" = true ]; then
+    total_steps=$((total_steps - 2))
   fi
 
   local step=1
@@ -364,13 +372,15 @@ cmd_wt_create() {
     return 1
   fi
 
-  step=$((step + 1))
-  _step "$step" "$total_steps" "Installing dependencies..."
-  (cd "$wt_path" && pnpm install)
+  if [ "$WT_SKIP_INSTALL" != true ]; then
+    step=$((step + 1))
+    _step "$step" "$total_steps" "Installing dependencies..."
+    (cd "$wt_path" && pnpm install)
 
-  step=$((step + 1))
-  _step "$step" "$total_steps" "Building packages..."
-  (cd "$wt_path" && moon run :build)
+    step=$((step + 1))
+    _step "$step" "$total_steps" "Building packages..."
+    (cd "$wt_path" && moon run :build)
+  fi
 
   if [ "$has_direnv" = true ] && [ -f "$wt_path/.envrc" ]; then
     step=$((step + 1))
@@ -1214,6 +1224,7 @@ Options (create):
   --from-issue, -i <id>   Fetch branch name from a Linear issue (e.g. REP-123)
   --open                   Register the worktree as a herdr workspace
   --no-status-update      Skip setting the Linear issue to In Progress
+  --skip-install           Skip pnpm install and moon run :build
   --dry-run               Preview what would be done without making changes
 
 Options (list):
@@ -1264,6 +1275,7 @@ cmd_wt() {
   WT_JSON=false
   WT_FROM_ISSUE=""
   WT_NO_STATUS_UPDATE=false
+  WT_SKIP_INSTALL=false
 
   local subcmd=""
   local args=()
@@ -1324,6 +1336,10 @@ cmd_wt() {
         WT_NO_STATUS_UPDATE=true
         shift
         ;;
+      --skip-install)
+        WT_SKIP_INSTALL=true
+        shift
+        ;;
       -h|--help)
         wt_usage
         exit 0
@@ -1364,6 +1380,10 @@ cmd_wt() {
 
   if [[ "$WT_OPEN" == true && "$subcmd" != "create" ]]; then
     die "--open can only be used with 'create'"
+  fi
+
+  if [[ "$WT_SKIP_INSTALL" == true && "$subcmd" != "create" ]]; then
+    die "--skip-install can only be used with 'create'"
   fi
 
 

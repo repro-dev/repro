@@ -18,8 +18,8 @@ Manage git worktrees for isolated development. **wt** is a shorthand alias for *
 
 ## Subcommands
 
-**create** [**--from-issue** *id*] [**--no-status-update**] [**--dry-run**] *branch*
-: Create a new git worktree for *branch*. If the branch does not exist, it is created from the current HEAD. After checkout, runs **pnpm install**, copies **.env** files from the main checkout, and runs **direnv allow** in the new worktree. With **--from-issue**, fetches the branch name from a Linear issue and sets it to In Progress.
+**create** [**--from-issue** *id*] [**--no-status-update**] [**--skip-install**] [**--dry-run**] *branch*
+: Create a new git worktree for *branch*. If the branch does not exist, it is created from the current HEAD. After checkout, runs **pnpm install**, copies **.env** files from the main checkout, and runs **direnv allow** in the new worktree. With **--from-issue**, fetches the branch name from a Linear issue and sets it to In Progress. With **--skip-install**, dependency installation and package building are skipped and left to the caller.
 
 **remove** [**--dry-run**] [*branch*]
 : Remove the worktree for *branch* via **git worktree remove**, then run **git worktree prune** to clean up stale references. If *branch* is omitted and stdin is a terminal, an interactive picker is shown.
@@ -43,6 +43,9 @@ Manage git worktrees for isolated development. **wt** is a shorthand alias for *
 
 **--no-status-update**
 : Skip setting the Linear issue to In Progress. Only valid with **--from-issue**.
+
+**--skip-install**
+: Skip running **pnpm install** and **moon run :build** after checkout. Only valid with **create**. Dependency installation is deferred to the caller (for example, the deliver CLI sends **pnpm install** to the workspace terminal pane).
 
 **--yes**, **-y**
 : Skip the confirmation prompt when pruning.
