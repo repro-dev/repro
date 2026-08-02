@@ -18,8 +18,7 @@
 //     writes { type: 'master', package, component } metadata, and saves
 //     repro.pen. Single-candidate masters auto-rename; ambiguous masters
 //     prompt in a TTY or emit JSON + exit non-zero otherwise. Exit
-//     non-zero for anything it cannot resolve (see REP-1621 for the
-//     Toast/AdminTable no-candidate masters).
+//     non-zero for anything it cannot resolve.
 //   - Export mode (--export): exports screens to PNG + HTML via the pen CLI
 //     and regenerates the catalog (with the screens index) in
 //     tmp/pen-catalog.json.
@@ -177,7 +176,12 @@ export function extractVariables(pen: PenFile): Record<string, PenVariable> {
 
 const MASTER_NAME_PATTERN = /^[a-z][a-z0-9-]*::[A-Z][a-zA-Z0-9]*$/
 
-/** Masters follow package::ComponentName (:: as namespace separator). */
+/**
+ * Masters follow package::ComponentName (:: as namespace separator). The
+ * component part is the exported symbol name, always uppercase-first
+ * (design::Button, never design::button). Exact-case export resolvability is
+ * enforced separately in check/apply modes.
+ */
 export function validateMasterName(name: string): boolean {
   return MASTER_NAME_PATTERN.test(name)
 }
@@ -749,7 +753,7 @@ export function runCheck(options: RunOptions = {}): number {
         .map(c => `\`${c.package}::${c.component}\``)
         .join(', ')
       violations.push(
-        `master ${master.id} "${master.name}" has no matching component export — closest matches: ${matches}. Flag for human resolution (see REP-1621).`
+        `master ${master.id} "${master.name}" has no matching component export — closest matches: ${matches}. Flag for human resolution.`
       )
     }
   }
@@ -1005,7 +1009,7 @@ export async function runApply(options: RunOptions = {}): Promise<number> {
       .map(c => `\`${c.package}::${c.component}\``)
       .join(', ')
     unresolved.push(
-      `master ${master.id} "${master.name}": no matching component export — closest matches: ${matches}. Flag for human resolution (see REP-1621).`
+      `master ${master.id} "${master.name}": no matching component export — closest matches: ${matches}. Flag for human resolution.`
     )
   }
 
@@ -1247,7 +1251,7 @@ Usage:
 
 Exit codes:
   0  clean / all masters resolved
-  1  violations or unresolved masters (see REP-1621 for Toast/AdminTable)
+  1  violations or unresolved masters
 
 JSON contract (--dry-run, non-TTY --apply):
   { "mode": "dry-run", "clean": bool, "resolved": n, "unresolved": n,

@@ -262,7 +262,7 @@ Oxlint (`pnpm run lint`) enforces code-architecture rules at `error` level. Thes
 | `className` prop                                                | `@repro/oxlint-plugin-design/no-classname-prop`    |
 | Direct `colors.*` imports                                       | `@repro/oxlint-plugin-design/no-raw-palette`       |
 
-**Exclusions**: Test files (`*.test.ts*`, `**/__tests__/**`), story files (`*.stories.ts*`), and `packages/design/src/**` are excluded via `.oxlintrc.json` overrides.
+**Exclusions**: Test files (`*.test.ts*`, `**/__tests__/**`), story files (`*.stories.ts*`), and `packages/design/src/tokens/**` are excluded from all design rules via `.oxlintrc.json` overrides. For `packages/design/src/**`, only `react/forbid-elements` and `react/forbid-dom-props` are disabled — `no-hardcoded-color`/`no-hardcoded-spacing` still apply, so components must keep using tokens. `border={`1px solid …`}` is not flagged (the spacing rule only matches `padding|margin|gap|fontSize|lineHeight|fontWeight` props).
 
 **Suppressing violations**: Existing violations are suppressed with `/* eslint-disable @repro/oxlint-plugin-design/<rule> */` block comments. New violations must use the same block-level format. Per-line `// oxlint-disable-next-line` comments are not recognized by oxlint for JS plugin rules inside JSX elements.
 

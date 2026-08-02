@@ -100,10 +100,12 @@ describe('REP-1618 pen-lint validation', () => {
     assert.equal(validateMasterName('design::Button'), true)
     assert.equal(validateMasterName('design::Button2'), true)
     assert.equal(validateMasterName('agentic-ui::EmptyState'), true)
+    // The component part is always uppercase-first — no lowercase masters
+    // remain, so lowercase component names are pattern violations.
+    assert.equal(validateMasterName('design::button'), false)
     assert.equal(validateMasterName('button'), false)
     assert.equal(validateMasterName('design::'), false)
     assert.equal(validateMasterName('Design::Button'), false)
-    assert.equal(validateMasterName('design::button'), false)
     assert.equal(validateMasterName('design::Button::Extra'), false)
   })
 
@@ -125,6 +127,8 @@ describe('REP-1618 pen-lint validation', () => {
       true
     )
     assert.equal(checkComponentExport('design', 'Table', repoRoot), true)
+    assert.equal(checkComponentExport('design', 'AdminTable', repoRoot), true)
+    assert.equal(checkComponentExport('design', 'Toast', repoRoot), true)
     assert.equal(
       checkComponentExport('design', 'DefinitelyNotAComponent', repoRoot),
       false
@@ -197,34 +201,18 @@ describe('REP-1618 candidate inference', () => {
     assert.deepEqual(result.closest, [])
   })
 
-  it('reports closest matches and never auto-candidates for AdminTable', () => {
+  it('resolves AdminTable as an exact candidate once the export exists', () => {
     const result = inferCandidates('AdminTable', exportsByPackage)
-    assert.deepEqual(result.exact, [])
-    assert.ok(result.closest.length > 0)
-    assert.deepEqual(result.closest[0], {
-      package: 'design',
-      component: 'Table',
-      confidence: 'substring',
-    })
+    assert.deepEqual(result.exact, ['design::AdminTable'])
+    assert.deepEqual(result.closest, [])
   })
 
-  it('never auto-candidates case-insensitive matches (Toast)', () => {
+  it('resolves Toast as an exact candidate once the export exists', () => {
+    // Toast is now a real @repro/design export (REP-1621): the uppercase-first
+    // component part binds exactly, so no case-insensitive fallback is needed.
     const result = inferCandidates('Toast', exportsByPackage)
-    assert.deepEqual(result.exact, [])
-    const components = result.closest.map(c => c.component)
-    assert.ok(
-      components.includes('toast'),
-      'lowercase toast must be listed as closest'
-    )
-    assert.ok(
-      components.includes('ToastProvider'),
-      'ToastProvider must be listed as closest'
-    )
-    assert.equal(
-      result.closest[0]!.confidence,
-      'case-insensitive',
-      'case-insensitive tier ranks first'
-    )
+    assert.deepEqual(result.exact, ['design::Toast'])
+    assert.deepEqual(result.closest, [])
   })
 })
 
@@ -294,15 +282,11 @@ describe('REP-1618 --select argument parsing', () => {
 })
 
 describe('REP-1618 pen-lint wiring', () => {
-  it('defers the pen-lint pre-push hook gate to REP-1621', () => {
-    // The pre-push hook does not gate on pen-lint yet — wiring is deferred to
-    // REP-1621 until pen file violations are reconciled. Assert the deferral.
+  it('wires the pen-lint pre-push hook gate', () => {
+    // REP-1621 reconciled the pen file, so the hook now gates on pen-lint.
     const hook = readText('.husky/pre-push')
-    assert.doesNotMatch(
-      hook,
-      /pen-lint/,
-      'pre-push hook must not reference pen-lint (deferred to REP-1621)'
-    )
+    assert.match(hook, /tsx scripts\/pen-lint\.ts \|\| exit 1/)
+    assert.match(hook, /Checking pen-lint conventions/)
   })
 
   it('adds the pen:lint and pen:dry-run scripts to package.json', () => {
@@ -318,7 +302,7 @@ describe('REP-1618 pen-lint wiring', () => {
 })
 
 describe('REP-1618 real repro.pen integration (read-only)', () => {
-  it('every master is package::ComponentName-conforming or a known flagged master', () => {
+  it('every master is package::ComponentName-conforming and resolves to an export', () => {
     const pen = parsePenJson(readText('repro.pen'))
     const masters = extractMasters(pen)
     const screens = extractScreens(pen)
@@ -328,12 +312,9 @@ describe('REP-1618 real repro.pen integration (read-only)', () => {
     assert.ok(Object.keys(variables).length >= 50, 'expected 79 variables')
     assert.deepEqual(validateVariableRefs(pen), [])
 
-    // Naming convention replaces the component map: every master either
-    // conforms to package::ComponentName with a resolvable export, or is one
-    // of the two flagged masters deferred to REP-1621 (Toast, AdminTable).
-    const flagged = new Set(['Toast', 'AdminTable'])
+    // Naming convention replaces the component map: every master conforms to
+    // package::ComponentName and its component part resolves to a real export.
     for (const master of masters) {
-      if (flagged.has(master.name)) continue
       assert.ok(
         validateMasterName(master.name),
         `master ${master.id} "${master.name}" is not package::ComponentName`
@@ -350,23 +331,19 @@ describe('REP-1618 real repro.pen integration (read-only)', () => {
     }
   })
 
-  it('runCheck reports exactly the two flagged masters as violations', () => {
+  it('runCheck passes with zero violations after REP-1621', () => {
     const logs: string[] = []
     const code = runCheck({
       penFile: path.join(repoRoot, 'repro.pen'),
       catalogOutput: path.join(repoRoot, 'tmp', 'pen-catalog-test.json'),
       log: msg => logs.push(msg),
     })
-    assert.equal(code, 1, 'repro.pen must fail check until REP-1621 lands')
+    assert.equal(code, 0, logs.join('\n'))
     const violations = logs.filter(l => l.startsWith('violation:'))
-    assert.equal(violations.length, 2, violations.join('\n'))
+    assert.equal(violations.length, 0, violations.join('\n'))
     assert.ok(
-      violations.some(v => v.includes('Toast')),
-      'Toast must be flagged for human resolution'
-    )
-    assert.ok(
-      violations.some(v => v.includes('AdminTable')),
-      'AdminTable must be flagged for human resolution'
+      logs.some(l => l.includes('pen-lint check passed')),
+      logs.join('\n')
     )
   })
 })

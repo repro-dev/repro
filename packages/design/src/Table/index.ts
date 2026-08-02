@@ -1,3 +1,4 @@
+import { AdminTable } from './AdminTable'
 import { Table as TableRoot } from './Table'
 import { TableBody } from './TableBody'
 import { TableCell } from './TableCell'
@@ -29,3 +30,5 @@ export const Table = Object.assign(TableRoot, {
   Cell: TableCell,
   HeaderCell: TableHeaderCell,
 })
+
+export { AdminTable }
