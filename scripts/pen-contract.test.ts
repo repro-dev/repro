@@ -398,6 +398,54 @@ describe('REP-1622 closed override vocabulary (v1)', () => {
       false
     )
   })
+
+  it('warns distinctly when a slash-key left segment resolves to a non-ref', () => {
+    // 'slotFrame/inner' — the left segment exists in the master but is a
+    // frame, not a ref. The warning must be distinct from the generic
+    // "no matching node in master" so the consumer can tell the two apart.
+    const shellMaster = {
+      type: 'frame',
+      id: 'shellMaster',
+      name: 'AppShell',
+      reusable: true,
+      metadata: { type: 'master', package: 'design', component: 'AppShell' },
+      children: [
+        { type: 'frame', id: 'slotFrame', name: 'Slot', children: [] },
+      ],
+    }
+    const pen = parsePenJson(
+      JSON.stringify({
+        version: '2.14',
+        children: [
+          mastersGroup(shellMaster),
+          screenFamilyGroup('demo', 'demo-family', [
+            screenNode(
+              's1',
+              'Screen: Demo',
+              'screens/demo/demo-family',
+              'content',
+              [
+                refNode('r1', 'shellMaster', 'Shell', {
+                  descendants: { 'slotFrame/inner': { content: 'x' } },
+                }),
+              ]
+            ),
+          ]),
+        ],
+        variables: {},
+      })
+    )
+    const { contract, code } = contractFor(pen)
+    assert.equal(code, 0, 'unsupported paths are warnings, not violations')
+    assert.ok(
+      contract.warnings.some(w => w.includes('is not a ref')),
+      contract.warnings.join('\n')
+    )
+    assert.equal(
+      contract.warnings.some(w => w.includes('no matching node in master')),
+      false
+    )
+  })
 })
 
 describe('REP-1622 real repro.pen integration (post-migration)', () => {

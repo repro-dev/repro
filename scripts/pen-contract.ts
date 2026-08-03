@@ -37,7 +37,8 @@ import {
   parsePenJson,
   REPO_ROOT,
   resolveMasterFromPath,
-  validateStateFamilies,
+  validateFamilyStateAggregates,
+  validateScreenStateMetadata,
 } from './pen-lint.ts'
 
 export const PEN_FILE = resolve(REPO_ROOT, 'repro.pen')
@@ -47,8 +48,12 @@ export const PEN_FILE = resolve(REPO_ROOT, 'repro.pen')
 // ---------------------------------------------------------------------------
 
 export interface ContractViolation {
-  screenId: string
-  screenName: string
+  /**
+   * Null for family-scoped violations (no single screen is responsible);
+   * per-screen violations carry the id. Never an empty-string sentinel.
+   */
+  screenId: string | null
+  screenName: string | null
   refId?: string
   masterName?: string
   reason: string
@@ -279,7 +284,7 @@ const VOCABULARIES: Record<string, MasterVocabulary> = {
 }
 
 // ---------------------------------------------------------------------------
-// Descendant override resolution (ported from pen-codegen, id-carrying)
+// Descendant override resolution (id-carrying)
 // ---------------------------------------------------------------------------
 
 interface DescendantTarget {
@@ -333,7 +338,13 @@ function resolveDescendantTarget(
       }
     }
     const ref = findNodeInMasterSubtree(masterNode, refId)
-    if (!ref || ref.type !== 'ref') return { target: null }
+    if (!ref) return { target: null }
+    if (ref.type !== 'ref') {
+      return {
+        target: null,
+        unsupported: `descendant path "${key}" left segment "${refId}" is not a ref; override skipped`,
+      }
+    }
     const refMaster = masterNodeById.get(String(ref.ref))
     if (!refMaster) return { target: null }
     const target = findNodeInMasterSubtree(refMaster, childId)
@@ -371,6 +382,7 @@ interface BuildContext {
   screenName: string
 }
 
+/** Sort an object's keys alphabetically for deterministic output. */
 function sortedObject(value: Record<string, unknown>): Record<string, unknown> {
   return Object.fromEntries(
     Object.entries(value).sort(([a], [b]) => a.localeCompare(b))
@@ -391,7 +403,7 @@ function walkTree(node: PenNode, ctx: BuildContext): ContractTreeNode {
       }
     default: {
       // A bare children-array replacement that omits `type` is a frame-like
-      // container (pen-codegen's renderNode treated it the same way).
+      // container (the tree walker treats it the same way).
       const treeNode: ContractTreeNode = {
         type: node.type || 'frame',
         id: node.id,
@@ -587,6 +599,9 @@ function escapeHtml(value: string): string {
 
 function renderValueHtml(value: unknown): string {
   if (typeof value === 'string') return escapeHtml(value)
+  // JSON.stringify(undefined) is undefined, which escapeHtml would choke on;
+  // null/undefined override values render as empty.
+  if (value === undefined || value === null) return ''
   return escapeHtml(JSON.stringify(value))
 }
 
@@ -697,7 +712,7 @@ export function renderContractHtml(contract: PenContract): string {
 function sortViolations(violations: ContractViolation[]): ContractViolation[] {
   return [...violations].sort((a, b) => {
     return (
-      a.screenId.localeCompare(b.screenId) ||
+      (a.screenId ?? '').localeCompare(b.screenId ?? '') ||
       (a.refId ?? '').localeCompare(b.refId ?? '') ||
       a.reason.localeCompare(b.reason)
     )
@@ -819,12 +834,17 @@ export function runContract(options: ContractOptions = {}): ContractResult {
     })
   }
 
-  // State-family validation is global (a family's invariants span its whole
-  // screen set). With --screen the filtered set would produce false "no
-  // content screen" violations, so it is skipped for scoped runs; the full
+  // Per-screen state metadata (state in enum, both-or-neither) is a property
+  // of each screen itself and is always validated, even for --screen runs.
+  for (const sv of validateScreenStateMetadata(screens)) {
+    ctx.violations.push({ ...sv, candidates: [] })
+  }
+  // Family-aggregate validation spans a family's whole screen set. With
+  // --screen the filtered set would produce false "no content screen"
+  // violations, so the aggregates are skipped for scoped runs; the full
   // contract keeps strict validation.
   if (!options.screen) {
-    for (const sv of validateStateFamilies(screens)) {
+    for (const sv of validateFamilyStateAggregates(screens)) {
       ctx.violations.push({ ...sv, candidates: [] })
     }
   }

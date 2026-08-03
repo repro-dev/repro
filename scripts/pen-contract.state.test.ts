@@ -148,6 +148,12 @@ describe('REP-1622 state-family validation', () => {
       ),
       first.contract.violations.map(v => v.reason).join('\n')
     )
+    // Family-scoped violations carry null screenId/screenName — never ''.
+    const noContentViolation = first.contract.violations.find(v =>
+      /has no content screen/.test(v.reason)
+    )!
+    assert.equal(noContentViolation.screenId, null)
+    assert.equal(noContentViolation.screenName, null)
 
     const twoContent = parsePenJson(
       JSON.stringify({
@@ -179,6 +185,11 @@ describe('REP-1622 state-family validation', () => {
       ),
       second.contract.violations.map(v => v.reason).join('\n')
     )
+    const twoContentViolation = second.contract.violations.find(v =>
+      /has 2 content screens/.test(v.reason)
+    )!
+    assert.equal(twoContentViolation.screenId, null)
+    assert.equal(twoContentViolation.screenName, null)
   })
 
   it('fails on duplicate states within a family', () => {
@@ -248,6 +259,69 @@ describe('REP-1622 state-family validation', () => {
     )
     assert.equal(contract.screens.length, 1)
     assert.equal(contract.screens[0]!.screenId, 'sLoading')
+  })
+
+  it('--screen still validates the selected screen state metadata', () => {
+    // Per-screen checks (state in enum, both-or-neither) are properties of
+    // the screen itself and must survive --screen scoping; only the
+    // family-aggregate checks are skipped for scoped runs.
+    const pen = parsePenJson(
+      JSON.stringify({
+        version: '2.14',
+        children: [
+          screenFamilyGroup('demo', 'demo-family', [
+            screenNode(
+              'sContent',
+              'Screen: Demo',
+              'screens/demo/demo-family',
+              'content'
+            ),
+            screenNode(
+              'sBogus',
+              'Screen: Bogus',
+              'screens/demo/demo-family',
+              'bogus'
+            ),
+          ]),
+        ],
+        variables: {},
+      })
+    )
+    const { contract, code } = contractFor(pen, { screen: 'Screen: Bogus' })
+    assert.equal(code, 1)
+    assert.equal(contract.clean, false)
+    assert.ok(
+      contract.violations.some(v => /invalid state "bogus"/.test(v.reason)),
+      contract.violations.map(v => v.reason).join('\n')
+    )
+    // No family-level aggregate fires on the filtered single-screen set.
+    assert.equal(
+      contract.violations.some(v => /no content screen/.test(v.reason)),
+      false
+    )
+  })
+
+  it('--screen still enforces both-or-neither on the selected screen', () => {
+    const pen = parsePenJson(
+      JSON.stringify({
+        version: '2.14',
+        children: [
+          frameOnly('s1', 'Screen: Demo', {
+            metadata: {
+              type: 'screen',
+              stateFamily: 'screens/demo/demo-family',
+            },
+          }),
+        ],
+        variables: {},
+      })
+    )
+    const { contract, code } = contractFor(pen, { screen: 'Screen: Demo' })
+    assert.equal(code, 1)
+    assert.ok(
+      contract.violations.some(v => /but no state/.test(v.reason)),
+      contract.violations.map(v => v.reason).join('\n')
+    )
   })
 })
 

@@ -19,7 +19,7 @@
 //   --drop-stubs     drop the 'Admin: State: *' stubs instead of migrating
 //                    them into the health family
 //   --dry-run        print the migrated JSON to stdout, write nothing
-import { readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -230,9 +230,17 @@ export function resolvePenFileArg(args: string[]): {
   if (idx === -1) return { penFile: PEN_FILE }
   const value = args[idx + 1]
   if (value === undefined || value.startsWith('--')) {
+    // Never return a usable penFile on error — the caller must not be able
+    // to proceed with a value it did not really get from the CLI.
     return {
-      penFile: PEN_FILE,
+      penFile: '',
       error: '--pen-file requires a value (a .pen file path)',
+    }
+  }
+  if (!existsSync(value)) {
+    return {
+      penFile: '',
+      error: `--pen-file path does not exist: ${value}`,
     }
   }
   return { penFile: value }

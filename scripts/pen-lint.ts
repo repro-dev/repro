@@ -107,8 +107,13 @@ export interface LocatedNode {
 }
 
 export interface StateViolation {
-  screenId: string
-  screenName: string
+  /**
+   * Null for family-scoped violations (e.g. "has no content screen") where
+   * no single screen is responsible; per-screen violations carry the id.
+   * Never an empty-string sentinel.
+   */
+  screenId: string | null
+  screenName: string | null
   reason: string
 }
 
@@ -342,16 +347,18 @@ export function extractStateFamilies(screens: ScreenInfo[]): StateFamilyMap {
 }
 
 /**
- * Strict state-family validation (violations exit non-zero):
+ * Per-screen state metadata validation (violations exit non-zero):
  *   - `state` must be in the closed enum
  *   - `stateFamily` and `state` always together (both-or-neither)
- *   - within a family, states are unique
- *   - within a family, exactly one screen is the content state
+ *
+ * These are properties of each screen itself and must run even for scoped
+ * runs (e.g. pen-contract --screen), where family aggregates cannot be
+ * evaluated on a filtered screen set.
  */
-export function validateStateFamilies(screens: ScreenInfo[]): StateViolation[] {
+export function validateScreenStateMetadata(
+  screens: ScreenInfo[]
+): StateViolation[] {
   const violations: StateViolation[] = []
-  const familyScreens = new Map<string, ScreenInfo[]>()
-
   for (const screen of screens) {
     const hasFamily = screen.stateFamily !== undefined
     const hasState = screen.state !== undefined
@@ -376,15 +383,35 @@ export function validateStateFamilies(screens: ScreenInfo[]): StateViolation[] {
         )}" — expected one of ${SCREEN_STATES.join(', ')}`,
       })
     }
-    // Only enum-valid states join the family's screen set. Non-enum states
-    // are already reported as invalid-state violations and are excluded from
-    // duplicate/content counting so a family violation never references a
-    // screen the contract's stateFamilies output does not show (this mirrors
-    // extractStateFamilies, which skips non-enum states).
-    if (hasFamily && isScreenState(screen.state)) {
-      const list = familyScreens.get(screen.stateFamily!) ?? []
+  }
+  return violations
+}
+
+/**
+ * Family-aggregate state validation (violations exit non-zero):
+ *   - within a family, states are unique
+ *   - within a family, exactly one screen is the content state
+ *
+ * These span the family's whole screen set and are only meaningful on the
+ * full set (scoped --screen runs skip them to avoid false "no content
+ * screen" violations on a filtered subset).
+ */
+export function validateFamilyStateAggregates(
+  screens: ScreenInfo[]
+): StateViolation[] {
+  const violations: StateViolation[] = []
+  const familyScreens = new Map<string, ScreenInfo[]>()
+
+  // Only enum-valid states join the family's screen set. Non-enum states
+  // are reported as invalid-state violations (validateScreenStateMetadata)
+  // and are excluded from duplicate/content counting so a family violation
+  // never references a screen the contract's stateFamilies output does not
+  // show (this mirrors extractStateFamilies, which skips non-enum states).
+  for (const screen of screens) {
+    if (screen.stateFamily && isScreenState(screen.state)) {
+      const list = familyScreens.get(screen.stateFamily) ?? []
       list.push(screen)
-      familyScreens.set(screen.stateFamily!, list)
+      familyScreens.set(screen.stateFamily, list)
     }
   }
 
@@ -394,14 +421,14 @@ export function validateStateFamilies(screens: ScreenInfo[]): StateViolation[] {
     const contents = list.filter(s => s.state === 'content')
     if (contents.length === 0) {
       violations.push({
-        screenId: '',
-        screenName: '',
+        screenId: null,
+        screenName: null,
         reason: `state family "${family}" has no content screen — exactly one content state is required`,
       })
     } else if (contents.length > 1) {
       violations.push({
-        screenId: contents[1]!.id,
-        screenName: contents[1]!.name,
+        screenId: null,
+        screenName: null,
         reason: `state family "${family}" has ${contents.length} content screens — exactly one is required`,
       })
     }
@@ -421,6 +448,19 @@ export function validateStateFamilies(screens: ScreenInfo[]): StateViolation[] {
     }
   }
   return violations
+}
+
+/**
+ * Strict state-family validation (violations exit non-zero): per-screen
+ * metadata (enum membership, both-or-neither) plus family aggregates
+ * (unique states, exactly one content). The two halves are exposed
+ * separately so scoped runs can skip the family aggregates.
+ */
+export function validateStateFamilies(screens: ScreenInfo[]): StateViolation[] {
+  return [
+    ...validateScreenStateMetadata(screens),
+    ...validateFamilyStateAggregates(screens),
+  ]
 }
 
 // ---------------------------------------------------------------------------
@@ -1093,7 +1133,11 @@ export function runCheck(options: RunOptions = {}): number {
 
   // State-family metadata is part of the strict gate.
   for (const sv of validateStateFamilies(screens)) {
-    violations.push(`screen ${sv.screenId} "${sv.screenName}": ${sv.reason}`)
+    violations.push(
+      sv.screenId === null
+        ? sv.reason
+        : `screen ${sv.screenId} "${sv.screenName}": ${sv.reason}`
+    )
   }
 
   // Variable refs must resolve.

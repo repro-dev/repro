@@ -160,6 +160,36 @@ describe('REP-1622 --html scaffold', () => {
     assert.equal(first.json, second.json)
   })
 
+  it('renders undefined/null override values as empty instead of crashing', () => {
+    // JSON.stringify drops undefined props from the JSON contract, so the
+    // crash surface is the HTML path: escapeHtml(JSON.stringify(undefined))
+    // throws. The renderer must degrade to an empty value.
+    mkdirSync(path.join(repoRoot, 'tmp', 'pen-contract-cli-fixtures'), {
+      recursive: true,
+    })
+    const penFile = path.join(
+      repoRoot,
+      'tmp',
+      'pen-contract-cli-fixtures',
+      'undef.pen'
+    )
+    writeFileSync(penFile, JSON.stringify(contractFixturePen(), null, 2))
+    const result = runContract({
+      penFile,
+      log: () => {},
+      jsonOut: () => {},
+      exportsByPackage: syntheticExports(),
+    })
+    result.contract.screens[0]!.tree.children![0]!.presentationalOverrides = {
+      foo: undefined,
+      bar: null,
+    }
+    const html = renderContractHtml(result.contract)
+    assert.ok(html.includes('class="prop prop-foo"'), html)
+    assert.ok(html.includes('foo=</span>'), 'undefined renders as empty')
+    assert.ok(html.includes('bar=</span>'), 'null renders as empty')
+  })
+
   it('handles node-replacement descendants that omit the type key', () => {
     // A descendant override carrying only `children` (no `type`) is a
     // frame-like replacement — it must render in both JSON and HTML.

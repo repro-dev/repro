@@ -226,18 +226,11 @@ describe('REP-1622 migrate CLI arg parsing', () => {
   })
 
   it('consumes the value following --pen-file', () => {
+    assert.equal(resolvePenFileArg(['--pen-file', PEN_FILE]).penFile, PEN_FILE)
     assert.equal(
-      resolvePenFileArg(['--pen-file', 'other.pen']).penFile,
-      'other.pen'
-    )
-    assert.equal(
-      resolvePenFileArg([
-        '--dry-run',
-        '--pen-file',
-        'other.pen',
-        '--drop-stubs',
-      ]).penFile,
-      'other.pen'
+      resolvePenFileArg(['--dry-run', '--pen-file', PEN_FILE, '--drop-stubs'])
+        .penFile,
+      PEN_FILE
     )
   })
 
@@ -247,6 +240,17 @@ describe('REP-1622 migrate CLI arg parsing', () => {
       resolvePenFileArg(['--pen-file', '--dry-run']).error!,
       /requires a value/
     )
+    // Footgun regression: on error the returned penFile must be '' so a
+    // caller cannot accidentally proceed with a usable value.
+    assert.equal(resolvePenFileArg(['--pen-file']).penFile, '')
+    assert.equal(resolvePenFileArg(['--pen-file', '--dry-run']).penFile, '')
+  })
+
+  it('rejects a --pen-file path that does not exist', () => {
+    const missing = path.join(repoRoot, 'tmp', 'does-not-exist.pen')
+    const result = resolvePenFileArg(['--pen-file', missing])
+    assert.equal(result.penFile, '')
+    assert.match(result.error!, /does not exist/)
   })
 })
 
