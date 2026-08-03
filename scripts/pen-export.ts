@@ -37,9 +37,26 @@ function sanitizeName(name: string): string {
     .replaceAll(/[^a-z0-9-]/g, '')
 }
 
-/** Find top-level frame nodes that are NOT marked reusable — these are screen exports. */
+/**
+ * Find frame nodes that are NOT marked reusable — these are screen exports.
+ * Recurses into Group nodes (REP-1622 directory model: screens live under
+ * `screens/<surface>/<family>` groups) and excludes frames inside masters.
+ */
 function findScreens(nodes: PenNode[]): PenNode[] {
-  return nodes.filter(n => n.type === 'frame' && !n.reusable)
+  const result: PenNode[] = []
+  const visit = (node: PenNode, inMasters: boolean): void => {
+    if (node.type === 'frame') {
+      if (node.reusable) return
+      if (!inMasters) result.push(node)
+      return
+    }
+    if (node.type === 'group' && Array.isArray(node.children)) {
+      const nextInMasters = inMasters || node.name === 'masters'
+      for (const child of node.children) visit(child, nextInMasters)
+    }
+  }
+  for (const node of nodes) visit(node, false)
+  return result
 }
 
 async function main(): Promise<void> {

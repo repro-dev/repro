@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
-# bin/pen-codegen — wrapper that runs scripts/pen-codegen.ts via tsx
+# bin/pen-contract — wrapper that runs scripts/pen-contract.ts via tsx
 #
-# The repo's .envrc adds bin/ to PATH, so `pen-codegen` is available as a
+# The repo's .envrc adds bin/ to PATH, so `pen-contract` is available as a
 # bare command inside the repo and every worktree.
 
 resolve_path() {
@@ -20,6 +20,6 @@ REAL_SCRIPT="$(resolve_path "$0")"
 SCRIPT_DIR="$(cd "$(dirname "$REAL_SCRIPT")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 
-# Use the repo-local tsx and pen-codegen script by absolute path to avoid
+# Use the repo-local tsx and pen-contract script by absolute path to avoid
 # circular invocation (PATH includes bin/ which contains this wrapper).
-exec "$REPO_ROOT/node_modules/.bin/tsx" "$REPO_ROOT/scripts/pen-codegen.ts" "$@"
+exec "$REPO_ROOT/node_modules/.bin/tsx" "$REPO_ROOT/scripts/pen-contract.ts" "$@"

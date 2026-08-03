@@ -24,8 +24,8 @@ const frame = (
   ...extra,
 })
 
-describe('REP-1618 pen-lint export mode (pen CLI required, skipped otherwise)', () => {
-  it('exports PNG + HTML and regenerates the screens index into the catalog', async t => {
+describe('REP-1622 pen-lint export mode (pen CLI required, skipped otherwise)', () => {
+  it('finds screens inside groups and exports PNG + HTML', async t => {
     const dir = mkdtempSync(path.join(tmpdir(), 'pen-lint-export-'))
     try {
       const penFile = path.join(dir, 'fixture.pen')
@@ -36,33 +36,52 @@ describe('REP-1618 pen-lint export mode (pen CLI required, skipped otherwise)', 
         JSON.stringify({
           version: '2.14',
           children: [
-            frame('f1', 'Screen: Mini', {
-              width: 200,
-              height: 100,
-              clip: true,
-              fill: '#ffffff',
-              layout: 'vertical',
+            {
+              type: 'group',
+              id: 'gS',
+              name: 'screens',
               children: [
                 {
-                  type: 'text',
-                  id: 't1',
-                  name: 'Title',
-                  content: 'Hello',
-                  fontFamily: '$font-sans',
-                  fontSize: 16,
+                  type: 'group',
+                  id: 'gDemo',
+                  name: 'demo',
+                  children: [
+                    {
+                      type: 'group',
+                      id: 'gF',
+                      name: 'demo-family',
+                      children: [
+                        frame('f1', 'Screen: Mini', {
+                          width: 200,
+                          height: 100,
+                          clip: true,
+                          fill: '#ffffff',
+                          layout: 'vertical',
+                          children: [
+                            {
+                              type: 'text',
+                              id: 't1',
+                              name: 'Title',
+                              content: 'Hello',
+                              fontFamily: '$font-sans',
+                              fontSize: 16,
+                            },
+                          ],
+                        }),
+                      ],
+                    },
+                  ],
                 },
               ],
-            }),
+            },
           ],
           variables: { 'font-sans': { type: 'string', value: 'Inter' } },
         })
       )
 
-      // pen CLI must be installed AND authenticated — a bare --help probe is
-      // insufficient because CI installs pen without PEN_CLI_KEY, which makes
-      // export_nodes fail with "Authentication required". Probe with a real
-      // interactive session on the fixture so the skip matches what runExport
-      // actually needs.
+      // pen CLI must be installed AND authenticated — probe with a real
+      // interactive session on the fixture so the skip matches what
+      // runExport actually needs.
       const probe = spawnSync(
         'pen',
         ['interactive', '-i', penFile, '-o', '/dev/null'],
@@ -83,7 +102,6 @@ describe('REP-1618 pen-lint export mode (pen CLI required, skipped otherwise)', 
       assert.equal(code, 0, logs.join('\n'))
       assert.equal(existsSync(path.join(exportDir, 'f1.png')), true)
       assert.equal(existsSync(path.join(exportDir, 'screen-mini.html')), true)
-      // Screens index now lives in the catalog.
       const catalog = JSON.parse(readFileSync(catalogOutput, 'utf8')) as {
         screensIndex: Record<string, string>
       }
