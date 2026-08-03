@@ -4,7 +4,12 @@ import path from 'node:path'
 import { describe, it } from 'node:test'
 import { fileURLToPath } from 'node:url'
 
-import { classifyScreen, migratePenGroups } from './migrate-pen-groups.ts'
+import {
+  classifyScreen,
+  migratePenGroups,
+  PEN_FILE,
+  resolvePenFileArg,
+} from './migrate-pen-groups.ts'
 import type { PenFile, PenNode } from './pen-lint.ts'
 import {
   extractMasters,
@@ -37,6 +42,15 @@ const masterFrame = (
     metadata: { type: 'master', package: pkg, component: comp },
     ...extra,
   })
+
+const group = (name: string, id: string, children: PenNode[]): PenNode => ({
+  type: 'group',
+  id,
+  name,
+  x: 0,
+  y: 0,
+  children,
+})
 
 /** Flat fixture: 51-less — 2 masters + 11 screens with all refs. */
 function flatFixturePen(): PenFile {
@@ -196,6 +210,79 @@ describe('REP-1622 group migration', () => {
       component: 'Button',
     })
     assert.equal(button.groupPath, 'masters/design')
+  })
+})
+
+describe('REP-1622 migrate CLI arg parsing', () => {
+  it('defaults to PEN_FILE when --pen-file is absent (never consumes args[0])', () => {
+    // The historical bug: args[args.indexOf('--pen-file') + 1] read args[0]
+    // (e.g. '--dry-run') when the flag was absent.
+    assert.equal(resolvePenFileArg([]).penFile, PEN_FILE)
+    assert.equal(resolvePenFileArg(['--dry-run']).penFile, PEN_FILE)
+    assert.equal(
+      resolvePenFileArg(['--dry-run', '--drop-stubs']).penFile,
+      PEN_FILE
+    )
+  })
+
+  it('consumes the value following --pen-file', () => {
+    assert.equal(
+      resolvePenFileArg(['--pen-file', 'other.pen']).penFile,
+      'other.pen'
+    )
+    assert.equal(
+      resolvePenFileArg([
+        '--dry-run',
+        '--pen-file',
+        'other.pen',
+        '--drop-stubs',
+      ]).penFile,
+      'other.pen'
+    )
+  })
+
+  it('rejects --pen-file with a missing value or a flag as its value', () => {
+    assert.match(resolvePenFileArg(['--pen-file']).error!, /requires a value/)
+    assert.match(
+      resolvePenFileArg(['--pen-file', '--dry-run']).error!,
+      /requires a value/
+    )
+  })
+})
+
+describe('REP-1622 partial migration (mixed flat + group)', () => {
+  it('moves flat frames into the existing group model instead of no-oping', () => {
+    const pen = parsePenJson(
+      JSON.stringify({
+        version: '2.14',
+        children: [
+          group('masters', 'gExisting', [
+            group('design', 'gDesign', [masterFrame('m1', 'design', 'Button')]),
+          ]),
+          masterFrame('m2', 'design', 'Badge'),
+          frame('s1', 'Screen: Gallery'),
+        ],
+        variables: {},
+      })
+    )
+    const migrated = migratePenGroups(pen)
+    const masters = extractMasters(migrated)
+    assert.deepEqual(masters.map(m => m.id).sort(), ['m1', 'm2'])
+    const screens = extractScreens(migrated)
+    assert.deepEqual(
+      screens.map(s => s.id),
+      ['s1']
+    )
+    assert.equal(
+      migrated.children.filter(c => c.type === 'frame').length,
+      0,
+      'no top-level flat frames remain after migration'
+    )
+    // Pre-existing group ids are preserved (merge into, not rebuild).
+    const mastersGroup = migrated.children.find(
+      c => c.type === 'group' && c.name === 'masters'
+    ) as PenNode
+    assert.equal(mastersGroup.id, 'gExisting')
   })
 })
 

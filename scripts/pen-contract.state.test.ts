@@ -20,7 +20,10 @@ const repoRoot = path.resolve(
   '..'
 )
 
-function contractFor(pen: PenFile): { contract: PenContract; code: number } {
+function contractFor(
+  pen: PenFile,
+  options: { screen?: string } = {}
+): { contract: PenContract; code: number } {
   mkdirSync(path.join(repoRoot, 'tmp', 'pen-contract-state-fixtures'), {
     recursive: true,
   })
@@ -33,6 +36,7 @@ function contractFor(pen: PenFile): { contract: PenContract; code: number } {
   writeFileSync(penFile, JSON.stringify(pen, null, 2))
   const result = runContract({
     penFile,
+    screen: options.screen,
     log: () => {},
     jsonOut: () => {},
     exportsByPackage: syntheticExports(),
@@ -206,6 +210,44 @@ describe('REP-1622 state-family validation', () => {
       contract.violations.some(v => /duplicate state "loading"/.test(v.reason)),
       contract.violations.map(v => v.reason).join('\n')
     )
+  })
+
+  it('--screen skips state-family validation on the filtered screen set', () => {
+    // A family whose content screen exists, but is filtered out by --screen,
+    // must not produce a false "no content screen" violation.
+    const pen = parsePenJson(
+      JSON.stringify({
+        version: '2.14',
+        children: [
+          screenFamilyGroup('admin', 'health', [
+            screenNode(
+              'sContent',
+              'Admin: Health',
+              'screens/admin/health',
+              'content'
+            ),
+            screenNode(
+              'sLoading',
+              'Admin: State: Loading',
+              'screens/admin/health',
+              'loading'
+            ),
+          ]),
+        ],
+        variables: {},
+      })
+    )
+    const { contract, code } = contractFor(pen, {
+      screen: 'Admin: State: Loading',
+    })
+    assert.equal(code, 0)
+    assert.equal(contract.clean, true)
+    assert.deepEqual(
+      contract.violations.map(v => v.reason),
+      []
+    )
+    assert.equal(contract.screens.length, 1)
+    assert.equal(contract.screens[0]!.screenId, 'sLoading')
   })
 })
 

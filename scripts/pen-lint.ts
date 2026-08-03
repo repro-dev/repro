@@ -98,9 +98,10 @@ export interface LocatedNode {
   node: PenNode
   groupPath: string
   /**
-   * True when the node's direct parent is a Group node or the document root.
-   * Collection-level frames are masters/screens; frames nested inside other
-   * frames (a screen's internal layout, a master's own children) are not.
+   * True when the node's direct parent is a Group node or the document root
+   * AND no frame is an ancestor. Collection-level frames are masters/screens;
+   * frames nested inside other frames (a screen's internal layout, a master's
+   * own children — even via an intermediate group) are not.
    */
   atCollectionLevel: boolean
 }
@@ -187,24 +188,31 @@ export function findNodesRecursive(nodes: PenNode[]): PenNode[] {
 export function findNodesRecursiveWithPath(nodes: PenNode[]): LocatedNode[] {
   const result: LocatedNode[] = []
   const segments: string[] = []
-  const visit = (node: PenNode, parentIsGroup: boolean): void => {
+  const visit = (
+    node: PenNode,
+    parentIsGroup: boolean,
+    insideFrame: boolean
+  ): void => {
     result.push({
       node,
       groupPath: segments.join('/'),
-      atCollectionLevel: parentIsGroup,
+      atCollectionLevel: parentIsGroup && !insideFrame,
     })
     if (Array.isArray(node.children)) {
       if (node.type === 'group' && typeof node.name === 'string') {
         segments.push(node.name)
       }
       const nextParentIsGroup = node.type === 'group'
-      for (const child of node.children) visit(child, nextParentIsGroup)
+      const nextInsideFrame = insideFrame || node.type === 'frame'
+      for (const child of node.children) {
+        visit(child, nextParentIsGroup, nextInsideFrame)
+      }
       if (node.type === 'group' && typeof node.name === 'string') {
         segments.pop()
       }
     }
   }
-  for (const node of nodes) visit(node, true)
+  for (const node of nodes) visit(node, true, false)
   return result
 }
 
@@ -368,7 +376,12 @@ export function validateStateFamilies(screens: ScreenInfo[]): StateViolation[] {
         )}" — expected one of ${SCREEN_STATES.join(', ')}`,
       })
     }
-    if (hasFamily) {
+    // Only enum-valid states join the family's screen set. Non-enum states
+    // are already reported as invalid-state violations and are excluded from
+    // duplicate/content counting so a family violation never references a
+    // screen the contract's stateFamilies output does not show (this mirrors
+    // extractStateFamilies, which skips non-enum states).
+    if (hasFamily && isScreenState(screen.state)) {
       const list = familyScreens.get(screen.stateFamily!) ?? []
       list.push(screen)
       familyScreens.set(screen.stateFamily!, list)

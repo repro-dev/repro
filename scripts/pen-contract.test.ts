@@ -94,6 +94,27 @@ describe('REP-1622 contract JSON schema', () => {
     const second = contractFor(pen).json
     assert.equal(first, second)
   })
+
+  it('determinism survives a real regenerate on the same disk file', () => {
+    // The actual "same input, re-run" scenario: write the pen once, then run
+    // the contract twice on the same file WITHOUT rewriting in between, and
+    // assert byte-identical output.
+    mkdirSync(FIXTURE_DIR, { recursive: true })
+    const penFile = path.join(FIXTURE_DIR, 'regenerate.pen')
+    writeFileSync(penFile, JSON.stringify(contractFixturePen(), null, 2))
+    const firstOuts: string[] = []
+    const secondOuts: string[] = []
+    const run = (jsonOut: (json: string) => void) =>
+      runContract({
+        penFile,
+        log: () => {},
+        jsonOut,
+        exportsByPackage: syntheticExports(),
+      })
+    assert.equal(run(json => firstOuts.push(json)).code, 0)
+    assert.equal(run(json => secondOuts.push(json)).code, 0)
+    assert.equal(firstOuts.join('\n'), secondOuts.join('\n'))
+  })
 })
 
 describe('REP-1622 path-based master resolution', () => {
@@ -291,6 +312,90 @@ describe('REP-1622 closed override vocabulary (v1)', () => {
       {
         children: 'Disabled',
       }
+    )
+  })
+
+  it('does not treat a scalar type override as a node replacement', () => {
+    // { type: 'frame', fill } carries styling but no children; it is NOT a
+    // structural replacement. It must not splice an empty frame node into the
+    // tree and silently discard the styling.
+    const pen = parsePenJson(
+      JSON.stringify({
+        version: '2.14',
+        children: [
+          mastersGroup(buttonMaster()),
+          screenFamilyGroup('demo', 'demo-family', [
+            screenNode(
+              's1',
+              'Screen: Demo',
+              'screens/demo/demo-family',
+              'content',
+              [
+                refNode('r1', 'btnMaster', 'Save', {
+                  descendants: {
+                    btnLabel: { type: 'frame', fill: '#ffffff' },
+                  },
+                }),
+              ]
+            ),
+          ]),
+        ],
+        variables: {},
+      })
+    )
+    const { contract, code } = contractFor(pen)
+    assert.equal(code, 0)
+    const ref = contract.screens[0]!.tree.children![0]!
+    assert.equal(
+      ref.children,
+      undefined,
+      'no phantom empty frame node was spliced in'
+    )
+    // The styling override is surfaced as a warning, not silently dropped.
+    assert.ok(
+      contract.warnings.some(w =>
+        w.includes('unmapped descendant override "btnLabel"')
+      ),
+      contract.warnings.join('\n')
+    )
+  })
+
+  it('warns distinctly when a descendant path is deeper than 2 segments', () => {
+    // 'a/b/c' is a nested ref path beyond v1 support. The consumer must be
+    // able to tell "unsupported path" apart from "node not found".
+    const pen = parsePenJson(
+      JSON.stringify({
+        version: '2.14',
+        children: [
+          mastersGroup(buttonMaster()),
+          screenFamilyGroup('demo', 'demo-family', [
+            screenNode(
+              's1',
+              'Screen: Demo',
+              'screens/demo/demo-family',
+              'content',
+              [
+                refNode('r1', 'btnMaster', 'Save', {
+                  descendants: { 'btnLabel/nested/deep': { content: 'x' } },
+                }),
+              ]
+            ),
+          ]),
+        ],
+        variables: {},
+      })
+    )
+    const { contract, code } = contractFor(pen)
+    assert.equal(code, 0)
+    assert.ok(
+      contract.warnings.some(w =>
+        w.includes('descendant path deeper than 2 segments')
+      ),
+      contract.warnings.join('\n')
+    )
+    assert.equal(
+      contract.warnings.some(w => w.includes('no matching node in master')),
+      false
     )
   })
 })

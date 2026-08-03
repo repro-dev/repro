@@ -101,21 +101,34 @@ function masterPkg(master: PenNode): string | null {
 
 /**
  * Flat -> grouped transform. Idempotent: a file that already contains group
- * nodes is returned unchanged (running twice yields the same bytes).
+ * nodes AND no top-level flat frames is returned unchanged (running twice
+ * yields the same bytes). A partially-migrated file (groups coexisting with
+ * flat frames) folds the flat frames into the existing group structure
+ * instead of being mistaken for "already in the group model".
  */
 export function migratePenGroups(
   pen: PenFile,
   options: { dropStubs?: boolean } = {}
 ): PenFile {
-  if (pen.children.some(child => child.type === 'group')) return pen
+  const groups = pen.children.filter(child => child.type === 'group')
+  const flatFrames = pen.children.filter(child => child.type === 'frame')
+  const masters = flatFrames.filter(child => child.reusable === true)
+  const screens = flatFrames.filter(child => !child.reusable)
+  const other = pen.children.filter(
+    child => child.type !== 'frame' && child.type !== 'group'
+  )
 
-  const masters = pen.children.filter(
-    child => child.type === 'frame' && child.reusable === true
+  // Fully in the group model: every top-level frame already lives inside a
+  // group, so there is nothing left to move.
+  if (groups.length > 0 && flatFrames.length === 0) return pen
+
+  // Reuse existing masters/screens groups when present so a partial
+  // migration merges into them instead of duplicating or dropping content.
+  let mastersGroup = groups.find(g => g.name === 'masters')
+  let screensGroup = groups.find(g => g.name === 'screens')
+  const otherGroups = groups.filter(
+    g => g !== mastersGroup && g !== screensGroup
   )
-  const screens = pen.children.filter(
-    child => child.type === 'frame' && !child.reusable
-  )
-  const other = pen.children.filter(child => child.type !== 'frame')
 
   // Names become pure human labels: strip the retired package::Component
   // prefix. Identity now comes from the group path (masters/<pkg>) and the
@@ -127,62 +140,111 @@ export function migratePenGroups(
     }
   }
 
-  const mastersGroup = groupNode('masters', 'masters')
-  const byPkg = new Map<string, PenNode[]>()
-  const ungroupedMasters: PenNode[] = []
-  for (const master of masters) {
-    const pkg = masterPkg(master)
-    if (pkg) {
-      const list = byPkg.get(pkg) ?? []
-      list.push(master)
-      byPkg.set(pkg, list)
-    } else {
-      ungroupedMasters.push(master)
+  if (masters.length > 0) {
+    if (!mastersGroup) {
+      mastersGroup = groupNode('masters', 'masters')
     }
-  }
-  for (const pkg of [...byPkg.keys()].sort()) {
-    const pkgGroup = groupNode(pkg, `masters/${pkg}`)
-    pkgGroup.children = byPkg.get(pkg)!
-    mastersGroup.children!.push(pkgGroup)
-  }
-  mastersGroup.children!.push(...ungroupedMasters)
-
-  const screensGroup = groupNode('screens', 'screens')
-  const byFamily = new Map<string, PenNode[]>()
-  for (const screen of screens) {
-    const classified = classifyScreen(screen.name)
-    if (options.dropStubs && classified.state !== 'content') continue
-    screen.metadata = {
-      type: 'screen',
-      stateFamily: `screens/${classified.surface}/${classified.family}`,
-      state: classified.state,
+    const byPkg = new Map<string, PenNode[]>()
+    const ungroupedMasters: PenNode[] = []
+    for (const master of masters) {
+      const pkg = masterPkg(master)
+      if (pkg) {
+        const list = byPkg.get(pkg) ?? []
+        list.push(master)
+        byPkg.set(pkg, list)
+      } else {
+        ungroupedMasters.push(master)
+      }
     }
-    const key = `${classified.surface}/${classified.family}`
-    const list = byFamily.get(key) ?? []
-    list.push(screen)
-    byFamily.set(key, list)
-  }
-  for (const key of [...byFamily.keys()].sort()) {
-    const [surface, family] = key.split('/') as [string, string]
-    let surfaceGroup = screensGroup.children!.find(
-      child => child.name === surface
-    ) as PenNode | undefined
-    if (!surfaceGroup) {
-      surfaceGroup = groupNode(surface, `screens/${surface}`)
-      screensGroup.children!.push(surfaceGroup)
+    for (const pkg of [...byPkg.keys()].sort()) {
+      let pkgGroup = (mastersGroup.children ?? []).find(
+        child => child.name === pkg
+      )
+      if (!pkgGroup) {
+        pkgGroup = groupNode(pkg, `masters/${pkg}`)
+        ;(mastersGroup.children ??= []).push(pkgGroup)
+      }
+      ;(pkgGroup.children ??= []).push(...(byPkg.get(pkg) ?? []))
     }
-    const familyGroup = groupNode(family, `screens/${key}`)
-    familyGroup.children = byFamily.get(key)!
-    surfaceGroup.children!.push(familyGroup)
+    ;(mastersGroup.children ??= []).push(...ungroupedMasters)
   }
 
-  pen.children = [mastersGroup, screensGroup, ...other]
+  if (screens.length > 0) {
+    if (!screensGroup) {
+      screensGroup = groupNode('screens', 'screens')
+    }
+    const byFamily = new Map<string, PenNode[]>()
+    for (const screen of screens) {
+      const classified = classifyScreen(screen.name)
+      if (options.dropStubs && classified.state !== 'content') continue
+      screen.metadata = {
+        type: 'screen',
+        stateFamily: `screens/${classified.surface}/${classified.family}`,
+        state: classified.state,
+      }
+      const key = `${classified.surface}/${classified.family}`
+      const list = byFamily.get(key) ?? []
+      list.push(screen)
+      byFamily.set(key, list)
+    }
+    for (const key of [...byFamily.keys()].sort()) {
+      const [surface, family] = key.split('/') as [string, string]
+      let surfaceGroup = (screensGroup.children ?? []).find(
+        child => child.name === surface
+      )
+      if (!surfaceGroup) {
+        surfaceGroup = groupNode(surface, `screens/${surface}`)
+        screensGroup.children!.push(surfaceGroup)
+      }
+      let familyGroup = (surfaceGroup.children ?? []).find(
+        child => child.name === family
+      )
+      if (!familyGroup) {
+        familyGroup = groupNode(family, `screens/${key}`)
+        ;(surfaceGroup.children ??= []).push(familyGroup)
+      }
+      ;(familyGroup.children ??= []).push(...(byFamily.get(key) ?? []))
+    }
+  }
+
+  pen.children = [
+    ...(mastersGroup ? [mastersGroup] : []),
+    ...(screensGroup ? [screensGroup] : []),
+    ...other,
+    ...otherGroups,
+  ]
   return pen
+}
+
+/**
+ * Resolve the pen file path from CLI args. `--pen-file <p>` wins; otherwise
+ * the default repro.pen is used. A missing value or a flag used as a value is
+ * an error (mirrors pen-contract's CLI strictness). Never reads args[0] when
+ * the flag is absent.
+ */
+export function resolvePenFileArg(args: string[]): {
+  penFile: string
+  error?: string
+} {
+  const idx = args.indexOf('--pen-file')
+  if (idx === -1) return { penFile: PEN_FILE }
+  const value = args[idx + 1]
+  if (value === undefined || value.startsWith('--')) {
+    return {
+      penFile: PEN_FILE,
+      error: '--pen-file requires a value (a .pen file path)',
+    }
+  }
+  return { penFile: value }
 }
 
 function main(): void {
   const args = process.argv.slice(2)
-  const penFile = args[args.indexOf('--pen-file') + 1] ?? PEN_FILE
+  const { penFile, error } = resolvePenFileArg(args)
+  if (error) {
+    console.error(`ERROR: ${error}`)
+    process.exit(1)
+  }
   const dropStubs = args.includes('--drop-stubs')
   const dryRun = args.includes('--dry-run')
 

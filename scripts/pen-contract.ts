@@ -288,8 +288,13 @@ interface DescendantTarget {
   name: string
 }
 
-/** Find a node by id within a single tree (a master's own children). */
-function findNodeById(root: PenNode, id: string): PenNode | null {
+/**
+ * Depth-first search of a single master's own subtree (does NOT follow ref
+ * indirection — nested ref paths are resolved explicitly by the caller).
+ * This is a master-scoped lookup, distinct from the repo-wide
+ * findNodeByIdRecursive in pen-lint.
+ */
+function findNodeInMasterSubtree(root: PenNode, id: string): PenNode | null {
   if (!Array.isArray(root.children)) return null
   const stack = [...root.children]
   while (stack.length > 0) {
@@ -298,6 +303,12 @@ function findNodeById(root: PenNode, id: string): PenNode | null {
     if (Array.isArray(node.children)) stack.push(...node.children)
   }
   return null
+}
+
+interface DescendantResolveResult {
+  target: DescendantTarget | null
+  /** Set when the key was structurally unsupported in v1 (vs. not found). */
+  unsupported?: string
 }
 
 /**
@@ -309,30 +320,40 @@ function resolveDescendantTarget(
   masterNode: PenNode,
   key: string,
   masterNodeById: Map<string, PenNode>
-): DescendantTarget | null {
+): DescendantResolveResult {
   if (key.includes('/')) {
     const slash = key.indexOf('/')
     const refId = key.slice(0, slash)
     const childId = key.slice(slash + 1)
-    if (childId.includes('/')) return null
-    const refNode = findNodeById(masterNode, refId)
-    if (!refNode || refNode.type !== 'ref') return null
-    const refMaster = masterNodeById.get(String(refNode.ref))
-    if (!refMaster) return null
-    const target = findNodeById(refMaster, childId)
-    if (!target) return null
+    if (childId.includes('/')) {
+      return {
+        target: null,
+        unsupported:
+          'descendant path deeper than 2 segments not supported in v1; override skipped',
+      }
+    }
+    const ref = findNodeInMasterSubtree(masterNode, refId)
+    if (!ref || ref.type !== 'ref') return { target: null }
+    const refMaster = masterNodeById.get(String(ref.ref))
+    if (!refMaster) return { target: null }
+    const target = findNodeInMasterSubtree(refMaster, childId)
+    if (!target) return { target: null }
     return {
+      target: {
+        id: String(target.id),
+        type: String(target.type),
+        name: String(target.name),
+      },
+    }
+  }
+  const target = findNodeInMasterSubtree(masterNode, key)
+  if (!target) return { target: null }
+  return {
+    target: {
       id: String(target.id),
       type: String(target.type),
       name: String(target.name),
-    }
-  }
-  const target = findNodeById(masterNode, key)
-  if (!target) return null
-  return {
-    id: String(target.id),
-    type: String(target.type),
-    name: String(target.name),
+    },
   }
 }
 
@@ -466,14 +487,12 @@ function walkRef(node: PenNode, ctx: BuildContext): ContractTreeNode {
     if (!override || typeof override !== 'object') continue
     const overrides = override as Record<string, unknown>
 
-    // Node replacement (children array / non-text subtree) — carried in the
-    // tree so the effective composition survives; the key is still reported
-    // as unmapped in v1.
-    const isNodeReplacement =
-      Array.isArray(overrides.children) ||
-      (typeof overrides.type === 'string' &&
-        overrides.type !== 'text' &&
-        overrides.type !== 'icon')
+    // Node replacement — carried in the tree so the effective composition
+    // survives; the key is still reported as unmapped in v1. Only an override
+    // carrying structural content (children) counts; a scalar type override
+    // ({ type: 'frame', fill }) is styling and must flow through target
+    // resolution below instead of splicing an empty node that discards it.
+    const isNodeReplacement = Array.isArray(overrides.children)
     if (isNodeReplacement) {
       treeChildren.push(walkTree(overrides as PenNode, ctx))
       ctx.warnings.push(
@@ -482,7 +501,12 @@ function walkRef(node: PenNode, ctx: BuildContext): ContractTreeNode {
       continue
     }
 
-    const target = resolveDescendantTarget(masterNode, key, ctx.masterNodeById)
+    const resolved = resolveDescendantTarget(
+      masterNode,
+      key,
+      ctx.masterNodeById
+    )
+    const target = resolved.target
     if (
       target &&
       target.type === 'text' &&
@@ -521,7 +545,9 @@ function walkRef(node: PenNode, ctx: BuildContext): ContractTreeNode {
 
     if (!target) {
       ctx.warnings.push(
-        `${resolution.comp}: unmapped descendant override "${key}" (no matching node in master)`
+        resolved.unsupported
+          ? `${resolution.comp}: ${resolved.unsupported}`
+          : `${resolution.comp}: unmapped descendant override "${key}" (no matching node in master)`
       )
       continue
     }
@@ -793,9 +819,14 @@ export function runContract(options: ContractOptions = {}): ContractResult {
     })
   }
 
-  // State-family validation (violations, exit non-zero).
-  for (const sv of validateStateFamilies(screens)) {
-    ctx.violations.push({ ...sv, candidates: [] })
+  // State-family validation is global (a family's invariants span its whole
+  // screen set). With --screen the filtered set would produce false "no
+  // content screen" violations, so it is skipped for scoped runs; the full
+  // contract keeps strict validation.
+  if (!options.screen) {
+    for (const sv of validateStateFamilies(screens)) {
+      ctx.violations.push({ ...sv, candidates: [] })
+    }
   }
 
   const stateFamilies: ContractStateFamily[] = [
@@ -817,6 +848,8 @@ export function runContract(options: ContractOptions = {}): ContractResult {
     screens: contractScreens,
     stateFamilies,
     violations: sortViolations(ctx.violations),
+    // Warnings are informational (unmapped overrides, unsupported descendant
+    // paths) and never affect `clean` — only violations do.
     warnings: [...new Set(ctx.warnings)].sort(),
   }
 
