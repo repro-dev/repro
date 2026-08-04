@@ -268,11 +268,13 @@ function main(): void {
   const output = JSON.stringify(migrated, null, 2) + '\n'
   if (dryRun) {
     process.stdout.write(output)
-    process.exit(0)
+    process.exitCode = 0
+    return
   }
   if (readFileSync(penFile, 'utf8') === output) {
     console.error(`${penFile} is already in the group model — no changes.`)
-    process.exit(0)
+    process.exitCode = 0
+    return
   }
   writeFileSync(penFile, output)
   console.error(

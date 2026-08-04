@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { spawnSync } from 'node:child_process'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { describe, it } from 'node:test'
@@ -291,6 +292,34 @@ describe('REP-1622 --html scaffold', () => {
     const html = renderContractHtml(bad.contract)
     assert.match(html, /class="violation"/)
     assert.match(html, /unknown master/)
+  })
+})
+
+describe('REP-1622 piped stdout regression', () => {
+  it('spawned CLI emits the full contract through a pipe, not a 64KB truncation', () => {
+    // Regression for REP-1622: process.exit() cut off Node's async stdout
+    // writes when stdout is a pipe, truncating the ~155KB contract to the
+    // 64KB pipe capacity. Spawning through a real pipe reproduces the bug;
+    // file redirects and in-process runContract() calls mask it.
+    const tsxBin = path.join(repoRoot, 'node_modules', '.bin', 'tsx')
+    const script = path.join(repoRoot, 'scripts', 'pen-contract.ts')
+    const result = spawnSync(tsxBin, [script, '--dry-run'], {
+      encoding: 'utf8',
+      maxBuffer: 1024 * 1024,
+    })
+    assert.equal(result.status, 0, result.stderr ?? '')
+    assert.equal(result.error, undefined)
+    const bytes = Buffer.byteLength(result.stdout, 'utf8')
+    assert.ok(
+      bytes > 65536,
+      `piped stdout truncated to ${bytes} bytes (expected the full contract)`
+    )
+    const parsed = JSON.parse(result.stdout) as {
+      clean: boolean
+      screenCount: number
+    }
+    assert.equal(parsed.clean, true)
+    assert.equal(parsed.screenCount, 11)
   })
 })
 

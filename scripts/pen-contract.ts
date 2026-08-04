@@ -1006,5 +1006,7 @@ if (isDirectRun) {
     printUsage()
     process.exit(1)
   }
-  process.exit(runContract(options).code)
+  // Drain async stdout before exiting: process.exit() would cut off pending
+  // writes when stdout is a pipe, truncating the ~155KB contract at 64KB.
+  process.exitCode = runContract(options).code
 }

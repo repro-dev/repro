@@ -1714,19 +1714,21 @@ async function main(): Promise<void> {
   const args = process.argv.slice(2)
   if (args.includes('--help') || args.includes('-h')) {
     printUsage()
-    process.exit(0)
+    process.exitCode = 0
+    return
   }
   const select = parseSelectArg(args)
+  // process.exitCode (not process.exit) so Node drains async stdout writes
+  // before the process exits naturally — process.exit truncates piped stdout.
   if (args.includes('--dry-run')) {
-    process.exit(runDryRun({ select }))
+    process.exitCode = runDryRun({ select })
+  } else if (args.includes('--apply')) {
+    process.exitCode = await runApply({ select })
+  } else if (args.includes('--export')) {
+    process.exitCode = await runExport()
+  } else {
+    process.exitCode = runCheck()
   }
-  if (args.includes('--apply')) {
-    process.exit(await runApply({ select }))
-  }
-  if (args.includes('--export')) {
-    process.exit(await runExport())
-  }
-  process.exit(runCheck())
 }
 
 const isDirectRun =
