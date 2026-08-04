@@ -25,7 +25,7 @@
     "pngjs": "^7.0.0",
     "prettier": "^3.0.0",
     "prettier-plugin-organize-imports": "^3.2.3",
-    "tsx": "4.19.3"
+    "tsx": "4.23.5"
   },
   "pnpm": {
     "overrides": {
@@ -39,7 +39,7 @@
       "react": "18.3.1",
       "react-dom": "18.3.1",
       "react-hook-form": "7.53.0",
-      "tsx": "4.19.3",
+      "tsx": "4.23.5",
       "typescript": "5.7.3",
       "vite": "6.4.1",
       "@vitejs/plugin-react": "4.7.0",
