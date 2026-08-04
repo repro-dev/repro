@@ -584,7 +584,7 @@ For the publishable issue:
 
 2. **Push** with retry: retry transient failures up to 3 times; escalate permanent failures immediately.
 
-3. **Create the PR**. This is the completion gate for the build run. The body should help a human reviewer quickly understand the change. Include:
+3. **Create the PR**. This is part of the completion gate for the build run; the manual-verification output (step 4 below) completes it. The body should help a human reviewer quickly understand the change. Include:
 
    - `Closes REP-xxx`
    - A short summary of the change
@@ -613,22 +613,32 @@ For the publishable issue:
 
    Do **not** paste the full AI review output into the PR body, and do **not** duplicate that review output into Linear comments.
 
-4. **Set the Linear issue to In Review** only after the PR exists.
+4. **Manual-verification completion gate**: before the run is complete, produce the manual
+   verification output per §7: (a) write `<worktree>/tmp/manual-test-plan-<issue-id>.md`,
+   (b) print it verbatim in the operator summary as the fixed `Manual verification` block, and
+   (c) append it to the PR body as a `## Manual test plan` section via `gh pr edit
+   <pr-number> --body "<updated-body>"`. Publish is **not** complete until all three hold.
+   Presence check (challenge-verify-validate): verify the artifact exists at
+   `<worktree>/tmp/manual-test-plan-<issue-id>.md`; if it is missing, author it now via §7 and
+   append it — do not complete publish without it.
+
+5. **Set the Linear issue to In Review** only after the PR exists and the manual test plan has been written and appended to the PR body (step 4).
 
 After publish has been handled:
 
 - Report the opened PR URL
 - Report escalated issues and why
 - Aggregate friction logs: check whether `<worktree>/tmp/friction.md` exists. If it does, concatenate all entries and print a grouped summary to the operator, organized by root-cause category (`missing-docs`, `unclear-pattern`, `tooling-gap`, `stale-code`). Include the issue identifier alongside each entry.
+- Print the fixed `Manual verification` block (from §7) verbatim in the final summary — always present, using `Automated coverage is sufficient; no manual verification needed.` when there is nothing to verify.
 - Stop
 
 Post-publish waiting, CI monitoring, merge handling, and automatic continuation belong to follow-on work, not this command.
 
-After stopping, proceed to the manual test plan phase.
+The manual test plan phase (§7) runs as the completion gate (step 4) above; after it completes, emit the final summary and stop.
 
-## 7. Manual test plan (post-publish)
+## 7. Manual verification output (publish completion gate)
 
-After publish completes, produce a manual test plan artifact for the published issue. This phase runs **after** the PR is created and does **not** block publish. It is a final informational output step.
+Produces the manual test plan artifact for the issue and renders it as the fixed `Manual verification` block. This phase is a **completion gate** (§6 step 4): publish is not complete until the manual verification output is (1) written to `<worktree>/tmp/manual-test-plan-<issue-id>.md`, (2) printed verbatim in the operator summary, and (3) appended to the PR body.
 
 ### Per-issue workflow
 
@@ -646,14 +656,23 @@ For the published issue:
    - For API changes: include `curl` examples or equivalent for manual endpoint testing
    - For cross-cutting changes: group steps by user-facing surface (browser, CLI, API, extension)
 
+2a. **Determine whether the issue is design-touching**: the issue touches `repro.pen` or a
+    ported surface when `git diff origin/main...HEAD` includes changes to `repro.pen` or any
+    `*.pen` file, when changed paths live under a ported surface (see `pen-design-workflow`
+    §7), or when the issue description declares design intent. If design-touching, the plan
+    MUST include the `## Design reconciliation` section (step 5 template) and MUST include a
+    UI-verification manual step (design vs implementation, step 3 below).
+
 3. **Scope the plan to human-executable verification only**:
    - Do **not** restate automated test names or describe what the test suite covers
    - Do **not** include steps that are fully covered by automated tests unless a human should still verify the integrated behavior
    - Each step must describe a concrete action and the expected outcome
+   - For design-touching issues, include a UI-verification step: compare the pen screenshot baseline against ui-verification browser evidence (the human check in the `Design reconciliation` section).
 
 4. **If the issue has no meaningful manual verification surface** (e.g. purely internal refactoring, build config changes):
    - The plan is a single line: `Automated coverage is sufficient; no manual verification needed.`
    - Still write the artifact — the presence of the file signals that the phase ran.
+   - This single line is the block's empty-string content — the `Manual verification` block is still printed with it, never omitted.
 
 5. **Write the artifact** at `<worktree>/tmp/manual-test-plan-<issue-id>.md` using this structure:
 
@@ -679,18 +698,43 @@ For the published issue:
    ## Notes
 
    <!-- Anything the tester should know: preconditions, data setup, known limitations -->
+
+   ## Design reconciliation
+
+   <!-- Required when the issue touches repro.pen or a ported surface; omit otherwise -->
+
+   ### In-scope design deltas
+   <!-- design changes in this issue's diff / repro.pen changes; author from the issue's diff
+        and pen changes (REP-1628's detect output will render this once that skill exists) -->
+
+   ### Screens / masters involved
+   <!-- screen node IDs (`screens/<surface>/<family>`) and master names (`masters/<pkg>/<Component>`) touched -->
+
+   ### Out-of-scope design changes (explicitly not reconciled)
+   <!-- design changes intentionally not reconciled in this issue, listed explicitly -->
+
+   ### Human check
+   1. Capture the pen screenshot baseline for each affected screen node with
+      `pencil_get_screenshot` on `repro.pen`.
+   2. Capture ui-verification browser evidence of the implemented surface (see the
+      `ui-verification` skill; `reproctl start --wait --full-stack <service>` + `agent-browser`).
+   3. Compare the pen baseline against the browser evidence and flag every mismatch.
    ```
 
 ### Operator output
 
-After writing the artifact, print the full plan verbatim in the publish-phase summary output:
+After writing the artifact, print the full plan verbatim in the publish-phase summary output. This block is fixed — it appears in every run's final summary, empty-string when there is nothing to verify:
 
 ```
 ─────────────────────────────────────────────────────
-📋 Manual test plan for REP-xxx
+## Manual verification — REP-xxx
 ─────────────────────────────────────────────────────
 
-<full plan content verbatim>
+<full manual test plan content verbatim>
+
+<!-- When there is nothing to verify, render the block with this single line:
+Automated coverage is sufficient; no manual verification needed.
+-->
 ```
 
 ### PR body update
@@ -699,11 +743,11 @@ After writing the artifact, append the full plan verbatim to the PR body as a `#
 
 Use `gh pr edit <pr-number> --body "<updated-body>"` to update the PR description.
 
+This append is required for publish completion (§6 step 4 gate) — do not skip it when the plan says automated coverage is sufficient; append the single line.
+
 ### Post-phase handoff
 
-After the manual test plan is written, printed verbatim, and the PR body is updated:
-
-- Proceed to the existing post-publish stop
+After the manual test plan is written, printed as the fixed `Manual verification` block, and appended to the PR body, the publish completion gate (§6 step 4) is satisfied. Proceed to the existing post-publish stop and final summary.
 
 ## Throughout
 
@@ -727,7 +771,7 @@ After the manual test plan is written, printed verbatim, and the PR body is upda
 
 CI enforces build, typecheck, test (`moon ci :build :typecheck :test`), lint, format, migration timestamp checks, and test-file size limits — these run independently after publish and are not gated here.
 
-`/build` publishes PRs after local verification and does **not** wait on CI. A run is not complete until the PR exists and the publish phase has run. Report local checks separately so CI status is never implied unless it was actually observed elsewhere.
+`/build` publishes PRs after local verification and does **not** wait on CI. A run is not complete until the PR exists, the publish phase has run, and the manual verification output has been written, printed in the operator summary, and appended to the PR body (the §7 completion gate). Report local checks separately so CI status is never implied unless it was actually observed elsewhere.
 
 ## Quality gates
 
