@@ -1,28 +1,29 @@
 #!/usr/bin/env node
-// REP-1618: deterministic pen -> code sync CLI.
+// REP-1618/REP-1622: deterministic pen -> code sync CLI (directory/group model).
 //
-// Replaces the component-map registry with a master naming
-// convention: every master is named <package>::<ComponentName> (e.g.
-// design::Button) and the package prefix must resolve to a real export
-// from packages/<package>/src. The scope is always @repro, so the bare
-// package name disambiguates.
+// repro.pen is restructured into native Group nodes (REP-1622):
+//   masters/<pkg>/<Component>   — master identity comes from the PATH
+//   screens/<surface>/<family>  — screens grouped by surface + state family
+// Names are pure human labels; the package::Component name prefix and
+// MASTER_NAME_PATTERN/splitMasterName name parsing are retired.
 //
 // Modes:
-//   - Check mode (default): read-only validation of the naming convention
-//     and export resolvability against repro.pen. Exits 0 when clean,
-//     non-zero on violations.
+//   - Check mode (default): read-only validation of path-based master
+//     resolution, export resolvability, state-family metadata, and variable
+//     refs against repro.pen. Exits 0 when clean, non-zero on violations.
 //   - Dry-run mode (--dry-run): lists every required resolution as machine
 //     JSON on stdout (candidate ranking per master) without touching the
 //     pen file. Exit 0 iff every master is resolvable.
-//   - Apply mode (--apply): renames masters to package::ComponentName,
-//     writes { type: 'master', package, component } metadata, and saves
-//     repro.pen. Single-candidate masters auto-rename; ambiguous masters
-//     prompt in a TTY or emit JSON + exit non-zero otherwise. Exit
-//     non-zero for anything it cannot resolve.
+//   - Apply mode (--apply): repair mode — moves a master frame into the
+//     correct masters/<pkg>/ group and writes { type: 'master', package,
+//     component } metadata (no renames; names are labels now). Single-
+//     candidate masters auto-repair; ambiguous masters prompt in a TTY or
+//     emit JSON + exit non-zero otherwise.
 //   - Export mode (--export): exports screens to PNG + HTML via the pen CLI
 //     and regenerates the catalog (with the screens index) in
 //     tmp/pen-catalog.json.
 import { spawn } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import {
   closeSync,
   existsSync,
@@ -49,6 +50,7 @@ export interface PenNode {
   name: string
   reusable?: boolean
   metadata?: Record<string, string>
+  children?: PenNode[]
   [key: string]: unknown
 }
 
@@ -61,6 +63,7 @@ export interface PenFile {
   version: string
   children: PenNode[]
   variables?: Record<string, PenVariable>
+  themes?: unknown
   [key: string]: unknown
 }
 
@@ -70,7 +73,12 @@ export interface MasterInfo {
   dims: Record<string, unknown>
   variableRefs: string[]
   metadata?: Record<string, string>
+  /** Path of the containing groups ('' for top-level), e.g. 'masters/design'. */
+  groupPath: string
 }
+
+export const SCREEN_STATES = ['content', 'loading', 'empty', 'error'] as const
+export type ScreenState = (typeof SCREEN_STATES)[number]
 
 export interface ScreenInfo {
   id: string
@@ -78,6 +86,35 @@ export interface ScreenInfo {
   normalizedName: string
   width?: unknown
   height?: unknown
+  /** Path of the containing groups ('' for top-level), e.g. 'screens/admin/health'. */
+  groupPath: string
+  /** Declarative state-family association (metadata authoritative). */
+  stateFamily?: string
+  /** Raw metadata.state value; validated against the closed enum separately. */
+  state?: string
+}
+
+export interface LocatedNode {
+  node: PenNode
+  groupPath: string
+  /**
+   * True when the node's direct parent is a Group node or the document root
+   * AND no frame is an ancestor. Collection-level frames are masters/screens;
+   * frames nested inside other frames (a screen's internal layout, a master's
+   * own children — even via an intermediate group) are not.
+   */
+  atCollectionLevel: boolean
+}
+
+export interface StateViolation {
+  /**
+   * Null for family-scoped violations (e.g. "has no content screen") where
+   * no single screen is responsible; per-screen violations carry the id.
+   * Never an empty-string sentinel.
+   */
+  screenId: string | null
+  screenName: string | null
+  reason: string
 }
 
 // ---------------------------------------------------------------------------
@@ -131,58 +168,313 @@ export function extractVariableRefs(
   return refs
 }
 
-/** Reusable frames are the masters; capture dims + variable refs. */
+/**
+ * Depth-first walk of every node in the tree (groups, frames, refs, texts,
+ * icons, ...). Group nodes carry no payload of their own, so recursive
+ * extraction and validation must see inside them.
+ */
+export function findNodesRecursive(nodes: PenNode[]): PenNode[] {
+  const result: PenNode[] = []
+  const visit = (node: PenNode): void => {
+    result.push(node)
+    if (Array.isArray(node.children)) {
+      for (const child of node.children) visit(child)
+    }
+  }
+  for (const node of nodes) visit(node)
+  return result
+}
+
+/**
+ * Depth-first walk that also carries the path of containing group names
+ * (joined with '/', '' for top-level nodes). Group names are path segments;
+ * a frame inside `masters` > `design` has groupPath 'masters/design'.
+ */
+export function findNodesRecursiveWithPath(nodes: PenNode[]): LocatedNode[] {
+  const result: LocatedNode[] = []
+  const segments: string[] = []
+  const visit = (
+    node: PenNode,
+    parentIsGroup: boolean,
+    insideFrame: boolean
+  ): void => {
+    result.push({
+      node,
+      groupPath: segments.join('/'),
+      atCollectionLevel: parentIsGroup && !insideFrame,
+    })
+    if (Array.isArray(node.children)) {
+      if (node.type === 'group' && typeof node.name === 'string') {
+        segments.push(node.name)
+      }
+      const nextParentIsGroup = node.type === 'group'
+      const nextInsideFrame = insideFrame || node.type === 'frame'
+      for (const child of node.children) {
+        visit(child, nextParentIsGroup, nextInsideFrame)
+      }
+      if (node.type === 'group' && typeof node.name === 'string') {
+        segments.pop()
+      }
+    }
+  }
+  for (const node of nodes) visit(node, true, false)
+  return result
+}
+
+/**
+ * Deterministic group id: UUIDv5 (SHA-1) of the group path string under the
+ * DNS namespace. Same input -> same id, so group structure is reproducible
+ * and idempotent migrations keep stable ids.
+ */
+const UUIDV5_DNS_NAMESPACE = '6ba7b810-9dad-11d1-80b4-00c04fd430c8'
+
+export function uuidv5(
+  name: string,
+  namespace: string = UUIDV5_DNS_NAMESPACE
+): string {
+  const nsBytes = Buffer.from(namespace.replaceAll('-', ''), 'hex')
+  const hash = createHash('sha1')
+  hash.update(nsBytes)
+  hash.update(name, 'utf8')
+  const bytes = hash.digest().subarray(0, 16)
+  bytes[6] = (bytes[6]! & 0x0f) | 0x50 // version 5
+  bytes[8] = (bytes[8]! & 0x3f) | 0x80 // variant 10xx
+  const hex = bytes.toString('hex')
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(
+    12,
+    16
+  )}-${hex.slice(16, 20)}-${hex.slice(20)}`
+}
+
+/** Reusable collection-level frames are the masters (inside groups or top-level). */
 export function extractMasters(pen: PenFile): MasterInfo[] {
-  return pen.children
-    .filter(child => child.type === 'frame' && child.reusable === true)
-    .map(child => {
+  return findNodesRecursiveWithPath(pen.children)
+    .filter(
+      ({ node, atCollectionLevel }) =>
+        node.type === 'frame' && node.reusable === true && atCollectionLevel
+    )
+    .map(({ node, groupPath }) => {
       const dims: Record<string, unknown> = {}
       for (const key of ['x', 'y', 'width', 'height'] as const) {
-        if (child[key] !== undefined) dims[key] = child[key]
+        if (node[key] !== undefined) dims[key] = node[key]
       }
       return {
-        id: child.id,
-        name: child.name,
+        id: node.id,
+        name: node.name,
         dims,
-        variableRefs: [...extractVariableRefs(child)].sort(),
+        variableRefs: [...extractVariableRefs(node)].sort(),
         metadata:
-          child.metadata && typeof child.metadata === 'object'
-            ? (child.metadata as Record<string, string>)
+          node.metadata && typeof node.metadata === 'object'
+            ? (node.metadata as Record<string, string>)
             : undefined,
+        groupPath,
       }
     })
 }
 
-/** Non-reusable top-level frames are the screens. */
+/**
+ * Non-reusable collection-level frames are the screens. Screens live only
+ * under `screens/` (or at the top level for backward-compatible fixtures);
+ * anything inside a master's subtree (path starts with 'masters') is never
+ * a screen, and frames nested inside other frames (a screen's internal
+ * layout) are not screens either.
+ */
 export function extractScreens(pen: PenFile): ScreenInfo[] {
-  return pen.children
-    .filter(child => child.type === 'frame' && !child.reusable)
-    .map(child => ({
-      id: child.id,
-      name: child.name,
-      normalizedName: normalizeScreenName(child.name),
-      width: child.width,
-      height: child.height,
-    }))
+  return findNodesRecursiveWithPath(pen.children)
+    .filter(
+      ({ node, groupPath, atCollectionLevel }) =>
+        node.type === 'frame' &&
+        !node.reusable &&
+        atCollectionLevel &&
+        groupPath.split('/')[0] !== 'masters'
+    )
+    .map(({ node, groupPath }) => {
+      const metadata =
+        node.metadata && typeof node.metadata === 'object'
+          ? (node.metadata as Record<string, string>)
+          : undefined
+      return {
+        id: node.id,
+        name: node.name,
+        normalizedName: normalizeScreenName(node.name),
+        width: node.width,
+        height: node.height,
+        groupPath,
+        stateFamily: metadata?.stateFamily,
+        state: metadata?.state,
+      }
+    })
 }
 
 export function extractVariables(pen: PenFile): Record<string, PenVariable> {
   return pen.variables ?? {}
 }
 
+/** True when the value is one of the closed screen-state values. */
+export function isScreenState(value: unknown): value is ScreenState {
+  return (
+    typeof value === 'string' &&
+    (SCREEN_STATES as readonly string[]).includes(value)
+  )
+}
+
+export type StateFamilyMap = Map<
+  string,
+  Partial<Record<ScreenState, { screenId: string; screenName: string }>>
+>
+
+/**
+ * Group screens by their declarative stateFamily metadata. First screen wins
+ * when a state value is duplicated (the duplicate is reported separately by
+ * validateStateFamilies). Non-enum states are excluded (they are violations,
+ * not family members).
+ */
+export function extractStateFamilies(screens: ScreenInfo[]): StateFamilyMap {
+  const families: StateFamilyMap = new Map()
+  for (const screen of screens) {
+    if (!screen.stateFamily || !screen.state) continue
+    if (!isScreenState(screen.state)) continue
+    let entry = families.get(screen.stateFamily)
+    if (!entry) {
+      entry = {}
+      families.set(screen.stateFamily, entry)
+    }
+    if (entry[screen.state] === undefined) {
+      entry[screen.state] = { screenId: screen.id, screenName: screen.name }
+    }
+  }
+  return families
+}
+
+/**
+ * Per-screen state metadata validation (violations exit non-zero):
+ *   - `state` must be in the closed enum
+ *   - `stateFamily` and `state` always together (both-or-neither)
+ *
+ * These are properties of each screen itself and must run even for scoped
+ * runs (e.g. pen-contract --screen), where family aggregates cannot be
+ * evaluated on a filtered screen set.
+ */
+export function validateScreenStateMetadata(
+  screens: ScreenInfo[]
+): StateViolation[] {
+  const violations: StateViolation[] = []
+  for (const screen of screens) {
+    const hasFamily = screen.stateFamily !== undefined
+    const hasState = screen.state !== undefined
+    if (hasFamily !== hasState) {
+      violations.push({
+        screenId: screen.id,
+        screenName: screen.name,
+        reason: hasFamily
+          ? `screen has stateFamily "${screen.stateFamily}" but no state (stateFamily and state must be set together)`
+          : `screen has state "${String(
+              screen.state
+            )}" but no stateFamily (stateFamily and state must be set together)`,
+      })
+      continue
+    }
+    if (hasState && !isScreenState(screen.state)) {
+      violations.push({
+        screenId: screen.id,
+        screenName: screen.name,
+        reason: `invalid state "${String(
+          screen.state
+        )}" — expected one of ${SCREEN_STATES.join(', ')}`,
+      })
+    }
+  }
+  return violations
+}
+
+/**
+ * Family-aggregate state validation (violations exit non-zero):
+ *   - within a family, states are unique
+ *   - within a family, exactly one screen is the content state
+ *
+ * These span the family's whole screen set and are only meaningful on the
+ * full set (scoped --screen runs skip them to avoid false "no content
+ * screen" violations on a filtered subset).
+ */
+export function validateFamilyStateAggregates(
+  screens: ScreenInfo[]
+): StateViolation[] {
+  const violations: StateViolation[] = []
+  const familyScreens = new Map<string, ScreenInfo[]>()
+
+  // Only enum-valid states join the family's screen set. Non-enum states
+  // are reported as invalid-state violations (validateScreenStateMetadata)
+  // and are excluded from duplicate/content counting so a family violation
+  // never references a screen the contract's stateFamilies output does not
+  // show (this mirrors extractStateFamilies, which skips non-enum states).
+  for (const screen of screens) {
+    if (screen.stateFamily && isScreenState(screen.state)) {
+      const list = familyScreens.get(screen.stateFamily) ?? []
+      list.push(screen)
+      familyScreens.set(screen.stateFamily, list)
+    }
+  }
+
+  for (const [family, list] of [...familyScreens.entries()].sort(([a], [b]) =>
+    a.localeCompare(b)
+  )) {
+    const contents = list.filter(s => s.state === 'content')
+    if (contents.length === 0) {
+      violations.push({
+        screenId: null,
+        screenName: null,
+        reason: `state family "${family}" has no content screen — exactly one content state is required`,
+      })
+    } else if (contents.length > 1) {
+      violations.push({
+        screenId: null,
+        screenName: null,
+        reason: `state family "${family}" has ${contents.length} content screens — exactly one is required`,
+      })
+    }
+    const seen = new Map<string, string>()
+    for (const screen of list) {
+      if (!screen.state) continue
+      const prior = seen.get(screen.state)
+      if (prior !== undefined) {
+        violations.push({
+          screenId: screen.id,
+          screenName: screen.name,
+          reason: `duplicate state "${screen.state}" in family "${family}" (also used by screen "${prior}")`,
+        })
+      } else {
+        seen.set(screen.state, screen.name)
+      }
+    }
+  }
+  return violations
+}
+
+/**
+ * Strict state-family validation (violations exit non-zero): per-screen
+ * metadata (enum membership, both-or-neither) plus family aggregates
+ * (unique states, exactly one content). The two halves are exposed
+ * separately so scoped runs can skip the family aggregates.
+ */
+export function validateStateFamilies(screens: ScreenInfo[]): StateViolation[] {
+  return [
+    ...validateScreenStateMetadata(screens),
+    ...validateFamilyStateAggregates(screens),
+  ]
+}
+
 // ---------------------------------------------------------------------------
 // Validation helpers
 // ---------------------------------------------------------------------------
 
+/**
+ * @deprecated name-based convention (REP-1622): master identity now comes
+ * from the group path. Kept as an internal helper for candidate inference
+ * only — nothing should import it.
+ */
 const MASTER_NAME_PATTERN = /^[a-z][a-z0-9-]*::[A-Z][a-zA-Z0-9]*$/
 
-/**
- * Masters follow package::ComponentName (:: as namespace separator). The
- * component part is the exported symbol name, always uppercase-first
- * (design::Button, never design::button). Exact-case export resolvability is
- * enforced separately in check/apply modes.
- */
-export function validateMasterName(name: string): boolean {
+function validateMasterName(name: string): boolean {
   return MASTER_NAME_PATTERN.test(name)
 }
 
@@ -311,8 +603,8 @@ function collectExports(
 export function validateVariableRefs(pen: PenFile): string[] {
   const declared = new Set(Object.keys(extractVariables(pen)))
   const used = new Set<string>()
-  for (const child of pen.children) {
-    for (const ref of extractVariableRefs(child)) used.add(ref)
+  for (const node of findNodesRecursive(pen.children)) {
+    for (const ref of extractVariableRefs(node)) used.add(ref)
   }
   if (pen.themes) {
     for (const ref of extractVariableRefs(pen.themes)) used.add(ref)
@@ -332,7 +624,7 @@ export function findScreenShapeDuplicates(
   const warnings: string[] = []
   const screens = extractScreens(pen)
   for (const screen of screens) {
-    const frame = pen.children.find(child => child.id === screen.id)
+    const frame = findNodeByIdRecursive(pen, screen.id)
     if (!frame || !Array.isArray(frame.children)) continue
     const visit = (node: unknown): void => {
       if (!node || typeof node !== 'object') return
@@ -413,7 +705,7 @@ const byPkgComp = (a: CandidateInfo, b: CandidateInfo): number =>
     : a.package.localeCompare(b.package)
 
 /**
- * Suggest package::ComponentName bindings for a master name.
+ * Suggest package::ComponentName bindings for a master's component label.
  *
  * Tier 1 (exact): exported names equal to the master's component-name part
  * (text after `::`, or the whole name when unprefixed) whose qualified form
@@ -489,6 +781,74 @@ export function inferCandidates(
 }
 
 // ---------------------------------------------------------------------------
+// Path-based master resolution
+// ---------------------------------------------------------------------------
+
+export interface MasterResolutionOk {
+  ok: true
+  pkg: string
+  comp: string
+}
+
+export interface MasterResolutionFailure {
+  ok: false
+  reason: string
+  candidates: string[]
+  /** The master sits in a well-formed masters/<pkg> group (path shape is right). */
+  pathConforming: boolean
+}
+
+export type MasterResolution = MasterResolutionOk | MasterResolutionFailure
+
+function failureCandidates(
+  inference: ReturnType<typeof inferCandidates>
+): string[] {
+  if (inference.exact.length > 0) return inference.exact
+  return inference.closest.map(c => `${c.package}::${c.component}`)
+}
+
+/**
+ * Resolve a master to a concrete @repro/<pkg> export from its GROUP PATH
+ * (identity comes from `masters/<pkg>`, not the name). The component label
+ * is the frame name. Anything that cannot resolve reports "did you mean?"
+ * candidates via inferCandidates.
+ */
+export function resolveMasterFromPath(
+  groupPath: string,
+  name: string,
+  exportsByPackage: Map<string, Set<string>>
+): MasterResolution {
+  const segments = groupPath.split('/').filter(Boolean)
+  if (segments[0] !== 'masters' || segments.length !== 2) {
+    return {
+      ok: false,
+      reason: `master "${name}" is not inside a masters/<pkg> group (group path "${groupPath}")`,
+      candidates: failureCandidates(inferCandidates(name, exportsByPackage)),
+      pathConforming: false,
+    }
+  }
+  const pkg = segments[1]!
+  if (!resolvePackagePath(pkg)) {
+    return {
+      ok: false,
+      reason: `package "${pkg}" does not exist`,
+      candidates: [],
+      pathConforming: true,
+    }
+  }
+  const ex = exportsByPackage.get(pkg)
+  if (!ex || !ex.has(name)) {
+    return {
+      ok: false,
+      reason: `"${name}" is not exported from @repro/${pkg}`,
+      candidates: failureCandidates(inferCandidates(name, exportsByPackage)),
+      pathConforming: true,
+    }
+  }
+  return { ok: true, pkg, comp: name }
+}
+
+// ---------------------------------------------------------------------------
 // Catalog (runs in check and export modes)
 // ---------------------------------------------------------------------------
 
@@ -559,8 +919,8 @@ export interface ResolutionPlan {
 
 /**
  * Shared per-master resolution plan used by dry-run: for every master,
- * decide whether it conforms, can be auto-renamed, needs --select, is
- * ambiguous, has no candidate, or is a violation.
+ * decide whether it conforms (path resolves), can be auto-repaired, needs
+ * --select, is ambiguous, has no candidate, or is a violation.
  */
 export function buildResolutionPlan(
   pen: PenFile,
@@ -605,36 +965,36 @@ export function buildResolutionPlan(
       continue
     }
 
-    if (validateMasterName(master.name)) {
-      const [pkg, comp] = splitMasterName(master.name)
-      const ex = exportsByPackage.get(pkg)
-      if (!resolvePackagePath(pkg)) {
-        entries.push({
-          masterId: master.id,
-          masterName: master.name,
-          status: 'violation',
-          reason: `package "${pkg}" does not exist`,
-        })
-        unresolved++
-      } else if (!ex || !ex.has(comp)) {
-        entries.push({
-          masterId: master.id,
-          masterName: master.name,
-          status: 'violation',
-          reason: `"${comp}" is not exported from @repro/${pkg}`,
-        })
-        unresolved++
-      } else {
-        entries.push({
-          masterId: master.id,
-          masterName: master.name,
-          status: 'conforming',
-        })
-        resolved++
-      }
+    const resolution = resolveMasterFromPath(
+      master.groupPath,
+      master.name,
+      exportsByPackage
+    )
+    if (resolution.ok) {
+      entries.push({
+        masterId: master.id,
+        masterName: master.name,
+        status: 'conforming',
+      })
+      resolved++
+      continue
+    }
+    if (resolution.pathConforming) {
+      entries.push({
+        masterId: master.id,
+        masterName: master.name,
+        status: 'violation',
+        reason: resolution.reason,
+        candidates:
+          resolution.candidates.length > 0
+            ? resolution.candidates.map(toCandidate)
+            : undefined,
+      })
+      unresolved++
       continue
     }
 
+    // Master is not inside a valid masters/<pkg> group: infer a repair.
     const inference = inferCandidates(master.name, exportsByPackage)
     if (inference.exact.length === 1) {
       const target = inference.exact[0]!
@@ -680,6 +1040,11 @@ export function buildResolutionPlan(
   return { entries, resolved, unresolved, invalidSelect }
 }
 
+function toCandidate(qualified: string): CandidateInfo {
+  const [pkg, comp] = splitMasterName(qualified)
+  return { package: pkg, component: comp, confidence: 'exact' }
+}
+
 /** Validate a user-supplied package::ComponentName resolution. */
 function validateResolvedName(
   name: string,
@@ -719,43 +1084,60 @@ export function runCheck(options: RunOptions = {}): number {
 
   const violations: string[] = []
   const masters = extractMasters(pen)
+  const screens = extractScreens(pen)
   const exportsByPackage = collectAllPackageExports()
 
   for (const master of masters) {
-    if (validateMasterName(master.name)) {
-      const [pkg, comp] = splitMasterName(master.name)
-      if (!resolvePackagePath(pkg)) {
-        violations.push(`master ${master.id}: package "${pkg}" does not exist`)
-        continue
-      }
-      const ex = exportsByPackage.get(pkg)
-      if (!ex || !ex.has(comp)) {
+    const resolution = resolveMasterFromPath(
+      master.groupPath,
+      master.name,
+      exportsByPackage
+    )
+    if (resolution.ok) continue
+    if (resolution.pathConforming) {
+      if (resolution.candidates.length > 0) {
         violations.push(
-          `master ${master.id}: "${comp}" is not exported from @repro/${pkg}`
+          `master ${master.id} "${master.name}": ${
+            resolution.reason
+          } — did you mean ${resolution.candidates
+            .map(c => `\`${c}\``)
+            .join(', ')}?`
+        )
+      } else {
+        violations.push(
+          `master ${master.id} "${master.name}": ${resolution.reason}`
         )
       }
       continue
     }
-
-    // Unprefixed / non-conforming: recommend candidates, never a command.
+    // Not inside a masters/<pkg> group: recommend candidates, never a command.
     const inference = inferCandidates(master.name, exportsByPackage)
     if (inference.exact.length === 1) {
       violations.push(
-        `master ${master.id} "${master.name}" does not have a package name prefix — did you mean \`${inference.exact[0]}\`?`
+        `master ${master.id} "${master.name}" is not inside a masters/<pkg> group — did you mean \`${inference.exact[0]}\`? Run 'tsx scripts/pen-lint.ts --apply' to move it.`
       )
     } else if (inference.exact.length > 1) {
       const options = inference.exact.map(n => `\`${n}\``).join(', ')
       violations.push(
-        `master ${master.id} "${master.name}" has multiple candidate packages — did you mean one of ${options}?`
+        `master ${master.id} "${master.name}" is not inside a masters/<pkg> group — did you mean one of ${options}?`
       )
     } else {
       const matches = inference.closest
         .map(c => `\`${c.package}::${c.component}\``)
         .join(', ')
       violations.push(
-        `master ${master.id} "${master.name}" has no matching component export — closest matches: ${matches}. Flag for human resolution.`
+        `master ${master.id} "${master.name}" is not inside a masters/<pkg> group and has no matching component export — closest matches: ${matches}. Flag for human resolution.`
       )
     }
+  }
+
+  // State-family metadata is part of the strict gate.
+  for (const sv of validateStateFamilies(screens)) {
+    violations.push(
+      sv.screenId === null
+        ? sv.reason
+        : `screen ${sv.screenId} "${sv.screenName}": ${sv.reason}`
+    )
   }
 
   // Variable refs must resolve.
@@ -773,12 +1155,12 @@ export function runCheck(options: RunOptions = {}): number {
   if (violations.length > 0) {
     for (const violation of violations) log(`violation: ${violation}`)
     log(
-      `${violations.length} violation(s) found — run 'tsx scripts/pen-lint.ts --apply' to auto-fix naming/metadata.`
+      `${violations.length} violation(s) found — run 'tsx scripts/pen-lint.ts --apply' to auto-fix grouping/metadata.`
     )
     return 1
   }
   log(
-    'pen-lint check passed: all masters, packages, exports, and variable refs are clean.'
+    'pen-lint check passed: all masters, groups, packages, exports, state families, and variable refs are clean.'
   )
   return 0
 }
@@ -822,25 +1204,69 @@ export function runDryRun(options: RunOptions = {}): number {
 // Apply mode (--apply)
 // ---------------------------------------------------------------------------
 
+/** Find the children array (at any depth) that directly contains the id. */
+function findParentChildren(nodes: PenNode[], id: string): PenNode[] | null {
+  for (const node of nodes) {
+    if (node.id === id) return nodes
+    if (Array.isArray(node.children)) {
+      const found = findParentChildren(node.children, id)
+      if (found) return found
+    }
+  }
+  return null
+}
+
 /**
- * Rename a master node and set its resolved-binding metadata. Returns true
- * when the node actually changed (name or metadata), so the pen file is only
- * written when there is a real diff.
+ * Walk a group path ('masters/design') creating any missing groups along the
+ * way with deterministic UUIDv5 ids; returns the children array of the leaf.
  */
-function applyBinding(
+function getOrCreateGroup(pen: PenFile, groupPath: string): PenNode[] {
+  const segments = groupPath.split('/').filter(Boolean)
+  let current = pen.children
+  let acc = ''
+  for (const segment of segments) {
+    acc = acc ? `${acc}/${segment}` : segment
+    let group = current.find(c => c.type === 'group' && c.name === segment) as
+      | PenNode
+      | undefined
+    if (!group) {
+      group = { type: 'group', id: uuidv5(acc), name: segment, x: 0, y: 0 }
+      group.children = []
+      current.push(group)
+    }
+    current = group.children ?? (group.children = [])
+  }
+  return current
+}
+
+/**
+ * Move a node into a group path (creating groups as needed). No-op when the
+ * node is already a direct child of the target group.
+ */
+function moveNodeToGroup(
+  pen: PenFile,
   node: PenNode,
-  masterId: string,
-  name: string,
-  pkg: string,
-  comp: string,
+  groupPath: string,
   log: (msg: string) => void
 ): boolean {
+  const parentChildren = findParentChildren(pen.children, node.id)
+  if (!parentChildren) return false
+  const targetChildren = getOrCreateGroup(pen, groupPath)
+  if (parentChildren === targetChildren) return false
+  const index = parentChildren.indexOf(node)
+  parentChildren.splice(index, 1)
+  targetChildren.push(node)
+  log(`moving master ${node.id} "${node.name}" -> ${groupPath}/`)
+  return true
+}
+
+/**
+ * Set a master node's resolved-binding metadata. Returns true when the node
+ * actually changed, so the pen file is only written when there is a diff.
+ * Names are pure labels now — apply never renames.
+ */
+function applyBinding(node: PenNode, pkg: string, comp: string): boolean {
   let changed = false
-  if (node.name !== name) {
-    log(`renaming master ${masterId} "${node.name}" -> ${name}`)
-    node.name = name
-    changed = true
-  }
   const metadata: Record<string, string> = {
     type: 'master',
     package: pkg,
@@ -860,6 +1286,14 @@ function applyBinding(
     changed = true
   }
   return changed
+}
+
+/** Find a node by id anywhere in the tree (including inside groups). */
+export function findNodeByIdRecursive(
+  pen: PenFile,
+  id: string
+): PenNode | null {
+  return findNodesRecursive(pen.children).find(node => node.id === id) ?? null
 }
 
 /** Numbered confirmation prompt for ambiguous masters (TTY only). */
@@ -910,7 +1344,7 @@ export async function runApply(options: RunOptions = {}): Promise<number> {
   let changed = false
 
   for (const master of masters) {
-    const node = pen.children.find(child => child.id === master.id)
+    const node = findNodeByIdRecursive(pen, master.id)
     if (!node) continue
 
     const override = select[master.id]
@@ -922,46 +1356,43 @@ export async function runApply(options: RunOptions = {}): Promise<number> {
         )
         continue
       }
-      if (
-        applyBinding(
-          node,
-          master.id,
-          override,
-          validation.pkg,
-          validation.comp,
-          log
-        )
-      ) {
+      // Both steps must run: `||` short-circuits, so compute both first.
+      const moved = moveNodeToGroup(pen, node, `masters/${validation.pkg}`, log)
+      const bound = applyBinding(node, validation.pkg, validation.comp)
+      if (moved || bound) changed = true
+      accepted++
+      continue
+    }
+
+    const resolution = resolveMasterFromPath(
+      master.groupPath,
+      master.name,
+      exportsByPackage
+    )
+    if (resolution.ok) {
+      if (applyBinding(node, resolution.pkg, resolution.comp)) {
         changed = true
       }
       accepted++
       continue
     }
-
-    if (validateMasterName(master.name)) {
-      const [pkg, comp] = splitMasterName(master.name)
-      const ex = exportsByPackage.get(pkg)
-      if (!ex || !ex.has(comp)) {
-        unresolved.push(
-          `master ${master.id} "${master.name}": "${comp}" is not exported from @repro/${pkg}`
-        )
-        continue
-      }
-      if (applyBinding(node, master.id, master.name, pkg, comp, log)) {
-        changed = true
-      }
-      accepted++
+    if (resolution.pathConforming) {
+      unresolved.push(
+        `master ${master.id} "${master.name}": ${resolution.reason}`
+      )
       continue
     }
 
+    // Not inside a valid masters/<pkg> group: infer a repair target.
     const inference = inferCandidates(master.name, exportsByPackage)
     if (inference.exact.length === 1) {
-      // Single unambiguous candidate -> auto-rename without prompting.
+      // Single unambiguous candidate -> auto-repair without prompting.
       const target = inference.exact[0]!
       const [pkg, comp] = splitMasterName(target)
-      if (applyBinding(node, master.id, target, pkg, comp, log)) {
-        changed = true
-      }
+      // Both steps must run: `||` short-circuits, so compute both first.
+      const moved = moveNodeToGroup(pen, node, `masters/${pkg}`, log)
+      const bound = applyBinding(node, pkg, comp)
+      if (moved || bound) changed = true
       accepted++
       continue
     }
@@ -982,9 +1413,10 @@ export async function runApply(options: RunOptions = {}): Promise<number> {
           resolvedByPrompt++
           const target = inference.exact[choice]!
           const [pkg, comp] = splitMasterName(target)
-          if (applyBinding(node, master.id, target, pkg, comp, log)) {
-            changed = true
-          }
+          // Both steps must run: `||` short-circuits, so compute both first.
+          const moved = moveNodeToGroup(pen, node, `masters/${pkg}`, log)
+          const bound = applyBinding(node, pkg, comp)
+          if (moved || bound) changed = true
           accepted++
         } else {
           unresolved.push(
@@ -1040,7 +1472,7 @@ export async function runApply(options: RunOptions = {}): Promise<number> {
     return 1
   }
   if (changed) {
-    log(`Applied master renames and metadata to ${penFile}`)
+    log(`Applied master grouping and metadata to ${penFile}`)
   } else {
     log(`pen file already conforming — no changes (${penFile})`)
   }
@@ -1109,11 +1541,11 @@ function runPenInteractive(
         /* piped to file via fd */
       })
     } else {
-      pen.stdout.on('data', (data: Buffer) => {
+      pen.stdout?.on('data', (data: Buffer) => {
         stdout += data.toString()
       })
     }
-    pen.stderr.on('data', (data: Buffer) => {
+    pen.stderr?.on('data', (data: Buffer) => {
       stderr += data.toString()
     })
     pen.on('error', err => {
@@ -1127,8 +1559,8 @@ function runPenInteractive(
       }
       resolvePromise({ code: code ?? 1, stdout, stderr })
     })
-    pen.stdin.write(commands.join('\n'))
-    pen.stdin.end()
+    pen.stdin?.write(commands.join('\n'))
+    pen.stdin?.end()
   })
 }
 
@@ -1229,19 +1661,20 @@ export async function runExport(options: RunOptions = {}): Promise<number> {
 // ---------------------------------------------------------------------------
 
 function printUsage(): void {
-  console.error(`pen-lint — deterministic pen -> code sync (REP-1618)
+  console.error(`pen-lint — deterministic pen -> code sync (REP-1618/REP-1622)
 
 Usage:
-  tsx scripts/pen-lint.ts                 Check mode (default): validate master
-                                          naming against package exports, write
-                                          the catalog + screens index to
+  tsx scripts/pen-lint.ts                 Check mode (default): validate path-
+                                          based master resolution, state-family
+                                          metadata, and variable refs; write the
+                                          catalog + screens index to
                                           tmp/pen-catalog.json. Exit non-zero on
                                           violations.
   tsx scripts/pen-lint.ts --dry-run       List required resolutions as JSON on
   [--select id=pkg::Name,...]             stdout without touching repro.pen.
                                           Exit 0 iff every master is resolvable.
-  tsx scripts/pen-lint.ts --apply         Apply mode: rename masters to
-  [--select id=pkg::Name,...]             package::ComponentName, set metadata,
+  tsx scripts/pen-lint.ts --apply         Apply mode: move masters into their
+  [--select id=pkg::Name,...]             masters/<pkg>/ group and set metadata,
                                           save repro.pen. Confirmation prompt for
                                           ambiguous masters in a TTY; JSON
                                           candidate list on stdout otherwise.
@@ -1281,19 +1714,21 @@ async function main(): Promise<void> {
   const args = process.argv.slice(2)
   if (args.includes('--help') || args.includes('-h')) {
     printUsage()
-    process.exit(0)
+    process.exitCode = 0
+    return
   }
   const select = parseSelectArg(args)
+  // process.exitCode (not process.exit) so Node drains async stdout writes
+  // before the process exits naturally — process.exit truncates piped stdout.
   if (args.includes('--dry-run')) {
-    process.exit(runDryRun({ select }))
+    process.exitCode = runDryRun({ select })
+  } else if (args.includes('--apply')) {
+    process.exitCode = await runApply({ select })
+  } else if (args.includes('--export')) {
+    process.exitCode = await runExport()
+  } else {
+    process.exitCode = runCheck()
   }
-  if (args.includes('--apply')) {
-    process.exit(await runApply({ select }))
-  }
-  if (args.includes('--export')) {
-    process.exit(await runExport())
-  }
-  process.exit(runCheck())
 }
 
 const isDirectRun =

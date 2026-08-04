@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+#
+# bin/pen-contract — wrapper that runs scripts/pen-contract.ts via tsx
+#
+# The repo's .envrc adds bin/ to PATH, so `pen-contract` is available as a
+# bare command inside the repo and every worktree.
+
+resolve_path() {
+  local target="$1"
+  while [ -L "$target" ]; do
+    local dir
+    dir="$(cd "$(dirname "$target")" && pwd)"
+    target="$(readlink "$target")"
+    [[ "$target" != /* ]] && target="$dir/$target"
+  done
+  echo "$target"
+}
+
+REAL_SCRIPT="$(resolve_path "$0")"
+SCRIPT_DIR="$(cd "$(dirname "$REAL_SCRIPT")" && pwd)"
+REPO_ROOT="$(dirname "$SCRIPT_DIR")"
+
+# Use the repo-local tsx and pen-contract script by absolute path to avoid
+# circular invocation (PATH includes bin/ which contains this wrapper).
+exec "$REPO_ROOT/node_modules/.bin/tsx" "$REPO_ROOT/scripts/pen-contract.ts" "$@"
