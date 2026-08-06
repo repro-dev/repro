@@ -45,6 +45,20 @@ Tokens stay code-first. Do not let "pen is authoritative for UX" creep into "pen
 
 Enforcement rolls out per-surface as ports land (REP-1612), not as a global flag-day.
 
+### Design-first handoff (`## Design (locked)`)
+
+When the pen design for a surface lands ahead of the implementation code, the implementation issue must carry a `## Design (locked)` section. This signals `/build` to trigger the pen-reconcile hand-off: the implementation agent loads `pen-reconcile`, runs `pen-contract` against `repro.pen`, and translates the detected design deltas into component props via the closed override vocabulary — zero LLM guesswork for in-vocabulary overrides.
+
+The section communicates:
+
+- Which screens / state families are in scope for this implementation
+- Which masters / overrides drive the component changes
+- Any out-of-scope design changes the implementer should explicitly defer (never sweep into the PR)
+
+Two-PR model: the design PR owns `repro.pen`; the implementation PR consumes the contract from the pinned design revision and **never writes `repro.pen`**.
+
+See `create-issue` skill for the section template. The `pen-reconcile` skill owns the operating logic (Detect / Judge / Decide / Apply / Record).
+
 ---
 
 ## 2. Roles by model capability
