@@ -69,10 +69,13 @@ echo "Path: $(dirname "$(dirname "$0")")/repro-wt-rep-123"
 STUB
   chmod +x "$tmpdir/scripts/reproctl.sh"
 
-  # linear stub: deterministic JSON, no Bug label.
+  # linear stub: deterministic JSON. Labels are injectable via
+  # LINEAR_STUB_LABELS_JSON (default: none) so routing tests can simulate
+  # Bug / Pen / Feature-labeled issues.
   cat > "$tmpdir/linear" << 'STUB'
 #!/bin/bash
-echo '{"item":{"id":"uuid-1","identifier":"REP-123","title":"Test issue","branchName":"feat/rep-123-test","status":{"name":"Todo","type":"unstarted"},"labels":[]}}'
+labels="${LINEAR_STUB_LABELS_JSON:-[]}"
+printf '{"item":{"id":"uuid-1","identifier":"REP-123","title":"Test issue","branchName":"feat/rep-123-test","status":{"name":"Todo","type":"unstarted"},"labels":%s}}\n' "$labels"
 STUB
   chmod +x "$tmpdir/linear"
 
@@ -621,6 +624,60 @@ test_file_exists() {
   fi
 }
 
+# Test 22: Bug label routes to /bugfix (regression for REP-1628 jq path fix)
+test_bug_label_routes_to_bugfix() {
+  local tmpdir rc=0
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  _write_runner "$tmpdir" "REP-123"
+
+  local output
+  output="$(LINEAR_STUB_LABELS_JSON='[{"name":"Bug"}]' bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  rm -rf "$tmpdir"
+
+  if printf '%s\n' "$output" | grep -q 'Command: /bugfix'; then
+    _pass "Bug label routes to /bugfix"
+  else
+    _fail "Bug label routes to /bugfix" "rc=$rc; output: $output"
+  fi
+}
+
+# Test 23: Pen label routes to /pen-reconcile (REP-1628)
+test_pen_label_routes_to_pen_reconcile() {
+  local tmpdir rc=0
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  _write_runner "$tmpdir" "REP-123"
+
+  local output
+  output="$(LINEAR_STUB_LABELS_JSON='[{"name":"Pen"}]' bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  rm -rf "$tmpdir"
+
+  if printf '%s\n' "$output" | grep -q 'Command: /pen-reconcile'; then
+    _pass "Pen label routes to /pen-reconcile"
+  else
+    _fail "Pen label routes to /pen-reconcile" "rc=$rc; output: $output"
+  fi
+}
+
+# Test 24: no matching label routes to /build (fail-open default)
+test_no_label_routes_to_build() {
+  local tmpdir rc=0
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  _write_runner "$tmpdir" "REP-123"
+
+  local output
+  output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  rm -rf "$tmpdir"
+
+  if printf '%s\n' "$output" | grep -q 'Command: /build'; then
+    _pass "no matching label routes to /build (fail-open)"
+  else
+    _fail "no matching label routes to /build (fail-open)" "rc=$rc; output: $output"
+  fi
+}
+
 # ── Run all tests ──────────────────────────────────────────────────────
 
 test_file_exists
@@ -644,6 +701,9 @@ test_layout_is_two_pane_with_pnpm_install
 test_herdr_down_installs_synchronously
 test_split_failure_installs_synchronously
 test_pane_list_failure_installs_synchronously
+test_bug_label_routes_to_bugfix
+test_pen_label_routes_to_pen_reconcile
+test_no_label_routes_to_build
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed out of $TESTS_RUN tests"

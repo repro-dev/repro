@@ -111,6 +111,7 @@ Before composing the planner prompt, run the following matching inline — do **
 | `.opencode/skills/design-system/SKILL.md`      | `packages/design`, `@repro/design`, UI components, design tokens                                                                                                                                                    |
 | `.opencode/skills/recording-playback/SKILL.md` | `apps/capture`, `packages/recording`, `packages/playback`, `packages/recording-api`, `packages/buffer-utils`, `packages/vdom-renderer`, `packages/source-utils`, `packages/observer-utils`, `packages/wire-formats` |
 | `.opencode/skills/build-and-test/SKILL.md`     | build system, moon, pnpm workspaces, CI, reproctl, tool version pinning                                                                                                                                             |
+| `.opencode/skills/pen-reconcile/SKILL.md`      | `repro.pen`, `*.pen`, design deltas, `Pen` label, `## Design (locked)`, pen-contract, design reconciliation                                                                                                         |
 
 General-purpose skills (`delivery-workflow`, `implementation-rigor`, `git-workflow`, `harden`, `create-issue`) are **never** injected — the planner loads them independently as needed.
 
@@ -250,6 +251,17 @@ If the issue body contains an `## Implementation: /build → /impeccable hand-of
 4. **Verification**: if the issue names a verification command (e.g. re-run `/impeccable critique <path>`), include it in the develop verification and the proof bundle.
 
 This generalizes the REP-1488 pattern: the issue declares the hand-off; the orchestrator wires it into the planner and develop prompts rather than relying on noticing the issue text.
+
+### Pen-reconcile hand-off mandate (design-driven)
+
+Design is necessarily **ahead** of implementation and the two may land in separate PRs. If the issue is design-touching — `Pen` label on the issue, OR presence of a `## Design (locked)` section in the issue body — `/build` MUST sweep relevant design changes in as part of implementation (the pen-reconcile hand-off):
+
+1. **Planning**: tell the planner to include pen-contract detection as a pre-implementation step: run `pnpm run pen:contract` (and `pnpm run pen:lint` drift checks) to build the candidate inventory of design deltas, and judge which candidates are in scope for this issue vs explicitly deferred.
+2. **Implementation**: the `develop` prompt MUST instruct the agent to load the `pen-reconcile` skill and run detect + judge + apply over the *relevant* design deltas as part of implementation: translate in-vocabulary overrides into props via the closed override vocabulary (zero LLM involvement), surface out-of-vocabulary instances with candidates for judgment (never guess), patch existing behavioral components (never regenerate), wire state families from the contract into loading/empty/error/content rendering, and record the applied manifest to `tmp/pen-applied.json`. Guard the hand-off scope: unrelated design changes are explicitly deferred and listed, never swept in. Implementation PRs never write `repro.pen` (two-PR model).
+3. **Lifecycle unchanged**: `/build` still owns plan → branch → commit → review → PR. The hand-off replaces the design step, not the delivery lifecycle.
+4. **Verification**: the skill's candidate-report shape feeds the manual-verification `## Design reconciliation` section (delivery-workflow §7): in-scope design deltas, screens/masters involved, explicit out-of-scope changes, and the human pen-screenshot vs browser-evidence check.
+
+Detection is agentic — no flags on `deliver`, any CLI, or the command. The `Pen` label routing on `deliver` mirrors the existing `Bug` → `/bugfix` routing.
 
 ### Worktree existence guard
 

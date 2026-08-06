@@ -56,6 +56,24 @@ Document any choices that have already been made (API shape, algorithm, default 
 
 Flag open questions or trade-offs that the implementer should think about. These are not requirements — they are prompts for judgment.
 
+### Design (locked) — use when the issue is design-touching
+
+If the issue delivers UX changes that have already been composed in `repro.pen` (screens, state families, master overrides), add this section to trigger the pen-reconcile hand-off in `/build`. The section signals that the design is authoritative and the implementation must consume it via `pen-contract` — never by re-parsing the pen file directly. Implementation PRs never write `repro.pen` (two-PR model).
+
+When adding this section, the design changes should already be landed in `repro.pen` (design PR lands first). Include:
+
+- Which screens / state families are in scope
+- Which masters / overrides drive the component changes
+- Any out-of-scope design changes the implementer should explicitly defer
+
+```markdown
+## Design (locked)
+
+- **Screens**: `screens/admin/health` (content, loading, empty, error)
+- **Masters**: `masters/design/Button` (CTA variant: context=danger, size=small)
+- **Out of scope**: `screens/admin/accounts` (unrelated surface)
+```
+
 ### Acceptance Criteria
 
 If the requirements section is not sufficient to verify completeness, add explicit acceptance criteria. Use checkboxes:
