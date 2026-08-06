@@ -351,7 +351,15 @@ function resolveCheckboxDescendant(
   }
   if (target.name === 'Check') {
     if (overrides.enabled === true) {
-      return { props: { checked: true }, warnings: [] }
+      return {
+        props: { checked: true },
+        warnings: warnRemaining(
+          overrides,
+          new Set(['enabled']),
+          'Checkbox',
+          key
+        ),
+      }
     }
     return {
       props: {},
@@ -430,7 +438,10 @@ function resolveStackDescendant(
   }
   if (target.name === 'Child 2' || target.name === 'Child 3') {
     if (overrides.enabled === false) {
-      return { props: {}, warnings: [] }
+      return {
+        props: {},
+        warnings: warnRemaining(overrides, new Set(['enabled']), 'Stack', key),
+      }
     }
     return {
       props: {},
@@ -484,7 +495,15 @@ function resolveTextFieldDescendant(
   }
   if (target.name === 'Error') {
     if (overrides.enabled === false) {
-      return { props: {}, warnings: [] }
+      return {
+        props: {},
+        warnings: warnRemaining(
+          overrides,
+          new Set(['enabled']),
+          'TextField',
+          key
+        ),
+      }
     }
     return {
       props: {},
@@ -786,12 +805,12 @@ function resolveAlertDescendant(
       )
     }
   }
-  if (target.name === 'Message' && typeof overrides.content === 'string') {
-    props.children = overrides.content
+  const handled = new Set(['fill'])
+  if (typeof overrides.content === 'string') {
+    if (target.name === 'Message') props.children = overrides.content
+    handled.add('content')
   }
-  warnings.push(
-    ...warnRemaining(overrides, new Set(['fill', 'content']), 'Alert', key)
-  )
+  warnings.push(...warnRemaining(overrides, handled, 'Alert', key))
   return { props, warnings }
 }
 

@@ -8,6 +8,7 @@ import { describe, it } from 'node:test'
 import { fileURLToPath } from 'node:url'
 
 import {
+  alertMaster,
   avatarMaster,
   avatarStackSummaryMaster,
   badgeMaster,
@@ -483,5 +484,61 @@ describe('REP-1629 Input vocabulary (master KnDBg)', () => {
       ])
     )
     warns(contract, 'Input: unmapped override "stroke"')
+  })
+})
+
+describe('REP-1629 warn-never-drop on absorbed override branches', () => {
+  it('warns on unmapped fill riding on Checkbox Check enabled=true', () => {
+    const { contract } = contractFor(
+      vocabPen(checkboxMaster(), [
+        refNode('r1', 'checkboxMaster', 'Checkbox', {
+          descendants: { p2muX: { enabled: true, fill: '$color-danger' } },
+        }),
+      ])
+    )
+    warns(contract, 'Checkbox: unmapped descendant override "p2muX" -> "fill"')
+    assert.deepEqual(
+      contract.screens[0]!.tree.children![0]!.presentationalOverrides,
+      { checked: true }
+    )
+  })
+
+  it('warns on unmapped opacity riding on Stack Child 2 enabled=false', () => {
+    const { contract } = contractFor(
+      vocabPen(stackMaster(), [
+        refNode('r1', 'stackMaster', 'Stack', {
+          descendants: { E0ZK6: { enabled: false, opacity: 0.5 } },
+        }),
+      ])
+    )
+    warns(contract, 'Stack: unmapped descendant override "E0ZK6" -> "opacity"')
+  })
+
+  it('warns on unmapped fill riding on TextField Error enabled=false', () => {
+    const { contract } = contractFor(
+      vocabPen(textFieldMaster(), [
+        refNode('r1', 'textFieldMaster', 'TextField', {
+          descendants: { v16Rdg: { enabled: false, fill: '$color-danger' } },
+        }),
+      ])
+    )
+    warns(
+      contract,
+      'TextField: unmapped descendant override "v16Rdg" -> "fill"'
+    )
+  })
+
+  it('warns on non-string Alert Message content (no silent absorption)', () => {
+    const { contract } = contractFor(
+      vocabPen(alertMaster(), [
+        refNode('r1', 'alertMaster', 'Alert', {
+          descendants: { alertMsg: { content: 42 } },
+        }),
+      ])
+    )
+    warns(
+      contract,
+      'Alert: unmapped descendant override "alertMsg" -> "content"'
+    )
   })
 })
