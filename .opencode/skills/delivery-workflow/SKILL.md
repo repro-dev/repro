@@ -615,9 +615,12 @@ For the publishable issue:
 
 4. **Manual-verification completion gate**: before the run is complete, produce the manual
    verification output per §7: (a) write `<worktree>/tmp/manual-test-plan-<issue-id>.md`,
-   (b) print it verbatim in the operator summary as the fixed `Manual verification` block, and
-   (c) append it to the PR body as a `## Manual test plan` section via `gh pr edit
-   <pr-number> --body "<updated-body>"`. Publish is **not** complete until all three hold.
+   (b) print it verbatim in the operator summary as the fixed `Manual verification` block —
+   this is the single print point; the final summary prints it once as part of the run
+   summary — and (c) write the full updated PR body to
+   `<worktree>/tmp/pr-body-<issue-id>.md`, append the manual test plan to it, then update
+   via `gh pr edit <pr-number> --body-file <worktree>/tmp/pr-body-<issue-id>.md`. Publish is
+   **not** complete until all three hold.
    Presence check (challenge-verify-validate): verify the artifact exists at
    `<worktree>/tmp/manual-test-plan-<issue-id>.md`; if it is missing, author it now via §7 and
    append it — do not complete publish without it.
@@ -629,7 +632,7 @@ After publish has been handled:
 - Report the opened PR URL
 - Report escalated issues and why
 - Aggregate friction logs: check whether `<worktree>/tmp/friction.md` exists. If it does, concatenate all entries and print a grouped summary to the operator, organized by root-cause category (`missing-docs`, `unclear-pattern`, `tooling-gap`, `stale-code`). Include the issue identifier alongside each entry.
-- Print the fixed `Manual verification` block (from §7) verbatim in the final summary — always present, using `Automated coverage is sufficient; no manual verification needed.` when there is nothing to verify.
+- Reference the fixed `Manual verification` block (from §7) in the final summary — it is emitted once at step 4b and carried into the final summary as part of the run summary; always present, using the empty-string sentinel when there is nothing to verify.
 - Stop
 
 Post-publish waiting, CI monitoring, merge handling, and automatic continuation belong to follow-on work, not this command.
@@ -656,12 +659,15 @@ For the published issue:
    - For API changes: include `curl` examples or equivalent for manual endpoint testing
    - For cross-cutting changes: group steps by user-facing surface (browser, CLI, API, extension)
 
-2a. **Determine whether the issue is design-touching**: the issue touches `repro.pen` or a
-    ported surface when `git diff origin/main...HEAD` includes changes to `repro.pen` or any
-    `*.pen` file, when changed paths live under a ported surface (see `pen-design-workflow`
-    §7), or when the issue description declares design intent. If design-touching, the plan
-    MUST include the `## Design reconciliation` section (step 5 template) and MUST include a
-    UI-verification manual step (design vs implementation, step 3 below).
+2a. **Determine whether the issue is design-touching**: the issue is design-touching **iff**
+    `git diff origin/main...HEAD` modifies `repro.pen` or any `*.pen` file. There is no
+    ported-surface directory list and no design-intent keyword detection. If design-touching,
+    the plan MUST include the `## Design reconciliation` section (step 5 template) and MUST
+    include a UI-verification manual step (design vs implementation, the UI-verification
+    manual step in step 3).
+    Code-only UI changes that are not represented in the design are out of scope for
+    reconciliation; a future pre-push lint warning (REP-1612 rollout) will flag UI files
+    edited but absent from the design.
 
 3. **Scope the plan to human-executable verification only**:
    - Do **not** restate automated test names or describe what the test suite covers
@@ -670,6 +676,7 @@ For the published issue:
    - For design-touching issues, include a UI-verification step: compare the pen screenshot baseline against ui-verification browser evidence (the human check in the `Design reconciliation` section).
 
 4. **If the issue has no meaningful manual verification surface** (e.g. purely internal refactoring, build config changes):
+   - Design-touching determination (step 2a) overrides this branch: a design-touching issue always has a manual verification surface (the `Design reconciliation` human check) and MUST produce the `## Design reconciliation` section. The single-line branch below applies only to non-design-touching issues.
    - The plan is a single line: `Automated coverage is sufficient; no manual verification needed.`
    - Still write the artifact — the presence of the file signals that the phase ran.
    - This single line is the block's empty-string content — the `Manual verification` block is still printed with it, never omitted.
@@ -741,7 +748,13 @@ Automated coverage is sufficient; no manual verification needed.
 
 After writing the artifact, append the full plan verbatim to the PR body as a `## Manual test plan` section. This section goes after the Review remainder already produced in the publish phase. If the plan says automated coverage is sufficient, use that single line.
 
-Use `gh pr edit <pr-number> --body "<updated-body>"` to update the PR description.
+Build the full updated body — the existing PR description plus the appended `## Manual test plan` section — in `<worktree>/tmp/pr-body-<issue-id>.md`, then update via `gh pr edit <pr-number> --body-file <worktree>/tmp/pr-body-<issue-id>.md`. Do not pass the body inline with `--body "..."`: backticks and `$` in the plan content corrupt a quoted inline body.
+
+After the edit, verify the section landed: `gh pr view <pr-number> --json body -q .body | grep -q '## Manual test plan'`.
+
+The `gh pr edit --body-file` append follows the same retry policy as the push step (§6 step 2): retry transient failures up to 3 times; escalate permanent failures by posting a Linear comment and stopping publish.
+
+The two surfaces intentionally use different headings for the same artifact: the operator summary block is `Manual verification — REP-xxx`, while the PR body section is `## Manual test plan`.
 
 This append is required for publish completion (§6 step 4 gate) — do not skip it when the plan says automated coverage is sufficient; append the single line.
 

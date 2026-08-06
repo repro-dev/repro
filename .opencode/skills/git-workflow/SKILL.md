@@ -152,14 +152,14 @@ When creating the PR:
 | **Backlog**     | Issue exists but has not been prioritised for immediate work                       |
 | **Todo**        | Prioritised and ready to pick up in the current cycle                              |
 | **In Progress** | A branch exists and code is being written — set this when you start work           |
-| **In Review**   | A PR is open and awaiting review or CI — set this immediately after `gh pr create` |
+| **In Review**   | A PR is open and awaiting review or CI — set this after `gh pr create` AND after the manual test plan has been written and appended to the PR body (see delivery-workflow §6/§7) |
 | **Done**        | The PR has been **merged to `main`** — never set this before merge                 |
 | **Canceled**    | Issue will not be done; leave a comment explaining why                             |
 
 **Rules:**
 
 - Move an issue to **In Progress** when you begin writing code, not before.
-- Move to **In Review** immediately after opening a PR — do not leave it as In Progress.
+- Move to **In Review** after opening a PR and appending the manual test plan to the PR body — do not leave it as In Progress and do not set In Review before the manual-verification gate completes (see delivery-workflow §6 step 4/5).
 - **Never mark an issue Done until the PR is merged.** Code written locally or a branch pushed but not merged is still In Progress.
 - Do not skip statuses (e.g. Backlog -> Done). Each transition should reflect the actual state of the work.
 
