@@ -512,6 +512,10 @@ describe('REP-1629 warn-never-drop on absorbed override branches', () => {
       ])
     )
     warns(contract, 'Stack: unmapped descendant override "E0ZK6" -> "opacity"')
+    assert.equal(
+      contract.screens[0]!.tree.children![0]!.presentationalOverrides,
+      undefined
+    )
   })
 
   it('warns on unmapped fill riding on TextField Error enabled=false', () => {
@@ -526,6 +530,10 @@ describe('REP-1629 warn-never-drop on absorbed override branches', () => {
       contract,
       'TextField: unmapped descendant override "v16Rdg" -> "fill"'
     )
+    assert.equal(
+      contract.screens[0]!.tree.children![0]!.presentationalOverrides,
+      undefined
+    )
   })
 
   it('warns on non-string Alert Message content (no silent absorption)', () => {
@@ -539,6 +547,28 @@ describe('REP-1629 warn-never-drop on absorbed override branches', () => {
     warns(
       contract,
       'Alert: unmapped descendant override "alertMsg" -> "content"'
+    )
+    assert.equal(
+      contract.screens[0]!.tree.children![0]!.presentationalOverrides,
+      undefined
+    )
+  })
+
+  it('warns on string content riding on Alert Icon (no silent absorption)', () => {
+    const { contract } = contractFor(
+      vocabPen(alertMaster(), [
+        refNode('r1', 'alertMaster', 'Alert', {
+          descendants: { alertIcon: { content: 'x' } },
+        }),
+      ])
+    )
+    warns(
+      contract,
+      'Alert: unmapped descendant override "alertIcon" -> "content"'
+    )
+    assert.equal(
+      contract.screens[0]!.tree.children![0]!.presentationalOverrides,
+      undefined
     )
   })
 })

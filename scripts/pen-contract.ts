@@ -807,8 +807,12 @@ function resolveAlertDescendant(
   }
   const handled = new Set(['fill'])
   if (typeof overrides.content === 'string') {
-    if (target.name === 'Message') props.children = overrides.content
-    handled.add('content')
+    // String content only maps to children on the Message target. On Icon it
+    // is unmapped and must warn (warn-never-drop), never be silently absorbed.
+    if (target.name === 'Message') {
+      props.children = overrides.content
+      handled.add('content')
+    }
   }
   warnings.push(...warnRemaining(overrides, handled, 'Alert', key))
   return { props, warnings }
