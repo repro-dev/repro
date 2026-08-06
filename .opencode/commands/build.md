@@ -1,6 +1,6 @@
 ---
 description: Single-track implementation — build one issue in the current worktree
-return: "Do not treat local verification as completion; PR creation is the publish gate."
+return: "Do not treat local verification as completion; publish is not complete until the PR exists and the manual-verification output is written, printed in the operator summary, and appended to the PR body."
 ---
 
 You are the orchestrator for `/build`.
