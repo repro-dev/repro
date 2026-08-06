@@ -70,20 +70,40 @@ Write `tmp/pen-applied.json` mapping each applied screen to the pen revision it 
 
 Keyed by screen id, value `{ penVersion, appliedAt }`. Consult it during Detect to skip already-reconciled screens.
 
-## 7. Closed override vocabulary (v1)
+## 7. Closed override vocabulary (v2)
 
-Reference `VOCABULARIES` in `scripts/pen-contract.ts` — the same tables the contract uses. v1:
+Reference `VOCABULARIES` in `scripts/pen-contract.ts` — the same tables the contract uses (REP-1629 grew v1 from Button/Alert to the set below). v2:
 
 | Master | Override | Prop |
 | --- | --- | --- |
 | Button | fill token (`$color-*`) | `context` (default `info` omitted) |
 | Button | height 28 / 36 / 44 | `size` small / medium / large (default `medium` omitted) |
 | Button | transparent fill + stroke | `variant` outlined / text |
+| Button | `opacity` 0.5 | `disabled` true |
 | Button | `Label` descendant content | `children` |
 | Alert | tint fill (`$color-*-tint`) | `type` (default `info` omitted) |
+| Alert | Icon / `Message` solid fill (`$color-*`) | `type` (idempotent with tint) |
 | Alert | `Message` descendant content | `children` |
+| Checkbox | `Box` fill `$color-primary` (+ `strokeWidth` 0) | `checked` true |
+| Checkbox | `Check` `enabled` true | `checked` true |
+| Checkbox | `Label` descendant content | `label` |
+| Stack | own `gap` | `gap` |
+| Stack | `Child 1` descendant content | `children` |
+| Stack | `Child 2` / `Child 3` `enabled` false | absorbed (structural child-hiding) |
+| TextField | `Label` descendant content | `label` |
+| TextField | `Value` descendant content | `value` |
+| TextField | `Error` `enabled` false | absorbed (no error state) |
+| Toggle | `Track` fill `$color-primary` / `Knob` `x` 16 | `checked` true |
+| Toggle | `Label` descendant content | `label` |
+| FullPageError | `Title` / `Description` descendant content | `title` / `description` |
+| Avatar | `Name` descendant content | `name` |
+| AvatarStackSummary | `Label` descendant content | `label` |
+| Badge | own fill token (`$color-*-subtle`) | `context` (default `neutral` omitted) |
+| Badge | `Label` descendant content | `children` |
+| Input | own `stroke` `$color-danger` | `context` `'error'` |
+| Input | `Placeholder` descendant content | `value` |
 
-Anything outside this table is **out-of-vocabulary** — surface the contract's `warnings`/`candidates` and judge, never guess. Vocabulary growth is tracked in REP-1629.
+Anything outside this table is **out-of-vocabulary** — surface the contract's `warnings`/`candidates` and judge, never guess. Known intentional gaps (masters whose overrides stay warnings because they expose no semantic prop surface): AdminTable, AppShell, Breadcrumbs, EmptyState, Tabs, Accordion, Card, RefreshProgressBar — tracked in the REP-1629 gap set.
 
 ## 8. Eval fixture reference
 
