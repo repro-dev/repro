@@ -1,0 +1,145 @@
+{
+  "version": "eval-fixture-1",
+  "children": [
+    {
+      "type": "group",
+      "id": "g-masters",
+      "name": "masters",
+      "children": [
+        {
+          "type": "group",
+          "id": "g-design",
+          "name": "design",
+          "children": [
+            {
+              "type": "frame",
+              "id": "m-btn",
+              "name": "Button",
+              "reusable": true,
+              "x": 0,
+              "y": 0,
+              "width": 120,
+              "height": 36,
+              "fill": "$color-info",
+              "cornerRadius": 6,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "n-label",
+                  "name": "Label",
+                  "content": "Button",
+                  "x": 0,
+                  "y": 0,
+                  "width": 100,
+                  "height": 20,
+                  "fill": "$color-text-default"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "group",
+      "id": "g-screens",
+      "name": "screens",
+      "children": [
+        {
+          "type": "group",
+          "id": "g-eval",
+          "name": "eval-fixture",
+          "children": [
+            {
+              "type": "group",
+              "id": "g-signup",
+              "name": "signup",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "s-signup",
+                  "name": "Eval: Signup",
+                  "x": 0,
+                  "y": 0,
+                  "width": 640,
+                  "height": 480,
+                  "metadata": {
+                    "type": "screen",
+                    "stateFamily": "screens/eval-fixture/signup",
+                    "state": "content"
+                  },
+                  "children": [
+                    {
+                      "type": "ref",
+                      "id": "r-cta",
+                      "name": "CTA",
+                      "ref": "m-btn",
+                      "x": 0,
+                      "y": 0,
+                      "width": 120,
+                      "height": 44,
+                      "fill": "$color-success",
+                      "descendants": {
+                        "n-label": {
+                          "content": "Create account"
+                        }
+                      }
+                    },
+                    {
+                      "type": "ref",
+                      "id": "r-legacy",
+                      "name": "Legacy CTA",
+                      "ref": "m-btn",
+                      "x": 0,
+                      "y": 0,
+                      "width": 120,
+                      "height": 36,
+                      "fill": "#FF00FF",
+                      "descendants": {
+                        "n-label": {
+                          "content": "Beta"
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "s-signup-loading",
+                  "name": "Eval: Signup Loading",
+                  "x": 0,
+                  "y": 0,
+                  "width": 640,
+                  "height": 480,
+                  "metadata": {
+                    "type": "screen",
+                    "stateFamily": "screens/eval-fixture/signup",
+                    "state": "loading"
+                  },
+                  "children": [
+                    {
+                      "type": "ref",
+                      "id": "r-loading",
+                      "name": "Loading CTA",
+                      "ref": "m-btn",
+                      "x": 0,
+                      "y": 0,
+                      "width": 120,
+                      "height": 28,
+                      "fill": "$color-neutral",
+                      "descendants": {
+                        "n-label": {
+                          "content": "Working..."
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

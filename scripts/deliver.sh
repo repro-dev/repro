@@ -29,6 +29,7 @@ Modes:
 
   Routing:
     Bug issues               → /bugfix
+    Pen issues               → /pen-reconcile
     All others               → /build
 
   Flags:
@@ -58,7 +59,8 @@ usage() {
 
 # ── Command resolution ─────────────────────────────────────────────
 # Resolve delivery command based on Linear issue labels.
-# Bug → /bugfix, everything else → /build (fail-open default).
+# Bug → /bugfix, Pen → /pen-reconcile, everything else → /build (fail-open).
+# Labels live under .item in the linear CLI JSON envelope.
 resolve_command() {
   local issue_id="$1"
 
@@ -78,11 +80,15 @@ resolve_command() {
     return 0
   fi
 
-  # Use jq instead of python3 to check for Bug label
+  # Use jq to check for Bug and Pen labels
   if printf '%s' "$json_output" | jq -e '
-    .labels // [] | map(select(.name == "Bug")) | length > 0
+    .item.labels // [] | map(select(.name == "Bug")) | length > 0
   ' >/dev/null 2>&1; then
     echo "/bugfix"
+  elif printf '%s' "$json_output" | jq -e '
+    .item.labels // [] | map(select(.name == "Pen")) | length > 0
+  ' >/dev/null 2>&1; then
+    echo "/pen-reconcile"
   else
     echo "/build"
   fi

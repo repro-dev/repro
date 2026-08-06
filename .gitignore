@@ -48,6 +48,9 @@ infra/certs/
 .DS_Store
 /tmp/*
 !/tmp/.gitkeep
+# REP-1628 eval fixture — deliverable, not ephemeral output
+!/tmp/eval-fixture/
+!/tmp/eval-fixture/**
 
 # GENERATED SOURCES
 # Root fmt:check uses this file as Prettier's ignore-path, so mirror generated
