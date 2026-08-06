@@ -159,6 +159,7 @@ const BUTTON_MAPPED_KEYS = new Set([
   'gap',
   'padding',
   'cornerRadius',
+  'opacity',
 ])
 
 /** Alert tint fill -> type prop (default 'info' is omitted). */
@@ -167,6 +168,18 @@ const ALERT_TYPE_FROM_TINT: Record<string, string> = {
   '$color-success-tint': 'success',
   '$color-warning-tint': 'warning',
   '$color-danger-tint': 'danger',
+}
+
+/**
+ * REP-1629: Alert solid (non-tint) fill -> type prop for the Icon/Message
+ * descendant accents. Idempotent with ALERT_TYPE_FROM_TINT — both map to the
+ * same `type` prop; the last one seen wins when both are present.
+ */
+const ALERT_TYPE_FROM_SOLID: Record<string, string> = {
+  '$color-info': 'info',
+  '$color-success': 'success',
+  '$color-warning': 'warning',
+  '$color-danger': 'danger',
 }
 
 /** Keys the Alert resolver consumes. */
@@ -226,6 +239,18 @@ function resolveButtonOwnOverrides(ref: PenNode): OverrideResolution {
     const size = BUTTON_SIZE_FROM_HEIGHT[own.height]
     if (size !== undefined && size !== 'medium') props.size = size
   }
+  // REP-1629: Button renders opacity={disabled ? 0.5 : 1} (Button.tsx), so a
+  // 0.5 opacity own override encodes the disabled state. Any other opacity
+  // value is out of vocabulary and warns (value validation).
+  if (own.opacity !== undefined) {
+    if (own.opacity === 0.5) {
+      props.disabled = true
+    } else {
+      warnings.push(
+        `Button: unmapped override "opacity"=${JSON.stringify(own.opacity)}`
+      )
+    }
+  }
 
   for (const warning of unmappedWarnings(own, BUTTON_MAPPED_KEYS, 'Button')) {
     warnings.push(warning)
@@ -253,6 +278,523 @@ function resolveAlertOwnOverrides(ref: PenNode): OverrideResolution {
   return { props, warnings }
 }
 
+/**
+ * Remaining override keys on a handled descendant override (mapped or
+ * absorbed keys excluded). Emits the v1 `-> "key"` warning shape so the
+ * consumer can tell exactly which key on a resolved descendant is unmapped.
+ */
+function warnRemaining(
+  overrides: Record<string, unknown>,
+  handled: Set<string>,
+  label: string,
+  key: string
+): string[] {
+  const warnings: string[] = []
+  for (const k of Object.keys(overrides)) {
+    if (handled.has(k) || STRUCTURAL_KEYS.has(k) || CANVAS_KEYS.has(k)) {
+      continue
+    }
+    warnings.push(`${label}: unmapped descendant override "${key}" -> "${k}"`)
+  }
+  return warnings
+}
+
+/** Vocabulary resolver for masters whose gallery instances carry no own overrides. */
+const NO_OWN_OVERRIDES = (): OverrideResolution => ({ props: {}, warnings: [] })
+
+// ---------------------------------------------------------------------------
+// REP-1629 vocabulary growth (v2). Each master below documents its raw
+// override -> semantic prop mapping table (AC2 deliverable); keys listed as
+// "absorbed" are component-owned cosmetics that intentionally do not map.
+// ---------------------------------------------------------------------------
+
+/**
+ * Checkbox (repro.pen master dDpF6). Raw override -> semantic prop:
+ *
+ * | descendant target | raw override           | prop              |
+ * | ----------------- | ---------------------- | ----------------- |
+ * | Box (sa63x)       | fill:$color-primary    | checked: true     |
+ * |                   |   + strokeWidth: 0     |   (part of encoding) |
+ * | Check (p2muX)     | enabled: true          | checked: true     |
+ * | Label (AXIyz)     | content                | label             |
+ *
+ * Absorbed cosmetic keys: Box `strokeWidth` (always 0 in the checked
+ * encoding); Check `enabled` (the check icon is hidden by default in the
+ * master; enabling it encodes the checked state).
+ */
+function resolveCheckboxDescendant(
+  key: string,
+  target: DescendantTarget,
+  overrides: Record<string, unknown>
+): OverrideResolution | undefined {
+  if (target.name === 'Box') {
+    const props: Record<string, unknown> = {}
+    const warnings: string[] = []
+    if (overrides.fill === '$color-primary') {
+      props.checked = true
+    } else if (overrides.fill !== undefined) {
+      warnings.push(
+        `Checkbox: unmapped descendant override "${key}" -> "fill"=${JSON.stringify(
+          overrides.fill
+        )}`
+      )
+    }
+    warnings.push(
+      ...warnRemaining(
+        overrides,
+        new Set(['fill', 'strokeWidth']),
+        'Checkbox',
+        key
+      )
+    )
+    return { props, warnings }
+  }
+  if (target.name === 'Check') {
+    if (overrides.enabled === true) {
+      return { props: { checked: true }, warnings: [] }
+    }
+    return {
+      props: {},
+      warnings: [
+        `Checkbox: unmapped descendant override "${key}" (enabled=${String(
+          overrides.enabled
+        )})`,
+      ],
+    }
+  }
+  if (target.name === 'Label' && typeof overrides.content === 'string') {
+    return {
+      props: { label: overrides.content },
+      warnings: warnRemaining(overrides, new Set(['content']), 'Checkbox', key),
+    }
+  }
+  return undefined
+}
+
+/**
+ * Stack (repro.pen master oj0de). Raw override -> semantic prop:
+ *
+ * | scope  | raw override        | prop                              |
+ * | ------ | ------------------- | --------------------------------- |
+ * | own    | gap                 | gap (SpacingToken \| number)      |
+ * | Child 1 (Vx0bQ) | content  | children                          |
+ * | Child 2 (E0ZK6) / Child 3 (D6MKAC) | enabled: false | absorbed (structural child-hiding) |
+ *
+ * Absorbed cosmetic keys: own `padding` (Stack has no padding prop — the
+ * gallery instance pads the stack container); Child 1 node-shaping keys
+ * (`type`, `id`, `name`, `fill`, `textGrowth`, `width`, `fontFamily`,
+ * `fontSize`, `fontWeight`, `lineHeight`, `textAlign`) that describe the
+ * replacement text node, not a Stack prop.
+ */
+const STACK_MAPPED_KEYS = new Set(['gap', 'padding'])
+
+function resolveStackOwnOverrides(ref: PenNode): OverrideResolution {
+  const own = ref as Record<string, unknown>
+  const props: Record<string, unknown> = {}
+  const warnings: string[] = []
+  if ('gap' in own) props.gap = own.gap
+  for (const warning of unmappedWarnings(own, STACK_MAPPED_KEYS, 'Stack')) {
+    warnings.push(warning)
+  }
+  return { props, warnings }
+}
+
+function resolveStackDescendant(
+  key: string,
+  target: DescendantTarget,
+  overrides: Record<string, unknown>
+): OverrideResolution | undefined {
+  if (target.name === 'Child 1' && typeof overrides.content === 'string') {
+    return {
+      props: { children: overrides.content },
+      warnings: warnRemaining(
+        overrides,
+        new Set([
+          'content',
+          'type',
+          'id',
+          'name',
+          'fill',
+          'textGrowth',
+          'width',
+          'fontFamily',
+          'fontSize',
+          'fontWeight',
+          'lineHeight',
+          'textAlign',
+        ]),
+        'Stack',
+        key
+      ),
+    }
+  }
+  if (target.name === 'Child 2' || target.name === 'Child 3') {
+    if (overrides.enabled === false) {
+      return { props: {}, warnings: [] }
+    }
+    return {
+      props: {},
+      warnings: [
+        `Stack: unmapped descendant override "${key}" (enabled=${String(
+          overrides.enabled
+        )})`,
+      ],
+    }
+  }
+  return undefined
+}
+
+/**
+ * TextField (repro.pen master Q6CWT). Raw override -> semantic prop:
+ *
+ * | descendant target | raw override        | prop            |
+ * | ----------------- | ------------------- | --------------- |
+ * | Label (WGsF1)     | content             | label           |
+ * | Value (k7Szg)     | content             | value           |
+ * | Error (v16Rdg)    | enabled: false      | absorbed (structural) |
+ *
+ * Absorbed cosmetic keys: Value `fill` (text color on the input value).
+ */
+function resolveTextFieldDescendant(
+  key: string,
+  target: DescendantTarget,
+  overrides: Record<string, unknown>
+): OverrideResolution | undefined {
+  if (target.name === 'Label' && typeof overrides.content === 'string') {
+    return {
+      props: { label: overrides.content },
+      warnings: warnRemaining(
+        overrides,
+        new Set(['content']),
+        'TextField',
+        key
+      ),
+    }
+  }
+  if (target.name === 'Value' && typeof overrides.content === 'string') {
+    return {
+      props: { value: overrides.content },
+      warnings: warnRemaining(
+        overrides,
+        new Set(['content', 'fill']),
+        'TextField',
+        key
+      ),
+    }
+  }
+  if (target.name === 'Error') {
+    if (overrides.enabled === false) {
+      return { props: {}, warnings: [] }
+    }
+    return {
+      props: {},
+      warnings: [
+        `TextField: unmapped descendant override "${key}" (enabled=${String(
+          overrides.enabled
+        )})`,
+      ],
+    }
+  }
+  return undefined
+}
+
+/**
+ * Toggle (repro.pen master OMduR). Raw override -> semantic prop:
+ *
+ * | descendant target | raw override                       | prop          |
+ * | ----------------- | ---------------------------------- | ------------- |
+ * | Track (d6Q9W)     | fill:$color-primary + strokeWidth:0 | checked: true |
+ * | Knob (VYbf2)      | x:16 (+ fill)                       | checked: true |
+ * | Label (VZBQ5)     | content                             | label         |
+ *
+ * Absorbed cosmetic keys: Track `strokeWidth` (0 in the on-state encoding);
+ * Knob `fill` ($color-text-inverse rides with the on-state position).
+ */
+function resolveToggleDescendant(
+  key: string,
+  target: DescendantTarget,
+  overrides: Record<string, unknown>
+): OverrideResolution | undefined {
+  if (target.name === 'Track') {
+    const props: Record<string, unknown> = {}
+    const warnings: string[] = []
+    if (overrides.fill === '$color-primary') {
+      props.checked = true
+    } else if (overrides.fill !== undefined) {
+      warnings.push(
+        `Toggle: unmapped descendant override "${key}" -> "fill"=${JSON.stringify(
+          overrides.fill
+        )}`
+      )
+    }
+    warnings.push(
+      ...warnRemaining(
+        overrides,
+        new Set(['fill', 'strokeWidth']),
+        'Toggle',
+        key
+      )
+    )
+    return { props, warnings }
+  }
+  if (target.name === 'Knob') {
+    const props: Record<string, unknown> = {}
+    const warnings: string[] = []
+    if (overrides.x === 16) {
+      props.checked = true
+    } else if (overrides.x !== undefined) {
+      warnings.push(
+        `Toggle: unmapped descendant override "${key}" -> "x"=${JSON.stringify(
+          overrides.x
+        )}`
+      )
+    }
+    warnings.push(
+      ...warnRemaining(overrides, new Set(['x', 'fill']), 'Toggle', key)
+    )
+    return { props, warnings }
+  }
+  if (target.name === 'Label' && typeof overrides.content === 'string') {
+    return {
+      props: { label: overrides.content },
+      warnings: warnRemaining(overrides, new Set(['content']), 'Toggle', key),
+    }
+  }
+  return undefined
+}
+
+/**
+ * FullPageError (repro.pen master HkYOE). Raw override -> semantic prop:
+ *
+ * | descendant target | raw override | prop        |
+ * | ----------------- | ------------ | ----------- |
+ * | Title (enRw5)     | content      | title       |
+ * | Description (VaehS) | content    | description |
+ */
+function resolveFullPageErrorDescendant(
+  key: string,
+  target: DescendantTarget,
+  overrides: Record<string, unknown>
+): OverrideResolution | undefined {
+  if (target.name === 'Title' && typeof overrides.content === 'string') {
+    return {
+      props: { title: overrides.content },
+      warnings: warnRemaining(
+        overrides,
+        new Set(['content']),
+        'FullPageError',
+        key
+      ),
+    }
+  }
+  if (target.name === 'Description' && typeof overrides.content === 'string') {
+    return {
+      props: { description: overrides.content },
+      warnings: warnRemaining(
+        overrides,
+        new Set(['content']),
+        'FullPageError',
+        key
+      ),
+    }
+  }
+  return undefined
+}
+
+/**
+ * Avatar (repro.pen master llVi8). Raw override -> semantic prop:
+ *
+ * | descendant target | raw override | prop |
+ * | ----------------- | ------------ | ---- |
+ * | Name (RWxhn)      | content      | name |
+ */
+function resolveAvatarDescendant(
+  key: string,
+  target: DescendantTarget,
+  overrides: Record<string, unknown>
+): OverrideResolution | undefined {
+  if (target.name === 'Name' && typeof overrides.content === 'string') {
+    return {
+      props: { name: overrides.content },
+      warnings: warnRemaining(overrides, new Set(['content']), 'Avatar', key),
+    }
+  }
+  return undefined
+}
+
+/**
+ * AvatarStackSummary (repro.pen master GAQhh). Raw override -> semantic prop:
+ *
+ * | descendant target | raw override | prop  |
+ * | ----------------- | ------------ | ----- |
+ * | Label (iHoIK)     | content      | label |
+ *
+ * Absorbed cosmetic keys: Label `fill` and `fontWeight` (overflow vs linked
+ * copy variants style the label, which carries no semantic prop of its own).
+ */
+function resolveAvatarStackSummaryDescendant(
+  key: string,
+  target: DescendantTarget,
+  overrides: Record<string, unknown>
+): OverrideResolution | undefined {
+  if (target.name === 'Label' && typeof overrides.content === 'string') {
+    return {
+      props: { label: overrides.content },
+      warnings: warnRemaining(
+        overrides,
+        new Set(['content', 'fill', 'fontWeight']),
+        'AvatarStackSummary',
+        key
+      ),
+    }
+  }
+  return undefined
+}
+
+/**
+ * Badge (repro.pen master d2CvF). Raw override -> semantic prop:
+ *
+ * | scope           | raw override | prop                   |
+ * | --------------- | ------------ | ---------------------- |
+ * | own             | fill token   | context (see below)    |
+ * | Label (nNYA6)   | content      | children               |
+ *
+ * Badge context from own fill token (default 'neutral' is omitted):
+ *   $color-bg-hover -> neutral, $color-info-subtle -> info,
+ *   $color-success-subtle -> success, $color-warning-subtle -> warning,
+ *   $color-danger-subtle -> danger.
+ *
+ * Absorbed cosmetic keys: own `stroke` (border color is derived from the
+ * badge context, mirroring Badge.tsx borderColorMap); Label `fill` (text
+ * color derived from context).
+ */
+const BADGE_CONTEXT_FROM_TOKEN: Record<string, string> = {
+  '$color-bg-hover': 'neutral',
+  '$color-info-subtle': 'info',
+  '$color-success-subtle': 'success',
+  '$color-warning-subtle': 'warning',
+  '$color-danger-subtle': 'danger',
+}
+
+const BADGE_MAPPED_KEYS = new Set(['fill', 'stroke'])
+
+function resolveBadgeOwnOverrides(ref: PenNode): OverrideResolution {
+  const own = ref as Record<string, unknown>
+  const props: Record<string, unknown> = {}
+  const warnings: string[] = []
+  const fill = typeof own.fill === 'string' ? own.fill : undefined
+  if (fill) {
+    const context = BADGE_CONTEXT_FROM_TOKEN[fill]
+    if (context !== undefined) {
+      if (context !== 'neutral') props.context = context
+    } else {
+      warnings.push(`Badge: unmapped override "fill"=${JSON.stringify(fill)}`)
+    }
+  }
+  for (const warning of unmappedWarnings(own, BADGE_MAPPED_KEYS, 'Badge')) {
+    warnings.push(warning)
+  }
+  return { props, warnings }
+}
+
+function resolveBadgeDescendant(
+  key: string,
+  target: DescendantTarget,
+  overrides: Record<string, unknown>
+): OverrideResolution | undefined {
+  if (target.name === 'Label' && typeof overrides.content === 'string') {
+    return {
+      props: { children: overrides.content },
+      warnings: warnRemaining(
+        overrides,
+        new Set(['content', 'fill']),
+        'Badge',
+        key
+      ),
+    }
+  }
+  return undefined
+}
+
+/**
+ * Input (repro.pen master KnDBg). Raw override -> semantic prop:
+ *
+ * | scope               | raw override           | prop            |
+ * | ------------------- | ---------------------- | --------------- |
+ * | own                 | stroke:$color-danger   | context: 'error'|
+ * | Placeholder (OZNpU) | content                | value           |
+ *
+ * Absorbed cosmetic keys: Placeholder `fill` (input text color; the gallery
+ * distinguishes placeholder-muted vs value-default via the fill token).
+ */
+const INPUT_MAPPED_KEYS = new Set(['stroke'])
+
+function resolveInputOwnOverrides(ref: PenNode): OverrideResolution {
+  const own = ref as Record<string, unknown>
+  const props: Record<string, unknown> = {}
+  const warnings: string[] = []
+  const stroke = typeof own.stroke === 'string' ? own.stroke : undefined
+  if (stroke === '$color-danger') {
+    props.context = 'error'
+  } else if (stroke !== undefined) {
+    warnings.push(`Input: unmapped override "stroke"=${JSON.stringify(stroke)}`)
+  }
+  for (const warning of unmappedWarnings(own, INPUT_MAPPED_KEYS, 'Input')) {
+    warnings.push(warning)
+  }
+  return { props, warnings }
+}
+
+function resolveInputDescendant(
+  key: string,
+  target: DescendantTarget,
+  overrides: Record<string, unknown>
+): OverrideResolution | undefined {
+  if (target.name === 'Placeholder' && typeof overrides.content === 'string') {
+    return {
+      props: { value: overrides.content },
+      warnings: warnRemaining(
+        overrides,
+        new Set(['content', 'fill']),
+        'Input',
+        key
+      ),
+    }
+  }
+  return undefined
+}
+
+/** Alert v2: Icon/Message solid fills -> type (idempotent with tint->type). */
+function resolveAlertDescendant(
+  key: string,
+  target: DescendantTarget,
+  overrides: Record<string, unknown>
+): OverrideResolution | undefined {
+  if (target.name !== 'Icon' && target.name !== 'Message') return undefined
+  const props: Record<string, unknown> = {}
+  const warnings: string[] = []
+  const fill = typeof overrides.fill === 'string' ? overrides.fill : undefined
+  if (fill !== undefined) {
+    const type = ALERT_TYPE_FROM_SOLID[fill]
+    if (type !== undefined) {
+      if (type !== 'info') props.type = type
+    } else {
+      warnings.push(
+        `Alert: unmapped descendant override "${key}" -> "fill"=${JSON.stringify(
+          fill
+        )}`
+      )
+    }
+  }
+  if (target.name === 'Message' && typeof overrides.content === 'string') {
+    props.children = overrides.content
+  }
+  warnings.push(
+    ...warnRemaining(overrides, new Set(['fill', 'content']), 'Alert', key)
+  )
+  return { props, warnings }
+}
+
 interface MasterVocabulary {
   /** Resolve the ref node's own overrides into presentational props. */
   resolveOwn(ref: PenNode): OverrideResolution
@@ -264,6 +806,18 @@ interface MasterVocabulary {
     targetName: string,
     content: string
   ): Record<string, unknown> | undefined
+  /**
+   * REP-1629: full descendant override resolution (text or non-text
+   * targets). Consulted before the v1 text-content / enabled=false / generic
+   * warn fall-through; returning a resolution always suppresses those paths
+   * (AC3 — no in-vocabulary override ever warns). Returns undefined when the
+   * override is out of vocabulary so v1 behavior is preserved byte-for-byte.
+   */
+  resolveDescendant?(
+    key: string,
+    target: DescendantTarget,
+    overrides: Record<string, unknown>
+  ): OverrideResolution | undefined
 }
 
 const VOCABULARIES: Record<string, MasterVocabulary> = {
@@ -280,6 +834,52 @@ const VOCABULARIES: Record<string, MasterVocabulary> = {
       if (targetName === 'Message') return { children: content }
       return undefined
     },
+    resolveDescendant: resolveAlertDescendant,
+  },
+  Checkbox: {
+    resolveOwn: NO_OWN_OVERRIDES,
+    resolveTextContent: () => undefined,
+    resolveDescendant: resolveCheckboxDescendant,
+  },
+  Stack: {
+    resolveOwn: resolveStackOwnOverrides,
+    resolveTextContent: () => undefined,
+    resolveDescendant: resolveStackDescendant,
+  },
+  TextField: {
+    resolveOwn: NO_OWN_OVERRIDES,
+    resolveTextContent: () => undefined,
+    resolveDescendant: resolveTextFieldDescendant,
+  },
+  Toggle: {
+    resolveOwn: NO_OWN_OVERRIDES,
+    resolveTextContent: () => undefined,
+    resolveDescendant: resolveToggleDescendant,
+  },
+  FullPageError: {
+    resolveOwn: NO_OWN_OVERRIDES,
+    resolveTextContent: () => undefined,
+    resolveDescendant: resolveFullPageErrorDescendant,
+  },
+  Avatar: {
+    resolveOwn: NO_OWN_OVERRIDES,
+    resolveTextContent: () => undefined,
+    resolveDescendant: resolveAvatarDescendant,
+  },
+  AvatarStackSummary: {
+    resolveOwn: NO_OWN_OVERRIDES,
+    resolveTextContent: () => undefined,
+    resolveDescendant: resolveAvatarStackSummaryDescendant,
+  },
+  Badge: {
+    resolveOwn: resolveBadgeOwnOverrides,
+    resolveTextContent: () => undefined,
+    resolveDescendant: resolveBadgeDescendant,
+  },
+  Input: {
+    resolveOwn: resolveInputOwnOverrides,
+    resolveTextContent: () => undefined,
+    resolveDescendant: resolveInputDescendant,
   },
 }
 
@@ -519,6 +1119,18 @@ function walkRef(node: PenNode, ctx: BuildContext): ContractTreeNode {
       ctx.masterNodeById
     )
     const target = resolved.target
+    // REP-1629: full descendant resolution (text or non-text targets) takes
+    // precedence over the v1 text-content / enabled=false / generic warn
+    // fall-through below. A resolution always maps props and pushes its own
+    // warnings (AC3: in-vocabulary overrides never warn).
+    if (target && vocabulary?.resolveDescendant) {
+      const mapped = vocabulary.resolveDescendant(key, target, overrides)
+      if (mapped) {
+        Object.assign(props, mapped.props)
+        for (const warning of mapped.warnings) ctx.warnings.push(warning)
+        continue
+      }
+    }
     if (
       target &&
       target.type === 'text' &&

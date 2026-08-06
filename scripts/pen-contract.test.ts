@@ -256,6 +256,7 @@ describe('REP-1622 closed override vocabulary (v1)', () => {
                       fill: '$color-warning',
                     },
                     alertIcon: { fill: '$color-warning' },
+                    alertExtra: { fill: '$color-warning' },
                   },
                 }),
               ]
@@ -274,12 +275,11 @@ describe('REP-1622 closed override vocabulary (v1)', () => {
       children: 'Storage is almost full.',
     })
     assert.deepEqual(contract.warnings, [
-      'Alert: unmapped descendant override "alertIcon"',
-      'Alert: unmapped descendant override "alertMsg" -> "fill"',
+      'Alert: unmapped descendant override "alertExtra" (no matching node in master)',
     ])
   })
 
-  it('warns for unmapped own overrides on vocabulary masters', () => {
+  it('maps Button opacity 0.5 to disabled (value validation in vocabulary suite)', () => {
     const pen = parsePenJson(
       JSON.stringify({
         version: '2.14',
@@ -304,15 +304,12 @@ describe('REP-1622 closed override vocabulary (v1)', () => {
       })
     )
     const { contract } = contractFor(pen)
-    assert.deepEqual(contract.warnings, [
-      'Button: unmapped override "opacity"=0.5',
-    ])
-    assert.deepEqual(
-      contract.screens[0]!.tree.children![0]!.presentationalOverrides,
-      {
-        children: 'Disabled',
-      }
-    )
+    assert.deepEqual(contract.warnings, [])
+    const ref = contract.screens[0]!.tree.children![0]!
+    assert.deepEqual(ref.presentationalOverrides, {
+      disabled: true,
+      children: 'Disabled',
+    })
   })
 
   it('does not treat a scalar type override as a node replacement', () => {
@@ -471,6 +468,22 @@ describe('REP-1622 real repro.pen integration (post-migration)', () => {
       'loading',
     ])
 
+    // REP-1629: the 39 remaining warnings are exactly the intentional-gap set.
+    assert.equal(result.contract.warnings.length, 39)
+    const gapCounts: Record<string, number> = {}
+    for (const w of result.contract.warnings) {
+      gapCounts[w.split(':')[0]!] = (gapCounts[w.split(':')[0]!] ?? 0) + 1
+    }
+    assert.deepEqual(gapCounts, {
+      AdminTable: 16,
+      AppShell: 5,
+      Breadcrumbs: 4,
+      EmptyState: 4,
+      Tabs: 4,
+      Accordion: 2,
+      Card: 2,
+      RefreshProgressBar: 2,
+    })
     const secondOuts: string[] = []
     runContract({
       penFile: path.join(repoRoot, 'repro.pen'),

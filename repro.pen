@@ -2136,8 +2136,7 @@
                           "effect": [],
                           "descendants": {
                             "s0ellJ": {
-                              "content": "Cancel",
-                              "fill": "$color-neutral"
+                              "content": "Cancel"
                             }
                           }
                         },
@@ -4394,8 +4393,7 @@
                       "strokeAlignment": "inner",
                       "descendants": {
                         "s0ellJ": {
-                          "content": "Share",
-                          "fill": "$color-text-secondary"
+                          "content": "Share"
                         }
                       }
                     }
@@ -8453,8 +8451,7 @@
                               "fill": "$color-warning-emphasis",
                               "descendants": {
                                 "s0ellJ": {
-                                  "content": "Warning",
-                                  "fill": "$color-warning-fg"
+                                  "content": "Warning"
                                 }
                               }
                             },
@@ -8502,8 +8499,7 @@
                               "effect": [],
                               "descendants": {
                                 "s0ellJ": {
-                                  "content": "Cancel",
-                                  "fill": "$color-neutral"
+                                  "content": "Cancel"
                                 }
                               }
                             },
@@ -8517,8 +8513,7 @@
                               "effect": [],
                               "descendants": {
                                 "s0ellJ": {
-                                  "content": "Learn more",
-                                  "fill": "$color-primary"
+                                  "content": "Learn more"
                                 }
                               }
                             },
@@ -10110,8 +10105,7 @@
                                       "effect": [],
                                       "descendants": {
                                         "s0ellJ": {
-                                          "content": "Cancel",
-                                          "fill": "$color-neutral"
+                                          "content": "Cancel"
                                         }
                                       }
                                     },
