@@ -141,6 +141,17 @@ Two gotchas, both cost real time on REP-1459:
 
 `tmp/` is git-ignored; the `.gitkeep` sentinel keeps the directory tracked.
 
+**Committing a deliverable that lives under `tmp/`**: `/tmp/*` in the root `.gitignore` ignores everything directly under `tmp/` (only `/tmp/.gitkeep` is re-included). A file under `tmp/` that is a reviewable deliverable — not ephemeral output — needs explicit negation entries, e.g. the REP-1628 eval fixture uses:
+
+```
+/tmp/*
+!/tmp/.gitkeep
+!/tmp/eval-fixture/
+!/tmp/eval-fixture/**
+```
+
+Without the negations the file is silently untracked and never appears in the PR diff. Keep the exceptions narrow to the deliverable path; do not un-ignore `tmp/` broadly.
+
 When passing output paths to tools (e.g. Playwright `outputDir`, Storybook screenshot `outputPath`), always resolve to an absolute path under `<repo-root>/tmp/`.
 
 ## Worktrees & OpenCode External Directory Permission
