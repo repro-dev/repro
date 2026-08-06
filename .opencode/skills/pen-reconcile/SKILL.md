@@ -22,6 +22,8 @@ pen-reconcile (this skill) agentic application      ──► correct, reviewabl
 
 Design is necessarily **ahead** of implementation: the pen file may contain many design changes, only a subset relevant to the current issue. Detection of which subset is agentic — never a flag or CLI selector.
 
+**Reverse direction (code → pen)**: token sync stays deterministic — the Rosetta-stone variable naming (`color.bg.surface` ↔ `color-bg-surface`) is mechanical and code-first; component-behavior reverse-encoding (a11y, focus traps, portals) stays agentic and is not this skill's concern. This skill owns pen → code; code → pen token sync is handled by the pen tooling and variable conventions in `pen-design-workflow`.
+
 ## 2. Detect — build the candidate inventory
 
 1. Run `pnpm run pen:contract` and capture the `PenContract` JSON to a temp file (e.g. `tmp/pen-contract-REP-xxx.json`). Do not re-parse `repro.pen` directly.
