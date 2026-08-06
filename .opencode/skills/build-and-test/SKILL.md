@@ -32,6 +32,8 @@ Use direct `tsx --test` commands only as a fallback when a package does not expo
 
 When `tsx` is not on your shell `PATH`, invoke it through pnpm in the target package (for example `pnpm --dir "packages/recording" exec tsx ...`). Match the package's own test script flags when needed — some browser-like tests require `-r global-jsdom/register` in addition to `--test`.
 
+When passing args to a `pnpm run` script, do **not** use the `--` separator: with the pinned pnpm (10.17.0) `pnpm run <script> -- <args>` forwards the literal `--` to the script, which breaks CLIs that reject unknown flags (observed with `pen:contract`, which errored `unknown argument "--"`). Pass script args directly after the script name instead: `pnpm run pen:contract --pen-file <file>`.
+
 For formatting, prefer a package-scoped command or Moon target when one exists. If no Moon format target exists, run the package-local formatter from the affected package rather than broad repo-level formatting from habit.
 
 ### Moon v2 config files

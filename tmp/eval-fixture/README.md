@@ -27,9 +27,7 @@ judgment observable:
 
 ```sh
 # Regenerate the contract from the fixture (this is the Detect input):
-pnpm run pen:contract -- --pen-file tmp/eval-fixture/test.pen
-# or directly:
-node_modules/.bin/tsx scripts/pen-contract.ts --pen-file tmp/eval-fixture/test.pen
+pnpm run pen:contract --pen-file tmp/eval-fixture/test.pen
 ```
 
 The contract output is deterministic. Expected detection results:

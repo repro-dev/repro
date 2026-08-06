@@ -114,7 +114,7 @@ test_eval_fixture_files_present() {
 test_eval_fixture_contract_produces_known_deltas() {
   local pen="$REPO_ROOT/tmp/eval-fixture/test.pen"
   local contract
-  contract="$(cd "$REPO_ROOT" && node_modules/.bin/tsx scripts/pen-contract.ts --pen-file "$pen" 2>&1)" || {
+  contract="$(cd "$REPO_ROOT" && pnpm run pen:contract --pen-file "$pen" 2>&1)" || {
     _fail "eval fixture contract produces known deltas" "pen-contract failed on $pen: $contract"
     return
   }
@@ -123,6 +123,10 @@ test_eval_fixture_contract_produces_known_deltas() {
   printf '%s' "$contract" | grep -q '"context": "success"' || ok=0
   printf '%s' "$contract" | grep -q '"size": "large"' || ok=0
   printf '%s' "$contract" | grep -q '"children": "Create account"' || ok=0
+  # Second Button instance (r-loading): context neutral, size small, Working...
+  printf '%s' "$contract" | grep -q '"context": "neutral"' || ok=0
+  printf '%s' "$contract" | grep -q '"size": "small"' || ok=0
+  printf '%s' "$contract" | grep -q '"children": "Working..."' || ok=0
   # State family present (content + loading)
   printf '%s' "$contract" | grep -q '"stateFamilies"' || ok=0
   # Out-of-vocabulary instance surfaces as a warning, never silently guessed
@@ -152,7 +156,7 @@ test_eval_fixture_scenarios_documented() {
 
 test_deliver_sh_pen_routing_present() {
   local ok=1
-  grep -q '"Pen"' "$REPO_ROOT/scripts/deliver.sh" || ok=0
+  grep -q 'select(.name == "Pen")' "$REPO_ROOT/scripts/deliver.sh" || ok=0
   grep -q '/pen-reconcile' "$REPO_ROOT/scripts/deliver.sh" || ok=0
   if [ $ok -eq 1 ]; then
     _pass "deliver.sh contains Pen -> /pen-reconcile routing"
