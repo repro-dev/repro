@@ -1,0 +1,43 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "opencode-go/glm-5.3-flash",
+  "command": {
+    "deliver": {
+      "model": "opencode-go/glm-5.3-flash",
+      "template": ""
+    },
+    "review": {
+      "model": "opencode-go/glm-5.3-flash",
+      "template": ""
+    }
+  },
+  "agent": {
+    "develop": {
+      "model": "opencode-go/glm-5.3-flash"
+    },
+    "filtered-runner": {
+      "model": "opencode-go/glm-5.3-flash"
+    },
+    "librarian": {
+      "model": "opencode-go/glm-5.3-flash"
+    },
+    "planner": {
+      "model": "opencode-go/glm-5.3-flash"
+    },
+    "review": {
+      "model": "opencode-go/glm-5.3-flash"
+    },
+    "adversarial-review": {
+      "model": "opencode-go/glm-5.3-flash"
+    },
+    "test": {
+      "model": "opencode-go/glm-5.3-flash"
+    },
+    "sequencer": {
+      "model": "opencode-go/glm-5.3-flash"
+    },
+    "release": {
+      "model": "opencode-go/glm-5.3-flash"
+    }
+  }
+}
