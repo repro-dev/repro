@@ -16,7 +16,7 @@
 //   --head <ref>         diff head ref (default HEAD)
 //   --paths-from-stdin   read newline-separated paths from stdin instead of
 //                        running git
-//   --help               show usage
+//   --help, -h           show usage
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -188,6 +188,7 @@ export function parseCliArgs(args: string[]): CliParseResult {
 
 export type ClassifyIo = {
   stdin?: string
+  readStdin?: () => string
   jsonOut?: (json: string) => void
   errorOut?: (message: string) => void
   execGit?: (args: string[]) => string
@@ -224,6 +225,7 @@ export function runClassify(
   const jsonOut = io.jsonOut ?? ((json: string) => console.log(json))
   const errorOut = io.errorOut ?? ((message: string) => console.error(message))
   const execGit = io.execGit ?? defaultExecGit
+  const readStdin = io.readStdin ?? readStdinSync
 
   let rawPaths: string[]
   // stdin mode never runs git, so no base/head is observed — never echo
@@ -233,7 +235,7 @@ export function runClassify(
 
   try {
     if (options.pathsFromStdin) {
-      rawPaths = (io.stdin ?? readStdinSync())
+      rawPaths = (io.stdin ?? readStdin())
         .split('\n')
         .map(line => line.trim())
         .filter(line => line.length > 0)
@@ -261,7 +263,11 @@ export function runClassify(
         .filter(line => line.length > 0)
     }
   } catch (error) {
-    errorOut(`ERROR: git diff failed: ${(error as Error).message}`)
+    errorOut(
+      options.pathsFromStdin
+        ? `ERROR: reading paths from stdin failed: ${(error as Error).message}`
+        : `ERROR: git diff failed: ${(error as Error).message}`
+    )
     return { code: 1 }
   }
 
@@ -300,7 +306,7 @@ Usage:
   tsx scripts/classify-ui-diff.ts --paths-from-stdin < paths.txt
                                   Classify newline-separated paths from stdin
                                   instead of running git.
-  tsx scripts/classify-ui-diff.ts --help
+  tsx scripts/classify-ui-diff.ts --help (-h)
                                   Show this help.
 
 Exit codes:

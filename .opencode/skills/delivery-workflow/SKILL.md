@@ -409,9 +409,10 @@ Run the REP-1646 UI audit pass for REP-xxx in worktree <absolute-worktree-path>.
 Orchestrator-level, mechanical, no judgment. Assert:
 
 1. `tmp/ui-verification/<issue-id>/manifest.json` parses as JSON AND contains ≥1 surface with ≥1 state.
-2. Every state in the manifest has a NON-EMPTY `screenshot` path AND that path exists on disk.
-3. `tmp/ui-verification/<issue-id>/audit.md` contains the ui-verification findings-table header (`pillar | severity | evidence screenshot | description | disposition`) OR the exact no-findings row (`| none | none | none | no findings | none |`).
-4. The develop return's REP-1081 proof-bundle evidence paths resolve to real files.
+2. Every state in the manifest has a NON-EMPTY `screenshot` path AND that path exists on disk (relative paths resolve from the worktree root).
+3. The manifest `canary` field equals `pass`.
+4. `tmp/ui-verification/<issue-id>/audit.md` contains the ui-verification findings-table header (`pillar | severity | evidence screenshot | description | disposition`) AND (≥1 finding row each carrying a valid disposition (`fixed <commit>` | `filed REP-xxx` | `none`), OR the exact no-findings row (`| none | none | none | no findings | none |`)) — a header with zero finding rows is a gate violation, not a clean audit.
+5. The §4 implementation develop return's REP-1081 proof-bundle evidence paths resolve to real files.
 
 Any assertion failure = gate violation ⇒ escalate via the phase-local failure handling.
 
@@ -473,7 +474,7 @@ Review the implementation for REP-xxx in worktree <absolute-worktree-path>.
 Focus exclusively on correctness and security:
 1. Load the `review-standards` skill for the review checklist.
 2. Fetch Linear issue REP-xxx via `linear issue show REP-xxx --json`.
-3. Review the committed branch diff with: `git diff main...HEAD`
+3. Review the committed branch diff with: `git diff origin/main...HEAD`
 4. Evaluate: logic gaps, off-by-one errors, unhandled edge cases, error-path handling, async operation correctness (Futures not Promises per project conventions), and security implications (injection, auth bypass, data exposure, unsafe deserialization).
 5. Check AGENTS.md conventions for the affected packages.
 6. Return the structured output required by .opencode/agents/review.md — but only report findings in the correctness and security categories. Assign each finding `role: correctness-security` in the structured output.
@@ -487,7 +488,7 @@ Review the implementation for REP-xxx in worktree <absolute-worktree-path>.
 Focus exclusively on architecture and conventions:
 1. Load the `review-standards` skill for the review checklist.
 2. Fetch Linear issue REP-xxx via `linear issue show REP-xxx --json`.
-3. Review the committed branch diff with: `git diff main...HEAD`
+3. Review the committed branch diff with: `git diff origin/main...HEAD`
 4. Evaluate: side effects on other parts of the system, consistency with existing codebase patterns, approach alignment with stated architecture, and package-level AGENTS.md convention compliance.
 5. Check style/conventions (imports, naming, Prettier, no hardcoded values, design tokens).
 6. Return the structured output required by .opencode/agents/review.md — but only report findings in the architecture and conventions categories. Assign each finding `role: architecture-conventions` in the structured output.
@@ -501,7 +502,7 @@ Review the implementation for REP-xxx in worktree <absolute-worktree-path>.
 Focus exclusively on performance:
 1. Load the `review-standards` skill for the review checklist.
 2. Fetch Linear issue REP-xxx via `linear issue show REP-xxx --json`.
-3. Review the committed branch diff with: `git diff main...HEAD`
+3. Review the committed branch diff with: `git diff origin/main...HEAD`
 4. Evaluate: algorithmic complexity regressions, unnecessary iteration or duplication, missing indexes or query optimizations (if DB changes are present), unbuffered stream operations, large in-memory collections, and lack of pagination/cursor patterns where appropriate.
 5. Return the structured output required by .opencode/agents/review.md — but only report findings in the performance category. Assign each finding `role: performance` in the structured output.
 ```
@@ -517,7 +518,7 @@ Run the adversarial review pass for REP-xxx in worktree <absolute-worktree-path>
 
 1. Load the `review-standards` skill — specifically the `Adversarial review contract` section.
 2. Fetch Linear issue REP-xxx via `linear issue show REP-xxx --json`.
-3. Review the committed branch diff with: `git diff main...HEAD`
+3. Review the committed branch diff with: `git diff origin/main...HEAD`
 4. Assume the implementation is wrong and try to prove it fails. Apply all seven adversarial techniques: bug-seeking mindset; edge-case and boundary-value enumeration; happy-path-only logic and untested error paths; acceptance-criterion completeness challenge (met vs sunny-day slice); test-quality attacks (tautological/weak assertions, tests that cannot fail, mocks asserting the mock); hidden coupling (sibling callsites, shared helpers, alternate paths, shared state); async/time/ordering risks (Futures vs Promises per project conventions, races, retry/ordering assumptions, time-dependent logic).
 5. Do not duplicate the standard review's requirements-coverage pass — attack failure modes instead.
 6. Return the structured output required by .opencode/agents/adversarial-review.md. Assign every finding `role: adversarial`, keep the severity schema (Blocker/Major/Minor/Nit) and `fixable_by_agent` fields, and add a `## Techniques applied` section.
@@ -548,7 +549,7 @@ Review the implementation for REP-xxx in worktree <absolute-worktree-path>.
 
 1. Load the `review-standards` skill for the full review checklist.
 2. Fetch Linear issue REP-xxx via `linear issue show REP-xxx --json`.
-3. Review the committed branch diff with: `git diff main...HEAD`
+3. Review the committed branch diff with: `git diff origin/main...HEAD`
 4. Review against requirements coverage, correctness, test coverage, conventions, and architecture.
 5. Return the structured output required by .opencode/agents/review.md.
 ```
@@ -565,6 +566,7 @@ For each issue, apply this iterative loop:
    - Add the issue ID to `escalated_issues`
 3. **If all blocking issues have `fixable_by_agent: true`**:
    - Re-run `develop` with the original plan plus the current blocking findings (from both passes)
+   - Post-commit re-classification: after every review-fix-loop commit and before re-launching reviewers, re-run `pnpm run ui:classify --base origin/main` (the gate classified the pre-fix diff only). If the verdict flips to `uiTouching: true`, run §5 Steps 3–5 (audit pass → proof-bundle assertions → disposition enforcement) before re-running review — review may not complete until the audit gate has passed for the flipped verdict.
    - Re-run `review` (both the standard and adversarial passes)
    - Increment the per-issue fix-attempt counter
    - Continue looping while either review pass still has Blockers and every Blocker remains `fixable_by_agent: true`
@@ -614,6 +616,7 @@ After the Blocker loop clears (or if there were no Blockers to begin with) and t
 4. **Re-run verification**: after the sweep completes, run the same verification commands that the develop phase used:
    - For each affected package `<name>`: `pnpm --filter @repro/<name> test`
    - Typecheck and format check as appropriate
+   - Re-run `pnpm run ui:classify --base origin/main` after the non-blocker sweep — sweep fixes may touch `.tsx` labels/ARIA copy that the pre-sweep classification never saw. If the verdict flips to `uiTouching: true`, run §5 Steps 3–5 (audit pass → proof-bundle assertions → disposition enforcement) before the review outcome is final.
 
 5. **If the non-blocker fix pass introduces new failures**: stop the sweep. Add those failures to the review summary (they will appear in the PR body remainder). Do not start a second fix loop.
 
@@ -645,6 +648,8 @@ else
   # log: REP-xxx: rebased onto origin/main before push
 fi
 ```
+
+Alongside the guard, re-run `pnpm run ui:classify --base origin/main` at publish — commits after the audit gate (review-fix loop, non-blocker sweep) may have introduced UI files the gate never classified. If the verdict flips to `uiTouching: true`, run §5 Steps 3–5 (audit pass → proof-bundle assertions → disposition enforcement) before publish proceeds — publish may not proceed until the audit gate has passed for the flipped verdict.
 
 Use this same guard for the initial publish path and any future re-push path.
 

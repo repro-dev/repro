@@ -55,6 +55,8 @@ describe('REP-1646 classifyPaths — UI-touching positives', () => {
     for (const p of [
       'apps/workspace/src/styles/foo.css',
       'apps/workspace/src/styles/foo.scss',
+      'packages/agentic-ui/src/foo.css',
+      'packages/agentic-ui/src/foo.scss',
     ]) {
       const verdict = classifyPaths([p])
       assert.equal(verdict.uiTouching, true, p)
@@ -231,8 +233,7 @@ describe('REP-1646 CLI stdin mode', () => {
       { path: 'apps/workspace/src/routes/Sessions.tsx', rule: 'app-ui' },
     ])
     assert.equal(verdict.totalChangedFiles, 2) // duplicates collapse
-    // stdin mode never runs git — base/head are unobserved, so they are null
-    // (the verdict must not echo flags it never used).
+    // stdin mode never runs git — base/head are unobserved, never echoed.
     assert.equal(verdict.base, null)
     assert.equal(verdict.head, null)
   })
@@ -317,10 +318,10 @@ describe('REP-1646 CLI git mode', () => {
     assert.equal(verdict.head, 'HEAD')
   })
 
-  it('disables core.quotePath so non-ASCII paths reach the rules unquoted', () => {
-    // Without `-c core.quotePath=false`, git C-quotes non-ASCII paths
-    // (e.g. "caf\303\251.tsx"), the rule regexes match nothing, and real UI
-    // files flip to a false non-UI verdict.
+  it('prepends -c core.quotePath=false and classifies the returned path unquoted', () => {
+    // Without quotePath=false, git C-quotes non-ASCII paths (e.g.
+    // "caf\303\251.tsx") — no rule regex matches, so real UI files flip to a
+    // false non-UI verdict.
     const jsonOuts: string[] = []
     let receivedArgs: string[] = []
     const result = runClassify(
@@ -334,8 +335,15 @@ describe('REP-1646 CLI git mode', () => {
       }
     )
     assert.equal(result.code, 0)
-    assert.equal(receivedArgs[0], '-c')
-    assert.equal(receivedArgs[1], 'core.quotePath=false')
+    // Full argv pin — covers the --head default ('HEAD') too.
+    assert.deepEqual(receivedArgs, [
+      '-c',
+      'core.quotePath=false',
+      'diff',
+      '--name-only',
+      '--no-renames',
+      'origin/main...HEAD',
+    ])
     const verdict = JSON.parse(jsonOuts[0]!) as {
       uiTouching: boolean
       matched: Array<{ path: string; rule: string }>
@@ -355,6 +363,22 @@ describe('REP-1646 CLI git mode', () => {
     )
     assert.equal(result.code, 1)
     assert.match(errors[0]!, /--base/)
+  })
+
+  it('reports stdin read failure as a stdin error, not a git error', () => {
+    const errors: string[] = []
+    const result = runClassify(
+      { pathsFromStdin: true },
+      {
+        errorOut: message => errors.push(message),
+        readStdin: () => {
+          throw new Error('ENXIO: no such device or address')
+        },
+      }
+    )
+    assert.equal(result.code, 1)
+    assert.match(errors[0]!, /reading paths from stdin failed/)
+    assert.doesNotMatch(errors[0]!, /git diff failed/)
   })
 
   it('maps git execution failure to exit 1', () => {

@@ -153,7 +153,7 @@ Every audit run writes `tmp/ui-verification/<issue-id>/manifest.json` with this 
 }
 ```
 
-The `state` value is a state name. The standard state family is `affected`, `loading`, `empty`, and `error` — capture those wherever a surface has them. A surface may have other named states worth capturing (e.g. `hover`, `filtered`, `modal-open`); record them under their own name.
+The `state` value is a state name. The standard state family is `affected`, `loading`, `empty`, and `error` — capture those wherever a surface has them. A surface may have other named states worth capturing (e.g. `hover`, `filtered`, `modal-open`); record them under their own name. The `screenshot` path is recorded relative to the worktree root (e.g. `tmp/ui-verification/<issue-id>/shots/<surface>-<state>.png`).
 
 Alongside it, `tmp/ui-verification/<issue-id>/audit.md` records the analysis: one row per finding with columns `pillar | severity | evidence screenshot | description | disposition`. The disposition is one of `fixed <commit>`, `filed REP-xxx`, or `none`. Rule: every finding row must carry a disposition — none dropped. An explicit "no findings" row is valid when the audit passes clean — exactly: `| none | none | none | no findings | none |`.
 

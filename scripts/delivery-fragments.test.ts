@@ -149,6 +149,38 @@ describe('REP-1646 UI audit gate wiring', () => {
     assert.match(skill, /\| none \| none \| none \| no findings \| none \|/)
   })
 
+  it('rejects a header-only audit.md with zero finding rows', () => {
+    const skill = readText('.opencode/skills/delivery-workflow/SKILL.md')
+
+    // A header with no rows is vacuous — the audit must carry ≥1
+    // dispositioned finding row or the exact no-findings row.
+    assert.match(skill, /≥1 finding row each carrying a valid disposition/)
+  })
+
+  it('requires re-classification after post-gate UI drift opportunities', () => {
+    const skill = readText('.opencode/skills/delivery-workflow/SKILL.md')
+
+    // The gate classifies once (§5 Step 2). Every later commit path —
+    // review-fix loop, non-blocker sweep, publish — must re-run the
+    // classifier and re-run §5 Steps 3–5 when the verdict flips.
+    assert.match(skill, /after every review-fix-loop commit/)
+    assert.match(skill, /after the non-blocker sweep/)
+    assert.match(
+      skill,
+      /review may not complete until the audit gate has passed/
+    )
+    assert.match(
+      skill,
+      /publish may not proceed until the audit gate has passed/
+    )
+    const classifyRuns =
+      skill.match(/pnpm run ui:classify --base origin\/main/g) ?? []
+    assert.ok(
+      classifyRuns.length >= 4,
+      `expected ≥4 classifier invocations (gate, fix loop, sweep, publish), found ${classifyRuns.length}`
+    )
+  })
+
   it('has no stale § references in delivery-workflow', () => {
     const skill = readText('.opencode/skills/delivery-workflow/SKILL.md')
     const lines = skill.split('\n')
