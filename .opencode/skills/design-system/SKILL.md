@@ -268,9 +268,9 @@ Oxlint (`pnpm run lint`) enforces code-architecture rules at `error` level. Thes
 
 ### Impeccable — Design anti-pattern detection
 
-Impeccable (`npx impeccable detect apps/ packages/ --json`) detects design anti-patterns and visual slop across 44 deterministic rules. It catches AI-generated tells (gradient text, nested cards, icon-tile stacks), quality issues (low contrast, tight leading, skipped headings), and copy smells (em-dash overuse, marketing buzzwords) that oxlint's architecture rules don't cover.
+Impeccable detects design anti-patterns and visual slop by rendering workspace stories to static HTML (`pnpm run render-stories-html`) and running the detector over the rendered output (`npx impeccable detect tmp/storybook-html/ --json`). Rendering the real DOM/CSS is what lets the detector's DOM/geometry rules execute — AI-generated tells (gradient text, nested cards, icon-tile stacks), quality issues (low contrast, tight leading, cramped padding, skipped headings), and copy smells (em-dash overuse, marketing buzzwords) that oxlint's architecture rules don't cover. The previous source-TSX scan (`detect apps/ packages/`) was removed: on this repo's TSX only its line-regex families ever ran, so every DOM rule was dead code there. The CI detect step currently runs non-blocking (`continue-on-error`) while the 197 first-run findings are triaged under REP-1656.
 
-**Exclusions**: Test files, story files, and `packages/design/src/**` are excluded via `.impeccable/config.json` `detector.ignoreFiles`.
+**Exclusions**: Test files, story files, and `packages/design/src/**` are excluded from source scans via `.impeccable/config.json` `detector.ignoreFiles`; the same config's `ignoreFiles` still applies to the rendered-HTML scan.
 
 **Suppressing violations**: Use inline `impeccable-disable <rule-id>` (whole file), `impeccable-disable-line <rule-id>` (current line), or `impeccable-disable-next-line <rule-id>` (next line) in any comment syntax. Project-wide ignores go in `.impeccable/config.json` `detector.ignoreRules`.
 
