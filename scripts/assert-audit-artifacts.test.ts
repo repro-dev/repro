@@ -172,6 +172,108 @@ describe('REP-1653 assertAuditArtifacts (pure core)', () => {
     assertFails(report, 'manifest-parses', /unreadable/)
   })
 
+  it('fails manifest-parses on a null JSON root instead of skipping the manifest assertions', () => {
+    // Blocker regression: JSON.parse('null') === null collided with the
+    // "not parsed" sentinel, so a `null` manifest recorded manifest-parses
+    // as ok and skipped every manifest-derived assertion (fail-open gate).
+    const report = f.run({ manifestText: 'null' })
+    assert.equal(report.ok, false)
+    assert.deepEqual(ids(report), ['manifest-parses', 'audit-findings'])
+    assertFails(report, 'manifest-parses', /root is not an object \(null\)/)
+    assert.equal(report.results.find(r => r.id === 'audit-findings')?.ok, true)
+  })
+
+  it('fails manifest-parses fail-closed for every other non-object JSON root', () => {
+    for (const [text, type] of [
+      ['42', 'number'],
+      ['"x"', 'string'],
+      ['true', 'boolean'],
+      ['[]', 'array'],
+    ] as const) {
+      const report = f.run({ manifestText: text })
+      assert.equal(report.ok, false, `root ${text}`)
+      assert.deepEqual(
+        ids(report),
+        ['manifest-parses', 'audit-findings'],
+        `root ${text}`
+      )
+      assertFails(
+        report,
+        'manifest-parses',
+        new RegExp(`root is not an object \\(${type}\\)`),
+        `(root ${text})`
+      )
+    }
+  })
+
+  it('fails manifest-nonempty on a non-object surfaces entry instead of throwing', () => {
+    for (const [entry, type] of [
+      [null, 'null'],
+      [42, 'number'],
+    ] as const) {
+      const report = f.run({
+        manifest: { ...VALID_MANIFEST, surfaces: [entry] },
+      })
+      assertFails(
+        report,
+        'manifest-nonempty',
+        new RegExp(`surfaces\\[0\\] is not an object \\(${type}\\)`),
+        `(entry ${String(entry)})`
+      )
+      // assert-all: the remaining assertions still ran and are reported.
+      assert.ok(ids(report).includes('screenshots'))
+      assert.ok(ids(report).includes('surface-coverage'))
+    }
+  })
+
+  it('fails screenshots on a non-object states entry instead of throwing', () => {
+    for (const [entry, type] of [
+      [null, 'null'],
+      ['oops', 'string'],
+    ] as const) {
+      const report = f.run({ manifest: manifestWith([entry]) })
+      assertFails(
+        report,
+        'screenshots',
+        new RegExp(
+          `workspace::Sessions/states\\[0\\] is not an object \\(${type}\\)`
+        ),
+        `(entry ${String(entry)})`
+      )
+    }
+  })
+
+  it('reports malformed entries alongside valid-entry problems (assert-all)', () => {
+    // Malformed surface entry + a real problem on the valid surface.
+    const report = f.run({
+      manifest: {
+        ...VALID_MANIFEST,
+        surfaces: [
+          { surface: 'workspace::Sessions', states: [{ state: 's' }] },
+          'garbage',
+        ],
+      },
+    })
+    assertFails(
+      report,
+      'manifest-nonempty',
+      /surfaces\[1\] is not an object \(string\)/
+    )
+    assertFails(report, 'screenshots', /s: screenshot path missing or empty/)
+    // Malformed state entry alongside a real screenshot problem.
+    const withBadState = f.run({
+      manifest: manifestWith([
+        { state: 'missing', screenshot: `${SHOT_DIR}/nope.png` },
+        null,
+      ]),
+    })
+    assertFails(
+      withBadState,
+      'screenshots',
+      /missing: screenshot does not exist.*states\[1\] is not an object \(null\)/s
+    )
+  })
+
   it('fails manifest-nonempty on empty surfaces or no surface with >=1 state', () => {
     for (const manifest of [
       { ...VALID_MANIFEST, surfaces: [] },

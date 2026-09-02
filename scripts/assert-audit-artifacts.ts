@@ -76,6 +76,20 @@ const ISO_8601_RE =
 type ManifestState = { state?: unknown; screenshot?: unknown }
 type ManifestSurface = { surface?: unknown; states?: unknown }
 
+// JSON.parse can return any JSON value; the manifest-derived assertions below
+// only read plain-object shapes. Non-object roots and non-object entries
+// (null, numbers, strings, booleans, arrays) are guarded into structured
+// failed assertions so a malformed manifest can never throw its way out of
+// the JSON report (exit 1 always emits the report).
+const isJsonObject = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === 'object' && !Array.isArray(value)
+
+const describeJsonValue = (value: unknown): string => {
+  if (value === null) return 'null'
+  if (Array.isArray(value)) return 'array'
+  return typeof value
+}
+
 export function defaultAuditDir(issueId: string, worktreeRoot: string): string {
   return join(worktreeRoot, 'tmp/ui-verification', issueId)
 }
@@ -131,9 +145,10 @@ export function auditFindingsProblems(auditText: string): string[] {
 
 /**
  * Run every proof-bundle assertion (assert-all semantics — a failure never
- * stops evaluation). If the manifest cannot be parsed, the manifest-derived
- * assertions are omitted from the results (fail-closed short-circuit) while
- * audit-findings still runs.
+ * stops evaluation). If the manifest cannot be parsed into a non-null plain
+ * object (unreadable, invalid JSON, or a non-object root such as `null`),
+ * the manifest-derived assertions are omitted from the results (fail-closed
+ * short-circuit) while audit-findings still runs.
  */
 export function assertAuditArtifacts(
   inputs: AssertInputs,
@@ -152,12 +167,27 @@ export function assertAuditArtifacts(
   }
 
   // 1. manifest-parses — missing/unreadable/invalid JSON all fail here.
+  //    Fail-closed shape check: a root that parses but is not a non-null
+  //    plain object (null, number, string, boolean, array) is a failure too —
+  //    otherwise JSON.parse('null') would be recorded as ok and skip every
+  //    manifest-derived assertion below.
   let manifest: Record<string, unknown> | null = null
   const manifestPath = join(auditDir, 'manifest.json')
   try {
     const raw = readFile(manifestPath, 'utf8')
-    manifest = JSON.parse(raw) as Record<string, unknown>
-    add('manifest-parses', true)
+    const parsed: unknown = JSON.parse(raw)
+    if (isJsonObject(parsed)) {
+      manifest = parsed
+      add('manifest-parses', true)
+    } else {
+      add(
+        'manifest-parses',
+        false,
+        `manifest.json parses but its root is not an object (${describeJsonValue(
+          parsed
+        )})`
+      )
+    }
   } catch (error) {
     add(
       'manifest-parses',
@@ -167,50 +197,81 @@ export function assertAuditArtifacts(
   }
 
   if (manifest !== null) {
-    const surfaces: ManifestSurface[] = Array.isArray(manifest.surfaces)
-      ? (manifest.surfaces as ManifestSurface[])
+    // Guard non-object surface entries: a bare `null`/scalar inside `surfaces`
+    // must become a structured failure (naming the offending index), not an
+    // uncaught TypeError.
+    const surfacesRaw: unknown[] = Array.isArray(manifest.surfaces)
+      ? (manifest.surfaces as unknown[])
       : []
+    const surfaces: ManifestSurface[] = []
+    const nonemptyProblems: string[] = []
+    surfacesRaw.forEach((entry, index) => {
+      if (isJsonObject(entry)) {
+        surfaces.push(entry as ManifestSurface)
+      } else {
+        nonemptyProblems.push(
+          `surfaces[${index}] is not an object (${describeJsonValue(entry)})`
+        )
+      }
+    })
 
     // 2. manifest-nonempty — >=1 surface, and >=1 surface with >=1 state.
     const withStates = surfaces.filter(
       surface => Array.isArray(surface.states) && surface.states.length >= 1
     )
+    if (surfacesRaw.length === 0) {
+      nonemptyProblems.push('surfaces array is empty')
+    } else if (withStates.length === 0) {
+      nonemptyProblems.push(
+        `no surface carries a states array with >=1 entry (${surfaces.length} surface(s))`
+      )
+    }
     add(
       'manifest-nonempty',
-      surfaces.length >= 1 && withStates.length >= 1,
-      surfaces.length === 0
-        ? 'surfaces array is empty'
-        : `no surface carries a states array with >=1 entry (${surfaces.length} surface(s))`
+      nonemptyProblems.length === 0,
+      nonemptyProblems.join('; ') || undefined
     )
 
     // 3. screenshots — every state's screenshot is a non-empty relative path
-    //    resolving to a non-empty file inside the worktree root.
+    //    resolving to a non-empty file inside the worktree root. Non-object
+    //    state entries are guarded into named failures (same JSON-report
+    //    contract: no uncaught TypeError, exit 1 still emits the report).
     const problems: string[] = []
     for (const surface of surfaces) {
-      const states: ManifestState[] = Array.isArray(surface.states)
-        ? (surface.states as ManifestState[])
+      const statesRaw: unknown[] = Array.isArray(surface.states)
+        ? (surface.states as unknown[])
         : []
-      for (const state of states) {
-        const label = `${String(
-          surface.surface ?? '<unnamed surface>'
-        )}/${String(state.state ?? '<unnamed state>')}`
-        const shot = state.screenshot
+      const surfaceLabel = String(surface.surface ?? '<unnamed surface>')
+      statesRaw.forEach((state, stateIndex) => {
+        if (!isJsonObject(state)) {
+          problems.push(
+            `${surfaceLabel}/states[${stateIndex}] is not an object (${describeJsonValue(
+              state
+            )})`
+          )
+          return
+        }
+        const stateRecord = state as ManifestState
+        const label = `${surfaceLabel}/${String(
+          stateRecord.state ?? '<unnamed state>'
+        )}`
+        const shot = stateRecord.screenshot
         if (typeof shot !== 'string' || shot.trim().length === 0) {
           problems.push(`${label}: screenshot path missing or empty`)
-          continue
+          return
         }
         if (isAbsolute(shot)) {
           problems.push(
             `${label}: screenshot must be worktree-root-relative, got absolute path ${shot}`
           )
-          continue
+          return
         }
         const resolvedShot = resolve(inputs.worktreeRoot, shot)
         if (!resolvedShot.startsWith(inputs.worktreeRoot + sep)) {
           problems.push(
             `${label}: screenshot escapes the worktree root: ${shot}`
           )
-          continue
+          return
         }
         let size: number
         try {
@@ -221,12 +282,12 @@ export function assertAuditArtifacts(
               (error as Error).message
             }`
           )
-          continue
+          return
         }
         if (size <= 0) {
           problems.push(`${label}: screenshot file is empty (0 bytes): ${shot}`)
         }
-      }
+      })
     }
     add('screenshots', problems.length === 0, problems.join('; ') || undefined)
 

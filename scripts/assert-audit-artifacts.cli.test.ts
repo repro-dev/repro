@@ -72,6 +72,9 @@ function fixture() {
     removeManifest() {
       rmSync(path.join(auditDir, 'manifest.json'))
     },
+    writeManifestText(text: string) {
+      writeFileSync(path.join(auditDir, 'manifest.json'), text)
+    },
     cleanup() {
       rmSync(root, { recursive: true, force: true })
     },
@@ -207,6 +210,74 @@ describe('REP-1653 CLI exit codes', () => {
         ['canary']
       )
       assert.match(failed[0]?.detail ?? '', /expected "pass"/)
+    } finally {
+      f.cleanup()
+    }
+  })
+
+  it('exits 1 with JSON for a manifest whose root is null (fail-closed)', () => {
+    const f = fixture()
+    try {
+      // Blocker regression: a `null` manifest must not report ok:true.
+      f.writeManifestText('null')
+      const jsonOuts: string[] = []
+      const result = runAssert(
+        { ...baseOptions, worktreeRoot: f.root },
+        {
+          ...stubIo(),
+          jsonOut: json => jsonOuts.push(json),
+        }
+      )
+      assert.equal(result.code, 1)
+      assert.equal(jsonOuts.length, 1)
+      const report = JSON.parse(jsonOuts[0]!) as {
+        ok: boolean
+        results: Array<{ id: string; ok: boolean; detail?: string }>
+      }
+      assert.equal(report.ok, false)
+      assert.equal(
+        report.results.find(r => r.id === 'manifest-parses')?.ok,
+        false
+      )
+    } finally {
+      f.cleanup()
+    }
+  })
+
+  it('emits the JSON report (no uncaught crash) when surfaces contains a null entry', () => {
+    const f = fixture()
+    try {
+      f.writeManifestText(
+        JSON.stringify({
+          issue: 'REP-0000',
+          generatedAt: GENERATED_AT,
+          base: 'origin/main',
+          agentBrowserVersion: '1.2.3',
+          canary: 'pass',
+          surfaces: [null],
+        })
+      )
+      const jsonOuts: string[] = []
+      const result = runAssert(
+        { ...baseOptions, worktreeRoot: f.root },
+        {
+          ...stubIo(),
+          jsonOut: json => jsonOuts.push(json),
+        }
+      )
+      assert.equal(result.code, 1)
+      assert.equal(jsonOuts.length, 1)
+      const report = JSON.parse(jsonOuts[0]!) as {
+        ok: boolean
+        results: Array<{ id: string; ok: boolean; detail?: string }>
+      }
+      assert.equal(report.ok, false)
+      const nonempty = report.results.find(r => r.id === 'manifest-nonempty')
+      assert.equal(nonempty?.ok, false)
+      assert.match(
+        nonempty?.detail ?? '',
+        /surfaces\[0\] is not an object \(null\)/
+      )
     } finally {
       f.cleanup()
     }
