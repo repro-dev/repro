@@ -421,7 +421,7 @@ pnpm run ui:assert-audit --issue REP-xxx --base origin/main \
 ```
 
 - No `--` separator (pnpm 10 forwards it literally). `--base` is the §5 Step 2 classification base (`origin/main`); `--commit` is the §5 Step 1 checkpoint commit; each `--surface` echoes a §5 Step 3 `<affected-surfaces>` entry verbatim.
-- Exit 0 = pass. Exit 1 = gate violation — the JSON on stdout lists every failed assertion (`results[]` entries carry `id`, `ok`, `detail`).
+- Exit 0 = pass. Exit 1 = gate violation — the JSON on stdout lists every failed assertion (`results[]` entries carry `id`, `ok`, `detail`); note `pnpm run` prints its command banner lines to stdout before the JSON, so parse from the first `{` line. The other exit-1 mode is an execution error (missing/unreadable manifest/audit.md, git failure): exit 1 with an stderr `ERROR:` line and NO JSON.
 
 The script asserts (ids match the JSON report):
 

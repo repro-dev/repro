@@ -25,7 +25,7 @@
 //   --worktree-root <path>  worktree root (default: process.cwd())
 //   --help, -h              show usage
 import { execFileSync } from 'node:child_process'
-import { readFileSync, statSync } from 'node:fs'
+import { readFileSync, realpathSync, statSync } from 'node:fs'
 import { basename, isAbsolute, join, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -55,7 +55,8 @@ export type AssertReport = {
 
 export type AssertIo = {
   readFileSync?: (path: string, enc: 'utf8') => string
-  statFileSync?: (path: string) => { size: number }
+  statFileSync?: (path: string) => { size: number; isFile: () => boolean }
+  realpathSync?: (path: string) => string
   execGit?: (args: string[]) => string
 }
 
@@ -96,10 +97,12 @@ export function defaultAuditDir(issueId: string, worktreeRoot: string): string {
 
 /**
  * Audit the audit.md findings table. Returns a list of problems (empty = ok):
- * the header must be present, separator rows are skipped, the exact sentinel
- * row is the valid no-findings form, and every other row is a finding row
- * whose last cell must carry a valid disposition (`fixed <commit>` |
- * `filed REP-xxx`).
+ * the header must be present, only the contiguous table following the header
+ * is examined (lines starting with `|`, stopping at the first line that does
+ * not — a later markdown table must not produce false violations), separator
+ * rows are skipped, the exact sentinel row is the valid no-findings form, and
+ * every other row in that table is a finding row whose last cell must carry a
+ * valid disposition (`fixed <commit>` | `filed REP-xxx`).
  */
 export function auditFindingsProblems(auditText: string): string[] {
   const lines = auditText.split('\n')
@@ -116,7 +119,10 @@ export function auditFindingsProblems(auditText: string): string[] {
   let rowCount = 0
   for (const line of lines.slice(headerIndex + 1)) {
     const trimmed = line.trim()
-    if (!trimmed.startsWith('|')) continue
+    // Table boundary: the findings table ends at the first line that does
+    // not start with `|` — anything after it (prose, headings, a second
+    // markdown table) is out of scope for this assertion.
+    if (!trimmed.startsWith('|')) break
     const cells = trimmed
       .replace(/^\|/, '')
       .replace(/\|$/, '')
@@ -156,8 +162,8 @@ export function assertAuditArtifacts(
 ): AssertReport {
   const readFile =
     io.readFileSync ?? ((path: string) => readFileSync(path, 'utf8'))
-  const statFile =
-    io.statFileSync ?? ((path: string) => ({ size: statSync(path).size }))
+  const statFile = io.statFileSync ?? (path => statSync(path))
+  const realPath = io.realpathSync ?? (path => realpathSync(path))
   const auditDir =
     inputs.auditDir ?? defaultAuditDir(inputs.issueId, inputs.worktreeRoot)
 
@@ -200,7 +206,8 @@ export function assertAuditArtifacts(
     // Guard non-object surface entries: a bare `null`/scalar inside `surfaces`
     // must become a structured failure (naming the offending index), not an
     // uncaught TypeError.
-    const surfacesRaw: unknown[] = Array.isArray(manifest.surfaces)
+    const surfacesIsArray = Array.isArray(manifest.surfaces)
+    const surfacesRaw: unknown[] = surfacesIsArray
       ? (manifest.surfaces as unknown[])
       : []
     const surfaces: ManifestSurface[] = []
@@ -219,7 +226,11 @@ export function assertAuditArtifacts(
     const withStates = surfaces.filter(
       surface => Array.isArray(surface.states) && surface.states.length >= 1
     )
-    if (surfacesRaw.length === 0) {
+    if (!surfacesIsArray) {
+      nonemptyProblems.push(
+        `surfaces is not an array (${describeJsonValue(manifest.surfaces)})`
+      )
+    } else if (surfacesRaw.length === 0) {
       nonemptyProblems.push('surfaces array is empty')
     } else if (withStates.length === 0) {
       nonemptyProblems.push(
@@ -237,6 +248,20 @@ export function assertAuditArtifacts(
     //    state entries are guarded into named failures (same JSON-report
     //    contract: no uncaught TypeError, exit 1 still emits the report).
     const problems: string[] = []
+    // Canonical containment hardening (REP-1653 review fix): the old lexical
+    // resolve() + startsWith() check alone would pass a symlink pointing
+    // outside the root, and a directory would pass the size check.
+    // Canonicalize BOTH sides consistently — the tmpdir fixtures on macOS
+    // are themselves under a symlink (/var -> /private/var), so one-sided
+    // canonicalization would false-fail.
+    const lexicalRoot = resolve(inputs.worktreeRoot)
+    let rootReal: string
+    try {
+      rootReal = realPath(lexicalRoot)
+    } catch {
+      // Unresolvable root (injectable-fs tests): fall back to lexical.
+      rootReal = lexicalRoot
+    }
     for (const surface of surfaces) {
       const statesRaw: unknown[] = Array.isArray(surface.states)
         ? (surface.states as unknown[])
@@ -266,16 +291,41 @@ export function assertAuditArtifacts(
           )
           return
         }
-        const resolvedShot = resolve(inputs.worktreeRoot, shot)
-        if (!resolvedShot.startsWith(inputs.worktreeRoot + sep)) {
+        const resolvedShot = resolve(lexicalRoot, shot)
+        if (resolvedShot === lexicalRoot) {
+          problems.push(
+            `${label}: screenshot resolves to the worktree root itself, not a file: ${shot}`
+          )
+          return
+        }
+        if (!resolvedShot.startsWith(lexicalRoot + sep)) {
           problems.push(
             `${label}: screenshot escapes the worktree root: ${shot}`
           )
           return
         }
-        let size: number
+        // Canonical containment: a lexically-inside path can still resolve
+        // outside the root via a symlink. An unresolvable target (typically
+        // nonexistent) falls through to the stat check, which reports it.
+        let realShot: string | null = null
         try {
-          size = statFile(resolvedShot).size
+          realShot = realPath(resolvedShot)
+        } catch {
+          realShot = null
+        }
+        if (
+          realShot !== null &&
+          realShot !== rootReal &&
+          !realShot.startsWith(rootReal + sep)
+        ) {
+          problems.push(
+            `${label}: screenshot escapes the worktree root: ${shot}`
+          )
+          return
+        }
+        let stats: { size: number; isFile: () => boolean }
+        try {
+          stats = statFile(resolvedShot)
         } catch (error) {
           problems.push(
             `${label}: screenshot does not exist (${shot}): ${
@@ -284,7 +334,11 @@ export function assertAuditArtifacts(
           )
           return
         }
-        if (size <= 0) {
+        if (!stats.isFile()) {
+          problems.push(`${label}: screenshot is not a regular file: ${shot}`)
+          return
+        }
+        if (stats.size <= 0) {
           problems.push(`${label}: screenshot file is empty (0 bytes): ${shot}`)
         }
       })
@@ -339,8 +393,11 @@ export function assertAuditArtifacts(
     )
 
     // 6. surface-coverage — every expected surface recorded; extras allowed.
+    //    Unnamed surfaces record under the same `<unnamed surface>` label the
+    //    screenshots assertion uses (never the empty string), so a blank
+    //    --surface flag can never satisfy an unnamed entry.
     const recorded = new Set(
-      surfaces.map(surface => String(surface.surface ?? ''))
+      surfaces.map(surface => String(surface.surface ?? '<unnamed surface>'))
     )
     const missing = [
       ...new Set(inputs.expectedSurfaces.filter(name => !recorded.has(name))),
@@ -455,6 +512,14 @@ export function parseCliArgs(args: string[]): CliParseResult {
         return {
           options,
           error: `${arg} value "${value}" looks like another flag; expected ${
+            FLAG_VALUE_DESCRIPTIONS[arg] ?? 'a value'
+          }`,
+        }
+      }
+      if (arg === '--surface' && value.trim().length === 0) {
+        return {
+          options,
+          error: `--surface value "${value}" is blank; expected ${
             FLAG_VALUE_DESCRIPTIONS[arg] ?? 'a value'
           }`,
         }

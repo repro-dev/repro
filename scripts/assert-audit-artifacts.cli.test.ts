@@ -138,6 +138,17 @@ describe('REP-1653 CLI parsing', () => {
     assert.deepEqual(parseCliArgs([]).options, {})
   })
 
+  it('rejects blank --surface values (classify error style)', () => {
+    assert.match(
+      parseCliArgs(['--surface', '']).error!,
+      /--surface value "" is blank; expected a surface name/
+    )
+    assert.match(
+      parseCliArgs(['--surface', '   ']).error!,
+      /is blank; expected a surface name/
+    )
+  })
+
   it('rejects unknown flags and malformed values (classify error style)', () => {
     assert.match(parseCliArgs(['--bogus']).error!, /unknown argument "--bogus"/)
     assert.match(parseCliArgs(['--base']).error!, /requires a value/)
