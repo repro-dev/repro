@@ -259,7 +259,7 @@ Design is necessarily **ahead** of implementation and the two may land in separa
 1. **Planning**: tell the planner to include pen-contract detection as a pre-implementation step: run `pnpm run pen:contract` (and `pnpm run pen:lint` drift checks) to build the candidate inventory of design deltas, and judge which candidates are in scope for this issue vs explicitly deferred.
 2. **Implementation**: the `develop` prompt MUST instruct the agent to load the `pen-reconcile` skill and run detect + judge + apply over the *relevant* design deltas as part of implementation: translate in-vocabulary overrides into props via the closed override vocabulary (zero LLM involvement), surface out-of-vocabulary instances with candidates for judgment (never guess), patch existing behavioral components (never regenerate), wire state families from the contract into loading/empty/error/content rendering, and record the applied manifest to `tmp/pen-applied.json`. Guard the hand-off scope: unrelated design changes are explicitly deferred and listed, never swept in. Implementation PRs never write `repro.pen` (two-PR model).
 3. **Lifecycle unchanged**: `/build` still owns plan → branch → commit → review → PR. The hand-off replaces the design step, not the delivery lifecycle.
-4. **Verification**: the skill's candidate-report shape feeds the manual-verification `## Design reconciliation` section (delivery-workflow §7): in-scope design deltas, screens/masters involved, explicit out-of-scope changes, and the human pen-screenshot vs browser-evidence check.
+4. **Verification**: the skill's candidate-report shape feeds the manual-verification `## Design reconciliation` section (delivery-workflow §8): in-scope design deltas, screens/masters involved, explicit out-of-scope changes, and the human pen-screenshot vs browser-evidence check.
 
 Detection is agentic — no flags on `deliver`, any CLI, or the command. The `Pen` label routing on `deliver` mirrors the existing `Bug` → `/bugfix` routing.
 
@@ -359,11 +359,83 @@ If the `develop` run reports an unresolved build failure, typecheck failure, or 
 - Set the issue state back to **Todo** with `linear issue update <issue-id> --status "Todo" --json`
 - Add the issue ID to `escalated_issues`
 
-## 5. Review loop
+## 5. Audit gate (UI-touching deliveries)
 
-Before launching `review`, create a local checkpoint commit so review runs against a real branch diff instead of dirty worktree changes.
+Runs after implementation (§4), before the review loop. The gate is mechanical: a script classifies the diff, and UI-touching deliveries must produce a five-pillar visual audit before review starts.
 
-For the completed implementation before review:
+**Fail-closed preamble**: if the gate cannot complete (classifier fails, stack won't start, browser unavailable), escalate via the phase-local failure handling (Linear comment, issue back to Todo). The gate is never silently skipped. Boundary: this agent audit covers judgment classes (semantics, IA, consistency); the deterministic/mechanical classes (CI visual regression, route smoke, Storybook rendering) are tracked in REP-1648/1649/1650 and are out of scope here.
+
+### Step 1 — checkpoint commit
+
+Classification needs a committed diff, and the classifier only sees committed history — uncommitted UI files would classify as a false non-UI. Run the commit inspection steps (`git status`, `git diff`, `git log -5 --oneline`), stage the implementation changes, and create a local commit in the repository's Conventional Commit style with the Linear issue ID. Do **not** push. Then run `git status --porcelain` and require it to be EMPTY before classification runs; if the tree is not clean after the checkpoint commit, escalate via the fail-closed preamble — never classify on a dirty tree. (The review loop keeps a fallback commit path only for resuming an interrupted run without this commit.)
+
+### Step 2 — classify the diff
+
+```sh
+pnpm run ui:classify --base origin/main
+```
+
+Pass script args directly after the script name — never with `--` (see `build-and-test`). Parse the JSON verdict:
+
+- `uiTouching: false` ⇒ record `ui_audit: skipped (non-UI, N changed files)` in the status table and skip to §6 (review loop). The verdict is the mechanical skip evidence.
+- `uiTouching: true` ⇒ record `ui_audit: required` in the status table and continue.
+
+Scope rule: keep the audit scoped to affected surfaces + reachable states derived from the classifier's `matched` files plus the plan — never a full-app sweep (cost-control decision).
+
+### Step 3 — delegate the audit pass
+
+Launch `develop` with the audit prompt:
+
+```
+Run the REP-1646 UI audit pass for REP-xxx in worktree <absolute-worktree-path>.
+
+Affected surfaces (from the §5 Step 2 `matched` list plus the plan): <affected-surfaces>
+
+1. Load the `ui-verification` skill and follow its REP-1646 audit sections exactly:
+   the five-pillar audit rubric, severity calibration, capture manifest format,
+   known-artifact ignore list, and browser input canary.
+2. Start the stack with `reproctl start --wait --full-stack`. If it fails, stop and
+   report — do not silently skip the audit.
+3. Run the browser input canary before any interaction. On canary failure abort with:
+   "agent-browser input delivery is broken — check version (`brew outdated agent-browser`)".
+4. Navigate exactly the affected surfaces listed above (plus their reachable states);
+   capture affected states plus loading/empty/error where the surface has them.
+5. Clear any stale `tmp/ui-verification/<issue-id>/` directory first
+   (`rm -rf tmp/ui-verification/<issue-id>`) so the artifacts reflect THIS pass,
+   never an earlier attempt's replay.
+6. Write `tmp/ui-verification/<issue-id>/manifest.json` and `audit.md` per the skill's
+   capture manifest format. Record `base` exactly as `origin/main` (the §5 Step 2
+   classification base — never a branch name or HEAD), and echo each affected-surfaces
+   entry above verbatim as `surfaces[].surface`.
+7. Return: manifest path, audit path, finding counts by severity, and disposition
+   summary. This is a capture-and-analyze pass — no code fixes in this pass.
+```
+
+### Step 4 — proof-bundle assertion (REP-1081 becomes load-bearing)
+
+Orchestrator-level, mechanical, no judgment. Assert:
+
+1. `tmp/ui-verification/<issue-id>/manifest.json` parses as JSON AND contains ≥1 surface with ≥1 state.
+2. Every state in the manifest has a NON-EMPTY `screenshot` path AND that path exists on disk AND is non-empty (size > 0) — relative paths resolve from the worktree root.
+3. The manifest `canary` field equals `pass` AND `agentBrowserVersion` is non-empty.
+4. Freshness: the manifest `base` field equals the classification base (`origin/main`) AND `generatedAt` is present AND newer than the Step 1 checkpoint commit — artifacts replayed from an older base, an earlier attempt, or a pre-commit capture are a gate violation.
+5. Coverage: every surface name the orchestrator passed in the Step 3 prompt's `<affected-surfaces>` slot appears in the manifest's `surfaces[].surface` list.
+6. `tmp/ui-verification/<issue-id>/audit.md` contains the ui-verification findings-table header (`pillar | severity | evidence screenshot | description | disposition`) AND (≥1 finding row each carrying a valid disposition (`fixed <commit>` | `filed REP-xxx`), OR the exact no-findings row (`| none | none | none | no findings | none |`)) — a header with zero finding rows is a gate violation, not a clean audit. `none` is reserved for the no-findings sentinel row; a finding row dispositioned `none` is neither fixed nor filed and fails this assertion.
+7. The §4 implementation develop return's REP-1081 proof-bundle evidence paths resolve to real files.
+
+Any assertion failure = gate violation ⇒ escalate via the phase-local failure handling.
+
+### Step 5 — disposition enforcement
+
+- **P0** ⇒ fix before review: re-run `develop` with the P0 findings, then re-run the audit pass (bounded by the existing 3-attempt loop discipline). Commit the P0 fix before re-running the audit pass and cite that commit in the row's `fixed <commit>` disposition. After the P0 fix commit, re-run `pnpm run ui:classify --base origin/main` and extend the re-audit scope from the new `matched` set (same post-gate re-classification rule as §6).
+- **P1/P2** ⇒ each finding is fixed or filed as a Linear issue; the audit artifact records both.
+- Review may not start until every finding row in `audit.md` has a disposition (`fixed <commit>` | `filed REP-xxx`) — `none` is reserved for the no-findings sentinel row, never a valid finding-row disposition.
+
+## 6. Review loop
+
+Before launching `review`, ensure the checkpoint commit exists — it is created in §5 Step 1 for every delivery (before classification); if it does not exist (e.g. resuming an interrupted run), create it here so review runs against a real branch diff instead of dirty worktree changes.
+
+For the completed implementation before review (fallback path when the audit gate did not run):
 
 1. Run the commit inspection steps:
    - `git status`
@@ -411,7 +483,7 @@ Review the implementation for REP-xxx in worktree <absolute-worktree-path>.
 Focus exclusively on correctness and security:
 1. Load the `review-standards` skill for the review checklist.
 2. Fetch Linear issue REP-xxx via `linear issue show REP-xxx --json`.
-3. Review the committed branch diff with: `git diff main...HEAD`
+3. Review the committed branch diff with: `git diff origin/main...HEAD`
 4. Evaluate: logic gaps, off-by-one errors, unhandled edge cases, error-path handling, async operation correctness (Futures not Promises per project conventions), and security implications (injection, auth bypass, data exposure, unsafe deserialization).
 5. Check AGENTS.md conventions for the affected packages.
 6. Return the structured output required by .opencode/agents/review.md — but only report findings in the correctness and security categories. Assign each finding `role: correctness-security` in the structured output.
@@ -425,7 +497,7 @@ Review the implementation for REP-xxx in worktree <absolute-worktree-path>.
 Focus exclusively on architecture and conventions:
 1. Load the `review-standards` skill for the review checklist.
 2. Fetch Linear issue REP-xxx via `linear issue show REP-xxx --json`.
-3. Review the committed branch diff with: `git diff main...HEAD`
+3. Review the committed branch diff with: `git diff origin/main...HEAD`
 4. Evaluate: side effects on other parts of the system, consistency with existing codebase patterns, approach alignment with stated architecture, and package-level AGENTS.md convention compliance.
 5. Check style/conventions (imports, naming, Prettier, no hardcoded values, design tokens).
 6. Return the structured output required by .opencode/agents/review.md — but only report findings in the architecture and conventions categories. Assign each finding `role: architecture-conventions` in the structured output.
@@ -439,7 +511,7 @@ Review the implementation for REP-xxx in worktree <absolute-worktree-path>.
 Focus exclusively on performance:
 1. Load the `review-standards` skill for the review checklist.
 2. Fetch Linear issue REP-xxx via `linear issue show REP-xxx --json`.
-3. Review the committed branch diff with: `git diff main...HEAD`
+3. Review the committed branch diff with: `git diff origin/main...HEAD`
 4. Evaluate: algorithmic complexity regressions, unnecessary iteration or duplication, missing indexes or query optimizations (if DB changes are present), unbuffered stream operations, large in-memory collections, and lack of pagination/cursor patterns where appropriate.
 5. Return the structured output required by .opencode/agents/review.md — but only report findings in the performance category. Assign each finding `role: performance` in the structured output.
 ```
@@ -455,7 +527,7 @@ Run the adversarial review pass for REP-xxx in worktree <absolute-worktree-path>
 
 1. Load the `review-standards` skill — specifically the `Adversarial review contract` section.
 2. Fetch Linear issue REP-xxx via `linear issue show REP-xxx --json`.
-3. Review the committed branch diff with: `git diff main...HEAD`
+3. Review the committed branch diff with: `git diff origin/main...HEAD`
 4. Assume the implementation is wrong and try to prove it fails. Apply all seven adversarial techniques: bug-seeking mindset; edge-case and boundary-value enumeration; happy-path-only logic and untested error paths; acceptance-criterion completeness challenge (met vs sunny-day slice); test-quality attacks (tautological/weak assertions, tests that cannot fail, mocks asserting the mock); hidden coupling (sibling callsites, shared helpers, alternate paths, shared state); async/time/ordering risks (Futures vs Promises per project conventions, races, retry/ordering assumptions, time-dependent logic).
 5. Do not duplicate the standard review's requirements-coverage pass — attack failure modes instead.
 6. Return the structured output required by .opencode/agents/adversarial-review.md. Assign every finding `role: adversarial`, keep the severity schema (Blocker/Major/Minor/Nit) and `fixable_by_agent` fields, and add a `## Techniques applied` section.
@@ -486,7 +558,7 @@ Review the implementation for REP-xxx in worktree <absolute-worktree-path>.
 
 1. Load the `review-standards` skill for the full review checklist.
 2. Fetch Linear issue REP-xxx via `linear issue show REP-xxx --json`.
-3. Review the committed branch diff with: `git diff main...HEAD`
+3. Review the committed branch diff with: `git diff origin/main...HEAD`
 4. Review against requirements coverage, correctness, test coverage, conventions, and architecture.
 5. Return the structured output required by .opencode/agents/review.md.
 ```
@@ -503,6 +575,7 @@ For each issue, apply this iterative loop:
    - Add the issue ID to `escalated_issues`
 3. **If all blocking issues have `fixable_by_agent: true`**:
    - Re-run `develop` with the original plan plus the current blocking findings (from both passes)
+   - Post-commit re-classification: after every review-fix-loop commit and before re-launching reviewers, re-run `pnpm run ui:classify --base origin/main` (the gate classified the pre-fix diff only). If the verdict flips to `uiTouching: true` — or is already `uiTouching: true` and the new `matched` set intersects the audited surfaces — run §5 Steps 3–5 (audit pass → proof-bundle assertions → disposition enforcement) before re-running review — review may not complete until the audit gate has passed.
    - Re-run `review` (both the standard and adversarial passes)
    - Increment the per-issue fix-attempt counter
    - Continue looping while either review pass still has Blockers and every Blocker remains `fixable_by_agent: true`
@@ -552,6 +625,7 @@ After the Blocker loop clears (or if there were no Blockers to begin with) and t
 4. **Re-run verification**: after the sweep completes, run the same verification commands that the develop phase used:
    - For each affected package `<name>`: `pnpm --filter @repro/<name> test`
    - Typecheck and format check as appropriate
+   - Re-run `pnpm run ui:classify --base origin/main` after the non-blocker sweep — sweep fixes may touch `.tsx` labels/ARIA copy that the pre-sweep classification never saw. If the verdict flips to `uiTouching: true` — or is already `uiTouching: true` and the new `matched` set intersects the audited surfaces — run §5 Steps 3–5 (audit pass → proof-bundle assertions → disposition enforcement) before the review outcome is final.
 
 5. **If the non-blocker fix pass introduces new failures**: stop the sweep. Add those failures to the review summary (they will appear in the PR body remainder). Do not start a second fix loop.
 
@@ -566,98 +640,99 @@ Do not create a PR or set `In Review` until an issue has cleared review or hit t
 
 Do **not** paste full AI review output back into Linear comments. Use Linear comments only for short phase-local blocker summaries when an issue is being kicked back.
 
-## 6. Publish
+## 7. Publish
 
 For the publishable issue:
 
-1. **Pre-push origin/main guard**: Before any push attempt, run:
+### Step 1 — pre-push origin/main guard
 
-   ```sh
-   git fetch origin main
-   if git merge-base --is-ancestor origin/main HEAD; then
-     # log: REP-xxx: branch already contains origin/main
-   else
-     git rebase origin/main
-     # log: REP-xxx: rebased onto origin/main before push
-   fi
-   ```
+Before any push attempt, run:
 
-   Use this same guard for the initial publish path and any future re-push path.
+```sh
+git fetch origin main
+if git merge-base --is-ancestor origin/main HEAD; then
+  # log: REP-xxx: branch already contains origin/main
+else
+  git rebase origin/main
+  # log: REP-xxx: rebased onto origin/main before push
+fi
+```
 
-   If the rebase conflicts:
-   - Capture the conflicting files
-   - Run `git rebase --abort`
-   - Post a structured, concise Linear comment summarizing the conflict with `linear issue comment <issue-id> "<rebase conflict summary>" --json`
-   - Set the issue state back to **In Progress** with `linear issue update <issue-id> --status "In Progress" --json`
-   - Add the issue ID to `escalated_issues`
-   - Stop publish for that issue
+Alongside the guard, re-run `pnpm run ui:classify --base origin/main` at publish — commits after the audit gate (review-fix loop, non-blocker sweep) may have introduced UI files the gate never classified. If the verdict flips to `uiTouching: true` — or is already `uiTouching: true` and the new `matched` set intersects the audited surfaces — run §5 Steps 3–5 (audit pass → proof-bundle assertions → disposition enforcement) before publish proceeds — publish may not proceed until the audit gate has passed.
 
-   Do not add automatic conflict-resolution logic here.
+Use this same guard for the initial publish path and any future re-push path.
 
-2. **Push** with retry: retry transient failures up to 3 times; escalate permanent failures immediately.
+If the rebase conflicts:
 
-3. **Create the PR**. This is part of the completion gate for the build run; the manual-verification output (step 4 below) completes it. The body should help a human reviewer quickly understand the change. Include:
+- Capture the conflicting files
+- Run `git rebase --abort`
+- Post a structured, concise Linear comment summarizing the conflict with `linear issue comment <issue-id> "<rebase conflict summary>" --json`
+- Set the issue state back to **In Progress** with `linear issue update <issue-id> --status "In Progress" --json`
+- Add the issue ID to `escalated_issues`
+- Stop publish for that issue
 
-   - `Closes REP-xxx`
-   - A short summary of the change
-   - Verification performed
-   - Any notable risk or follow-up note worth human attention
-   - **Review remainder** — a concise, triage-ready list of every non-blocking review finding (including those fixed in the sweep so a human reviewer can confirm the delta). Format as:
+Do not add automatic conflict-resolution logic here.
 
-     ```
-     ## Review remainder
+### Step 2 — push with retry
 
-     The following non-blocking review findings were not auto-fixed:
+Retry transient failures up to 3 times; escalate permanent failures immediately.
 
-     ### Major
-     - **[file:line]** (category) Description. _Skipped-by-gate_ | _Not-agent-fixable_ (Major findings are not mechanically fixable — Fixed in sweep does not apply)
+### Step 3 — create the PR
 
-     ### Minor
-     - **[file:line]** (category) Description. _Fixed in sweep_ | _Skipped-by-gate_ | _Not-agent-fixable_
+This is part of the completion gate for the build run; the manual-verification output (step 4 below) completes it. The body should help a human reviewer quickly understand the change. Include:
 
-     ### Nit
-     - **[file:line]** (category) Description. _Fixed in sweep_ | _Skipped-by-gate_ | _Not-agent-fixable_
-     ```
+- `Closes REP-xxx`
+- A short summary of the change
+- Verification performed
+- Any notable risk or follow-up note worth human attention
+- **Review remainder** — a concise, triage-ready list of every non-blocking review finding (including those fixed in the sweep so a human reviewer can confirm the delta). Format as:
 
-     Include every non-blocking finding: whether it was fixed in the sweep, skipped by the quality gate, or not `fixable_by_agent: true`. Report this section even when it is empty (`(none)`), so the human reviewer knows the sweep was considered.
+  ```
+  ## Review remainder
 
-   - **Review remainder summary**: emit the same review remainder to the publish-phase summary output so the session log preserves it for later triage.
+  The following non-blocking review findings were not auto-fixed:
 
-   Do **not** paste the full AI review output into the PR body, and do **not** duplicate that review output into Linear comments.
+  ### Major
+  - **[file:line]** (category) Description. _Skipped-by-gate_ | _Not-agent-fixable_ (Major findings are not mechanically fixable — Fixed in sweep does not apply)
 
-4. **Manual-verification completion gate**: before the run is complete, produce the manual
-   verification output per §7: (a) author `<worktree>/tmp/manual-test-plan-<issue-id>.md`
-   fresh for this run — remove any stale copy first with
-   `rm -f <worktree>/tmp/manual-test-plan-<issue-id>.md` so the artifact reflects the CURRENT
-   diff, not a prior run of the same issue; (b) print it verbatim in the operator summary as
-   the fixed `Manual verification` block — this is the single print point; the final summary
-   prints it once as part of the run summary — and (c) append it to the PR body as a
-   `## Manual test plan` section per §7 'PR body update' (build the full body in
-   `<worktree>/tmp/pr-body-<issue-id>.md` and
-   `gh pr edit <pr-number> --body-file <worktree>/tmp/pr-body-<issue-id>.md`). Publish is
-   **not** complete until all three hold.
-   Presence check (challenge-verify-validate): author the artifact fresh for this run
-   (remove any stale copy first), then verify it exists at
-   `<worktree>/tmp/manual-test-plan-<issue-id>.md`; if it is still missing, author it now via
-   §7 and append it — do not complete publish without it.
+  ### Minor
+  - **[file:line]** (category) Description. _Fixed in sweep_ | _Skipped-by-gate_ | _Not-agent-fixable_
 
-5. **Set the Linear issue to In Review** only after the PR exists and the manual test plan has been written and appended to the PR body (step 4).
+  ### Nit
+  - **[file:line]** (category) Description. _Fixed in sweep_ | _Skipped-by-gate_ | _Not-agent-fixable_
+  ```
+
+  Include every non-blocking finding: whether it was fixed in the sweep, skipped by the quality gate, or not `fixable_by_agent: true`. Report this section even when it is empty (`(none)`), so the human reviewer knows the sweep was considered.
+
+- **Review remainder summary**: emit the same review remainder to the publish-phase summary output so the session log preserves it for later triage.
+
+Do **not** paste the full AI review output into the PR body, and do **not** duplicate that review output into Linear comments.
+
+### Step 4 — manual-verification completion gate
+
+Before the run is complete, produce the manual verification output per §8: (a) author `<worktree>/tmp/manual-test-plan-<issue-id>.md` fresh for this run — remove any stale copy first with `rm -f <worktree>/tmp/manual-test-plan-<issue-id>.md` so the artifact reflects the CURRENT diff, not a prior run of the same issue; (b) print it verbatim in the operator summary as the fixed `Manual verification` block — this is the single print point; the final summary prints it once as part of the run summary — and (c) append it to the PR body as a `## Manual test plan` section per §8 'PR body update' (build the full body in `<worktree>/tmp/pr-body-<issue-id>.md` and `gh pr edit <pr-number> --body-file <worktree>/tmp/pr-body-<issue-id>.md`). Publish is **not** complete until all three hold.
+
+Presence check (challenge-verify-validate): author the artifact fresh for this run (remove any stale copy first), then verify it exists at `<worktree>/tmp/manual-test-plan-<issue-id>.md`; if it is still missing, author it now via §8 and append it — do not complete publish without it.
+
+### Step 5 — set the Linear issue to In Review
+
+Only after the PR exists and the manual test plan has been written and appended to the PR body (step 4).
 
 After publish has been handled:
 
 - Report the opened PR URL
 - Report escalated issues and why
 - Aggregate friction logs: check whether `<worktree>/tmp/friction.md` exists. If it does, concatenate all entries and print a grouped summary to the operator, organized by root-cause category (`missing-docs`, `unclear-pattern`, `tooling-gap`, `stale-code`). Include the issue identifier alongside each entry.
-- Emit the fixed `Manual verification` block (from §7) in the final summary — step 4b prints it once, and that print IS the block that appears in the run's final summary; always present, using the no-verification sentinel when there is nothing to verify.
+- Emit the fixed `Manual verification` block (from §8) in the final summary — step 4b prints it once, and that print IS the block that appears in the run's final summary; always present, using the no-verification sentinel when there is nothing to verify.
 - Stop
 
 Post-publish waiting, CI monitoring, merge handling, and automatic continuation belong to follow-on work, not this command.
 
-The manual test plan phase (§7) runs as the completion gate (step 4) above; after it completes, emit the final summary and stop.
+The manual test plan phase (§8) runs as the completion gate (step 4) above; after it completes, emit the final summary and stop.
 
-## 7. Manual verification output (publish completion gate)
+## 8. Manual verification output (publish completion gate)
 
-Produces the manual test plan artifact for the issue and renders it as the fixed `Manual verification` block. This phase is a **completion gate** (§6 step 4): publish is not complete until the manual verification output is (1) written to `<worktree>/tmp/manual-test-plan-<issue-id>.md`, (2) printed verbatim in the operator summary, and (3) appended to the PR body.
+Produces the manual test plan artifact for the issue and renders it as the fixed `Manual verification` block. This phase is a **completion gate** (§7 step 4): publish is not complete until the manual verification output is (1) written to `<worktree>/tmp/manual-test-plan-<issue-id>.md`, (2) printed verbatim in the operator summary, and (3) appended to the PR body.
 
 ### Per-issue workflow
 
@@ -771,7 +846,7 @@ After writing the artifact, append the full plan verbatim to the PR body as a `#
 
 Do not pass the body inline with `--body "..."`: backticks and `$` in the plan content corrupt a quoted inline body.
 
-On a re-run of the same issue, the live PR body may already contain a `## Manual test plan` section from the prior run. The fresh-artifact requirement in §6 step 4 ensures the plan content reflects the CURRENT diff, and the base fetch above rebuilds the file from the current live description — do not reuse a stale `<worktree>/tmp/pr-body-<issue-id>.md`.
+On a re-run of the same issue, the live PR body may already contain a `## Manual test plan` section from the prior run. The fresh-artifact requirement in §7 step 4 ensures the plan content reflects the CURRENT diff, and the base fetch above rebuilds the file from the current live description — do not reuse a stale `<worktree>/tmp/pr-body-<issue-id>.md`.
 
 After the edit, verify both that the new section landed and that the pre-existing content survived:
 
@@ -780,15 +855,15 @@ gh pr view <pr-number> --json body -q .body | grep -qi 'manual test plan'
 grep -q 'Closes REP-' <(gh pr view <pr-number> --json body -q .body)
 ```
 
-The `gh pr edit --body-file` append and both post-append verification greps follow the same retry policy as the push step (§6 step 2): retry transient failures up to 3 times. If either verification does not pass after retries — the `## Manual test plan` section missing, or the `Closes REP-` anchor missing — treat it as a permanent append failure and escalate by posting a Linear comment, setting the issue back to **In Progress**, and adding the issue ID to `escalated_issues` — then stop publish without completing the gate.
+The `gh pr edit --body-file` append and both post-append verification greps follow the same retry policy as the push step (§7 step 2): retry transient failures up to 3 times. If either verification does not pass after retries — the `## Manual test plan` section missing, or the `Closes REP-` anchor missing — treat it as a permanent append failure and escalate by posting a Linear comment, setting the issue back to **In Progress**, and adding the issue ID to `escalated_issues` — then stop publish without completing the gate.
 
 The two surfaces intentionally use different headings for the same artifact: the operator summary block is `Manual verification — REP-xxx`, while the PR body section is `## Manual test plan`.
 
-This append is required for publish completion (§6 step 4 gate) — do not skip it when the plan says automated coverage is sufficient; append the single line.
+This append is required for publish completion (§7 step 4 gate) — do not skip it when the plan says automated coverage is sufficient; append the single line.
 
 ### Post-phase handoff
 
-After the manual test plan is written, printed as the fixed `Manual verification` block, and appended to the PR body, the publish completion gate (§6 step 4) is satisfied. Proceed to the existing post-publish stop and final summary.
+After the manual test plan is written, printed as the fixed `Manual verification` block, and appended to the PR body, the publish completion gate (§7 step 4) is satisfied. Proceed to the existing post-publish stop and final summary.
 
 ## Throughout
 
@@ -812,7 +887,7 @@ After the manual test plan is written, printed as the fixed `Manual verification
 
 CI enforces build, typecheck, test (`moon ci :build :typecheck :test`), lint, format, migration timestamp checks, and test-file size limits — these run independently after publish and are not gated here.
 
-`/build` publishes PRs after local verification and does **not** wait on CI. A run is not complete until the PR exists, the publish phase has run, and the manual verification output has been written, printed in the operator summary, and appended to the PR body (the §7 completion gate). Report local checks separately so CI status is never implied unless it was actually observed elsewhere.
+`/build` publishes PRs after local verification and does **not** wait on CI. A run is not complete until the PR exists, the publish phase has run, and the manual verification output has been written, printed in the operator summary, and appended to the PR body (the §8 completion gate). Report local checks separately so CI status is never implied unless it was actually observed elsewhere.
 
 ## Quality gates
 
