@@ -186,8 +186,9 @@ _mode_bare_branch() {
 # Stage-4 poll/settle knobs must be non-negative integers. Garbage values
 # (e.g. DELIVER_TUI_POLL_INTERVAL=abc) would otherwise kill the script via
 # sleep/arithmetic under set -e after OpenCode has already launched. Empty
-# or non-numeric values fall back to the default; numeric 0 stays legal
-# (tests use it to disable polls).
+# or non-numeric values fall back to the default; 0 stays legal (tests use
+# DELIVER_SUBMIT_SETTLE=0 to skip the settle sleep; 0 attempts legally
+# skips a poll loop).
 _deliver_numeric_or() {
   local value="${1:-}"
   local fallback="$2"
@@ -433,7 +434,15 @@ _create_worktree_and_launch() {
     # the `--prompt` flag — the negative check excludes that pre-render state.
     # (Do NOT grep for 'beta-': worktree slugs and profile names can put it in
     # the echo, which would submit Enter before the TUI exists.)
-    pane_visible="$(herdr pane read --source visible "$opencode_pane_id" 2>/dev/null || true)"
+    # Join the capture before matching: panes hard-wrap at their width, and a
+    # wrap boundary inside either matched token (the seed, or `--prompt`)
+    # would split it across rows and corrupt the check. Deleting the row
+    # separators reconstructs the logical stream (a hard-wrap inserts no
+    # character). Residual risk: on pathologically short panes the echo's
+    # head (with `--prompt`) can scroll out of the visible viewport while its
+    # tail (seed) remains — bounded consequence, lands in the graceful
+    # could-not-confirm path.
+    pane_visible="$(herdr pane read --source visible "$opencode_pane_id" 2>/dev/null | tr -d '\r\n' || true)"
     if grep -qF -- "$prompt_arg" <<<"$pane_visible" && ! grep -qF -- '--prompt' <<<"$pane_visible"; then
       tui_detected=true
       break
