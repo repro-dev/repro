@@ -329,7 +329,7 @@ _create_worktree_and_launch() {
     (cd "$wt_path" && pnpm install) || true
     echo ""
     echo "  cd $wt_path"
-    echo "  opencode run -i \"$prompt_arg\""
+    echo "  opencode2 --prompt \"$prompt_arg\""
     return 0
   fi
   _ok "Workspace: ${label} (${ws_id})"
@@ -380,50 +380,38 @@ _create_worktree_and_launch() {
   # Stage 4: Agent launch in the opencode pane
   _step 4 4 "Launching OpenCode agent..."
 
-  # Build the opencode launch command
+  # Build the opencode launch command (OpenCode v2 via `reproctl opencode` → opencode2).
   local opencode_cmd
   if [[ -n "$profile_arg" ]]; then
     opencode_cmd="\"$SCRIPT_DIR/reproctl.sh\" opencode --profile \"$profile_arg\" --prompt \"$prompt_arg\""
   else
-    opencode_cmd="REPRO_OPENCODE_PROFILE=\"${REPRO_OPENCODE_PROFILE:-deepseek-v4}\" \"$SCRIPT_DIR/reproctl.sh\" opencode --prompt \"$prompt_arg\""
+    opencode_cmd="REPRO_OPENCODE_PROFILE=\"${REPRO_OPENCODE_PROFILE:-opencode-go-glm-5.3-flash-only}\" \"$SCRIPT_DIR/reproctl.sh\" opencode --prompt \"$prompt_arg\""
   fi
   if [[ "$nightshift" == "true" ]]; then
-    opencode_cmd="$opencode_cmd --permission-mode acceptEdits --disallowed-tools AskUserQuestion"
+    # v2 has no --permission-mode/--disallowed-tools; --auto approves everything not explicitly denied.
+    opencode_cmd="$opencode_cmd --auto"
   fi
 
-  # Start agent detection in background BEFORE sending the launch command.
-  # herdr agent start blocks until the agent is detected in the pane (via --timeout).
-  local agent_name agent_stderr
-  agent_name="$(printf '%s' "opencode-${label}" | tr '[:upper:]' '[:lower:]')"
-  agent_stderr="$(mktemp "$MAIN_CHECKOUT/tmp/herdr.XXXXXX")"
-  herdr agent start "$agent_name" --kind opencode --pane "$opencode_pane_id" --timeout 60000 2>"$agent_stderr" &
-  local agent_pid=$!
-
-  # Brief pause for herdr to set up agent detection
-  sleep 1
-
-  # Send the opencode launch command to the pane
+  # Launch OpenCode v2 by typing the command into the pane shell. Do NOT use
+  # `herdr agent start --kind opencode` here: in herdr 0.7.5 that kind's
+  # canonical executable is the v1 `opencode` binary, which races this v2
+  # launch in the same pane (v1 wins, the prompt is lost, the session sits idle).
   herdr pane run "$opencode_pane_id" "cd \"$wt_path\" && $opencode_cmd" || {
-    kill "$agent_pid" 2>/dev/null || true
-    rm -f "$agent_stderr"
     _warn "Failed to send OpenCode launch command to pane ${opencode_pane_id}."
     return 0
   }
 
-  # Wait for herdr to detect the agent (blocks until ready or timeout)
-  wait "$agent_pid" 2>/dev/null
-  local agent_rc=$?
-  if [[ $agent_rc -eq 0 ]] && ! grep -q '"error"' "$agent_stderr" 2>/dev/null; then
-    _ok "OpenCode agent launched in workspace"
-  else
-    if [[ -s "$agent_stderr" ]]; then
-      _warn "Agent registration failed — opencode may still be starting in the workspace."
-      echo "  $(cat "$agent_stderr")" >&2
-    else
-      _warn "Agent registration timed out — opencode may still be starting in the workspace."
+  # Wait for the v2 TUI to render (its footer carries the beta version marker).
+  local poll
+  for poll in $(seq 1 30); do
+    if herdr pane read "$opencode_pane_id" 2>/dev/null | grep -q 'beta-'; then
+      _ok "OpenCode v2 launched (prompt: ${prompt_arg})"
+      return 0
     fi
-  fi
-  rm -f "$agent_stderr"
+    sleep 2
+  done
+  _warn "OpenCode v2 TUI not detected in pane ${opencode_pane_id} within 60s."
+  echo "  Check the pane; if it did not start, run: cd \"$wt_path\" && $opencode_cmd"
 }
 
 # ── Main ───────────────────────────────────────────────────────────
