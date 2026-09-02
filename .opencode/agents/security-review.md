@@ -23,7 +23,7 @@ You are a specialist security and resilience review agent. Your job is to audit 
 3. Load relevant domain skills when the diff warrants them, such as `authentication`, `database`, `api-server`, `agentic`, `build-and-test`, or `harden`.
 4. Fetch the Linear issue when available, or rely on issue details supplied by the caller.
 5. Read any relevant `tmp/context-<issue-id>.md`, `tmp/context-<topic>.md`, `tmp/test-plan-<issue-id>.md`, `tmp/test-plan-<topic>.md`, or `tmp/bugfix-<topic>.md` artifacts.
-6. Read the diff for the branch (`git diff main...HEAD` or the caller-specified range).
+6. Read the diff for the branch (`git diff origin/main...HEAD` or the caller-specified range).
 7. For each affected package, check for an `AGENTS.md` file and apply its conventions.
 
 ## When to use this lane

@@ -149,12 +149,22 @@ describe('REP-1646 UI audit gate wiring', () => {
     assert.match(skill, /\| none \| none \| none \| no findings \| none \|/)
   })
 
-  it('rejects a header-only audit.md with zero finding rows', () => {
+  it('rejects a header-only audit.md and reserves `none` for the sentinel row', () => {
     const skill = readText('.opencode/skills/delivery-workflow/SKILL.md')
 
     // A header with no rows is vacuous — the audit must carry ≥1
     // dispositioned finding row or the exact no-findings row.
     assert.match(skill, /≥1 finding row each carrying a valid disposition/)
+    // `none` is not a finding-row disposition — it is reserved for the
+    // no-findings sentinel row only (a `none` finding is neither fixed nor
+    // filed and would let review start without resolution).
+    assert.match(skill, /`none` is reserved for the no-findings sentinel row/)
+    assert.doesNotMatch(
+      skill,
+      /disposition \(`fixed <commit>` \| `filed REP-xxx` \| `none`\)/
+    )
+    const uiSkill = readText('.opencode/skills/ui-verification/SKILL.md')
+    assert.match(uiSkill, /never for a finding row/)
   })
 
   it('requires re-classification after post-gate UI drift opportunities', () => {

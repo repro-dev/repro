@@ -389,6 +389,8 @@ Launch `develop` with the audit prompt:
 ```
 Run the REP-1646 UI audit pass for REP-xxx in worktree <absolute-worktree-path>.
 
+Affected surfaces (from the §5 Step 2 `matched` list plus the plan): <affected-surfaces>
+
 1. Load the `ui-verification` skill and follow its REP-1646 audit sections exactly:
    the five-pillar audit rubric, severity calibration, capture manifest format,
    known-artifact ignore list, and browser input canary.
@@ -396,11 +398,14 @@ Run the REP-1646 UI audit pass for REP-xxx in worktree <absolute-worktree-path>.
    report — do not silently skip the audit.
 3. Run the browser input canary before any interaction. On canary failure abort with:
    "agent-browser input delivery is broken — check version (`brew outdated agent-browser`)".
-4. Navigate every affected surface; capture affected states plus loading/empty/error
-   where the surface has them.
-5. Write `tmp/ui-verification/<issue-id>/manifest.json` and `audit.md` per the skill's
+4. Navigate exactly the affected surfaces listed above (plus their reachable states);
+   capture affected states plus loading/empty/error where the surface has them.
+5. Clear any stale `tmp/ui-verification/<issue-id>/` directory first
+   (`rm -rf tmp/ui-verification/<issue-id>`) so the artifacts reflect THIS pass,
+   never an earlier attempt's replay.
+6. Write `tmp/ui-verification/<issue-id>/manifest.json` and `audit.md` per the skill's
    capture manifest format.
-6. Return: manifest path, audit path, finding counts by severity, and disposition
+7. Return: manifest path, audit path, finding counts by severity, and disposition
    summary. This is a capture-and-analyze pass — no code fixes in this pass.
 ```
 
@@ -409,22 +414,24 @@ Run the REP-1646 UI audit pass for REP-xxx in worktree <absolute-worktree-path>.
 Orchestrator-level, mechanical, no judgment. Assert:
 
 1. `tmp/ui-verification/<issue-id>/manifest.json` parses as JSON AND contains ≥1 surface with ≥1 state.
-2. Every state in the manifest has a NON-EMPTY `screenshot` path AND that path exists on disk (relative paths resolve from the worktree root).
-3. The manifest `canary` field equals `pass`.
-4. `tmp/ui-verification/<issue-id>/audit.md` contains the ui-verification findings-table header (`pillar | severity | evidence screenshot | description | disposition`) AND (≥1 finding row each carrying a valid disposition (`fixed <commit>` | `filed REP-xxx` | `none`), OR the exact no-findings row (`| none | none | none | no findings | none |`)) — a header with zero finding rows is a gate violation, not a clean audit.
-5. The §4 implementation develop return's REP-1081 proof-bundle evidence paths resolve to real files.
+2. Every state in the manifest has a NON-EMPTY `screenshot` path AND that path exists on disk AND is non-empty (size > 0) — relative paths resolve from the worktree root.
+3. The manifest `canary` field equals `pass` AND `agentBrowserVersion` is non-empty.
+4. Freshness: the manifest `base` field equals the classification base (`origin/main`) AND `generatedAt` is present — artifacts replayed from an older base or a stale attempt are a gate violation.
+5. Coverage: every surface name the orchestrator passed in the Step 3 prompt's `<affected-surfaces>` slot appears in the manifest's `surfaces[].surface` list.
+6. `tmp/ui-verification/<issue-id>/audit.md` contains the ui-verification findings-table header (`pillar | severity | evidence screenshot | description | disposition`) AND (≥1 finding row each carrying a valid disposition (`fixed <commit>` | `filed REP-xxx`), OR the exact no-findings row (`| none | none | none | no findings | none |`)) — a header with zero finding rows is a gate violation, not a clean audit. `none` is reserved for the no-findings sentinel row; a finding row dispositioned `none` is neither fixed nor filed and fails this assertion.
+7. The §4 implementation develop return's REP-1081 proof-bundle evidence paths resolve to real files.
 
 Any assertion failure = gate violation ⇒ escalate via the phase-local failure handling.
 
 ### Step 5 — disposition enforcement
 
-- **P0** ⇒ fix before review: re-run `develop` with the P0 findings, then re-run the audit pass (bounded by the existing 3-attempt loop discipline).
+- **P0** ⇒ fix before review: re-run `develop` with the P0 findings, then re-run the audit pass (bounded by the existing 3-attempt loop discipline). Commit the P0 fix before re-running the audit pass and cite that commit in the row's `fixed <commit>` disposition. After the P0 fix commit, re-run `pnpm run ui:classify --base origin/main` and extend the re-audit scope from the new `matched` set (same post-gate re-classification rule as §6).
 - **P1/P2** ⇒ each finding is fixed or filed as a Linear issue; the audit artifact records both.
-- Review may not start until every finding row in `audit.md` has a disposition (`fixed <commit>` | `filed REP-xxx` | `none`).
+- Review may not start until every finding row in `audit.md` has a disposition (`fixed <commit>` | `filed REP-xxx`) — `none` is reserved for the no-findings sentinel row, never a valid finding-row disposition.
 
 ## 6. Review loop
 
-Before launching `review`, ensure the checkpoint commit exists — it is created by the audit gate for UI-touching deliveries; if classification skipped the gate, create it here so review runs against a real branch diff instead of dirty worktree changes.
+Before launching `review`, ensure the checkpoint commit exists — it is created in §5 Step 1 for every delivery (before classification); if it does not exist (e.g. resuming an interrupted run), create it here so review runs against a real branch diff instead of dirty worktree changes.
 
 For the completed implementation before review (fallback path when the audit gate did not run):
 

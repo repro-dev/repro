@@ -8,8 +8,7 @@
 // verdict is data, not an error — exit 0 on any successful classification.
 //
 // Determinism: same path list -> same verdict. No clock reads, no filesystem
-// writes; git mode only shells out to
-// `git -c core.quotePath=false diff --name-only --no-renames`.
+// writes; git mode only shells out to `git diff -z --name-only --no-renames`.
 //
 // Flags:
 //   --base <ref>         diff base ref (required in git mode)
@@ -71,8 +70,10 @@ export const UI_RULES: ReadonlyArray<UiRule> = [
     matches: path => path.startsWith('packages/design/'),
   },
   {
+    // Honors the issue's literal *.stories.* — any .stories. file (tsx, and
+    // mdx docs entries) is a Storybook surface; no extension enumeration.
     name: 'storybook',
-    matches: path => /\.stories\.[cm]?[jt]sx?$/.test(path),
+    matches: path => path.includes('.stories.'),
   },
   {
     name: 'pen-design',
@@ -211,9 +212,9 @@ function readStdinSync(): string {
 
 /**
  * Run one classification and emit the JSON verdict. Default mode shells out to
- * `git -c core.quotePath=false diff --name-only --no-renames <base>...<head>`
- * (--no-renames so renames surface as delete+add — both paths are checked,
- * conservative; quotePath=false so non-ASCII paths reach the rules unquoted).
+ * `git diff -z --name-only --no-renames <base>...<head>` (--no-renames so
+ * renames surface as delete+add — both paths are checked, conservative; -z
+ * emits paths verbatim, NUL-delimited — no C-quoting, no newline splitting).
  * stdin mode classifies newline-separated paths instead — git never runs, so
  * base/head are reported as null. Exit 0 on any successful classification
  * (the verdict is data), 1 on usage/execution error.
@@ -248,19 +249,19 @@ export function runClassify(
       }
       head = options.head ?? 'HEAD'
       rawPaths = execGit([
-        // core.quotePath=false: git C-quotes non-ASCII paths by default
-        // (e.g. "caf\303\251.tsx"), which no rule regex matches — real UI
-        // files would flip to a false non-UI verdict.
-        '-c',
-        'core.quotePath=false',
         'diff',
+        // -z: NUL-delimited output emitted verbatim — no C-quoting of
+        // non-ASCII paths (a quoted "caf\303\251.tsx" matches no rule regex,
+        // flipping real UI files to a false non-UI verdict) and no newline
+        // splitting, so filenames with spaces or newlines survive.
+        '-z',
         '--name-only',
         '--no-renames',
         `${options.base}...${head}`,
       ])
-        .split('\n')
-        .map(line => line.trim())
-        .filter(line => line.length > 0)
+        .split('\0')
+        // No trim: filenames may contain leading/trailing spaces verbatim.
+        .filter(entry => entry.length > 0)
     }
   } catch (error) {
     errorOut(

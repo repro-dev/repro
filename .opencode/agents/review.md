@@ -22,7 +22,7 @@ You are a code review agent. Your job is to review a branch or PR against the Li
 2. Load `skill-compliance` when the changed work is governed by explicit repository skills.
 3. If the diff touches UI or agentic UI surfaces, evaluate authored-polish quality as part of the review.
 4. Fetch the Linear issue with `linear issue show <issue-id> --json` via the repo-owned CLI. Keep the allowlist read-only so mutation commands remain unavailable.
-5. Read the diff for the branch (`git diff main...HEAD` or as specified).
+5. Read the diff for the branch (`git diff origin/main...HEAD` or as specified).
 6. Read any relevant `tmp/context-<issue-id>.md`, `tmp/context-<topic>.md`, `tmp/test-plan-<issue-id>.md`, `tmp/test-plan-<topic>.md`, or `tmp/bugfix-<topic>.md` artifacts that are available for the branch or referenced issue/topic.
 7. For each affected package, check for an `AGENTS.md` file and incorporate its conventions into the review.
 

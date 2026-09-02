@@ -27,7 +27,7 @@ You are an adversarial code review agent. Your job is to act as a skeptical seco
 1. Load the `review-standards` skill — specifically the `Adversarial review contract` section, severity classification, and signal quality rules.
 2. Fetch the Linear issue with `linear issue show <issue-id> --json` via the repo-owned CLI. Keep the allowlist read-only so mutation commands remain unavailable.
 3. Read any relevant `tmp/context-<issue-id>.md`, `tmp/context-<topic>.md`, `tmp/test-plan-<issue-id>.md`, `tmp/test-plan-<topic>.md`, or `tmp/bugfix-<topic>.md` artifacts that are available for the branch or referenced issue/topic.
-4. Read the diff for the branch (`git diff main...HEAD` or as specified).
+4. Read the diff for the branch (`git diff origin/main...HEAD` or as specified).
 5. For each affected package, check for an `AGENTS.md` file and incorporate its conventions into the review.
 
 ## Adversarial techniques
