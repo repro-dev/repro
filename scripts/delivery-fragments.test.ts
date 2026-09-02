@@ -152,6 +152,15 @@ describe('REP-1646 UI audit gate wiring', () => {
     assert.match(skill, /\| none \| none \| none \| no findings \| none \|/)
   })
 
+  it('documents both real exit-1 modes of the proof-bundle assertion', () => {
+    const skill = readText('.opencode/skills/delivery-workflow/SKILL.md')
+
+    // (a) gate violation: JSON on stdout — after the pnpm run banner lines.
+    assert.match(skill, /parse from the first `\{` line/)
+    // (b) execution error: stderr ERROR line and no JSON verdict.
+    assert.match(skill, /stderr `ERROR:` line and NO JSON/)
+  })
+
   it('rejects a header-only audit.md and reserves `none` for the sentinel row', () => {
     const skill = readText('.opencode/skills/delivery-workflow/SKILL.md')
 
