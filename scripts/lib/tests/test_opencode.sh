@@ -25,16 +25,16 @@ _make_tmpdir() {
   mktemp -d 2>/dev/null || mktemp -d -t test_opencode
 }
 
-# Write stubs for opencode and caffeinate into $1/bin/.
-# The opencode stub prints OPENCODE_CONFIG so tests can verify it.
+# Write stubs for opencode2 and caffeinate into $1/bin/.
+# The opencode2 stub prints OPENCODE_CONFIG so tests can verify it.
 # The caffeinate stub shifts past flag arguments and exec's the rest.
 _write_stubs() {
   local bindir="$1/bin"
   mkdir -p "$bindir"
 
   printf '#!/bin/bash\nprintf "OPENCODE_CONFIG=%%s\\n" "${OPENCODE_CONFIG:-}"\n' \
-    > "$bindir/opencode"
-  chmod +x "$bindir/opencode"
+    > "$bindir/opencode2"
+  chmod +x "$bindir/opencode2"
 
   # Shift past caffeinate flags (e.g. -dims), then exec the remainder.
   printf '#!/bin/bash\nwhile [[ "${1:-}" == -* ]]; do shift; done\nexec "$@"\n' \
