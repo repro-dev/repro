@@ -413,15 +413,25 @@ Affected surfaces (from the §5 Step 2 `matched` list plus the plan): <affected-
 
 ### Step 4 — proof-bundle assertion (REP-1081 becomes load-bearing)
 
-Orchestrator-level, mechanical, no judgment. Assert:
+Orchestrator-level, mechanical, no judgment. Run the script (REP-1653):
 
-1. `tmp/ui-verification/<issue-id>/manifest.json` parses as JSON AND contains ≥1 surface with ≥1 state.
-2. Every state in the manifest has a NON-EMPTY `screenshot` path AND that path exists on disk AND is non-empty (size > 0) — relative paths resolve from the worktree root.
-3. The manifest `canary` field equals `pass` AND `agentBrowserVersion` is non-empty.
-4. Freshness: the manifest `base` field equals the classification base (`origin/main`) AND `generatedAt` is present AND newer than the Step 1 checkpoint commit — artifacts replayed from an older base, an earlier attempt, or a pre-commit capture are a gate violation.
-5. Coverage: every surface name the orchestrator passed in the Step 3 prompt's `<affected-surfaces>` slot appears in the manifest's `surfaces[].surface` list.
-6. `tmp/ui-verification/<issue-id>/audit.md` contains the ui-verification findings-table header (`pillar | severity | evidence screenshot | description | disposition`) AND (≥1 finding row each carrying a valid disposition (`fixed <commit>` | `filed REP-xxx`), OR the exact no-findings row (`| none | none | none | no findings | none |`)) — a header with zero finding rows is a gate violation, not a clean audit. `none` is reserved for the no-findings sentinel row; a finding row dispositioned `none` is neither fixed nor filed and fails this assertion.
-7. The §4 implementation develop return's REP-1081 proof-bundle evidence paths resolve to real files.
+```
+pnpm run ui:assert-audit --issue REP-xxx --base origin/main \
+  --commit <checkpoint-sha> --surface <surface-1> --surface <surface-2> …
+```
+
+- No `--` separator (pnpm 10 forwards it literally). `--base` is the §5 Step 2 classification base (`origin/main`); `--commit` is the §5 Step 1 checkpoint commit; each `--surface` echoes a §5 Step 3 `<affected-surfaces>` entry verbatim.
+- Exit 0 = pass. Exit 1 = gate violation — the JSON on stdout lists every failed assertion (`results[]` entries carry `id`, `ok`, `detail`).
+
+The script asserts (ids match the JSON report):
+
+1. `manifest-parses` / `manifest-nonempty` — `tmp/ui-verification/<issue-id>/manifest.json` parses as JSON AND contains ≥1 surface with ≥1 state.
+2. `screenshots` — every state has a NON-EMPTY `screenshot` path that exists on disk AND is non-empty (size > 0) — relative paths resolve from the worktree root.
+3. `canary` — the manifest `canary` field equals `pass` AND `agentBrowserVersion` is non-empty.
+4. `freshness` — the manifest `base` field equals the classification base (`origin/main`) AND `generatedAt` is present AND newer than the Step 1 checkpoint commit — artifacts replayed from an older base, an earlier attempt, or a pre-commit capture are a gate violation.
+5. `surface-coverage` — every surface name the orchestrator passed in the Step 3 prompt's `<affected-surfaces>` slot appears in the manifest's `surfaces[].surface` list.
+6. `audit-findings` — `tmp/ui-verification/<issue-id>/audit.md` contains the ui-verification findings-table header (`pillar | severity | evidence screenshot | description | disposition`) AND (≥1 finding row each carrying a valid disposition (`fixed <commit>` | `filed REP-xxx`), OR the exact no-findings row (`| none | none | none | no findings | none |`)) — a header with zero finding rows is a gate violation, not a clean audit. `none` is reserved for the no-findings sentinel row; a finding row dispositioned `none` is neither fixed nor filed and fails this assertion.
+7. The §4 implementation develop return's REP-1081 proof-bundle evidence paths resolve to real files (orchestrator-side check — the script does not cover this).
 
 Any assertion failure = gate violation ⇒ escalate via the phase-local failure handling.
 
