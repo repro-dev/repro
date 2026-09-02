@@ -35,7 +35,7 @@ Design is necessarily **ahead** of implementation: the pen file may contain many
    - **Unresolved refs / violations** — `violations` with `refId`, `masterName`, `reason`, and `candidates` ("did you mean?").
    - **Override drift** — `warnings` for unmapped descendant overrides and out-of-vocabulary keys.
 
-The candidate-report shape here is **shared with the manual-verification `## Design reconciliation` section** (delivery-workflow §7): in-scope deltas, screens/masters involved, out-of-scope changes listed explicitly.
+The candidate-report shape here is **shared with the manual-verification `## Design reconciliation` section** (delivery-workflow §8): in-scope deltas, screens/masters involved, out-of-scope changes listed explicitly.
 
 ## 3. Judge relevance — decide which candidates belong to this delivery
 

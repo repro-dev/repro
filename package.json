@@ -62,7 +62,7 @@
     "prepare": "husky",
     "lint": "oxlint .",
     "fmt:check": "prettier --check \"**/*.{ts,tsx}\" --ignore-path .gitignore",
-    "test:tooling-config": "node --test scripts/tooling-config.test.ts scripts/delivery-fragments.test.ts scripts/pen-lint.test.ts scripts/pen-lint.groups.test.ts scripts/pen-lint.modes.test.ts scripts/pen-lint.apply.test.ts scripts/pen-lint.export.test.ts scripts/pen-contract.test.ts scripts/pen-contract.cli.test.ts scripts/pen-contract.state.test.ts scripts/migrate-pen-groups.test.ts",
+    "test:tooling-config": "node --test scripts/tooling-config.test.ts scripts/delivery-fragments.test.ts scripts/classify-ui-diff.test.ts scripts/pen-lint.test.ts scripts/pen-lint.groups.test.ts scripts/pen-lint.modes.test.ts scripts/pen-lint.apply.test.ts scripts/pen-lint.export.test.ts scripts/pen-contract.test.ts scripts/pen-contract.cli.test.ts scripts/pen-contract.state.test.ts scripts/migrate-pen-groups.test.ts",
     "check:test-file-size": "bash scripts/check-test-file-size.sh",
     "pen:export": "tsx scripts/pen-export.ts",
     "pen:lint": "tsx scripts/pen-lint.ts",
@@ -70,6 +70,7 @@
     "pen:contract": "tsx scripts/pen-contract.ts",
     "pen:contract:check": "tsx scripts/pen-contract.ts --dry-run",
     "pen:migrate-groups": "tsx scripts/migrate-pen-groups.ts",
+    "ui:classify": "tsx scripts/classify-ui-diff.ts",
     "test:pen-contract": "node --test scripts/pen-contract.test.ts"
   },
   "lint-staged": {

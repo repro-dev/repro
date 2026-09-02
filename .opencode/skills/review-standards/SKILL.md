@@ -23,7 +23,8 @@ description: Review contract for branch and PR reviews — changed-code focus, s
 - When issue-scoped artifacts exist in `tmp/` (for example `tmp/context-REP-123.md` or `tmp/test-plan-REP-123.md`), use them as supplemental review context rather than ignoring the documented plan/history.
 - For UI diffs, consult the matching durable context artifact so review reflects captured intent instead of inventing it.
 - For non-Linear work, use the matching topic-scoped artifacts (for example `tmp/context-foo.md` or `tmp/test-plan-foo.md`) when they exist.
-- Treat missing browser evidence, missing viewport/state/interaction notes, or stale handoff artifacts as ordinary requirement gaps rather than mere polish issues.
+- For UI-touching deliveries (REP-1646 audit gate), a missing or incomplete audit artifact — no `tmp/ui-verification/<issue-id>/manifest.json` or `audit.md`, missing rendered evidence or viewport/state/interaction notes, or findings without a fixed/filed disposition — is a **Blocker**, not an ordinary requirement gap. Review does not start without the audit artifact.
+- For non-UI diffs, missing or stale handoff artifacts remain ordinary requirement-level gaps rather than mere polish issues.
 
 ## Severity classification
 
@@ -45,6 +46,7 @@ Classify every finding using one of these four levels:
 | Type errors or build failures            | Blocker          |
 | Broken or missing acceptance criteria    | Blocker          |
 | Security or auth issues                  | Blocker          |
+| Missing audit artifact on a UI-touching PR (REP-1646) | Blocker |
 | Missing test coverage for new behavior   | Major            |
 | Architectural deviation from conventions | Major            |
 | Incomplete requirement (partial impl)    | Major            |
@@ -119,6 +121,11 @@ Apply all seven, and note which were applied in `## Techniques applied`:
 
 ## UI review gate
 
-If the PR touches UI code, verify the interactive states, motion, accessibility, copy, and token usage at a review level.
+If the PR touches UI code (classifier verdict `uiTouching: true` recorded in the delivery status table), verify the interactive states, motion, accessibility, copy, and token usage at a review level, and verify the REP-1646 audit artifact:
 
-If the PR touches only non-UI code (migrations, API routes, utilities, or skill files), skip this gate.
+1. Confirm `tmp/ui-verification/<issue-id>/manifest.json` and `audit.md` exist and are complete for the affected surfaces — every manifest screenshot resolves on disk, and every surface/state the change affects is captured.
+2. Confirm P0 findings in `audit.md` were fixed (disposition `fixed <commit>`).
+3. Confirm every P1/P2 finding has a fixed-or-filed disposition (`fixed <commit>` or `filed REP-xxx`).
+4. Cite `audit.md` findings as review input for the UI verdict.
+
+If the PR touches only non-UI code (migrations, API routes, utilities, or skill files — classifier verdict `uiTouching: false` in the status table, not reviewer judgment), skip this gate.
