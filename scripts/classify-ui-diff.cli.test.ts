@@ -1,4 +1,8 @@
 import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import { describe, it } from 'node:test'
 
 import { parseCliArgs, runClassify } from './classify-ui-diff.ts'
@@ -246,5 +250,72 @@ describe('REP-1646 CLI git mode', () => {
     )
     assert.equal(result.code, 1)
     assert.match(errors[0]!, /git diff failed/)
+  })
+
+  it('classifies a real git diff end-to-end (guards flag placement)', () => {
+    // S8: every other git-mode test stubs execGit, so an invalid-argv
+    // regression (the round-3 `-z`-before-`diff` placement bug) would pass
+    // the suite. This runs the REAL git binary against a self-contained
+    // fixture repo. execGit carries cwd explicitly instead of relying on
+    // process.chdir (global mutation in a shared test process) — the real
+    // argv still reaches the real binary, which is the contract under guard.
+    const dir = mkdtempSync(path.join(tmpdir(), 'classify-ui-diff-'))
+    try {
+      const git = (args: string[]) =>
+        execFileSync(
+          'git',
+          [
+            '-c',
+            'user.email=fixture@rep',
+            '-c',
+            'user.name=fixture',
+            '-c',
+            'commit.gpgsign=false',
+            ...args,
+          ],
+          { cwd: dir, encoding: 'utf8' }
+        )
+      git(['init', '-q'])
+      writeFileSync(path.join(dir, 'README.md'), 'base\n')
+      git(['add', 'README.md'])
+      git(['commit', '-q', '-m', 'base'])
+      const base = git(['rev-parse', 'HEAD']).trim()
+
+      mkdirSync(path.join(dir, 'apps/demo/src'), { recursive: true })
+      writeFileSync(
+        path.join(dir, 'apps/demo/src/Sessions.tsx'),
+        'export const x = 1\n'
+      )
+      writeFileSync(path.join(dir, 'notes.md'), 'changed\n')
+      git(['add', '-A'])
+      git(['commit', '-q', '-m', 'ui'])
+
+      const jsonOuts: string[] = []
+      const result = runClassify(
+        { base },
+        {
+          execGit: args =>
+            execFileSync('git', args, { cwd: dir, encoding: 'utf8' }),
+          jsonOut: json => jsonOuts.push(json),
+        }
+      )
+      assert.equal(result.code, 0)
+      const verdict = JSON.parse(jsonOuts[0]!) as {
+        uiTouching: boolean
+        matched: Array<{ path: string; rule: string }>
+        totalChangedFiles: number
+        base: string | null
+        head: string | null
+      }
+      assert.equal(verdict.uiTouching, true)
+      assert.deepEqual(verdict.matched, [
+        { path: 'apps/demo/src/Sessions.tsx', rule: 'app-ui' },
+      ])
+      assert.equal(verdict.totalChangedFiles, 2)
+      assert.equal(verdict.base, base)
+      assert.equal(verdict.head, 'HEAD')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 })

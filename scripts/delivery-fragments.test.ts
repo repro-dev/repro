@@ -94,7 +94,10 @@ describe('REP-1646 UI audit gate wiring', () => {
   it('makes the audit artifact a blocking prerequisite in review-standards', () => {
     const skill = readText('.opencode/skills/review-standards/SKILL.md')
 
-    assert.doesNotMatch(skill, /ordinary requirement gaps/)
+    // Invariant, not wording: the missing-audit-artifact clause must carry
+    // the Blocker declaration (S5 — a phrase-absence guard is evadable by
+    // rewording; this pins the requirement itself).
+    assert.match(skill, /is a \*\*Blocker\*\*, not an ordinary requirement gap/)
     assert.match(skill, /does not start without the audit artifact/)
     assert.match(
       skill,
@@ -188,6 +191,40 @@ describe('REP-1646 UI audit gate wiring', () => {
     assert.ok(
       classifyRuns.length >= 4,
       `expected ≥4 classifier invocations (gate, fix loop, sweep, publish), found ${classifyRuns.length}`
+    )
+    // S4: already-UI deliveries re-audit too — a flip is not the only
+    // trigger; an intersection with the audited surfaces is.
+    const alreadyUi =
+      skill.match(
+        /and the new `matched` set intersects the audited surfaces/g
+      ) ?? []
+    assert.ok(
+      alreadyUi.length >= 3,
+      `expected the already-UI clause in all 3 re-classification bullets, found ${alreadyUi.length}`
+    )
+  })
+
+  it('pins the capture-side manifest inputs (base and surface naming)', () => {
+    const skill = readText('.opencode/skills/delivery-workflow/SKILL.md')
+
+    // S1: the audit prompt tells the auditor what to record in manifest.base
+    // — otherwise it records its branch name or HEAD and the freshness
+    // assertion fails closed.
+    assert.match(skill, /Record `base` exactly as `origin\/main`/)
+    // S2: surface names echo the prompt slot verbatim so the coverage
+    // assertion cannot fail on a label mismatch.
+    assert.match(
+      skill,
+      /echo each affected-surfaces\s+entry above verbatim as `surfaces\[\]\.surface`/
+    )
+    const uiSkill = readText('.opencode/skills/ui-verification/SKILL.md')
+    assert.match(
+      uiSkill,
+      /classification base from delivery-workflow §5 Step 2/
+    )
+    assert.match(
+      uiSkill,
+      /echoes the audit prompt's affected-surfaces entries verbatim/
     )
   })
 

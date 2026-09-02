@@ -367,7 +367,7 @@ Runs after implementation (§4), before the review loop. The gate is mechanical:
 
 ### Step 1 — checkpoint commit
 
-Classification needs a committed diff, and the classifier only sees committed history — uncommitted UI files would classify as a false non-UI. Run the commit inspection steps (`git status`, `git diff`, `git log -5 --oneline`), stage the implementation changes, and create a local commit in the repository's Conventional Commit style with the Linear issue ID. Do **not** push. Then run `git status --porcelain` and require it to be EMPTY before classification runs; if the tree is not clean after the checkpoint commit, escalate via the fail-closed preamble — never classify on a dirty tree. (The review loop keeps a fallback commit path for deliveries that skipped this gate.)
+Classification needs a committed diff, and the classifier only sees committed history — uncommitted UI files would classify as a false non-UI. Run the commit inspection steps (`git status`, `git diff`, `git log -5 --oneline`), stage the implementation changes, and create a local commit in the repository's Conventional Commit style with the Linear issue ID. Do **not** push. Then run `git status --porcelain` and require it to be EMPTY before classification runs; if the tree is not clean after the checkpoint commit, escalate via the fail-closed preamble — never classify on a dirty tree. (The review loop keeps a fallback commit path only for resuming an interrupted run without this commit.)
 
 ### Step 2 — classify the diff
 
@@ -377,7 +377,7 @@ pnpm run ui:classify --base origin/main
 
 Pass script args directly after the script name — never with `--` (see `build-and-test`). Parse the JSON verdict:
 
-- `uiTouching: false` ⇒ record `ui_audit: skipped (non-UI, N files)` in the status table and skip to §6 (review loop). The verdict is the mechanical skip evidence.
+- `uiTouching: false` ⇒ record `ui_audit: skipped (non-UI, N changed files)` in the status table and skip to §6 (review loop). The verdict is the mechanical skip evidence.
 - `uiTouching: true` ⇒ record `ui_audit: required` in the status table and continue.
 
 Scope rule: keep the audit scoped to affected surfaces + reachable states derived from the classifier's `matched` files plus the plan — never a full-app sweep (cost-control decision).
@@ -404,7 +404,9 @@ Affected surfaces (from the §5 Step 2 `matched` list plus the plan): <affected-
    (`rm -rf tmp/ui-verification/<issue-id>`) so the artifacts reflect THIS pass,
    never an earlier attempt's replay.
 6. Write `tmp/ui-verification/<issue-id>/manifest.json` and `audit.md` per the skill's
-   capture manifest format.
+   capture manifest format. Record `base` exactly as `origin/main` (the §5 Step 2
+   classification base — never a branch name or HEAD), and echo each affected-surfaces
+   entry above verbatim as `surfaces[].surface`.
 7. Return: manifest path, audit path, finding counts by severity, and disposition
    summary. This is a capture-and-analyze pass — no code fixes in this pass.
 ```
@@ -416,7 +418,7 @@ Orchestrator-level, mechanical, no judgment. Assert:
 1. `tmp/ui-verification/<issue-id>/manifest.json` parses as JSON AND contains ≥1 surface with ≥1 state.
 2. Every state in the manifest has a NON-EMPTY `screenshot` path AND that path exists on disk AND is non-empty (size > 0) — relative paths resolve from the worktree root.
 3. The manifest `canary` field equals `pass` AND `agentBrowserVersion` is non-empty.
-4. Freshness: the manifest `base` field equals the classification base (`origin/main`) AND `generatedAt` is present — artifacts replayed from an older base or a stale attempt are a gate violation.
+4. Freshness: the manifest `base` field equals the classification base (`origin/main`) AND `generatedAt` is present AND newer than the Step 1 checkpoint commit — artifacts replayed from an older base, an earlier attempt, or a pre-commit capture are a gate violation.
 5. Coverage: every surface name the orchestrator passed in the Step 3 prompt's `<affected-surfaces>` slot appears in the manifest's `surfaces[].surface` list.
 6. `tmp/ui-verification/<issue-id>/audit.md` contains the ui-verification findings-table header (`pillar | severity | evidence screenshot | description | disposition`) AND (≥1 finding row each carrying a valid disposition (`fixed <commit>` | `filed REP-xxx`), OR the exact no-findings row (`| none | none | none | no findings | none |`)) — a header with zero finding rows is a gate violation, not a clean audit. `none` is reserved for the no-findings sentinel row; a finding row dispositioned `none` is neither fixed nor filed and fails this assertion.
 7. The §4 implementation develop return's REP-1081 proof-bundle evidence paths resolve to real files.
@@ -573,7 +575,7 @@ For each issue, apply this iterative loop:
    - Add the issue ID to `escalated_issues`
 3. **If all blocking issues have `fixable_by_agent: true`**:
    - Re-run `develop` with the original plan plus the current blocking findings (from both passes)
-   - Post-commit re-classification: after every review-fix-loop commit and before re-launching reviewers, re-run `pnpm run ui:classify --base origin/main` (the gate classified the pre-fix diff only). If the verdict flips to `uiTouching: true`, run §5 Steps 3–5 (audit pass → proof-bundle assertions → disposition enforcement) before re-running review — review may not complete until the audit gate has passed for the flipped verdict.
+   - Post-commit re-classification: after every review-fix-loop commit and before re-launching reviewers, re-run `pnpm run ui:classify --base origin/main` (the gate classified the pre-fix diff only). If the verdict flips to `uiTouching: true` — or is already `uiTouching: true` and the new `matched` set intersects the audited surfaces — run §5 Steps 3–5 (audit pass → proof-bundle assertions → disposition enforcement) before re-running review — review may not complete until the audit gate has passed.
    - Re-run `review` (both the standard and adversarial passes)
    - Increment the per-issue fix-attempt counter
    - Continue looping while either review pass still has Blockers and every Blocker remains `fixable_by_agent: true`
@@ -623,7 +625,7 @@ After the Blocker loop clears (or if there were no Blockers to begin with) and t
 4. **Re-run verification**: after the sweep completes, run the same verification commands that the develop phase used:
    - For each affected package `<name>`: `pnpm --filter @repro/<name> test`
    - Typecheck and format check as appropriate
-   - Re-run `pnpm run ui:classify --base origin/main` after the non-blocker sweep — sweep fixes may touch `.tsx` labels/ARIA copy that the pre-sweep classification never saw. If the verdict flips to `uiTouching: true`, run §5 Steps 3–5 (audit pass → proof-bundle assertions → disposition enforcement) before the review outcome is final.
+   - Re-run `pnpm run ui:classify --base origin/main` after the non-blocker sweep — sweep fixes may touch `.tsx` labels/ARIA copy that the pre-sweep classification never saw. If the verdict flips to `uiTouching: true` — or is already `uiTouching: true` and the new `matched` set intersects the audited surfaces — run §5 Steps 3–5 (audit pass → proof-bundle assertions → disposition enforcement) before the review outcome is final.
 
 5. **If the non-blocker fix pass introduces new failures**: stop the sweep. Add those failures to the review summary (they will appear in the PR body remainder). Do not start a second fix loop.
 
@@ -656,7 +658,7 @@ else
 fi
 ```
 
-Alongside the guard, re-run `pnpm run ui:classify --base origin/main` at publish — commits after the audit gate (review-fix loop, non-blocker sweep) may have introduced UI files the gate never classified. If the verdict flips to `uiTouching: true`, run §5 Steps 3–5 (audit pass → proof-bundle assertions → disposition enforcement) before publish proceeds — publish may not proceed until the audit gate has passed for the flipped verdict.
+Alongside the guard, re-run `pnpm run ui:classify --base origin/main` at publish — commits after the audit gate (review-fix loop, non-blocker sweep) may have introduced UI files the gate never classified. If the verdict flips to `uiTouching: true` — or is already `uiTouching: true` and the new `matched` set intersects the audited surfaces — run §5 Steps 3–5 (audit pass → proof-bundle assertions → disposition enforcement) before publish proceeds — publish may not proceed until the audit gate has passed.
 
 Use this same guard for the initial publish path and any future re-push path.
 
