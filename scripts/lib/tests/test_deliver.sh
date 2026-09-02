@@ -8,9 +8,12 @@
 #     the deferred `pnpm install` sent to the terminal pane. Fallback paths
 #     (herdr-down, split-failure, pane-list-failure) install synchronously.
 #   - REP-1655: Stage 4 submits the seeded build prompt — Enter is sent to
-#     the opencode pane once the v2 TUI renders, the kick-off is confirmed
-#     via the pane's agent_status, and submit failures degrade to the manual
-#     press-Enter fallback (the seeded prompt is never re-typed or cleared).
+#     the opencode pane once the v2 TUI renders AND the seeded prompt is
+#     visible in the live viewport without the launch wrapper (the pre-render
+#     `pane run` echo must never trigger the submit), the kick-off is
+#     confirmed via the pane's agent_status, and submit failures degrade to
+#     the manual press-Enter fallback (the seeded prompt is never re-typed
+#     or cleared).
 
 set -euo pipefail
 
@@ -94,11 +97,16 @@ STUB
   # pane-list-failure fallback is exercised.
   # REP-1655 knobs: `pane list` panes carry agent_status
   # (HERDR_STUB_AGENT_STATUS, default working) so the kick-off confirmation
-  # can be steered; `pane read` defaults to a rendered v2 TUI (its `beta-`
-  # footer marker, so the Stage-4 poll matches instantly) unless
-  # HERDR_STUB_PANE_READ_NO_TUI=1; `pane send-keys` records the request into
-  # herdr_send_keys.log (deliver.sh redirects send-keys output, so tests
-  # assert against the log) and exits 1 when HERDR_STUB_SEND_KEYS_FAIL=1.
+  # can be steered; `pane run` extracts the opencode launch line's
+  # `--prompt "<seed>"` value into herdr_prompt_seed.txt (plus the full line
+  # into herdr_prompt_launch.txt); `pane read` defaults to a rendered v2 TUI
+  # whose viewport shows the seeded prompt WITHOUT the launch wrapper
+  # (HERDR_STUB_PANE_READ_NO_TUI=1 shows no seed — the Stage-4 poll must
+  # exhaust; HERDR_STUB_PANE_READ_ECHO_ONLY=1 shows the pre-render `pane run`
+  # echo, seed text AND `--prompt`, which the detection must reject);
+  # `pane send-keys` records the request into herdr_send_keys.log
+  # (deliver.sh redirects send-keys output, so tests assert against the log)
+  # and exits 1 when HERDR_STUB_SEND_KEYS_FAIL=1.
   cat > "$tmpdir/herdr" << 'STUB'
 #!/bin/bash
   case "${1:-}" in
@@ -122,14 +130,35 @@ STUB
         exit 0
         ;;
       read)
-        # Default: the v2 TUI is rendered — its footer carries the `beta-`
-        # marker the Stage-4 poll greps for. HERDR_STUB_PANE_READ_NO_TUI=1
-        # simulates a pane where the TUI never appears.
+        # Stage-4 TUI detection signal:
+        # - default: the v2 TUI is rendered with the seeded editor — the
+        #   viewport shows the seed WITHOUT the launch wrapper.
+        # - HERDR_STUB_PANE_READ_NO_TUI=1: the TUI never appears (viewport
+        #   has no seed text) — the Stage-4 poll must exhaust.
+        # - HERDR_STUB_PANE_READ_ECHO_ONLY=1: the pane still shows the
+        #   `herdr pane run` launch echo (seed text AND `--prompt`) — the
+        #   pre-render state the detection check must reject.
+        read_dir="$(dirname "$0")"
+        if [ "${HERDR_STUB_PANE_READ_ECHO_ONLY:-0}" = "1" ]; then
+          if [ -f "$read_dir/herdr_prompt_launch.txt" ]; then
+            cat "$read_dir/herdr_prompt_launch.txt"
+          else
+            echo 'repro % waiting for a command'
+          fi
+          exit 0
+        fi
         if [ "${HERDR_STUB_PANE_READ_NO_TUI:-0}" = "1" ]; then
           echo 'repro % waiting for a command'
-        else
-          echo 'opencode2 TUI ready (beta-2026.01.15)'
+          exit 0
         fi
+        if [ -f "$read_dir/herdr_prompt_seed.txt" ]; then
+          seeded_prompt="$(cat "$read_dir/herdr_prompt_seed.txt")"
+          if [ -n "$seeded_prompt" ]; then
+            echo "EDITOR SEEDED: $seeded_prompt"
+            exit 0
+          fi
+        fi
+        echo 'repro % waiting for a command'
         exit 0
         ;;
       send-keys)
@@ -151,7 +180,19 @@ STUB
         fi
         exit 0
         ;;
-      run) echo "HERDR_PANE_RUN: $*"; exit 0 ;;
+      run)
+        # REP-1655: when the pane run carries the opencode launch line,
+        # extract the `--prompt "<seed>"` value (the seeded editor text) and
+        # record both the seed and the full launch line — `pane read` uses
+        # them to simulate the seeded TUI viewport vs the pre-render echo.
+        seed="$(printf '%s' "$*" | sed -n 's/.*--prompt "\([^"]*\)".*/\1/p')"
+        if [ -n "$seed" ]; then
+          printf '%s\n' "$seed" > "$(dirname "$0")/herdr_prompt_seed.txt"
+          printf '%s\n' "$*" > "$(dirname "$0")/herdr_prompt_launch.txt"
+        fi
+        echo "HERDR_PANE_RUN: $*"
+        exit 0
+        ;;
       *) echo "HERDR_PANE_UNKNOWN: $*"; exit 0 ;;
     esac
     ;;
@@ -717,7 +758,10 @@ test_no_label_routes_to_build() {
 
 # Test 25: Stage 4 submits the seeded prompt — once the v2 TUI renders,
 # Enter is sent to the opencode pane and the kick-off is confirmed via the
-# pane's agent_status (REP-1655).
+# pane's agent_status (REP-1655). Also pins the no-duplication invariant:
+# the seeded prompt must never be re-typed (e.g. via `herdr agent prompt`,
+# whose output would carry HERDR_AGENT_ARGS and duplicate the seeded editor
+# text) (REP-1655 review fix).
 test_stage4_submits_seeded_prompt() {
   local tmpdir rc=0
   tmpdir="$(_make_tmpdir)"
@@ -733,7 +777,8 @@ test_stage4_submits_seeded_prompt() {
   rm -rf "$tmpdir"
 
   if printf '%s\n' "$send_keys_record" | grep -q 'HERDR_PANE_SEND_KEYS: pane send-keys pane-root enter' \
-    && printf '%s\n' "$output" | grep -q 'kicked off'; then
+    && printf '%s\n' "$output" | grep -q 'kicked off' \
+    && ! printf '%s\n' "$output" | grep -q 'HERDR_AGENT_ARGS'; then
     _pass "Stage 4 sends Enter to the opencode pane and confirms the kick-off"
   else
     _fail "Stage 4 sends Enter to the opencode pane and confirms the kick-off" "rc=$rc; output: $output; send_keys: $send_keys_record"
@@ -806,6 +851,33 @@ test_stage4_unconfirmed_kickoff_warns() {
   fi
 }
 
+# Test 29: pre-render echo false-positive guard — a pane still showing the
+# `herdr pane run` launch echo (seed text AND `--prompt`) must NOT count as
+# TUI-rendered-and-seeded: the poll exhausts, the warn fires, and no Enter
+# is ever sent (the echo false-positive class must never trigger the
+# submit) (REP-1655 review fix).
+test_stage4_echo_only_does_not_submit() {
+  local tmpdir rc=0
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  _write_runner "$tmpdir" "REP-123"
+
+  local output
+  output="$(HERDR_STUB_PANE_READ_ECHO_ONLY=1 DELIVER_TUI_POLL_ATTEMPTS=1 DELIVER_TUI_POLL_INTERVAL=1 bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  local send_keys_record=""
+  if [ -f "$tmpdir/herdr_send_keys.log" ]; then
+    send_keys_record="$(cat "$tmpdir/herdr_send_keys.log")"
+  fi
+  rm -rf "$tmpdir"
+
+  if printf '%s\n' "$output" | grep -q 'TUI not detected' \
+    && [ -z "$send_keys_record" ]; then
+    _pass "pre-render echo (seed + --prompt) never triggers the submit"
+  else
+    _fail "pre-render echo (seed + --prompt) never triggers the submit" "rc=$rc; output: $output; send_keys: $send_keys_record"
+  fi
+}
+
 # ── Run all tests ──────────────────────────────────────────────────────
 
 test_file_exists
@@ -836,6 +908,7 @@ test_stage4_submits_seeded_prompt
 test_stage4_send_keys_failure_warns
 test_stage4_no_tui_skips_submit
 test_stage4_unconfirmed_kickoff_warns
+test_stage4_echo_only_does_not_submit
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed out of $TESTS_RUN tests"

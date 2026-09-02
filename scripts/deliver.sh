@@ -182,6 +182,22 @@ _mode_bare_branch() {
   printf '%s\n%s\n' "$issue_id" "$branch_name"
 }
 
+# ── Numeric env-knob sanitizer ─────────────────────────────────────
+# Stage-4 poll/settle knobs must be non-negative integers. Garbage values
+# (e.g. DELIVER_TUI_POLL_INTERVAL=abc) would otherwise kill the script via
+# sleep/arithmetic under set -e after OpenCode has already launched. Empty
+# or non-numeric values fall back to the default; numeric 0 stays legal
+# (tests use it to disable polls).
+_deliver_numeric_or() {
+  local value="${1:-}"
+  local fallback="$2"
+  if [[ -n "$value" && "$value" =~ ^[0-9]+$ ]]; then
+    printf '%s\n' "$value"
+  else
+    printf '%s\n' "$fallback"
+  fi
+}
+
 # ── Worktree creation and agent launch ─────────────────────────────
 _create_worktree_and_launch() {
   local mode="$1"
@@ -402,21 +418,30 @@ _create_worktree_and_launch() {
     return 0
   }
 
-  # Wait for the v2 TUI to render (its footer carries the beta version marker).
-  # The poll budget is env-tunable for tests; the defaults preserve the
-  # historical 30 × 2s = 60s window.
-  local poll tui_detected=false
-  local tui_poll_attempts="${DELIVER_TUI_POLL_ATTEMPTS:-30}"
-  local tui_poll_interval="${DELIVER_TUI_POLL_INTERVAL:-2}"
+  # Wait for the v2 TUI to render AND seed the editor, then submit. The poll
+  # budget is env-tunable for tests; the defaults preserve the historical
+  # 30 × 2s = 60s window.
+  local poll tui_detected=false pane_visible
+  local tui_poll_attempts
+  tui_poll_attempts="$(_deliver_numeric_or "${DELIVER_TUI_POLL_ATTEMPTS:-}" 30)"
+  local tui_poll_interval
+  tui_poll_interval="$(_deliver_numeric_or "${DELIVER_TUI_POLL_INTERVAL:-}" 2)"
   for poll in $(seq 1 "$tui_poll_attempts"); do
-    if herdr pane read "$opencode_pane_id" 2>/dev/null | grep -q 'beta-'; then
+    # TUI-rendered-and-seeded signal: the seeded prompt is visible in the live
+    # viewport WITHOUT the launch wrapper. Before the TUI takes over, the pane
+    # shows the `herdr pane run` echo, which contains the prompt text but ALSO
+    # the `--prompt` flag — the negative check excludes that pre-render state.
+    # (Do NOT grep for 'beta-': worktree slugs and profile names can put it in
+    # the echo, which would submit Enter before the TUI exists.)
+    pane_visible="$(herdr pane read --source visible "$opencode_pane_id" 2>/dev/null || true)"
+    if grep -qF -- "$prompt_arg" <<<"$pane_visible" && ! grep -qF -- '--prompt' <<<"$pane_visible"; then
       tui_detected=true
       break
     fi
     sleep "$tui_poll_interval"
   done
   if [[ "$tui_detected" != "true" ]]; then
-    _warn "OpenCode v2 TUI not detected in pane ${opencode_pane_id} within $((tui_poll_attempts * tui_poll_interval))s."
+    _warn "OpenCode v2 seeded TUI not detected in pane ${opencode_pane_id} within $((tui_poll_attempts * tui_poll_interval))s."
     echo "  Check the pane; if it did not start, run: cd \"$wt_path\" && $opencode_cmd"
     return 0
   fi
@@ -426,7 +451,7 @@ _create_worktree_and_launch() {
   # kick off the build. Do NOT use `herdr agent prompt` here — it re-types
   # the command and would duplicate the seeded editor text. If the submit
   # fails, the seeded prompt stays intact for a manual Enter.
-  sleep "${DELIVER_SUBMIT_SETTLE:-2}"
+  sleep "$(_deliver_numeric_or "${DELIVER_SUBMIT_SETTLE:-}" 2)"
   if ! herdr pane send-keys "$opencode_pane_id" enter >/dev/null 2>&1; then
     _warn "Could not submit the seeded build prompt in pane ${opencode_pane_id} (herdr pane send-keys failed — herdr may not accept key events for this pane)."
     echo "  The prompt is seeded but not submitted: press Enter in the pane to kick off the build."
@@ -438,8 +463,10 @@ _create_worktree_and_launch() {
   # classification lags we warn conservatively: a false "could not confirm"
   # is harmless, the user just sees the build already running.
   local state_poll state_confirmed=false
-  local state_poll_attempts="${DELIVER_STATE_POLL_ATTEMPTS:-10}"
-  local state_poll_interval="${DELIVER_STATE_POLL_INTERVAL:-1}"
+  local state_poll_attempts
+  state_poll_attempts="$(_deliver_numeric_or "${DELIVER_STATE_POLL_ATTEMPTS:-}" 10)"
+  local state_poll_interval
+  state_poll_interval="$(_deliver_numeric_or "${DELIVER_STATE_POLL_INTERVAL:-}" 1)"
   for state_poll in $(seq 1 "$state_poll_attempts"); do
     if herdr pane list --workspace "$ws_id" 2>/dev/null \
       | jq -e --arg pane_id "$opencode_pane_id" 'any(.result.panes[]; .pane_id == $pane_id and .agent_status == "working")' >/dev/null 2>&1; then
@@ -452,7 +479,9 @@ _create_worktree_and_launch() {
     _ok "OpenCode v2 launched — build kicked off (prompt: ${prompt_arg})"
   else
     _warn "Could not confirm that the build kicked off automatically in pane ${opencode_pane_id} (agent status never showed 'working')."
-    echo "  The prompt was submitted — press Enter in the pane only if the build did not start."
+    # Epistemics: send-keys exit 0 proves herdr accepted the keystroke, not
+    # that the editor consumed it — say "sent", never "submitted".
+    echo "  Enter was sent — if the build did not start, press Enter in the pane to run the seeded prompt."
   fi
   return 0
 }
