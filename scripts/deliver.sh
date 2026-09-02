@@ -330,6 +330,7 @@ _create_worktree_and_launch() {
     echo ""
     echo "  cd $wt_path"
     echo "  opencode2 --prompt \"$prompt_arg\""
+    echo "  After the TUI opens, press Enter in it to kick off the build (--prompt seeds the editor but does not submit)."
     return 0
   fi
   _ok "Workspace: ${label} (${ws_id})"
@@ -402,16 +403,58 @@ _create_worktree_and_launch() {
   }
 
   # Wait for the v2 TUI to render (its footer carries the beta version marker).
-  local poll
-  for poll in $(seq 1 30); do
+  # The poll budget is env-tunable for tests; the defaults preserve the
+  # historical 30 × 2s = 60s window.
+  local poll tui_detected=false
+  local tui_poll_attempts="${DELIVER_TUI_POLL_ATTEMPTS:-30}"
+  local tui_poll_interval="${DELIVER_TUI_POLL_INTERVAL:-2}"
+  for poll in $(seq 1 "$tui_poll_attempts"); do
     if herdr pane read "$opencode_pane_id" 2>/dev/null | grep -q 'beta-'; then
-      _ok "OpenCode v2 launched (prompt: ${prompt_arg})"
-      return 0
+      tui_detected=true
+      break
     fi
-    sleep 2
+    sleep "$tui_poll_interval"
   done
-  _warn "OpenCode v2 TUI not detected in pane ${opencode_pane_id} within 60s."
-  echo "  Check the pane; if it did not start, run: cd \"$wt_path\" && $opencode_cmd"
+  if [[ "$tui_detected" != "true" ]]; then
+    _warn "OpenCode v2 TUI not detected in pane ${opencode_pane_id} within $((tui_poll_attempts * tui_poll_interval))s."
+    echo "  Check the pane; if it did not start, run: cd \"$wt_path\" && $opencode_cmd"
+    return 0
+  fi
+
+  # --prompt only seeds the opencode2 editor; it never submits. Give the TUI
+  # a moment to finish mounting with the seeded editor, then send Enter to
+  # kick off the build. Do NOT use `herdr agent prompt` here — it re-types
+  # the command and would duplicate the seeded editor text. If the submit
+  # fails, the seeded prompt stays intact for a manual Enter.
+  sleep "${DELIVER_SUBMIT_SETTLE:-2}"
+  if ! herdr pane send-keys "$opencode_pane_id" enter >/dev/null 2>&1; then
+    _warn "Could not submit the seeded build prompt in pane ${opencode_pane_id} (herdr pane send-keys failed — herdr may not accept key events for this pane)."
+    echo "  The prompt is seeded but not submitted: press Enter in the pane to kick off the build."
+    return 0
+  fi
+
+  # Confirm the kick-off by polling herdr's agent classification for the
+  # opencode pane (same `herdr pane list` source the pane IDs came from). If
+  # classification lags we warn conservatively: a false "could not confirm"
+  # is harmless, the user just sees the build already running.
+  local state_poll state_confirmed=false
+  local state_poll_attempts="${DELIVER_STATE_POLL_ATTEMPTS:-10}"
+  local state_poll_interval="${DELIVER_STATE_POLL_INTERVAL:-1}"
+  for state_poll in $(seq 1 "$state_poll_attempts"); do
+    if herdr pane list --workspace "$ws_id" 2>/dev/null \
+      | jq -e --arg pane_id "$opencode_pane_id" 'any(.result.panes[]; .pane_id == $pane_id and .agent_status == "working")' >/dev/null 2>&1; then
+      state_confirmed=true
+      break
+    fi
+    sleep "$state_poll_interval"
+  done
+  if [[ "$state_confirmed" == "true" ]]; then
+    _ok "OpenCode v2 launched — build kicked off (prompt: ${prompt_arg})"
+  else
+    _warn "Could not confirm that the build kicked off automatically in pane ${opencode_pane_id} (agent status never showed 'working')."
+    echo "  The prompt was submitted — press Enter in the pane only if the build did not start."
+  fi
+  return 0
 }
 
 # ── Main ───────────────────────────────────────────────────────────
