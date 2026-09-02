@@ -122,6 +122,79 @@ describe('REP-1646 UI audit gate wiring', () => {
       /scripts\/classify-ui-diff\.test\.ts/
     )
   })
+
+  it('keeps the gate fail-closed (preamble and clean-tree checkpoint)', () => {
+    const skill = readText('.opencode/skills/delivery-workflow/SKILL.md')
+
+    // §5 fail-closed preamble — the gate is never silently skipped.
+    assert.match(skill, /Fail-closed preamble/)
+    assert.match(skill, /The gate is never silently skipped/)
+    // Step 1 checkpoint commit — classification runs only on a clean tree
+    // (uncommitted UI files would classify as a false non-UI).
+    assert.match(skill, /never classify on a dirty tree/)
+  })
+
+  it('requires the tightened proof-bundle assertions in the gate', () => {
+    const skill = readText('.opencode/skills/delivery-workflow/SKILL.md')
+
+    // manifest.json must parse AND contain at least one surface with one state.
+    assert.match(skill, /≥1 surface with ≥1 state/)
+    // Every state screenshot must be non-empty and resolve on disk.
+    assert.match(skill, /NON-EMPTY `screenshot` path/)
+    // audit.md must carry the findings-table header or the exact no-findings row.
+    assert.match(
+      skill,
+      /pillar \| severity \| evidence screenshot \| description \| disposition/
+    )
+    assert.match(skill, /\| none \| none \| none \| no findings \| none \|/)
+  })
+
+  it('has no stale § references in delivery-workflow', () => {
+    const skill = readText('.opencode/skills/delivery-workflow/SKILL.md')
+    const lines = skill.split('\n')
+
+    // Section map: `## N.` headings own the scope until the next `##` heading;
+    // `### Step M` headings register per numbered section.
+    const numberedSections = new Set<number>()
+    const stepsBySection = new Map<number, Set<number>>()
+    let currentSection: number | null = null
+    for (const line of lines) {
+      const numbered = line.match(/^## (\d+)\./)
+      if (numbered) {
+        currentSection = Number(numbered[1])
+        numberedSections.add(currentSection)
+        continue
+      }
+      if (line.startsWith('## ')) {
+        // Unnumbered `##` headings (e.g. `## Verification`) end the scope.
+        currentSection = null
+        continue
+      }
+      const step = line.match(/^### Step (\d+)/)
+      if (step && currentSection !== null) {
+        const steps = stepsBySection.get(currentSection) ?? new Set<number>()
+        steps.add(Number(step[1]))
+        stepsBySection.set(currentSection, steps)
+      }
+    }
+
+    const dangling: string[] = []
+    for (const match of skill.matchAll(/§(\d+)(?: step (\d+))?/gi)) {
+      const section = Number(match[1])
+      const step = match[2] === undefined ? null : Number(match[2])
+      const label = `§${section}${step === null ? '' : ` step ${step}`}`
+      if (!numberedSections.has(section)) {
+        dangling.push(`${label}: no "## ${section}." section heading`)
+        continue
+      }
+      if (step !== null && !stepsBySection.get(section)?.has(step)) {
+        dangling.push(
+          `${label}: no "### Step ${step}" heading in section ${section}`
+        )
+      }
+    }
+    assert.deepEqual(dangling, [])
+  })
 })
 
 describe('REP-1625 adversarial review wiring', () => {

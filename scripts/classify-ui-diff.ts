@@ -8,7 +8,8 @@
 // verdict is data, not an error — exit 0 on any successful classification.
 //
 // Determinism: same path list -> same verdict. No clock reads, no filesystem
-// writes; git mode only shells out to `git diff --name-only --no-renames`.
+// writes; git mode only shells out to
+// `git -c core.quotePath=false diff --name-only --no-renames`.
 //
 // Flags:
 //   --base <ref>         diff base ref (required in git mode)
@@ -84,6 +85,14 @@ export const UI_RULES: ReadonlyArray<UiRule> = [
     matches: path =>
       /^apps\/[^/]+\/src\/.+\.(?:css|scss)$/.test(path) ||
       /^packages\/[^/]+\/src\/.+\.(?:css|scss)$/.test(path),
+  },
+  {
+    // Browser-loaded HTML host documents: src-anchored pages (extension
+    // bridgeHost/devtools) plus app-root hosts (index.html, apiBridge.html).
+    name: 'html-surface',
+    matches: path =>
+      /^apps\/[^/]+\/src\/.+\.html$/.test(path) ||
+      /^apps\/[^/]+\/[^/]+\.html$/.test(path),
   },
 ]
 
@@ -201,10 +210,12 @@ function readStdinSync(): string {
 
 /**
  * Run one classification and emit the JSON verdict. Default mode shells out to
- * `git diff --name-only --no-renames <base>...<head>` (--no-renames so renames
- * surface as delete+add — both paths are checked, conservative); stdin mode
- * classifies newline-separated paths instead. Exit 0 on any successful
- * classification (the verdict is data), 1 on usage/execution error.
+ * `git -c core.quotePath=false diff --name-only --no-renames <base>...<head>`
+ * (--no-renames so renames surface as delete+add — both paths are checked,
+ * conservative; quotePath=false so non-ASCII paths reach the rules unquoted).
+ * stdin mode classifies newline-separated paths instead — git never runs, so
+ * base/head are reported as null. Exit 0 on any successful classification
+ * (the verdict is data), 1 on usage/execution error.
  */
 export function runClassify(
   options: ClassifyOptions,
@@ -215,8 +226,10 @@ export function runClassify(
   const execGit = io.execGit ?? defaultExecGit
 
   let rawPaths: string[]
-  let base: string | null = options.base ?? null
-  let head: string | null = options.head ?? null
+  // stdin mode never runs git, so no base/head is observed — never echo
+  // --base/--head flags the verdict did not use.
+  let base: string | null = options.pathsFromStdin ? null : options.base ?? null
+  let head: string | null = options.pathsFromStdin ? null : options.head ?? null
 
   try {
     if (options.pathsFromStdin) {
@@ -233,6 +246,11 @@ export function runClassify(
       }
       head = options.head ?? 'HEAD'
       rawPaths = execGit([
+        // core.quotePath=false: git C-quotes non-ASCII paths by default
+        // (e.g. "caf\303\251.tsx"), which no rule regex matches — real UI
+        // files would flip to a false non-UI verdict.
+        '-c',
+        'core.quotePath=false',
         'diff',
         '--name-only',
         '--no-renames',

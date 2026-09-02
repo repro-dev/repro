@@ -128,4 +128,6 @@ If the PR touches UI code (classifier verdict `uiTouching: true` recorded in the
 3. Confirm every P1/P2 finding has a fixed-or-filed disposition (`fixed <commit>` or `filed REP-xxx`).
 4. Cite `audit.md` findings as review input for the UI verdict.
 
-If the PR touches only non-UI code (migrations, API routes, utilities, or skill files — classifier verdict `uiTouching: false` in the status table, not reviewer judgment), skip this gate.
+If no verdict is recorded, run `pnpm run ui:classify --base origin/main` and use its output — ad-hoc `/review` runs have no delivery status table to read from.
+
+If the PR touches only non-UI code (migrations, API routes, utilities, or skill files — classifier verdict `uiTouching: false`, from the delivery status table or the fallback classification above, not reviewer judgment), skip this gate.

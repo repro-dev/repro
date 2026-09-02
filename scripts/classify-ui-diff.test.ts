@@ -73,6 +73,39 @@ describe('REP-1646 classifyPaths — UI-touching positives', () => {
   })
 })
 
+describe('REP-1646 classifyPaths — html-surface rule', () => {
+  it('classifies src-anchored app html hosts as UI-touching', () => {
+    // Shipped hosts: apps/capture/src/extension/static/bridgeHost.html,
+    // apps/dev-toolbar/src/extension/static/devtools.html.
+    for (const p of [
+      'apps/capture/src/extension/static/bridgeHost.html',
+      'apps/dev-toolbar/src/extension/static/devtools.html',
+    ]) {
+      const verdict = classifyPaths([p])
+      assert.equal(verdict.uiTouching, true, p)
+      assert.deepEqual(verdict.matched, [{ path: p, rule: 'html-surface' }])
+    }
+  })
+
+  it('classifies app-root html hosts as UI-touching', () => {
+    // Shipped hosts: apps/workspace/index.html, apps/workspace/apiBridge.html.
+    for (const p of [
+      'apps/workspace/index.html',
+      'apps/workspace/apiBridge.html',
+    ]) {
+      const verdict = classifyPaths([p])
+      assert.equal(verdict.uiTouching, true, p)
+      assert.deepEqual(verdict.matched, [{ path: p, rule: 'html-surface' }])
+    }
+  })
+
+  it('never classifies html outside app roots', () => {
+    const verdict = classifyPaths(['docs/foo.html'])
+    assert.equal(verdict.uiTouching, false)
+    assert.deepEqual(verdict.matched, [])
+  })
+})
+
 describe('REP-1646 classifyPaths — non-UI negatives', () => {
   it('classifies pure logic, docs, config, and workflow paths as non-UI', () => {
     const verdict = classifyPaths([
@@ -173,10 +206,10 @@ describe('REP-1646 CLI parsing', () => {
 })
 
 describe('REP-1646 CLI stdin mode', () => {
-  it('emits the full verdict JSON and exits 0', () => {
+  it('emits the full verdict JSON and exits 0, without echoing unobserved base/head', () => {
     const jsonOuts: string[] = []
     const result = runClassify(
-      { pathsFromStdin: true, base: 'origin/main', head: 'HEAD' },
+      { pathsFromStdin: true },
       {
         stdin:
           'packages/buffer-utils/src/ring.ts\napps/workspace/src/routes/Sessions.tsx\napps/workspace/src/routes/Sessions.tsx\n',
@@ -198,8 +231,30 @@ describe('REP-1646 CLI stdin mode', () => {
       { path: 'apps/workspace/src/routes/Sessions.tsx', rule: 'app-ui' },
     ])
     assert.equal(verdict.totalChangedFiles, 2) // duplicates collapse
-    assert.equal(verdict.base, 'origin/main')
-    assert.equal(verdict.head, 'HEAD')
+    // stdin mode never runs git — base/head are unobserved, so they are null
+    // (the verdict must not echo flags it never used).
+    assert.equal(verdict.base, null)
+    assert.equal(verdict.head, null)
+  })
+
+  it('reports null base/head even when flags are passed in stdin mode', () => {
+    // Regression: stdin mode never runs git, so the verdict must not echo
+    // --base/--head flags it never used (F5).
+    const jsonOuts: string[] = []
+    const result = runClassify(
+      { pathsFromStdin: true, base: 'origin/main' },
+      {
+        stdin: 'packages/buffer-utils/src/ring.ts\n',
+        jsonOut: json => jsonOuts.push(json),
+      }
+    )
+    assert.equal(result.code, 0)
+    const verdict = JSON.parse(jsonOuts[0]!) as {
+      base: string | null
+      head: string | null
+    }
+    assert.equal(verdict.base, null)
+    assert.equal(verdict.head, null)
   })
 
   it('reports the non-UI skip path mechanically', () => {
@@ -217,10 +272,15 @@ describe('REP-1646 CLI stdin mode', () => {
       uiTouching: boolean
       matched: unknown[]
       totalChangedFiles: number
+      base: string | null
+      head: string | null
     }
     assert.equal(verdict.uiTouching, false)
     assert.deepEqual(verdict.matched, [])
     assert.equal(verdict.totalChangedFiles, 3)
+    // stdin mode never runs git, so base/head are unobserved (F5).
+    assert.equal(verdict.base, null)
+    assert.equal(verdict.head, null)
   })
 })
 
@@ -240,6 +300,8 @@ describe('REP-1646 CLI git mode', () => {
     )
     assert.equal(result.code, 0)
     assert.deepEqual(receivedArgs, [
+      '-c',
+      'core.quotePath=false',
       'diff',
       '--name-only',
       '--no-renames',
@@ -253,6 +315,36 @@ describe('REP-1646 CLI git mode', () => {
     assert.equal(verdict.uiTouching, true)
     assert.equal(verdict.base, 'origin/main')
     assert.equal(verdict.head, 'HEAD')
+  })
+
+  it('disables core.quotePath so non-ASCII paths reach the rules unquoted', () => {
+    // Without `-c core.quotePath=false`, git C-quotes non-ASCII paths
+    // (e.g. "caf\303\251.tsx"), the rule regexes match nothing, and real UI
+    // files flip to a false non-UI verdict.
+    const jsonOuts: string[] = []
+    let receivedArgs: string[] = []
+    const result = runClassify(
+      { base: 'origin/main' },
+      {
+        execGit: args => {
+          receivedArgs = args
+          return 'apps/workspace/src/café.tsx\n'
+        },
+        jsonOut: json => jsonOuts.push(json),
+      }
+    )
+    assert.equal(result.code, 0)
+    assert.equal(receivedArgs[0], '-c')
+    assert.equal(receivedArgs[1], 'core.quotePath=false')
+    const verdict = JSON.parse(jsonOuts[0]!) as {
+      uiTouching: boolean
+      matched: Array<{ path: string; rule: string }>
+    }
+    // The unquoted path flows through classification unmodified.
+    assert.equal(verdict.uiTouching, true)
+    assert.deepEqual(verdict.matched, [
+      { path: 'apps/workspace/src/café.tsx', rule: 'app-ui' },
+    ])
   })
 
   it('errors with exit 1 when git mode has no --base', () => {

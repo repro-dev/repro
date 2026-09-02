@@ -367,7 +367,7 @@ Runs after implementation (§4), before the review loop. The gate is mechanical:
 
 ### Step 1 — checkpoint commit
 
-Classification needs a committed diff. Run the commit inspection steps (`git status`, `git diff`, `git log -5 --oneline`), stage the implementation changes, and create a local commit in the repository's Conventional Commit style with the Linear issue ID. Do **not** push. (The review loop keeps a fallback commit path for deliveries that skipped this gate.)
+Classification needs a committed diff, and the classifier only sees committed history — uncommitted UI files would classify as a false non-UI. Run the commit inspection steps (`git status`, `git diff`, `git log -5 --oneline`), stage the implementation changes, and create a local commit in the repository's Conventional Commit style with the Linear issue ID. Do **not** push. Then run `git status --porcelain` and require it to be EMPTY before classification runs; if the tree is not clean after the checkpoint commit, escalate via the fail-closed preamble — never classify on a dirty tree. (The review loop keeps a fallback commit path for deliveries that skipped this gate.)
 
 ### Step 2 — classify the diff
 
@@ -408,9 +408,9 @@ Run the REP-1646 UI audit pass for REP-xxx in worktree <absolute-worktree-path>.
 
 Orchestrator-level, mechanical, no judgment. Assert:
 
-1. `tmp/ui-verification/<issue-id>/manifest.json` exists and parses as JSON.
-2. Every `screenshot` path in the manifest exists on disk.
-3. `tmp/ui-verification/<issue-id>/audit.md` exists with a findings table (an explicit "no findings" row is valid).
+1. `tmp/ui-verification/<issue-id>/manifest.json` parses as JSON AND contains ≥1 surface with ≥1 state.
+2. Every state in the manifest has a NON-EMPTY `screenshot` path AND that path exists on disk.
+3. `tmp/ui-verification/<issue-id>/audit.md` contains the ui-verification findings-table header (`pillar | severity | evidence screenshot | description | disposition`) OR the exact no-findings row (`| none | none | none | no findings | none |`).
 4. The develop return's REP-1081 proof-bundle evidence paths resolve to real files.
 
 Any assertion failure = gate violation ⇒ escalate via the phase-local failure handling.
@@ -632,78 +632,77 @@ Do **not** paste full AI review output back into Linear comments. Use Linear com
 
 For the publishable issue:
 
-1. **Pre-push origin/main guard**: Before any push attempt, run:
+### Step 1 — pre-push origin/main guard
 
-   ```sh
-   git fetch origin main
-   if git merge-base --is-ancestor origin/main HEAD; then
-     # log: REP-xxx: branch already contains origin/main
-   else
-     git rebase origin/main
-     # log: REP-xxx: rebased onto origin/main before push
-   fi
-   ```
+Before any push attempt, run:
 
-   Use this same guard for the initial publish path and any future re-push path.
+```sh
+git fetch origin main
+if git merge-base --is-ancestor origin/main HEAD; then
+  # log: REP-xxx: branch already contains origin/main
+else
+  git rebase origin/main
+  # log: REP-xxx: rebased onto origin/main before push
+fi
+```
 
-   If the rebase conflicts:
-   - Capture the conflicting files
-   - Run `git rebase --abort`
-   - Post a structured, concise Linear comment summarizing the conflict with `linear issue comment <issue-id> "<rebase conflict summary>" --json`
-   - Set the issue state back to **In Progress** with `linear issue update <issue-id> --status "In Progress" --json`
-   - Add the issue ID to `escalated_issues`
-   - Stop publish for that issue
+Use this same guard for the initial publish path and any future re-push path.
 
-   Do not add automatic conflict-resolution logic here.
+If the rebase conflicts:
 
-2. **Push** with retry: retry transient failures up to 3 times; escalate permanent failures immediately.
+- Capture the conflicting files
+- Run `git rebase --abort`
+- Post a structured, concise Linear comment summarizing the conflict with `linear issue comment <issue-id> "<rebase conflict summary>" --json`
+- Set the issue state back to **In Progress** with `linear issue update <issue-id> --status "In Progress" --json`
+- Add the issue ID to `escalated_issues`
+- Stop publish for that issue
 
-3. **Create the PR**. This is part of the completion gate for the build run; the manual-verification output (step 4 below) completes it. The body should help a human reviewer quickly understand the change. Include:
+Do not add automatic conflict-resolution logic here.
 
-   - `Closes REP-xxx`
-   - A short summary of the change
-   - Verification performed
-   - Any notable risk or follow-up note worth human attention
-   - **Review remainder** — a concise, triage-ready list of every non-blocking review finding (including those fixed in the sweep so a human reviewer can confirm the delta). Format as:
+### Step 2 — push with retry
 
-     ```
-     ## Review remainder
+Retry transient failures up to 3 times; escalate permanent failures immediately.
 
-     The following non-blocking review findings were not auto-fixed:
+### Step 3 — create the PR
 
-     ### Major
-     - **[file:line]** (category) Description. _Skipped-by-gate_ | _Not-agent-fixable_ (Major findings are not mechanically fixable — Fixed in sweep does not apply)
+This is part of the completion gate for the build run; the manual-verification output (step 4 below) completes it. The body should help a human reviewer quickly understand the change. Include:
 
-     ### Minor
-     - **[file:line]** (category) Description. _Fixed in sweep_ | _Skipped-by-gate_ | _Not-agent-fixable_
+- `Closes REP-xxx`
+- A short summary of the change
+- Verification performed
+- Any notable risk or follow-up note worth human attention
+- **Review remainder** — a concise, triage-ready list of every non-blocking review finding (including those fixed in the sweep so a human reviewer can confirm the delta). Format as:
 
-     ### Nit
-     - **[file:line]** (category) Description. _Fixed in sweep_ | _Skipped-by-gate_ | _Not-agent-fixable_
-     ```
+  ```
+  ## Review remainder
 
-     Include every non-blocking finding: whether it was fixed in the sweep, skipped by the quality gate, or not `fixable_by_agent: true`. Report this section even when it is empty (`(none)`), so the human reviewer knows the sweep was considered.
+  The following non-blocking review findings were not auto-fixed:
 
-   - **Review remainder summary**: emit the same review remainder to the publish-phase summary output so the session log preserves it for later triage.
+  ### Major
+  - **[file:line]** (category) Description. _Skipped-by-gate_ | _Not-agent-fixable_ (Major findings are not mechanically fixable — Fixed in sweep does not apply)
 
-   Do **not** paste the full AI review output into the PR body, and do **not** duplicate that review output into Linear comments.
+  ### Minor
+  - **[file:line]** (category) Description. _Fixed in sweep_ | _Skipped-by-gate_ | _Not-agent-fixable_
 
-4. **Manual-verification completion gate**: before the run is complete, produce the manual
-   verification output per §8: (a) author `<worktree>/tmp/manual-test-plan-<issue-id>.md`
-   fresh for this run — remove any stale copy first with
-   `rm -f <worktree>/tmp/manual-test-plan-<issue-id>.md` so the artifact reflects the CURRENT
-   diff, not a prior run of the same issue; (b) print it verbatim in the operator summary as
-   the fixed `Manual verification` block — this is the single print point; the final summary
-   prints it once as part of the run summary — and (c) append it to the PR body as a
-   `## Manual test plan` section per §8 'PR body update' (build the full body in
-   `<worktree>/tmp/pr-body-<issue-id>.md` and
-   `gh pr edit <pr-number> --body-file <worktree>/tmp/pr-body-<issue-id>.md`). Publish is
-   **not** complete until all three hold.
-   Presence check (challenge-verify-validate): author the artifact fresh for this run
-   (remove any stale copy first), then verify it exists at
-   `<worktree>/tmp/manual-test-plan-<issue-id>.md`; if it is still missing, author it now via
-   §8 and append it — do not complete publish without it.
+  ### Nit
+  - **[file:line]** (category) Description. _Fixed in sweep_ | _Skipped-by-gate_ | _Not-agent-fixable_
+  ```
 
-5. **Set the Linear issue to In Review** only after the PR exists and the manual test plan has been written and appended to the PR body (step 4).
+  Include every non-blocking finding: whether it was fixed in the sweep, skipped by the quality gate, or not `fixable_by_agent: true`. Report this section even when it is empty (`(none)`), so the human reviewer knows the sweep was considered.
+
+- **Review remainder summary**: emit the same review remainder to the publish-phase summary output so the session log preserves it for later triage.
+
+Do **not** paste the full AI review output into the PR body, and do **not** duplicate that review output into Linear comments.
+
+### Step 4 — manual-verification completion gate
+
+Before the run is complete, produce the manual verification output per §8: (a) author `<worktree>/tmp/manual-test-plan-<issue-id>.md` fresh for this run — remove any stale copy first with `rm -f <worktree>/tmp/manual-test-plan-<issue-id>.md` so the artifact reflects the CURRENT diff, not a prior run of the same issue; (b) print it verbatim in the operator summary as the fixed `Manual verification` block — this is the single print point; the final summary prints it once as part of the run summary — and (c) append it to the PR body as a `## Manual test plan` section per §8 'PR body update' (build the full body in `<worktree>/tmp/pr-body-<issue-id>.md` and `gh pr edit <pr-number> --body-file <worktree>/tmp/pr-body-<issue-id>.md`). Publish is **not** complete until all three hold.
+
+Presence check (challenge-verify-validate): author the artifact fresh for this run (remove any stale copy first), then verify it exists at `<worktree>/tmp/manual-test-plan-<issue-id>.md`; if it is still missing, author it now via §8 and append it — do not complete publish without it.
+
+### Step 5 — set the Linear issue to In Review
+
+Only after the PR exists and the manual test plan has been written and appended to the PR body (step 4).
 
 After publish has been handled:
 
