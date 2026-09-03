@@ -10,8 +10,8 @@ Mono: `monospace`
 
 Scale:
 
-- xs: 11px
-- sm: 12px
+- xs: 12px
+- sm: 12px (xs and sm converge at the 12px readability floor pending the type-scale review)
 - md: 14px (body)
 - lg: 18px
 - xl: 20px

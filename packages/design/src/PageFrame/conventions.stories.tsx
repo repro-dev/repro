@@ -87,8 +87,19 @@ const SampleShell: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   </AppShell>
 )
 
+// REP-1656 waiver: every convention page's shell root is a structural frame
+// (flex column, surface background) — content inset comes from the padded
+// PageFrame header/body children, so cramped-padding misfires on the root.
+const pageConventionWaiver = {
+  impeccable: {
+    disable: ['cramped-padding'],
+    reason: 'shell root is a structural frame; children carry their own inset',
+  },
+}
+
 export const PageList: Story = {
   name: 'page-list',
+  parameters: pageConventionWaiver,
   render: () => (
     <SampleShell>
       <PageFrame>
@@ -119,6 +130,7 @@ export const PageList: Story = {
 
 export const PageListEmpty: Story = {
   name: 'page-list (Empty)',
+  parameters: pageConventionWaiver,
   render: () => (
     <SampleShell>
       <PageFrame>
@@ -135,7 +147,9 @@ export const PageListEmpty: Story = {
             <EmptyState.Icon>
               <VideoIcon size={40} />
             </EmptyState.Icon>
-            <EmptyState.Title>No sessions yet</EmptyState.Title>
+            <EmptyState.Title headingLevel="h2">
+              No sessions yet
+            </EmptyState.Title>
             <EmptyState.Description>
               Start capturing user sessions to see them here.
             </EmptyState.Description>
@@ -151,6 +165,7 @@ export const PageListEmpty: Story = {
 
 export const PageDetail: Story = {
   name: 'page-detail',
+  parameters: pageConventionWaiver,
   render: () => (
     <SampleShell>
       <PageFrame>
@@ -194,6 +209,7 @@ export const PageDetail: Story = {
 
 export const PageDashboard: Story = {
   name: 'page-dashboard',
+  parameters: pageConventionWaiver,
   render: () => (
     <SampleShell>
       <PageFrame>
@@ -231,6 +247,7 @@ export const PageDashboard: Story = {
 
 export const PageSettings: Story = {
   name: 'page-settings',
+  parameters: pageConventionWaiver,
   render: () => (
     <SampleShell>
       <PageFrame>
@@ -288,6 +305,7 @@ export const PageSettings: Story = {
 
 export const PageSingle: Story = {
   name: 'page-single',
+  parameters: pageConventionWaiver,
   render: () => (
     <SampleShell>
       <PageFrame>

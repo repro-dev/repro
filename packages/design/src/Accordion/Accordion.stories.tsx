@@ -44,6 +44,15 @@ function ProductFaq() {
 }
 
 export const SingleExpand: Story = {
+  // Waiver (REP-1656): the accordion root is the component's intended
+  // edge-to-edge anatomy — rows carry their own padding; the un-padded root
+  // trips cramped-padding structurally.
+  parameters: {
+    impeccable: {
+      disable: ['cramped-padding'],
+      reason: 'accordion root is edge-to-edge by design; rows carry padding',
+    },
+  },
   render: () => (
     <Block maxWidth={640} padding={spacing.xl}>
       <Accordion defaultValue="capture">
@@ -54,6 +63,12 @@ export const SingleExpand: Story = {
 }
 
 export const MultiExpand: Story = {
+  parameters: {
+    impeccable: {
+      disable: ['cramped-padding'],
+      reason: 'accordion root is edge-to-edge by design; rows carry padding',
+    },
+  },
   render: () => (
     <Block maxWidth={640} padding={spacing.xl}>
       <Accordion mode="multiple" defaultValue={['capture', 'privacy']}>
@@ -64,6 +79,12 @@ export const MultiExpand: Story = {
 }
 
 export const Controlled: Story = {
+  parameters: {
+    impeccable: {
+      disable: ['cramped-padding'],
+      reason: 'accordion root is edge-to-edge by design; rows carry padding',
+    },
+  },
   render: () => {
     const [value, setValue] = useState<AccordionValue>('privacy')
 
@@ -78,6 +99,12 @@ export const Controlled: Story = {
 }
 
 export const Disabled: Story = {
+  parameters: {
+    impeccable: {
+      disable: ['cramped-padding'],
+      reason: 'accordion root is edge-to-edge by design; rows carry padding',
+    },
+  },
   render: () => (
     <Block maxWidth={640} padding={spacing.xl}>
       <Accordion defaultValue="capture">

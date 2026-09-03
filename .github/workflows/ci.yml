@@ -188,11 +188,8 @@ jobs:
       - name: Render stories to static HTML
         run: pnpm run render-stories-html
 
-      # Non-blocking during triage (REP-1656): first run of the DOM rules found
-      # 197 pre-existing findings. Remove continue-on-error when triage lands.
       - name: Run Impeccable design-slop detector on rendered story HTML
         run: npx impeccable detect tmp/storybook-html/ --json
-        continue-on-error: true
 
       - name: Check formatting (Prettier)
         run: pnpm run fmt:check

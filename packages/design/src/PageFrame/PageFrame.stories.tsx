@@ -24,6 +24,14 @@ export default meta
 type Story = StoryObj<typeof PageFrame>
 
 export const Default: Story = {
+  // Waiver (REP-1656): the 100vh demo root is page framing; the PageFrame
+  // header/body provide the content inset.
+  parameters: {
+    impeccable: {
+      disable: ['cramped-padding'],
+      reason: '100vh demo root is page framing; header/body carry the inset',
+    },
+  },
   render: () => (
     <Block height="100vh" backgroundColor={color.bg.subtle}>
       <PageFrame>
@@ -55,6 +63,12 @@ export const Default: Story = {
 
 export const ConstrainedWidth: Story = {
   name: 'Constrained Width',
+  parameters: {
+    impeccable: {
+      disable: ['cramped-padding'],
+      reason: '100vh demo root is page framing; header/body carry the inset',
+    },
+  },
   render: () => (
     <Block height="100vh" backgroundColor={color.bg.subtle}>
       <PageFrame>
@@ -84,6 +98,12 @@ export const ConstrainedWidth: Story = {
 
 export const ScrollableContent: Story = {
   name: 'Scrollable Content',
+  parameters: {
+    impeccable: {
+      disable: ['cramped-padding'],
+      reason: '100vh demo root is page framing; header/body carry the inset',
+    },
+  },
   render: () => (
     <Block height="100vh" backgroundColor={color.bg.subtle}>
       <PageFrame>
@@ -114,6 +134,12 @@ export const ScrollableContent: Story = {
 
 export const InsideAppShell: Story = {
   name: 'Inside AppShell (Composed)',
+  parameters: {
+    impeccable: {
+      disable: ['cramped-padding'],
+      reason: '100vh demo root is page framing; header/body carry the inset',
+    },
+  },
   render: () => (
     <AppShell>
       <AppShell.Sidebar>

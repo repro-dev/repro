@@ -30,6 +30,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { cacheSingleton } from '@jsxstyle/core'
 import { createElement, type ReactElement, type ReactNode } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { buildWaiverDirective } from './story-waiver-directive.ts'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 export const REPO_ROOT = resolve(__dirname, '..')
@@ -180,8 +181,17 @@ interface FileRow {
   failed: number
 }
 
-function htmlDocument(markup: string, css: string): string {
-  return `<!doctype html><html><head><meta charset="utf-8"><style>${css}</style></head><body>${markup}</body></html>`
+function htmlDocument(
+  markup: string,
+  css: string,
+  waiverDirective = ''
+): string {
+  // The waiver directive is injected into the rendered doc (not left in story
+  // source) because the detector scans the generated HTML: source-level inline
+  // ignores cannot survive re-render, while this whole-file directive is
+  // regenerated on every render (REP-1656).
+  const bodyPrefix = waiverDirective ? `${waiverDirective}\n` : ''
+  return `<!doctype html><html><head><meta charset="utf-8"><style>${css}</style></head><body>${bodyPrefix}${markup}</body></html>`
 }
 
 export async function runRender(
@@ -273,7 +283,10 @@ export async function runRender(
           OUTPUT_DIR,
           `${moduleId}-${storyName.replaceAll(/[^a-zA-Z0-9]+/g, '-')}.html`
         )
-        writeFileSync(outputPath, htmlDocument(markup, css))
+        writeFileSync(
+          outputPath,
+          htmlDocument(markup, css, buildWaiverDirective(story))
+        )
         rendered++
         fileRendered++
       } catch (err) {

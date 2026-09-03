@@ -45,7 +45,9 @@ export const DefinitionList: React.FC<Props> = ({ title, pairs }) => (
         <Block
           padding={spacing.md}
           borderBottom={`1px solid ${color.border.default}`}
-          lineHeight={lineHeight.normal}
+          // Relaxed leading: values carry unbounded-length text (>50 chars in
+          // practice) and need readable line height (REP-1656 tight-leading).
+          lineHeight={lineHeight.relaxed}
           wordBreak="break-word"
         >
           {value}

@@ -24,7 +24,7 @@ export const Default: Story = {
           Session Recording
         </Block>
         <Block fontSize={fontSize.sm} color={color.text.secondary}>
-          Captured 2 minutes ago — 847 events across 12 DOM snapshots.
+          Captured 2 minutes ago: 847 events across 12 DOM snapshots.
         </Block>
       </Block>
     ),
@@ -59,7 +59,7 @@ export const FixedHeight: Story = {
           Compact Card
         </Block>
         <Block fontSize={fontSize.sm} color={color.text.secondary}>
-          Fixed at 120px height — overflow is hidden.
+          Fixed at 120px height, so overflow is hidden.
         </Block>
       </Block>
     ),
@@ -68,6 +68,14 @@ export const FixedHeight: Story = {
 
 /** Custom padding values. */
 export const CustomPadding: Story = {
+  // Waiver (REP-1656): the story's subject is the padding scale itself — the
+  // padding: 0 card is flush on purpose.
+  parameters: {
+    impeccable: {
+      disable: ['cramped-padding'],
+      reason: 'story deliberately demonstrates padding: 0',
+    },
+  },
   render: () => (
     <Col gap={16} padding={16}>
       {[0, 10, 20, 40].map(p => (
@@ -89,7 +97,7 @@ export const ShadowVariants: Story = {
       {(['none', 'xs', 'sm', 'md', 'lg'] as ShadowToken[]).map(t => (
         <Card key={t} shadow={t}>
           <Block fontSize={fontSize.sm} color={color.text.secondary}>
-            shadow: {t} — {shadow[t]}
+            {t} shadow: {shadow[t]}
           </Block>
         </Card>
       ))}

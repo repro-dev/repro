@@ -2,6 +2,7 @@ import { Block, Col } from '@jsxstyle/react'
 import type { Meta, StoryObj } from '@storybook/react'
 import React from 'react'
 import { color } from '../tokens/colors'
+import { fontSize } from '../tokens/typography'
 import { Link } from './Link'
 
 const meta: Meta<typeof Link> = {
@@ -47,7 +48,7 @@ export const CustomUnderline: Story = {
       <Block color={color.text.secondary} fontSize={13}>
         Secondary text with a <Link href="#">link</Link> inside.
       </Block>
-      <Block color={color.text.muted} fontSize={11}>
+      <Block color={color.text.muted} fontSize={fontSize.xs}>
         Muted caption with a <Link href="#">link</Link> inside.
       </Block>
     </Col>

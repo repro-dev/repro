@@ -20,13 +20,18 @@
 /**
  * Font size scale in px.
  * md (14px) is the primary body text. Steps are intentional:
- * 11 (xs) → 12 (sm) → 14 (md) → 18 (lg) → 20 (xl) → 24 (2xl) → 32 (3xl).
+ * 12 (xs/sm) → 14 (md) → 18 (lg) → 20 (xl) → 24 (2xl) → 32 (3xl).
  * The gap between md and lg reflects the transition from UI/badge sizes
  * to heading sizes.
+ *
+ * xs and sm both sit at 12px pending the type-scale review (REP-1656): xs was
+ * 11px, but 11px body text failed the tiny-text design rule, so the readable
+ * floor is 12px. xs keeps the semantic caption / minimum-UI role while the
+ * scale is reworked; do not treat xs === sm as an invitation to merge them.
  */
 export const fontSize = {
-  /** 11px — captions, timestamps, minimal UI */
-  xs: 11,
+  /** 12px — captions, timestamps, minimum UI text (readability floor) */
+  xs: 12,
   /** 12px — small UI text, labels, secondary body */
   sm: 12,
   /** 14px — primary body text */
@@ -184,6 +189,7 @@ export type TextStyleToken = keyof typeof textStyles
 
 /**
  * Minimum font size used by Button and Input — references `fontSize.xs`.
- * Components should import this constant rather than hardcoding 11.
+ * Components should import this constant rather than hardcoding a px value.
+ * Sits at the 12px readability floor (REP-1656).
  */
 export const MINIMUM_FONT_SIZE = fontSize.xs
