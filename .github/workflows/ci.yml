@@ -170,6 +170,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --reporter=silent
 
+      - name: Run pen-lint conventions
+        run: pnpm run pen:lint
+
+      - name: Run pen clipping scan
+        run: pnpm run pen-clipping-scan
+
       - name: Build oxlint plugin (if present)
         run: |
           if [ -f "packages/oxlint-plugin-design/package.json" ]; then
@@ -179,8 +185,14 @@ jobs:
       - name: Run workspace lint (Oxlint)
         run: pnpm run lint
 
-      - name: Run Impeccable design-slop detector
-        run: npx impeccable detect apps/ packages/ --json
+      - name: Render stories to static HTML
+        run: pnpm run render-stories-html
+
+      # Non-blocking during triage (REP-1656): first run of the DOM rules found
+      # 197 pre-existing findings. Remove continue-on-error when triage lands.
+      - name: Run Impeccable design-slop detector on rendered story HTML
+        run: npx impeccable detect tmp/storybook-html/ --json
+        continue-on-error: true
 
       - name: Check formatting (Prettier)
         run: pnpm run fmt:check

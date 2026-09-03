@@ -895,7 +895,7 @@ After the manual test plan is written, printed as the fixed `Manual verification
 
 ### CI-enforced checks
 
-CI enforces build, typecheck, test (`moon ci :build :typecheck :test`), lint, format, migration timestamp checks, and test-file size limits — these run independently after publish and are not gated here.
+CI enforces build, typecheck, test (`moon ci :build :typecheck :test`), lint, format, and migration timestamp checks; the test-file size check runs warn-only (reported, non-blocking) while the oversized-test-file backlog is worked down — these run independently after publish and are not gated here.
 
 `/build` publishes PRs after local verification and does **not** wait on CI. A run is not complete until the PR exists, the publish phase has run, and the manual verification output has been written, printed in the operator summary, and appended to the PR body (the §8 completion gate). Report local checks separately so CI status is never implied unless it was actually observed elsewhere.
 
