@@ -23,6 +23,14 @@ export const Default: Story = {
 }
 
 export const CompactRange: Story = {
+  // Waiver (REP-1656): 10, 11, 12 are pagination page-number buttons — numeric
+  // UI data, not prose section markers.
+  parameters: {
+    impeccable: {
+      disable: ['numbered-section-markers'],
+      reason: 'pagination page numbers are numeric UI data',
+    },
+  },
   args: {
     currentPage: 6,
     totalPages: 12,

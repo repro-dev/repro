@@ -39,6 +39,13 @@ const statusBadge = (status: AdminRow['status']) => {
 
 /** Admin table with transparent surface and compact density by default. */
 export const Default: Story = {
+  parameters: {
+    impeccable: {
+      disable: ['cramped-padding', 'numbered-section-markers'],
+      reason:
+        'admin tables are edge-to-edge by convention; dates are demo data',
+    },
+  },
   render: () => (
     <Block
       borderWidth={1}
@@ -73,6 +80,12 @@ export const Default: Story = {
 
 /** Every AdminTable default stays overridable via the shared TableProps. */
 export const Overrides: Story = {
+  parameters: {
+    impeccable: {
+      disable: ['numbered-section-markers'],
+      reason: 'calendar dates in demo table data, not prose section markers',
+    },
+  },
   render: () => (
     <AdminTable
       aria-label="Admin sessions with default surface and density"

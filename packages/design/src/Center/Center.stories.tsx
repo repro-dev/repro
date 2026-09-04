@@ -30,6 +30,14 @@ export default meta
 type Story = StoryObj<typeof Center>
 
 export const Default: Story = {
+  // Waiver (REP-1656): the dashed box is a demo canvas framing the Center
+  // primitive, not product UI — the flush border is the demonstration.
+  parameters: {
+    impeccable: {
+      disable: ['cramped-padding'],
+      reason: 'dashed demo canvas frames the Center primitive; not product UI',
+    },
+  },
   render: () => (
     <Block height={300} border={`1px dashed ${color.border.default}`}>
       <Center>
@@ -40,6 +48,12 @@ export const Default: Story = {
 }
 
 export const WithMaxWidth: Story = {
+  parameters: {
+    impeccable: {
+      disable: ['cramped-padding'],
+      reason: 'dashed demo canvas frames the Center primitive; not product UI',
+    },
+  },
   render: () => (
     <Block height={300} border={`1px dashed ${color.border.default}`}>
       <Center maxWidth={320}>

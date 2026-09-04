@@ -7,7 +7,9 @@ const expectedSansStack =
 
 describe('typography font size tokens', () => {
   it('provides the revised font size scale', () => {
-    expect(fontSize.xs).toBe(11)
+    // xs sits at the 12px readability floor (REP-1656): 11px body text failed
+    // the tiny-text design rule, so the minimum token converges with sm at 12px.
+    expect(fontSize.xs).toBe(12)
     expect(fontSize.sm).toBe(12)
     expect(fontSize.md).toBe(14)
     expect(fontSize.lg).toBe(18)
@@ -47,7 +49,7 @@ describe('typography font family tokens', () => {
     expect(textStyles.heading6.fontFamily).toBe(expectedSansStack)
   })
 
-  it('has heading4/5/6 fontSize in descending order after heading3', () => {
+  it('has heading4/5/6 fontSize non-increasing after heading3, floored at the xs/sm convergence (12px)', () => {
     const h3 = textStyles.heading3.fontSize
     const h4 = textStyles.heading4.fontSize
     const h5 = textStyles.heading5.fontSize
@@ -56,8 +58,11 @@ describe('typography font family tokens', () => {
 
     expect(h4).toBeLessThan(h3)
     expect(h5).toBeLessThan(h4)
-    expect(h6).toBeLessThan(h5)
-    expect(h6).toBeLessThan(body)
+    // h5 and h6 both sit at the 12px readability floor pending the type-scale
+    // review (REP-1656) — non-strict while the scale is converged.
+    expect(h6).toBeLessThanOrEqual(h5)
+    expect(h6).toBeLessThanOrEqual(body)
+    expect(h6).toBe(fontSize.xs)
   })
 })
 
@@ -69,12 +74,12 @@ describe('textStyles presets reflect revised scale', () => {
     expect(textStyles.heading3.fontSize).toBe(18)
     expect(textStyles.heading4.fontSize).toBe(14)
     expect(textStyles.heading5.fontSize).toBe(12)
-    expect(textStyles.heading6.fontSize).toBe(11)
+    expect(textStyles.heading6.fontSize).toBe(12)
     expect(textStyles.body.fontSize).toBe(14)
     expect(textStyles.bodySmall.fontSize).toBe(12)
-    expect(textStyles.caption.fontSize).toBe(11)
+    expect(textStyles.caption.fontSize).toBe(12)
     expect(textStyles.label.fontSize).toBe(12)
     expect(textStyles.code.fontSize).toBe(12)
-    expect(textStyles.overline.fontSize).toBe(11)
+    expect(textStyles.overline.fontSize).toBe(12)
   })
 })

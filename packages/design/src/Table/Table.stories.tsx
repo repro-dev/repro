@@ -16,12 +16,31 @@ const meta: Meta = {
 export default meta
 type Story = StoryObj
 
+// REP-1656 waiver: numbered-section-markers fires on the zero-padded calendar
+// dates in demo data (`2024-03-01`) — numeric UI data, not prose markers.
+const demoDateWaiver = {
+  impeccable: {
+    disable: ['numbered-section-markers'],
+    reason: 'calendar dates in demo table data, not prose section markers',
+  },
+}
+
+// REP-1656 waiver: these stories demo edge-to-edge table anatomy where the
+// bordered wrapper is demo framing; cell padding provides the real inset.
+const tableBleedWaiver = {
+  impeccable: {
+    disable: ['cramped-padding'],
+    reason: 'edge-to-edge table anatomy; wrapper is demo framing',
+  },
+}
+
 // ---------------------------------------------------------------------------
 // Default — basic read-only table
 // ---------------------------------------------------------------------------
 
 /** Basic table with header and body rows, no interactivity. */
 export const Default: Story = {
+  parameters: demoDateWaiver,
   render: () => (
     <Table aria-label="Sessions">
       <Table.Header>
@@ -98,6 +117,7 @@ function DensityTable({ compact = false }: { compact?: boolean }) {
 
 /** Compare the default rhythm with compact density for constrained surfaces. */
 export const DensityComparison: Story = {
+  parameters: tableBleedWaiver,
   render: () => (
     <Row gap={spacing.xl} alignItems="flex-start" flexWrap="wrap">
       <Col gap={spacing.sm} width={360}>
@@ -137,6 +157,7 @@ type SortDirection = 'asc' | 'desc' | null
 
 /** Sortable columns with controlled sort state. Click a header to sort. */
 export const Sortable: Story = {
+  parameters: demoDateWaiver,
   render: () => {
     const [sortColumn, setSortColumn] = useState<SortColumn>(null)
     const [sortDirection, setSortDirection] = useState<SortDirection>(null)
@@ -205,6 +226,7 @@ export const Sortable: Story = {
 
 /** Single-select mode: click a row to select it. Only one row can be selected. */
 export const SingleSelect: Story = {
+  parameters: demoDateWaiver,
   render: () => {
     const [selected, setSelected] = useState<Set<string>>(new Set())
 
@@ -256,6 +278,7 @@ export const SingleSelect: Story = {
 
 /** Multi-select mode: checkboxes on each row plus a select-all in the header. */
 export const MultiSelect: Story = {
+  parameters: demoDateWaiver,
   render: () => {
     const [selected, setSelected] = useState<Set<string>>(new Set())
 
@@ -372,6 +395,12 @@ export const Loading: Story = {
  * listing-page chrome used in AccountsRoute and RecordingsRoute. */
 export const Bleed: Story = {
   tags: ['autodocs', 'design-system'],
+  parameters: {
+    impeccable: {
+      disable: ['cramped-padding', 'numbered-section-markers'],
+      reason: 'edge-to-edge table anatomy; dates are demo data',
+    },
+  },
   render: () => (
     <Table
       aria-label="Bleed table"
@@ -409,6 +438,12 @@ export const Bleed: Story = {
 
 /** Sticky header remains visible when scrolling through a long list of rows. */
 export const StickyHeader: Story = {
+  parameters: {
+    impeccable: {
+      disable: ['cramped-padding', 'numbered-section-markers'],
+      reason: 'scroll-container demo framing; dates are demo data',
+    },
+  },
   render: () => (
     <Block height={200} overflowY="auto" border="1px solid #e2e8f0">
       <Table aria-label="Sticky header table" stickyHeader>
