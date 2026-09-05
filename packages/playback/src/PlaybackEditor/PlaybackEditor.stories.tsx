@@ -46,6 +46,17 @@ const boxElement = vtree
   ? findElementsByClassName(vtree, 'box')[0] ?? null
   : null
 
+// Impeccable rendered-HTML gate waiver (REP-1656 convention, needed since
+// REP-1662 made this story render): the embedded SimpleTimeline collapse
+// animates height by design (grid-template-rows rework is a follow-up).
+const impeccableWaiver = {
+  impeccable: {
+    disable: ['layout-transition'],
+    reason:
+      'Embedded SimpleTimeline collapse animates height by design (grid-template-rows rework is a follow-up)',
+  },
+} as const
+
 const patch: AttributePatch = {
   type: PatchType.Attribute,
   targetId: boxElement!.id,
@@ -108,6 +119,7 @@ const events = new List(SourceEventView, [
 ])
 
 export const Default: Story = {
+  parameters: { ...impeccableWaiver },
   render: () => (
     <PlaybackProvider playback={createSourcePlayback(events, 1000, {})}>
       <Grid height={640}>
