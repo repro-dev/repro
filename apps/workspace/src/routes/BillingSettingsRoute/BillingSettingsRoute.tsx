@@ -178,7 +178,10 @@ export function BillingSettingsRoute({
   const isFreePlan = currentPlan?.name === 'Free'
   const hasPaidSubscription = subscription != null && !isFreePlan
   const planDisplayName = currentPlan?.name ?? subscription?.planId ?? 'Free'
-  // Only Paddle-managed subs (isSelfProvisioned: false) expose cancel + portal
+  // Only Paddle-managed subs (isSelfProvisioned: false) expose cancel + portal.
+  // The backend also emits isSelfProvisioned: false for free-plan subscription
+  // rows, so the manage card is additionally gated on hasPaidSubscription
+  // (REP-1649).
   const isPaddleManaged =
     subscription != null && !subscription.isSelfProvisioned
   const canCancel =
@@ -247,7 +250,7 @@ export function BillingSettingsRoute({
             </Col>
           </Card>
 
-          {isPaddleManaged && (
+          {hasPaidSubscription && isPaddleManaged && (
             <Card>
               <Col padding={spacing.xl} gap={spacing.lg}>
                 <Text variant="heading3">Manage Subscription</Text>

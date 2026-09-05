@@ -53,7 +53,9 @@ const freeSubscription: BillingSubscriptionResponse = {
   currentPeriodEnd: '2026-09-01T00:00:00.000Z',
   cancelAtPeriodEnd: false,
   canceledAt: null,
-  isSelfProvisioned: true,
+  // Backend fidelity: the live API emits isSelfProvisioned: false even for
+  // free-plan subscription rows (REP-1649).
+  isSelfProvisioned: false,
   createdAt: '2026-08-01T00:00:00.000Z',
   updatedAt: '2026-08-01T00:00:00.000Z',
 }
@@ -106,7 +108,10 @@ function renderRoute({ getSubscription, getPlans }: TestProps = {}) {
 
 // ---------------------------------------------------------------------------
 // Shared per-state assertions. Free states must NOT render period/renewal/
-// cancel state, and must present the upgrade path as the primary action.
+// cancel state or the Paddle-manage card — free-plan subscription rows still
+// arrive with isSelfProvisioned: false from the backend, so absence of the
+// Manage Subscription card must be asserted explicitly (REP-1649) — and must
+// present the upgrade path as the primary action.
 // ---------------------------------------------------------------------------
 
 function assertFreeState() {
@@ -114,15 +119,34 @@ function assertFreeState() {
   assert.ok(screen.getByText('Free'))
   assert.ok(screen.getByRole('button', { name: /upgrade plan/i }))
 
-  // Negatives — no billing-period state for free plans
-  assert.equal(screen.queryByText(/billing period/i), null)
-  assert.equal(screen.queryByText(/renews on/i), null)
-  assert.equal(
-    screen.queryByRole('button', { name: /cancel subscription/i }),
-    null
+  // Negatives — no billing-period or Paddle-manage state for free plans.
+  // All negatives use assert.ok with a plain message: node's assert.equal
+  // message builder deep-inspects a failing jsdom element and the process
+  // gets OOM-killed (SIGKILL) — a failing assertion must report, not hang.
+  assert.ok(
+    !screen.queryByText(/billing period/i),
+    'free states must not render billing-period info'
   )
-  assert.equal(screen.queryByText(/cancels at end of period/i), null)
-  assert.equal(screen.queryByRole('button', { name: /manage billing/i }), null)
+  assert.ok(
+    !screen.queryByText(/renews on/i),
+    'free states must not render renewal info'
+  )
+  assert.ok(
+    !screen.queryByText('Manage Subscription'),
+    'free states must not render the Manage Subscription card'
+  )
+  assert.ok(
+    !screen.queryByRole('button', { name: /cancel subscription/i }),
+    'free states must not render a Cancel Subscription button'
+  )
+  assert.ok(
+    !screen.queryByText(/cancels at end of period/i),
+    'free states must not render cancel-at-period-end info'
+  )
+  assert.ok(
+    !screen.queryByRole('button', { name: /manage billing/i }),
+    'free states must not render a Manage billing button'
+  )
 }
 
 describe('BillingSettingsRoute state matrix', () => {
