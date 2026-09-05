@@ -891,6 +891,182 @@ BODY
   trap - RETURN
 }
 
+# Case 5 (hardening, digit boundary): a tier-3 substring match must not fire
+# when the branch's issue number merely EXTENDS the requested one — `rep-123`
+# inside `gary/rep-1234-fix-billing` is REP-1234, not REP-123. With only that
+# branch (plus its worktree) and a hint that matches nothing, the decision is
+# a fresh create; the rep-1234 branch/worktree is never adopted.
+test_resolver_digit_boundary_rejects_longer_issue_number() {
+  local tmpdir output rc=0
+  tmpdir="$(mktemp -d "$REPO_ROOT/tmp/test_wt_digit_boundary.XXXXXX")"
+  export tmpdir
+  trap 'rm -rf "$tmpdir"' RETURN
+
+  {
+    _write_real_git_prelude
+    cat <<'SETUP'
+
+# Fixture: REP-1234's branch exists WITH a worktree. Its name contains
+# `rep-123` as a strict substring of `rep-1234` (slug followed by a digit).
+OTHER_ISSUE_BRANCH='gary/rep-1234-fix-billing'
+OTHER_ISSUE_WT="$tmpdir/repro-wt-rep-1234-fix-billing"
+git -C "$REPO_ROOT" worktree add -b "$OTHER_ISSUE_BRANCH" "$OTHER_ISSUE_WT" >/dev/null 2>&1
+
+branches_before="$(git -C "$REPO_ROOT" for-each-ref --format='%(refname:short)' refs/heads | sort)"
+SETUP
+    cat <<'STUB'
+_resolve_issue_worktree_metadata() {
+  WT_ISSUE_UUID='uuid-1'
+  WT_ISSUE_IDENTIFIER='REP-123'
+  WT_ISSUE_TITLE='Digit boundary'
+  WT_ISSUE_BRANCH_NAME='gary/rep-123-none'
+  WT_ISSUE_STATE_NAME='In Progress'
+  WT_ISSUE_STATE_TYPE='started'
+}
+
+_linear_cli() {
+  printf '%s\n' "$*" >> "$tmpdir/linear_calls.log"
+  return 0
+}
+STUB
+    cat <<'BODY'
+
+# Read-only resolver: the hint matches nothing, so the only possible match
+# would be tier 3 — and `rep-123` inside `gary/rep-1234-fix-billing` is
+# followed by a digit (a longer issue number), which must not match.
+decision="$(_resolve_existing_issue_worktree 'REP-123' 'gary/rep-123-none')"
+if [[ "$decision" != "create" ]]; then
+  die "digit boundary: expected create (no partial issue-number match), got: $decision"
+fi
+
+# Control: a genuine tier-3 hit (slug followed by '-') still resolves.
+BOUNDARY_OK_BRANCH='feat/rep-123-unrelated'
+git -C "$REPO_ROOT" branch "$BOUNDARY_OK_BRANCH"
+decision="$(_resolve_existing_issue_worktree 'REP-123' 'gary/rep-123-none')"
+if [[ "$decision" != "reattach $BOUNDARY_OK_BRANCH" ]]; then
+  die "digit boundary over-corrected: expected reattach $BOUNDARY_OK_BRANCH, got: $decision"
+fi
+git -C "$REPO_ROOT" branch -D "$BOUNDARY_OK_BRANCH" >/dev/null 2>&1
+
+# End-to-end: REP-123 must mint a fresh hint-prefixed branch — never adopt
+# the rep-1234 branch or worktree.
+output="$(cmd_wt_create_from_issue REP-123 2>&1)"
+
+branches_after="$(git -C "$REPO_ROOT" for-each-ref --format='%(refname:short)' refs/heads | sort)"
+
+fresh_branch="$(printf '%s\n' "$branches_after" | grep '^gary/rep-123-none-' | grep -v -F -x -f <(printf '%s\n' "$branches_before") | head -1 || true)"
+if [[ -z "$fresh_branch" ]]; then
+  die "expected a fresh branch prefixed with the Linear hint:
+$output"
+fi
+
+if printf '%s\n' "$output" | grep -qi 'existing worktree'; then
+  die "digit boundary: rep-1234 branch was adopted:
+$output"
+fi
+
+resolved_path="$(printf '%s\n' "$output" | sed -n 's/^[[:space:]]*Path:[[:space:]]*//p' | tail -1)"
+if [[ -z "$resolved_path" || ! -d "$resolved_path" ]]; then
+  die "expected a Path: line pointing at the created worktree, got: ${resolved_path:-<none>}
+output: $output"
+fi
+
+if [[ "$resolved_path" == "$OTHER_ISSUE_WT" ]]; then
+  die "digit boundary: rep-1234 worktree was adopted:
+$output"
+fi
+BODY
+  } > "$tmpdir/run_test.sh"
+  chmod +x "$tmpdir/run_test.sh"
+
+  output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  if [ ${rc:-0} -eq 0 ]; then
+    _pass 'digit boundary: rep-1234 branch not matched for REP-123 (create, never adopt)'
+  else
+    _fail 'digit boundary: rep-1234 branch not matched for REP-123 (create, never adopt)' "$output"
+  fi
+  rm -rf "$tmpdir"
+  trap - RETURN
+}
+
+# Case 6 (hardening, main checkout): a branch checked out in the
+# MAIN_CHECKOUT (the primary checkout) must not be adopted — deliver would
+# launch the agent in the primary checkout. Reattach is also impossible (git
+# refuses to check a branch out of a second worktree), so the documented
+# decision is create: mint a fresh hint-prefixed branch + worktree.
+test_main_checkout_branch_not_adopted() {
+  local tmpdir output rc=0
+  tmpdir="$(mktemp -d "$REPO_ROOT/tmp/test_wt_main_checkout.XXXXXX")"
+  export tmpdir
+  trap 'rm -rf "$tmpdir"' RETURN
+
+  {
+    _write_real_git_prelude
+    cat <<'SETUP'
+
+# Fixture: the issue branch is checked out in the sandbox's MAIN_CHECKOUT —
+# no separate worktree holds it. The prelude already cd'd into the sandbox.
+MAIN_HELD_BRANCH='gary/rep-123-existing-delivery'
+git -C "$REPO_ROOT" checkout -q -b "$MAIN_HELD_BRANCH"
+
+# Sanity: the branch resolves to the main checkout (not a repro-wt-* dir).
+wt_at_main="$(_worktree_path_for_branch "$MAIN_HELD_BRANCH" "$REPO_ROOT")"
+if [[ "$wt_at_main" != "$MAIN_CHECKOUT" ]]; then
+  die "fixture broken: expected $MAIN_CHECKOUT to hold $MAIN_HELD_BRANCH, got: ${wt_at_main:-<none>}"
+fi
+
+branches_before="$(git -C "$REPO_ROOT" for-each-ref --format='%(refname:short)' refs/heads | sort)"
+SETUP
+    _write_metadata_stub
+    cat <<'BODY'
+
+# Read-only resolver: the branch is held by the main checkout — not
+# adoptable, and not reattachable (git forbids a second checkout), so the
+# resolver must fall through to create.
+decision="$(_resolve_existing_issue_worktree 'REP-123' 'gary/rep-123-existing-delivery')"
+if [[ "$decision" != "create" ]]; then
+  die "main checkout: expected create (never adopt/reattach the main checkout), got: $decision"
+fi
+
+# End-to-end: a fresh REP-123 worktree is minted; the main checkout is never
+# announced as the resume target.
+output="$(cmd_wt_create_from_issue REP-123 2>&1)"
+
+if printf '%s\n' "$output" | grep -qi 'existing worktree'; then
+  die "main checkout was adopted:
+$output"
+fi
+
+resolved_path="$(printf '%s\n' "$output" | sed -n 's/^[[:space:]]*Path:[[:space:]]*//p' | tail -1)"
+if [[ -z "$resolved_path" || ! -d "$resolved_path" ]]; then
+  die "expected a Path: line pointing at the created worktree, got: ${resolved_path:-<none>}
+output: $output"
+fi
+
+if [[ "$resolved_path" == "$MAIN_CHECKOUT" ]]; then
+  die "main checkout was adopted as the worktree path:
+$output"
+fi
+
+fresh_branch="$(printf '%s\n' "$output" | sed -n 's/^[[:space:]]*Branch:[[:space:]]*//p' | tail -1)"
+if [[ "$fresh_branch" != "gary/rep-123-existing-delivery-"* ]]; then
+  die "expected a fresh branch prefixed with the Linear hint, got: ${fresh_branch:-<none>}
+output: $output"
+fi
+BODY
+  } > "$tmpdir/run_test.sh"
+  chmod +x "$tmpdir/run_test.sh"
+
+  output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  if [ ${rc:-0} -eq 0 ]; then
+    _pass 'branch checked out in main checkout → create (never adopt the primary checkout)'
+  else
+    _fail 'branch checked out in main checkout → create (never adopt the primary checkout)' "$output"
+  fi
+  rm -rf "$tmpdir"
+  trap - RETURN
+}
+
 test_records_linear_sync_failure
 test_creates_issue_worktree_path_from_metadata
 test_resolve_issue_worktree_metadata_parses_cli_json
@@ -903,8 +1079,10 @@ test_adopt_existing_branch_with_worktree
 test_reattach_existing_branch_without_worktree
 test_create_fresh_when_no_existing_branch
 test_resolver_tiers_substring_and_exact_preference
+test_resolver_digit_boundary_rejects_longer_issue_number
+test_main_checkout_branch_not_adopted
 
-printf '\nResults: %d passed, %d failed out of 12 tests\n' "$PASS" "$FAIL"
+printf '\nResults: %d passed, %d failed out of 14 tests\n' "$PASS" "$FAIL"
 
 if [ "$FAIL" -gt 0 ]; then
   exit 1

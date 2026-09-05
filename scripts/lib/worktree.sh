@@ -134,6 +134,19 @@ _herdr_workspace_add_sibling() {
     return 0
   fi
 
+  # Already-open guard: herdr's `worktree open` idempotency for an
+  # already-registered path is not documented as guaranteed, so reuse the
+  # open workspace herdr already has for this path instead of risking a
+  # duplicate. Fail-open: when the lookup yields nothing (list failure, jq
+  # missing, path not registered), fall through to `worktree open` as before.
+  local existing_ws
+  existing_ws="$(_herdr_open_workspace_id_for_path "$wt_path")" || existing_ws=""
+  if [ -n "$existing_ws" ] && [ "$existing_ws" != "null" ]; then
+    echo "Reusing open herdr workspace for ${wt_path} (${existing_ws})" >&2
+    printf '%s\n' "$existing_ws"
+    return 0
+  fi
+
   local herdr_stderr
   herdr_stderr="$(mktemp "$MAIN_CHECKOUT/tmp/herdr.XXXXXX")"
 
@@ -165,7 +178,12 @@ _herdr_workspace_add_sibling() {
   fi
 }
 
-_herdr_workspace_close_for_path() {
+# _herdr_open_workspace_id_for_path <wt_path>
+# Prints the open workspace id herdr has registered for <wt_path>, or nothing
+# when none is found. Fail-open by design: any list or jq failure (including
+# jq missing entirely) yields empty output, so callers treat "unknown" the
+# same as "not open" and proceed with their normal path.
+_herdr_open_workspace_id_for_path() {
   local wt_path="$1"
 
   if ! _herdr_is_running; then
@@ -179,8 +197,14 @@ _herdr_workspace_close_for_path() {
     return 0
   fi
 
+  printf '%s' "$list_output" | jq -r --arg path "$wt_path" '.result.worktrees // [] | map(select(.path == $path)) | .[0].open_workspace_id // .[0].id // empty' 2>/dev/null || return 0
+}
+
+_herdr_workspace_close_for_path() {
+  local wt_path="$1"
+
   local ws_id
-  ws_id="$(printf '%s' "$list_output" | jq -r --arg path "$wt_path" '.result.worktrees // [] | map(select(.path == $path)) | .[0].open_workspace_id // .[0].id // empty' 2>/dev/null)" || return 0
+  ws_id="$(_herdr_open_workspace_id_for_path "$wt_path")" || return 0
 
   if [ -n "$ws_id" ] && [ "$ws_id" != "null" ]; then
     herdr workspace close "$ws_id" 2>/dev/null || true
@@ -281,9 +305,15 @@ _resolve_existing_issue_worktree() {
       tier=2
     elif [ -n "$issue_slug" ]; then
       lower="$(printf '%s' "$branch" | tr '[:upper:]' '[:lower:]')"
-      if [[ "$lower" == *"$issue_slug"* ]]; then
-        tier=3
-      fi
+      # Digit boundary: `rep-123` must not satisfy tier 3 on a branch named
+      # for `rep-1234` — a slug occurrence immediately followed by another
+      # digit is a longer issue number, not this issue (mirrors
+      # _wt_branch_issue_identifier, which extracts full issue numbers).
+      # Any other trailing character, or end-of-string, is a genuine hit.
+      case "$lower" in
+        *"$issue_slug"[0-9]*) : ;;
+        *"$issue_slug"*) tier=3 ;;
+      esac
     fi
     case "$tier" in
       0) continue ;;
@@ -298,6 +328,15 @@ _resolve_existing_issue_worktree() {
   fi
 
   wt_path="$(_worktree_path_for_branch "$best_branch" "$REPO_ROOT")" || wt_path=""
+  if [ -n "$wt_path" ] && [ "$wt_path" = "${MAIN_CHECKOUT:-}" ]; then
+    # The issue branch is checked out in the primary checkout. It must not be
+    # adopted (deliver would launch the agent in the main checkout) and it
+    # cannot be reattached (git refuses to check a branch out of a second
+    # worktree), so the only sound decision is a fresh mint.
+    _warn "Branch ${best_branch} is checked out in the main checkout (${MAIN_CHECKOUT}) — minting a fresh worktree instead."
+    echo "create"
+    return 0
+  fi
   if [ -n "$wt_path" ] && [ -d "$wt_path" ]; then
     echo "adopt $best_branch $wt_path"
   else
