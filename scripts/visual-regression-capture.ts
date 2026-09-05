@@ -13,6 +13,7 @@
  *     --stories '["button--primary","button--secondary"]'
  *
  * If --stories is '[]' or omitted, captures ALL stories from Storybook /index.json.
+ * Pass --fail-on-new to exit non-zero when a story has no committed baseline (CI mode).
  *
  * Outputs JSON to stdout:
  * {
@@ -22,7 +23,8 @@
  *   "new_stories": [...]
  * }
  *
- * Exits 0 if all pass (or all new), non-zero if any fail.
+ * Exits 0 if all pass (or all new), non-zero if any fail (or --fail-on-new is set
+ * and any story has no baseline).
  */
 
 import * as fs from 'fs'
@@ -130,12 +132,30 @@ export function isAboveThreshold(
   return changedPixels / totalPixels > threshold
 }
 
+/**
+ * Determine the process exit code from the capture output.
+ *
+ * Above-threshold failures always exit 1. New stories (no committed baseline)
+ * only exit 1 when failOnNew is set — CI passes --fail-on-new so a new story
+ * cannot land without its baseline; local runs default to off so the manual
+ * first-capture UX is unchanged.
+ */
+export function computeExitCode(
+  output: CaptureOutput,
+  failOnNew: boolean
+): number {
+  if (output.failed.length > 0) return 1
+  if (failOnNew && output.new_stories.length > 0) return 1
+  return 0
+}
+
 function parseArgs(argv: string[]): {
   storybookUrl: string
   outputDir: string
   baselineDir: string | null
   threshold: number
   storyIds: string[]
+  failOnNew: boolean
   help: boolean
 } {
   const args = argv.slice(2)
@@ -144,6 +164,7 @@ function parseArgs(argv: string[]): {
   let baselineDir: string | null = null
   let threshold = 0.001
   let storyIds: string[] = []
+  let failOnNew = false
   let help = false
 
   for (let i = 0; i < args.length; i++) {
@@ -158,6 +179,8 @@ function parseArgs(argv: string[]): {
       baselineDir = args[++i]!
     } else if (arg === '--threshold' && args[i + 1]) {
       threshold = parseFloat(args[++i]!)
+    } else if (arg === '--fail-on-new') {
+      failOnNew = true
     } else if (arg === '--stories' && args[i + 1]) {
       try {
         storyIds = JSON.parse(args[++i]!)
@@ -168,7 +191,15 @@ function parseArgs(argv: string[]): {
     }
   }
 
-  return { storybookUrl, outputDir, baselineDir, threshold, storyIds, help }
+  return {
+    storybookUrl,
+    outputDir,
+    baselineDir,
+    threshold,
+    storyIds,
+    failOnNew,
+    help,
+  }
 }
 
 async function fetchStoryIds(storybookUrl: string): Promise<string[]> {
@@ -218,6 +249,7 @@ async function main(): Promise<void> {
     baselineDir,
     threshold,
     storyIds: requestedStories,
+    failOnNew,
     help,
   } = parseArgs(process.argv)
 
@@ -229,6 +261,8 @@ Options:
   --output-dir <path>       Directory to write screenshots
   --baseline-dir <path>     Directory containing baseline screenshots (enables diff)
   --threshold <float>       Pixel diff threshold as fraction (default: 0.001 = 0.1%)
+  --fail-on-new             Exit non-zero when a story has no committed baseline
+                            (used in CI so a new story must ship its baseline)
   --stories <json>          JSON array of story IDs; empty array captures all stories
   --help                    Show this help message
 `)
@@ -312,8 +346,7 @@ Options:
 
   console.log(JSON.stringify(output, null, 2))
 
-  const hasFailures = output.failed.length > 0
-  process.exit(hasFailures ? 1 : 0)
+  process.exit(computeExitCode(output, failOnNew))
 }
 
 // Only run main() when invoked directly (not when imported by tests)

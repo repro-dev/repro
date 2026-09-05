@@ -13,16 +13,19 @@ export interface ToolViewProps {
  * full-bleed content area. This is a sibling shell to `AppShell` — the
  * sidebar is hidden and the tool gets maximum viewport space.
  *
- * @example
- *   <ToolView>
- *     <ToolView.Header>
- *       <Link to="/sessions">Back</Link>
- *       <span>Recording Title</span>
- *     </ToolView.Header>
- *     <ToolView.Content>
- *       <DevTools />
- *     </ToolView.Content>
- *   </ToolView>
+ * Usage:
+ *
+ * ```tsx
+ * <ToolView>
+ *   <ToolView.Header>
+ *     <Link to="/sessions">Back</Link>
+ *     <span>Recording Title</span>
+ *   </ToolView.Header>
+ *   <ToolView.Content>
+ *     <DevTools />
+ *   </ToolView.Content>
+ * </ToolView>
+ * ```
  */
 export const ToolView: React.FC<ToolViewProps> = ({ children }) => {
   return (

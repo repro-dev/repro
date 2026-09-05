@@ -18,17 +18,21 @@ export interface StackProps {
  * you need a vertical stack with consistent spacing — it prevents ad-hoc pixel
  * values from leaking into the layout.
  *
- * @example
- *   <Stack gap="md">
- *     <Label htmlFor="name">Name</Label>
- *     <Input id="name" />
- *   </Stack>
+ * Usage:
  *
- * @example
- *   <Stack gap="xl" component="section">
- *     <Heading>Settings</Heading>
- *     <SettingsForm />
- *   </Stack>
+ * ```tsx
+ * <Stack gap="md">
+ *   <Label htmlFor="name">Name</Label>
+ *   <Input id="name" />
+ * </Stack>
+ * ```
+ *
+ * ```tsx
+ * <Stack gap="xl" component="section">
+ *   <Heading>Settings</Heading>
+ *   <SettingsForm />
+ * </Stack>
+ * ```
  */
 export const Stack = forwardRef<HTMLElement, StackProps>(
   ({ gap, component, children }, ref) => {

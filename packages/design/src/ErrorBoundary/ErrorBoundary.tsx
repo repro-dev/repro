@@ -21,18 +21,22 @@ interface ErrorBoundaryState {
  * Must be a class component — React error boundaries require the
  * `getDerivedStateFromError` / `componentDidCatch` class lifecycle methods.
  *
- * @example
- *   <ErrorBoundary>
- *     <MyComponent />
- *   </ErrorBoundary>
+ * Usage:
  *
- * @example
- *   <ErrorBoundary
- *     fallback={error => <Alert type="danger">{error.message}</Alert>}
- *     onError={(error, info) => logError(error, info)}
- *   >
- *     <MyComponent />
- *   </ErrorBoundary>
+ * ```tsx
+ * <ErrorBoundary>
+ *   <MyComponent />
+ * </ErrorBoundary>
+ * ```
+ *
+ * ```tsx
+ * <ErrorBoundary
+ *   fallback={error => <Alert type="danger">{error.message}</Alert>}
+ *   onError={(error, info) => logError(error, info)}
+ * >
+ *   <MyComponent />
+ * </ErrorBoundary>
+ * ```
  */
 export class ErrorBoundary extends React.Component<
   ErrorBoundaryProps,

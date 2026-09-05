@@ -19,18 +19,22 @@ export interface FullPageErrorProps {
  * danger-themed `AlertTriangle` icon. Fills its parent container
  * (`height: 100%`) so callers control the overall dimensions.
  *
- * @example
- *   <FullPageError
- *     title="Something went wrong"
- *     description="There was an error loading this recording."
- *   />
+ * Usage:
  *
- * @example
- *   <FullPageError
- *     title="Something went wrong"
- *     description="There was an error loading this recording."
- *     action={<Button>Retry</Button>}
- *   />
+ * ```tsx
+ * <FullPageError
+ *   title="Something went wrong"
+ *   description="There was an error loading this recording."
+ * />
+ * ```
+ *
+ * ```tsx
+ * <FullPageError
+ *   title="Something went wrong"
+ *   description="There was an error loading this recording."
+ *   action={<Button>Retry</Button>}
+ * />
+ * ```
  */
 export const FullPageError = forwardRef<HTMLDivElement, FullPageErrorProps>(
   ({ title, description, icon, action }, ref) => {

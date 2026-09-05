@@ -13,10 +13,13 @@ export interface EmptyStateIconProps {
  * and controls its size (typically 32–48 px). The slot is marked
  * `aria-hidden` since it is purely decorative.
  *
- * @example
- *   <EmptyState.Icon>
- *     <InboxIcon size={40} />
- *   </EmptyState.Icon>
+ * Usage:
+ *
+ * ```tsx
+ * <EmptyState.Icon>
+ *   <InboxIcon size={40} />
+ * </EmptyState.Icon>
+ * ```
  */
 export const EmptyStateIcon = forwardRef<HTMLDivElement, EmptyStateIconProps>(
   ({ children }, ref) => {

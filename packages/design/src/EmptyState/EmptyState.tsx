@@ -17,17 +17,20 @@ export interface EmptyStateProps {
  * `EmptyState.Title`, `EmptyState.Description`, `EmptyState.Action`) to
  * build a complete empty state.
  *
- * @example
- *   <EmptyState>
- *     <EmptyState.Icon><InboxIcon size={40} /></EmptyState.Icon>
- *     <EmptyState.Title>No sessions yet</EmptyState.Title>
- *     <EmptyState.Description>
- *       Sessions will appear here once recording begins.
- *     </EmptyState.Description>
- *     <EmptyState.Action>
- *       <Button>Get started</Button>
- *     </EmptyState.Action>
- *   </EmptyState>
+ * Usage:
+ *
+ * ```tsx
+ * <EmptyState>
+ *   <EmptyState.Icon><InboxIcon size={40} /></EmptyState.Icon>
+ *   <EmptyState.Title>No sessions yet</EmptyState.Title>
+ *   <EmptyState.Description>
+ *     Sessions will appear here once recording begins.
+ *   </EmptyState.Description>
+ *   <EmptyState.Action>
+ *     <Button>Get started</Button>
+ *   </EmptyState.Action>
+ * </EmptyState>
+ * ```
  */
 export const EmptyState = forwardRef<HTMLDivElement, EmptyStateProps>(
   ({ children }, ref) => {

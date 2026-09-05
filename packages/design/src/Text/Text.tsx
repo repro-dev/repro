@@ -79,11 +79,14 @@ interface TextProps {
  * Use `Text` instead of applying `fontSize` / `fontWeight` / `lineHeight`
  * directly on jsxstyle primitives.
  *
- * @example
- *   <Text variant="heading1">Page Title</Text>
- *   <Text variant="body">Paragraph content here.</Text>
- *   <Text variant="caption" color={color.text.muted}>Updated 2 min ago</Text>
- *   <Text variant="code">{'const x = 1'}</Text>
+ * Usage:
+ *
+ * ```tsx
+ * <Text variant="heading1">Page Title</Text>
+ * <Text variant="body">Paragraph content here.</Text>
+ * <Text variant="caption" color={color.text.muted}>Updated 2 min ago</Text>
+ * <Text variant="code">{'const x = 1'}</Text>
+ * ```
  */
 export const Text = React.forwardRef<HTMLElement, TextProps>(
   (

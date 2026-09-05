@@ -21,7 +21,9 @@ export interface TabsProps {
  * (`defaultValue`). Full WAI-ARIA Tabs keyboard navigation is handled by
  * `Tabs.List`.
  *
- * @example
+ * Usage:
+ *
+ * ```tsx
  * <Tabs defaultValue="general">
  *   <Tabs.List aria-label="Settings">
  *     <Tabs.Tab value="general">General</Tabs.Tab>
@@ -30,6 +32,7 @@ export interface TabsProps {
  *   <Tabs.Panel value="general">General settings…</Tabs.Panel>
  *   <Tabs.Panel value="security">Security settings…</Tabs.Panel>
  * </Tabs>
+ * ```
  */
 export const Tabs: React.FC<TabsProps> = ({
   defaultValue = '',

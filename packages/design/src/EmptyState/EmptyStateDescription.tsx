@@ -15,10 +15,13 @@ export interface EmptyStateDescriptionProps {
  * (~400 px) to keep line lengths comfortable when the empty state fills
  * a wide container.
  *
- * @example
- *   <EmptyState.Description>
- *     Sessions will appear here once recording begins.
- *   </EmptyState.Description>
+ * Usage:
+ *
+ * ```tsx
+ * <EmptyState.Description>
+ *   Sessions will appear here once recording begins.
+ * </EmptyState.Description>
+ * ```
  */
 export const EmptyStateDescription = forwardRef<
   HTMLParagraphElement,

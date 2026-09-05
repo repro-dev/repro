@@ -11,10 +11,13 @@ export interface EmptyStateActionProps {
  * Renders children as-is — the consumer provides the interactive element
  * (typically a `Button`).
  *
- * @example
- *   <EmptyState.Action>
- *     <Button>Get started</Button>
- *   </EmptyState.Action>
+ * Usage:
+ *
+ * ```tsx
+ * <EmptyState.Action>
+ *   <Button>Get started</Button>
+ * </EmptyState.Action>
+ * ```
  */
 export const EmptyStateAction = forwardRef<
   HTMLDivElement,

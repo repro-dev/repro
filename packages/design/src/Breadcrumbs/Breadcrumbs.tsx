@@ -14,12 +14,15 @@ export interface BreadcrumbsProps {
  * Renders a `<nav>` with an `<ol>` list. Use `Breadcrumbs.Item` for each
  * breadcrumb level. Separators are inserted automatically between items.
  *
- * @example
- *   <Breadcrumbs>
- *     <Breadcrumbs.Item component="a" props={{ href: '/' }}>Home</Breadcrumbs.Item>
- *     <Breadcrumbs.Item component="a" props={{ href: '/docs' }}>Docs</Breadcrumbs.Item>
- *     <Breadcrumbs.Item current>Getting Started</Breadcrumbs.Item>
- *   </Breadcrumbs>
+ * Usage:
+ *
+ * ```tsx
+ * <Breadcrumbs>
+ *   <Breadcrumbs.Item component="a" props={{ href: '/' }}>Home</Breadcrumbs.Item>
+ *   <Breadcrumbs.Item component="a" props={{ href: '/docs' }}>Docs</Breadcrumbs.Item>
+ *   <Breadcrumbs.Item current>Getting Started</Breadcrumbs.Item>
+ * </Breadcrumbs>
+ * ```
  */
 export const Breadcrumbs = forwardRef<HTMLElement, BreadcrumbsProps>(
   ({ children, ariaLabel = 'Breadcrumb' }, ref) => {

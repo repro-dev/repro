@@ -26,7 +26,8 @@ export interface FormFieldProps {
  * `id`/`htmlFor`, `aria-describedby`, `aria-invalid`, required
  * indicators, and disabled state without manual prop drilling.
  *
- * @example
+ * Usage:
+ *
  * ```tsx
  * <FormField invalid={!!errors.email} required>
  *   <Label>Email</Label>

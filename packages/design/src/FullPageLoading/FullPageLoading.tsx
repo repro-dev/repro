@@ -10,10 +10,13 @@ import { Spin } from '../FX/Spin'
  * overall dimensions. Use inside a sized wrapper such as a page body
  * or a layout region.
  *
- * @example
- *   <Block height="calc(100vh - 90px)">
- *     <FullPageLoading />
- *   </Block>
+ * Usage:
+ *
+ * ```tsx
+ * <Block height="calc(100vh - 90px)">
+ *   <FullPageLoading />
+ * </Block>
+ * ```
  */
 export const FullPageLoading = forwardRef<HTMLDivElement>((_props, ref) => {
   return (

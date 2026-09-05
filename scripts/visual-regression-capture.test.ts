@@ -42,6 +42,7 @@ function makeSolidPng(
 // ---------------------------------------------------------------------------
 
 import {
+  computeExitCode,
   diffPngBuffers,
   isAboveThreshold,
   type CaptureOutput,
@@ -135,6 +136,83 @@ describe('diffPngBuffers', () => {
     const buf = makeSolidPng(10, 10, 50, 50, 50)
     const result = await diffPngBuffers(buf, buf, null)
     assert.equal(result.diffPath, null)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// --fail-on-new exit-code behavior (REP-1648)
+// ---------------------------------------------------------------------------
+
+describe('--fail-on-new exit code', () => {
+  it('exits 1 when new stories exist and --fail-on-new is set (fail closed)', () => {
+    const output: CaptureOutput = {
+      stories_checked: ['button--new'],
+      passed: [],
+      failed: [],
+      new_stories: ['button--new'],
+    }
+
+    assert.equal(computeExitCode(output, true), 1)
+  })
+
+  it('exits 0 when new stories exist but --fail-on-new is off (local UX unchanged)', () => {
+    const output: CaptureOutput = {
+      stories_checked: ['button--new'],
+      passed: [],
+      failed: [],
+      new_stories: ['button--new'],
+    }
+
+    assert.equal(computeExitCode(output, false), 0)
+  })
+
+  it('exits 1 on above-threshold failures regardless of --fail-on-new', () => {
+    const output: CaptureOutput = {
+      stories_checked: ['button--primary'],
+      passed: [],
+      failed: [
+        {
+          story: 'button--primary',
+          diff_path: '/tmp/button--primary.diff.png',
+          changed_pixels: 150,
+          total_pixels: 10000,
+        },
+      ],
+      new_stories: [],
+    }
+
+    assert.equal(computeExitCode(output, false), 1)
+    assert.equal(computeExitCode(output, true), 1)
+  })
+
+  it('exits 0 when all stories pass with a baseline, --fail-on-new on or off', () => {
+    const output: CaptureOutput = {
+      stories_checked: ['button--primary'],
+      passed: ['button--primary'],
+      failed: [],
+      new_stories: [],
+    }
+
+    assert.equal(computeExitCode(output, false), 0)
+    assert.equal(computeExitCode(output, true), 0)
+  })
+
+  it('mixes failures and new stories: still exits 1', () => {
+    const output: CaptureOutput = {
+      stories_checked: ['button--primary', 'button--secondary'],
+      passed: [],
+      failed: [
+        {
+          story: 'button--primary',
+          diff_path: '/tmp/button--primary.diff.png',
+          changed_pixels: 150,
+          total_pixels: 10000,
+        },
+      ],
+      new_stories: ['button--secondary'],
+    }
+
+    assert.equal(computeExitCode(output, true), 1)
   })
 })
 

@@ -17,15 +17,19 @@ export interface CenterProps {
  * The optional `maxWidth` prop constrains the container width without
  * affecting the centering behavior.
  *
- * @example
- *   <Center>
- *     <Spinner />
- *   </Center>
+ * Usage:
  *
- * @example
- *   <Center maxWidth={480}>
- *     <LoginForm />
- *   </Center>
+ * ```tsx
+ * <Center>
+ *   <Spinner />
+ * </Center>
+ * ```
+ *
+ * ```tsx
+ * <Center maxWidth={480}>
+ *   <LoginForm />
+ * </Center>
+ * ```
  */
 export const Center = forwardRef<HTMLDivElement, CenterProps>(
   ({ maxWidth, children }, ref) => {

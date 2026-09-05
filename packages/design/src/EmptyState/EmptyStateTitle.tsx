@@ -21,8 +21,11 @@ export interface EmptyStateTitleProps {
  * Renders an `<h3>` element (or `<h2>` via `headingLevel`) using the
  * `heading3` text style.
  *
- * @example
- *   <EmptyState.Title>No sessions yet</EmptyState.Title>
+ * Usage:
+ *
+ * ```tsx
+ * <EmptyState.Title>No sessions yet</EmptyState.Title>
+ * ```
  */
 export const EmptyStateTitle = forwardRef<
   HTMLHeadingElement,

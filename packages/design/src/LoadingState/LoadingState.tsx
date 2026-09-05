@@ -13,10 +13,13 @@ import { Spin } from '../FX/Spin'
  * Use `LoadingState` when loading content within a section or widget;
  * use `FullPageLoading` when loading the entire page.
  *
- * @example
- *   <Block height={300}>
- *     <LoadingState />
- *   </Block>
+ * Usage:
+ *
+ * ```tsx
+ * <Block height={300}>
+ *   <LoadingState />
+ * </Block>
+ * ```
  */
 export const LoadingState = forwardRef<HTMLDivElement, Record<string, never>>(
   (_props, ref) => {

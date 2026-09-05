@@ -19,15 +19,18 @@ export interface AppShellProps {
  * menu). The content region holds the route outlet and page-level components
  * like `PageFrame`.
  *
- * @example
- *   <AppShell>
- *     <AppShell.Sidebar header={<Logo />} footer={<UserMenu />}>
- *       <SideNav />
- *     </AppShell.Sidebar>
- *     <AppShell.Content>
- *       <Outlet />
- *     </AppShell.Content>
- *   </AppShell>
+ * Usage:
+ *
+ * ```tsx
+ * <AppShell>
+ *   <AppShell.Sidebar header={<Logo />} footer={<UserMenu />}>
+ *     <SideNav />
+ *   </AppShell.Sidebar>
+ *   <AppShell.Content>
+ *     <Outlet />
+ *   </AppShell.Content>
+ * </AppShell>
+ * ```
  */
 export const AppShell: React.FC<AppShellProps> = ({ children }) => {
   return (

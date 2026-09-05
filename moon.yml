@@ -1,6 +1,127 @@
 id: repro
 language: typescript
 tasks:
+  # ---------------------------------------------------------------------------
+  # REP-1648 deterministic UI gates. Affected-only via moon ci target filtering
+  # (verified: root-relative plain globs, no brace expansion — moon v2 forbids
+  # `{a,b}` globs, extensions are enumerated instead).
+  #
+  # Dependencies: the Storybook dev server and the route-smoke harness consume
+  # gitignored generated artifacts (packages/domain/generated, packages/
+  # wire-formats/generated) and built dists. The deps below guarantee those
+  # exist even when the diff touches no package sources (e.g. scripts-only
+  # PRs), because moon ci's :build phase only builds affected projects.
+  # ---------------------------------------------------------------------------
+  ui-gates-visual-regression:
+    command: bash scripts/visual-regression.sh --stories '[]' --fail-on-new
+    deps:
+      - repro/domain:build
+      - repro/wire-formats:build
+      - repro/tdl:build
+    inputs:
+      - glob: packages/*/src/**/*.ts
+        cache: true
+      - glob: packages/*/src/**/*.tsx
+        cache: true
+      - glob: packages/*/src/**/*.mdx
+        cache: true
+      - glob: packages/*/src/**/*.css
+        cache: true
+      - glob: apps/*/src/**/*.ts
+        cache: true
+      - glob: apps/*/src/**/*.tsx
+        cache: true
+      - glob: apps/*/src/**/*.css
+        cache: true
+      - glob: apps/*/index.html
+        cache: true
+      - glob: apps/*/vite.config.ts
+        cache: true
+      - glob: apps/storybook-ui/.storybook/**
+        cache: true
+      - glob: scripts/visual-regression-capture.ts
+        cache: true
+      - glob: scripts/visual-regression.sh
+        cache: true
+      - glob: tmp/visual-baselines/**
+        cache: true
+      - glob: pnpm-lock.yaml
+        cache: true
+    options:
+      cache: true
+  ui-gates-storybook:
+    command: bash scripts/storybook-gates.sh
+    deps:
+      - repro/domain:build
+      - repro/wire-formats:build
+      - repro/tdl:build
+    inputs:
+      - glob: packages/*/src/**/*.ts
+        cache: true
+      - glob: packages/*/src/**/*.tsx
+        cache: true
+      - glob: packages/*/src/**/*.mdx
+        cache: true
+      - glob: packages/*/src/**/*.css
+        cache: true
+      - glob: apps/*/src/**/*.ts
+        cache: true
+      - glob: apps/*/src/**/*.tsx
+        cache: true
+      - glob: apps/*/src/**/*.css
+        cache: true
+      - glob: apps/*/index.html
+        cache: true
+      - glob: apps/*/vite.config.ts
+        cache: true
+      - glob: apps/storybook-ui/.storybook/**
+        cache: true
+      - glob: scripts/docs-page-checks.ts
+        cache: true
+      - glob: scripts/storybook-gates.sh
+        cache: true
+      - glob: tests/docs/**
+        cache: true
+      - glob: playwright.config.ts
+        cache: true
+      - glob: pnpm-lock.yaml
+        cache: true
+    options:
+      cache: true
+  ui-gates-route-smoke:
+    command: bash scripts/route-smoke.sh
+    deps:
+      - repro/workspace:build
+      - repro/admin:build
+      - repro/domain:build
+      - repro/wire-formats:build
+      - repro/tdl:build
+    inputs:
+      - glob: tests/route-smoke/**
+      - glob: packages/*/src/**/*.ts
+        cache: true
+      - glob: packages/*/src/**/*.tsx
+        cache: true
+      - glob: apps/*/src/**/*.ts
+        cache: true
+      - glob: apps/*/src/**/*.tsx
+        cache: true
+      - glob: apps/*/src/**/*.css
+        cache: true
+      - glob: apps/*/index.html
+        cache: true
+      - glob: apps/*/vite.config.ts
+        cache: true
+      - glob: apps/*/scripts/**
+        cache: true
+      - glob: scripts/route-smoke.sh
+        cache: true
+      - glob: playwright.config.ts
+        cache: true
+      - glob: pnpm-lock.yaml
+        cache: true
+    options:
+      cache: true
   pen-export:
     command: pnpm run pen:export
     inputs:
