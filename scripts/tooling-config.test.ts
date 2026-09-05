@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import path from 'node:path'
 import { describe, it } from 'node:test'
 import { fileURLToPath } from 'node:url'
@@ -8,6 +8,11 @@ const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   '..'
 )
+
+// Matches the render-harness spawn site inside a test file (the execFileSync
+// call that shells out to the render harness via `pnpm run`). Phrased so this
+// file's own prose about the harness does not match the pattern.
+const RENDER_SPAWN_PATTERN = /\[\s*'run',\s*'render-stories-html'/
 
 function readText(relativePath: string) {
   return readFileSync(path.join(repoRoot, relativePath), 'utf8')
@@ -195,5 +200,80 @@ describe('REP-1245 tool version pinning', () => {
     assert.match(buildAndTestSkill, /moon = "2\.2\.5"/)
     assert.match(buildAndTestSkill, /proto = "0\.57\.2"/)
     assert.match(buildAndTestSkill, /proto\.version: 0\.57\.2/)
+  })
+})
+
+describe('REP-1658 render-on-demand serialization', () => {
+  it('runs every render-on-demand test file under --test-concurrency=1', () => {
+    const packageJson = JSON.parse(readText('package.json')) as {
+      scripts: Record<string, string>
+    }
+    const script = packageJson.scripts['test:tooling-config'] ?? ''
+    const invocations = script.split('&&').map(part => part.trim())
+
+    // `node --test` runs each listed file as a concurrent child process by
+    // default. Test files that render on demand spawn render-stories-html,
+    // which writes tmp/storybook-html non-atomically (writeFileSync) while
+    // sibling files read it — on a cold tmp/ two concurrent full renders race
+    // mid-rewrite and fail assertions spuriously. Every such file must sit in
+    // an invocation serialized with --test-concurrency=1 (the render-on-demand
+    // files live in their own second invocation; the pure unit-test files keep
+    // running concurrently in the first).
+    const scriptsDir = path.join(repoRoot, 'scripts')
+    const renderFiles = readdirSync(scriptsDir)
+      .filter(file => file.endsWith('.test.ts'))
+      .filter(file =>
+        RENDER_SPAWN_PATTERN.test(
+          readFileSync(path.join(scriptsDir, file), 'utf8')
+        )
+      )
+      .map(file => `scripts/${file}`)
+
+    assert.ok(
+      renderFiles.length >= 2,
+      'expected to discover the render-on-demand gate test files'
+    )
+
+    for (const file of renderFiles) {
+      const hosts = invocations.filter(invocation => invocation.includes(file))
+      assert.equal(
+        hosts.length,
+        1,
+        `${file} must appear in exactly one test:tooling-config invocation`
+      )
+      assert.ok(
+        hosts[0]!.includes('--test-concurrency=1'),
+        `${file} renders tmp/storybook-html on demand and must run under ` +
+          `--test-concurrency=1 — concurrent renders race mid-rewrite on cold state`
+      )
+    }
+  })
+})
+
+describe('REP-1658 flat-type-hierarchy re-arm pins', () => {
+  it('keeps flat-type-hierarchy out of detector.ignoreRules', () => {
+    const config = JSON.parse(readText('.impeccable/config.json')) as {
+      detector?: { ignoreRules?: string[] }
+    }
+    // Semantics (chosen, per the REP-1658 review): assert on the actual array
+    // — the rule id must be ABSENT from detector.ignoreRules. An empty array
+    // and an array holding other rule ids both pass, because the ignoreRules
+    // mechanism stays available for repo-wide policy; only flat-type-hierarchy
+    // must never return to it. REP-1658 re-armed the rule: its residual
+    // findings carry per-story waivers (see .impeccable/README.md re-arm
+    // record), and a project-wide ignore would mute the rule on all future
+    // app-surface pages again — silently, unless this pin fails.
+    const ignoreRules = config.detector?.ignoreRules ?? []
+    assert.ok(
+      Array.isArray(ignoreRules),
+      'detector.ignoreRules must be an array when present'
+    )
+    assert.equal(
+      ignoreRules.includes('flat-type-hierarchy'),
+      false,
+      'flat-type-hierarchy is suppressed project-wide in ' +
+        '.impeccable/config.json — REP-1658 re-armed it via per-story waivers; ' +
+        'do not silence it again (waive the firing story instead)'
+    )
   })
 })

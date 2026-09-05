@@ -141,7 +141,16 @@ The review of the type scale this issue performed, for the record:
 - **Harness base font-size**: `fontSize.md` (14px), as recorded above — set,
   not left at the browser default.
 
-## Story-waiver inventory (38 + 27 = 65 findings / 27 + 14 = 41 pages)
+## Story-waiver inventory (66 non-flat-type-hierarchy + 27 flat-type-hierarchy = 93 findings / 62 distinct pages / 26 story files)
+
+Counting convention (recounted for the REP-1658 review; the totals reconcile
+with the table rows below): one finding = one waived (page, rule) pair —
+multi-rule rows waive one finding per listed rule per page, and
+`DragHandle-AllEdges` / `Table-DensityComparison` each carry 2 findings on
+their single page. The 66 non-`flat-type-hierarchy` findings sit on 47
+distinct pages; the 27 `flat-type-hierarchy` findings sit on their 27 firing
+pages (12 of which also carry a non-FTH waiver above), giving 62 distinct
+pages. The 27 firing pages span 14 story files; the full inventory spans 26.
 
 Every waived page was eyeballed against the rubric: waive only when the flagged
 container is (a) the component's intended edge-to-edge anatomy or (b) a demo

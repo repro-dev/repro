@@ -13,6 +13,12 @@
 // re-render: source inline ignores cannot survive re-render (the detector
 // scans tmp/storybook-html/), so each integration test renders on demand and
 // re-checks the regenerated doc.
+//
+// Serialization contract (REP-1658 review): this file renders tmp/storybook-html
+// on demand (writeFileSync, non-atomic). `test:tooling-config` therefore runs
+// it in a dedicated `--test-concurrency=1` invocation so sibling render-on-demand
+// files cannot race it mid-rewrite on cold state — pinned by the REP-1658
+// serialization test in scripts/tooling-config.test.ts.
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, rmSync } from 'node:fs'
