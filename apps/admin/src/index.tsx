@@ -8,6 +8,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { AuthLayout } from './AuthLayout'
 import { GlobalErrorBoundary } from './components/GlobalErrorBoundary'
 import { Loading } from './components/Loading'
+import { NotFoundRoute } from './components/NotFoundRoute'
 import { RequireAdminSession } from './components/RequireAdminSession'
 import { RequireAdminStaffSession } from './components/RequireAdminStaffSession'
 import { defaultEnv as env } from './config/env'
@@ -65,6 +66,7 @@ export const AppRoutes: React.FC = () => (
           <Route path="staff-users" element={<StaffUsersRoute />} />
           <Route path="users/:userId" element={<UserDetailRoute />} />
         </Route>
+        <Route path="*" element={<NotFoundRoute />} />
       </Route>
     </Route>
 

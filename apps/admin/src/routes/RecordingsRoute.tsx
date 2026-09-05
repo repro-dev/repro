@@ -207,7 +207,9 @@ export const RecordingsRoute: React.FC = () => {
               </Table>
             </Block>
             <ListPageFooter
-              footerText="Showing up to 50 recordings per page"
+              footerText={`Showing ${offset + 1}\u2013${
+                offset + items.length
+              } recordings`}
               currentPage={page}
               hasPreviousPage={hasPreviousPage}
               hasNextPage={hasNextPage}

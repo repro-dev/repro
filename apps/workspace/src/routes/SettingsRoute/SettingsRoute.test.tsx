@@ -105,6 +105,33 @@ describe('SettingsRoute', () => {
     })
   })
 
+  it('renders the real not-found screen for an unknown settings sub-path (never an empty content region)', async () => {
+    render(
+      <ApiProvider client={apiClient}>
+        <PortalRootProvider>
+          <ConfirmDialogProvider>
+            <TestAuthProvider>
+              <MemoryRouter initialEntries={['/settings/unknown-sub-path']}>
+                <Routes>
+                  <Route path="/settings/*" element={<SettingsRoute />} />
+                </Routes>
+              </MemoryRouter>
+            </TestAuthProvider>
+          </ConfirmDialogProvider>
+        </PortalRootProvider>
+      </ApiProvider>
+    )
+
+    await waitFor(() => {
+      assert.ok(screen.getByText('Page not found'))
+    })
+
+    assert.ok(screen.getByText('Back to home'))
+
+    // Negative: no known settings screen renders for the unknown sub-path.
+    assert.equal(screen.queryByRole('button', { name: /new api key/i }), null)
+  })
+
   it('renders the account settings page at /settings/account', async () => {
     render(
       <ApiProvider client={apiClient}>

@@ -19,6 +19,7 @@ import type {
 import { useFuture } from '@repro/future-utils'
 import { fork, map } from 'fluture'
 import React, { useCallback, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 // --- Default API functions (injectable for testing) ---
 
@@ -62,6 +63,11 @@ export function BillingSettingsRoute({
 }: BillingSettingsRouteProps) {
   const apiClient = useApiClient()
   const confirm = useConfirm()
+  const navigate = useNavigate()
+
+  const handleUpgrade = useCallback(() => {
+    navigate('/pricing')
+  }, [navigate])
 
   const {
     loading: subLoading,
@@ -166,6 +172,12 @@ export function BillingSettingsRoute({
   const currentPlan = (plans ?? []).find(
     (p: BillingPlanWithEntitlements) => p.id === subscription?.planId
   )
+  // Free-plan detection is name-based: the Free plan has no paid period, so
+  // period/renewal/cancel state is hidden and the upgrade path is the primary
+  // action (REP-1642).
+  const isFreePlan = currentPlan?.name === 'Free'
+  const hasPaidSubscription = subscription != null && !isFreePlan
+  const planDisplayName = currentPlan?.name ?? subscription?.planId ?? 'Free'
   // Only Paddle-managed subs (isSelfProvisioned: false) expose cancel + portal
   const isPaddleManaged =
     subscription != null && !subscription.isSelfProvisioned
@@ -192,34 +204,45 @@ export function BillingSettingsRoute({
           <Card>
             <Col padding={spacing.xl} gap={spacing.lg}>
               <Text variant="heading3">Current Plan</Text>
-              <Text variant="body">
-                {currentPlan?.name ?? subscription?.planId ?? '—'}
-              </Text>
-              <Text variant="body" color={color.text.muted}>
-                Status: {subscription?.status}
-              </Text>
-              <Text variant="body" color={color.text.muted}>
-                Billing period:{' '}
-                {subscription
-                  ? `${new Date(
-                      subscription.currentPeriodStart
-                    ).toLocaleDateString()} \u2013 ${new Date(
-                      subscription.currentPeriodEnd
-                    ).toLocaleDateString()}`
-                  : '—'}
-              </Text>
-              {subscription && !subscription.cancelAtPeriodEnd && (
+              <Text variant="body">{planDisplayName}</Text>
+              {subscription != null && (
                 <Text variant="body" color={color.text.muted}>
-                  Renews on{' '}
-                  {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
+                  Status: {subscription.status}
                 </Text>
               )}
+              {hasPaidSubscription && (
+                <Text variant="body" color={color.text.muted}>
+                  Billing period:{' '}
+                  {`${new Date(
+                    subscription.currentPeriodStart
+                  ).toLocaleDateString()} \u2013 ${new Date(
+                    subscription.currentPeriodEnd
+                  ).toLocaleDateString()}`}
+                </Text>
+              )}
+              {subscription != null &&
+                hasPaidSubscription &&
+                !subscription.cancelAtPeriodEnd && (
+                  <Text variant="body" color={color.text.muted}>
+                    Renews on{' '}
+                    {new Date(
+                      subscription.currentPeriodEnd
+                    ).toLocaleDateString()}
+                  </Text>
+                )}
               {subscription?.cancelAtPeriodEnd && (
                 <Text variant="body" color={color.text.muted}>
                   Cancels at end of period (
                   {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
                   )
                 </Text>
+              )}
+              {!hasPaidSubscription && (
+                <Row gap={spacing.md}>
+                  <Button variant="contained" onClick={handleUpgrade}>
+                    Upgrade plan
+                  </Button>
+                </Row>
               )}
             </Col>
           </Card>

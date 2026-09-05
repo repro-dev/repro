@@ -1,5 +1,6 @@
 import React from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
+import { NotFoundRoute } from '~/components/NotFoundRoute'
 import AccountSettingsRouteConnected from '~/routes/AccountSettingsRoute/AccountSettingsRoute'
 import ApiKeysRoute from '~/routes/ApiKeysRoute'
 import BillingSettingsRouteConnected from '~/routes/BillingSettingsRoute'
@@ -18,6 +19,7 @@ const SettingsRoute: React.FC = () => (
       element={<RecordingPrivacySettingsRouteConnected />}
     />
     <Route path="billing" element={<BillingSettingsRouteConnected />} />
+    <Route path="*" element={<NotFoundRoute />} />
   </Routes>
 )
 

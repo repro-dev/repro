@@ -1,8 +1,9 @@
-import { RecordingInfo, RecordingMode, Session } from '@repro/domain'
+import { Project, RecordingInfo, RecordingMode, Session } from '@repro/domain'
 import expect from 'expect'
 import { FastifyInstance } from 'fastify'
 import { promise } from 'fluture'
 import { after, before, beforeEach, describe, it } from 'node:test'
+import { encodeId } from '~/modules/database'
 import { RecordingService } from '~/services/recording'
 import { Harness, createTestHarness, fixtures } from '~/testing'
 import { createStaffRouter } from './staff'
@@ -167,6 +168,53 @@ describe('Routers > Staff', () => {
       const body2 = res2.json()
       expect(body2.items).toHaveLength(1)
       expect(body2.items[0].id).toEqual(rec2.id)
+    })
+  })
+
+  describe('GET /recordings/:recordingId/project', () => {
+    it('should return the project id for a recording that belongs to a project', async () => {
+      const [staffSession, recordingA, projectA] = await harness.loadFixtures([
+        fixtures.account.StaffUserA_Session,
+        fixtures.recording.RecordingA,
+        fixtures.project.ProjectA_Multiple_Recordings,
+      ])
+
+      const res = await app.inject({
+        method: 'GET',
+        url: `/recordings/${(recordingA as RecordingInfo).id}/project`,
+        headers: {
+          authorization: `Bearer ${(staffSession as Session).sessionToken}`,
+        },
+      })
+
+      expect(res.statusCode).toEqual(200)
+      expect(res.json()).toEqual({ projectId: (projectA as Project).id })
+    })
+
+    it('should return a null projectId for an unknown recording id', async () => {
+      const [staffSession] = await harness.loadFixtures([
+        fixtures.account.StaffUserA_Session,
+      ])
+
+      const res = await app.inject({
+        method: 'GET',
+        url: `/recordings/${encodeId(999999)}/project`,
+        headers: {
+          authorization: `Bearer ${(staffSession as Session).sessionToken}`,
+        },
+      })
+
+      expect(res.statusCode).toEqual(200)
+      expect(res.json()).toEqual({ projectId: null })
+    })
+
+    it('should return 401 when not authenticated', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: `/recordings/${encodeId(1)}/project`,
+      })
+
+      expect(res.statusCode).toEqual(401)
     })
   })
 })

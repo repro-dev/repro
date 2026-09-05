@@ -27,7 +27,7 @@ const apiClient = createApiClient({
 const recording: RecordingInfo = {
   id: 'rec-1',
   title: 'Alpha Session',
-  url: 'https://example.com/alpha',
+  url: 'https://app.acme.dev/checkout',
   description: '',
   mode: RecordingMode.Live,
   duration: 120,
@@ -128,7 +128,7 @@ describe('RecordingsRoute', () => {
 
     await waitFor(() => assert.ok(screen.getByText('Alpha Session')))
 
-    assert.ok(screen.getByText('https://example.com/alpha'))
+    assert.ok(screen.getByText('https://app.acme.dev/checkout'))
     assert.ok(screen.getByText('macOS'))
     assert.ok(screen.getByText('Chrome 120'))
     assert.ok(screen.getByText(formatTime(120, 'seconds')))
@@ -282,5 +282,85 @@ describe('RecordingsRoute', () => {
         .hasAttribute('disabled'),
       true
     )
+  })
+
+  it('renders the position text on page 1 and disables previous (positive + negative)', async () => {
+    const twoItems: RecordingInfo[] = [
+      recording,
+      { ...recording, id: 'rec-2', title: 'Beta Session' },
+    ]
+
+    renderRoute({ items: twoItems })
+
+    await waitFor(() =>
+      assert.ok(screen.getByText('Showing 1\u20132 recordings'))
+    )
+
+    assert.equal(
+      screen
+        .getByRole('button', { name: 'Previous page' })
+        .hasAttribute('disabled'),
+      true
+    )
+  })
+
+  it('renders the position text for page 2 (positive)', async () => {
+    const page1Items: RecordingInfo[] = []
+    for (let i = 0; i < 51; i++) {
+      page1Items.push({
+        ...recording,
+        id: `rec-${i}`,
+        title: `Rec ${i}`,
+      })
+    }
+    const page2Items: RecordingInfo[] = [
+      { ...recording, id: 'rec-50b', title: 'Rec 50b' },
+    ]
+
+    renderRoute({
+      fetch: (path: string) => {
+        if (path.includes('offset=0')) {
+          return resolve({ items: page1Items })
+        }
+        if (path.includes('offset=50')) {
+          return resolve({ items: page2Items })
+        }
+        return resolve({ items: [] })
+      },
+    })
+
+    await waitFor(() => assert.ok(screen.getByText('Rec 0')))
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
+    })
+
+    await waitFor(() =>
+      assert.ok(screen.getByText('Showing 51\u201351 recordings'))
+    )
+  })
+
+  it('does not fetch when clicking the disabled next control (negative)', async () => {
+    const items: RecordingInfo[] = []
+    for (let i = 0; i < 50; i++) {
+      items.push({
+        ...recording,
+        id: `rec-${i}`,
+        title: `Rec ${i}`,
+      })
+    }
+
+    const { requests } = renderRoute({ fetch: () => resolve({ items }) })
+
+    await waitFor(() => assert.ok(screen.getByText('Rec 0')))
+    assert.equal(requests.length, 1)
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
+    })
+
+    // Disabled control: no additional request, position text unchanged
+    assert.equal(requests.length, 1)
+    assert.ok(screen.getByText('Showing 1\u201350 recordings'))
   })
 })

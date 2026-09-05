@@ -344,6 +344,27 @@ export function createProjectService(
     ).pipe(map(() => undefined))
   }
 
+  function getProjectIdForRecording(
+    recordingId: string
+  ): FutureInstance<Error, string | null> {
+    const decodedRecordingId = decodeId(recordingId)
+
+    if (decodedRecordingId == null) {
+      return reject(badRequest('Invalid recording ID'))
+    }
+
+    // Recordings are many-to-many with projects; the lowest project id wins so
+    // the resolution is deterministic for multi-project recordings.
+    return attemptQuery(() =>
+      database
+        .selectFrom('project_recordings')
+        .select('projectId')
+        .where('recordingId', '=', decodedRecordingId)
+        .orderBy('projectId asc')
+        .executeTakeFirst()
+    ).pipe(map(row => (row ? encodeId(row.projectId) : null)))
+  }
+
   function createRecordingForProject(
     projectId: string,
     authorId: string,
@@ -456,6 +477,7 @@ export function createProjectService(
     ensureUserIsProjectContributor,
     ensureUserIsProjectAdmin,
     ensureRecordingBelongsToProject,
+    getProjectIdForRecording,
 
     // Queries
     getProjectById,

@@ -88,7 +88,10 @@ function renderRoute({
   getSubscription = () => resolve(activeSub),
   getPlans = () => resolve([freePlan, proPlan]),
   cancelSubscription = () => resolve({ ...activeSub, cancelAtPeriodEnd: true }),
-  openPortal = () => resolve({ url: 'https://portal.example.com' }),
+  openPortal = () =>
+    resolve({
+      url: 'https://vendors.paddle.com/subscription-portal/ps_3xk29f',
+    }),
 }: TestProps = {}) {
   return render(
     <ApiProvider client={apiClient}>
@@ -315,7 +318,10 @@ describe('BillingSettingsRoute', () => {
     })
     await waitFor(() => {
       assert.equal(windowOpenCalls.length, 1)
-      assert.equal(windowOpenCalls[0], 'https://portal.example.com')
+      assert.equal(
+        windowOpenCalls[0],
+        'https://vendors.paddle.com/subscription-portal/ps_3xk29f'
+      )
     })
   })
 
