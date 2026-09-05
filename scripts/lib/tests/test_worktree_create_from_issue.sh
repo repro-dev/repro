@@ -1067,6 +1067,225 @@ BODY
   trap - RETURN
 }
 
+# Case 7 (hardening, tier precedence under coexistence): a hint-prefix mint
+# (tier 2) must beat an issue-id substring match (tier 3) regardless of which
+# branch is more recently modified. The resolver scans refs/heads sorted by
+# committerdate desc, so the branch ORDER in the scan is controlled with
+# GIT_COMMITTER_DATE on a commit per branch. Both branches carry worktrees,
+# so the winning decision is adopt of the tier-2 worktree.
+test_resolver_tier2_prefix_beats_tier3_newest_first() {
+  local tmpdir output rc=0
+  tmpdir="$(mktemp -d "$REPO_ROOT/tmp/test_wt_tier2_beats_tier3_a.XXXXXX")"
+  export tmpdir
+  trap 'rm -rf "$tmpdir"' RETURN
+
+  {
+    _write_real_git_prelude
+    cat <<'SETUP'
+
+TIER2_BRANCH='gary/rep-123-existing-delivery-20260806144124-03fa'
+TIER2_WT="$tmpdir/repro-wt-rep-123-hint-prefix"
+TIER3_BRANCH='feat/some-rep-123-unrelated'
+TIER3_WT="$tmpdir/repro-wt-rep-123-substring"
+
+# Scan order fixture: tier 2 carries the NEWER commit, so the resolver
+# visits tier 2 FIRST and tier 3 second (committerdate desc).
+git -C "$REPO_ROOT" worktree add -b "$TIER3_BRANCH" "$TIER3_WT" >/dev/null 2>&1
+GIT_COMMITTER_DATE='2026-03-01T09:00:00' git -C "$TIER3_WT" commit -q --allow-empty -m 'tier3 work'
+git -C "$REPO_ROOT" worktree add -b "$TIER2_BRANCH" "$TIER2_WT" >/dev/null 2>&1
+GIT_COMMITTER_DATE='2026-03-02T09:00:00' git -C "$TIER2_WT" commit -q --allow-empty -m 'tier2 work'
+
+scan_order="$(git -C "$REPO_ROOT" for-each-ref --sort=-committerdate --format='%(refname:short)' refs/heads | grep -E "$TIER2_BRANCH|$TIER3_BRANCH" | tr '\n' '|')"
+if [[ "$scan_order" != "$TIER2_BRANCH|$TIER3_BRANCH|" ]]; then
+  die "fixture broken: expected tier2 before tier3 in committerdate-desc order, got: $scan_order"
+fi
+
+branches_before="$(git -C "$REPO_ROOT" for-each-ref --format='%(refname:short)' refs/heads | sort)"
+SETUP
+    _write_metadata_stub
+    cat <<'BODY'
+
+output="$(cmd_wt_create_from_issue REP-123 2>&1)"
+
+branches_after="$(git -C "$REPO_ROOT" for-each-ref --format='%(refname:short)' refs/heads | sort)"
+
+if [[ "$branches_before" != "$branches_after" ]]; then
+  die "tier coexistence minted a new branch (before → after):
+$branches_before
+---
+$branches_after"
+fi
+
+resolved_path="$(printf '%s\n' "$output" | sed -n 's/^[[:space:]]*Path:[[:space:]]*//p' | tail -1)"
+if [[ "$resolved_path" != "$TIER2_WT" ]]; then
+  die "tier precedence: expected the hint-prefix (tier 2) worktree to win over the substring (tier 3) match, got: ${resolved_path:-<none>}
+output: $output"
+fi
+
+if ! printf '%s\n' "$output" | grep -qi 'existing worktree'; then
+  die "tier-2 adoption was not announced:
+$output"
+fi
+BODY
+  } > "$tmpdir/run_test.sh"
+  chmod +x "$tmpdir/run_test.sh"
+
+  output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  if [ ${rc:-0} -eq 0 ]; then
+    _pass 'tier precedence: hint prefix (tier 2) beats substring (tier 3) when tier 3 is scanned first'
+  else
+    _fail 'tier precedence: hint prefix (tier 2) beats substring (tier 3) when tier 3 is scanned first' "$output"
+  fi
+  rm -rf "$tmpdir"
+  trap - RETURN
+}
+
+# Case 8 (hardening, tier precedence under coexistence): same two branches as
+# case 7 but with the committerdate order flipped — the tier-3 substring
+# match is now the NEWEST branch and is scanned first. Tier 2 must still win.
+test_resolver_tier2_prefix_beats_tier3_oldest_first() {
+  local tmpdir output rc=0
+  tmpdir="$(mktemp -d "$REPO_ROOT/tmp/test_wt_tier2_beats_tier3_b.XXXXXX")"
+  export tmpdir
+  trap 'rm -rf "$tmpdir"' RETURN
+
+  {
+    _write_real_git_prelude
+    cat <<'SETUP'
+
+TIER2_BRANCH='gary/rep-123-existing-delivery-20260806144124-03fa'
+TIER2_WT="$tmpdir/repro-wt-rep-123-hint-prefix"
+TIER3_BRANCH='feat/some-rep-123-unrelated'
+TIER3_WT="$tmpdir/repro-wt-rep-123-substring"
+
+# Scan order fixture: tier 3 carries the NEWER commit, so the resolver
+# visits tier 3 FIRST and tier 2 second (committerdate desc).
+git -C "$REPO_ROOT" worktree add -b "$TIER2_BRANCH" "$TIER2_WT" >/dev/null 2>&1
+GIT_COMMITTER_DATE='2026-03-01T09:00:00' git -C "$TIER2_WT" commit -q --allow-empty -m 'tier2 work'
+git -C "$REPO_ROOT" worktree add -b "$TIER3_BRANCH" "$TIER3_WT" >/dev/null 2>&1
+GIT_COMMITTER_DATE='2026-03-02T09:00:00' git -C "$TIER3_WT" commit -q --allow-empty -m 'tier3 work'
+
+scan_order="$(git -C "$REPO_ROOT" for-each-ref --sort=-committerdate --format='%(refname:short)' refs/heads | grep -E "$TIER2_BRANCH|$TIER3_BRANCH" | tr '\n' '|')"
+if [[ "$scan_order" != "$TIER3_BRANCH|$TIER2_BRANCH|" ]]; then
+  die "fixture broken: expected tier3 before tier2 in committerdate-desc order, got: $scan_order"
+fi
+
+branches_before="$(git -C "$REPO_ROOT" for-each-ref --format='%(refname:short)' refs/heads | sort)"
+SETUP
+    _write_metadata_stub
+    cat <<'BODY'
+
+output="$(cmd_wt_create_from_issue REP-123 2>&1)"
+
+branches_after="$(git -C "$REPO_ROOT" for-each-ref --format='%(refname:short)' refs/heads | sort)"
+
+if [[ "$branches_before" != "$branches_after" ]]; then
+  die "tier coexistence minted a new branch (before → after):
+$branches_before
+---
+$branches_after"
+fi
+
+resolved_path="$(printf '%s\n' "$output" | sed -n 's/^[[:space:]]*Path:[[:space:]]*//p' | tail -1)"
+if [[ "$resolved_path" != "$TIER2_WT" ]]; then
+  die "tier precedence: expected the hint-prefix (tier 2) worktree to win even when the substring (tier 3) match is newer, got: ${resolved_path:-<none>}
+output: $output"
+fi
+
+if ! printf '%s\n' "$output" | grep -qi 'existing worktree'; then
+  die "tier-2 adoption was not announced:
+$output"
+fi
+BODY
+  } > "$tmpdir/run_test.sh"
+  chmod +x "$tmpdir/run_test.sh"
+
+  output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  if [ ${rc:-0} -eq 0 ]; then
+    _pass 'tier precedence: hint prefix (tier 2) beats substring (tier 3) when tier 3 is newest'
+  else
+    _fail 'tier precedence: hint prefix (tier 2) beats substring (tier 3) when tier 3 is newest' "$output"
+  fi
+  rm -rf "$tmpdir"
+  trap - RETURN
+}
+
+# Case 9 (hardening, stale registration): the matched branch still has a
+# `git worktree list` registration whose directory was deleted (rm -rf, no
+# prune). The resolver sees a registered-but-missing path and decides
+# reattach; `git worktree add` would otherwise die with "missing but already
+# registered worktree" and kill the whole reproctl run. The reattach path
+# must prune the stale registration first, then attach the existing branch to
+# a (re)created worktree — no new branch, no hard failure.
+test_reattach_after_stale_worktree_registration() {
+  local tmpdir output rc=0
+  tmpdir="$(mktemp -d "$REPO_ROOT/tmp/test_wt_stale_registration.XXXXXX")"
+  export tmpdir
+  trap 'rm -rf "$tmpdir"' RETURN
+
+  {
+    _write_real_git_prelude
+    cat <<'SETUP'
+
+EXISTING_BRANCH='gary/rep-123-existing-delivery-20260806144124-03fa'
+EXISTING_WT="$tmpdir/repro-wt-rep-123-20260806144124-03fa"
+git -C "$REPO_ROOT" worktree add -b "$EXISTING_BRANCH" "$EXISTING_WT" >/dev/null 2>&1
+
+# Delete the directory WITHOUT pruning: the registration must survive.
+rm -rf "$EXISTING_WT"
+
+stale_path="$(_worktree_path_for_branch "$EXISTING_BRANCH" "$REPO_ROOT")"
+if [[ "$stale_path" != "$EXISTING_WT" ]]; then
+  die "fixture broken: expected stale registration at $EXISTING_WT, got: ${stale_path:-<none>}"
+fi
+if [ -d "$stale_path" ]; then
+  die "fixture broken: expected $EXISTING_WT to be missing (rm -rf, no prune)"
+fi
+
+branches_before="$(git -C "$REPO_ROOT" for-each-ref --format='%(refname:short)' refs/heads | sort)"
+SETUP
+    _write_metadata_stub
+    cat <<'BODY'
+
+output="$(cmd_wt_create_from_issue REP-123 2>&1)"
+
+branches_after="$(git -C "$REPO_ROOT" for-each-ref --format='%(refname:short)' refs/heads | sort)"
+
+if [[ "$branches_before" != "$branches_after" ]]; then
+  die "reattach over a stale registration minted a new branch (before → after):
+$branches_before
+---
+$branches_after"
+fi
+
+if ! git -C "$REPO_ROOT" worktree list --porcelain | grep -q "refs/heads/$EXISTING_BRANCH"; then
+  die "existing branch was not attached to a worktree:
+$output"
+fi
+
+resolved_path="$(printf '%s\n' "$output" | sed -n 's/^[[:space:]]*Path:[[:space:]]*//p' | tail -1)"
+if [[ -z "$resolved_path" || ! -d "$resolved_path" ]]; then
+  die "expected a Path: line pointing at the reattached worktree, got: ${resolved_path:-<none>}
+output: $output"
+fi
+
+if [[ "$resolved_path" != "$EXISTING_WT" ]]; then
+  die "expected the reattach to reuse the recomputed path $EXISTING_WT, got: $resolved_path"
+fi
+BODY
+  } > "$tmpdir/run_test.sh"
+  chmod +x "$tmpdir/run_test.sh"
+
+  output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  if [ ${rc:-0} -eq 0 ]; then
+    _pass 'stale worktree registration → prune + reattach (no new branch, no hard failure)'
+  else
+    _fail 'stale worktree registration → prune + reattach (no new branch, no hard failure)' "$output"
+  fi
+  rm -rf "$tmpdir"
+  trap - RETURN
+}
+
 test_records_linear_sync_failure
 test_creates_issue_worktree_path_from_metadata
 test_resolve_issue_worktree_metadata_parses_cli_json
@@ -1081,8 +1300,11 @@ test_create_fresh_when_no_existing_branch
 test_resolver_tiers_substring_and_exact_preference
 test_resolver_digit_boundary_rejects_longer_issue_number
 test_main_checkout_branch_not_adopted
+test_resolver_tier2_prefix_beats_tier3_newest_first
+test_resolver_tier2_prefix_beats_tier3_oldest_first
+test_reattach_after_stale_worktree_registration
 
-printf '\nResults: %d passed, %d failed out of 14 tests\n' "$PASS" "$FAIL"
+printf '\nResults: %d passed, %d failed out of 17 tests\n' "$PASS" "$FAIL"
 
 if [ "$FAIL" -gt 0 ]; then
   exit 1

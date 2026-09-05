@@ -114,6 +114,10 @@ STUB
   # HERDR_STUB_WORKTREE_LIST_JSON (a JSON object body, default none) so the
   # already-open workspace guard can be exercised; it fails like a down
   # daemon under HERDR_STUB_WORKTREE_OPEN_FAIL=1 (guard fail-open coverage).
+  # HERDR_STUB_WORKTREE_LIST_FAIL=1 fails `worktree list` INDEPENDENTLY of
+  # `worktree open` (which keeps working unless its own flag is set), so the
+  # guard's fail-open direction — list failure → still call `worktree open` —
+  # is observable on its own.
   # `worktree open` records the request into herdr_worktree_open.log so tests
   # can assert it was (or was not) called.
   cat > "$tmpdir/herdr" << 'STUB'
@@ -122,6 +126,10 @@ STUB
   status) exit 0 ;;
   worktree)
     if [ "${2:-}" = "list" ]; then
+      if [ "${HERDR_STUB_WORKTREE_LIST_FAIL:-0}" = "1" ]; then
+        echo 'herdr: daemon not ready' >&2
+        exit 1
+      fi
       if [ "${HERDR_STUB_WORKTREE_OPEN_FAIL:-0}" = "1" ]; then
         echo 'herdr: daemon not ready' >&2
         exit 1
@@ -992,10 +1000,11 @@ test_dry_run_announces_create_decision() {
 # Test 33 (REP-1665): Stage 2 must reuse an open herdr workspace already
 # registered for the target path instead of calling `worktree open` again —
 # herdr's idempotency for an already-registered path is not documented as
-# guaranteed. The fail-open direction (list failure → open as before) is
-# covered by the herdr-down test above, where the stub fails `worktree list`
-# too. The reproctl stub prints "Path: $tmpdir/repro-wt-rep-123", so that is
-# the path deliver hands to _herdr_workspace_add_sibling.
+# guaranteed. The fail-open direction (list failure → open as before) has its
+# own dedicated test below (HERDR_STUB_WORKTREE_LIST_FAIL), independent of
+# the herdr-down test where list and open fail together. The reproctl stub
+# prints "Path: $tmpdir/repro-wt-rep-123", so that is the path deliver hands
+# to _herdr_workspace_add_sibling.
 test_herdr_reuses_open_workspace_for_path() {
   local tmpdir rc=0
   tmpdir="$(_make_tmpdir)"
@@ -1020,6 +1029,43 @@ test_herdr_reuses_open_workspace_for_path() {
     _pass "Stage 2 reuses the already-open herdr workspace (no worktree open)"
   else
     _fail "Stage 2 reuses the already-open herdr workspace (no worktree open)" "rc=$rc; open log: ${open_log:-<absent>}; output: $output"
+  fi
+}
+
+# Test 34 (REP-1665): the already-open guard's fail-open direction must be
+# observable on its own. With `worktree list` failing (a down daemon) and
+# `worktree open` still working, the adopt path must NOT stop at the failed
+# lookup: it falls through to `worktree open`, records the call, and uses the
+# workspace id from its response. A future fail-closed regression (bailing
+# out when the lookup fails) would leave the workspace unopened and fail
+# this test.
+test_herdr_list_failure_fails_open_to_worktree_open() {
+  local tmpdir rc=0
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  _write_runner "$tmpdir" "REP-123"
+
+  local output
+  output="$(HERDR_STUB_WORKTREE_LIST_FAIL=1 bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+
+  local open_log=""
+  if [ -f "$tmpdir/herdr_worktree_open.log" ]; then
+    open_log="$(cat "$tmpdir/herdr_worktree_open.log")"
+  fi
+  rm -rf "$tmpdir"
+
+  local ok=1
+  # The guard fell open: `worktree open` was called despite the list failure
+  printf '%s\n' "$open_log" | grep -q 'HERDR_WORKTREE_OPEN: worktree open' || ok=0
+  # The opened workspace id is used (Stage 2 confirms with it)
+  printf '%s\n' "$output" | grep -q 'Workspace: .* (ws-123)' || ok=0
+  # No bogus reuse path was taken
+  if printf '%s\n' "$output" | grep -q 'Reusing open herdr workspace'; then ok=0; fi
+
+  if [ $ok -eq 1 ]; then
+    _pass "herdr worktree list failure fails open to worktree open (workspace still opened)"
+  else
+    _fail "herdr worktree list failure fails open to worktree open (workspace still opened)" "rc=$rc; open log: ${open_log:-<absent>}; output: $output"
   fi
 }
 
@@ -1058,6 +1104,7 @@ test_stage4_wrapped_echo_does_not_submit
 test_dry_run_announces_adopt_decision
 test_dry_run_announces_create_decision
 test_herdr_reuses_open_workspace_for_path
+test_herdr_list_failure_fails_open_to_worktree_open
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed out of $TESTS_RUN tests"

@@ -295,7 +295,9 @@ _resolve_existing_issue_worktree() {
 
   # Tiers: 1 exact hint > 2 hint prefix (reproctl's mint shape) > 3 issue-id
   # substring. Within a tier the first hit wins (committerdate-desc = most
-  # recently modified).
+  # recently modified); a STRICTLY better tier replaces the current best, so
+  # a later hint-prefix match beats an earlier substring match regardless of
+  # scan order.
   while IFS= read -r branch; do
     [ -z "$branch" ] && continue
     tier=0
@@ -318,7 +320,9 @@ _resolve_existing_issue_worktree() {
     case "$tier" in
       0) continue ;;
       1) best_tier=1; best_branch="$branch"; break ;;
-      2|3) if [ "$best_tier" -lt "$tier" ]; then best_tier=$tier; best_branch="$branch"; fi ;;
+      # best_tier=0 means "no candidate yet"; otherwise replace only when the
+      # new tier is strictly better (smaller number = stronger match).
+      2|3) if [ "$best_tier" -eq 0 ] || [ "$tier" -lt "$best_tier" ]; then best_tier=$tier; best_branch="$branch"; fi ;;
     esac
   done <<< "$branches"
 
@@ -367,6 +371,40 @@ _adopt_existing_issue_worktree() {
   fi
 }
 
+# _prune_stale_worktree_registrations
+# Runs `git worktree prune` when any registered worktree directory no longer
+# exists. Registrations for deleted directories make `git worktree add` fail
+# with "missing but already registered worktree"; prune removes exactly those
+# registrations and never touches registered dirs that still exist.
+_prune_stale_worktree_registrations() {
+  local wt_path="" line has_stale=0
+  while IFS= read -r line; do
+    case "$line" in
+      worktree\ *) wt_path="${line#worktree }" ;;
+      "")
+        if [ -n "$wt_path" ] && [ ! -d "$wt_path" ]; then
+          has_stale=1
+        fi
+        wt_path=""
+        ;;
+    esac
+  done < <(git -C "$REPO_ROOT" worktree list --porcelain 2>/dev/null)
+  # Trailing record without a blank separator (defensive; porcelain normally
+  # ends each record with one).
+  if [ -n "$wt_path" ] && [ ! -d "$wt_path" ]; then
+    has_stale=1
+  fi
+
+  if [ "$has_stale" = 1 ]; then
+    _warn "Pruning stale git worktree registrations (registered directories no longer exist)..."
+    if ! git -C "$REPO_ROOT" worktree prune >/dev/null 2>&1; then
+      _warn "git worktree prune failed — continuing; the attach below may report the stale registration."
+    fi
+  fi
+
+  return 0
+}
+
 # _reattach_existing_issue_branch <branch>
 # Attaches a worktree to an existing issue branch without minting a new one.
 # Derives the slug from the existing branch — reproctl's mint shape
@@ -374,6 +412,12 @@ _adopt_existing_issue_worktree() {
 # slugified branch otherwise — and reuses _create_issue_worktree_from_metadata
 # unchanged: cmd_wt_create's local-branch path runs `git worktree add <path>
 # <branch>` (no -b), so the existing branch is attached as-is.
+#
+# A registered-but-missing worktree (directory deleted without a prune) would
+# make that `git worktree add` fail hard, killing the whole run under the
+# caller's set -euo pipefail with no actionable output. Stale registrations
+# are therefore pruned BEFORE the add; if the add still fails, die with an
+# actionable message instead of returning silently.
 _reattach_existing_issue_branch() {
   local existing_branch="$1"
   local suffix slug
@@ -389,7 +433,16 @@ _reattach_existing_issue_branch() {
   WT_ISSUE_WORKTREE_SLUG="$slug"
   WT_ISSUE_WORKTREE_PATH="$(worktree_path "$slug")"
   WT_ISSUE_START_REF=""
-  _create_issue_worktree_from_metadata
+
+  _prune_stale_worktree_registrations
+
+  if ! _create_issue_worktree_from_metadata; then
+    die "Failed to attach a worktree to the existing branch '${existing_branch}' for ${WT_ISSUE_IDENTIFIER}.
+  A stale worktree registration may remain. To resolve manually:
+    git -C \"${REPO_ROOT}\" worktree prune
+  then remove or rename the conflicting directory at ${WT_ISSUE_WORKTREE_PATH} and retry:
+    reproctl worktree create --from-issue ${WT_ISSUE_IDENTIFIER}"
+  fi
 }
 
 _create_issue_worktree_from_metadata() {
