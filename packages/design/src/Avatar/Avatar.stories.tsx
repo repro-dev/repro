@@ -28,6 +28,17 @@ export const Default: Story = {
 const modes = ['full', 'image-only', 'text-only'] as const
 
 export const Modes: Story = {
+  // Waiver (REP-1658 re-arm of flat-type-hierarchy): the mode gallery
+  // deliberately displays every avatar mode side by side; the initials text
+  // scales at half the avatar size (component anatomy), so the page's size
+  // set is inherent to showing the full range.
+  parameters: {
+    impeccable: {
+      disable: ['flat-type-hierarchy'],
+      reason:
+        'mode gallery displays all avatar modes; initials text scales at half the avatar size (component anatomy)',
+    },
+  },
   render: () => (
     <Col gap={spacing.xl} padding={spacing.xl}>
       {modes.map(mode => (

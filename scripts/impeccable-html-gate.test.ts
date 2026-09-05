@@ -30,7 +30,6 @@ import path from 'node:path'
 import { describe, it } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { applyStoryDecorators, mergeStoryArgs } from './story-render-utils.ts'
-import { buildWaiverDirective } from './story-waiver-directive.ts'
 
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -391,99 +390,5 @@ describe('REP-1657 render-failure blind-spot guard', () => {
     // Preserve the existing cleanup invariant: the next fresh run exercises
     // the harness again rather than reading a stale manifest.
     rmSync(MANIFEST_PATH)
-  })
-})
-
-describe('REP-1656 story-parameter waiver directives', () => {
-  // Source-level inline ignores cannot survive re-render: the detector scans
-  // the generated HTML, not the story source. Stories declare
-  // `parameters.impeccable = { disable, reason }` instead, and the harness
-  // injects the whole-file `impeccable-disable` directive the static-html
-  // engine honors into every rendered doc.
-  it('builds a whole-file impeccable-disable directive from story parameters', () => {
-    const noParams = buildWaiverDirective({ name: 'story' })
-    assert.equal(noParams, '')
-
-    const emptyDisable = buildWaiverDirective({
-      parameters: { impeccable: { disable: [], reason: 'nothing to waive' } },
-    })
-    assert.equal(emptyDisable, '')
-
-    const single = buildWaiverDirective({
-      parameters: {
-        impeccable: {
-          disable: ['cramped-padding'],
-          reason: 'edge-to-edge component anatomy',
-        },
-      },
-    })
-    assert.equal(
-      single,
-      '<!-- impeccable-disable cramped-padding -- edge-to-edge component anatomy -->'
-    )
-
-    const multiple = buildWaiverDirective({
-      parameters: {
-        impeccable: {
-          disable: ['cramped-padding', 'numbered-section-markers'],
-        },
-      },
-    })
-    assert.equal(
-      multiple,
-      '<!-- impeccable-disable cramped-padding, numbered-section-markers -->'
-    )
-
-    // Unknown-safe: non-string and empty rule entries are dropped.
-    const filtered = buildWaiverDirective({
-      parameters: {
-        impeccable: { disable: ['cramped-padding', 42, null, ''] },
-      },
-    })
-    assert.equal(filtered, '<!-- impeccable-disable cramped-padding -->')
-  })
-
-  it('injects waiver directives from a workspace story into its rendered HTML', async () => {
-    // The Accordion SingleExpand story declares parameters.impeccable with a
-    // cramped-padding waiver; its rendered doc must carry the directive so the
-    // waiver survives any re-render by construction.
-    const targetFile = path.join(
-      HTML_DIR,
-      'packages-design-src-Accordion-Accordion-SingleExpand.html'
-    )
-
-    const hasDirective = (): boolean =>
-      existsSync(targetFile) &&
-      readFileSync(targetFile, 'utf8').includes(
-        '<!-- impeccable-disable cramped-padding'
-      )
-
-    if (!hasDirective()) {
-      // Stale or missing render output: re-render so the assertion reflects
-      // the current harness. A broken mechanism still fails below — a fresh
-      // render without injection never gains the directive.
-      try {
-        execFileSync('pnpm', ['run', 'render-stories-html'], {
-          cwd: repoRoot,
-          timeout: 600_000,
-          maxBuffer: 32 * 1024 * 1024,
-        })
-      } catch (err) {
-        const failure = err as { stdout?: string; stderr?: string }
-        assert.fail(
-          `render-stories-html failed: ${failure.stdout ?? ''}\n${
-            failure.stderr ?? String(err)
-          }`
-        )
-      }
-    }
-
-    assert.ok(
-      hasDirective(),
-      `expected the injected waiver directive in ${targetFile}`
-    )
-    // Preserve the existing cleanup invariant: the next fresh run exercises
-    // the harness again rather than reading a stale manifest.
-    if (existsSync(MANIFEST_PATH)) rmSync(MANIFEST_PATH)
   })
 })

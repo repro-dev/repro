@@ -24,15 +24,21 @@
  * The gap between md and lg reflects the transition from UI/badge sizes
  * to heading sizes.
  *
- * xs and sm both sit at 12px pending the type-scale review (REP-1656): xs was
- * 11px, but 11px body text failed the tiny-text design rule, so the readable
- * floor is 12px. xs keeps the semantic caption / minimum-UI role while the
- * scale is reworked; do not treat xs === sm as an invitation to merge them.
+ * xs and sm both sit at 12px by documented decision (REP-1658 review
+ * outcome, resolving the REP-1656 convergence): the 12px readability floor
+ * caps xs, and a distinct sm would have to be 13px, which fragments the
+ * documented step rhythm with no readability or detector benefit (the
+ * scale's max/min ratio is 32/12 ≈ 2.67 either way). Deprecating either
+ * token would churn 60+ consumers while erasing real semantic roles —
+ * xs keeps the caption / minimum-UI (floor) role, sm the small-UI-text
+ * role. `typography.test.ts` pins the aliasing as an explicit invariant;
+ * differentiating the tokens later is a deliberate scale change, not a
+ * drive-by edit.
  */
 export const fontSize = {
   /** 12px — captions, timestamps, minimum UI text (readability floor) */
   xs: 12,
-  /** 12px — small UI text, labels, secondary body */
+  /** 12px — small UI text, labels, secondary body (aliased with xs by decision, REP-1658) */
   sm: 12,
   /** 14px — primary body text */
   md: 14,
@@ -188,7 +194,9 @@ export const textStyles = {
 export type TextStyleToken = keyof typeof textStyles
 
 /**
- * Minimum font size used by Button and Input — references `fontSize.xs`.
+ * Minimum font size for floor-enforcing components — references `fontSize.xs`.
+ * Consumers: Input, Checkbox, Toggle, Select, Radio, RadioGroup (labels and
+ * trigger text scale down to this floor; Button is not a consumer).
  * Components should import this constant rather than hardcoding a px value.
  * Sits at the 12px readability floor (REP-1656).
  */

@@ -52,6 +52,22 @@ const impeccableWaiver = {
   },
 } as const
 
+// Impeccable rendered-HTML gate waiver for the hypotheses-stage stories
+// (REP-1658 re-arm of flat-type-hierarchy): the panel is token-scaled app UI
+// (caption 12 / body 14 / heading3 18) with no display-size element, so the
+// page's max/min ratio cannot reach the detector's 2.0 threshold. Verified at
+// re-arm time: every size is token-sourced — nothing to fix at source without
+// redesigning the panel.
+const impeccableTypeRampWaiver = {
+  parameters: {
+    impeccable: {
+      disable: ['layout-transition', 'cramped-padding', 'flat-type-hierarchy'],
+      reason:
+        'AgenticView app-shell: structural frame with inset children; input-section raise animates margin/padding by design; hypotheses panel is token-scaled UI (caption 12 / body 14 / heading3 18) with no display-size element',
+    },
+  },
+} as const
+
 export default meta
 
 function withState(state: AgenticState): Decorator {
@@ -470,7 +486,7 @@ export const WithTruncation: StoryObj = {
 }
 
 export const WithHypotheses: StoryObj = {
-  ...impeccableWaiver,
+  ...impeccableTypeRampWaiver,
   decorators: [
     withState(
       makeState(
@@ -533,7 +549,7 @@ const recordingMeta: RecordingMeta = {
 }
 
 export const WithRecordingMeta: StoryObj = {
-  ...impeccableWaiver,
+  ...impeccableTypeRampWaiver,
   args: {
     recordingMeta,
   },

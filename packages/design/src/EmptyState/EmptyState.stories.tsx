@@ -22,6 +22,20 @@ export default meta
 
 type Story = StoryObj<typeof EmptyState>
 
+// Waiver (REP-1658 re-arm of flat-type-hierarchy): the component's anatomy is
+// title (heading3) + description (body) + action button (label) — a deliberate
+// three-step token ramp on one page. The detector's 2.0 max/min threshold is
+// unreachable for a single-instance component demo.
+const impeccableTypeRampWaiver = {
+  parameters: {
+    impeccable: {
+      disable: ['flat-type-hierarchy'],
+      reason:
+        'component anatomy is title (heading3 18) + description (body 14) + action button (label 12); deliberate token ramp on one page',
+    },
+  },
+}
+
 export const Default: Story = {
   render: () => (
     <EmptyState>
@@ -50,6 +64,7 @@ export const WithIcon: Story = {
 
 export const WithAction: Story = {
   name: 'With Action',
+  ...impeccableTypeRampWaiver,
   render: () => (
     <EmptyState>
       <EmptyState.Title>No sessions yet</EmptyState.Title>
@@ -64,6 +79,7 @@ export const WithAction: Story = {
 }
 
 export const Complete: Story = {
+  ...impeccableTypeRampWaiver,
   render: () => (
     <EmptyState>
       <EmptyState.Icon>

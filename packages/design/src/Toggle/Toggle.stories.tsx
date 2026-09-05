@@ -75,6 +75,16 @@ const sizes = ['small', 'medium', 'large'] as const
 
 /** All sizes, checked and unchecked */
 export const Sizes: Story = {
+  // Waiver (REP-1658 re-arm of flat-type-hierarchy): the size-range gallery
+  // deliberately displays small/medium/large side by side; the label sizes
+  // follow the component's own density scaling.
+  parameters: {
+    impeccable: {
+      disable: ['flat-type-hierarchy'],
+      reason:
+        'size-range gallery displays small/medium/large; label sizes follow the component density scaling',
+    },
+  },
   render: () => (
     <Col gap={16} padding={16}>
       {sizes.map(s => (

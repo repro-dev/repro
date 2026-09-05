@@ -156,6 +156,16 @@ export const LongList: Story = {
 const allSizes = ['small', 'medium', 'large'] as const
 
 export const Sizes: Story = {
+  // Waiver (REP-1658 re-arm of flat-type-hierarchy): the size-range gallery
+  // deliberately displays small/medium/large side by side; the trigger and
+  // label sizes follow the component's own density scaling.
+  parameters: {
+    impeccable: {
+      disable: ['flat-type-hierarchy'],
+      reason:
+        'size-range gallery displays small/medium/large; trigger/label sizes follow the component density scaling',
+    },
+  },
   render: () => {
     const [values, setValues] = useState<Record<string, string>>({
       small: 'apple',

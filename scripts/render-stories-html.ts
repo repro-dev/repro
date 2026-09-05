@@ -41,6 +41,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { cacheSingleton } from '@jsxstyle/core'
 import { createElement, type ReactElement, type ReactNode } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { htmlDocument } from './story-html-document.ts'
 import {
   applyStoryDecorators,
   isPlainObject,
@@ -328,18 +329,9 @@ interface FileRow {
   failed: number
 }
 
-function htmlDocument(
-  markup: string,
-  css: string,
-  waiverDirective = ''
-): string {
-  // The waiver directive is injected into the rendered doc (not left in story
-  // source) because the detector scans the generated HTML: source-level inline
-  // ignores cannot survive re-render, while this whole-file directive is
-  // regenerated on every render (REP-1656).
-  const bodyPrefix = waiverDirective ? `${waiverDirective}\n` : ''
-  return `<!doctype html><html><head><meta charset="utf-8"><style>${css}</style></head><body>${bodyPrefix}${markup}</body></html>`
-}
+// `htmlDocument` (with the REP-1658 body base font-size rule) lives in
+// scripts/story-html-document.ts — dependency-free so the gate test can import
+// it under plain `node --test`.
 
 export async function runRender(
   options: { log?: (msg: string) => void } = {}

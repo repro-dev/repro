@@ -38,13 +38,16 @@ FakeLink.displayName = 'FakeLink'
 
 export const AppShellConvention: Story = {
   name: 'app-shell',
-  // Waiver (REP-1656): the shell root is a structural frame; the PageFrame
-  // header/body children provide their own inset.
+  // Waiver (REP-1656; FTH re-armed REP-1658): the shell root is a structural
+  // frame; the PageFrame header/body children provide their own inset. The
+  // demo composes representative page chrome at token sizes (label 12 /
+  // body 14 / title 20) — a single demo page cannot span the detector's 2.0
+  // max/min ratio.
   parameters: {
     impeccable: {
-      disable: ['cramped-padding'],
+      disable: ['cramped-padding', 'flat-type-hierarchy'],
       reason:
-        'shell root is a structural frame; children carry their own inset',
+        'shell root is a structural frame; children carry their own inset; page chrome composes token sizes (label 12 / body 14 / title 20)',
     },
   },
   render: () => (
@@ -161,13 +164,15 @@ export const ToolViewConvention: Story = {
 
 export const AuthFlowConvention: Story = {
   name: 'auth-flow',
-  // Waiver (REP-1656): the auth root fills the viewport on purpose; the sign-in
-  // card provides its own inset.
+  // Waiver (REP-1656; FTH re-armed REP-1658): the auth root fills the viewport
+  // on purpose; the sign-in card provides its own inset. The card composes
+  // representative auth chrome at token sizes (label 12 / body 14 /
+  // heading2 20).
   parameters: {
     impeccable: {
-      disable: ['cramped-padding'],
+      disable: ['cramped-padding', 'flat-type-hierarchy'],
       reason:
-        'auth flow root fills the viewport; the card provides its own inset',
+        'auth flow root fills the viewport; the card provides its own inset; card composes token sizes (label 12 / body 14 / heading2 20)',
     },
   },
   render: () => (

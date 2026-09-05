@@ -23,6 +23,20 @@ export default meta
 
 type Story = StoryObj<typeof FullPageError>
 
+// Waiver (REP-1658 re-arm of flat-type-hierarchy): the component's anatomy is
+// title (heading3) + description (body) + action button (label) — a deliberate
+// three-step token ramp on one page. The detector's 2.0 max/min threshold is
+// unreachable for a single-instance component demo.
+const impeccableTypeRampWaiver = {
+  parameters: {
+    impeccable: {
+      disable: ['flat-type-hierarchy'],
+      reason:
+        'component anatomy is title (heading3 18) + description (body 14) + action button (label 12); deliberate token ramp on one page',
+    },
+  },
+}
+
 export const Default: Story = {
   render: () => (
     <FullPageError
@@ -43,6 +57,7 @@ export const NotFound: Story = {
 
 export const WithAction: Story = {
   name: 'With Action',
+  ...impeccableTypeRampWaiver,
   render: () => (
     <FullPageError
       title="Something went wrong"
@@ -65,6 +80,7 @@ export const CustomIcon: Story = {
 
 export const FullPage: Story = {
   name: 'Full Page',
+  ...impeccableTypeRampWaiver,
   decorators: [
     Story => (
       <Block height="100vh" border={`1px dashed ${color.border.default}`}>

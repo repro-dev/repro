@@ -1,6 +1,12 @@
 import expect from 'expect'
 import { describe, it } from 'node:test'
-import { fontFamily, fontSize, lineHeight, textStyles } from './typography'
+import {
+  fontFamily,
+  fontSize,
+  lineHeight,
+  MINIMUM_FONT_SIZE,
+  textStyles,
+} from './typography'
 
 const expectedSansStack =
   "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
@@ -8,7 +14,8 @@ const expectedSansStack =
 describe('typography font size tokens', () => {
   it('provides the revised font size scale', () => {
     // xs sits at the 12px readability floor (REP-1656): 11px body text failed
-    // the tiny-text design rule, so the minimum token converges with sm at 12px.
+    // the tiny-text design rule, so the minimum token sits at 12px. sm shares
+    // the value by documented decision (REP-1658), not by accident.
     expect(fontSize.xs).toBe(12)
     expect(fontSize.sm).toBe(12)
     expect(fontSize.md).toBe(14)
@@ -16,6 +23,18 @@ describe('typography font size tokens', () => {
     expect(fontSize.xl).toBe(20)
     expect(fontSize['2xl']).toBe(24)
     expect(fontSize['3xl']).toBe(32)
+  })
+
+  it('aliases xs and sm at the readability floor by decision (REP-1658)', () => {
+    // Documented intentional aliasing, not pending state: the 12px floor caps
+    // xs, and a distinct sm would have to be 13px, which fragments the
+    // documented step rhythm (12→14→18→20→24→32) with no readability or
+    // detector benefit (max/min ratio is unchanged). Rationale lives on the
+    // fontSize scale in typography.ts; this pin makes the decision load-bearing
+    // — a future attempt to differentiate the tokens must revisit it explicitly.
+    expect(fontSize.xs).toBe(fontSize.sm)
+    expect(fontSize.sm).toBe(MINIMUM_FONT_SIZE)
+    expect(MINIMUM_FONT_SIZE).toBe(12)
   })
 })
 
@@ -58,8 +77,8 @@ describe('typography font family tokens', () => {
 
     expect(h4).toBeLessThan(h3)
     expect(h5).toBeLessThan(h4)
-    // h5 and h6 both sit at the 12px readability floor pending the type-scale
-    // review (REP-1656) — non-strict while the scale is converged.
+    // h5 and h6 both sit at the 12px readability floor — xs/sm alias there by
+    // documented decision (REP-1658), so the comparison is non-strict by design.
     expect(h6).toBeLessThanOrEqual(h5)
     expect(h6).toBeLessThanOrEqual(body)
     expect(h6).toBe(fontSize.xs)
