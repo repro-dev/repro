@@ -371,19 +371,30 @@ _adopt_existing_issue_worktree() {
   fi
 }
 
-# _prune_stale_worktree_registrations
-# Runs `git worktree prune` when any registered worktree directory no longer
-# exists. Registrations for deleted directories make `git worktree add` fail
-# with "missing but already registered worktree"; prune removes exactly those
-# registrations and never touches registered dirs that still exist.
+# _prune_stale_worktree_registrations [expected_path]
+# Runs `git worktree prune` ONLY when a registered worktree whose directory
+# no longer exists sits at the caller's expected reattach path — the one
+# registration that would make the `git worktree add` below fail with
+# "missing but already registered worktree". Stale registrations for OTHER
+# paths (e.g. a worktree on an unmounted external volume) are warned about
+# and left untouched: a repo-wide prune would silently unregister worktrees
+# this command knows nothing about. git cannot prune selectively, so a
+# target-path prune unavoidably also clears other stale registrations.
+# With no expected_path, nothing is stale "at target" and no prune runs.
 _prune_stale_worktree_registrations() {
-  local wt_path="" line has_stale=0
+  local expected_path="${1:-}"
+  local wt_path="" line
+  local stale_at_target="" stale_elsewhere=""
   while IFS= read -r line; do
     case "$line" in
       worktree\ *) wt_path="${line#worktree }" ;;
       "")
         if [ -n "$wt_path" ] && [ ! -d "$wt_path" ]; then
-          has_stale=1
+          if [ -n "$expected_path" ] && [ "$wt_path" = "$expected_path" ]; then
+            stale_at_target="$wt_path"
+          else
+            stale_elsewhere="$stale_elsewhere${stale_elsewhere:+ }$wt_path"
+          fi
         fi
         wt_path=""
         ;;
@@ -392,14 +403,20 @@ _prune_stale_worktree_registrations() {
   # Trailing record without a blank separator (defensive; porcelain normally
   # ends each record with one).
   if [ -n "$wt_path" ] && [ ! -d "$wt_path" ]; then
-    has_stale=1
+    if [ -n "$expected_path" ] && [ "$wt_path" = "$expected_path" ]; then
+      stale_at_target="$wt_path"
+    else
+      stale_elsewhere="$stale_elsewhere${stale_elsewhere:+ }$wt_path"
+    fi
   fi
 
-  if [ "$has_stale" = 1 ]; then
-    _warn "Pruning stale git worktree registrations (registered directories no longer exist)..."
+  if [ -n "$stale_at_target" ]; then
+    _warn "Pruning stale git worktree registration at ${stale_at_target} (registered directory no longer exists)..."
     if ! git -C "$REPO_ROOT" worktree prune >/dev/null 2>&1; then
       _warn "git worktree prune failed — continuing; the attach below may report the stale registration."
     fi
+  elif [ -n "$stale_elsewhere" ]; then
+    _warn "Stale git worktree registration(s) found away from the reattach target: ${stale_elsewhere} — left untouched (no prune)."
   fi
 
   return 0
@@ -434,11 +451,11 @@ _reattach_existing_issue_branch() {
   WT_ISSUE_WORKTREE_PATH="$(worktree_path "$slug")"
   WT_ISSUE_START_REF=""
 
-  _prune_stale_worktree_registrations
+  _prune_stale_worktree_registrations "$WT_ISSUE_WORKTREE_PATH"
 
   if ! _create_issue_worktree_from_metadata; then
     die "Failed to attach a worktree to the existing branch '${existing_branch}' for ${WT_ISSUE_IDENTIFIER}.
-  A stale worktree registration may remain. To resolve manually:
+  If a stale worktree registration remains, prune it first:
     git -C \"${REPO_ROOT}\" worktree prune
   then remove or rename the conflicting directory at ${WT_ISSUE_WORKTREE_PATH} and retry:
     reproctl worktree create --from-issue ${WT_ISSUE_IDENTIFIER}"
@@ -590,11 +607,15 @@ cmd_wt_create() {
   if [ "$WT_SKIP_INSTALL" != true ]; then
     step=$((step + 1))
     _step "$step" "$total_steps" "Installing dependencies..."
-    (cd "$wt_path" && pnpm install)
+    # Explicit guards: when called from the reattach wrapper this whole chain
+    # runs with errexit suspended (commands inside an `if` test condition),
+    # so a bare failing command here would silently fall through to the
+    # success path instead of aborting the run.
+    (cd "$wt_path" && pnpm install) || return $?
 
     step=$((step + 1))
     _step "$step" "$total_steps" "Building packages..."
-    (cd "$wt_path" && moon run :build)
+    (cd "$wt_path" && moon run :build) || return $?
   fi
 
   if [ "$has_direnv" = true ] && [ -f "$wt_path/.envrc" ]; then
@@ -606,7 +627,7 @@ cmd_wt_create() {
     fi
 
     if [ "$main_allowed" = true ]; then
-      (cd "$wt_path" && direnv allow)
+      (cd "$wt_path" && direnv allow) || return $?
     else
       echo "  ${CLR_DIM}Skipped (not allowed in main checkout)${CLR_RESET}"
     fi

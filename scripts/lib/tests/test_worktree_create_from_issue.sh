@@ -1210,6 +1210,83 @@ BODY
   trap - RETURN
 }
 
+# Case 12 (round-3 review, tier-1 replacement): both the exact Linear hint
+# (tier 1) and a hint-prefix mint (tier 2) exist, with tier 2 carrying the
+# NEWER commit so the resolver scans it FIRST. The tier-1 branch must still
+# win unconditionally — a newer tier-2 hit never replaces the exact hint.
+# Both branches have worktrees, so the winner is adopted.
+test_resolver_tier1_replaces_newer_tier2() {
+  local tmpdir output rc=0
+  tmpdir="$(mktemp -d "$REPO_ROOT/tmp/test_wt_tier1_beats_tier2.XXXXXX")"
+  export tmpdir
+  trap 'rm -rf "$tmpdir"' RETURN
+
+  {
+    _write_real_git_prelude
+    cat <<'SETUP'
+
+TIER1_BRANCH='gary/rep-123-existing-delivery'
+TIER1_WT="$tmpdir/repro-wt-rep-123-existing-delivery"
+TIER2_BRANCH='gary/rep-123-existing-delivery-20260806144124-03fa'
+TIER2_WT="$tmpdir/repro-wt-rep-123-hint-prefix"
+
+# Scan order fixture: tier 2 carries the NEWER commit, so the resolver
+# visits tier 2 FIRST and the exact-hint tier 1 second (committerdate desc).
+git -C "$REPO_ROOT" worktree add -b "$TIER1_BRANCH" "$TIER1_WT" >/dev/null 2>&1
+GIT_COMMITTER_DATE='2026-03-01T09:00:00' git -C "$TIER1_WT" commit -q --allow-empty -m 'tier1 work'
+git -C "$REPO_ROOT" worktree add -b "$TIER2_BRANCH" "$TIER2_WT" >/dev/null 2>&1
+GIT_COMMITTER_DATE='2026-03-02T09:00:00' git -C "$TIER2_WT" commit -q --allow-empty -m 'tier2 work'
+
+scan_order="$(git -C "$REPO_ROOT" for-each-ref --sort=-committerdate --format='%(refname:short)' refs/heads | grep -xE "$TIER1_BRANCH|$TIER2_BRANCH" | tr '\n' '|')"
+if [[ "$scan_order" != "$TIER2_BRANCH|$TIER1_BRANCH|" ]]; then
+  die "fixture broken: expected tier2 before tier1 in committerdate-desc order, got: $scan_order"
+fi
+
+branches_before="$(git -C "$REPO_ROOT" for-each-ref --format='%(refname:short)' refs/heads | sort)"
+SETUP
+    _write_metadata_stub
+    cat <<'BODY'
+
+output="$(cmd_wt_create_from_issue REP-123 2>&1)"
+
+branches_after="$(git -C "$REPO_ROOT" for-each-ref --format='%(refname:short)' refs/heads | sort)"
+
+if [[ "$branches_before" != "$branches_after" ]]; then
+  die "tier coexistence minted a new branch (before → after):
+$branches_before
+---
+$branches_after"
+fi
+
+resolved_path="$(printf '%s\n' "$output" | sed -n 's/^[[:space:]]*Path:[[:space:]]*//p' | tail -1)"
+if [[ "$resolved_path" != "$TIER1_WT" ]]; then
+  die "tier precedence: expected the exact-hint (tier 1) worktree to win even when the hint-prefix (tier 2) match is newer, got: ${resolved_path:-<none>}
+output: $output"
+fi
+
+if ! printf '%s\n' "$output" | grep -qi 'existing worktree'; then
+  die "tier-1 adoption was not announced:
+$output"
+fi
+
+if [ -f "$tmpdir/linear_calls.log" ] && grep -q 'issue update' "$tmpdir/linear_calls.log"; then
+  die "tier-1 adopt must not update Linear status:
+$(cat "$tmpdir/linear_calls.log")"
+fi
+BODY
+  } > "$tmpdir/run_test.sh"
+  chmod +x "$tmpdir/run_test.sh"
+
+  output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  if [ ${rc:-0} -eq 0 ]; then
+    _pass 'tier precedence: exact hint (tier 1) beats newer hint prefix (tier 2)'
+  else
+    _fail 'tier precedence: exact hint (tier 1) beats newer hint prefix (tier 2)' "$output"
+  fi
+  rm -rf "$tmpdir"
+  trap - RETURN
+}
+
 # Case 9 (hardening, stale registration): the matched branch still has a
 # `git worktree list` registration whose directory was deleted (rm -rf, no
 # prune). The resolver sees a registered-but-missing path and decides
@@ -1286,6 +1363,178 @@ BODY
   trap - RETURN
 }
 
+# Case 10 (blocker regression, round-3 review): the reattach wrapper calls
+# `_create_issue_worktree_from_metadata` inside `if ! ...`, which SUSPENDS
+# errexit for the entire call chain — a bare failing command inside
+# cmd_wt_create (pnpm install) no longer aborts the run on its own. The
+# install/build/direnv steps must fail loudly via explicit `|| return $?`
+# guards: non-zero exit, die message surfaced, moon never reached, and no
+# Linear `issue update` churn from a broken install.
+test_reattach_install_failure_fails_loudly() {
+  local tmpdir output rc=0
+  tmpdir="$(mktemp -d "$REPO_ROOT/tmp/test_wt_reattach_install_fail.XXXXXX")"
+  export tmpdir
+  trap 'rm -rf "$tmpdir"' RETURN
+
+  # Failing pnpm + canary moon on the runner's PATH. pnpm logs then exits 1;
+  # moon logs then exits 0 — reaching its log means the failure was swallowed.
+  mkdir -p "$tmpdir/failbin"
+  cat > "$tmpdir/failbin/pnpm" <<STUB
+#!/bin/bash
+printf 'pnpm-install-failed\n' >> "$tmpdir/pnpm.log"
+exit 1
+STUB
+  cat > "$tmpdir/failbin/moon" <<STUB
+#!/bin/bash
+printf 'moon-build-ran\n' >> "$tmpdir/moon.log"
+exit 0
+STUB
+  chmod +x "$tmpdir/failbin/pnpm" "$tmpdir/failbin/moon"
+
+  {
+    _write_real_git_prelude
+    cat <<'SETUP'
+
+# The prelude sets WT_SKIP_INSTALL=true globally; override it so the
+# install/build steps actually run on the reattach path.
+WT_SKIP_INSTALL=false
+export PATH="$tmpdir/failbin:$PATH"
+
+EXISTING_BRANCH='gary/rep-123-existing-delivery-20260806144124-03fa'
+git -C "$REPO_ROOT" branch "$EXISTING_BRANCH"
+
+branches_before="$(git -C "$REPO_ROOT" for-each-ref --format='%(refname:short)' refs/heads | sort)"
+SETUP
+    _write_metadata_stub
+    cat <<'BODY'
+
+rc=0
+output="$(cmd_wt_create_from_issue REP-123 2>&1)" || rc=$?
+
+if [ "$rc" -eq 0 ]; then
+  die "reattach install failure exited 0 (errexit suspended on the reattach chain):
+$output"
+fi
+
+if ! printf '%s\n' "$output" | grep -q 'Failed to attach a worktree to the existing branch'; then
+  die "reattach install failure was not surfaced via the die message:
+$output"
+fi
+
+if [ ! -f "$tmpdir/pnpm.log" ] || ! grep -q 'pnpm-install-failed' "$tmpdir/pnpm.log"; then
+  die "fixture broken: the failing pnpm stub did not run:
+$output"
+fi
+
+if [ -f "$tmpdir/moon.log" ]; then
+  die "moon run :build was reached after pnpm install failed:
+$(cat "$tmpdir/moon.log")"
+fi
+
+if [ -f "$tmpdir/linear_calls.log" ] && grep -q 'issue update' "$tmpdir/linear_calls.log"; then
+  die "broken install churned Linear status (issue update was called):
+$(cat "$tmpdir/linear_calls.log")"
+fi
+
+branches_after="$(git -C "$REPO_ROOT" for-each-ref --format='%(refname:short)' refs/heads | sort)"
+if [[ "$branches_before" != "$branches_after" ]]; then
+  die "failed reattach minted a new branch (before → after):
+$branches_before
+---
+$branches_after"
+fi
+BODY
+  } > "$tmpdir/run_test.sh"
+  chmod +x "$tmpdir/run_test.sh"
+
+  output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  if [ ${rc:-0} -eq 0 ]; then
+    _pass 'reattach install failure → loud failure (non-zero exit, die message, no moon, no Linear update)'
+  else
+    _fail 'reattach install failure → loud failure (non-zero exit, die message, no moon, no Linear update)' "$output"
+  fi
+  rm -rf "$tmpdir"
+  trap - RETURN
+}
+
+# Case 11 (round-3 review, prune scoping): the stale-registration prune must
+# only fire when the registration AT THE REATTACH TARGET is the stale one.
+# A stale registration for a DIFFERENT path (e.g. a worktree on an unmounted
+# external volume) must be warned about and left untouched — repo-wide
+# pruning would silently unregister live issue branches elsewhere.
+test_prune_skips_stale_registration_elsewhere() {
+  local tmpdir output rc=0
+  tmpdir="$(mktemp -d "$REPO_ROOT/tmp/test_wt_stale_elsewhere.XXXXXX")"
+  export tmpdir
+  trap 'rm -rf "$tmpdir"' RETURN
+
+  {
+    _write_real_git_prelude
+    cat <<'SETUP'
+
+# Stale-elsewhere fixture: a registered worktree on an unrelated branch whose
+# directory was deleted without a prune. Its branch name matches no resolver
+# tier for REP-123.
+ELSEWHERE_BRANCH='feat/totally-unrelated'
+ELSEWHERE_WT="$tmpdir/repro-wt-unrelated"
+git -C "$REPO_ROOT" worktree add -b "$ELSEWHERE_BRANCH" "$ELSEWHERE_WT" >/dev/null 2>&1
+rm -rf "$ELSEWHERE_WT"
+
+# The reattach TARGET branch exists without any worktree: nothing is stale
+# at the target path, so no prune may run at all.
+EXISTING_BRANCH='gary/rep-123-existing-delivery-20260806144124-03fa'
+git -C "$REPO_ROOT" branch "$EXISTING_BRANCH"
+
+branches_before="$(git -C "$REPO_ROOT" for-each-ref --format='%(refname:short)' refs/heads | sort)"
+SETUP
+    _write_metadata_stub
+    cat <<'BODY'
+
+output="$(cmd_wt_create_from_issue REP-123 2>&1)"
+
+branches_after="$(git -C "$REPO_ROOT" for-each-ref --format='%(refname:short)' refs/heads | sort)"
+
+if [[ "$branches_before" != "$branches_after" ]]; then
+  die "reattach minted a new branch (before → after):
+$branches_before
+---
+$branches_after"
+fi
+
+if ! git -C "$REPO_ROOT" worktree list --porcelain | grep -q "refs/heads/$EXISTING_BRANCH"; then
+  die "existing branch was not attached to a worktree:
+$output"
+fi
+
+resolved_path="$(printf '%s\n' "$output" | sed -n 's/^[[:space:]]*Path:[[:space:]]*//p' | tail -1)"
+if [[ "$resolved_path" != "$tmpdir/repro-wt-rep-123-20260806144124-03fa" ]]; then
+  die "expected the reattach target path, got: ${resolved_path:-<none>}
+output: $output"
+fi
+
+if ! printf '%s\n' "$output" | grep -q 'left untouched (no prune)'; then
+  die "stale-elsewhere registration was not flagged as skipped:
+$output"
+fi
+
+if ! git -C "$REPO_ROOT" worktree list --porcelain | grep -qF "worktree $ELSEWHERE_WT"; then
+  die "stale-elsewhere registration was pruned (prune scope is too wide):
+$(git -C "$REPO_ROOT" worktree list --porcelain)"
+fi
+BODY
+  } > "$tmpdir/run_test.sh"
+  chmod +x "$tmpdir/run_test.sh"
+
+  output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  if [ ${rc:-0} -eq 0 ]; then
+    _pass 'stale registration elsewhere → warn, no prune, target reattach proceeds'
+  else
+    _fail 'stale registration elsewhere → warn, no prune, target reattach proceeds' "$output"
+  fi
+  rm -rf "$tmpdir"
+  trap - RETURN
+}
+
 test_records_linear_sync_failure
 test_creates_issue_worktree_path_from_metadata
 test_resolve_issue_worktree_metadata_parses_cli_json
@@ -1302,9 +1551,12 @@ test_resolver_digit_boundary_rejects_longer_issue_number
 test_main_checkout_branch_not_adopted
 test_resolver_tier2_prefix_beats_tier3_newest_first
 test_resolver_tier2_prefix_beats_tier3_oldest_first
+test_resolver_tier1_replaces_newer_tier2
 test_reattach_after_stale_worktree_registration
+test_reattach_install_failure_fails_loudly
+test_prune_skips_stale_registration_elsewhere
 
-printf '\nResults: %d passed, %d failed out of 17 tests\n' "$PASS" "$FAIL"
+printf '\nResults: %d passed, %d failed out of 20 tests\n' "$PASS" "$FAIL"
 
 if [ "$FAIL" -gt 0 ]; then
   exit 1
