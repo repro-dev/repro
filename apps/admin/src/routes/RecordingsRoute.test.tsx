@@ -340,6 +340,40 @@ describe('RecordingsRoute', () => {
     )
   })
 
+  it('renders a fallback footer when a refetched page beyond page 1 is empty (negative)', async () => {
+    const page1Items: RecordingInfo[] = []
+    for (let i = 0; i < 51; i++) {
+      page1Items.push({
+        ...recording,
+        id: `rec-${i}`,
+        title: `Rec ${i}`,
+      })
+    }
+
+    // Dataset shrank between fetches: page 2 refetches to an empty page.
+    renderRoute({
+      fetch: (path: string) => {
+        if (path.includes('offset=0')) {
+          return resolve({ items: page1Items })
+        }
+        return resolve({ items: [] })
+      },
+    })
+
+    await waitFor(() => assert.ok(screen.getByText('Rec 0')))
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
+    })
+
+    // Degenerate state: page > 1 with an empty refetched page. The footer must
+    // not render the incoherent "Showing 51–50 recordings" range.
+    await waitFor(() =>
+      assert.ok(screen.getByText('No recordings on this page'))
+    )
+    assert.equal(screen.queryByText(/Showing/), null)
+  })
+
   it('does not fetch when clicking the disabled next control (negative)', async () => {
     const items: RecordingInfo[] = []
     for (let i = 0; i < 50; i++) {

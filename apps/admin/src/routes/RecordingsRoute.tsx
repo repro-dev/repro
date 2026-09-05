@@ -207,9 +207,15 @@ export const RecordingsRoute: React.FC = () => {
               </Table>
             </Block>
             <ListPageFooter
-              footerText={`Showing ${offset + 1}\u2013${
-                offset + items.length
-              } recordings`}
+              footerText={
+                // Degenerate refetch (dataset shrank): page > 1 with an empty
+                // page must not render the incoherent "Showing 51–50" range.
+                items.length === 0 && page > 1
+                  ? 'No recordings on this page'
+                  : `Showing ${offset + 1}\u2013${
+                      offset + items.length
+                    } recordings`
+              }
               currentPage={page}
               hasPreviousPage={hasPreviousPage}
               hasNextPage={hasNextPage}

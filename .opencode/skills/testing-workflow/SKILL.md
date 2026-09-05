@@ -59,7 +59,7 @@ Stateful surfaces (billing states, pagination states, health agreement, router c
 
 Conventions (established by REP-1649):
 
-- **Colocation**: add the matrix as a sibling `*.state-matrix.test.tsx` (e.g. `BillingSettingsRoute.state-matrix.test.tsx`) or extend the surface's existing test file — whichever keeps the file under the ~400-line CI guardrail (`scripts/check-test-file-size.sh`; >500 lines is an error).
+- **Colocation**: add the matrix as a sibling `*.state-matrix.test.tsx` (e.g. `BillingSettingsRoute.state-matrix.test.tsx`), extend the surface's existing test file, or add a new colocated file when the matrix spans multiple components — whichever keeps the file under the ~400-line CI guardrail (`scripts/check-test-file-size.sh`; >500 lines is an error).
 - **Fix-gating**: a state-logic fix ships only together with the matrix that fails without it. If a matrix test passes without any production change, that is fine (it documents current behavior); if a fix is included, the matrix must demonstrate the documented failure against the pre-fix behavior first (red → green).
 - **Revert-verification**: for behavioral fixes, temporarily revert the one fixed file (`git checkout HEAD -- <file>` before the fix is committed, or `git checkout HEAD~1 -- <file>` after), re-run the matrix, and confirm the documented tests fail — then restore and re-run green. Record per-test results so the PR body can cite them.
 - **Realistic fixtures**: live-state fixtures use realistic values (real-looking URLs like `https://vendors.paddle.com/subscription-portal/ps_3xk29f`, plausible ids like `acc_8f42c1e9`). Never present `example.com` or `"foo"`-class placeholders as live state.

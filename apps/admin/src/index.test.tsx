@@ -190,6 +190,9 @@ mock.module('./routes/HealthRoute', {
   },
 })
 
+// RequireAdminSession is a passthrough: the unmatched-path matrix below only
+// covers authenticated users. In production, anonymous users hit the login
+// redirect before any route matching occurs.
 mockModule('./components/RequireAdminSession', {
   exports: {
     RequireAdminSession: () => <ReactRouter.Outlet />,

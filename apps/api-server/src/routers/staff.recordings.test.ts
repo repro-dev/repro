@@ -216,5 +216,37 @@ describe('Routers > Staff', () => {
 
       expect(res.statusCode).toEqual(401)
     })
+
+    it('should return 403 when authenticated as non-staff', async () => {
+      const [userSession] = await harness.loadFixtures([
+        fixtures.account.UserA_Session,
+      ])
+
+      const res = await app.inject({
+        method: 'GET',
+        url: `/recordings/${encodeId(1)}/project`,
+        headers: {
+          authorization: `Bearer ${(userSession as Session).sessionToken}`,
+        },
+      })
+
+      expect(res.statusCode).toEqual(403)
+    })
+
+    it('should return 400 for a malformed recording id', async () => {
+      const [staffSession] = await harness.loadFixtures([
+        fixtures.account.StaffUserA_Session,
+      ])
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/recordings/not-a-sqid/project',
+        headers: {
+          authorization: `Bearer ${(staffSession as Session).sessionToken}`,
+        },
+      })
+
+      expect(res.statusCode).toEqual(400)
+    })
   })
 })

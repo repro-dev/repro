@@ -77,9 +77,10 @@ export const AppRoutes: React.FC = () => (
       />
       {/*
        * Backward compatibility: old links may still point to
-       * /recordings/:recordingId. projectId will be undefined
-       * here, which RecordingRoute handles by falling back to
-       * empty string (the original behavior for these cases).
+       * /recordings/:recordingId. RecordingRoute resolves the owning
+       * project via the staff project-lookup endpoint
+       * (GET /staff/recordings/:recordingId/project) and redirects to
+       * the canonical /projects/:projectId/recordings/:recordingId route.
        */}
       <Route path="recordings/:recordingId" element={<RecordingRoute />} />
     </Route>

@@ -12,7 +12,7 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react'
-import { resolve } from 'fluture'
+import { FutureInstance, resolve } from 'fluture'
 import assert from 'node:assert/strict'
 import { afterEach, describe, it } from 'node:test'
 import React from 'react'
@@ -77,8 +77,14 @@ const paidSubscription: BillingSubscriptionResponse = {
 // --- Render helper ---
 
 interface TestProps {
-  getSubscription?: () => any
-  getPlans?: () => any
+  // Error type matches the component's `typeof defaultGetSubscription` /
+  // `typeof defaultGetPlans` props (fluture's error slot is covariant, so a
+  // wider `unknown` error type would not be assignable).
+  getSubscription?: () => FutureInstance<
+    Error,
+    BillingSubscriptionResponse | null
+  >
+  getPlans?: () => FutureInstance<Error, Array<BillingPlanWithEntitlements>>
 }
 
 function renderRoute({ getSubscription, getPlans }: TestProps = {}) {
@@ -215,8 +221,12 @@ describe('BillingSettingsRoute state matrix', () => {
     assert.ok(screen.getByRole('button', { name: /manage billing/i }))
     assert.ok(screen.getByText(/status:\s*active/i))
 
-    // Negative
-    assert.equal(screen.queryByRole('button', { name: /upgrade plan/i }), null)
+    // Negative — assert.ok with a plain message (see the shared-per-state
+    // comment above): assert.equal's failing-message builder OOM-kills node.
+    assert.ok(
+      !screen.queryByRole('button', { name: /upgrade plan/i }),
+      'paid states must not render an Upgrade plan CTA'
+    )
   })
 
   it('state (d) — canceling subscription shows the cancellation notice and no Cancel button', async () => {
@@ -234,11 +244,14 @@ describe('BillingSettingsRoute state matrix', () => {
     assert.ok(screen.getByText('Repro+'))
     assert.ok(screen.getByText(/billing period/i))
 
-    // Negatives
-    assert.equal(
-      screen.queryByRole('button', { name: /cancel subscription/i }),
-      null
+    // Negatives — same assert.ok pattern as the shared assertions above.
+    assert.ok(
+      !screen.queryByRole('button', { name: /cancel subscription/i }),
+      'canceling states must not render a Cancel Subscription button'
     )
-    assert.equal(screen.queryByText(/renews on/i), null)
+    assert.ok(
+      !screen.queryByText(/renews on/i),
+      'canceling states must not render renewal info'
+    )
   })
 })

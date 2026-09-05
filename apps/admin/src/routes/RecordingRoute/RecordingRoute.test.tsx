@@ -7,6 +7,18 @@ import React from 'react'
 import * as ReactRouterDom from 'react-router-dom'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 
+// @types/node lags the Node 26 runtime: mock.module accepts options.exports
+// (namedExports/defaultExport are deprecated). Bound so the private
+// MockTracker state survives the cast.
+const mockModule = mock.module.bind(mock) as unknown as (
+  specifier: string,
+  options: {
+    exports?: Record<string, unknown>
+    namedExports?: Record<string, unknown>
+    defaultExport?: unknown
+  }
+) => void
+
 // The api-client mock is URL-driven so the detail route's real useFuture
 // forks resolve per path (lookup, info).
 const fetchCalls: string[] = []
@@ -40,14 +52,14 @@ const mockApiClient = {
   },
 }
 
-mock.module('@repro/api-client', {
-  namedExports: {
+mockModule('@repro/api-client', {
+  exports: {
     useApiClient: () => mockApiClient,
   },
 })
 
-mock.module('@repro/design', {
-  namedExports: {
+mockModule('@repro/design', {
+  exports: {
     Link: ({
       children,
       component,
@@ -79,14 +91,14 @@ mock.module('@repro/design', {
   },
 })
 
-mock.module('@repro/devtools', {
-  namedExports: {
+mockModule('@repro/devtools', {
+  exports: {
     DevTools: () => <div>DevTools</div>,
   },
 })
 
-mock.module('@repro/playback', {
-  namedExports: {
+mockModule('@repro/playback', {
+  exports: {
     PlaybackFromSourceProvider: ({
       children,
     }: {
@@ -96,16 +108,16 @@ mock.module('@repro/playback', {
   },
 })
 
-mock.module('@repro/recording-api', {
-  namedExports: {
+mockModule('@repro/recording-api', {
+  exports: {
     createApiSource: () => null,
   },
 })
 
 // Real react-router-dom so useParams/Navigate/Routes resolve actual paths;
 // only the design Link stub is preserved.
-mock.module('react-router-dom', {
-  namedExports: {
+mockModule('react-router-dom', {
+  exports: {
     ...ReactRouterDom,
     Link: ({ children, to }: { children: React.ReactNode; to?: string }) => (
       <a href={to}>{children}</a>
@@ -113,28 +125,28 @@ mock.module('react-router-dom', {
   },
 })
 
-mock.module('~/config/env', {
-  namedExports: {
+mockModule('~/config/env', {
+  exports: {
     defaultEnv: {
       REPRO_API_URL: 'http://api.test',
     },
   },
 })
 
-mock.module('./Loading', {
-  namedExports: {
+mockModule('./Loading', {
+  exports: {
     Loading: () => <div>Loading…</div>,
   },
 })
 
-mock.module('./RecordingError', {
-  namedExports: {
+mockModule('./RecordingError', {
+  exports: {
     RecordingError: () => <div>recording-error-state</div>,
   },
 })
 
-mock.module('~/components/NotFoundRoute', {
-  namedExports: {
+mockModule('~/components/NotFoundRoute', {
+  exports: {
     NotFoundRoute: () => <div>not-found marker</div>,
   },
 })

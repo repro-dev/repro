@@ -16,6 +16,9 @@ const mockModule = mock.module.bind(mock) as unknown as (
   }
 ) => void
 
+// SessionRouteBoundary is a passthrough: the unmatched-path matrix below only
+// covers authenticated users. In production, anonymous users hit the login
+// redirect before any route matching occurs.
 mockModule('@repro/auth', {
   exports: {
     SessionRouteBoundary: () => <Outlet />,
