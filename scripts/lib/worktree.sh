@@ -254,6 +254,105 @@ _populate_issue_worktree_names() {
   WT_ISSUE_START_REF="$start_ref"
 }
 
+# ── REP-1665: resolve existing issue work before minting ────────────
+
+# _resolve_existing_issue_worktree <issue_id> <linear_branch_hint>
+# Prints exactly one decision line: "adopt <branch> <path>" | "reattach <branch>" | "create".
+# Read-only: never mutates refs or worktrees. Fails open to "create" when the
+# repo cannot be inspected (e.g. a non-git REPO_ROOT in tests). Branch names
+# cannot contain spaces (git ref rule), so "adopt" output splits on the first
+# space only.
+_resolve_existing_issue_worktree() {
+  local issue_id="$1" branch_hint="$2"
+  local issue_slug branches branch tier best_tier=0 best_branch="" lower wt_path
+
+  issue_slug="$(printf '%s' "$issue_id" | tr '[:upper:]' '[:lower:]')"
+  branches="$(git -C "$REPO_ROOT" for-each-ref --sort=-committerdate --format='%(refname:short)' refs/heads 2>/dev/null)" || branches=""
+
+  # Tiers: 1 exact hint > 2 hint prefix (reproctl's mint shape) > 3 issue-id
+  # substring. Within a tier the first hit wins (committerdate-desc = most
+  # recently modified).
+  while IFS= read -r branch; do
+    [ -z "$branch" ] && continue
+    tier=0
+    if [ -n "$branch_hint" ] && [[ "$branch" == "$branch_hint" ]]; then
+      tier=1
+    elif [ -n "$branch_hint" ] && [[ "$branch" == "$branch_hint"-* ]]; then
+      tier=2
+    elif [ -n "$issue_slug" ]; then
+      lower="$(printf '%s' "$branch" | tr '[:upper:]' '[:lower:]')"
+      if [[ "$lower" == *"$issue_slug"* ]]; then
+        tier=3
+      fi
+    fi
+    case "$tier" in
+      0) continue ;;
+      1) best_tier=1; best_branch="$branch"; break ;;
+      2|3) if [ "$best_tier" -lt "$tier" ]; then best_tier=$tier; best_branch="$branch"; fi ;;
+    esac
+  done <<< "$branches"
+
+  if [ -z "$best_branch" ]; then
+    echo "create"
+    return 0
+  fi
+
+  wt_path="$(_worktree_path_for_branch "$best_branch" "$REPO_ROOT")" || wt_path=""
+  if [ -n "$wt_path" ] && [ -d "$wt_path" ]; then
+    echo "adopt $best_branch $wt_path"
+  else
+    echo "reattach $best_branch"
+  fi
+}
+
+# _adopt_existing_issue_worktree <branch> <path>
+# Announces adoption of an existing issue worktree. Performs zero mutations
+# and zero network calls: no branch mint, no worktree creation, no Linear
+# status churn (the issue is already underway). The plain "Path:" line is what
+# deliver.sh extracts to resume against the existing worktree.
+_adopt_existing_issue_worktree() {
+  local existing_branch="$1"
+  local existing_wt_path="$2"
+
+  WT_ISSUE_LINEAR_SYNCED=false
+  WT_ISSUE_LINEAR_SYNC_ERROR=""
+
+  echo "Found existing worktree for ${WT_ISSUE_IDENTIFIER} — resuming it"
+  echo "  Branch: ${existing_branch}"
+  echo "  Path:   ${existing_wt_path}"
+  echo ""
+
+  if [ "$WT_DRY_RUN" = true ]; then
+    echo ""
+    echo "${CLR_DIM}[dry-run] No changes were made.${CLR_RESET}"
+  fi
+}
+
+# _reattach_existing_issue_branch <branch>
+# Attaches a worktree to an existing issue branch without minting a new one.
+# Derives the slug from the existing branch — reproctl's mint shape
+# "<issue-slug>-<suffix>" when the branch extends the Linear hint, the
+# slugified branch otherwise — and reuses _create_issue_worktree_from_metadata
+# unchanged: cmd_wt_create's local-branch path runs `git worktree add <path>
+# <branch>` (no -b), so the existing branch is attached as-is.
+_reattach_existing_issue_branch() {
+  local existing_branch="$1"
+  local suffix slug
+
+  suffix="${existing_branch#"$WT_ISSUE_BRANCH_NAME"-}"
+  if [ "$suffix" = "$existing_branch" ]; then
+    slug="$(slugify "$existing_branch")"
+  else
+    slug="$(printf '%s' "$WT_ISSUE_IDENTIFIER" | tr '[:upper:]' '[:lower:]')-${suffix}"
+  fi
+
+  WT_ISSUE_WORKTREE_BRANCH="$existing_branch"
+  WT_ISSUE_WORKTREE_SLUG="$slug"
+  WT_ISSUE_WORKTREE_PATH="$(worktree_path "$slug")"
+  WT_ISSUE_START_REF=""
+  _create_issue_worktree_from_metadata
+}
+
 _create_issue_worktree_from_metadata() {
   WT_ISSUE_LINEAR_SYNCED=false
   WT_ISSUE_LINEAR_SYNC_ERROR=""
@@ -279,8 +378,32 @@ cmd_wt_create_from_issue() {
   local issue_id="$1"
 
   _resolve_issue_worktree_metadata "$issue_id"
-  _populate_issue_worktree_names
-  _create_issue_worktree_from_metadata
+
+  # Resolve existing work for this issue BEFORE minting anything: reuse an
+  # existing branch+worktree (adopt), attach to an existing branch (reattach),
+  # or fall through to a fresh mint (create). Any inspection failure fails
+  # open to "create" (both callers run set -euo pipefail).
+  local decision existing_branch existing_wt_path
+  decision="$(_resolve_existing_issue_worktree "$WT_ISSUE_IDENTIFIER" "$WT_ISSUE_BRANCH_NAME")" || decision="create"
+
+  case "$decision" in
+    "adopt "*)
+      existing_branch="${decision#adopt }"
+      existing_wt_path="${existing_branch#* }"
+      existing_branch="${existing_branch%% *}"
+      _adopt_existing_issue_worktree "$existing_branch" "$existing_wt_path"
+      ;;
+    "reattach "*)
+      _reattach_existing_issue_branch "${decision#reattach }"
+      ;;
+    "create")
+      _populate_issue_worktree_names
+      _create_issue_worktree_from_metadata
+      ;;
+    *)
+      die "Unexpected existing-work resolution: $decision"
+      ;;
+  esac
 
   if [[ -n "$WT_ISSUE_LINEAR_SYNC_ERROR" ]]; then
     _warn "Linear sync failed for ${WT_ISSUE_IDENTIFIER}: ${WT_ISSUE_LINEAR_SYNC_ERROR}"
@@ -1110,8 +1233,12 @@ _worktree_branch_for_path() {
   return 1
 }
 
+# Second arg scopes the git lookup (defaults to "."). Callers that must not
+# depend on the current directory (e.g. the issue resolver, deliver's dry-run)
+# pass "$REPO_ROOT".
 _worktree_path_for_branch() {
   local target="$1"
+  local git_cwd="${2:-.}"
   local wt_path="" wt_branch=""
   while IFS= read -r line; do
     case "$line" in
@@ -1125,7 +1252,7 @@ _worktree_path_for_branch() {
         wt_path="" wt_branch=""
         ;;
     esac
-  done < <(git worktree list --porcelain)
+  done < <(git -C "$git_cwd" worktree list --porcelain)
   if [[ "$wt_branch" == "$target" ]]; then
     echo "$wt_path"
     return 0
@@ -1214,7 +1341,7 @@ Usage: reproctl worktree <command> [options] [args]
 
 Commands:
   create [options] <branch>        Create a new worktree for the given branch
-  create --from-issue <id>         Create a worktree from a Linear issue
+  create --from-issue <id>         Create or resume a worktree from a Linear issue
   remove [options] <slug|branch>   Remove the worktree for the given slug or branch
   list                        List all active worktrees
   attach <slug|branch>        Drop into a subshell in the given worktree

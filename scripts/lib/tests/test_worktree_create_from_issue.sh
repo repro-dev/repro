@@ -568,6 +568,329 @@ RUNNER
   trap - RETURN
 }
 
+# ── REP-1665: resolve existing issue work before minting ─────────────
+#
+# These three tests use a REAL git sandbox (the resolution logic must
+# observe real refs and worktrees, so git is not stubbed here).
+
+# Writes a runner prelude that builds a real git repo on main and sources
+# worktree.sh against it (shared by the three REP-1665 tests).
+_write_real_git_prelude() {
+  cat <<'PRELUDE'
+set -euo pipefail
+
+die() { printf 'Error: %b\n' "$*" >&2; exit 1; }
+_step() { :; }
+_ok() { :; }
+_err() { printf 'x %s\n' "$1" >&2; }
+_warn() { printf '%s\n' "$1" >&2; }
+
+# CLR_* are set by common.sh in production; worktree.sh's output helpers
+# reference them directly and common.sh is not sourced here.
+CLR_BOLD="" CLR_DIM="" CLR_RED="" CLR_GREEN="" CLR_YELLOW="" CLR_RESET=""
+
+# Real git sandbox repo on main with one commit.
+REPO="$tmpdir/repro"
+REPO_ROOT="$REPO"
+MAIN_CHECKOUT="$REPO"
+PARENT_DIR="$tmpdir"
+WORKSPACE_ROOT="$tmpdir"
+SCRIPTS_DIR="$TESTS_DIR/../.."
+TMP_DIR="$tmpdir/tmp"
+mkdir -p "$REPO_ROOT" "$TMP_DIR"
+git init -q -b main "$REPO_ROOT"
+git -C "$REPO_ROOT" config user.email test@example.com
+git -C "$REPO_ROOT" config user.name Test
+git -C "$REPO_ROOT" commit -q --allow-empty -m init
+touch "$MAIN_CHECKOUT/.linear"
+
+# cd into the sandbox repo: worktree.sh's bare git commands (e.g.
+# cmd_wt_create's `git worktree add`, _latest_main_ref's fetch) must resolve
+# against the sandbox, never the invoking checkout.
+cd "$REPO_ROOT"
+
+slugify() { printf '%s\n' "$1" | sed 's|/|-|g' | sed 's|\.\.|-|g' | sed 's|[^a-zA-Z0-9._-]|-|g' | tr '[:upper:]' '[:lower:]'; }
+worktree_path() { echo "${WORKSPACE_ROOT:-$PARENT_DIR}/repro-wt-$1"; }
+
+source "$WORKTREE_SH"
+
+# Explicit globals: nothing may depend on unset-variable behavior.
+WT_DRY_RUN=false
+WT_OPEN=false
+WT_NO_STATUS_UPDATE=false
+WT_SKIP_INSTALL=true
+PRELUDE
+}
+
+# Shared metadata stub: Linear hint matches the pre-existing branches below.
+_write_metadata_stub() {
+  cat <<'STUB'
+_resolve_issue_worktree_metadata() {
+  WT_ISSUE_UUID='uuid-1'
+  WT_ISSUE_IDENTIFIER='REP-123'
+  WT_ISSUE_TITLE='Existing delivery'
+  WT_ISSUE_BRANCH_NAME='gary/rep-123-existing-delivery'
+  WT_ISSUE_STATE_NAME='In Progress'
+  WT_ISSUE_STATE_TYPE='started'
+}
+
+_linear_cli() {
+  printf '%s\n' "$*" >> "$tmpdir/linear_calls.log"
+  return 0
+}
+STUB
+}
+
+# Case 1: existing branch WITH a worktree → adopt it. No new branch, no new
+# worktree, Path: resolves to the EXISTING worktree, and no Linear status
+# churn (the issue is already underway).
+test_adopt_existing_branch_with_worktree() {
+  local tmpdir output rc=0
+  tmpdir="$(mktemp -d "$REPO_ROOT/tmp/test_wt_adopt_existing.XXXXXX")"
+  export tmpdir
+  trap 'rm -rf "$tmpdir"' RETURN
+
+  {
+    _write_real_git_prelude
+    cat <<'SETUP'
+
+EXISTING_BRANCH='gary/rep-123-existing-delivery-20260806144124-03fa'
+EXISTING_WT="$tmpdir/repro-wt-rep-123-existing-delivery"
+git -C "$REPO_ROOT" worktree add -b "$EXISTING_BRANCH" "$EXISTING_WT" >/dev/null 2>&1
+
+branches_before="$(git -C "$REPO_ROOT" for-each-ref --format='%(refname:short)' refs/heads | sort)"
+SETUP
+    _write_metadata_stub
+    cat <<'BODY'
+
+output="$(cmd_wt_create_from_issue REP-123 2>&1)"
+
+branches_after="$(git -C "$REPO_ROOT" for-each-ref --format='%(refname:short)' refs/heads | sort)"
+
+if [[ "$branches_before" != "$branches_after" ]]; then
+  die "adopt minted a new branch (before → after):
+$branches_before
+---
+$branches_after"
+fi
+
+resolved_path="$(printf '%s\n' "$output" | sed -n 's/^[[:space:]]*Path:[[:space:]]*//p' | tail -1)"
+if [[ "$resolved_path" != "$EXISTING_WT" ]]; then
+  die "expected Path: $EXISTING_WT, got: ${resolved_path:-<none>}
+output: $output"
+fi
+
+if ! printf '%s\n' "$output" | grep -qi 'existing worktree'; then
+  die "adoption was not announced:
+$output"
+fi
+
+if [ -f "$tmpdir/linear_calls.log" ] && grep -q 'issue update' "$tmpdir/linear_calls.log"; then
+  die "adopt must not update Linear status:
+$(cat "$tmpdir/linear_calls.log")"
+fi
+BODY
+  } > "$tmpdir/run_test.sh"
+  chmod +x "$tmpdir/run_test.sh"
+
+  output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  if [ ${rc:-0} -eq 0 ]; then
+    _pass 'existing branch + existing worktree → adopt (no new branch/worktree, Path: resolves to it)'
+  else
+    _fail 'existing branch + existing worktree → adopt (no new branch/worktree, Path: resolves to it)' "$output"
+  fi
+  rm -rf "$tmpdir"
+  trap - RETURN
+}
+
+# Case 2: existing branch WITHOUT a worktree → reuse the existing branch and
+# attach a worktree to it. No new branch may be minted.
+test_reattach_existing_branch_without_worktree() {
+  local tmpdir output rc=0
+  tmpdir="$(mktemp -d "$REPO_ROOT/tmp/test_wt_reattach.XXXXXX")"
+  export tmpdir
+  trap 'rm -rf "$tmpdir"' RETURN
+
+  {
+    _write_real_git_prelude
+    cat <<'SETUP'
+
+EXISTING_BRANCH='gary/rep-123-existing-delivery-20260806144124-03fa'
+git -C "$REPO_ROOT" branch "$EXISTING_BRANCH"
+
+branches_before="$(git -C "$REPO_ROOT" for-each-ref --format='%(refname:short)' refs/heads | sort)"
+SETUP
+    _write_metadata_stub
+    cat <<'BODY'
+
+output="$(cmd_wt_create_from_issue REP-123 2>&1)"
+
+branches_after="$(git -C "$REPO_ROOT" for-each-ref --format='%(refname:short)' refs/heads | sort)"
+
+if [[ "$branches_before" != "$branches_after" ]]; then
+  die "reattach minted a new branch instead of reusing the existing one:
+before:
+$branches_before
+after:
+$branches_after"
+fi
+
+if ! git -C "$REPO_ROOT" worktree list --porcelain | grep -q "refs/heads/$EXISTING_BRANCH"; then
+  die "existing branch was not attached to a worktree:
+$output"
+fi
+
+resolved_path="$(printf '%s\n' "$output" | sed -n 's/^[[:space:]]*Path:[[:space:]]*//p' | tail -1)"
+if [[ -z "$resolved_path" || ! -d "$resolved_path" ]]; then
+  die "expected a Path: line pointing at the attached worktree, got: ${resolved_path:-<none>}
+output: $output"
+fi
+BODY
+  } > "$tmpdir/run_test.sh"
+  chmod +x "$tmpdir/run_test.sh"
+
+  output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  if [ ${rc:-0} -eq 0 ]; then
+    _pass 'existing branch without worktree → reattach (no new branch, worktree for existing branch)'
+  else
+    _fail 'existing branch without worktree → reattach (no new branch, worktree for existing branch)' "$output"
+  fi
+  rm -rf "$tmpdir"
+  trap - RETURN
+}
+
+# Case 3 (control): no existing branch for the issue → mint a fresh branch
+# prefixed with the Linear hint and create its worktree. Pins the create path
+# so the resolver only short-circuits on a real match.
+test_create_fresh_when_no_existing_branch() {
+  local tmpdir output rc=0
+  tmpdir="$(mktemp -d "$REPO_ROOT/tmp/test_wt_create_fresh.XXXXXX")"
+  export tmpdir
+  trap 'rm -rf "$tmpdir"' RETURN
+
+  {
+    _write_real_git_prelude
+    cat <<'SETUP'
+
+branches_before="$(git -C "$REPO_ROOT" for-each-ref --format='%(refname:short)' refs/heads | sort)"
+SETUP
+    _write_metadata_stub
+    cat <<'BODY'
+
+output="$(cmd_wt_create_from_issue REP-123 2>&1)"
+
+branches_after="$(git -C "$REPO_ROOT" for-each-ref --format='%(refname:short)' refs/heads | sort)"
+
+fresh_branch="$(printf '%s\n' "$branches_after" | grep '^gary/rep-123-existing-delivery-' | grep -v -F -x -f <(printf '%s\n' "$branches_before") | head -1 || true)"
+if [[ -z "$fresh_branch" ]]; then
+  die "expected a fresh branch prefixed with the Linear hint:
+$output"
+fi
+
+if ! git -C "$REPO_ROOT" worktree list --porcelain | grep -q "refs/heads/$fresh_branch"; then
+  die "fresh branch has no worktree:
+$output"
+fi
+
+resolved_path="$(printf '%s\n' "$output" | sed -n 's/^[[:space:]]*Path:[[:space:]]*//p' | tail -1)"
+if [[ -z "$resolved_path" || ! -d "$resolved_path" ]]; then
+  die "expected a Path: line pointing at the created worktree, got: ${resolved_path:-<none>}
+output: $output"
+fi
+BODY
+  } > "$tmpdir/run_test.sh"
+  chmod +x "$tmpdir/run_test.sh"
+
+  output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  if [ ${rc:-0} -eq 0 ]; then
+    _pass 'no existing branch → mint fresh branch + worktree (create path preserved)'
+  else
+    _fail 'no existing branch → mint fresh branch + worktree (create path preserved)' "$output"
+  fi
+  rm -rf "$tmpdir"
+  trap - RETURN
+}
+
+# Case 4 (hardening, tier semantics): a branch that only matches by issue-id
+# substring (tier 3) is adopted, and an exact-hint branch (tier 1) beats a
+# hint-prefix mint (tier 2) when both exist. Direct resolver call at the end
+# is read-only (no refs/worktrees mutated).
+test_resolver_tiers_substring_and_exact_preference() {
+  local tmpdir output rc=0
+  tmpdir="$(mktemp -d "$REPO_ROOT/tmp/test_wt_resolver_tiers.XXXXXX")"
+  export tmpdir
+  trap 'rm -rf "$tmpdir"' RETURN
+
+  {
+    _write_real_git_prelude
+    cat <<'SETUP'
+
+# Tier 3: only a substring match exists (the Linear hint matches nothing by
+# exact/prefix). The unrelated branch already has a worktree.
+TIER3_BRANCH='feat/some-rep-123-unrelated'
+TIER3_WT="$tmpdir/repro-wt-some-unrelated"
+git -C "$REPO_ROOT" worktree add -b "$TIER3_BRANCH" "$TIER3_WT" >/dev/null 2>&1
+
+branches_before="$(git -C "$REPO_ROOT" for-each-ref --format='%(refname:short)' refs/heads | sort)"
+SETUP
+    cat <<'STUB'
+_resolve_issue_worktree_metadata() {
+  WT_ISSUE_UUID='uuid-1'
+  WT_ISSUE_IDENTIFIER='REP-123'
+  WT_ISSUE_TITLE='Resolver tiering'
+  WT_ISSUE_BRANCH_NAME='feat/rep-123-other'
+  WT_ISSUE_STATE_NAME='In Progress'
+  WT_ISSUE_STATE_TYPE='started'
+}
+
+_linear_cli() {
+  printf '%s\n' "$*" >> "$tmpdir/linear_calls.log"
+  return 0
+}
+STUB
+    cat <<'BODY'
+
+output="$(cmd_wt_create_from_issue REP-123 2>&1)"
+
+branches_after="$(git -C "$REPO_ROOT" for-each-ref --format='%(refname:short)' refs/heads | sort)"
+
+if [[ "$branches_before" != "$branches_after" ]]; then
+  die "tier-3 adopt minted a new branch (before → after):
+$branches_before
+---
+$branches_after"
+fi
+
+resolved_path="$(printf '%s\n' "$output" | sed -n 's/^[[:space:]]*Path:[[:space:]]*//p' | tail -1)"
+if [[ "$resolved_path" != "$TIER3_WT" ]]; then
+  die "expected tier-3 adopt of $TIER3_WT, got: ${resolved_path:-<none>}
+output: $output"
+fi
+
+# Tier preference: the exact hint (tier 1) must win over the hint-prefix
+# mint (tier 2) regardless of commit-date ordering. Both branches exist
+# without worktrees, so the decision is reattach of the exact-hint branch.
+git -C "$REPO_ROOT" branch 'feat/rep-123-other-20260102030405-aaaa'
+git -C "$REPO_ROOT" branch 'feat/rep-123-other'
+
+decision="$(_resolve_existing_issue_worktree 'REP-123' 'feat/rep-123-other')"
+if [[ "$decision" != "reattach feat/rep-123-other" ]]; then
+  die "expected exact-hint branch to win (reattach feat/rep-123-other), got: $decision"
+fi
+BODY
+  } > "$tmpdir/run_test.sh"
+  chmod +x "$tmpdir/run_test.sh"
+
+  output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  if [ ${rc:-0} -eq 0 ]; then
+    _pass 'resolver tiers: substring-only match adopted; exact hint beats hint prefix'
+  else
+    _fail 'resolver tiers: substring-only match adopted; exact hint beats hint prefix' "$output"
+  fi
+  rm -rf "$tmpdir"
+  trap - RETURN
+}
+
 test_records_linear_sync_failure
 test_creates_issue_worktree_path_from_metadata
 test_resolve_issue_worktree_metadata_parses_cli_json
@@ -576,8 +899,12 @@ test_resolve_issue_worktree_metadata_dies_on_empty_branch
 test_no_status_update_skips_linear_cli
 test_skip_install_skips_pnpm_and_build
 test_skip_install_guard_rejects_non_create
+test_adopt_existing_branch_with_worktree
+test_reattach_existing_branch_without_worktree
+test_create_fresh_when_no_existing_branch
+test_resolver_tiers_substring_and_exact_preference
 
-printf '\nResults: %d passed, %d failed out of 8 tests\n' "$PASS" "$FAIL"
+printf '\nResults: %d passed, %d failed out of 12 tests\n' "$PASS" "$FAIL"
 
 if [ "$FAIL" -gt 0 ]; then
   exit 1

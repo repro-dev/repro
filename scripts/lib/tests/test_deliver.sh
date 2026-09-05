@@ -916,6 +916,64 @@ test_stage4_wrapped_echo_does_not_submit() {
   fi
 }
 
+# ── REP-1665: --dry-run must surface the adopt-vs-create decision ─────
+#
+# The sandbox repo is real git here: one commit on the default branch, plus
+# (adopt case) an existing deliver-shaped branch + worktree. reproctl mints
+# branches as "<linear-branchName>-<timestamp>"; the linear stub reports
+# branchName "feat/rep-123-test".
+
+# Test 31: existing deliver-created worktree → dry-run announces adoption
+# ("will resume") and names the existing worktree path.
+test_dry_run_announces_adopt_decision() {
+  local tmpdir rc=0
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+
+  git -C "$tmpdir" config user.email test@example.com
+  git -C "$tmpdir" config user.name Test
+  git -C "$tmpdir" commit -q --allow-empty -m init
+  local existing_branch="feat/rep-123-test-20260806144124-03fa"
+  local existing_wt="$tmpdir/repro-wt-rep-123-test"
+  git -C "$tmpdir" worktree add -b "$existing_branch" "$existing_wt" >/dev/null 2>&1
+
+  _write_runner "$tmpdir" "REP-123 --dry-run"
+
+  local output
+  output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  rm -rf "$tmpdir"
+
+  if printf '%s\n' "$output" | grep -q 'will resume' \
+    && printf '%s\n' "$output" | grep -qF "$existing_wt"; then
+    _pass "--dry-run announces adopt: existing worktree found, will resume"
+  else
+    _fail "--dry-run announces adopt: existing worktree found, will resume" "rc=$rc; output: $output"
+  fi
+}
+
+# Test 32: clean repo → dry-run announces the create decision ("will create").
+test_dry_run_announces_create_decision() {
+  local tmpdir rc=0
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+
+  git -C "$tmpdir" config user.email test@example.com
+  git -C "$tmpdir" config user.name Test
+  git -C "$tmpdir" commit -q --allow-empty -m init
+
+  _write_runner "$tmpdir" "REP-123 --dry-run"
+
+  local output
+  output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  rm -rf "$tmpdir"
+
+  if printf '%s\n' "$output" | grep -q 'will create'; then
+    _pass "--dry-run announces create: no existing worktree found"
+  else
+    _fail "--dry-run announces create: no existing worktree found" "rc=$rc; output: $output"
+  fi
+}
+
 # ── Run all tests ──────────────────────────────────────────────────────
 
 test_file_exists
@@ -948,6 +1006,8 @@ test_stage4_no_tui_skips_submit
 test_stage4_unconfirmed_kickoff_warns
 test_stage4_echo_only_does_not_submit
 test_stage4_wrapped_echo_does_not_submit
+test_dry_run_announces_adopt_decision
+test_dry_run_announces_create_decision
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed out of $TESTS_RUN tests"
