@@ -11,6 +11,10 @@ WT_FROM_ISSUE=""
 WT_NO_STATUS_UPDATE=false
 WT_OPEN=false
 WT_SKIP_INSTALL=false
+# One-shot: set by _reattach_existing_issue_branch, cleared by cmd_wt_create
+# after the push decision (reattach attaches a pre-existing branch and must
+# not publish it; only fresh mints push).
+WT_ISSUE_REATTACH=false
 WT_ISSUE_LINEAR_SYNCED=false
 WT_ISSUE_LINEAR_SYNC_ERROR=""
 
@@ -377,9 +381,9 @@ _adopt_existing_issue_worktree() {
 # registration that would make the `git worktree add` below fail with
 # "missing but already registered worktree". Stale registrations for OTHER
 # paths (e.g. a worktree on an unmounted external volume) are warned about
-# and left untouched: a repo-wide prune would silently unregister worktrees
-# this command knows nothing about. git cannot prune selectively, so a
-# target-path prune unavoidably also clears other stale registrations.
+# and left untouched when no prune is needed. git cannot prune selectively,
+# so when a target-path prune does run, it unavoidably also clears other
+# stale registrations — the warning must disclose those collateral paths.
 # With no expected_path, nothing is stale "at target" and no prune runs.
 _prune_stale_worktree_registrations() {
   local expected_path="${1:-}"
@@ -411,7 +415,13 @@ _prune_stale_worktree_registrations() {
   fi
 
   if [ -n "$stale_at_target" ]; then
-    _warn "Pruning stale git worktree registration at ${stale_at_target} (registered directory no longer exists)..."
+    # The prune is repo-wide: any stale registrations elsewhere die with it,
+    # so name them in the same warning instead of destroying them silently.
+    if [ -n "$stale_elsewhere" ]; then
+      _warn "Pruning stale git worktree registration at ${stale_at_target} (registered directory no longer exists); this prune also removes stale registrations for: ${stale_elsewhere}"
+    else
+      _warn "Pruning stale git worktree registration at ${stale_at_target} (registered directory no longer exists)..."
+    fi
     if ! git -C "$REPO_ROOT" worktree prune >/dev/null 2>&1; then
       _warn "git worktree prune failed — continuing; the attach below may report the stale registration."
     fi
@@ -451,10 +461,17 @@ _reattach_existing_issue_branch() {
   WT_ISSUE_WORKTREE_PATH="$(worktree_path "$slug")"
   WT_ISSUE_START_REF=""
 
+  # Attaching a pre-existing branch must not publish it: cmd_wt_create's
+  # `git push -u origin` is for freshly minted branches. A deliver-minted
+  # branch is idempotent there, but a tier-3-matched foreign local branch
+  # would be silently published to origin. One-shot: cmd_wt_create clears
+  # the flag after the push decision.
+  WT_ISSUE_REATTACH=true
+
   _prune_stale_worktree_registrations "$WT_ISSUE_WORKTREE_PATH"
 
   if ! _create_issue_worktree_from_metadata; then
-    die "Failed to attach a worktree to the existing branch '${existing_branch}' for ${WT_ISSUE_IDENTIFIER}.
+    die "Failed to attach a worktree to the existing branch '${existing_branch}' for ${WT_ISSUE_IDENTIFIER} — check the step output above for the failing phase.
   If a stale worktree registration remains, prune it first:
     git -C \"${REPO_ROOT}\" worktree prune
   then remove or rename the conflicting directory at ${WT_ISSUE_WORKTREE_PATH} and retry:
@@ -592,7 +609,12 @@ cmd_wt_create() {
     git worktree add -b "$branch" "$wt_path" || return $?
   fi
 
-  git push -u origin "$branch" 2>/dev/null || true
+  if [ "$WT_ISSUE_REATTACH" != true ]; then
+    git push -u origin "$branch" 2>/dev/null || true
+  fi
+  # One-shot consumption: a later mint in this process (e.g. a second
+  # --from-issue run in-process) must push normally again.
+  WT_ISSUE_REATTACH=false
 
   if _wt_should_write_repro_lock "$branch"; then
     _wt_write_repro_lock "$wt_path" "$branch" || return $?
@@ -1516,6 +1538,7 @@ cmd_wt() {
   WT_FROM_ISSUE=""
   WT_NO_STATUS_UPDATE=false
   WT_SKIP_INSTALL=false
+  WT_ISSUE_REATTACH=false
 
   local subcmd=""
   local args=()

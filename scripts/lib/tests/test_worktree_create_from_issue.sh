@@ -1421,6 +1421,13 @@ if ! printf '%s\n' "$output" | grep -q 'Failed to attach a worktree to the exist
 $output"
 fi
 
+# The die message must point at the failing phase: for install/copy/config
+# failures the stale-prune remediation below it is noise.
+if ! printf '%s\n' "$output" | grep -q 'check the step output above for the failing phase'; then
+  die "die message missing the failing-phase hint:
+$output"
+fi
+
 if [ ! -f "$tmpdir/pnpm.log" ] || ! grep -q 'pnpm-install-failed' "$tmpdir/pnpm.log"; then
   die "fixture broken: the failing pnpm stub did not run:
 $output"
@@ -1535,6 +1542,201 @@ BODY
   trap - RETURN
 }
 
+# Case 13 (non-blocker review fix, combined stale disclosure): when the stale
+# registration sits AT the reattach target, the repo-wide `git worktree prune`
+# also destroys stale registrations for OTHER paths. The warning must disclose
+# those collateral paths — silently unregistering them is the failure mode a
+# target-only warning hides.
+test_reattach_prune_warns_about_collateral_stale_paths() {
+  local tmpdir output rc=0
+  tmpdir="$(mktemp -d "$REPO_ROOT/tmp/test_wt_combined_stale.XXXXXX")"
+  export tmpdir
+  trap 'rm -rf "$tmpdir"' RETURN
+
+  {
+    _write_real_git_prelude
+    cat <<'SETUP'
+
+# Stale AT the reattach target: the matched branch's registered worktree
+# directory was deleted without a prune.
+EXISTING_BRANCH='gary/rep-123-existing-delivery-20260806144124-03fa'
+EXISTING_WT="$tmpdir/repro-wt-rep-123-20260806144124-03fa"
+git -C "$REPO_ROOT" worktree add -b "$EXISTING_BRANCH" "$EXISTING_WT" >/dev/null 2>&1
+rm -rf "$EXISTING_WT"
+
+# Collateral stale registration elsewhere (registered, directory missing).
+ELSEWHERE_BRANCH='feat/totally-unrelated'
+ELSEWHERE_WT="$tmpdir/repro-wt-unrelated"
+git -C "$REPO_ROOT" worktree add -b "$ELSEWHERE_BRANCH" "$ELSEWHERE_WT" >/dev/null 2>&1
+rm -rf "$ELSEWHERE_WT"
+
+# Fixture sanity: both registrations exist and both directories are missing.
+if ! git -C "$REPO_ROOT" worktree list --porcelain | grep -qF "worktree $EXISTING_WT"; then
+  die "fixture broken: no stale registration at the reattach target $EXISTING_WT"
+fi
+if ! git -C "$REPO_ROOT" worktree list --porcelain | grep -qF "worktree $ELSEWHERE_WT"; then
+  die "fixture broken: no stale registration at $ELSEWHERE_WT"
+fi
+if [ -d "$EXISTING_WT" ] || [ -d "$ELSEWHERE_WT" ]; then
+  die "fixture broken: stale fixture directories must be missing"
+fi
+
+branches_before="$(git -C "$REPO_ROOT" for-each-ref --format='%(refname:short)' refs/heads | sort)"
+SETUP
+    _write_metadata_stub
+    cat <<'BODY'
+
+output="$(cmd_wt_create_from_issue REP-123 2>&1)"
+
+branches_after="$(git -C "$REPO_ROOT" for-each-ref --format='%(refname:short)' refs/heads | sort)"
+
+if [[ "$branches_before" != "$branches_after" ]]; then
+  die "reattach over combined stale registrations minted a new branch (before → after):
+$branches_before
+---
+$branches_after"
+fi
+
+if ! git -C "$REPO_ROOT" worktree list --porcelain | grep -qF "refs/heads/$EXISTING_BRANCH"; then
+  die "reattach over combined stale registrations did not attach the existing branch:
+$output"
+fi
+
+resolved_path="$(printf '%s\n' "$output" | sed -n 's/^[[:space:]]*Path:[[:space:]]*//p' | tail -1)"
+if [[ "$resolved_path" != "$EXISTING_WT" ]]; then
+  die "expected the reattach to reuse the recomputed path $EXISTING_WT, got: ${resolved_path:-<none>}
+output: $output"
+fi
+
+if ! printf '%s\n' "$output" | grep -q 'also removes stale registrations for'; then
+  die "combined-stale prune warning did not disclose the collateral destruction:
+$output"
+fi
+
+if ! printf '%s\n' "$output" | grep -qF "$ELSEWHERE_WT"; then
+  die "combined-stale prune warning did not name the collateral stale path $ELSEWHERE_WT:
+$output"
+fi
+
+# The disclosed behavior: the repo-wide prune removed the collateral
+# registration too (warned about, not silently destroyed).
+if git -C "$REPO_ROOT" worktree list --porcelain | grep -qF "worktree $ELSEWHERE_WT"; then
+  die "collateral stale registration at $ELSEWHERE_WT survived the disclosed prune:
+$(git -C "$REPO_ROOT" worktree list --porcelain)"
+fi
+BODY
+  } > "$tmpdir/run_test.sh"
+  chmod +x "$tmpdir/run_test.sh"
+
+  output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  if [ ${rc:-0} -eq 0 ]; then
+    _pass 'stale at target AND elsewhere → prune warns and names the collateral stale paths'
+  else
+    _fail 'stale at target AND elsewhere → prune warns and names the collateral stale paths' "$output"
+  fi
+  rm -rf "$tmpdir"
+  trap - RETURN
+}
+
+# Case 14 (non-blocker review fix, reattach must not publish): reattach
+# attaches a PRE-EXISTING branch — possibly a tier-3-matched foreign local
+# branch. cmd_wt_create's `git push -u origin` exists for freshly minted
+# branches; on reattach it would silently publish someone else's branch. A
+# bare origin proves the negative: main is pushable (fixture sanity), the
+# foreign branch is never pushed, and the fresh-mint control still pushes
+# (the no-push rule must not leak into the mint path).
+test_reattach_skips_push_but_mint_still_pushes() {
+  local tmpdir output rc=0
+  tmpdir="$(mktemp -d "$REPO_ROOT/tmp/test_wt_reattach_no_push.XXXXXX")"
+  export tmpdir
+  trap 'rm -rf "$tmpdir"' RETURN
+
+  {
+    _write_real_git_prelude
+    cat <<'SETUP'
+
+# Bare origin: pushable target for the negative assertion. Seeded with main
+# so ls-remote proves the remote actually receives pushes.
+ORIGIN="$tmpdir/origin.git"
+git -C "$REPO_ROOT" init -q --bare -b main "$ORIGIN"
+git -C "$REPO_ROOT" remote add origin "$ORIGIN"
+git -C "$REPO_ROOT" push -q origin main
+if [ -z "$(git -C "$REPO_ROOT" ls-remote origin refs/heads/main)" ]; then
+  die "fixture broken: origin did not receive the seeded main ref"
+fi
+
+# Foreign local branch: matches REP-123 only via the tier-3 issue-id
+# substring, has no worktree, and is NOT on origin.
+FOREIGN_BRANCH='feat/some-rep-123-unrelated'
+git -C "$REPO_ROOT" branch "$FOREIGN_BRANCH"
+if [ -n "$(git -C "$REPO_ROOT" ls-remote origin "refs/heads/$FOREIGN_BRANCH")" ]; then
+  die "fixture broken: origin already has the foreign branch"
+fi
+
+branches_before="$(git -C "$REPO_ROOT" for-each-ref --format='%(refname:short)' refs/heads | sort)"
+SETUP
+    _write_metadata_stub
+    cat <<'BODY'
+
+output="$(cmd_wt_create_from_issue REP-123 2>&1)"
+
+# Reattach succeeded: foreign branch attached, no new branch minted.
+branches_after="$(git -C "$REPO_ROOT" for-each-ref --format='%(refname:short)' refs/heads | sort)"
+if [[ "$branches_before" != "$branches_after" ]]; then
+  die "reattach minted a new branch (before → after):
+$branches_before
+---
+$branches_after"
+fi
+
+if ! git -C "$REPO_ROOT" worktree list --porcelain | grep -qF "refs/heads/$FOREIGN_BRANCH"; then
+  die "reattach did not attach the foreign branch:
+$output"
+fi
+
+# The core assertion: attaching a pre-existing branch must NOT publish it.
+if [ -n "$(git -C "$REPO_ROOT" ls-remote origin "refs/heads/$FOREIGN_BRANCH")" ]; then
+  die "reattach published a pre-existing (foreign) local branch to origin:
+$output"
+fi
+
+# Control: a fresh mint for a DIFFERENT issue must still push to origin —
+# proves the no-push rule is scoped to reattach, not stuck on the process.
+_resolve_issue_worktree_metadata() {
+  WT_ISSUE_UUID='uuid-2'
+  WT_ISSUE_IDENTIFIER='REP-456'
+  WT_ISSUE_TITLE='Fresh mint control'
+  WT_ISSUE_BRANCH_NAME='gary/rep-456-fresh-feature'
+  WT_ISSUE_STATE_NAME='Todo'
+  WT_ISSUE_STATE_TYPE='unstarted'
+}
+
+mint_output="$(cmd_wt_create_from_issue REP-456 2>&1)"
+
+mint_branch="$(printf '%s\n' "$mint_output" | sed -n 's/^[[:space:]]*Branch:[[:space:]]*//p' | tail -1)"
+if [[ "$mint_branch" != 'gary/rep-456-fresh-feature-'* ]]; then
+  die "control did not mint a fresh hint-prefixed branch, got: ${mint_branch:-<none>}
+$mint_output"
+fi
+
+if [ -z "$(git -C "$REPO_ROOT" ls-remote origin "refs/heads/$mint_branch")" ]; then
+  die "fresh mint was not pushed to origin (no-push rule leaked into the mint path):
+$mint_output"
+fi
+BODY
+  } > "$tmpdir/run_test.sh"
+  chmod +x "$tmpdir/run_test.sh"
+
+  output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  if [ ${rc:-0} -eq 0 ]; then
+    _pass 'reattach does not push the foreign branch to origin; fresh-mint control still pushes'
+  else
+    _fail 'reattach does not push the foreign branch to origin; fresh-mint control still pushes' "$output"
+  fi
+  rm -rf "$tmpdir"
+  trap - RETURN
+}
+
 test_records_linear_sync_failure
 test_creates_issue_worktree_path_from_metadata
 test_resolve_issue_worktree_metadata_parses_cli_json
@@ -1555,8 +1757,10 @@ test_resolver_tier1_replaces_newer_tier2
 test_reattach_after_stale_worktree_registration
 test_reattach_install_failure_fails_loudly
 test_prune_skips_stale_registration_elsewhere
+test_reattach_prune_warns_about_collateral_stale_paths
+test_reattach_skips_push_but_mint_still_pushes
 
-printf '\nResults: %d passed, %d failed out of 20 tests\n' "$PASS" "$FAIL"
+printf '\nResults: %d passed, %d failed out of 22 tests\n' "$PASS" "$FAIL"
 
 if [ "$FAIL" -gt 0 ]; then
   exit 1
