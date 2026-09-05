@@ -132,9 +132,22 @@ const events = new List(SourceEventView, [
   ),
 ])
 
+// Impeccable rendered-HTML gate waiver (REP-1656 convention, triaged under
+// REP-1657): the embedded SimpleTimeline collapse animates height by design
+// (grid-template-rows rework is a follow-up), and the timeline/panel shells
+// are structural frames whose children carry their own insets.
+const impeccableWaiver = {
+  impeccable: {
+    disable: ['layout-transition', 'cramped-padding'],
+    reason:
+      'DevTools timeline demo: SimpleTimeline collapse animates height by design; timeline/grid shells are structural frames with inset children',
+  },
+} as const
+
 export const Default: StoryObj = {
   args: {},
   parameters: {
+    ...impeccableWaiver,
     docs: {
       story: {
         inline: true,
@@ -361,6 +374,7 @@ export const WithClusteredErrors: StoryObj = {
     timeline: <SimpleTimeline errorAndWarningEvents={markerEntries} />,
   },
   parameters: {
+    ...impeccableWaiver,
     docs: {
       story: {
         inline: true,

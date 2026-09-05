@@ -111,21 +111,73 @@ bordered demo canvases whose flushness is the demonstration.
 | AdminTable (Default, Overrides)                                                                                  | numbered-section-markers | same demo dates                                                                                                                                                                                                                                                                                                     |
 | Pagination-CompactRange                                                                                          | numbered-section-markers | page-number buttons (`10, 11, 12`) are numeric UI data                                                                                                                                                                                                                                                              |
 | ProgressOverlay-Example (apps/capture)                                                                           | low-contrast             | detector flattens the `rgba(0,0,0,0.5)` upload scrim to solid black and scores covered text against it; text behind an active scrim is intentionally obscured — that is the pattern's purpose. (This page began rendering only after the codegen module was built mid-triage; it was absent from the 197 baseline.) |
+| AgenticView ×10 (Reasoning, Responding, WithToolCalls, ToolExecuting, AskUserPrompting, WithError, WithScreenshotResult, WithTruncation, WithHypotheses, WithRecordingMeta) — REP-1657 | layout-transition, cramped-padding | app-shell root is a structural frame with inset children; input-section raise animates margin/padding by design (pages began rendering after the REP-1657 codegen fix)                                                                                                  |
+| DevTools ×2 (Default, WithClusteredErrors) — REP-1657                                                            | layout-transition, cramped-padding | SimpleTimeline collapse animates height by design; timeline/grid shells are structural frames with inset children (pages began rendering after the REP-1657 fixes)                                                                                                      |
+| Toolbar-Default — REP-1657                                                                                       | layout-transition, cramped-padding, monotonous-spacing | edge-to-edge tool strip with intended uniform 4px density; embedded SimpleTimeline collapse animates height by design                                                                                                                                                     |
 
-## Known gate blind spots (out of REP-1656 scope)
+## Known gate blind spots
 
-- **Render failures.** A handful of story files fail to render and therefore
-  produce no HTML for the detector to scan: missing `../generated/buffer-list`
-  codegen imports (devtools, playback, apps/capture), SSR-hostile stories
-  (`ConfirmDialog`, `Delay`, `Modal`, `RefreshProgressBar` produce empty
-  markup), and intentionally-throwing/recursive stories (`ErrorBoundary`,
-  `FullPageError`, `LoadingState`, `AgenticView`). The failed count drifts
-  slightly between runs (24–31 observed); the classes are stable. Follow-up
-  issue tracks gate coverage for these.
-- **Baseline drift.** Because render failures drift and module state shifts
-  between builds, per-run rendered/failed counts and finding totals can differ
-  slightly from the 197/122 baseline. Dispositions were keyed off live detector
-  output after each mutation batch, per the test plan.
+- **Render failures — resolved under REP-1657.** The render harness used to
+  exit 0 with failures untracked (24 silent zero-coverage stories in the
+  REP-1656 baseline). Every failure row is now a closed set: either fixed by
+  the harness or explicitly excluded with a reason in
+  `.impeccable/render-exclusions.json`. The guard test
+  (`scripts/impeccable-html-gate.test.ts` → "REP-1657 render-failure
+  blind-spot guard") fails on any uncovered row, so new blind spots cannot
+  grow silently.
+
+  **Registry format** — `.impeccable/render-exclusions.json` is an array of
+  `{ file, story, reason }`: `file` is repo-relative, `story` is the exact
+  story key (`"(module import)"` for module-level failures), and `reason`
+  must be non-empty for the entry to count. Unmatched entries are harmless
+  but should be pruned during triage.
+
+  **Exit-code contract** — the harness (`pnpm run render-stories-html`)
+  exits 1 when nothing rendered, when failures outnumber rendered stories,
+  or when any failure is *unexpected* (neither fixed nor registry-covered);
+  it prints each unexpected failure to stderr and records `excluded` /
+  `unexpected` in the manifest. Registry-covered failures keep exit 0.
+
+  **Final disposition of the REP-1656 baseline failures** (345 story rows
+  across 71 files: 333 rendered, 12 failed — 12 excluded, 0 unexpected):
+
+  | Class | Rows | Disposition |
+  | ----- | ---- | ----------- |
+  | Missing codegen build (`Cannot find module '../generated/*'` + grammar bundle) | 13 files | Fixed — the harness builds `@repro/tdl` (grammar bundle) → `@repro/wire-formats` → `@repro/domain` before rendering; idempotent, skipped when the artifacts exist |
+  | CSF meta args not inherited (AvatarStackSummary `Default`, `items.slice` crash) | 1 | Fixed — harness merges `default.args` under each story's args (Storybook semantics) |
+  | Harness decorator self-recursion (LoadingState ×3, FullPageError `FullPage`, ConfirmDialog `ImperativeHook`) | 5 | Fixed — decorator `Story` closures snapshot the composed tree instead of binding the live accumulator (previously stack-overflowed on any story-level decorator rendering `<Story />`) |
+  | Portal/effect-gated components (ConfirmDialog ×2, Modal ×3, Delay ×2, RefreshProgressBar `Hidden`) | 8 | Excluded — legitimately unrenderable in static SSR (portal mounts, timer-gated rendering, intentional `null`) |
+  | Intentionally-throwing stories (ErrorBoundary `Default` + `CustomFallback`) | 2 | Excluded — the child throws by design; error-boundary recovery is client-side only |
+  | tdl encoder out-of-bounds on Snapshot-with-VTree (PlaybackEditor, RangeTimeline) | 2 | Excluded with **"suspected real issue — needs follow-up"** — `SourceEventView.from` on a Snapshot carrying a `dom` VTree throws `RangeError` inside `@repro/tdl`'s encoder; environment-independent (crashes in the browser too); `tdl` encoder tests are green, so an uncovered encoder edge case |
+
+  **Failure-class taxonomy for the next triage:**
+
+  1. `Cannot find module '../generated/*'` / `'../grammar.ohm-bundle'` —
+     gitignored codegen artifact missing; harness-fixable (extend
+     `CODEGEN_PREREQS` in `scripts/render-stories-html.ts`).
+  2. `DOMParser/Node/ShadowRoot is not defined` — story builds fixture data
+     with browser DOM globals at module scope; harness provides jsdom
+     constructor globals (no `window`/`document`, which would flip SSR
+     branch checks). Extend `DOM_CONSTRUCTOR_GLOBALS` if new globals
+     surface.
+  3. `renderToStaticMarkup produced empty markup` — portals, effect/timer
+     -gated rendering, or intentional `null` returns; legitimately
+     unrenderable, exclude with reason.
+  4. Intentional throws / error-boundary stories — boundary recovery is
+     client-side; exclude with reason.
+  5. `Maximum call stack size exceeded` on a decorated story — suspect the
+     harness decorator composition first (fixed in REP-1657), then real
+     recursion in the component.
+  6. `RangeError: Offset is outside the bounds of the DataView` — binary
+     encode/decode mismatch in `@repro/tdl`; suspected real bug, exclude
+     with "suspected real issue — needs follow-up" and file an issue.
+  7. Real story-data bugs (e.g. missing meta args) — fix the story or the
+     harness merge; never exclude silently.
+
+- **Baseline drift.** Because module state shifts between builds, per-run
+  rendered/failed counts and finding totals can differ slightly from the
+  197/122 baseline. Dispositions were keyed off live detector output after
+  each mutation batch, per the test plan.
 - **Detector text rules on scanned HTML.** The static-html engine runs the
   text-content rules over page text; only whole-file `impeccable-disable`
   directives apply (findings carry no line numbers).

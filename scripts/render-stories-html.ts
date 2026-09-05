@@ -20,22 +20,50 @@
 // apps/storybook-ui/.storybook/preview.js touches `document` at module scope
 // and cannot be imported here. Story-level `decorators` arrays are applied.
 //
-// Exit codes: 1 when nothing rendered (harness broken) or when failures
+// Exit codes: 1 when nothing rendered (harness broken), when failures
 // outnumber rendered stories (majority-failure means the harness is broken,
-// not the stories); 0 otherwise.
-import { mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+// not the stories), or when any failure is "unexpected" — i.e. neither fixed
+// nor covered by a reasoned entry in .impeccable/render-exclusions.json.
+// Registry-covered failures keep exit 0 but stay visible in the manifest.
+import { execFileSync } from 'node:child_process'
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
+import { createRequire } from 'node:module'
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import { cacheSingleton } from '@jsxstyle/core'
 import { createElement, type ReactElement, type ReactNode } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import {
+  applyStoryDecorators,
+  isPlainObject,
+  mergeStoryArgs,
+} from './story-render-utils.ts'
 import { buildWaiverDirective } from './story-waiver-directive.ts'
+
+export { applyStoryDecorators, mergeStoryArgs }
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 export const REPO_ROOT = resolve(__dirname, '..')
 export const OUTPUT_DIR = resolve(REPO_ROOT, 'tmp/storybook-html')
 export const MANIFEST_PATH = resolve(OUTPUT_DIR, 'manifest.json')
+const DOMAIN_GENERATED_DIR = resolve(REPO_ROOT, 'packages/domain/generated')
+const WIRE_FORMATS_GENERATED_DIR = resolve(
+  REPO_ROOT,
+  'packages/wire-formats/generated'
+)
+const TDL_GRAMMAR_BUNDLE = resolve(
+  REPO_ROOT,
+  'packages/tdl/src/cli/grammar.ohm-bundle.js'
+)
+const EXCLUSIONS_PATH = resolve(REPO_ROOT, '.impeccable/render-exclusions.json')
 
 const EXCLUDED_DIRS = new Set(['node_modules', 'dist', 'storybook-static'])
 const STORY_FILE_PATTERN = /\.stories\.tsx$/
@@ -44,6 +72,155 @@ const STORY_FILE_PATTERN = /\.stories\.tsx$/
 function trimError(err: unknown): string {
   const text = String(err instanceof Error ? err.message : err)
   return text.length > 500 ? `${text.slice(0, 500)}…` : text
+}
+
+/**
+ * Gitignored codegen artifacts the render run depends on. `tdlc` (the codegen
+ * CLI for both @repro/domain and @repro/wire-formats) imports @repro/tdl's
+ * generated grammar bundle, and story files across the workspace transitively
+ * import `../generated/*` modules from both generated packages — a fresh
+ * worktree has none of these, so every dependent story file fails its module
+ * import before any story can render. Build in dependency order; each step is
+ * idempotent (skipped when its artifact exists).
+ */
+const CODEGEN_PREREQS = [
+  {
+    marker: TDL_GRAMMAR_BUNDLE,
+    pkg: '@repro/tdl',
+    why: 'tdlc (the codegen CLI for @repro/domain and @repro/wire-formats) imports the generated grammar bundle',
+  },
+  {
+    marker: WIRE_FORMATS_GENERATED_DIR,
+    pkg: '@repro/wire-formats',
+    why: 'story files (devtools, playback, apps/capture) import ../generated/buffer-list from @repro/wire-formats',
+  },
+  {
+    marker: DOMAIN_GENERATED_DIR,
+    pkg: '@repro/domain',
+    why: 'story files import ../generated/* modules from @repro/domain',
+  },
+] as const
+
+function ensureCodegenPrerequisites(log: (msg: string) => void): void {
+  for (const prereq of CODEGEN_PREREQS) {
+    if (existsSync(prereq.marker)) continue
+    log(
+      `[render-stories-html] ${relativeFile(
+        prereq.marker
+      )} is missing — building ${prereq.pkg} codegen (\`pnpm --filter ${
+        prereq.pkg
+      } build\`)... (${prereq.why})`
+    )
+    try {
+      execFileSync('pnpm', ['--filter', prereq.pkg, 'build'], {
+        cwd: REPO_ROOT,
+        stdio: 'inherit',
+      })
+    } catch (err) {
+      throw new Error(
+        `Failed to build ${prereq.pkg} codegen (\`pnpm --filter ${prereq.pkg} build\`). ${prereq.why}; without it dependent story files cannot resolve their imports. Fix the build error above and re-run.`,
+        { cause: err }
+      )
+    }
+    log(`[render-stories-html] ${prereq.pkg} codegen built.`)
+  }
+}
+
+/**
+ * Browser DOM constructor globals referenced by packages/recording's
+ * html2VTree path (used by devtools/playback stories to build fixture data at
+ * module scope): `new DOMParser()`, `Node.*` node-type constants, and
+ * `instanceof` checks against ShadowRoot / HTMLSlotElement / friends in the
+ * walker + factory. Static SSR runs in plain Node, so provide jsdom's
+ * implementations — constructor references only: no window/document globals,
+ * which would flip `typeof document` SSR branch checks across every
+ * component.
+ */
+const DOM_CONSTRUCTOR_GLOBALS = [
+  'DOMParser',
+  'Node',
+  'Element',
+  'HTMLElement',
+  'ShadowRoot',
+  'Document',
+  'DocumentFragment',
+  'DocumentType',
+  'Text',
+  'Comment',
+  'Attr',
+  'HTMLSlotElement',
+  'CSSStyleSheet',
+] as const
+
+async function ensureDomGlobals(log: (msg: string) => void): Promise<void> {
+  const globalScope = globalThis as Record<string, unknown>
+  const needs = DOM_CONSTRUCTOR_GLOBALS.filter(
+    name => typeof globalScope[name] === 'undefined'
+  )
+  if (needs.length === 0) return
+  try {
+    const nodeRequire = createRequire(import.meta.url)
+    const { JSDOM } = nodeRequire('jsdom') as {
+      JSDOM: new () => { window: Record<string, unknown> }
+    }
+    const jsdomWindow = new JSDOM().window
+    for (const name of needs) {
+      const value = jsdomWindow[name]
+      if (typeof value !== 'undefined') globalScope[name] = value
+    }
+    log(
+      `[render-stories-html] provided jsdom globals (${needs.join(
+        ', '
+      )}) for module-scope story fixtures; window/document stay undefined.`
+    )
+  } catch {
+    log(
+      '[render-stories-html] WARNING: jsdom is not resolvable from the harness — story files building fixture data with browser DOM globals at module scope will fail their module import.'
+    )
+  }
+}
+
+export interface RenderExclusion {
+  file: string
+  story: string
+  reason: string
+}
+
+/**
+ * Explicit render-failure exclusions: [{file, story, reason}] where file is
+ * repo-relative and story is the exact story key ("(module import)" for
+ * module-level failures). Consumed here to classify manifest failures and by
+ * the REP-1657 guard test to enforce that every failure carries a reason.
+ */
+export function loadRenderExclusions(
+  log: (msg: string) => void
+): RenderExclusion[] {
+  if (!existsSync(EXCLUSIONS_PATH)) return []
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(readFileSync(EXCLUSIONS_PATH, 'utf8'))
+  } catch (err) {
+    log(
+      `[render-stories-html] WARNING: could not parse ${relativeFile(
+        EXCLUSIONS_PATH
+      )} — treating every failure as unexpected. ${trimError(err)}`
+    )
+    return []
+  }
+  if (!Array.isArray(parsed)) {
+    log(
+      `[render-stories-html] WARNING: ${relativeFile(
+        EXCLUSIONS_PATH
+      )} must be an array — treating every failure as unexpected.`
+    )
+    return []
+  }
+  return parsed.filter(
+    (entry): entry is RenderExclusion =>
+      typeof (entry as RenderExclusion).file === 'string' &&
+      typeof (entry as RenderExclusion).story === 'string' &&
+      typeof (entry as RenderExclusion).reason === 'string'
+  )
 }
 
 function relativeFile(file: string): string {
@@ -139,36 +316,6 @@ export function resolveStoryComponent(
   return null
 }
 
-/**
- * CSF decorators wrap the story element: the FIRST decorator in the array is
- * the outermost wrapper. Each decorator receives a Story function returning
- * the element so far plus the story context.
- */
-export function applyStoryDecorators(
-  element: ReactElement,
-  decorators: unknown[],
-  story: Record<string, unknown>
-): ReactElement {
-  const context = {
-    args:
-      story.args && typeof story.args === 'object'
-        ? (story.args as Record<string, unknown>)
-        : {},
-    parameters: story.parameters,
-    id: story.name,
-  }
-  let current: ReactNode = element
-  for (const decorator of [...decorators].reverse()) {
-    if (typeof decorator !== 'function') continue
-    const Story = (): ReactNode => current
-    const wrapped = (
-      decorator as (story: () => ReactNode, context: unknown) => ReactNode
-    )(Story, context)
-    if (wrapped !== undefined && wrapped !== null) current = wrapped
-  }
-  return current as ReactElement
-}
-
 interface StoryFailure {
   file: string
   story: string
@@ -199,8 +346,12 @@ export async function runRender(
 ): Promise<{
   rendered: number
   failed: number
+  excluded: number
+  unexpected: number
 }> {
   const log = options.log ?? ((msg: string) => console.error(msg))
+  ensureCodegenPrerequisites(log)
+  await ensureDomGlobals(log)
   const files = [
     ...collectStoryFiles(resolve(REPO_ROOT, 'packages')),
     ...collectStoryFiles(resolve(REPO_ROOT, 'apps')),
@@ -235,6 +386,9 @@ export async function runRender(
 
     const component = resolveStoryComponent(moduleExports.default)
     const moduleId = moduleFileId(file)
+    const metaArgs = isPlainObject(moduleExports.default)
+      ? (moduleExports.default as Record<string, unknown>).args
+      : undefined
     let fileRendered = 0
     let fileFailed = 0
 
@@ -243,10 +397,11 @@ export async function runRender(
       if (!isStoryObject(storyExport)) continue
       try {
         const story = storyExport
-        const args =
-          story.args && typeof story.args === 'object'
-            ? (story.args as Record<string, unknown>)
-            : {}
+        // Storybook semantics: meta-level default.args are story defaults —
+        // merged UNDER each story's args (story wins). Story-only resolution
+        // crashed AvatarStackSummary Default on `items.slice` (items live in
+        // meta args).
+        const args = mergeStoryArgs(metaArgs, story.args)
         const element =
           typeof story.render === 'function'
             ? // Storybook invokes story.render inside a component render
@@ -271,7 +426,10 @@ export async function runRender(
         }
         const decorated =
           Array.isArray(story.decorators) && story.decorators.length > 0
-            ? applyStoryDecorators(element, story.decorators, story)
+            ? applyStoryDecorators(element, story.decorators, {
+                ...story,
+                args,
+              })
             : element
         const { returnValue: markup, css } = await cacheSingleton.run(() =>
           renderToStaticMarkup(decorated)
@@ -298,9 +456,23 @@ export async function runRender(
     rows.push({ file: rel, rendered: fileRendered, failed: fileFailed })
   }
 
+  // Every failure must be either fixed or explicitly excluded with a reason
+  // (.impeccable/render-exclusions.json, enforced by the REP-1657 guard
+  // test). Uncovered failures are reported loudly and fail the run.
+  const exclusions = loadRenderExclusions(log)
+  const exclusionKeys = new Set(
+    exclusions
+      .filter(entry => entry.reason.trim() !== '')
+      .map(entry => `${entry.file}#${entry.story}`)
+  )
+  const unexpected = failures.filter(
+    failure => !exclusionKeys.has(`${failure.file}#${failure.story}`)
+  )
   const manifest = {
     rendered,
     failed: failures.length,
+    excluded: failures.length - unexpected.length,
+    unexpected,
     failures,
   }
   writeFileSync(MANIFEST_PATH, JSON.stringify(manifest, null, 2) + '\n')
@@ -324,24 +496,51 @@ export async function runRender(
     ).padStart(6)}`
   )
   console.log(
-    `${manifest.rendered} rendered, ${manifest.failed} failed across ${files.length} story file(s). Manifest: ${MANIFEST_PATH}`
+    `${manifest.rendered} rendered, ${manifest.failed} failed (${manifest.excluded} excluded, ${unexpected.length} unexpected) across ${files.length} story file(s). Manifest: ${MANIFEST_PATH}`
   )
 
   if (rendered === 0) {
     console.error('ERROR: no stories rendered — the harness is broken.')
     process.exitCode = 1
-  } else if (manifest.failed > rendered) {
+  }
+  if (manifest.failed > rendered) {
     console.error(
       `ERROR: ${manifest.failed} failures outnumber ${rendered} rendered stories — the harness is broken, not the stories.`
     )
     process.exitCode = 1
   }
+  if (unexpected.length > 0) {
+    console.error(
+      `ERROR: ${
+        unexpected.length
+      } render failure(s) are neither fixed nor excluded in ${relativeFile(
+        EXCLUSIONS_PATH
+      )} — they contribute zero detector coverage:`
+    )
+    for (const failure of unexpected) {
+      console.error(`  - ${failure.file} :: ${failure.story}: ${failure.error}`)
+    }
+    console.error(
+      'Fix the failure or add a reasoned {file, story, reason} entry to the exclusion registry.'
+    )
+    process.exitCode = 1
+  }
 
-  return { rendered: manifest.rendered, failed: manifest.failed }
+  return {
+    rendered: manifest.rendered,
+    failed: manifest.failed,
+    excluded: manifest.excluded,
+    unexpected: unexpected.length,
+  }
 }
 
 async function main(): Promise<void> {
-  await runRender()
+  try {
+    await runRender()
+  } catch (err) {
+    console.error(`ERROR: ${err instanceof Error ? err.message : String(err)}`)
+    process.exitCode = 1
+  }
 }
 
 const isDirectRun =
