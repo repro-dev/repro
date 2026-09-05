@@ -499,4 +499,60 @@ describe('TDL encoder optimization (REP-1444)', () => {
       expect(Array.from(decodedArr)).toEqual([0xbe, 0xef, 0xca, 0xfe])
     })
   })
+
+  // ============================================================
+  // E: Omitted nullable fields (REP-1662)
+  // ============================================================
+
+  describe('E: omitted nullable fields (REP-1662)', () => {
+    const outerDescriptor: StructDescriptor = {
+      type: 'struct',
+      fields: [
+        ['value', { type: 'integer', signed: false, bits: 8 }],
+        [
+          'maybe',
+          {
+            type: 'struct',
+            fields: [['inner', { type: 'integer', signed: false, bits: 8 }]],
+            nullable: true,
+          },
+        ],
+      ],
+    }
+
+    it('E1: omitted nullable struct field encodes without overrunning the buffer', () => {
+      // Omitted (undefined), not explicitly null — mirrors how callers leave
+      // optional struct fields unset.
+      const data = { value: 1, maybe: undefined }
+
+      const view = encodeProperty(outerDescriptor, data)
+
+      expect(view).toBeInstanceOf(DataView)
+      // Size pass and write pass must agree on the allocation.
+      expect(view.byteLength).toBe(getByteLength(outerDescriptor, data))
+    })
+
+    it('E2: omitted nullable struct field round-trips to wire-null', () => {
+      const view = createView(outerDescriptor)
+      const encoded = view.encode({ value: 1, maybe: undefined })
+      const decoded: any = view.decode(encoded)
+
+      expect(decoded.value).toBe(1)
+      expect(decoded.maybe).toBe(null)
+    })
+
+    it('E3: omitted and explicit-null nullable fields encode identically', () => {
+      const omitted = encodeProperty(outerDescriptor, {
+        value: 1,
+        maybe: undefined,
+      })
+      const explicit = encodeProperty(outerDescriptor, {
+        value: 1,
+        maybe: null,
+      })
+
+      expect(omitted.byteLength).toBe(explicit.byteLength)
+      expect(toHex(omitted.buffer)).toBe(toHex(explicit.buffer))
+    })
+  })
 })

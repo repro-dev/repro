@@ -48,15 +48,5 @@
     "file": "packages/design/src/listing/RefreshProgressBar.stories.tsx",
     "story": "Hidden",
     "reason": "The component intentionally returns null when show=false, and the Hidden story passes show:false — there is nothing to render."
-  },
-  {
-    "file": "packages/playback/src/PlaybackEditor/PlaybackEditor.stories.tsx",
-    "story": "(module import)",
-    "reason": "Suspected real issue — needs follow-up. Module-scope SourceEventView.from(Snapshot event carrying a dom VTree) throws RangeError: Offset is outside the bounds of the DataView inside @repro/tdl's binary encoder (encodeStruct setUint32, encoders.ts:171); the size pass undercounts for this payload. Environment-independent (would crash in the browser too, killing the story file in Storybook as well); tdl's encoders.test.ts is green (38/38), so this is an uncovered encoder edge case. Previously masked as a missing-codegen failure."
-  },
-  {
-    "file": "packages/playback/src/PlaybackTimeline/RangeTimeline.stories.tsx",
-    "story": "(module import)",
-    "reason": "Suspected real issue — needs follow-up. Same tdl encoder failure as PlaybackEditor: module-scope SourceEventView.from on a Snapshot event with a dom VTree throws RangeError: Offset is outside the bounds of the DataView (encodeStruct setUint32); deterministic and environment-independent. Previously masked as a missing-codegen failure."
   }
 ]
