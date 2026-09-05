@@ -35,6 +35,23 @@ const meta: Meta = {
   ],
 }
 
+// Impeccable rendered-HTML gate waiver (REP-1656 convention, triaged under
+// REP-1657): the detector scans the static-HTML render, where AgenticView's
+// app-shell root (full-bleed container whose children carry their own
+// insets) reads as cramped padding, and the input section's deliberate
+// raise/expand animation (AgenticInputSection animates margin/padding
+// alongside transform) reads as a layout-property animation. Both are
+// intentional; a transform-only raise rework is a design follow-up.
+const impeccableWaiver = {
+  parameters: {
+    impeccable: {
+      disable: ['layout-transition', 'cramped-padding'],
+      reason:
+        'AgenticView app-shell: structural frame with inset children; input-section raise animates margin/padding by design',
+    },
+  },
+} as const
+
 export default meta
 
 function withState(state: AgenticState): Decorator {
@@ -76,6 +93,7 @@ function makeState(
 export const Default: StoryObj = {}
 
 export const Reasoning: StoryObj = {
+  ...impeccableWaiver,
   decorators: [
     withState(
       makeState(
@@ -117,6 +135,7 @@ export const Reasoning: StoryObj = {
 }
 
 export const Responding: StoryObj = {
+  ...impeccableWaiver,
   decorators: [
     withState(
       makeState(
@@ -162,6 +181,7 @@ Sed vitae orci vulputate eros maximus scelerisque. Fusce id nisi odio. Proin sol
 }
 
 export const WithToolCalls: StoryObj = {
+  ...impeccableWaiver,
   decorators: [
     withState(
       makeState(
@@ -230,6 +250,7 @@ export const WithToolCalls: StoryObj = {
 }
 
 export const ToolExecuting: StoryObj = {
+  ...impeccableWaiver,
   decorators: [
     withState(
       makeState(
@@ -261,6 +282,7 @@ export const ToolExecuting: StoryObj = {
 }
 
 export const AskUserPrompting: StoryObj = {
+  ...impeccableWaiver,
   decorators: [
     withState(
       makeState(
@@ -326,6 +348,7 @@ export const AskUserPrompting: StoryObj = {
 }
 
 export const WithError: StoryObj = {
+  ...impeccableWaiver,
   decorators: [
     withState(
       makeState(
@@ -354,6 +377,7 @@ const PLACEHOLDER_DATA_URL =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
 
 export const WithScreenshotResult: StoryObj = {
+  ...impeccableWaiver,
   decorators: [
     withState(
       makeState(
@@ -403,6 +427,7 @@ export const WithScreenshotResult: StoryObj = {
 }
 
 export const WithTruncation: StoryObj = {
+  ...impeccableWaiver,
   decorators: [
     withState(
       makeState(
@@ -445,6 +470,7 @@ export const WithTruncation: StoryObj = {
 }
 
 export const WithHypotheses: StoryObj = {
+  ...impeccableWaiver,
   decorators: [
     withState(
       makeState(
@@ -507,6 +533,7 @@ const recordingMeta: RecordingMeta = {
 }
 
 export const WithRecordingMeta: StoryObj = {
+  ...impeccableWaiver,
   args: {
     recordingMeta,
   },

@@ -12,7 +12,23 @@ const meta: Meta = {
 
 export default meta
 
+// Impeccable rendered-HTML gate waiver (REP-1656 convention, triaged under
+// REP-1657): the embedded SimpleTimeline collapse animates height by design,
+// and the toolbar is an edge-to-edge tool strip whose uniform 4px spacing is
+// the intended density (monotonous-spacing) with flush children by anatomy
+// (cramped-padding).
+const impeccableWaiver = {
+  parameters: {
+    impeccable: {
+      disable: ['layout-transition', 'cramped-padding', 'monotonous-spacing'],
+      reason:
+        'DevTools toolbar: edge-to-edge tool strip with intended uniform 4px density; embedded SimpleTimeline collapse animates height by design',
+    },
+  },
+} as const
+
 export const Default: StoryObj = {
+  ...impeccableWaiver,
   args: {
     fullscreen: false,
     onToggleFullscreen: () => {},

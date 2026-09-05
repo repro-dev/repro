@@ -25,6 +25,17 @@ export default meta
 
 type Story = StoryObj<typeof RangeTimeline>
 
+// Impeccable rendered-HTML gate waiver (REP-1656 convention, needed since
+// REP-1662 made these stories render): the SimpleTimeline collapse animates
+// height by design (grid-template-rows rework is a follow-up).
+const impeccableWaiver = {
+  impeccable: {
+    disable: ['layout-transition'],
+    reason:
+      'SimpleTimeline collapse animates height by design (grid-template-rows rework is a follow-up)',
+  },
+} as const
+
 const events = new List(SourceEventView, [
   SourceEventView.encode(
     new Box({
@@ -72,6 +83,7 @@ const events = new List(SourceEventView, [
 ])
 
 export const Default: Story = {
+  parameters: { ...impeccableWaiver },
   render: () => (
     <PlaybackProvider playback={createSourcePlayback(events, 1000, {})}>
       <RangeTimeline onChange={() => undefined} />
@@ -165,6 +177,7 @@ const eventsWithErrors = new List(SourceEventView, [
 
 export const WithErrorMarkers: Story = {
   name: 'With error markers',
+  parameters: { ...impeccableWaiver },
   render: () => {
     const errorAndWarningEvents = [
       {

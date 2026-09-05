@@ -268,11 +268,11 @@ Oxlint (`pnpm run lint`) enforces code-architecture rules at `error` level. Thes
 
 ### Impeccable — Design anti-pattern detection
 
-Impeccable (`npx impeccable detect apps/ packages/ --json`) detects design anti-patterns and visual slop across 44 deterministic rules. It catches AI-generated tells (gradient text, nested cards, icon-tile stacks), quality issues (low contrast, tight leading, skipped headings), and copy smells (em-dash overuse, marketing buzzwords) that oxlint's architecture rules don't cover.
+Impeccable detects design anti-patterns and visual slop by rendering workspace stories to static HTML (`pnpm run render-stories-html`) and running the detector over the rendered output (`npx impeccable detect tmp/storybook-html/ --json`). Rendering the real DOM/CSS is what lets the detector's DOM/geometry rules execute — AI-generated tells (gradient text, nested cards, icon-tile stacks), quality issues (low contrast, tight leading, cramped padding, skipped headings), and copy smells (em-dash overuse, marketing buzzwords) that oxlint's architecture rules don't cover. The previous source-TSX scan (`detect apps/ packages/`) was removed: on this repo's TSX only its line-regex families ever ran, so every DOM rule was dead code there. The CI detect step is **blocking** (no `continue-on-error`): the 197 first-run findings were triaged under REP-1656 with every finding fixed or suppressed+justified (see `.impeccable/README.md`).
 
-**Exclusions**: Test files, story files, and `packages/design/src/**` are excluded via `.impeccable/config.json` `detector.ignoreFiles`.
+**Exclusions**: Test files, story files, and `packages/design/src/**` are excluded from source scans via `.impeccable/config.json` `detector.ignoreFiles`; the same config's `ignoreFiles` still applies to the rendered-HTML scan.
 
-**Suppressing violations**: Use inline `impeccable-disable <rule-id>` (whole file), `impeccable-disable-line <rule-id>` (current line), or `impeccable-disable-next-line <rule-id>` (next line) in any comment syntax. Project-wide ignores go in `.impeccable/config.json` `detector.ignoreRules`.
+**Suppressing violations**: For the rendered-HTML scan, source-file inline `impeccable-disable` comments do **not** survive re-render — the scan runs over generated `tmp/storybook-html/*.html`, so a comment in the story source never reaches the detector. Instead: (a) per-story, declare `parameters: { impeccable: { disable: ['<rule-id>'], reason: 'why' } }` — the render harness (`scripts/render-stories-html.ts`) injects the equivalent whole-file directive into the generated doc on every render; or (b) project-wide, add the rule id to `.impeccable/config.json` `detector.ignoreRules`. Every suppression needs a documented justification in `.impeccable/README.md`.
 
 ### Why two detectors?
 
@@ -286,7 +286,7 @@ They are complementary, not overlapping. Both gates must pass in CI.
 ### Context & Configuration
 
 - **PRODUCT.md** (repo root): Hand-authored product context consumed by Impeccable for product-aware heuristics. Maintained by hand; no generator.
-- **DESIGN.md** (repo root): Derived artifact listing `@repro/design` tokens (font, color, radius, spacing). Regenerate via `npx impeccable document`. Tokens in `packages/design/src/tokens/` remain the source of truth.
+- **DESIGN.md** (repo root): Derived artifact listing `@repro/design` tokens (font, color, radius, spacing). Regenerate via the impeccable skill's `document` command (agentic skill command — not an npm CLI subcommand). Tokens in `packages/design/src/tokens/` remain the source of truth.
 - **Install path**: Impeccable skills live in `.opencode/skills/impeccable/`, installed via `npx impeccable install` (OpenCode-native).
 - **Update path**: `npx impeccable update` refreshes the local skill bundle.
 
@@ -587,6 +587,12 @@ import { Button, color, spacing, textStyles } from '@repro/design'
   </Button>
 </Col>
 ```
+
+When composing the shared `<EmptyState>` compound component inside a page whose
+`PageFrame.Title` renders an `<h1>`, pass `headingLevel="h2"` to
+`EmptyState.Title` so heading levels never skip (`<h1>` → `<h3>` fails the
+detector's skipped-heading rule — REP-1656). The default `<h3>` fits standalone
+usage under an `<h2>` page heading.
 
 ### Examples
 

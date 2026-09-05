@@ -331,16 +331,16 @@ Reserve space for dynamic content with `aspect-ratio` or explicit dimensions:
 
 ### Version testing status
 
-Testing tsx v4.20+ and Node v23.x against the hang is **blocked**: the workaround (splitting files to <300 lines each) has already been applied, so no file large enough to trigger the hang reliably exists in the codebase. Creating a deliberately oversized file would itself violate the CI lint rule below.
+Testing tsx v4.20+ and Node v23.x against the hang is **blocked**: the workaround (splitting files to <300 lines each) has already been applied, so no file large enough to trigger the hang reliably exists in the codebase. Creating a deliberately oversized file would itself violate the size rule below.
 
 ### Enforced limits
 
-CI runs `scripts/check-test-file-size.sh` after the migration duplicate check step:
+CI runs `scripts/check-test-file-size.sh` after the migration duplicate check step. **CI runs it with `--warn-only`** (`ci.yml`: `--warn-only --error-threshold 500 --warn-threshold 400`), so error-level files are reported but do not fail CI while the backlog of existing oversized test files (25 files measured 2026-09-02) is worked down. Making the gate blocking requires splitting those files first — tracked as a follow-up issue.
 
-| Threshold   | Action                 |
-| ----------- | ---------------------- |
-| > 400 lines | Warning (non-blocking) |
-| > 500 lines | Error (blocks CI)      |
+| Threshold   | Action                                                   |
+| ----------- | -------------------------------------------------------- |
+| > 400 lines | Warning (non-blocking)                                   |
+| > 500 lines | Error reported by the script — **non-blocking in CI** (warn-only) |
 
 Run locally with:
 
@@ -364,6 +364,6 @@ Fix: removed the unused flag and split `vue3.test.ts` into three files (basic te
 
 ### NEVER
 
-- Write a test file that exceeds 500 lines. CI will reject it.
+- Write a test file that exceeds 500 lines. The size gate reports it as an error (non-blocking in CI while the oversized-file backlog is worked down) — treat 500 lines as the hard limit anyway; files this large are also inside the node:test hang risk band above.
 - Merge files that were previously split to work around the hang.
 - Use `--experimental-test-module-mocks` in a package that has no `t.mock.module()` calls — it adds hang risk for zero benefit.

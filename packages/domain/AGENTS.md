@@ -2,6 +2,13 @@
 
 Wire-format types live in `.tdls` schema files and are compiled by `tdlc` into `generated/*.ts`. These generated files **must never be edited directly** — the header says `// This file is generated — do not edit directly`.
 
+## Runtime nullability contract (REP-1662)
+
+- Optional (nullable) struct fields are spelled `field: T | null` in generated TS types — strictly nullable, never optional (`?:`).
+- At runtime, the `@repro/tdl` encoder treats omitted (`undefined`) nullable fields **the same as explicit `null`**: one null-marker byte, no payload, decodes as `null`. This is a deliberate two-pass contract — the size pass and write pass must both agree (see `packages/tdl/src/lib/utils.ts` and `encoders.ts`).
+- Consequence: hand-written payload literals may omit nullable fields, but the compiler will not accept that at typecheck time (missing property) — explicit `null` is still the only type-correct spelling. Unchecked call sites (story files) rely on the runtime tolerance; typechecked code must spell `null`.
+- There is no wire representation for `undefined` — it never round-trips; decode always yields `null`.
+
 ## TDL schema pipeline
 
 ```

@@ -107,7 +107,7 @@ Run this before any .pen work session, and as a self-check on any PR that touche
    - `name`/`dims` mismatch with the implemented component → flag if the pen change was unintended.
 3. Any finding = resolve before composing or translating. Never work off a pen file you haven't verified this session.
 
-The pre-push hook runs `tsx scripts/pen-lint.ts` (exit 1 on violations) — the gate is the final tree's health, not just the catalog.
+`pnpm run pen:lint` and `pnpm run pen-clipping-scan` run in CI (the format-check job), so a pen conformance break fails CI without any local pre-push run — the pre-push hook keeps pen-lint as a local fast path. Exit 1 on violations — the gate is the final tree's health, not just the catalog.
 
 ---
 
@@ -199,7 +199,7 @@ Recommended order: admin first (smallest, hardens the workflow), then workspace,
 1. **Document health** — visitor over the whole doc collecting `ctx.problems` must return zero issues.
 2. **No raw fills** — every fill on a screen's descendants must be a `$` variable ref or `transparent`/inherited. No hex literals.
 3. **No orphan masters** — every `reusable: true` master has ≥ 1 gallery instance.
-4. **Clipping scan** — text nodes with fixed width must not overflow their parent frame bounds.
+4. **Clipping scan** — run `pnpm run pen-clipping-scan` (must exit 0). It flags explicit-geometry nodes extending beyond their screen frame bounds (0.5px tolerance) and overlapping sibling rects; auto-layout children without explicit x/y are laid out by their parent and never flagged.
 5. **Variable pairs** — every color variable keeps its light+dark pair; no dangling `$` refs.
 6. **Master path conformance** — run `pnpm run pen:lint`; it must report zero violations (every master resolves from its `masters/<pkg>/` group path).
 7. **Master default state** — every master renders in its documented default variant (default is almost always `{}` overrides). A master saved in a non-default state (error stroke, invalid input, wrong active tab) poisons every instance silently. Check any master you touched, and spot-check masters your screens consume.

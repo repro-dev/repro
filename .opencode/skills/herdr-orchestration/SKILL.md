@@ -16,6 +16,13 @@ The `deliver` CLI (`scripts/deliver.sh`, invoked as `deliver REP-123`) is the pr
 3. Bootstraps the workspace (`pnpm bootstrap` in `:p1`, async)
 4. Launches OpenCode in `:p2` with the appropriate command (`/build` or `/bugfix`)
 5. Labels the OpenCode agent `opencode-REP-XXXX` (or `opencode` for non-issue label workspaces)
+6. Submits the seeded build prompt (REP-1655): opencode2's `--prompt` only seeds the editor, it
+   never submits. Stage 4 waits until the seeded prompt appears in `herdr pane read --source
+   visible` WITHOUT the `--prompt` launch wrapper (the pre-render echo contains both — the
+   negative check excludes it; the capture is joined with `tr -d '\r\n'` first because panes
+   hard-wrap), then sends `herdr pane send-keys <pane> enter` and confirms the kick-off via the
+   pane's `agent_status == "working"`. Never follow a `--prompt` launch with `herdr agent
+   prompt` — it re-types the text and would duplicate the seeded editor content.
 
 **How orchestration supports `deliver`:**
 
@@ -110,6 +117,11 @@ herdr agent read <target> --format ansi             # preserve ANSI codes
 ```
 
 Use `--source recent` to see full command output history. Use `--lines N` to cap.
+
+Raw pane reads accept the same sources — `herdr pane read <pane_id> --source visible` returns
+only the currently rendered viewport (shell echoes and scrollback excluded, verified live), while
+the default `recent` includes recent scrollback. Prefer `--source visible` when you need "what is
+on screen right now" semantics, e.g. detecting a seeded-but-unsubmitted agent TUI.
 
 ### Wait for agent to become idle
 

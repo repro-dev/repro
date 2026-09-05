@@ -182,6 +182,23 @@ _mode_bare_branch() {
   printf '%s\n%s\n' "$issue_id" "$branch_name"
 }
 
+# ── Numeric env-knob sanitizer ─────────────────────────────────────
+# Stage-4 poll/settle knobs must be non-negative integers. Garbage values
+# (e.g. DELIVER_TUI_POLL_INTERVAL=abc) would otherwise kill the script via
+# sleep/arithmetic under set -e after OpenCode has already launched. Empty
+# or non-numeric values fall back to the default; 0 stays legal (tests use
+# DELIVER_SUBMIT_SETTLE=0 to skip the settle sleep; 0 attempts legally
+# skips a poll loop).
+_deliver_numeric_or() {
+  local value="${1:-}"
+  local fallback="$2"
+  if [[ -n "$value" && "$value" =~ ^[0-9]+$ ]]; then
+    printf '%s\n' "$value"
+  else
+    printf '%s\n' "$fallback"
+  fi
+}
+
 # ── Worktree creation and agent launch ─────────────────────────────
 _create_worktree_and_launch() {
   local mode="$1"
@@ -329,7 +346,8 @@ _create_worktree_and_launch() {
     (cd "$wt_path" && pnpm install) || true
     echo ""
     echo "  cd $wt_path"
-    echo "  opencode run -i \"$prompt_arg\""
+    echo "  opencode2 --prompt \"$prompt_arg\""
+    echo "  After the TUI opens, press Enter in it to kick off the build (--prompt seeds the editor but does not submit)."
     return 0
   fi
   _ok "Workspace: ${label} (${ws_id})"
@@ -380,50 +398,101 @@ _create_worktree_and_launch() {
   # Stage 4: Agent launch in the opencode pane
   _step 4 4 "Launching OpenCode agent..."
 
-  # Build the opencode launch command
+  # Build the opencode launch command (OpenCode v2 via `reproctl opencode` → opencode2).
   local opencode_cmd
   if [[ -n "$profile_arg" ]]; then
     opencode_cmd="\"$SCRIPT_DIR/reproctl.sh\" opencode --profile \"$profile_arg\" --prompt \"$prompt_arg\""
   else
-    opencode_cmd="REPRO_OPENCODE_PROFILE=\"${REPRO_OPENCODE_PROFILE:-deepseek-v4}\" \"$SCRIPT_DIR/reproctl.sh\" opencode --prompt \"$prompt_arg\""
+    opencode_cmd="REPRO_OPENCODE_PROFILE=\"${REPRO_OPENCODE_PROFILE:-opencode-go-glm-5.3-flash-only}\" \"$SCRIPT_DIR/reproctl.sh\" opencode --prompt \"$prompt_arg\""
   fi
   if [[ "$nightshift" == "true" ]]; then
-    opencode_cmd="$opencode_cmd --permission-mode acceptEdits --disallowed-tools AskUserQuestion"
+    # v2 has no --permission-mode/--disallowed-tools; --auto approves everything not explicitly denied.
+    opencode_cmd="$opencode_cmd --auto"
   fi
 
-  # Start agent detection in background BEFORE sending the launch command.
-  # herdr agent start blocks until the agent is detected in the pane (via --timeout).
-  local agent_name agent_stderr
-  agent_name="$(printf '%s' "opencode-${label}" | tr '[:upper:]' '[:lower:]')"
-  agent_stderr="$(mktemp "$MAIN_CHECKOUT/tmp/herdr.XXXXXX")"
-  herdr agent start "$agent_name" --kind opencode --pane "$opencode_pane_id" --timeout 60000 2>"$agent_stderr" &
-  local agent_pid=$!
-
-  # Brief pause for herdr to set up agent detection
-  sleep 1
-
-  # Send the opencode launch command to the pane
+  # Launch OpenCode v2 by typing the command into the pane shell. Do NOT use
+  # `herdr agent start --kind opencode` here: in herdr 0.7.5 that kind's
+  # canonical executable is the v1 `opencode` binary, which races this v2
+  # launch in the same pane (v1 wins, the prompt is lost, the session sits idle).
   herdr pane run "$opencode_pane_id" "cd \"$wt_path\" && $opencode_cmd" || {
-    kill "$agent_pid" 2>/dev/null || true
-    rm -f "$agent_stderr"
     _warn "Failed to send OpenCode launch command to pane ${opencode_pane_id}."
     return 0
   }
 
-  # Wait for herdr to detect the agent (blocks until ready or timeout)
-  wait "$agent_pid" 2>/dev/null
-  local agent_rc=$?
-  if [[ $agent_rc -eq 0 ]] && ! grep -q '"error"' "$agent_stderr" 2>/dev/null; then
-    _ok "OpenCode agent launched in workspace"
-  else
-    if [[ -s "$agent_stderr" ]]; then
-      _warn "Agent registration failed — opencode may still be starting in the workspace."
-      echo "  $(cat "$agent_stderr")" >&2
-    else
-      _warn "Agent registration timed out — opencode may still be starting in the workspace."
+  # Wait for the v2 TUI to render AND seed the editor, then submit. The poll
+  # budget is env-tunable for tests; the defaults preserve the historical
+  # 30 × 2s = 60s window.
+  local poll tui_detected=false pane_visible
+  local tui_poll_attempts
+  tui_poll_attempts="$(_deliver_numeric_or "${DELIVER_TUI_POLL_ATTEMPTS:-}" 30)"
+  local tui_poll_interval
+  tui_poll_interval="$(_deliver_numeric_or "${DELIVER_TUI_POLL_INTERVAL:-}" 2)"
+  for poll in $(seq 1 "$tui_poll_attempts"); do
+    # TUI-rendered-and-seeded signal: the seeded prompt is visible in the live
+    # viewport WITHOUT the launch wrapper. Before the TUI takes over, the pane
+    # shows the `herdr pane run` echo, which contains the prompt text but ALSO
+    # the `--prompt` flag — the negative check excludes that pre-render state.
+    # (Do NOT grep for 'beta-': worktree slugs and profile names can put it in
+    # the echo, which would submit Enter before the TUI exists.)
+    # Join the capture before matching: panes hard-wrap at their width, and a
+    # wrap boundary inside either matched token (the seed, or `--prompt`)
+    # would split it across rows and corrupt the check. Deleting the row
+    # separators reconstructs the logical stream (a hard-wrap inserts no
+    # character). Residual risk: on pathologically short panes the echo's
+    # head (with `--prompt`) can scroll out of the visible viewport while its
+    # tail (seed) remains — bounded consequence, lands in the graceful
+    # could-not-confirm path.
+    pane_visible="$(herdr pane read --source visible "$opencode_pane_id" 2>/dev/null | tr -d '\r\n' || true)"
+    if grep -qF -- "$prompt_arg" <<<"$pane_visible" && ! grep -qF -- '--prompt' <<<"$pane_visible"; then
+      tui_detected=true
+      break
     fi
+    sleep "$tui_poll_interval"
+  done
+  if [[ "$tui_detected" != "true" ]]; then
+    _warn "OpenCode v2 seeded TUI not detected in pane ${opencode_pane_id} within $((tui_poll_attempts * tui_poll_interval))s."
+    echo "  Check the pane; if it did not start, run: cd \"$wt_path\" && $opencode_cmd"
+    return 0
   fi
-  rm -f "$agent_stderr"
+
+  # --prompt only seeds the opencode2 editor; it never submits. Give the TUI
+  # a moment to finish mounting with the seeded editor, then send Enter to
+  # kick off the build. Do NOT use `herdr agent prompt` here — it re-types
+  # the command and would duplicate the seeded editor text. If the submit
+  # fails, the seeded prompt stays intact for a manual Enter.
+  sleep "$(_deliver_numeric_or "${DELIVER_SUBMIT_SETTLE:-}" 2)"
+  if ! herdr pane send-keys "$opencode_pane_id" enter >/dev/null 2>&1; then
+    _warn "Could not submit the seeded build prompt in pane ${opencode_pane_id} (herdr pane send-keys failed — herdr may not accept key events for this pane)."
+    echo "  The prompt is seeded but not submitted: press Enter in the pane to kick off the build."
+    return 0
+  fi
+
+  # Confirm the kick-off by polling herdr's agent classification for the
+  # opencode pane (same `herdr pane list` source the pane IDs came from). If
+  # classification lags we warn conservatively: a false "could not confirm"
+  # is harmless, the user just sees the build already running.
+  local state_poll state_confirmed=false
+  local state_poll_attempts
+  state_poll_attempts="$(_deliver_numeric_or "${DELIVER_STATE_POLL_ATTEMPTS:-}" 10)"
+  local state_poll_interval
+  state_poll_interval="$(_deliver_numeric_or "${DELIVER_STATE_POLL_INTERVAL:-}" 1)"
+  for state_poll in $(seq 1 "$state_poll_attempts"); do
+    if herdr pane list --workspace "$ws_id" 2>/dev/null \
+      | jq -e --arg pane_id "$opencode_pane_id" 'any(.result.panes[]; .pane_id == $pane_id and .agent_status == "working")' >/dev/null 2>&1; then
+      state_confirmed=true
+      break
+    fi
+    sleep "$state_poll_interval"
+  done
+  if [[ "$state_confirmed" == "true" ]]; then
+    _ok "OpenCode v2 launched — build kicked off (prompt: ${prompt_arg})"
+  else
+    _warn "Could not confirm that the build kicked off automatically in pane ${opencode_pane_id} (agent status never showed 'working')."
+    # Epistemics: send-keys exit 0 proves herdr accepted the keystroke, not
+    # that the editor consumed it — say "sent", never "submitted".
+    echo "  Enter was sent — if the build did not start, press Enter in the pane to run the seeded prompt."
+  fi
+  return 0
 }
 
 # ── Main ───────────────────────────────────────────────────────────

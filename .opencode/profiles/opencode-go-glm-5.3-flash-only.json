@@ -1,0 +1,81 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "opencode-go/glm-5.3-flash",
+  "provider": {
+    "opencode-go": {
+      "models": {
+        "glm-5.3-flash": {
+          "options": {
+            "reasoningEffort": "max"
+          }
+        }
+      }
+    }
+  },
+  "command": {
+    "deliver": {
+      "model": "opencode-go/glm-5.3-flash",
+      "template": ""
+    },
+    "review": {
+      "model": "opencode-go/glm-5.3-flash",
+      "template": ""
+    }
+  },
+  "agent": {
+    "develop": {
+      "model": "opencode-go/glm-5.3-flash",
+      "options": {
+        "reasoningEffort": "max"
+      }
+    },
+    "filtered-runner": {
+      "model": "opencode-go/glm-5.3-flash",
+      "options": {
+        "reasoningEffort": "max"
+      }
+    },
+    "librarian": {
+      "model": "opencode-go/glm-5.3-flash",
+      "options": {
+        "reasoningEffort": "max"
+      }
+    },
+    "planner": {
+      "model": "opencode-go/glm-5.3-flash",
+      "options": {
+        "reasoningEffort": "max"
+      }
+    },
+    "review": {
+      "model": "opencode-go/glm-5.3-flash",
+      "options": {
+        "reasoningEffort": "max"
+      }
+    },
+    "adversarial-review": {
+      "model": "opencode-go/glm-5.3-flash",
+      "options": {
+        "reasoningEffort": "max"
+      }
+    },
+    "test": {
+      "model": "opencode-go/glm-5.3-flash",
+      "options": {
+        "reasoningEffort": "max"
+      }
+    },
+    "sequencer": {
+      "model": "opencode-go/glm-5.3-flash",
+      "options": {
+        "reasoningEffort": "max"
+      }
+    },
+    "release": {
+      "model": "opencode-go/glm-5.3-flash",
+      "options": {
+        "reasoningEffort": "max"
+      }
+    }
+  }
+}

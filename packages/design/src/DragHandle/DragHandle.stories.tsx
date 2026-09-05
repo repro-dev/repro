@@ -69,6 +69,14 @@ const edges = ['top', 'bottom', 'left', 'right'] as const
 
 /** All four edge positions shown side-by-side. */
 export const AllEdges: Story = {
+  // Waiver (REP-1656): the bordered squares exist to show edge-flush handle
+  // placement — flushness is the subject, and the handle anchors to the edge.
+  parameters: {
+    impeccable: {
+      disable: ['cramped-padding'],
+      reason: 'demo squares show edge-flush handle placement by design',
+    },
+  },
   render: () => (
     <Row gap={24} padding={16} flexWrap="wrap">
       {edges.map(edge => (

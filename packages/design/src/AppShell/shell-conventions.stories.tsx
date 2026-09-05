@@ -38,6 +38,15 @@ FakeLink.displayName = 'FakeLink'
 
 export const AppShellConvention: Story = {
   name: 'app-shell',
+  // Waiver (REP-1656): the shell root is a structural frame; the PageFrame
+  // header/body children provide their own inset.
+  parameters: {
+    impeccable: {
+      disable: ['cramped-padding'],
+      reason:
+        'shell root is a structural frame; children carry their own inset',
+    },
+  },
   render: () => (
     <AppShell>
       <AppShell.Sidebar
@@ -152,6 +161,15 @@ export const ToolViewConvention: Story = {
 
 export const AuthFlowConvention: Story = {
   name: 'auth-flow',
+  // Waiver (REP-1656): the auth root fills the viewport on purpose; the sign-in
+  // card provides its own inset.
+  parameters: {
+    impeccable: {
+      disable: ['cramped-padding'],
+      reason:
+        'auth flow root fills the viewport; the card provides its own inset',
+    },
+  },
   render: () => (
     <Block height="100vh" backgroundColor={color.bg.subtle}>
       <Center>

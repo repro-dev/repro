@@ -328,10 +328,13 @@ export function encodeProperty(
   }
 
   if (descriptor.nullable) {
-    dv.setUint8(pointerRef.offset, data === null ? 0 : 1)
+    // Mirror the size pass (utils.ts): callers may omit optional struct fields
+    // entirely, which JS represents as undefined — treat it as null on the wire.
+    const isNull = data === null || data === undefined
+    dv.setUint8(pointerRef.offset, isNull ? 0 : 1)
     pointerRef.offset += ByteLengths.Int8
 
-    if (data === null) {
+    if (isNull) {
       if (prof.enabled) {
         prof.encodeDepth--
         if (prof.encodeDepth === 0) {

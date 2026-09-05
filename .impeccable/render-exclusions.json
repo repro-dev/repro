@@ -1,0 +1,52 @@
+[
+  {
+    "file": "packages/design/src/ConfirmDialog/ConfirmDialog.stories.tsx",
+    "story": "Default",
+    "reason": "ConfirmDialog composes Modal, which mounts via createPortal into document.body behind an effect-gated animation lifecycle; portal content produces no renderToStaticMarkup output (no SSR markup possible)."
+  },
+  {
+    "file": "packages/design/src/ConfirmDialog/ConfirmDialog.stories.tsx",
+    "story": "Destructive",
+    "reason": "Same portal-based mounting as ConfirmDialog Default: Modal renders through createPortal into document.body, so static server markup is empty."
+  },
+  {
+    "file": "packages/design/src/Delay/Delay.stories.tsx",
+    "story": "Default",
+    "reason": "Delay returns null until its setTimeout fires inside a client effect; renderToStaticMarkup does not run effects, so the markup is empty by design."
+  },
+  {
+    "file": "packages/design/src/Delay/Delay.stories.tsx",
+    "story": "LongDelay",
+    "reason": "Same timer-gated rendering as Delay Default (1.5s setTimeout in useEffect); nothing exists in static server markup."
+  },
+  {
+    "file": "packages/design/src/ErrorBoundary/ErrorBoundary.stories.tsx",
+    "story": "CustomFallback",
+    "reason": "The story renders a child that always throws, by design, to demo the boundary fallback; error-boundary recovery is client-side only and does not run under renderToStaticMarkup, so the throw surfaces as a render failure."
+  },
+  {
+    "file": "packages/design/src/ErrorBoundary/ErrorBoundary.stories.tsx",
+    "story": "Default",
+    "reason": "Same always-throwing child as CustomFallback (previously masked as a stack overflow by the harness decorator bug fixed in REP-1657); error-boundary fallback recovery is client-side only, so the throw surfaces in static SSR."
+  },
+  {
+    "file": "packages/design/src/Modal/Modal.stories.tsx",
+    "story": "Default",
+    "reason": "Modal mounts via createPortal into document.body behind the effect-gated useModalAnimation lifecycle; portal content produces no renderToStaticMarkup output (no SSR markup possible)."
+  },
+  {
+    "file": "packages/design/src/Modal/Modal.stories.tsx",
+    "story": "WithLabelledBy",
+    "reason": "Same portal-based mounting as Modal Default; static server markup is empty."
+  },
+  {
+    "file": "packages/design/src/Modal/Modal.stories.tsx",
+    "story": "WithMinDimensions",
+    "reason": "Same portal-based mounting as Modal Default; static server markup is empty."
+  },
+  {
+    "file": "packages/design/src/listing/RefreshProgressBar.stories.tsx",
+    "story": "Hidden",
+    "reason": "The component intentionally returns null when show=false, and the Hidden story passes show:false — there is nothing to render."
+  }
+]
