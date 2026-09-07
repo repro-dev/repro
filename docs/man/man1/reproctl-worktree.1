@@ -21,7 +21,13 @@ After checkout, runs \f[B]pnpm install\f[R], copies \f[B].env\f[R] files
 from the main checkout, and runs \f[B]direnv allow\f[R] in the new
 worktree.
 With \f[B]\-\-from\-issue\f[R], fetches the branch name from a Linear
-issue and sets it to In Progress.
+issue, reuses existing work when the issue already has some \(em an
+existing local branch for the issue (exact Linear branchName, its
+\f[CR]<branchName>\-<suffix>\f[R] mint, or any branch containing the
+issue ID, most recently modified winning) is adopted with its registered
+worktree as\-is, or a worktree is attached to it; a fresh branch is
+minted only when nothing matches \(em and sets it to In Progress
+(adoption of an existing worktree skips the status update).
 With \f[B]\-\-skip\-install\f[R], dependency installation and package
 building are skipped and left to the caller.
 .TP
@@ -54,6 +60,11 @@ Preview the operations that would be performed by \f[B]create\f[R],
 \f[B]\-\-from\-issue\f[R], \f[B]\-i\f[R] \f[I]id\f[R]
 Fetch the branch name from a Linear issue (e.g., \f[B]REP\-123\f[R]).
 Only valid with \f[B]create\f[R].
+Before minting a fresh branch, existing work for the issue is resolved
+and reused: a matching local branch with a registered worktree is
+adopted as\-is (no new branch, no Linear status update), a matching
+branch without a worktree gets a worktree attached, and a fresh branch
+is minted only when nothing matches.
 .TP
 \f[B]\-\-no\-status\-update\f[R]
 Skip setting the Linear issue to In Progress.
