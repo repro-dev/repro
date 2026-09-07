@@ -790,6 +790,27 @@ test_no_label_routes_to_build() {
   fi
 }
 
+# Test 25: the OpenCode launch must resolve reproctl context from the created
+# worktree, not the checkout that invoked deliver. Without this override,
+# inherited CALLER_PWD makes common.sh select the wrong REPO_ROOT/profile.
+test_opencode_launch_uses_worktree_context() {
+  local tmpdir rc=0
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  _write_runner "$tmpdir" "REP-123"
+
+  local output
+  output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  local wt_path="$tmpdir/repro-wt-rep-123"
+  rm -rf "$tmpdir"
+
+  if printf '%s\n' "$output" | grep -qF "CALLER_PWD=\"$wt_path\""; then
+    _pass "OpenCode launch passes the created worktree as CALLER_PWD"
+  else
+    _fail "OpenCode launch passes the created worktree as CALLER_PWD" "rc=$rc; output: $output"
+  fi
+}
+
 # Test 25: Stage 4 submits the seeded prompt — once the v2 TUI renders,
 # Enter is sent to the opencode pane and the kick-off is confirmed via the
 # pane's agent_status (REP-1655). Also pins the no-duplication invariant:
@@ -1095,6 +1116,7 @@ test_pane_list_failure_installs_synchronously
 test_bug_label_routes_to_bugfix
 test_pen_label_routes_to_pen_reconcile
 test_no_label_routes_to_build
+test_opencode_launch_uses_worktree_context
 test_stage4_submits_seeded_prompt
 test_stage4_send_keys_failure_warns
 test_stage4_no_tui_skips_submit

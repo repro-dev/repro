@@ -425,9 +425,9 @@ _create_worktree_and_launch() {
   # Build the opencode launch command (OpenCode v2 via `reproctl opencode` → opencode2).
   local opencode_cmd
   if [[ -n "$profile_arg" ]]; then
-    opencode_cmd="\"$SCRIPT_DIR/reproctl.sh\" opencode --profile \"$profile_arg\" --prompt \"$prompt_arg\""
+    opencode_cmd="CALLER_PWD=\"$wt_path\" \"$SCRIPT_DIR/reproctl.sh\" opencode --profile \"$profile_arg\" --prompt \"$prompt_arg\""
   else
-    opencode_cmd="REPRO_OPENCODE_PROFILE=\"${REPRO_OPENCODE_PROFILE:-opencode-go-glm-5.3-flash-only}\" \"$SCRIPT_DIR/reproctl.sh\" opencode --prompt \"$prompt_arg\""
+    opencode_cmd="CALLER_PWD=\"$wt_path\" REPRO_OPENCODE_PROFILE=\"${REPRO_OPENCODE_PROFILE:-opencode-go-glm-5.3-flash-only}\" \"$SCRIPT_DIR/reproctl.sh\" opencode --prompt \"$prompt_arg\""
   fi
   if [[ "$nightshift" == "true" ]]; then
     # v2 has no --permission-mode/--disallowed-tools; --auto approves everything not explicitly denied.
