@@ -17,9 +17,10 @@ Use this skill when the changed surface is a browser extension rather than a nor
 ## Standard workflow
 
 1. Start the required local surfaces with `reproctl start --wait <service>`.
-2. Launch a fresh isolated browser profile with `agent-browser` and attach the extension build output from the current worktree.
-3. Verify the extension surface, host-page interaction, and evidence capture in the same browser session.
-4. Keep shared browser state in the main checkout `tmp/agent-browser/` tree and keep per-worktree artifacts under the worktree `tmp/` tree.
+2. Run the pre-flight browser input canary from the `ui-verification` skill — extension runs drive the same `agent-browser` toolchain and are equally exposed to silent input-delivery loss (REP-1635).
+3. Launch a fresh isolated browser profile with `agent-browser` and attach the extension build output from the current worktree.
+4. Verify the extension surface, host-page interaction, and evidence capture in the same browser session.
+5. Keep shared browser state in the main checkout `tmp/agent-browser/` tree and keep per-worktree artifacts under the worktree `tmp/` tree.
 
 ## Local surfaces
 

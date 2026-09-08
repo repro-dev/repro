@@ -45,7 +45,40 @@ Examples:
 
 Tiny copy tweaks or isolated token swaps are usually trivial unless they change behavior or state handling.
 
+## Pre-flight: browser input canary (REP-1635)
+
+Run this **before any interaction** in every browser verification run — including `auth login` flows and audit passes. agent-browser 0.33.1 silently delivered zero CDP input events: every `click`, `press`, keyboard, and raw mouse command reported `✓ Done` while dispatching nothing to the page, which made a toolchain failure look like an app bug. Upstream fixed delivery in **0.33.2** (vercel-labs/agent-browser #1594 — keyboard payloads reached CDP as explicit `null`, silently dropping keys; #1432/#1434 — click reliability: scroll-into-view, dialog handling, mouse-state recovery, interception detection). No Chrome/agent-browser version-pairing matrix is documented upstream, so the canary — not a version table — is the gate.
+
+### Version check
+
+1. Record `agent-browser --version` in the run's `notes.md` (audit runs: the manifest's `agentBrowserVersion` field).
+2. `brew outdated agent-browser` — if it lists agent-browser, upgrade first with `brew upgrade agent-browser`, then `agent-browser doctor` if the browser itself misbehaves. The Brewfile entry tracks latest but nothing forces an upgrade.
+
+### Canary
+
+```bash
+# Self-contained canary page — no app under test needed
+agent-browser open about:blank --session canary
+agent-browser eval --session canary "window.__inputCanary = []; ['mousedown','mouseup','click','keydown'].forEach(t => window.addEventListener(t, e => window.__inputCanary.push(t), true)); const b = document.createElement('button'); b.id = '__canary_target'; b.textContent = 'canary'; document.body.appendChild(b); 'listeners-installed'"
+
+# One real CDP click and one real CDP keypress
+agent-browser click "#__canary_target" --session canary
+agent-browser press Enter --session canary
+
+# Assert delivery
+agent-browser eval --session canary "JSON.stringify(window.__inputCanary)" --json
+agent-browser close --session canary
+```
+
+Expected: the final eval's `result` contains `mousedown`, `mouseup`, `click`, `keydown` — verified on 0.36.0 as `["mousedown","mouseup","click","keydown","click"]` (the trailing extra `click` is Enter on the focused button; normal). **Failure signature: "✓ Done with zero events delivered"** — commands succeed while the page receives nothing; the identical sequence returned `[]` on the broken 0.33.1 toolchain.
+
+On failure, abort the run with: **"agent-browser input delivery is broken — check version (`brew outdated agent-browser`)"**.
+
+Eval-driven interaction (`el.click()`, `form.requestSubmit()`, native-setter fill) is **diagnostic-only** — use it to isolate delivery bugs from app bugs, never as a sanctioned workaround. The intended CDP interaction path must work; if the canary fails, fix the toolchain first.
+
 ## Practical verification loop
+
+Run the pre-flight browser input canary (previous section) before any interaction in this loop — a canary failure means the toolchain is broken, not the app.
 
 1. Start the worktree-local app under test.
    ```bash
@@ -166,29 +199,9 @@ Do not log these as findings:
 - duplicate captures of the same surface — dedupe before scoring (2026-09-02 audit caveats)
 - REP-1635-class tooling failures (agent-browser input loss): a canary failure is a toolchain problem — stop and fix the tool; never log it as a product finding
 
-### Browser input canary (REP-1635)
+### Browser input canary
 
-agent-browser 0.33.1 silently delivered zero CDP input events — every `click`, `press`, and raw mouse command reported `✓ Done` while dispatching nothing to the page. The audit gate requires real input events, so run this canary before any interaction in an audit pass. REP-1635 (the canary tool) is Backlog — this is the manual recipe until the tool ships:
-
-1. Record the version: `agent-browser --version` goes into the manifest's `agentBrowserVersion` field. Warn when `brew outdated agent-browser` lists it.
-2. Install capture-phase listeners via `eval`:
-   ```js
-   ;['mousedown', 'mouseup', 'click', 'keydown'].forEach(type =>
-     window.addEventListener(
-       type,
-       event => {
-         ;(window.__inputCanary ||= []).push(type)
-       },
-       true
-     )
-   )
-   ```
-3. Issue one `click` and one `press` through agent-browser (the real CDP input path).
-4. Assert both events arrived: `eval` `window.__inputCanary` and confirm it contains `mousedown`, `mouseup`, `click` (from the click) and `keydown` (from the press).
-
-On canary failure, abort the run with: **"agent-browser input delivery is broken — check version (`brew outdated agent-browser`)"**. The failure signature is "✓ Done with zero events delivered" — commands succeed while the page receives nothing. Upgrading fixed the 0.33.1 incident (0.36.0 delivers events correctly; `brew upgrade agent-browser`).
-
-Eval-driven interaction (`el.click()`, `form.requestSubmit()`, native-setter fill) is **diagnostic-only** — use it to isolate delivery bugs from app bugs, never as a sanctioned workaround. The intended CDP interaction path must work; if the canary fails, fix the toolchain first.
+Audit runs use the same pre-flight as every verification run: the "Pre-flight: browser input canary (REP-1635)" section above. Run it before any audit interaction, record the result in the manifest's `canary` field (`"pass"` on success) and the version in `agentBrowserVersion`.
 
 ### Audit findings feed /impeccable critique
 
