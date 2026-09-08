@@ -197,3 +197,79 @@ describe('REP-1245 tool version pinning', () => {
     assert.match(buildAndTestSkill, /proto\.version: 0\.57\.2/)
   })
 })
+
+describe('REP-1648 route-smoke envsubst precondition in CI', () => {
+  const ci = readText('.github/workflows/ci.yml')
+  const routeSmoke = readText('scripts/route-smoke.sh')
+
+  /**
+   * Slice one job's block out of the workflow: from its 2-space job key to
+   * the next 2-space job key. Line-scoped like the other pins in this file
+   * (the REP-642 block above) — no YAML parser dependency, and job bodies
+   * are always indented deeper than their keys.
+   */
+  function jobBlock(workflow: string, job: string): string {
+    const lines = workflow.split(/\r?\n/)
+    const start = lines.findIndex(line => line === `  ${job}:`)
+    assert.ok(start >= 0, `ci.yml must declare a ${job} job`)
+    const end = lines.findIndex(
+      (line, index) => index > start && /^  \w[\w-]*:$/.test(line)
+    )
+    assert.ok(end > start, `the ${job} job must be followed by another job`)
+    return lines.slice(start, end).join('\n')
+  }
+
+  it('runs the envsubst-consuming route-smoke gate in the build job', () => {
+    const build = jobBlock(ci, 'build')
+
+    assert.ok(
+      build.includes(':ui-gates-route-smoke'),
+      'the build job must run the :ui-gates-route-smoke gate — it is the job whose gates need envsubst'
+    )
+  })
+
+  it('installs gettext-base before the blocking Moon UI gates', () => {
+    const build = jobBlock(ci, 'build')
+
+    const installIndex = build.search(
+      /^[^\n]*apt-get install -y gettext-base[^\n]*$/m
+    )
+    assert.ok(
+      installIndex >= 0,
+      'the build job must apt-get install gettext-base — scripts/route-smoke.sh hard-requires envsubst (gettext) and it is absent on ubuntu-latest runners'
+    )
+
+    const gatesIndex = build.indexOf('moon ci')
+    assert.ok(
+      gatesIndex >= 0,
+      'the build job must invoke the blocking gates via moon ci'
+    )
+    assert.ok(
+      installIndex < gatesIndex,
+      'gettext-base must be installed before the Moon UI gates execute — route-smoke aborts at its envsubst precondition otherwise'
+    )
+  })
+
+  it('installs gettext-base non-interactively via Ubuntu apt', () => {
+    const build = jobBlock(ci, 'build')
+
+    assert.match(
+      build,
+      /sudo DEBIAN_FRONTEND=noninteractive apt-get install -y gettext-base/,
+      'the install must be non-interactive (DEBIAN_FRONTEND) and apt-based (-y) — CI runners have no TTY'
+    )
+  })
+
+  it('keeps the route-smoke envsubst precondition that justifies the install', () => {
+    assert.match(
+      routeSmoke,
+      /^command -v envsubst >\/dev\/null 2>&1 \|\| \{$/m,
+      'route-smoke.sh must keep its envsubst precondition guard — if the guard is ever removed, drop the CI gettext-base install step with it'
+    )
+    assert.match(
+      routeSmoke,
+      /envsubst \(gettext\) is required but not on PATH/,
+      'the guard error must name gettext so a CI failure points at the gettext-base install step'
+    )
+  })
+})

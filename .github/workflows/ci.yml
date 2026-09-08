@@ -106,6 +106,17 @@ jobs:
       - name: Install Playwright browsers
         run: pnpm exec playwright install --with-deps chromium
 
+      # envsubst comes from gettext-base and is absent on ubuntu-latest
+      # runners; scripts/route-smoke.sh (run by the blocking
+      # ui-gates-route-smoke moon task below) hard-requires it to smoke-env
+      # the app dists. Installed before the gates so the gate failure is
+      # never a missing-binary abort.
+      - name: Install gettext-base (envsubst for route-smoke gate)
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y gettext-base
+          envsubst --version
+
       - name: Run tooling config regression test
         run: pnpm run test:tooling-config
 
