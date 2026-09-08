@@ -118,7 +118,7 @@ describe('Routers > Staff', () => {
       const rec1 = await promise(
         recordingService.writeInfo(
           'Recording 1',
-          'https://example.com/1',
+          'https://app.acme.dev/checkout',
           'First recording',
           RecordingMode.Replay,
           1000,
@@ -131,7 +131,7 @@ describe('Routers > Staff', () => {
       const rec2 = await promise(
         recordingService.writeInfo(
           'Recording 2',
-          'https://example.com/2',
+          'https://app.acme.dev/reports/weekly-summary',
           'Second recording',
           RecordingMode.Replay,
           2000,

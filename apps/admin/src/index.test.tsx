@@ -371,7 +371,7 @@ describe('AppRoutes', () => {
     )
   })
 
-  it('renders the not-found catch-all behind the staff session boundary', () => {
+  it('renders the not-found catch-all behind the admin session boundary', () => {
     const routesElement = AppRoutes({})
     assert.ok(React.isValidElement(routesElement))
     assert.equal(routesElement.type, Routes)

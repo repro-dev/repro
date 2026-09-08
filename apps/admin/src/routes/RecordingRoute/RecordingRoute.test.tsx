@@ -215,9 +215,15 @@ describe('RecordingRoute', () => {
       assert.ok(screen.getByText('Simple Interaction'))
     })
 
-    // The lookup ran first, then the info fetch for the canonical URL
+    // The lookup ran first, then the info fetch for the canonical URL —
+    // asserted positionally so a lookup/info reordering regression fails here
     assert.ok(fetchCalls.includes('/staff/recordings/rec-1/project'))
     assert.ok(fetchCalls.includes('/projects/proj-1/recordings/rec-1/info'))
+    const lookupIndex = fetchCalls.indexOf('/staff/recordings/rec-1/project')
+    const infoIndex = fetchCalls.indexOf(
+      '/projects/proj-1/recordings/rec-1/info'
+    )
+    assert.ok(lookupIndex < infoIndex)
     assert.equal(screen.queryByText('not-found marker'), null)
   })
 

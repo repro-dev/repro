@@ -353,8 +353,11 @@ export function createProjectService(
       return reject(badRequest('Invalid recording ID'))
     }
 
-    // Recordings are many-to-many with projects; the lowest project id wins so
-    // the resolution is deterministic for multi-project recordings.
+    // The schema enforces one project per recording (project_recordings has a
+    // UNIQUE constraint on recordingId), so this resolves at most one row.
+    // executeTakeFirst() treats a missing row as null, and the projectId
+    // ordering is a deterministic tie-break safeguard so the lookup stays
+    // stable even if a duplicate row ever appeared.
     return attemptQuery(() =>
       database
         .selectFrom('project_recordings')
