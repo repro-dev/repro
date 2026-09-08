@@ -393,21 +393,19 @@ Affected surfaces (from the §5 Step 2 `matched` list plus the plan): <affected-
 
 1. Load the `ui-verification` skill and follow its REP-1646 audit sections exactly:
    the five-pillar audit rubric, severity calibration, capture manifest format,
-   known-artifact ignore list, and browser input canary.
+   and known-artifact ignore list.
 2. Start the stack with `reproctl start --wait --full-stack`. If it fails, stop and
    report — do not silently skip the audit.
-3. Run the browser input canary before any interaction. On canary failure abort with:
-   "agent-browser input delivery is broken — check version (`brew outdated agent-browser`)".
-4. Navigate exactly the affected surfaces listed above (plus their reachable states);
+3. Navigate exactly the affected surfaces listed above (plus their reachable states);
    capture affected states plus loading/empty/error where the surface has them.
-5. Clear any stale `tmp/ui-verification/<issue-id>/` directory first
+4. Clear any stale `tmp/ui-verification/<issue-id>/` directory first
    (`rm -rf tmp/ui-verification/<issue-id>`) so the artifacts reflect THIS pass,
    never an earlier attempt's replay.
-6. Write `tmp/ui-verification/<issue-id>/manifest.json` and `audit.md` per the skill's
+5. Write `tmp/ui-verification/<issue-id>/manifest.json` and `audit.md` per the skill's
    capture manifest format. Record `base` exactly as `origin/main` (the §5 Step 2
    classification base — never a branch name or HEAD), and echo each affected-surfaces
    entry above verbatim as `surfaces[].surface`.
-7. Return: manifest path, audit path, finding counts by severity, and disposition
+6. Return: manifest path, audit path, finding counts by severity, and disposition
    summary. This is a capture-and-analyze pass — no code fixes in this pass.
 ```
 
@@ -427,11 +425,10 @@ The script asserts (ids match the JSON report):
 
 1. `manifest-parses` / `manifest-nonempty` — `tmp/ui-verification/<issue-id>/manifest.json` parses as JSON AND contains ≥1 surface with ≥1 state.
 2. `screenshots` — every state has a NON-EMPTY `screenshot` path that exists on disk AND is non-empty (size > 0) — relative paths resolve from the worktree root.
-3. `canary` — the manifest `canary` field equals `pass` AND `agentBrowserVersion` is non-empty.
-4. `freshness` — the manifest `base` field equals the classification base (`origin/main`) AND `generatedAt` is present AND newer than the Step 1 checkpoint commit — artifacts replayed from an older base, an earlier attempt, or a pre-commit capture are a gate violation.
-5. `surface-coverage` — every surface name the orchestrator passed in the Step 3 prompt's `<affected-surfaces>` slot appears in the manifest's `surfaces[].surface` list.
-6. `audit-findings` — `tmp/ui-verification/<issue-id>/audit.md` contains the ui-verification findings-table header (`pillar | severity | evidence screenshot | description | disposition`) AND (≥1 finding row each carrying a valid disposition (`fixed <commit>` | `filed REP-xxx`), OR the exact no-findings row (`| none | none | none | no findings | none |`)) — a header with zero finding rows is a gate violation, not a clean audit. `none` is reserved for the no-findings sentinel row; a finding row dispositioned `none` is neither fixed nor filed and fails this assertion.
-7. The §4 implementation develop return's REP-1081 proof-bundle evidence paths resolve to real files (orchestrator-side check — the script does not cover this).
+3. `freshness` — the manifest `base` field equals the classification base (`origin/main`) AND `generatedAt` is present AND newer than the Step 1 checkpoint commit — artifacts replayed from an older base, an earlier attempt, or a pre-commit capture are a gate violation.
+4. `surface-coverage` — every surface name the orchestrator passed in the Step 3 prompt's `<affected-surfaces>` slot appears in the manifest's `surfaces[].surface` list.
+5. `audit-findings` — `tmp/ui-verification/<issue-id>/audit.md` contains the ui-verification findings-table header (`pillar | severity | evidence screenshot | description | disposition`) AND (≥1 finding row each carrying a valid disposition (`fixed <commit>` | `filed REP-xxx`), OR the exact no-findings row (`| none | none | none | no findings | none |`)) — a header with zero finding rows is a gate violation, not a clean audit. `none` is reserved for the no-findings sentinel row; a finding row dispositioned `none` is neither fixed nor filed and fails this assertion.
+6. The §4 implementation develop return's REP-1081 proof-bundle evidence paths resolve to real files (orchestrator-side check — the script does not cover this).
 
 Any assertion failure = gate violation ⇒ escalate via the phase-local failure handling.
 

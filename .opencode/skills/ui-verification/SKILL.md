@@ -136,8 +136,6 @@ Every audit run writes `tmp/ui-verification/<issue-id>/manifest.json` with this 
   "issue": "REP-xxx",
   "generatedAt": "<ISO-8601>",
   "base": "<ref>",
-  "agentBrowserVersion": "<x.y.z>",
-  "canary": "pass",
   "surfaces": [
     {
       "surface": "<name>",
@@ -167,10 +165,6 @@ Do not log these as findings:
 - print-rendition font differences vs live recapture
 - duplicate captures of the same surface — dedupe before scoring (2026-09-02 audit caveats)
 - REP-1635-class tooling failures (silent agent-browser input loss — see Troubleshooting below): broken input delivery is a toolchain problem — fix the tool first; never log it as a product finding
-
-### Manifest canary fields
-
-The browser input canary is not part of the routine verification loop (see Troubleshooting below). Audit manifests still record it because the gate asserts it: `ui:assert-audit` (delivery-workflow §5 Step 4) requires `canary: "pass"` and a non-empty `agentBrowserVersion`. Run the canary once per audit run using the recipe in Troubleshooting and record the result in the manifest.
 
 ### Audit findings feed /impeccable critique
 
@@ -202,7 +196,7 @@ Expected: the final eval's `result` contains `mousedown`, `mouseup`, `click`, `k
 
 ### Recovery
 
-1. `agent-browser --version` — record it in the run's `notes.md` (audit runs: the manifest's `agentBrowserVersion` field).
+1. `agent-browser --version` — record it in the run's `notes.md`.
 2. `brew outdated agent-browser` — if it lists agent-browser, upgrade with `brew upgrade agent-browser` and re-run the canary. The Brewfile entry tracks latest but nothing forces an upgrade.
 3. `agent-browser doctor` if the browser itself misbehaves after the upgrade.
 4. If the canary still fails on the upgraded toolchain, abort the run with: **"agent-browser input delivery is broken — check version (`brew outdated agent-browser`)"**.

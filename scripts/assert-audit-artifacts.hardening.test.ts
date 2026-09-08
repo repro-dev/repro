@@ -33,8 +33,6 @@ const VALID_MANIFEST = {
   issue: 'REP-0000',
   generatedAt: GENERATED_AT,
   base: 'origin/main',
-  agentBrowserVersion: '1.2.3',
-  canary: 'pass',
   surfaces: [
     {
       surface: 'workspace::Sessions',

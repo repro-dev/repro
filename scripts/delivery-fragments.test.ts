@@ -87,8 +87,39 @@ describe('REP-1646 UI audit gate wiring', () => {
     assert.match(skill, /Five-pillar audit rubric/i)
     assert.match(skill, /Severity calibration/i)
     assert.match(skill, /Capture manifest/i)
-    assert.match(skill, /Browser input canary/i)
     assert.match(skill, /Known-artifact ignore list/i)
+  })
+
+  it('keeps the browser canary as troubleshooting-only guidance (REP-1635)', () => {
+    const skill = readText('.opencode/skills/ui-verification/SKILL.md')
+
+    // The troubleshooting recipe is the only place describing the incident:
+    // failure signature, copy-paste canary, recovery, diagnostic-only rule.
+    assert.match(skill, /Troubleshooting: silent browser input loss/)
+    assert.match(skill, /### Browser input canary/)
+    assert.match(skill, /Diagnostic-only eval interaction/)
+    // The routine manifest contract no longer carries canary fields.
+    assert.doesNotMatch(skill, /agentBrowserVersion/)
+    assert.doesNotMatch(skill, /"canary"/)
+  })
+
+  it('keeps the audit gate canary-free in delivery-workflow (REP-1635)', () => {
+    const skill = readText('.opencode/skills/delivery-workflow/SKILL.md')
+
+    // The §5 Step 3 audit prompt and §5 Step 4 assertion list must not
+    // require the canary or an agentBrowserVersion field.
+    assert.doesNotMatch(skill, /canary/i)
+    assert.doesNotMatch(skill, /agentBrowserVersion/)
+    // The remaining Step 4 assertions are renumbered with no gap.
+    assert.match(skill, /3\. `freshness` — the manifest `base` field/)
+    assert.match(skill, /4\. `surface-coverage` — every surface name/)
+    assert.match(skill, /5\. `audit-findings` — `tmp\/ui-verification/)
+    assert.match(skill, /6\. The §4 implementation develop return's REP-1081/)
+    // The Step 3 prompt renumbered its remaining steps too.
+    assert.match(
+      skill,
+      /3\. Navigate exactly the affected surfaces listed above/
+    )
   })
 
   it('makes the audit artifact a blocking prerequisite in review-standards', () => {

@@ -3,8 +3,8 @@
 // audit gate (Step 4). Asserts the REP-1646 ui-verification capture artifacts
 // (manifest.json + audit.md) satisfy the proof-bundle assertions that were
 // previously orchestrator prompt text: manifest parse/coverage, screenshot
-// existence, browser input canary, freshness against the checkpoint commit,
-// expected-surface coverage, and the audit.md findings table.
+// existence, freshness against the checkpoint commit, expected-surface
+// coverage, and the audit.md findings table.
 //
 // Consumer: delivery-workflow §5 Step 4 (`pnpm run ui:assert-audit`).
 //
@@ -345,24 +345,7 @@ export function assertAuditArtifacts(
     }
     add('screenshots', problems.length === 0, problems.join('; ') || undefined)
 
-    // 4. canary — browser input delivery verified, version recorded.
-    const version = manifest.agentBrowserVersion
-    const canaryProblems: string[] = []
-    if (manifest.canary !== 'pass') {
-      canaryProblems.push(
-        `canary is ${JSON.stringify(manifest.canary)}, expected "pass"`
-      )
-    }
-    if (typeof version !== 'string' || version.trim().length === 0) {
-      canaryProblems.push('agentBrowserVersion is missing or empty')
-    }
-    add(
-      'canary',
-      canaryProblems.length === 0,
-      canaryProblems.join('; ') || undefined
-    )
-
-    // 5. freshness — right base, strict ISO-8601 generatedAt, strictly newer
+    // 4. freshness — right base, strict ISO-8601 generatedAt, strictly newer
     //    than the checkpoint commit (same-second capture fails).
     const freshnessProblems: string[] = []
     if (manifest.base !== inputs.classificationBase) {
@@ -392,7 +375,7 @@ export function assertAuditArtifacts(
       freshnessProblems.join('; ') || undefined
     )
 
-    // 6. surface-coverage — every expected surface recorded; extras allowed.
+    // 5. surface-coverage — every expected surface recorded; extras allowed.
     //    Unnamed surfaces record under the same `<unnamed surface>` label the
     //    screenshots assertion uses (never the empty string), so a blank
     //    --surface flag can never satisfy an unnamed entry.
@@ -413,7 +396,7 @@ export function assertAuditArtifacts(
     )
   }
 
-  // 7. audit-findings — runs even when the manifest is unparseable.
+  // 6. audit-findings — runs even when the manifest is unparseable.
   const auditPath = join(auditDir, 'audit.md')
   try {
     const problems = auditFindingsProblems(readFile(auditPath, 'utf8'))
