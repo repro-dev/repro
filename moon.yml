@@ -19,15 +19,21 @@ tasks:
   # browsers; a cached pass/fail result from a previous run could mask a
   # change (e.g. an untracked baseline), so they always execute.
   #
-  # The two Storybook-booting tasks share the :6099 port family. moon runs
-  # independent tasks in parallel, so when BOTH are affected the dev servers
-  # would race for the same port; the shared mutex serializes them whenever
-  # both run, while keeping affected-only behavior (a mutex adds no
+  # The two Storybook-consuming tasks share the :6099 port family. moon runs
+  # independent tasks in parallel, so when BOTH are affected the static
+  # servers would race for the same port; the shared mutex serializes them
+  # whenever both run, while keeping affected-only behavior (a mutex adds no
   # dependency edge — a task is still skipped entirely when unaffected).
+  #
+  # Both wrappers serve the PREBUILT apps/storybook-ui/storybook-static
+  # output (REP-1648 static-serving fix — the Vite dev server loses the
+  # test-runner's setup-page script on reload), so they depend on
+  # repro/storybook-ui:build to produce that bundle first.
   # ---------------------------------------------------------------------------
   ui-gates-visual-regression:
     command: bash scripts/visual-regression.sh --stories '[]' --fail-on-new
     deps:
+      - repro/storybook-ui:build
       - repro/domain:build
       - repro/wire-formats:build
       - repro/tdl:build
@@ -56,6 +62,7 @@ tasks:
   ui-gates-storybook:
     command: bash scripts/storybook-gates.sh
     deps:
+      - repro/storybook-ui:build
       - repro/domain:build
       - repro/wire-formats:build
       - repro/tdl:build

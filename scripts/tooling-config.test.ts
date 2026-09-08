@@ -198,26 +198,26 @@ describe('REP-1245 tool version pinning', () => {
   })
 })
 
+/**
+ * Slice one job's block out of a workflow file: from its 2-space job key to
+ * the next 2-space job key. Line-scoped like the other pins in this file
+ * (the REP-642 block above) — no YAML parser dependency, and job bodies
+ * are always indented deeper than their keys.
+ */
+function jobBlock(workflow: string, job: string): string {
+  const lines = workflow.split(/\r?\n/)
+  const start = lines.findIndex(line => line === `  ${job}:`)
+  assert.ok(start >= 0, `ci.yml must declare a ${job} job`)
+  const end = lines.findIndex(
+    (line, index) => index > start && /^  \w[\w-]*:$/.test(line)
+  )
+  assert.ok(end > start, `the ${job} job must be followed by another job`)
+  return lines.slice(start, end).join('\n')
+}
+
 describe('REP-1648 route-smoke envsubst precondition in CI', () => {
   const ci = readText('.github/workflows/ci.yml')
   const routeSmoke = readText('scripts/route-smoke.sh')
-
-  /**
-   * Slice one job's block out of the workflow: from its 2-space job key to
-   * the next 2-space job key. Line-scoped like the other pins in this file
-   * (the REP-642 block above) — no YAML parser dependency, and job bodies
-   * are always indented deeper than their keys.
-   */
-  function jobBlock(workflow: string, job: string): string {
-    const lines = workflow.split(/\r?\n/)
-    const start = lines.findIndex(line => line === `  ${job}:`)
-    assert.ok(start >= 0, `ci.yml must declare a ${job} job`)
-    const end = lines.findIndex(
-      (line, index) => index > start && /^  \w[\w-]*:$/.test(line)
-    )
-    assert.ok(end > start, `the ${job} job must be followed by another job`)
-    return lines.slice(start, end).join('\n')
-  }
 
   it('runs the envsubst-consuming route-smoke gate in the build job', () => {
     const build = jobBlock(ci, 'build')
@@ -270,6 +270,57 @@ describe('REP-1648 route-smoke envsubst precondition in CI', () => {
       routeSmoke,
       /envsubst \(gettext\) is required but not on PATH/,
       'the guard error must name gettext so a CI failure points at the gettext-base install step'
+    )
+  })
+})
+
+describe('REP-1648 static Storybook serving in the baseline workflow', () => {
+  const ci = readText('.github/workflows/ci.yml')
+
+  it('builds the Storybook static bundle before capturing baselines', () => {
+    const job = jobBlock(ci, 'regenerate-visual-baselines')
+
+    const buildStep = job.indexOf('- name: Build Storybook static bundle')
+    const captureStep = job.indexOf('- name: Capture all-story baselines')
+
+    assert.ok(
+      buildStep >= 0,
+      'the regenerate-visual-baselines job must build the prebuilt Storybook bundle — the capture wrapper serves apps/storybook-ui/storybook-static instead of the Vite dev server'
+    )
+    assert.ok(captureStep >= 0, 'the capture step must exist')
+    assert.ok(
+      buildStep < captureStep,
+      'the Storybook static build must run BEFORE the baseline capture — the wrapper fails closed on a missing bundle otherwise'
+    )
+    assert.match(
+      job.slice(buildStep, captureStep),
+      /run: moon run repro\/storybook-ui:build/,
+      'the build step must invoke the moon task that outputs storybook-static'
+    )
+  })
+
+  it('keeps the generated-artifact build step consumed by the Storybook graph', () => {
+    const job = jobBlock(ci, 'regenerate-visual-baselines')
+
+    assert.ok(
+      job.includes(
+        '- name: Build generated artifacts consumed by the Storybook graph'
+      ),
+      'the domain/wire-formats/tdl build step must stay'
+    )
+    assert.match(
+      job,
+      /moon run repro\/domain:build repro\/wire-formats:build repro\/tdl:build/
+    )
+  })
+
+  it('captures through the static-serving wrapper', () => {
+    const job = jobBlock(ci, 'regenerate-visual-baselines')
+
+    assert.match(
+      job,
+      /run: bash scripts\/visual-regression\.sh --update-baselines --stories '\[\]'/,
+      'the capture step must go through scripts/visual-regression.sh (which serves the static bundle)'
     )
   })
 })

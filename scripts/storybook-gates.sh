@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # storybook-gates.sh
 #
-# Bash 3.2-compatible wrapper: boots (or reuses) Storybook, then runs
+# Bash 3.2-compatible wrapper: serves the PREBUILT Storybook bundle
+# (apps/storybook-ui/storybook-static) with a static HTTP server (or reuses
+# a running server via REPRO_STORYBOOK_URL), then runs
 #   (a) @storybook/test-runner — every story renders, interactions pass,
 #       zero critical a11y violations (critical-only axe rule set in
 #       apps/storybook-ui/.storybook/preview.js)
@@ -9,15 +11,24 @@
 #       non-fragmented (REP-1643 class: raw JSDoc leaks, empty previews,
 #       test-named stories)
 #
+# Static serving rationale (REP-1648): the Vite dev server re-optimizes and
+# reloads mid-run, and @storybook/test-runner then loses its one-shot
+# setup-page script (upstream issue #68). CI run 34275653377 flaked 30 Select
+# stories with `page.evaluate: ReferenceError: __test is not defined`
+# (318/348 passed). Serving the static build removes the reload window; the
+# bundle must exist first — the moon gate tasks and the
+# regenerate-visual-baselines workflow build it via
+# `moon run repro/storybook-ui:build`.
+#
 # Exits non-zero when either gate fails.
 #
 # Environment:
-#   REPRO_STORYBOOK_URL  When set (non-empty), skip booting Storybook and
-#                        reuse the running server. This is an opt-in for
+#   REPRO_STORYBOOK_URL  When set (non-empty), skip serving the local bundle
+#                        and reuse the running server. This is an opt-in for
 #                        manually sharing one Storybook across wrappers
 #                        (e.g. running visual-regression.sh and this script
 #                        against the same local server); the CI gate tasks
-#                        boot their own server independently.
+#                        serve their own bundle independently.
 
 set -euo pipefail
 
@@ -28,13 +39,47 @@ STORYBOOK_PKG="$REPO_ROOT/apps/storybook-ui"
 STORYBOOK_PORT="${STORYBOOK_PORT:-6099}"
 STORYBOOK_PID=""
 
+# ---------------------------------------------------------------------------
+# Static Storybook bundle check (REP-1648): serve the PREBUILT
+# storybook-static output with a plain static HTTP server instead of the Vite
+# dev server — the test-runner's one-shot setup-page script is lost when Vite
+# re-optimizes/reloads mid-run (upstream issue #68; CI run 34275653377 failed
+# 30 stories with `__test is not defined`). A static server removes the
+# reload window entirely.
+# ---------------------------------------------------------------------------
+
+require_static_storybook() {
+  local static_dir="$1"
+
+  if [ ! -d "$static_dir" ]; then
+    echo "Error: prebuilt Storybook bundle not found: $static_dir" >&2
+    echo "  The UI-gate wrappers serve the prebuilt apps/storybook-ui/" >&2
+    echo "  storybook-static output instead of the Vite dev server. Build" >&2
+    echo "  it first with:" >&2
+    echo "  moon run repro/storybook-ui:build" >&2
+    exit 1
+  fi
+
+  # The test-runner and the docs gate drive /, /iframe.html and /index.json;
+  # an incomplete build would fail much later with confusing browser errors,
+  # so fail closed here instead.
+  for required_file in index.html iframe.html index.json; do
+    if [ ! -f "$static_dir/$required_file" ]; then
+      echo "Error: prebuilt Storybook bundle is incomplete: $static_dir/$required_file is missing" >&2
+      echo "  Rebuild it with: moon run repro/storybook-ui:build" >&2
+      exit 1
+    fi
+  done
+}
+
 cleanup() {
   if [ -n "$STORYBOOK_PID" ]; then
-    echo "[storybook-gates] Stopping Storybook (PID $STORYBOOK_PID)..." >&2
+    echo "[storybook-gates] Stopping static Storybook server (PID $STORYBOOK_PID)..." >&2
     kill "$STORYBOOK_PID" 2>/dev/null || true
     wait "$STORYBOOK_PID" 2>/dev/null || true
-    # Killing the pnpm wrapper can orphan the node dev server — clear the
-    # picked port directly (it was free when we booted).
+    # The static server is a direct python3 child, so killing the PID is
+    # normally enough; sweep the picked port as a safety net (it was free
+    # when we bound it).
     lsof -tiTCP:"$STORYBOOK_PORT" -sTCP:LISTEN 2>/dev/null | xargs kill 2>/dev/null || true
   fi
 }
@@ -61,7 +106,18 @@ if [ -n "${REPRO_STORYBOOK_URL:-}" ]; then
     exit 1
   fi
 else
-  # Boot Storybook on a free port near 6099 (same port family as the
+  # Serve the PREBUILT storybook-static bundle (see the REP-1648 note above).
+  # Only the REPRO_STORYBOOK_URL reuse path skips this check — the reused
+  # server is external and does not read the local bundle.
+  STORYBOOK_STATIC_DIR="$STORYBOOK_PKG/storybook-static"
+  require_static_storybook "$STORYBOOK_STATIC_DIR"
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "Error: python3 is required to serve the prebuilt Storybook bundle but was not found on PATH" >&2
+    exit 1
+  fi
+
+  # Boot the static server on a free port near 6099 (same port family as the
   # visual-regression wrapper).
   find_free_port() {
     local port="$1"
@@ -88,11 +144,9 @@ else
 
   trap cleanup EXIT
 
-  echo "[storybook-gates] Starting Storybook on port $STORYBOOK_PORT..." >&2
-  (
-    cd "$STORYBOOK_PKG"
-    pnpm storybook --ci -p "$STORYBOOK_PORT" --no-open >/dev/null 2>&1
-  ) &
+  echo "[storybook-gates] Serving prebuilt Storybook static bundle on port $STORYBOOK_PORT..." >&2
+  echo "  $STORYBOOK_STATIC_DIR (python3 -m http.server)" >&2
+  python3 -m http.server "$STORYBOOK_PORT" --bind 127.0.0.1 --directory "$STORYBOOK_STATIC_DIR" >/dev/null 2>&1 &
   STORYBOOK_PID=$!
 
   STORYBOOK_URL="http://localhost:${STORYBOOK_PORT}"

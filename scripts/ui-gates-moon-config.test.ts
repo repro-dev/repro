@@ -277,3 +277,55 @@ describe('REP-1648 UI-gate moon tasks (root moon.yml)', () => {
     }
   })
 })
+
+describe('REP-1648 static Storybook serving (moon task deps)', () => {
+  /**
+   * The `deps:` entries of a task block. Scoped precisely: list items sit at
+   * 6-space indent after the 4-space `deps:` key, and the section ends at
+   * the next 4-space section key (`inputs:`, `options:` …) — so input globs
+   * can never read as deps.
+   */
+  function deps(taskBlock: string): string[] {
+    const lines = taskBlock.split('\n')
+    const start = lines.findIndex(line => line === '    deps:')
+    assert.ok(start >= 0, 'expected a deps: section in the task block')
+
+    const entries: string[] = []
+    for (const line of lines.slice(start + 1)) {
+      if (/^    \S/.test(line)) break
+      const dep = line.match(/^      - (.+)$/)
+      if (dep) entries.push(dep[1]!.trim())
+    }
+    return entries
+  }
+
+  it('builds repro/storybook-ui before both Storybook-consuming gates', () => {
+    // The wrappers serve the PREBUILT storybook-static output (REP-1648
+    // static-serving fix); without this dep the gate runs against a missing
+    // or stale bundle.
+    for (const task of ['ui-gates-visual-regression', 'ui-gates-storybook']) {
+      const taskDeps = deps(taskBlocks.get(task)!)
+      assert.ok(
+        taskDeps.includes('repro/storybook-ui:build'),
+        `${task} must depend on repro/storybook-ui:build — the gate serves the prebuilt storybook-static bundle`
+      )
+    }
+  })
+
+  it('keeps the generated-artifact deps consumed by the Storybook graph', () => {
+    for (const task of ['ui-gates-visual-regression', 'ui-gates-storybook']) {
+      const taskDeps = deps(taskBlocks.get(task)!)
+
+      for (const dep of [
+        'repro/domain:build',
+        'repro/wire-formats:build',
+        'repro/tdl:build',
+      ]) {
+        assert.ok(
+          taskDeps.includes(dep),
+          `${task} must keep its ${dep} generated-artifact dep`
+        )
+      }
+    }
+  })
+})

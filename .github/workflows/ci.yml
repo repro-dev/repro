@@ -250,6 +250,13 @@ jobs:
       - name: Build generated artifacts consumed by the Storybook graph
         run: moon run repro/domain:build repro/wire-formats:build repro/tdl:build
 
+      # REP-1648: the capture wrapper serves the prebuilt
+      # apps/storybook-ui/storybook-static output (static serving avoids the
+      # test-runner injection race on the Vite dev server) — the bundle must
+      # exist before capture runs.
+      - name: Build Storybook static bundle
+        run: moon run repro/storybook-ui:build
+
       - name: Capture all-story baselines
         run: bash scripts/visual-regression.sh --update-baselines --stories '[]'
 

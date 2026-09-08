@@ -1,8 +1,18 @@
 #!/usr/bin/env bash
 # visual-regression.sh
 #
-# Bash 3.2-compatible wrapper: starts (or reuses) Storybook, captures screenshots,
-# and runs pixel-level diffs against the committed baselines.
+# Bash 3.2-compatible wrapper: serves the PREBUILT Storybook bundle
+# (apps/storybook-ui/storybook-static) with a static HTTP server (or reuses
+# a running server via REPRO_STORYBOOK_URL), captures screenshots, and runs
+# pixel-level diffs against the committed baselines.
+#
+# Static serving (REP-1648): the wrappers no longer boot the Vite dev server.
+# Upstream @storybook/test-runner loses its one-shot setup-page script when
+# Vite re-optimizes/reloads mid-run (upstream issue #68), which flaked CI run
+# 34275653377 with `page.evaluate: ReferenceError: __test is not defined`.
+# Serving the static build removes the reload window. The bundle must be
+# built first: `moon run repro/storybook-ui:build` (the moon gate tasks and
+# the regenerate-visual-baselines workflow do this automatically).
 #
 # Baseline model (REP-1648): baselines live in the checkout under test at
 # $REPO_ROOT/tmp/visual-baselines and are committed to the repo. They must be
@@ -18,10 +28,10 @@
 #     [--update-baselines]
 #
 # Environment:
-#   REPRO_STORYBOOK_URL  When set (non-empty), skip booting Storybook and reuse
-#                        the running server. This is an opt-in for manually
-#                        sharing one Storybook across wrappers; the CI gate
-#                        tasks boot their own server independently.
+#   REPRO_STORYBOOK_URL  When set (non-empty), skip serving the local bundle
+#                        and reuse the running server. This is an opt-in for
+#                        manually sharing one Storybook across wrappers; the
+#                        CI gate tasks serve their own bundle independently.
 #
 # When --update-baselines is set: captures straight into the baseline dir
 # (committed dir unless --baseline-dir overrides it). Otherwise: diffs against
@@ -104,8 +114,8 @@ Options:
                           must be a finite number between 0 and 1)
   --fail-on-new           Exit non-zero when a story has no committed baseline
   --update-baselines      Capture into the baseline dir instead of diffing
-  --port <n>              Storybook port (default: 6099; ignored when
-                          REPRO_STORYBOOK_URL is set)
+  --port <n>              Static Storybook server port (default: 6099;
+                          ignored when REPRO_STORYBOOK_URL is set)
   --help                  Show this message
 EOF
       exit 0
@@ -185,8 +195,41 @@ if [ -f "$STORYBOOK_PKG/.visual-threshold" ]; then
 fi
 
 # ---------------------------------------------------------------------------
+# Static Storybook bundle check (REP-1648): the wrappers serve the PREBUILT
+# storybook-static output with a plain static HTTP server instead of booting
+# the Vite dev server — the test-runner's one-shot setup-page script is lost
+# when Vite re-optimizes/reloads mid-run (upstream issue #68; CI run
+# 34275653377 failed 30 stories with `__test is not defined`). A static
+# server removes the reload window entirely.
+# ---------------------------------------------------------------------------
+
+require_static_storybook() {
+  local static_dir="$1"
+
+  if [ ! -d "$static_dir" ]; then
+    echo "Error: prebuilt Storybook bundle not found: $static_dir" >&2
+    echo "  The UI-gate wrappers serve the prebuilt apps/storybook-ui/" >&2
+    echo "  storybook-static output instead of the Vite dev server. Build" >&2
+    echo "  it first with:" >&2
+    echo "  moon run repro/storybook-ui:build" >&2
+    exit 1
+  fi
+
+  # The capture script and the test-runner drive /, /iframe.html and
+  # /index.json; an incomplete build would fail much later with confusing
+  # browser errors, so fail closed here instead.
+  for required_file in index.html iframe.html index.json; do
+    if [ ! -f "$static_dir/$required_file" ]; then
+      echo "Error: prebuilt Storybook bundle is incomplete: $static_dir/$required_file is missing" >&2
+      echo "  Rebuild it with: moon run repro/storybook-ui:build" >&2
+      exit 1
+    fi
+  done
+}
+
+# ---------------------------------------------------------------------------
 # Validate the threshold BEFORE any server boot. An invalid value would
-# otherwise only fail after a 90s Storybook startup — and NaN would make
+# otherwise only fail after a 90s server startup — and NaN would make
 # every diff pass. Same contract as the capture script's parseThreshold:
 # a finite number in [0, 1]. Bash 3.2 has no float arithmetic, so awk
 # enforces both the decimal format and the range in one check.
@@ -211,11 +254,12 @@ fi
 
 cleanup() {
   if [ -n "$STORYBOOK_PID" ]; then
-    echo "[visual-regression] Stopping Storybook (PID $STORYBOOK_PID)..." >&2
+    echo "[visual-regression] Stopping static Storybook server (PID $STORYBOOK_PID)..." >&2
     kill "$STORYBOOK_PID" 2>/dev/null || true
     wait "$STORYBOOK_PID" 2>/dev/null || true
-    # Killing the pnpm wrapper can orphan the node dev server — clear the
-    # picked port directly (it was free when we booted).
+    # The static server is a direct python3 child, so killing the PID is
+    # normally enough; sweep the picked port as a safety net (it was free
+    # when we bound it).
     lsof -tiTCP:"$STORYBOOK_PORT" -sTCP:LISTEN 2>/dev/null | xargs kill 2>/dev/null || true
   fi
 }
@@ -243,6 +287,17 @@ if [ -n "${REPRO_STORYBOOK_URL:-}" ]; then
     exit 1
   fi
 else
+  # Serve the PREBUILT storybook-static bundle (see the REP-1648 note above).
+  # Only the REPRO_STORYBOOK_URL reuse path skips this check — the reused
+  # server is external and does not read the local bundle.
+  STORYBOOK_STATIC_DIR="$STORYBOOK_PKG/storybook-static"
+  require_static_storybook "$STORYBOOK_STATIC_DIR"
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "Error: python3 is required to serve the prebuilt Storybook bundle but was not found on PATH" >&2
+    exit 1
+  fi
+
   # ---------------------------------------------------------------------------
   # Check if port is free; if not, increment up to 10 times
   # ---------------------------------------------------------------------------
@@ -274,11 +329,9 @@ else
 
   trap cleanup EXIT
 
-  echo "[visual-regression] Starting Storybook on port $STORYBOOK_PORT..." >&2
-  (
-    cd "$STORYBOOK_PKG"
-    pnpm storybook --ci -p "$STORYBOOK_PORT" --no-open >/dev/null 2>&1
-  ) &
+  echo "[visual-regression] Serving prebuilt Storybook static bundle on port $STORYBOOK_PORT..." >&2
+  echo "  $STORYBOOK_STATIC_DIR (python3 -m http.server)" >&2
+  python3 -m http.server "$STORYBOOK_PORT" --bind 127.0.0.1 --directory "$STORYBOOK_STATIC_DIR" >/dev/null 2>&1 &
   STORYBOOK_PID=$!
 
   STORYBOOK_URL="http://localhost:${STORYBOOK_PORT}"
