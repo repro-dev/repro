@@ -1,10 +1,11 @@
 // REP-1658: static-HTML document template for the rendered-story gate.
 //
 // Extracted from render-stories-html.ts and kept dependency-free (pattern of
-// story-waiver-directive.ts): scripts/impeccable-html-gate.test.ts runs under
-// plain `node --test`, which cannot resolve bare react imports from scripts/
-// (unhoisted under pnpm). typography.ts is pure constants with zero imports,
-// so the cross-tree token import below resolves under both tsx and node --test.
+// story-waiver-directive.ts): scripts/story-render-waivers.test.ts imports
+// this module under plain `node --test`, which cannot resolve bare react
+// imports from scripts/ (unhoisted under pnpm). typography.ts is pure
+// constants with zero imports, so the cross-tree token import below resolves
+// under both tsx and node --test.
 //
 // The template emits an explicit `body{font-size}` base rule (REP-1658
 // decision 3): with no base rule, unstyled story text computes at the

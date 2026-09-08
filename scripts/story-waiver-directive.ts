@@ -6,7 +6,7 @@
 // injects the whole-file directive the detector's static-html engine honors
 // (see engines/static-html/detect-html.mjs: whole-file directives only).
 //
-// Dependency-free on purpose: scripts/impeccable-html-gate.test.ts imports
+// Dependency-free on purpose: scripts/story-render-waivers.test.ts imports
 // this module under `node --test`, which cannot resolve bare react imports
 // from scripts/ (unhoisted under pnpm).
 

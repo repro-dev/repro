@@ -60,7 +60,7 @@ Two render-safe mechanisms exist:
    The render harness (`scripts/render-stories-html.ts` → `buildWaiverDirective`)
    injects a whole-file `<!-- impeccable-disable <rules> -- <reason> -->`
    directive into the generated doc, which the detector's static-html engine
-   honors. Gate-tested in `scripts/impeccable-html-gate.test.ts`.
+   honors. Gate-tested in `scripts/story-render-waivers.test.ts`.
 
 2. **Project-wide rule ignore** — add the rule id to `config.json`
    `detector.ignoreRules`. **Currently unused** (the array is empty): the one

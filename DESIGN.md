@@ -11,7 +11,7 @@ Mono: `monospace`
 Scale:
 
 - xs: 12px
-- sm: 12px (xs and sm converge at the 12px readability floor pending the type-scale review)
+- sm: 12px (intentionally aliased with xs at the 12px readability floor; REP-1658)
 - md: 14px (body)
 - lg: 18px
 - xl: 20px

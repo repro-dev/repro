@@ -138,15 +138,29 @@ describe('REP-1658 render-harness base font-size', () => {
   // against was never the app's real condition (text is always styled in the
   // app; `fontSize.md` is primary body text). The value must come from the
   // design tokens module — no hardcoded literal.
-  it('emits an explicit body base rule sourced from fontSize.md', () => {
-    const doc = htmlDocument('<p>hello</p>', '.demo{color:red}')
+  it('emits an explicit body base rule sourced from fontSize.md, after the story CSS', () => {
+    const storyCss = '.demo{color:red}'
+    const baseRule = `body{font-size:${fontSize.md}px}`
+    const doc = htmlDocument('<p>hello</p>', storyCss)
     assert.ok(
-      doc.includes(`body{font-size:${fontSize.md}px}`),
-      `expected base rule body{font-size:${fontSize.md}px} in doc: ${doc}`
+      doc.includes(baseRule),
+      `expected base rule ${baseRule} in doc: ${doc}`
+    )
+    // Ordering pin (REP-1658 review): presence alone would stay green if the
+    // harness moved the base rule ahead of the story CSS — a story-level body
+    // rule would then win the source-order tie and silently override the
+    // base. The rule must come AFTER the story CSS (the
+    // scripts/story-html-document.ts contract).
+    const baseRuleIndex = doc.indexOf(baseRule)
+    const storyCssIndex = doc.indexOf(storyCss)
+    assert.ok(
+      baseRuleIndex > storyCssIndex,
+      `base rule must follow the story CSS in source order (story CSS at ` +
+        `${storyCssIndex}, base rule at ${baseRuleIndex}): ${doc}`
     )
   })
 
-  it('carries the base rule in a rendered story doc', async () => {
+  it('carries the base rule last in its style element in a rendered story doc', async () => {
     // Same render-if-stale pattern as the waiver-injection test above: a doc
     // rendered by an older harness (no base rule) must fail the check and be
     // regenerated — a fresh render from the current template always gains it.
@@ -156,11 +170,14 @@ describe('REP-1658 render-harness base font-size', () => {
     )
     const expectedBaseRule = `body{font-size:${fontSize.md}px}`
 
-    const hasBaseRule = (): boolean =>
-      existsSync(targetFile) &&
-      readFileSync(targetFile, 'utf8').includes(expectedBaseRule)
+    const readRenderedDoc = (): string | null => {
+      if (!existsSync(targetFile)) return null
+      const doc = readFileSync(targetFile, 'utf8')
+      return doc.includes(expectedBaseRule) ? doc : null
+    }
 
-    if (!hasBaseRule()) {
+    let doc = readRenderedDoc()
+    if (doc === null) {
       try {
         execFileSync('pnpm', ['run', 'render-stories-html'], {
           cwd: repoRoot,
@@ -175,11 +192,34 @@ describe('REP-1658 render-harness base font-size', () => {
           }`
         )
       }
+      doc = readRenderedDoc()
     }
 
     assert.ok(
-      hasBaseRule(),
+      doc !== null,
       `expected the ${expectedBaseRule} base rule in ${targetFile}`
+    )
+
+    // Ordering pin (REP-1658 review): presence alone would stay green if the
+    // harness moved the base rule ahead of the story CSS — a story-level body
+    // rule would then win the source-order tie and silently override the
+    // base. The base rule must END its <style> element (the
+    // scripts/story-html-document.ts contract): nothing may follow it before
+    // the closing tag.
+    const baseRuleIndex = doc.indexOf(expectedBaseRule)
+    const styleCloseIndex = doc.indexOf('</style>', baseRuleIndex)
+    assert.ok(
+      styleCloseIndex >= 0,
+      `expected a </style> closing after the base rule in ${targetFile}`
+    )
+    assert.equal(
+      doc
+        .slice(baseRuleIndex + expectedBaseRule.length, styleCloseIndex)
+        .trim(),
+      '',
+      `base rule must end its <style> element in ${targetFile} so it wins ` +
+        'the source-order tie — a later equal-specificity body rule would ' +
+        'override it'
     )
     // Preserve the existing cleanup invariant: the next fresh run exercises
     // the harness again rather than reading a stale manifest.
