@@ -227,7 +227,31 @@ _create_worktree_and_launch() {
   if [[ "$dry_run" == "true" ]]; then
     echo "  ${CLR_DIM}[dry-run]${CLR_RESET} Mode: ${mode}"
     echo "  ${CLR_DIM}[dry-run]${CLR_RESET} Branch: ${branch}"
-    echo "  ${CLR_DIM}[dry-run]${CLR_RESET} Worktree path: ${wt_path}"
+    # Issue mode surfaces the adopt-vs-create decision (read-only resolver)
+    # instead of the bare slug path — reproctl appends a mint suffix to the
+    # slug, and on adopt the resolver supplies the real existing path.
+    local existing_decision=""
+    if [[ "$mode" == "issue_id" ]]; then
+      existing_decision="$(_resolve_existing_issue_worktree "$issue_id" "$branch" 2>/dev/null)" || existing_decision="create"
+    fi
+    case "$existing_decision" in
+      "adopt "*)
+        local existing_branch="${existing_decision#adopt }"
+        local existing_wt="${existing_branch#* }"
+        existing_branch="${existing_branch%% *}"
+        echo "  ${CLR_DIM}[dry-run]${CLR_RESET} Found existing worktree at ${existing_wt} (branch ${existing_branch}) — will resume"
+        ;;
+      "reattach "*)
+        echo "  ${CLR_DIM}[dry-run]${CLR_RESET} Found existing branch ${existing_decision#reattach } without a worktree — will attach a worktree to it"
+        ;;
+      *)
+        if [[ "$mode" == "issue_id" ]]; then
+          echo "  ${CLR_DIM}[dry-run]${CLR_RESET} No existing worktree for ${issue_id} — will create"
+        else
+          echo "  ${CLR_DIM}[dry-run]${CLR_RESET} Worktree path: ${wt_path}"
+        fi
+        ;;
+    esac
     echo "  ${CLR_DIM}[dry-run]${CLR_RESET} Workspace label: ${label}"
     echo "  ${CLR_DIM}[dry-run]${CLR_RESET} Command: ${delivery_command}"
     echo "  ${CLR_DIM}[dry-run]${CLR_RESET} Profile: ${profile_arg:-default}"
@@ -401,9 +425,9 @@ _create_worktree_and_launch() {
   # Build the opencode launch command (OpenCode v2 via `reproctl opencode` → opencode2).
   local opencode_cmd
   if [[ -n "$profile_arg" ]]; then
-    opencode_cmd="\"$SCRIPT_DIR/reproctl.sh\" opencode --profile \"$profile_arg\" --prompt \"$prompt_arg\""
+    opencode_cmd="CALLER_PWD=\"$wt_path\" \"$SCRIPT_DIR/reproctl.sh\" opencode --profile \"$profile_arg\" --prompt \"$prompt_arg\""
   else
-    opencode_cmd="REPRO_OPENCODE_PROFILE=\"${REPRO_OPENCODE_PROFILE:-opencode-go-glm-5.3-flash-only}\" \"$SCRIPT_DIR/reproctl.sh\" opencode --prompt \"$prompt_arg\""
+    opencode_cmd="CALLER_PWD=\"$wt_path\" REPRO_OPENCODE_PROFILE=\"${REPRO_OPENCODE_PROFILE:-opencode-go-glm-5.3-flash-only}\" \"$SCRIPT_DIR/reproctl.sh\" opencode --prompt \"$prompt_arg\""
   fi
   if [[ "$nightshift" == "true" ]]; then
     # v2 has no --permission-mode/--disallowed-tools; --auto approves everything not explicitly denied.
