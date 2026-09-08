@@ -12,11 +12,12 @@
  * when unset so a wiring mistake cannot silently skip the gate.
  */
 
-import type { APIRequestContext, Page } from '@playwright/test'
+import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 import {
   extractDocsEntries,
   extractStoryEntries,
+  fetchStorybookIndex,
   findRawJSDocLeaks,
   isTestNamedStory,
 } from '../../scripts/docs-page-checks'
@@ -29,41 +30,12 @@ if (!STORYBOOK_URL) {
   )
 }
 
-interface StorybookIndex {
-  entries: Record<string, { type?: string; name?: string; title?: string }>
-}
-
 /** Extra attempts for a cold Storybook boot (see readDocsEntry). */
 const COLD_RETRIES = 2
 const COLD_RETRY_WAIT_MS = 2_000
 /** Retries for index.json — the manager URL going 200 does not guarantee the index is served yet. */
 const INDEX_RETRIES = 3
 const INDEX_RETRY_WAIT_MS = 1_000
-
-/**
- * Fetch the Storybook index, retrying a bounded number of times when the
- * payload is empty: a freshly booted server can 200 with no entries before
- * it finishes indexing, which must not read as a broken index.
- */
-async function fetchStorybookIndex(
-  request: APIRequestContext
-): Promise<StorybookIndex> {
-  let index: StorybookIndex = { entries: {} }
-
-  for (let attempt = 1; attempt <= INDEX_RETRIES; attempt++) {
-    const response = await request.get(`${STORYBOOK_URL}/index.json`)
-    expect(response.ok()).toBe(true)
-    index = (await response.json()) as StorybookIndex
-
-    if (Object.keys(index.entries ?? {}).length > 0) {
-      return index
-    }
-
-    await new Promise(resolve => setTimeout(resolve, INDEX_RETRY_WAIT_MS))
-  }
-
-  return index
-}
 
 /** Docs previews render after the manager bootstraps; wait for any content. */
 async function readPreviewText(page: Page): Promise<string> {
@@ -123,7 +95,10 @@ async function readDocsEntry(page: Page, docsId: string): Promise<string> {
 }
 
 test('storybook index contains no test-named stories', async ({ request }) => {
-  const index = await fetchStorybookIndex(request)
+  const index = await fetchStorybookIndex(request, STORYBOOK_URL, {
+    retries: INDEX_RETRIES,
+    retryWaitMs: INDEX_RETRY_WAIT_MS,
+  })
   const storyEntries = extractStoryEntries(index)
 
   expect(
@@ -148,7 +123,10 @@ test('every docs page renders non-fragmented content without raw JSDoc leaks', a
   // 70+ docs entries × ~2s manager load each — a long-running sweep.
   test.setTimeout(600_000)
 
-  const index = await fetchStorybookIndex(request)
+  const index = await fetchStorybookIndex(request, STORYBOOK_URL, {
+    retries: INDEX_RETRIES,
+    retryWaitMs: INDEX_RETRY_WAIT_MS,
+  })
   const docsEntries = extractDocsEntries(index)
   expect(
     docsEntries.length,

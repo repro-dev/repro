@@ -28,8 +28,14 @@ WORKSPACE_APP="$REPO_ROOT/apps/workspace"
 ADMIN_APP="$REPO_ROOT/apps/admin"
 SMOKE_DIR="$REPO_ROOT/tmp/route-smoke"
 
-WORKSPACE_PORT="${SMOKE_WORKSPACE_PORT:-7080}"
-ADMIN_PORT="${SMOKE_ADMIN_PORT:-7081}"
+# Resolved preferred ports: referenced in error messages below (the raw
+# SMOKE_* variables are unset when defaulted, and a `set -u` reference in
+# an error path would mask the real error with "unbound variable").
+WORKSPACE_PREFERRED="${SMOKE_WORKSPACE_PORT:-7080}"
+ADMIN_PREFERRED="${SMOKE_ADMIN_PORT:-7081}"
+
+WORKSPACE_PORT="$WORKSPACE_PREFERRED"
+ADMIN_PORT="$ADMIN_PREFERRED"
 
 WORKSPACE_PID=""
 ADMIN_PID=""
@@ -77,10 +83,21 @@ done
 
 find_free_port() {
   local port="$1"
+  # Optional exclusion (Bash 3.2: may be unset for single-arg calls).
+  local exclude="${2:-}"
   local max_attempts=10
   local attempt=0
 
   while [ $attempt -lt $max_attempts ]; do
+    # Never hand out the other app's already-picked port: both pickers
+    # resolve BEFORE either server binds, so when the workspace preferred
+    # port was occupied and auto-incremented onto the admin preferred port,
+    # the free-port probe alone would hand BOTH servers the same port.
+    if [ -n "$exclude" ] && [ "$port" = "$exclude" ]; then
+      port=$((port + 1))
+      attempt=$((attempt + 1))
+      continue
+    fi
     if ! lsof -iTCP:"$port" -sTCP:LISTEN -t >/dev/null 2>&1; then
       echo "$port"
       return 0
@@ -93,13 +110,15 @@ find_free_port() {
   return 1
 }
 
-if ! WORKSPACE_PORT="$(find_free_port "$WORKSPACE_PORT")"; then
-  echo "Error: could not find a free workspace port near $SMOKE_WORKSPACE_PORT" >&2
+if ! WORKSPACE_PORT="$(find_free_port "$WORKSPACE_PREFERRED")"; then
+  echo "Error: could not find a free workspace port near $WORKSPACE_PREFERRED (SMOKE_WORKSPACE_PORT=$WORKSPACE_PREFERRED)" >&2
   exit 1
 fi
 
-if ! ADMIN_PORT="$(find_free_port "$ADMIN_PORT")"; then
-  echo "Error: could not find a free admin port near $SMOKE_ADMIN_PORT" >&2
+# Exclude the workspace's picked port so the admin picker cannot select it
+# (it is still unbound at this point and would look free).
+if ! ADMIN_PORT="$(find_free_port "$ADMIN_PREFERRED" "$WORKSPACE_PORT")"; then
+  echo "Error: could not find a free admin port near $ADMIN_PREFERRED (SMOKE_ADMIN_PORT=$ADMIN_PREFERRED)" >&2
   exit 1
 fi
 

@@ -1,15 +1,23 @@
 /**
- * Unit tests for visual-regression-capture.ts
+ * Unit tests for visual-regression-capture.ts — the no-browser unit layer:
  *
- * Tests the threshold logic, diffPngBuffers, isAboveThreshold, and JSON output shape.
- * Does NOT require a running browser or Storybook — Playwright is mocked.
+ * - isAboveThreshold and the computeExitCode honesty contract (--fail-on-new,
+ *   capture errors always exit 1, zero-story runs fail closed);
+ * - diffPngBuffers pixelmatch/pngjs behavior on real PNG buffers,
+ *   including the real placeholder diff PNG written on dimension mismatch;
+ * - recordCaptureError bucketing and the CaptureOutput JSON shape.
  *
- * Run:
- *   node --experimental-test-module-mocks --test scripts/visual-regression-capture.test.ts
+ * No browser, no Storybook, and no module mocking: the capture module's
+ * Playwright import is lazy and is never reached here. Threshold validation
+ * and per-story baseline diffing live in
+ * scripts/visual-regression-capture.story-diff.test.ts.
+ *
+ * Run (also part of pnpm run test:tooling-config):
+ *   node --test scripts/visual-regression-capture.test.ts
  */
 
 import assert from 'node:assert/strict'
-import { describe, it } from 'node:test'
+import { after, describe, it } from 'node:test'
 import { PNG } from 'pngjs'
 
 // ---------------------------------------------------------------------------
@@ -87,8 +95,34 @@ describe('isAboveThreshold', () => {
 // ---------------------------------------------------------------------------
 
 import * as fs from 'fs'
-import * as os from 'os'
+import { fileURLToPath } from 'node:url'
 import * as path from 'path'
+
+const repoRoot = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '..'
+)
+
+const scratchDirs: string[] = []
+
+/**
+ * Scratch dir under the repo-root tmp/ (AGENTS.md invariant — never /tmp).
+ * Registered for the after() sweep so a failed assertion cannot leak it;
+ * each test still removes its own dir on the happy path.
+ */
+function makeScratchDir(prefix: string): string {
+  const dir = fs.mkdtempSync(
+    path.join(repoRoot, 'tmp', `${prefix}-${process.pid}-`)
+  )
+  scratchDirs.push(dir)
+  return dir
+}
+
+after(() => {
+  for (const dir of scratchDirs) {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
+})
 
 describe('diffPngBuffers', () => {
   it('returns 0 changed pixels for two identical images', async () => {
@@ -110,7 +144,7 @@ describe('diffPngBuffers', () => {
   })
 
   it('writes diff image to outputPath when provided', async () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vr-test-'))
+    const tmpDir = makeScratchDir('vr-test')
     const diffPath = path.join(tmpDir, 'test.diff.png')
 
     const red = makeSolidPng(10, 10, 255, 0, 0)
@@ -325,7 +359,7 @@ describe('zero-story fail closed', () => {
 
 describe('dimension-mismatch placeholder diff', () => {
   it('writes a real placeholder diff PNG and reports both dimensions', async () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vr-mismatch-'))
+    const tmpDir = makeScratchDir('vr-mismatch')
     const diffPath = path.join(tmpDir, 'story.diff.png')
 
     const small = makeSolidPng(5, 5, 100, 100, 100)

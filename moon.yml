@@ -4,7 +4,10 @@ tasks:
   # ---------------------------------------------------------------------------
   # REP-1648 deterministic UI gates. Affected-only via moon ci target filtering
   # (verified: root-relative plain globs, no brace expansion — moon v2 forbids
-  # `{a,b}` globs, extensions are enumerated instead).
+  # `{a,b}` globs). Source globs are broad (`packages/*/src/**`) so ANY file
+  # under them marks the task affected, including non-ts/tsx/mdx/css rendered
+  # assets (svg, png, json, yml, less, …) that enumerated extension globs
+  # would silently miss.
   #
   # Dependencies: the Storybook dev server and the route-smoke harness consume
   # gitignored generated artifacts (packages/domain/generated, packages/
@@ -29,19 +32,9 @@ tasks:
       - repro/wire-formats:build
       - repro/tdl:build
     inputs:
-      - glob: packages/*/src/**/*.ts
+      - glob: packages/*/src/**
         cache: true
-      - glob: packages/*/src/**/*.tsx
-        cache: true
-      - glob: packages/*/src/**/*.mdx
-        cache: true
-      - glob: packages/*/src/**/*.css
-        cache: true
-      - glob: apps/*/src/**/*.ts
-        cache: true
-      - glob: apps/*/src/**/*.tsx
-        cache: true
-      - glob: apps/*/src/**/*.css
+      - glob: apps/*/src/**
         cache: true
       - glob: apps/*/index.html
         cache: true
@@ -67,19 +60,9 @@ tasks:
       - repro/wire-formats:build
       - repro/tdl:build
     inputs:
-      - glob: packages/*/src/**/*.ts
+      - glob: packages/*/src/**
         cache: true
-      - glob: packages/*/src/**/*.tsx
-        cache: true
-      - glob: packages/*/src/**/*.mdx
-        cache: true
-      - glob: packages/*/src/**/*.css
-        cache: true
-      - glob: apps/*/src/**/*.ts
-        cache: true
-      - glob: apps/*/src/**/*.tsx
-        cache: true
-      - glob: apps/*/src/**/*.css
+      - glob: apps/*/src/**
         cache: true
       - glob: apps/*/index.html
         cache: true
@@ -110,15 +93,9 @@ tasks:
       - repro/tdl:build
     inputs:
       - glob: tests/route-smoke/**
-      - glob: packages/*/src/**/*.ts
+      - glob: packages/*/src/**
         cache: true
-      - glob: packages/*/src/**/*.tsx
-        cache: true
-      - glob: apps/*/src/**/*.ts
-        cache: true
-      - glob: apps/*/src/**/*.tsx
-        cache: true
-      - glob: apps/*/src/**/*.css
+      - glob: apps/*/src/**
         cache: true
       - glob: apps/*/index.html
         cache: true

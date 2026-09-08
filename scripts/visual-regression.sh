@@ -55,7 +55,6 @@ UPDATE_BASELINES="false"
 FAIL_ON_NEW="false"
 STORYBOOK_PORT=6099
 STORYBOOK_PID=""
-COMMITTED_BASELINE_DIR="$REPO_ROOT/tmp/visual-baselines"
 
 # ---------------------------------------------------------------------------
 # Parse arguments — Bash 3.2: no associative arrays, no ${var,,}
@@ -101,7 +100,8 @@ Options:
   --baseline-dir <path>   Baseline directory override (default: committed
                           $REPO_ROOT/tmp/visual-baselines)
   --stories <json>        JSON array of story IDs; empty array = all stories
-  --threshold <float>     Pixel diff threshold as fraction (default: 0.001)
+  --threshold <float>     Pixel diff threshold as fraction (default: 0.001;
+                          must be a finite number between 0 and 1)
   --fail-on-new           Exit non-zero when a story has no committed baseline
   --update-baselines      Capture into the baseline dir instead of diffing
   --port <n>              Storybook port (default: 6099; ignored when
@@ -157,17 +157,20 @@ find_storybook_pkg() {
 
 STORYBOOK_PKG=""
 if ! STORYBOOK_PKG="$(find_storybook_pkg "$REPO_ROOT")"; then
-  # No Storybook setup — skip with warning, output a skipped result
+  # No Storybook setup — fail closed. The visual gate verified nothing, and
+  # a gate that checked nothing must not report green (same contract as the
+  # zero-story capture check).
+  echo "Error: no Storybook package found in $REPO_ROOT — expected apps/storybook-ui, or a .storybook/ dir under apps/ or packages/" >&2
   cat <<EOF
 {
   "stories_checked": [],
   "passed": [],
   "failed": [],
   "new_stories": [],
-  "warning": "No Storybook setup found in $REPO_ROOT — visual check skipped"
+  "error": "No Storybook setup found in $REPO_ROOT — visual gate failed closed"
 }
 EOF
-  exit 0
+  exit 1
 fi
 
 echo "[visual-regression] Using Storybook package: $STORYBOOK_PKG" >&2
@@ -179,6 +182,27 @@ if [ -f "$STORYBOOK_PKG/.visual-threshold" ]; then
     THRESHOLD="$PKG_THRESHOLD"
     echo "[visual-regression] Using per-package threshold: $THRESHOLD" >&2
   fi
+fi
+
+# ---------------------------------------------------------------------------
+# Validate the threshold BEFORE any server boot. An invalid value would
+# otherwise only fail after a 90s Storybook startup — and NaN would make
+# every diff pass. Same contract as the capture script's parseThreshold:
+# a finite number in [0, 1]. Bash 3.2 has no float arithmetic, so awk
+# enforces both the decimal format and the range in one check.
+# ---------------------------------------------------------------------------
+
+validate_threshold() {
+  local value="$1"
+
+  if ! awk -v t="$value" 'BEGIN { exit (t ~ /^[0-9]*\.?[0-9]+$/ && t + 0 >= 0 && t + 0 <= 1) ? 0 : 1 }'; then
+    echo "[visual-regression] Error: --threshold \"$value\" is invalid: it must be a finite number between 0 and 1 (a fraction of pixels, e.g. 0.001 = 0.1%). See docs/visual-regression.md." >&2
+    return 1
+  fi
+}
+
+if ! validate_threshold "$THRESHOLD"; then
+  exit 1
 fi
 
 # ---------------------------------------------------------------------------
@@ -295,7 +319,9 @@ fi
 # ---------------------------------------------------------------------------
 
 CAPTURE_SCRIPT="$REPO_ROOT/scripts/visual-regression-capture.ts"
-BASELINE_DIR="${BASELINE_DIR_ARG:-$COMMITTED_BASELINE_DIR}"
+# Derived from the (possibly --repo-root-overridden) root at use time, so a
+# fixture checkout diffs against ITS OWN committed baselines.
+BASELINE_DIR="${BASELINE_DIR_ARG:-$REPO_ROOT/tmp/visual-baselines}"
 
 if [ "$UPDATE_BASELINES" = "true" ]; then
   warn_darwin_baseline_drift
@@ -318,7 +344,15 @@ else
 
   mkdir -p "$SCREENSHOT_DIR" "$DIFF_DIR"
 
-  CAPTURE_ARGS="--storybook-url $STORYBOOK_URL --output-dir $SCREENSHOT_DIR --threshold $THRESHOLD --stories $STORIES"
+  # Bash 3.2-compatible indexed array with quoted elements: no word
+  # splitting, so the JSON --stories payload and any paths with spaces stay
+  # intact (previously an unquoted, word-split string).
+  CAPTURE_ARGS=(
+    --storybook-url "$STORYBOOK_URL"
+    --output-dir "$SCREENSHOT_DIR"
+    --threshold "$THRESHOLD"
+    --stories "$STORIES"
+  )
 
   # Fail closed when the baseline directory is absent: the committed
   # tmp/visual-baselines dir is tracked in the repo (sentinel .gitkeep), so a
@@ -337,22 +371,20 @@ else
   BASELINE_COUNT="$(find "$BASELINE_DIR" -maxdepth 1 -name '*.png' -type f 2>/dev/null | wc -l | tr -d '[:space:]')"
   if [ "$BASELINE_COUNT" -gt 0 ]; then
     echo "[visual-regression] Diffing against ${BASELINE_COUNT} baseline(s) in $BASELINE_DIR..." >&2
-    CAPTURE_ARGS="$CAPTURE_ARGS --baseline-dir $BASELINE_DIR"
+    CAPTURE_ARGS+=(--baseline-dir "$BASELINE_DIR")
   else
     echo "[visual-regression] No baselines found in $BASELINE_DIR — all stories will be treated as new." >&2
   fi
 
   if [ "$FAIL_ON_NEW" = "true" ]; then
-    CAPTURE_ARGS="$CAPTURE_ARGS --fail-on-new"
+    CAPTURE_ARGS+=(--fail-on-new)
   fi
 
   # Run capture + diff. Allow non-zero exit (failures) so we can propagate it.
   RESULT_JSON=""
   CAPTURE_EXIT=0
 
-  # Word-split is intentional here for CAPTURE_ARGS
-  # shellcheck disable=SC2086
-  RESULT_JSON="$(pnpm exec tsx "$CAPTURE_SCRIPT" $CAPTURE_ARGS)" || CAPTURE_EXIT=$?
+  RESULT_JSON="$(pnpm exec tsx "$CAPTURE_SCRIPT" "${CAPTURE_ARGS[@]}")" || CAPTURE_EXIT=$?
 
   # Copy any diff images to the diffs directory
   if [ -d "$SCREENSHOT_DIR" ]; then

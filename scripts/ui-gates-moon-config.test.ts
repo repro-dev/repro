@@ -80,6 +80,51 @@ function optionsBlock(taskBlock: string): string {
 
 const taskBlocks = readTaskBlocks(moonConfig)
 
+/** The `glob: <pattern>` values of a task block, in declaration order. */
+function inputGlobs(taskBlock: string): string[] {
+  return (taskBlock.match(/glob: (.+)/g) ?? []).map(line =>
+    line.replace(/^glob: /, '').trim()
+  )
+}
+
+/**
+ * Translate the glob subset the UI-gate inputs use (`*` = within one path
+ * segment, `**` = any number of segments, `**` at the end = anything under
+ * the prefix) into a RegExp. Approximation for pinning purposes only — moon
+ * is the authority on matching at runtime.
+ */
+function globToRegExp(glob: string): RegExp {
+  let pattern = ''
+  let index = 0
+
+  while (index < glob.length) {
+    if (glob.startsWith('**/', index)) {
+      pattern += '(?:[^/]+/)*'
+      index += 3
+    } else if (glob.startsWith('**', index)) {
+      pattern += '.*'
+      index += 2
+    } else if (glob[index] === '*') {
+      pattern += '[^/]*'
+      index += 1
+    } else {
+      pattern += glob[index]!.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      index += 1
+    }
+  }
+
+  return new RegExp(`^${pattern}$`)
+}
+
+/**
+ * True when at least one of the task's input globs covers `filePath` —
+ * i.e. a change to that file marks the task affected.
+ */
+function anyGlobCovers(taskBlock: string, filePath: string): boolean {
+  const regexes = inputGlobs(taskBlock).map(glob => globToRegExp(glob))
+  return regexes.some(regex => regex.test(filePath))
+}
+
 describe('REP-1648 UI-gate moon tasks (root moon.yml)', () => {
   it('declares all three browser gate tasks', () => {
     for (const task of [
@@ -159,5 +204,76 @@ describe('REP-1648 UI-gate moon tasks (root moon.yml)', () => {
       /--fail-on-new/,
       'the CI visual-regression task must pass --fail-on-new so a new story without a committed baseline fails closed'
     )
+  })
+
+  it('marks all three tasks affected via broad source globs, not enumerated extensions', () => {
+    // Any file under packages/*/src or apps/*/src must mark the gate tasks
+    // affected — including non-ts/tsx/mdx/css rendered assets (svg, png,
+    // json, yml, less, hbs, …). Enumerated extension globs silently miss
+    // every other asset type, so a new asset could land unrendered.
+    for (const task of [
+      'ui-gates-visual-regression',
+      'ui-gates-storybook',
+      'ui-gates-route-smoke',
+    ]) {
+      const block = taskBlocks.get(task)!
+      const globs = inputGlobs(block)
+
+      for (const broadGlob of ['packages/*/src/**', 'apps/*/src/**']) {
+        assert.ok(
+          globs.includes(broadGlob),
+          `${task} must declare the broad source glob "${broadGlob}" so any file (including non-ts/tsx/mdx/css assets) under it marks the task affected`
+        )
+      }
+    }
+  })
+
+  it('covers representative non-ts/tsx/mdx/css assets under packages/*/src and apps/*/src', () => {
+    // Behavioral pin over the declared globs: these are the asset classes
+    // the storybook/vite render pipeline can pick up from a src directory.
+    const assetFiles = [
+      'packages/design/src/DragHandle/drag-handle.svg',
+      'packages/design/src/DropdownMenu/menu.json',
+      'packages/playback/src/PlaybackNavigation/transport.less',
+      'packages/agentic-ui/src/agent.config.yml',
+      'packages/devtools/src/template.hbs',
+      'apps/workspace/src/styles/theme.scss',
+      'apps/admin/src/assets/logo.png',
+      'apps/admin/src/banner.webp',
+    ]
+
+    for (const task of [
+      'ui-gates-visual-regression',
+      'ui-gates-storybook',
+      'ui-gates-route-smoke',
+    ]) {
+      for (const file of assetFiles) {
+        assert.ok(
+          anyGlobCovers(taskBlocks.get(task)!, file),
+          `${task} inputs must cover "${file}" — a non-ts/tsx asset change must mark the task affected`
+        )
+      }
+    }
+  })
+
+  it('still covers ts/tsx source after the broad-glob switch', () => {
+    const sourceFiles = [
+      'packages/domain/src/models.ts',
+      'packages/design/src/Button.tsx',
+      'apps/workspace/src/App.tsx',
+    ]
+
+    for (const task of [
+      'ui-gates-visual-regression',
+      'ui-gates-storybook',
+      'ui-gates-route-smoke',
+    ]) {
+      for (const file of sourceFiles) {
+        assert.ok(
+          anyGlobCovers(taskBlocks.get(task)!, file),
+          `${task} inputs must still cover "${file}"`
+        )
+      }
+    }
   })
 })

@@ -14,7 +14,10 @@
  * Also pins the per-story a11y suppressions introduced in REP-1648: each
  * must disable a NAMED critical rule (never a blanket `disable: true`) so
  * the rest of the critical rule set stays active for that story, and must
- * carry the REP-1685 tracking id (PlaybackNavigation also REP-1680).
+ * carry the REP-1685 tracking id (PlaybackNavigation also REP-1680). The
+ * repo-wide sweep that extends this pin to future stories lives in
+ * scripts/a11y-critical-rules.scan.test.ts (scanner: scripts/
+ * storybook-a11y-scan.ts).
  *
  * Run:
  *   node --test scripts/a11y-critical-rules.test.ts
@@ -25,6 +28,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { describe, it } from 'node:test'
 import { fileURLToPath } from 'node:url'
+
+import { SUPPRESSED_STORIES } from './storybook-a11y-scan.ts'
 
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -229,45 +234,6 @@ describe('axe-core store entry selection', () => {
 // ---------------------------------------------------------------------------
 // Per-story a11y suppressions (REP-1648 → tracked under REP-1685)
 // ---------------------------------------------------------------------------
-
-/**
- * The six stories suppressed during the REP-1648 first run. Each tripped
- * exactly one critical rule (verified against tmp/a11y-criticals-run4.log),
- * so the suppression must disable ONLY that named rule — keeping the rest
- * of the critical rule set active — instead of a blanket `disable: true`.
- */
-const SUPPRESSED_STORIES: Array<{
-  file: string
-  rule: string
-  extraRefs?: string[]
-}> = [
-  {
-    file: 'packages/agentic-ui/src/AgenticView.stories.tsx',
-    rule: 'label',
-  },
-  {
-    file: 'packages/design/src/AgenticInput/AgenticInput.stories.tsx',
-    rule: 'label',
-  },
-  {
-    file: 'packages/design/src/DropdownMenu/DropdownMenu.stories.tsx',
-    rule: 'aria-allowed-attr',
-  },
-  {
-    file: 'packages/design/src/DragHandle/DragHandle.stories.tsx',
-    rule: 'aria-required-attr',
-  },
-  {
-    file: 'packages/playback/src/PlaybackNavigation/PlaybackNavigation.stories.tsx',
-    rule: 'button-name',
-    // The playback a11y fix is tracked separately: REP-1680.
-    extraRefs: ['REP-1680'],
-  },
-  {
-    file: 'packages/devtools/src/DevTools.stories.tsx',
-    rule: 'aria-required-attr',
-  },
-]
 
 describe('suppressed story parameters (tracked under REP-1685)', () => {
   const criticalRules = new Set(readRuleIds(moduleSource))

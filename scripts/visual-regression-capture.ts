@@ -15,6 +15,10 @@
  * If --stories is '[]' or omitted, captures ALL stories from Storybook /index.json.
  * Pass --fail-on-new to exit non-zero when a story has no committed baseline (CI mode).
  *
+ * The --threshold input is validated: a finite number in [0, 1]. An invalid
+ * value (NaN, out of range) fails non-zero with an actionable error — NaN
+ * would otherwise make every diff pass.
+ *
  * Outputs JSON to stdout:
  * {
  *   "stories_checked": [...],
@@ -28,6 +32,8 @@
  * the failure; `diff_path` is null when no diff PNG exists (capture error).
  * Capture errors are recorded as failures — every checked story lands in a
  * bucket (passed / failed / new_stories), so the exit code stays honest.
+ * Corrupt or unreadable baseline/current PNGs are recorded per story the
+ * same way, and the run continues to the remaining stories.
  *
  * Exits 0 if all pass (or all new), non-zero if any fail (or --fail-on-new
  * is set and any story has no baseline). A run that checks zero stories
@@ -107,6 +113,29 @@ export function recordCaptureError(
     total_pixels: 0,
     error: err instanceof Error ? err.message : String(err),
   })
+}
+
+/**
+ * Parse and validate a --threshold input: a finite number in [0, 1].
+ * Throws with an actionable message when invalid — NaN or an out-of-range
+ * value would silently invert the gate (NaN makes every diff pass, values
+ * above 1 do too, negatives make every diff fail).
+ */
+export function parseThreshold(input: string): number {
+  const value = Number(input)
+
+  if (
+    input.trim() === '' ||
+    !Number.isFinite(value) ||
+    value < 0 ||
+    value > 1
+  ) {
+    throw new Error(
+      `--threshold "${input}" is invalid: it must be a finite number between 0 and 1 (a fraction of pixels, e.g. 0.001 = 0.1%)`
+    )
+  }
+
+  return value
 }
 
 export interface DiffResult {
@@ -224,6 +253,76 @@ export function isAboveThreshold(
   return changedPixels / totalPixels > threshold
 }
 
+/** File paths involved in diffing one captured story against its baseline. */
+export interface StoryDiffPaths {
+  baselinePath: string
+  screenshotPath: string
+  diffOutputPath: string
+}
+
+function readPngFile(filePath: string): Buffer {
+  try {
+    return fs.readFileSync(filePath)
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    throw new Error(`could not read PNG at ${filePath}: ${message}`)
+  }
+}
+
+/**
+ * Diff one captured story against its baseline and record the outcome in
+ * `output` (passed / failed with counts, or a capture error). Unreadable or
+ * corrupt PNGs — truncated baseline, missing screenshot file, invalid PNG
+ * data — are recorded per story through recordCaptureError so the run
+ * continues to the remaining stories and the exit code stays honest,
+ * instead of crashing with an unstructured error.
+ */
+export async function diffStoryAgainstBaseline(
+  output: CaptureOutput,
+  storyId: string,
+  paths: StoryDiffPaths,
+  threshold: number
+): Promise<void> {
+  try {
+    const baselineBuffer = readPngFile(paths.baselinePath)
+    const currentBuffer = readPngFile(paths.screenshotPath)
+
+    const { changedPixels, totalPixels, diffPath, dimensionMismatch } =
+      await diffPngBuffers(baselineBuffer, currentBuffer, paths.diffOutputPath)
+
+    if (dimensionMismatch) {
+      // Baseline and current dimensions differ: a pixel diff is impossible,
+      // so fail with the mismatch recorded and the placeholder diff path.
+      output.failed.push({
+        story: storyId,
+        diff_path: diffPath,
+        changed_pixels: changedPixels,
+        total_pixels: totalPixels,
+        error: `Image dimensions differ: baseline ${dimensionMismatch.baselineWidth}x${dimensionMismatch.baselineHeight}, current ${dimensionMismatch.currentWidth}x${dimensionMismatch.currentHeight} — pixel diff skipped, diff PNG is a placeholder`,
+      })
+    } else if (isAboveThreshold(changedPixels, totalPixels, threshold)) {
+      output.failed.push({
+        story: storyId,
+        diff_path: diffPath,
+        changed_pixels: changedPixels,
+        total_pixels: totalPixels,
+      })
+    } else {
+      output.passed.push(storyId)
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error(`Error diffing story ${storyId}: ${message}`)
+    recordCaptureError(
+      output,
+      storyId,
+      new Error(
+        `could not diff against the committed baseline (${message}) — the baseline or captured PNG may be corrupt or unreadable; see docs/visual-regression.md to regenerate`
+      )
+    )
+  }
+}
+
 /**
  * Determine the process exit code from the capture output.
  *
@@ -275,7 +374,12 @@ function parseArgs(argv: string[]): {
     } else if (arg === '--baseline-dir' && args[i + 1]) {
       baselineDir = args[++i]!
     } else if (arg === '--threshold' && args[i + 1]) {
-      threshold = parseFloat(args[++i]!)
+      try {
+        threshold = parseThreshold(args[++i]!)
+      } catch (err) {
+        console.error(`Error: ${(err as Error).message}`)
+        process.exit(1)
+      }
     } else if (arg === '--fail-on-new') {
       failOnNew = true
     } else if (arg === '--stories' && args[i + 1]) {
@@ -357,7 +461,8 @@ Options:
   --storybook-url <url>     Storybook URL (default: http://localhost:6099)
   --output-dir <path>       Directory to write screenshots
   --baseline-dir <path>     Directory containing baseline screenshots (enables diff)
-  --threshold <float>       Pixel diff threshold as fraction (default: 0.001 = 0.1%)
+  --threshold <float>       Pixel diff threshold as fraction in [0, 1]
+                            (default: 0.001 = 0.1%)
   --fail-on-new             Exit non-zero when a story has no committed baseline
                             (used in CI so a new story must ship its baseline)
   --stories <json>          JSON array of story IDs; empty array captures all stories
@@ -435,33 +540,16 @@ Options:
       continue
     }
 
-    const baselineBuffer = fs.readFileSync(baselinePath)
-    const currentBuffer = fs.readFileSync(screenshotPath)
-    const diffOutputPath = path.join(outputDir, `${storyId}.diff.png`)
-
-    const { changedPixels, totalPixels, diffPath, dimensionMismatch } =
-      await diffPngBuffers(baselineBuffer, currentBuffer, diffOutputPath)
-
-    if (dimensionMismatch) {
-      // Baseline and current dimensions differ: a pixel diff is impossible,
-      // so fail with the mismatch recorded and the placeholder diff path.
-      output.failed.push({
-        story: storyId,
-        diff_path: diffPath,
-        changed_pixels: changedPixels,
-        total_pixels: totalPixels,
-        error: `Image dimensions differ: baseline ${dimensionMismatch.baselineWidth}x${dimensionMismatch.baselineHeight}, current ${dimensionMismatch.currentWidth}x${dimensionMismatch.currentHeight} — pixel diff skipped, diff PNG is a placeholder`,
-      })
-    } else if (isAboveThreshold(changedPixels, totalPixels, threshold)) {
-      output.failed.push({
-        story: storyId,
-        diff_path: diffPath,
-        changed_pixels: changedPixels,
-        total_pixels: totalPixels,
-      })
-    } else {
-      output.passed.push(storyId)
-    }
+    await diffStoryAgainstBaseline(
+      output,
+      storyId,
+      {
+        baselinePath,
+        screenshotPath,
+        diffOutputPath: path.join(outputDir, `${storyId}.diff.png`),
+      },
+      threshold
+    )
   }
 
   await browser.close()

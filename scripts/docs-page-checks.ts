@@ -94,3 +94,103 @@ export function isTestNamedStory(storyId: string, storyName?: string): boolean {
 
   return false
 }
+
+// ---------------------------------------------------------------------------
+// Storybook index fetching with bounded cold-boot retries (review fix 6)
+// ---------------------------------------------------------------------------
+
+/** Structural subset of Playwright's APIResponse. */
+export interface StorybookIndexResponse {
+  ok(): boolean
+  status(): number
+  statusText(): string
+  json(): Promise<unknown>
+}
+
+/** Structural subset of Playwright's APIRequestContext (get only). */
+export interface StorybookIndexFetcher {
+  get(url: string): Promise<StorybookIndexResponse>
+}
+
+export interface FetchStorybookIndexOptions {
+  /** Total attempts (first call + retries). Default 3. */
+  retries?: number
+  /** Sleep between attempts, in ms. Default 1000. */
+  retryWaitMs?: number
+}
+
+const sleep = (ms: number): Promise<void> =>
+  new Promise(resolve => setTimeout(resolve, ms))
+
+/**
+ * Fetch the Storybook index with a bounded retry loop (REP-1648 review fix
+ * 6). A freshly booted server can serve an empty index, a transient non-2xx
+ * (502/503), or a reset socket before it finishes indexing — all of those
+ * are retried within the bound instead of failing the gate on attempt 1.
+ *
+ * On an exhausted bound:
+ * - a 200 response that stayed empty is RETURNED — the zero-story
+ *   assertions own that failure with their tailored "broken Storybook
+ *   boot" message;
+ * - anything else (persistent non-2xx, transport errors) THROWS with the
+ *   last observed status/error, since a zero-story message would mislead.
+ */
+export async function fetchStorybookIndex(
+  request: StorybookIndexFetcher,
+  storybookUrl: string,
+  options: FetchStorybookIndexOptions = {}
+): Promise<StorybookIndex> {
+  const retries = options.retries ?? 3
+  const retryWaitMs = options.retryWaitMs ?? 1_000
+  const url = `${storybookUrl}/index.json`
+
+  let index: StorybookIndex = { entries: {} }
+  let lastOutcome: 'ok-empty' | 'http-error' | 'transport-error' =
+    'transport-error'
+  let lastDetail = 'no response'
+
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    let response: StorybookIndexResponse
+
+    try {
+      response = await request.get(url)
+    } catch (err) {
+      lastOutcome = 'transport-error'
+      lastDetail = err instanceof Error ? err.message : String(err)
+      if (attempt < retries) await sleep(retryWaitMs)
+      continue
+    }
+
+    if (response.ok()) {
+      try {
+        index = (await response.json()) as StorybookIndex
+      } catch (err) {
+        // Malformed payload — retried like any other cold-boot state.
+        lastOutcome = 'transport-error'
+        lastDetail = err instanceof Error ? err.message : String(err)
+        if (attempt < retries) await sleep(retryWaitMs)
+        continue
+      }
+
+      if (Object.keys(index.entries ?? {}).length > 0) {
+        return index
+      }
+
+      lastOutcome = 'ok-empty'
+      lastDetail = 'empty index payload'
+    } else {
+      lastOutcome = 'http-error'
+      lastDetail = `HTTP ${response.status()} ${response.statusText()}`.trim()
+    }
+
+    if (attempt < retries) await sleep(retryWaitMs)
+  }
+
+  if (lastOutcome === 'ok-empty') {
+    return index
+  }
+
+  throw new Error(
+    `${url} never returned a usable Storybook index across ${retries} attempts (last: ${lastDetail}) — retrying the gate may help if Storybook was still booting`
+  )
+}

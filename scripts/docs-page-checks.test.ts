@@ -11,6 +11,7 @@ import { describe, it } from 'node:test'
 import {
   extractDocsEntries,
   extractStoryEntries,
+  fetchStorybookIndex,
   findRawJSDocLeaks,
   isTestNamedStory,
 } from './docs-page-checks.ts'
@@ -165,5 +166,170 @@ describe('isTestNamedStory', () => {
     assert.equal(isTestNamedStory('checkbox--test-disabled', 'Default'), true)
     // Both clean → not flagged.
     assert.equal(isTestNamedStory('checkbox--default', 'Default'), false)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// fetchStorybookIndex (review fix 6): transient non-2xx responses (and
+// transport/malformed-payload errors) must be retried within the bounded
+// retry loop — not just empty 200 payloads. A cold Storybook boot can 502
+// or reset the socket before it finishes indexing.
+// ---------------------------------------------------------------------------
+
+interface FakeResponseScript {
+  status?: number
+  statusText?: string
+  payload?: unknown
+  throw?: Error
+}
+
+/**
+ * Queue-based request fake: responses are consumed in order; the last
+ * entry repeats when the caller retries beyond the script.
+ */
+function makeFakeRequest(scripts: FakeResponseScript[]) {
+  let calls = 0
+
+  return {
+    callCount: () => calls,
+    get: async (_url: string) => {
+      const next = scripts[Math.min(calls, scripts.length - 1)]!
+      calls += 1
+
+      if (next.throw) {
+        throw next.throw
+      }
+
+      const status = next.status ?? 200
+      return {
+        ok: () => status >= 200 && status < 300,
+        status: () => status,
+        statusText: () => next.statusText ?? '',
+        json: async () => next.payload,
+      }
+    },
+  }
+}
+
+const POPULATED_INDEX = {
+  entries: {
+    'button--default': { type: 'story', name: 'Default' },
+    'button--docs': { type: 'docs', name: 'Docs' },
+  },
+}
+
+const EMPTY_INDEX = { entries: {} }
+
+describe('fetchStorybookIndex', () => {
+  it('returns a populated index immediately without retrying', async () => {
+    const request = makeFakeRequest([{ payload: POPULATED_INDEX }])
+
+    const index = await fetchStorybookIndex(request, 'http://localhost:6099', {
+      retryWaitMs: 0,
+    })
+
+    assert.deepEqual(index, POPULATED_INDEX)
+    assert.equal(request.callCount(), 1)
+  })
+
+  it('retries empty 200 payloads until the index is populated', async () => {
+    const request = makeFakeRequest([
+      { payload: EMPTY_INDEX },
+      { payload: POPULATED_INDEX },
+    ])
+
+    const index = await fetchStorybookIndex(request, 'http://localhost:6099', {
+      retryWaitMs: 0,
+    })
+
+    assert.deepEqual(index, POPULATED_INDEX)
+    assert.equal(request.callCount(), 2)
+  })
+
+  it('returns the empty index after exhausting retries on persistent empty 200s', async () => {
+    // A persistent empty 200 is a broken boot: the helper hands back the
+    // empty index so the zero-story assertions own the failure with their
+    // tailored message (broken Storybook boot, empty build).
+    const request = makeFakeRequest([{ payload: EMPTY_INDEX }])
+
+    const index = await fetchStorybookIndex(request, 'http://localhost:6099', {
+      retryWaitMs: 0,
+    })
+
+    assert.deepEqual(index, EMPTY_INDEX)
+    assert.equal(request.callCount(), 3, 'must be bounded by INDEX_RETRIES')
+  })
+
+  it('retries transient non-2xx responses', async () => {
+    const request = makeFakeRequest([
+      { status: 503, statusText: 'Service Unavailable' },
+      { payload: POPULATED_INDEX },
+    ])
+
+    const index = await fetchStorybookIndex(request, 'http://localhost:6099', {
+      retryWaitMs: 0,
+    })
+
+    assert.deepEqual(index, POPULATED_INDEX)
+    assert.equal(request.callCount(), 2)
+  })
+
+  it('throws with the last status after exhausting retries on persistent non-2xx', async () => {
+    const request = makeFakeRequest([
+      { status: 502, statusText: 'Bad Gateway' },
+    ])
+
+    await assert.rejects(
+      fetchStorybookIndex(request, 'http://localhost:6099', { retryWaitMs: 0 }),
+      (error: Error) => {
+        assert.match(error.message, /502 Bad Gateway/)
+        assert.match(error.message, /never returned a usable Storybook index/)
+        assert.match(error.message, /retrying the gate may help/)
+        return true
+      }
+    )
+    assert.equal(request.callCount(), 3, 'must be bounded by INDEX_RETRIES')
+  })
+
+  it('retries transient transport errors', async () => {
+    const request = makeFakeRequest([
+      { throw: new Error('socket hang up') },
+      { payload: POPULATED_INDEX },
+    ])
+
+    const index = await fetchStorybookIndex(request, 'http://localhost:6099', {
+      retryWaitMs: 0,
+    })
+
+    assert.deepEqual(index, POPULATED_INDEX)
+    assert.equal(request.callCount(), 2)
+  })
+
+  it('retries a malformed JSON payload', async () => {
+    const request = makeFakeRequest([
+      { payload: 'not json at all' },
+      { payload: POPULATED_INDEX },
+    ])
+
+    const index = await fetchStorybookIndex(request, 'http://localhost:6099', {
+      retryWaitMs: 0,
+    })
+
+    assert.deepEqual(index, POPULATED_INDEX)
+    assert.equal(request.callCount(), 2)
+  })
+
+  it('honors a smaller retry bound', async () => {
+    const request = makeFakeRequest([
+      { status: 503, statusText: 'Service Unavailable' },
+    ])
+
+    await assert.rejects(
+      fetchStorybookIndex(request, 'http://localhost:6099', {
+        retries: 2,
+        retryWaitMs: 0,
+      })
+    )
+    assert.equal(request.callCount(), 2)
   })
 })

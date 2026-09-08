@@ -79,8 +79,10 @@ independently, so no gate depends on another gate's server being up.
 
 ## Threshold configuration
 
-Default threshold: `0.001` (0.1% of pixels changed). To override for a
-specific package, create a `.visual-threshold` file in the package root
+Default threshold: `0.001` (0.1% of pixels changed). The value must be a
+finite number between 0 and 1 — the wrapper rejects anything else before
+booting Storybook, and the capture script validates it again. To override
+for a specific package, create a `.visual-threshold` file in the package root
 containing just the threshold value (e.g. `0.005`) — `scripts/visual-regression.sh`
 picks it up from `apps/storybook-ui/.visual-threshold` (the Storybook host
 package root).
