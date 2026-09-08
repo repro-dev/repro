@@ -181,7 +181,7 @@ The repo runs visual regression as a **blocking CI gate** (`ui-gates-visual-regr
 
 | Script                                 | Purpose                                                        |
 | -------------------------------------- | -------------------------------------------------------------- |
-| `scripts/visual-regression.sh`         | Bash 3.2 wrapper: boots (or reuses via `REPRO_STORYBOOK_URL`) Storybook on :6099, captures, diffs against committed baselines |
+| `scripts/visual-regression.sh`         | Bash 3.2 wrapper: serves the prebuilt Storybook bundle (or reuses via `REPRO_STORYBOOK_URL`) on :6099, captures, diffs against committed baselines |
 | `scripts/visual-regression-capture.ts` | tsx script: Playwright headless capture + pixelmatch diff; `--fail-on-new` makes a story without a committed baseline fail closed |
 
 ### Baseline storage
@@ -196,7 +196,7 @@ The repo runs visual regression as a **blocking CI gate** (`ui-gates-visual-regr
 bash scripts/visual-regression.sh --stories '["button--primary","badge--default"]' --threshold 0.001
 ```
 
-Run from the repo root (the script's `--repo-root` defaults to its parent directory); baselines are always `$REPO_ROOT/tmp/visual-baselines`. Pass `--stories '[]'` to check all stories. The script outputs JSON (same shape as `visual-regression-capture.ts`) to stdout and exits non-zero if any stories fail. Set `REPRO_STORYBOOK_URL` to reuse an already-running Storybook instead of booting one. **On macOS, diffing against Linux-generated committed baselines produces false failures from text-rasterization drift** — see `docs/visual-regression.md`.
+Run from the repo root (the script's `--repo-root` defaults to its parent directory); build `repro/storybook-ui:build` first so `apps/storybook-ui/storybook-static` exists. Baselines are always `$REPO_ROOT/tmp/visual-baselines`. Pass `--stories '[]'` to check all stories. The script outputs JSON (same shape as `visual-regression-capture.ts`) to stdout and exits non-zero if any stories fail. Set `REPRO_STORYBOOK_URL` to reuse an already-running Storybook instead of serving one. **On macOS, diffing against Linux-generated committed baselines produces false failures from text-rasterization drift** — see `docs/visual-regression.md`.
 
 ### Updating baselines
 
