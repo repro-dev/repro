@@ -21,13 +21,18 @@ const meta: Meta = {
   tags: ['experimental'],
   // REP-1648 a11y gate: every AgenticView story trips the critical `label`
   // rule (the reasoning textarea renders without an accessible label).
-  // Component fix tracked outside this issue — re-enable when the textarea
-  // ships an aria-label/label.
+  // Narrowed per REP-1685 to a named run-time disable so the rest of the
+  // critical rule set stays active for these stories — re-enable when the
+  // textarea ships an aria-label/label.
   parameters: {
     a11y: {
-      disable: true,
+      options: {
+        rules: {
+          label: { enabled: false },
+        },
+      },
       reason:
-        'Critical `label` violations: reasoning textarea has no accessible label (a11y fix tracked separately)',
+        'Critical `label` violations: reasoning textarea has no accessible label (a11y fix tracked under REP-1685)',
     },
   },
   decorators: [

@@ -9,14 +9,18 @@ const meta: Meta<typeof PlaybackNavigation> = {
   component: PlaybackNavigation,
   tags: ['autodocs', 'pattern'],
   // REP-1648 a11y gate: the story trips the critical `button-name` rule
-  // (icon-only transport buttons have no accessible name). Component fix
-  // tracked outside this issue — re-enable when the buttons get
-  // aria-labels.
+  // (icon-only transport buttons have no accessible name). Narrowed per
+  // REP-1685 to a named run-time disable so the rest of the critical rule
+  // set stays active — re-enable when the buttons get aria-labels (REP-1680).
   parameters: {
     a11y: {
-      disable: true,
+      options: {
+        rules: {
+          'button-name': { enabled: false },
+        },
+      },
       reason:
-        'Critical `button-name` violations: icon-only playback transport buttons lack accessible names (a11y fix tracked separately)',
+        'Critical `button-name` violations: icon-only playback transport buttons lack accessible names (REP-1680; a11y fix tracked under REP-1685)',
     },
   },
 }

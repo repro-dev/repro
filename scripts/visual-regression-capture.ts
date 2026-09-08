@@ -19,12 +19,19 @@
  * {
  *   "stories_checked": [...],
  *   "passed": [...],
- *   "failed": [{ "story": "...", "diff_path": "...", "changed_pixels": N, "total_pixels": N }],
+ *   "failed": [{ "story": "...", "diff_path": "...|null", "changed_pixels": N,
+ *                "total_pixels": N, "error": "…" }],
  *   "new_stories": [...]
  * }
  *
- * Exits 0 if all pass (or all new), non-zero if any fail (or --fail-on-new is set
- * and any story has no baseline).
+ * `error` is present on capture errors and dimension mismatches and explains
+ * the failure; `diff_path` is null when no diff PNG exists (capture error).
+ * Capture errors are recorded as failures — every checked story lands in a
+ * bucket (passed / failed / new_stories), so the exit code stays honest.
+ *
+ * Exits 0 if all pass (or all new), non-zero if any fail (or --fail-on-new
+ * is set and any story has no baseline). A run that checks zero stories
+ * (empty index) always fails closed.
  */
 
 import * as fs from 'fs'
@@ -54,17 +61,85 @@ export async function loadPng() {
   return mod.PNG
 }
 
+/**
+ * Write a small placeholder PNG at outputPath for dimension-mismatch
+ * failures, where a real pixel diff is impossible (the images cannot be
+ * compared). A solid magenta body with a black border — obviously synthetic,
+ * and referenced by the failure record's error text which carries the exact
+ * baseline/current dimensions.
+ */
+async function writeMismatchPlaceholderPng(outputPath: string): Promise<void> {
+  const PNG = await loadPng()
+  const width = 320
+  const height = 64
+  const png = new PNG({ width, height })
+  const border = 4
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = (width * y + x) * 4
+      const isBorder =
+        x < border || x >= width - border || y < border || y >= height - border
+      png.data[idx] = isBorder ? 0 : 255
+      png.data[idx + 1] = 0
+      png.data[idx + 2] = isBorder ? 0 : 255
+      png.data[idx + 3] = 255
+    }
+  }
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true })
+  fs.writeFileSync(outputPath, PNG.sync.write(png))
+}
+
+/**
+ * Record a story whose capture threw (navigation failure, networkidle
+ * timeout, #storybook-root selector timeout, …) as a failed entry. Every
+ * checked story must land in a bucket so the exit code stays honest — a
+ * capture error is a failure, never a silent skip.
+ */
+export function recordCaptureError(
+  output: CaptureOutput,
+  storyId: string,
+  err: unknown
+): void {
+  output.failed.push({
+    story: storyId,
+    diff_path: null,
+    changed_pixels: 0,
+    total_pixels: 0,
+    error: err instanceof Error ? err.message : String(err),
+  })
+}
+
 export interface DiffResult {
   changedPixels: number
   totalPixels: number
   diffPath: string | null
+  /**
+   * Set when the two images had different dimensions. A placeholder diff PNG
+   * is written at diffPath (when requested) and the dimensions are reported
+   * so the failure record can explain why a pixel diff is meaningless.
+   */
+  dimensionMismatch?: {
+    baselineWidth: number
+    baselineHeight: number
+    currentWidth: number
+    currentHeight: number
+  }
 }
 
 export interface StoryResult {
   story: string
-  diff_path: string
+  /**
+   * Path to the written diff PNG, or null when no diff image exists
+   * (e.g. the story could not be captured at all).
+   */
+  diff_path: string | null
   changed_pixels: number
   total_pixels: number
+  /**
+   * Present on capture errors and dimension mismatches: the reason the
+   * story failed. Absent on pure above-threshold pixel diffs.
+   */
+  error?: string
 }
 
 export interface CaptureOutput {
@@ -90,10 +165,27 @@ export async function diffPngBuffers(
   const baseline = PNG.sync.read(baselineBuffer)
   const current = PNG.sync.read(currentBuffer)
 
-  // Images must be the same dimensions to diff; if different treat all as changed
+  // Images must be the same dimensions to diff; if different treat all as
+  // changed and write a placeholder diff so the failure record never points
+  // at a diff PNG that was never written.
   if (baseline.width !== current.width || baseline.height !== current.height) {
     const totalPixels = current.width * current.height
-    return { changedPixels: totalPixels, totalPixels, diffPath: null }
+    let diffPath: string | null = null
+    if (outputPath !== null) {
+      await writeMismatchPlaceholderPng(outputPath)
+      diffPath = outputPath
+    }
+    return {
+      changedPixels: totalPixels,
+      totalPixels,
+      diffPath,
+      dimensionMismatch: {
+        baselineWidth: baseline.width,
+        baselineHeight: baseline.height,
+        currentWidth: current.width,
+        currentHeight: current.height,
+      },
+    }
   }
 
   const { width, height } = baseline
@@ -139,11 +231,16 @@ export function isAboveThreshold(
  * only exit 1 when failOnNew is set — CI passes --fail-on-new so a new story
  * cannot land without its baseline; local runs default to off so the manual
  * first-capture UX is unchanged.
+ *
+ * A run that checked zero stories fails closed: an empty index (or an empty
+ * --stories list against one) means the gate verified nothing, which must
+ * never be reported as green.
  */
 export function computeExitCode(
   output: CaptureOutput,
   failOnNew: boolean
 ): number {
+  if (output.stories_checked.length === 0) return 1
   if (output.failed.length > 0) return 1
   if (failOnNew && output.new_stories.length > 0) return 1
   return 0
@@ -282,6 +379,23 @@ Options:
     storyIds = await fetchStoryIds(storybookUrl)
   }
 
+  // Fail closed on an empty check set: `--stories '[]'` against an index
+  // with zero `type: 'story'` entries must not exit 0 — a gate that checked
+  // nothing is not green.
+  if (storyIds.length === 0) {
+    const output: CaptureOutput = {
+      stories_checked: [],
+      passed: [],
+      failed: [],
+      new_stories: [],
+    }
+    console.error(
+      'Error: no stories to check — the Storybook index has no story entries (failing closed)'
+    )
+    console.log(JSON.stringify(output, null, 2))
+    process.exit(computeExitCode(output, failOnNew))
+  }
+
   const chromium = await getBrowser()
   const browser = await chromium.launch({ headless: true })
   const context = await browser.newContext({
@@ -303,6 +417,7 @@ Options:
       await captureStory(page, storybookUrl, storyId, screenshotPath)
     } catch (err) {
       console.error(`Error capturing story ${storyId}:`, err)
+      recordCaptureError(output, storyId, err)
       continue
     }
 
@@ -324,16 +439,23 @@ Options:
     const currentBuffer = fs.readFileSync(screenshotPath)
     const diffOutputPath = path.join(outputDir, `${storyId}.diff.png`)
 
-    const { changedPixels, totalPixels, diffPath } = await diffPngBuffers(
-      baselineBuffer,
-      currentBuffer,
-      diffOutputPath
-    )
+    const { changedPixels, totalPixels, diffPath, dimensionMismatch } =
+      await diffPngBuffers(baselineBuffer, currentBuffer, diffOutputPath)
 
-    if (isAboveThreshold(changedPixels, totalPixels, threshold)) {
+    if (dimensionMismatch) {
+      // Baseline and current dimensions differ: a pixel diff is impossible,
+      // so fail with the mismatch recorded and the placeholder diff path.
       output.failed.push({
         story: storyId,
-        diff_path: diffPath ?? diffOutputPath,
+        diff_path: diffPath,
+        changed_pixels: changedPixels,
+        total_pixels: totalPixels,
+        error: `Image dimensions differ: baseline ${dimensionMismatch.baselineWidth}x${dimensionMismatch.baselineHeight}, current ${dimensionMismatch.currentWidth}x${dimensionMismatch.currentHeight} — pixel diff skipped, diff PNG is a placeholder`,
+      })
+    } else if (isAboveThreshold(changedPixels, totalPixels, threshold)) {
+      output.failed.push({
+        story: storyId,
+        diff_path: diffPath,
         changed_pixels: changedPixels,
         total_pixels: totalPixels,
       })

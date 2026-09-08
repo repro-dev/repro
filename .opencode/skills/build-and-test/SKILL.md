@@ -177,45 +177,35 @@ Replace `~/path/to/parent-of-checkouts` with the directory that contains your ma
 
 ## Visual Regression Tooling
 
-The repo includes standalone visual regression tooling in `scripts/`. It is useful for manual UI checks and for refreshing local baselines, but it is not an active `/build` pipeline phase. The tooling consists of two scripts:
+The repo runs visual regression as a **blocking CI gate** (`ui-gates-visual-regression` moon task, wired into `ci.yml` via `moon ci`). Baselines are **committed to the repo** in `tmp/visual-baselines/` (un-ignored via `.gitignore` negation). `docs/visual-regression.md` is the source of truth for the full baseline-update flow; this section is the quick reference. The tooling consists of two scripts:
 
 | Script                                 | Purpose                                                        |
 | -------------------------------------- | -------------------------------------------------------------- |
-| `scripts/visual-regression.sh`         | Bash 3.2 wrapper: starts Storybook, runs capture, copies diffs |
-| `scripts/visual-regression-capture.ts` | tsx script: Playwright headless capture + pixelmatch diff      |
+| `scripts/visual-regression.sh`         | Bash 3.2 wrapper: boots (or reuses via `REPRO_STORYBOOK_URL`) Storybook on :6099, captures, diffs against committed baselines |
+| `scripts/visual-regression-capture.ts` | tsx script: Playwright headless capture + pixelmatch diff; `--fail-on-new` makes a story without a committed baseline fail closed |
 
 ### Baseline storage
 
-- **`tmp/visual-baselines/`** (main checkout) — machine-local PNG reference images, git-ignored. Run `bash scripts/visual-regression.sh --update-baselines` to populate or refresh after an intentional visual change is merged.
-- **`<worktree>/tmp/visual-baselines-ref/`** — baselines copied from main into the worktree for the diff run. Transient; recreated on each run.
-- **`<worktree>/tmp/visual-screenshots/`** — current-branch screenshots captured during the check.
+- **`tmp/visual-baselines/`** — committed, tracked PNG baselines (`.gitkeep` sentinel until populated). Diff mode reads them; `--update-baselines` writes them.
+- **`<worktree>/tmp/visual-screenshots/`** — current-branch screenshots captured during the check (ephemeral).
 - **`<worktree>/tmp/visual-diffs/`** — diff PNGs written when a story exceeds the pixel threshold. Included in escalation messages.
 
 ### Running the check manually
 
 ```sh
-bash scripts/visual-regression.sh \
-  --worktree /path/to/worktree \
-  --main-checkout /path/to/main-checkout \
-  --stories '["button--primary","badge--default"]' \
-  --threshold 0.001
+bash scripts/visual-regression.sh --stories '["button--primary","badge--default"]' --threshold 0.001
 ```
 
-Pass `--stories '[]'` to check all stories. The script outputs JSON (same shape as `visual-regression-capture.ts`) to stdout and exits non-zero if any stories fail.
+Run from the repo root (the script's `--repo-root` defaults to its parent directory); baselines are always `$REPO_ROOT/tmp/visual-baselines`. Pass `--stories '[]'` to check all stories. The script outputs JSON (same shape as `visual-regression-capture.ts`) to stdout and exits non-zero if any stories fail. Set `REPRO_STORYBOOK_URL` to reuse an already-running Storybook instead of booting one. **On macOS, diffing against Linux-generated committed baselines produces false failures from text-rasterization drift** — see `docs/visual-regression.md`.
 
 ### Updating baselines
 
-Update baselines directly:
+Baselines must be captured **on Linux** (macOS captures produce false diffs in CI). After an intentional visual change:
 
-```sh
-bash scripts/visual-regression.sh \
-  --update-baselines \
-  --worktree /path/to/main-checkout \
-  --main-checkout /path/to/main-checkout \
-  --stories '[]'
-```
+1. Push the branch, then trigger the `regenerate-visual-baselines` `workflow_dispatch` job in `.github/workflows/ci.yml` on that branch.
+2. Download the `visual-baselines` artifact, review the PNGs, and commit them to `tmp/visual-baselines/` alongside the PR.
 
-Run this after any intentional visual change is merged to main. Baselines are local-only; each developer must run this after initial clone and after merging visual changes.
+Local capture (`bash scripts/visual-regression.sh --update-baselines`) writes to `tmp/visual-baselines/` but warns on darwin — use it only for scratch verification, never for committing.
 
 ### Story ID convention (Storybook v10)
 

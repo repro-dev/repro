@@ -41,6 +41,15 @@ cleanup() {
       wait "$pid" 2>/dev/null || true
     fi
   done
+
+  # Killing the pnpm wrapper can orphan the actual `serve` child process, so
+  # clear both picked ports directly (they were free when the harness booted).
+  # Only queried when a port was actually picked.
+  for port in "$WORKSPACE_PORT" "$ADMIN_PORT"; do
+    if [ -n "$port" ]; then
+      lsof -tiTCP:"$port" -sTCP:LISTEN 2>/dev/null | xargs kill 2>/dev/null || true
+    fi
+  done
 }
 
 trap cleanup EXIT
@@ -148,6 +157,12 @@ envsubst_admin "$ADMIN_SERVE_DIR/index.template.html" "$ADMIN_SERVE_DIR/index.ht
 serve_app() {
   local serve_dir="$1"
   local port="$2"
+
+  # `serve` is a devDependency of apps/workspace only, so `pnpm exec serve`
+  # resolves the binary from apps/workspace's node_modules. The cwd is set to
+  # apps/workspace for BOTH apps — the served directory is passed
+  # explicitly, which is why admin is served correctly from its own dist
+  # copy despite running under the workspace app's package context.
   (
     cd "$REPO_ROOT/apps/workspace"
     pnpm exec serve -s "$serve_dir" -l "$port"

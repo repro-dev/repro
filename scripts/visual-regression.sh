@@ -19,8 +19,9 @@
 #
 # Environment:
 #   REPRO_STORYBOOK_URL  When set (non-empty), skip booting Storybook and reuse
-#                        the running server (shared boot contract used by the
-#                        moon gate tasks and storybook-gates.sh).
+#                        the running server. This is an opt-in for manually
+#                        sharing one Storybook across wrappers; the CI gate
+#                        tasks boot their own server independently.
 #
 # When --update-baselines is set: captures straight into the baseline dir
 # (committed dir unless --baseline-dir overrides it). Otherwise: diffs against
@@ -30,6 +31,17 @@
 # Exits 0 if all pass, non-zero if any fail (or --fail-on-new and any new story).
 
 set -euo pipefail
+
+# Non-fatal darwin warning: baselines are generated on Linux (docs/visual-regression.md),
+# and macOS rasterization drift can produce false diffs in both directions.
+warn_darwin_baseline_drift() {
+  if [ "$(uname -s)" = "Darwin" ]; then
+    echo "[visual-regression] WARNING: baselines are generated on Linux to match CI" >&2
+    echo "[visual-regression] WARNING: runners rasterize text differently from macOS." >&2
+    echo "[visual-regression] WARNING: Diffs taken on macOS may produce false diffs (and macOS captures may produce false diffs in CI)." >&2
+    echo "[visual-regression] WARNING: See docs/visual-regression.md to separate a real visual change from platform/runner drift." >&2
+  fi
+}
 
 # ---------------------------------------------------------------------------
 # Argument defaults
@@ -286,12 +298,7 @@ CAPTURE_SCRIPT="$REPO_ROOT/scripts/visual-regression-capture.ts"
 BASELINE_DIR="${BASELINE_DIR_ARG:-$COMMITTED_BASELINE_DIR}"
 
 if [ "$UPDATE_BASELINES" = "true" ]; then
-  if [ "$(uname -s)" = "Darwin" ]; then
-    echo "[visual-regression] WARNING: baselines must be generated on Linux to match CI" >&2
-    echo "[visual-regression] WARNING: runners rasterize text differently from macOS." >&2
-    echo "[visual-regression] WARNING: Baselines captured here may produce false diffs in CI." >&2
-    echo "[visual-regression] WARNING: See docs/visual-regression.md for the Linux capture flow." >&2
-  fi
+  warn_darwin_baseline_drift
 
   # Capture straight into the baseline dir (overwrite committed baselines)
   OUTPUT_DIR="$BASELINE_DIR"
@@ -311,11 +318,25 @@ else
 
   mkdir -p "$SCREENSHOT_DIR" "$DIFF_DIR"
 
-  # Diff against the baseline dir. Fail closed when the committed dir is empty
-  # and --fail-on-new is set (a new story must ship its baseline).
   CAPTURE_ARGS="--storybook-url $STORYBOOK_URL --output-dir $SCREENSHOT_DIR --threshold $THRESHOLD --stories $STORIES"
-  if [ -d "$BASELINE_DIR" ] && [ "$(ls -A "$BASELINE_DIR" 2>/dev/null)" ]; then
-    echo "[visual-regression] Diffing against baselines in $BASELINE_DIR..." >&2
+
+  # Fail closed when the baseline directory is absent: the committed
+  # tmp/visual-baselines dir is tracked in the repo (sentinel .gitkeep), so a
+  # missing directory means a broken checkout or a bad --baseline-dir.
+  if [ ! -d "$BASELINE_DIR" ]; then
+    echo "Error: baseline directory does not exist: $BASELINE_DIR" >&2
+    echo "  Baselines are committed under tmp/visual-baselines. Regenerate them" >&2
+    echo "  via the regenerate-visual-baselines workflow dispatch" >&2
+    echo "  (see docs/visual-regression.md)." >&2
+    exit 1
+  fi
+
+  warn_darwin_baseline_drift
+
+  # .gitkeep is a tracked placeholder, not a baseline — count only PNGs.
+  BASELINE_COUNT="$(find "$BASELINE_DIR" -maxdepth 1 -name '*.png' -type f 2>/dev/null | wc -l | tr -d '[:space:]')"
+  if [ "$BASELINE_COUNT" -gt 0 ]; then
+    echo "[visual-regression] Diffing against ${BASELINE_COUNT} baseline(s) in $BASELINE_DIR..." >&2
     CAPTURE_ARGS="$CAPTURE_ARGS --baseline-dir $BASELINE_DIR"
   else
     echo "[visual-regression] No baselines found in $BASELINE_DIR — all stories will be treated as new." >&2

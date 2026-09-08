@@ -45,6 +45,7 @@ import {
   computeExitCode,
   diffPngBuffers,
   isAboveThreshold,
+  recordCaptureError,
   type CaptureOutput,
 } from './visual-regression-capture.ts'
 
@@ -217,6 +218,151 @@ describe('--fail-on-new exit code', () => {
 })
 
 // ---------------------------------------------------------------------------
+// Capture-error accounting (REP-1648 review blocker 1)
+// ---------------------------------------------------------------------------
+
+describe('capture-error accounting', () => {
+  it('records a capture error as a failed entry carrying the error message', () => {
+    const output: CaptureOutput = {
+      stories_checked: ['button--primary'],
+      passed: [],
+      failed: [],
+      new_stories: [],
+    }
+
+    recordCaptureError(
+      output,
+      'button--primary',
+      new Error('Timeout 10000ms exceeded waiting for #storybook-root')
+    )
+
+    assert.equal(output.failed.length, 1)
+    const failed = output.failed[0]!
+    assert.equal(failed.story, 'button--primary')
+    assert.match(failed.error!, /Timeout 10000ms exceeded/)
+    // No screenshot was produced, so no diff path can exist.
+    assert.equal(failed.diff_path, null)
+    assert.equal(failed.changed_pixels, 0)
+    assert.equal(failed.total_pixels, 0)
+  })
+
+  it('stringifies non-Error throwables', () => {
+    const output: CaptureOutput = {
+      stories_checked: ['button--primary'],
+      passed: [],
+      failed: [],
+      new_stories: [],
+    }
+
+    recordCaptureError(output, 'button--primary', 'navigation failed')
+
+    assert.equal(output.failed[0]!.error, 'navigation failed')
+  })
+
+  it('exits 1 when a story failed to capture, even with --fail-on-new off', () => {
+    const output: CaptureOutput = {
+      stories_checked: ['button--primary'],
+      passed: [],
+      failed: [],
+      new_stories: [],
+    }
+    recordCaptureError(
+      output,
+      'button--primary',
+      new Error('net::ERR_CONNECTION_REFUSED')
+    )
+
+    // A capture error must never fall through to a green exit (the story
+    // cannot be in passed or new_stories — it was checked and failed).
+    assert.equal(computeExitCode(output, false), 1)
+    assert.equal(computeExitCode(output, true), 1)
+  })
+
+  it('every checked story lands in a bucket: passed + failed + new covers all', () => {
+    const output: CaptureOutput = {
+      stories_checked: ['a--one', 'a--two', 'a--three'],
+      passed: ['a--one'],
+      failed: [],
+      new_stories: ['a--three'],
+    }
+    recordCaptureError(output, 'a--two', new Error('boom'))
+
+    const accounted = new Set([
+      ...output.passed,
+      ...output.failed.map(f => f.story),
+      ...output.new_stories,
+    ])
+    for (const story of output.stories_checked) {
+      assert.ok(
+        accounted.has(story),
+        `story ${story} must land in a bucket (exit-code honesty)`
+      )
+    }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Zero-story fail closed (REP-1648 review blocker 1)
+// ---------------------------------------------------------------------------
+
+describe('zero-story fail closed', () => {
+  it('exits 1 when no stories were checked (empty index), regardless of --fail-on-new', () => {
+    const output: CaptureOutput = {
+      stories_checked: [],
+      passed: [],
+      failed: [],
+      new_stories: [],
+    }
+
+    assert.equal(computeExitCode(output, false), 1)
+    assert.equal(computeExitCode(output, true), 1)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Dimension-mismatch placeholder diff (REP-1648 review minor 12)
+// ---------------------------------------------------------------------------
+
+describe('dimension-mismatch placeholder diff', () => {
+  it('writes a real placeholder diff PNG and reports both dimensions', async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vr-mismatch-'))
+    const diffPath = path.join(tmpDir, 'story.diff.png')
+
+    const small = makeSolidPng(5, 5, 100, 100, 100)
+    const large = makeSolidPng(10, 10, 100, 100, 100)
+    const result = await diffPngBuffers(small, large, diffPath)
+
+    // The failure record must never point at a file that was not written.
+    assert.equal(result.diffPath, diffPath)
+    assert.ok(fs.existsSync(diffPath), 'placeholder diff must exist on disk')
+    const parsed = PNG.sync.read(fs.readFileSync(diffPath))
+    assert.ok(
+      parsed.width > 0 && parsed.height > 0,
+      'placeholder must be a valid PNG'
+    )
+
+    assert.deepEqual(result.dimensionMismatch, {
+      baselineWidth: 5,
+      baselineHeight: 5,
+      currentWidth: 10,
+      currentHeight: 10,
+    })
+
+    fs.rmSync(tmpDir, { recursive: true, force: true })
+  })
+
+  it('still reports fully-changed counts with no diff path when outputPath is null', async () => {
+    const small = makeSolidPng(5, 5, 100, 100, 100)
+    const large = makeSolidPng(10, 10, 100, 100, 100)
+    const result = await diffPngBuffers(small, large, null)
+
+    assert.equal(result.changedPixels, result.totalPixels)
+    assert.equal(result.diffPath, null)
+    assert.ok(result.dimensionMismatch)
+  })
+})
+
+// ---------------------------------------------------------------------------
 // CaptureOutput JSON shape
 // ---------------------------------------------------------------------------
 
@@ -245,9 +391,31 @@ describe('CaptureOutput shape', () => {
 
     const failed = json.failed[0]
     assert.equal(typeof failed.story, 'string')
-    assert.equal(typeof failed.diff_path, 'string')
+    assert.ok(
+      typeof failed.diff_path === 'string' || failed.diff_path === null,
+      'diff_path is a path string, or null when no diff image exists'
+    )
     assert.equal(typeof failed.changed_pixels, 'number')
     assert.equal(typeof failed.total_pixels, 'number')
+    // error is optional: present on capture/mismatch failures, absent on
+    // pure above-threshold failures.
+    assert.ok(
+      typeof failed.error === 'string' || typeof failed.error === 'undefined'
+    )
+  })
+
+  it('serializes capture errors with the error field in JSON output', () => {
+    const output: CaptureOutput = {
+      stories_checked: ['button--primary'],
+      passed: [],
+      failed: [],
+      new_stories: [],
+    }
+    recordCaptureError(output, 'button--primary', new Error('capture blew up'))
+
+    const json = JSON.parse(JSON.stringify(output)) as CaptureOutput
+    assert.equal(json.failed[0]!.error, 'capture blew up')
+    assert.equal(json.failed[0]!.diff_path, null)
   })
 
   it('new story is recorded in new_stories, not in failed', () => {

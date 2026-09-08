@@ -29,13 +29,17 @@ const meta: Meta = {
   tags: ['pattern'],
   // REP-1648 a11y gate: every DevTools story trips the critical
   // `aria-required-attr` rule (sandboxed widget markup is missing a required
-  // aria attribute). Component fix tracked outside this issue — re-enable
-  // when the rendered markup is corrected.
+  // aria attribute). Narrowed per REP-1685 to a named run-time disable —
+  // re-enable when the rendered markup is corrected.
   parameters: {
     a11y: {
-      disable: true,
+      options: {
+        rules: {
+          'aria-required-attr': { enabled: false },
+        },
+      },
       reason:
-        'Critical `aria-required-attr` violation in the rendered DevTools markup (a11y fix tracked separately)',
+        'Critical `aria-required-attr` violation in the rendered DevTools markup (a11y fix tracked under REP-1685)',
     },
   },
 }

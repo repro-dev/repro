@@ -44,8 +44,8 @@ Locally (Linux machine/container only):
 bash scripts/visual-regression.sh --update-baselines --stories '[]'
 ```
 
-To reuse an already-running Storybook (the shared boot contract used by the
-moon gate tasks), set `REPRO_STORYBOOK_URL`:
+To share an already-running Storybook between wrappers when running the
+gates manually, set `REPRO_STORYBOOK_URL`:
 
 ```sh
 REPRO_STORYBOOK_URL=http://localhost:6099 \
@@ -71,8 +71,11 @@ moon run repro:ui-gates-storybook --force
 moon run repro:ui-gates-route-smoke --force
 ```
 
-The wrappers share one boot contract: set `REPRO_STORYBOOK_URL` to a running
-Storybook instance and they skip their own boot.
+When running the gates manually, the wrappers can share one booted
+Storybook: set `REPRO_STORYBOOK_URL` to a running Storybook instance and
+they skip their own boot. This is an opt-in for local/manual runs only —
+the CI gate tasks do **not** set it and each boots its own server
+independently, so no gate depends on another gate's server being up.
 
 ## Threshold configuration
 
@@ -102,6 +105,9 @@ that happens:
   play functions pass, and axe runs with a critical-only rule set —
   "zero critical violations" (see
   `apps/storybook-ui/.storybook/preview.js` and
-  `apps/storybook-ui/.storybook/a11y-critical-rules.js`).
+  `apps/storybook-ui/.storybook/a11y-critical-rules.js`). Per-story
+  suppressions use named run-time rule disables (never a blanket a11y
+  disable) so the rest of the critical rule set stays active; every
+  suppression reason carries the REP-1685 tracking id.
 - **Route smoke** (`ui-gates-route-smoke`): served dist builds against a
   deterministic intercepted API (see `tests/route-smoke/fixtures.ts`).

@@ -39,12 +39,17 @@ export const Default: StoryObj<AgenticInputProps> = {
 
   parameters: {
     // REP-1648 a11y gate: the demo input trips the critical `label` rule
-    // (demo textarea has no accessible label). Re-enable when the component
-    // wires an aria-label.
+    // (demo textarea has no accessible label). Narrowed per REP-1685 to a
+    // named run-time disable — re-enable when the component wires an
+    // aria-label.
     a11y: {
-      disable: true,
+      options: {
+        rules: {
+          label: { enabled: false },
+        },
+      },
       reason:
-        'Critical `label` violation: demo textarea has no accessible label (a11y fix tracked separately)',
+        'Critical `label` violation: demo textarea has no accessible label (a11y fix tracked under REP-1685)',
     },
     docs: {
       story: {

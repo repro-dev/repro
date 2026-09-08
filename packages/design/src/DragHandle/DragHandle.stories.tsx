@@ -11,13 +11,17 @@ const meta: Meta<typeof DragHandle> = {
   tags: ['autodocs', 'design-system'],
   // REP-1648 a11y gate: every DragHandle story trips the critical
   // `aria-required-attr` rule (slider-role handle lacks a required aria
-  // attribute). Component fix tracked outside this issue — re-enable when
-  // the handle's role/attributes are completed.
+  // attribute). Narrowed per REP-1685 to a named run-time disable —
+  // re-enable when the handle's role/attributes are completed.
   parameters: {
     a11y: {
-      disable: true,
+      options: {
+        rules: {
+          'aria-required-attr': { enabled: false },
+        },
+      },
       reason:
-        'Critical `aria-required-attr` violation on the drag-handle role (a11y fix tracked separately)',
+        'Critical `aria-required-attr` violation on the drag-handle role (a11y fix tracked under REP-1685)',
     },
   },
 }

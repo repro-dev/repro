@@ -13,8 +13,11 @@
 #
 # Environment:
 #   REPRO_STORYBOOK_URL  When set (non-empty), skip booting Storybook and
-#                        reuse the running server (shared boot contract used
-#                        by the moon gate tasks and visual-regression.sh).
+#                        reuse the running server. This is an opt-in for
+#                        manually sharing one Storybook across wrappers
+#                        (e.g. running visual-regression.sh and this script
+#                        against the same local server); the CI gate tasks
+#                        boot their own server independently.
 
 set -euo pipefail
 

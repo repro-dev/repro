@@ -11,6 +11,16 @@ tasks:
   # wire-formats/generated) and built dists. The deps below guarantee those
   # exist even when the diff touches no package sources (e.g. scripts-only
   # PRs), because moon ci's :build phase only builds affected projects.
+  #
+  # options.cache: false — these tasks boot live servers and drive real
+  # browsers; a cached pass/fail result from a previous run could mask a
+  # change (e.g. an untracked baseline), so they always execute.
+  #
+  # The two Storybook-booting tasks share the :6099 port family. moon runs
+  # independent tasks in parallel, so when BOTH are affected the dev servers
+  # would race for the same port; the shared mutex serializes them whenever
+  # both run, while keeping affected-only behavior (a mutex adds no
+  # dependency edge — a task is still skipped entirely when unaffected).
   # ---------------------------------------------------------------------------
   ui-gates-visual-regression:
     command: bash scripts/visual-regression.sh --stories '[]' --fail-on-new
@@ -48,7 +58,8 @@ tasks:
       - glob: pnpm-lock.yaml
         cache: true
     options:
-      cache: true
+      cache: false
+      mutex: 'storybook-server'
   ui-gates-storybook:
     command: bash scripts/storybook-gates.sh
     deps:
@@ -87,7 +98,8 @@ tasks:
       - glob: pnpm-lock.yaml
         cache: true
     options:
-      cache: true
+      cache: false
+      mutex: 'storybook-server'
   ui-gates-route-smoke:
     command: bash scripts/route-smoke.sh
     deps:
@@ -121,7 +133,7 @@ tasks:
       - glob: pnpm-lock.yaml
         cache: true
     options:
-      cache: true
+      cache: false
   pen-export:
     command: pnpm run pen:export
     inputs:
