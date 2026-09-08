@@ -10,6 +10,28 @@ tasks:
     command: pnpm run build
     deps:
       - ^:build
+    # The Storybook bundle compiles stories/components from every package and
+    # app (.storybook/main.js stories globs), far beyond this project's
+    # workspace-dep closure — so inputs must be explicit (declaring them
+    # REPLACES the implicit "all files within the project" default) and
+    # workspace-root-relative (leading `/`; moon rejects `../` escapes).
+    # The generated storybook-static output is the task's OUTPUT below and
+    # must never appear as an input.
+    inputs:
+      - glob: /packages/*/src/**
+        cache: true
+      - glob: /apps/*/src/**
+        cache: true
+      - glob: /apps/*/index.html
+        cache: true
+      - glob: /apps/*/vite.config.ts
+        cache: true
+      - glob: /apps/storybook-ui/.storybook/**
+        cache: true
+      - glob: /apps/storybook-ui/package.json
+        cache: true
+      - glob: /pnpm-lock.yaml
+        cache: true
     outputs:
       - storybook-static
     options:

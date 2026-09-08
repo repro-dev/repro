@@ -16,6 +16,12 @@
  * (options.cache/mutex round-trip); this test pins the source config so a
  * later edit cannot silently drop either setting.
  *
+ * It also pins the build inputs of `repro/storybook-ui:build` (review
+ * follow-up): without explicit inputs the task would only hash files within
+ * the storybook-ui project, so a changed story/component in `packages/*` or
+ * `apps/*` outside its workspace-dep closure would leave a stale
+ * storybook-static bundle served by the gates.
+ *
  * Run:
  *   node --test scripts/ui-gates-moon-config.test.ts
  */
@@ -79,6 +85,14 @@ function optionsBlock(taskBlock: string): string {
 }
 
 const taskBlocks = readTaskBlocks(moonConfig)
+
+// The `tasks:` blocks of apps/storybook-ui/moon.yml (same parser — task keys
+// at 2-space indent, section ends at the zero-indent `toolchains:` key).
+const storybookMoonConfig = readFileSync(
+  path.join(repoRoot, 'apps/storybook-ui', 'moon.yml'),
+  'utf8'
+)
+const storybookTaskBlocks = readTaskBlocks(storybookMoonConfig)
 
 /** The `glob: <pattern>` values of a task block, in declaration order. */
 function inputGlobs(taskBlock: string): string[] {
@@ -327,5 +341,138 @@ describe('REP-1648 static Storybook serving (moon task deps)', () => {
         )
       }
     }
+  })
+})
+
+describe('REP-1648 Storybook build inputs (apps/storybook-ui/moon.yml)', () => {
+  /**
+   * The build task's declared input globs, verbatim. The leading `/` is
+   * load-bearing: moon treats it as a workspace-root-relative glob (moon
+   * docs "File patterns > Workspace relative"; `../` escapes are invalid),
+   * so the bare project-relative form would resolve inside
+   * apps/storybook-ui and silently match nothing. storybookInputGlobs drops
+   * that slash so behavioral checks use the canonical workspace-relative
+   * paths the root-config tests above do.
+   */
+  function storybookRawInputGlobs(): string[] {
+    return inputGlobs(storybookTaskBlocks.get('build')!)
+  }
+
+  function storybookInputGlobs(): string[] {
+    return storybookRawInputGlobs().map(glob => glob.replace(/^\//, ''))
+  }
+
+  function storybookAnyGlobCovers(filePath: string): boolean {
+    const regexes = storybookInputGlobs().map(glob => globToRegExp(glob))
+    return regexes.some(regex => regex.test(filePath))
+  }
+
+  it('declares explicit inputs on the build task', () => {
+    // When inputs are declared they REPLACE the implicit "all files within
+    // the project" default — which is exactly why every story/component
+    // source outside the storybook-ui project must be re-declared here.
+    assert.ok(
+      storybookRawInputGlobs().length > 0,
+      'repro/storybook-ui:build must declare explicit inputs — without them only files inside apps/storybook-ui hash, and changed stories/components in packages/* or apps/* outside its workspace-dep closure leave a stale storybook-static bundle served by the gates'
+    )
+  })
+
+  it('covers broad package and app story sources', () => {
+    // .storybook/main.js stories globs span packages/*/src and apps/*/src;
+    // the inputs must mirror that breadth (broad globs, not extensions) and
+    // be workspace-root-relative (leading `/`).
+    const globs = storybookRawInputGlobs()
+
+    for (const broadGlob of ['/packages/*/src/**', '/apps/*/src/**']) {
+      assert.ok(
+        globs.includes(broadGlob),
+        `repro/storybook-ui:build inputs must include the broad workspace-relative glob "${broadGlob}" so any story/component change (including non-ts/tsx/mdx/css assets) invalidates the bundle — without the leading / the glob is project-relative and matches nothing`
+      )
+    }
+
+    for (const source of [
+      'packages/design/src/Card/Card.stories.tsx',
+      'packages/design/src/tokens/Tokens.mdx',
+      'apps/capture/src/components/Widget/ReportForm/ProgressOverlay.stories.tsx',
+    ]) {
+      assert.ok(
+        storybookAnyGlobCovers(source),
+        `repro/storybook-ui:build inputs must cover "${source}"`
+      )
+    }
+  })
+
+  it('covers the Storybook project’s own config and package files', () => {
+    // Explicit inputs replace the implicit project-wide default, so the
+    // files the build consumes inside apps/storybook-ui must be declared.
+    const globs = storybookRawInputGlobs()
+    for (const ownGlob of [
+      '/apps/storybook-ui/.storybook/**',
+      '/apps/storybook-ui/package.json',
+    ]) {
+      assert.ok(
+        globs.includes(ownGlob),
+        `repro/storybook-ui:build inputs must include "${ownGlob}" — its own consumed files are no longer implicit once inputs are declared`
+      )
+    }
+
+    for (const file of [
+      'apps/storybook-ui/.storybook/main.js',
+      'apps/storybook-ui/.storybook/preview.js',
+      'apps/storybook-ui/package.json',
+    ]) {
+      assert.ok(
+        storybookAnyGlobCovers(file),
+        `repro/storybook-ui:build inputs must cover "${file}"`
+      )
+    }
+  })
+
+  it('covers app entry/config inputs and the lockfile', () => {
+    for (const required of [
+      '/apps/*/index.html',
+      '/apps/*/vite.config.ts',
+      '/pnpm-lock.yaml',
+    ]) {
+      assert.ok(
+        storybookRawInputGlobs().includes(required),
+        `repro/storybook-ui:build inputs must include "${required}" (established by the root UI-gate input patterns)`
+      )
+    }
+  })
+
+  it('excludes the generated storybook-static output from inputs', () => {
+    // storybook-static is the task's OUTPUT; hashing it as an input would
+    // make every build invalidate the next one, and a glob that broad would
+    // also pin generated artifacts as build-relevant sources.
+    const buildBlock = storybookTaskBlocks.get('build')!
+    for (const glob of inputGlobs(buildBlock)) {
+      assert.doesNotMatch(
+        glob,
+        /storybook-static/,
+        `repro/storybook-ui:build input glob "${glob}" must not cover the generated storybook-static output`
+      )
+    }
+
+    assert.equal(
+      storybookAnyGlobCovers('apps/storybook-ui/storybook-static/index.html'),
+      false,
+      'no declared input glob may match files under apps/storybook-ui/storybook-static'
+    )
+  })
+
+  it('keeps the build cacheable and still serving the static bundle', () => {
+    const buildBlock = storybookTaskBlocks.get('build')!
+    assert.match(
+      optionsBlock(buildBlock),
+      /^      cache: true$/m,
+      'repro/storybook-ui:build must stay cache: true — explicit inputs make the cache valid, not redundant'
+    )
+
+    assert.match(
+      buildBlock,
+      /    outputs:\n      - storybook-static/,
+      'repro/storybook-ui:build must keep storybook-static as its output — the UI gates serve that prebuilt bundle'
+    )
   })
 })
