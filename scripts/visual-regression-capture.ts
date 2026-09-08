@@ -35,6 +35,14 @@
  * Corrupt or unreadable baseline/current PNGs are recorded per story the
  * same way, and the run continues to the remaining stories.
  *
+ * Every story is captured on a FRESH Playwright page (closed in `finally`),
+ * so one story's page failure cannot poison later stories (REP-1648: a dead
+ * shared page previously cascaded "Target page, context or browser has been
+ * closed" onto every remaining story). When the browser session itself dies
+ * mid-run, the loop relaunches it a bounded number of times; once the
+ * relaunch budget is exhausted the run fails closed with a clear terminal
+ * error instead of silently continuing.
+ *
  * Exits 0 if all pass (or all new), non-zero if any fail (or --fail-on-new
  * is set and any story has no baseline). A run that checks zero stories
  * (empty index) always fails closed.
@@ -65,6 +73,127 @@ export async function loadPixelmatch() {
 export async function loadPng() {
   const mod = await import('pngjs')
   return mod.PNG
+}
+
+// ---------------------------------------------------------------------------
+// Story capture lifecycle — per-story pages over a reusable browser session
+// ---------------------------------------------------------------------------
+
+/**
+ * Minimal structural surface of a Playwright Page used by captureStory.
+ * Declared as methods so the real Playwright Page type is structurally
+ * assignable (bivariant method checks), while tests can inject fakes.
+ */
+export interface StoryCapturePage {
+  goto(
+    url: string,
+    options?: { waitUntil?: 'load' | 'domcontentloaded' | 'networkidle' }
+  ): Promise<unknown>
+  addStyleTag(options: { content: string }): Promise<unknown>
+  waitForSelector(
+    selector: string,
+    options?: { timeout?: number }
+  ): Promise<unknown>
+  waitForTimeout(timeout: number): Promise<unknown>
+  screenshot(options: { path: string; fullPage?: boolean }): Promise<unknown>
+  close(): Promise<void>
+}
+
+/** Browser context — only page creation and cleanup are needed. */
+export interface StoryCaptureContext {
+  newPage(): Promise<StoryCapturePage>
+  close(options?: { reason?: string }): Promise<void>
+}
+
+/** Browser — context creation, liveness check, and cleanup. */
+export interface StoryCaptureBrowser {
+  newContext(options?: {
+    viewport?: { width: number; height: number }
+  }): Promise<StoryCaptureContext>
+  isConnected(): boolean
+  close(options?: { reason?: string }): Promise<void>
+}
+
+/** Minimal structural surface of Playwright's chromium browser type. */
+export interface PlaywrightChromiumLike {
+  launch(options?: { headless?: boolean }): Promise<StoryCaptureBrowser>
+}
+
+/**
+ * One browser + context "session" serving fresh pages, one per story.
+ * `isUsable` reports whether the underlying browser can still serve pages —
+ * the recovery loop consults it after capture failures to distinguish a
+ * story-level problem from a browser-level death.
+ */
+export interface StoryCaptureSession {
+  openPage(): Promise<StoryCapturePage>
+  isUsable(): boolean
+  close(): Promise<void>
+}
+
+export interface StoryCaptureSessionFactory {
+  open(): Promise<StoryCaptureSession>
+}
+
+/**
+ * Relaunch budget after the initial launch. The observed CI failure died
+ * once mid-run; 2 relaunches absorb an isolated incident and an unlucky
+ * second death while keeping worst-case browser launches bounded
+ * (1 initial + 2).
+ */
+export const DEFAULT_MAX_BROWSER_RELAUNCHES = 2
+
+/**
+ * Thrown when the session relaunch budget is exhausted. Terminal: the run
+ * records the current story AND every remaining story as failures — a
+ * browser that cannot be recovered means the gate verified nothing for
+ * those stories, and that must never be reported as green.
+ */
+export class BrowserRecoveryExhaustedError extends Error {
+  readonly relaunches: number
+  readonly lastReason: string
+
+  constructor(relaunches: number, lastReason: string) {
+    super(
+      `browser recovery exhausted after ${relaunches} relaunch attempt(s); last failure: ${lastReason} — remaining stories cannot be captured (failing closed)`
+    )
+    this.name = 'BrowserRecoveryExhaustedError'
+    this.relaunches = relaunches
+    this.lastReason = lastReason
+  }
+}
+
+/**
+ * Real Playwright adapter: launches headless chromium and wraps the browser
+ * + context in a StoryCaptureSession whose pages are per-story. Context and
+ * browser closes are best-effort — a session that died with the browser
+ * must still clean up whatever is closable and never block the loop.
+ */
+export function createPlaywrightSessionFactory(
+  chromium: PlaywrightChromiumLike
+): StoryCaptureSessionFactory {
+  return {
+    open: async (): Promise<StoryCaptureSession> => {
+      const browser = await chromium.launch({ headless: true })
+      try {
+        const context = await browser.newContext({
+          viewport: { width: 1280, height: 720 },
+        })
+        return {
+          openPage: () => context.newPage(),
+          isUsable: () => browser.isConnected(),
+          close: async () => {
+            await context.close().catch(() => {})
+            await browser.close().catch(() => {})
+          },
+        }
+      } catch (err) {
+        // Context creation failed — never leak the browser process.
+        await browser.close().catch(() => {})
+        throw err
+      }
+    },
+  }
 }
 
 /**
@@ -418,8 +547,8 @@ async function fetchStoryIds(storybookUrl: string): Promise<string[]> {
     .map(([id]) => id)
 }
 
-async function captureStory(
-  page: import('@playwright/test').Page,
+export async function captureStory(
+  page: StoryCapturePage,
   storybookUrl: string,
   storyId: string,
   outputPath: string
@@ -441,6 +570,235 @@ async function captureStory(
 
   fs.mkdirSync(path.dirname(outputPath), { recursive: true })
   await page.screenshot({ path: outputPath, fullPage: true })
+}
+
+export interface CaptureStoriesOptions {
+  storyIds: readonly string[]
+  storybookUrl: string
+  outputDir: string
+  /** null captures into new_stories (the --update-baselines flow). */
+  baselineDir: string | null
+  threshold: number
+  /** Session factory seam — the real one launches Playwright chromium. */
+  openSession: () => Promise<StoryCaptureSession>
+  /**
+   * Relaunch budget after the initial launch (default
+   * DEFAULT_MAX_BROWSER_RELAUNCHES). Every post-initial session open —
+   * proactive relaunch, page-open failure recovery, and the one per-story
+   * retry after a session death — funnels through the same budget.
+   */
+  maxRelaunches?: number
+  log?: (message: string) => void
+}
+
+/**
+ * Capture every story on its own fresh page, reusing one browser session
+ * while it stays healthy.
+ *
+ * Failure model (REP-1648):
+ * - a story-level capture failure is recorded via recordCaptureError and the
+ *   run continues with the next story on a fresh page;
+ * - a session death (page open fails, or `isUsable()` goes false) triggers a
+ *   bounded relaunch; the story that coincided with the death is retried
+ *   once on the recovered session before being recorded as failed;
+ * - once the relaunch budget is exhausted, `BrowserRecoveryExhaustedError`
+ *   records the current story AND every remaining story as failures — the
+ *   run fails closed instead of silently continuing;
+ * - the session is closed in `finally` on every path, so no chromium
+ *   process outlives the run.
+ */
+export async function captureStories(
+  options: CaptureStoriesOptions
+): Promise<CaptureOutput> {
+  const {
+    storyIds,
+    storybookUrl,
+    outputDir,
+    baselineDir,
+    threshold,
+    openSession,
+  } = options
+  const maxRelaunches = options.maxRelaunches ?? DEFAULT_MAX_BROWSER_RELAUNCHES
+  const log = options.log ?? ((message: string) => console.error(message))
+
+  const output: CaptureOutput = {
+    stories_checked: [...storyIds],
+    passed: [],
+    failed: [],
+    new_stories: [],
+  }
+
+  let session: StoryCaptureSession | null = null
+  let sessionsOpened = 0
+  let relaunches = 0
+  let lastSessionFailure = 'browser session is no longer usable'
+
+  const closeSession = async (): Promise<void> => {
+    const doomed = session
+    session = null
+    if (doomed === null) return
+    await doomed.close().catch(() => {})
+  }
+
+  /**
+   * Read the current session through a declared return type. A direct read
+   * in the loop body would inherit TypeScript's stale `null` narrowing —
+   * `session` is only ever reassigned inside these closures, so the outer
+   * body's narrowing collapses `!== null` checks to `never`.
+   */
+  const currentSession = (): StoryCaptureSession | null => session
+
+  /**
+   * Open a session, enforcing the relaunch budget on every open after the
+   * first. All recovery paths funnel through here, so the number of browser
+   * launches over a run is bounded: 1 initial + maxRelaunches.
+   */
+  const openTrackedSession = async (): Promise<StoryCaptureSession> => {
+    if (sessionsOpened > 0) {
+      if (relaunches >= maxRelaunches) {
+        throw new BrowserRecoveryExhaustedError(
+          maxRelaunches,
+          lastSessionFailure
+        )
+      }
+      relaunches += 1
+      log(
+        `[visual-regression-capture] browser session lost (${lastSessionFailure}); relaunching (${relaunches}/${maxRelaunches})...`
+      )
+    }
+    sessionsOpened += 1
+    return await openSession()
+  }
+
+  const acquireStoryPage = async (): Promise<StoryCapturePage> => {
+    // Bounded progress loop: every iteration either opens a tracked session
+    // (budget-enforced), closes a dead session, or returns a page — so the
+    // recovery budget, not this loop, bounds the retries.
+    while (true) {
+      if (session === null) {
+        session = await openTrackedSession()
+      }
+      const current = session
+      if (!current.isUsable()) {
+        lastSessionFailure =
+          'browser session is no longer usable (disconnected)'
+        await closeSession()
+        continue
+      }
+      try {
+        return await current.openPage()
+      } catch (err) {
+        // Opening a page on this session failed — the browser/context is
+        // gone. Drop the session; the next iteration relaunches (budgeted).
+        lastSessionFailure = `could not open a story page: ${
+          err instanceof Error ? err.message : String(err)
+        }`
+        await closeSession()
+      }
+    }
+  }
+
+  try {
+    for (let i = 0; i < storyIds.length; i++) {
+      const storyId = storyIds[i]!
+      const screenshotPath = path.join(outputDir, `${storyId}.png`)
+      let captured = false
+      let retriedAfterSessionLoss = false
+
+      while (true) {
+        let page: StoryCapturePage | null = null
+        let captureError: unknown = null
+        try {
+          page = await acquireStoryPage()
+          await captureStory(page, storybookUrl, storyId, screenshotPath)
+        } catch (err) {
+          captureError = err
+        } finally {
+          // The page is per-story: closed on success, failure, and retry.
+          if (page !== null) {
+            await page.close().catch(() => {})
+          }
+        }
+
+        if (captureError === null) {
+          captured = true
+          break
+        }
+
+        if (captureError instanceof BrowserRecoveryExhaustedError) {
+          // Terminal: the browser cannot be recovered. This story and every
+          // remaining one are recorded as failures so the exit code stays
+          // honest — a partially-captured run must never report green.
+          log(
+            `[visual-regression-capture] ${captureError.message} — recording ${
+              storyIds.length - i
+            } story(s) as failed`
+          )
+          recordCaptureError(output, storyId, captureError)
+          for (const remaining of storyIds.slice(i + 1)) {
+            recordCaptureError(output, remaining, captureError)
+          }
+          return output
+        }
+
+        // Snapshot the session that served this story before narrowing: the
+        // variable is reassigned only inside the closures above, so a direct
+        // read here carries TypeScript's stale null-narrowing.
+        const sessionAfterFailure = currentSession()
+        const sessionUsable =
+          sessionAfterFailure !== null && sessionAfterFailure.isUsable()
+        if (!sessionUsable && !retriedAfterSessionLoss) {
+          // The browser died during this story — retry the story once on a
+          // recovered session before recording a failure.
+          retriedAfterSessionLoss = true
+          lastSessionFailure = `browser session lost during capture of ${storyId}`
+          log(
+            `[visual-regression-capture] browser died during capture of ${storyId}; retrying once on a fresh session...`
+          )
+          await closeSession()
+          continue
+        }
+
+        console.error(`Error capturing story ${storyId}:`, captureError)
+        recordCaptureError(output, storyId, captureError)
+        if (!sessionUsable) {
+          await closeSession()
+        }
+        break
+      }
+
+      if (!captured) continue
+
+      if (baselineDir === null) {
+        // No baseline dir — treat as new story
+        output.new_stories.push(storyId)
+        continue
+      }
+
+      const baselinePath = path.join(baselineDir, `${storyId}.png`)
+
+      if (!fs.existsSync(baselinePath)) {
+        // No baseline exists for this story — it's new
+        output.new_stories.push(storyId)
+        continue
+      }
+
+      await diffStoryAgainstBaseline(
+        output,
+        storyId,
+        {
+          baselinePath,
+          screenshotPath,
+          diffOutputPath: path.join(outputDir, `${storyId}.diff.png`),
+        },
+        threshold
+      )
+    }
+  } finally {
+    await closeSession()
+  }
+
+  return output
 }
 
 async function main(): Promise<void> {
@@ -502,57 +860,16 @@ Options:
   }
 
   const chromium = await getBrowser()
-  const browser = await chromium.launch({ headless: true })
-  const context = await browser.newContext({
-    viewport: { width: 1280, height: 720 },
+  const { open } = createPlaywrightSessionFactory(chromium)
+
+  const output = await captureStories({
+    storyIds,
+    storybookUrl,
+    outputDir,
+    baselineDir,
+    threshold,
+    openSession: open,
   })
-  const page = await context.newPage()
-
-  const output: CaptureOutput = {
-    stories_checked: storyIds,
-    passed: [],
-    failed: [],
-    new_stories: [],
-  }
-
-  for (const storyId of storyIds) {
-    const screenshotPath = path.join(outputDir, `${storyId}.png`)
-
-    try {
-      await captureStory(page, storybookUrl, storyId, screenshotPath)
-    } catch (err) {
-      console.error(`Error capturing story ${storyId}:`, err)
-      recordCaptureError(output, storyId, err)
-      continue
-    }
-
-    if (baselineDir === null) {
-      // No baseline dir — treat as new story
-      output.new_stories.push(storyId)
-      continue
-    }
-
-    const baselinePath = path.join(baselineDir, `${storyId}.png`)
-
-    if (!fs.existsSync(baselinePath)) {
-      // No baseline exists for this story — it's new
-      output.new_stories.push(storyId)
-      continue
-    }
-
-    await diffStoryAgainstBaseline(
-      output,
-      storyId,
-      {
-        baselinePath,
-        screenshotPath,
-        diffOutputPath: path.join(outputDir, `${storyId}.diff.png`),
-      },
-      threshold
-    )
-  }
-
-  await browser.close()
 
   console.log(JSON.stringify(output, null, 2))
 

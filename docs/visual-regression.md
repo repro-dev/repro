@@ -16,6 +16,19 @@ blocking `ui-gates-visual-regression` moon task (REP-1648).
 - CI runs it with `--fail-on-new`: a story without a committed baseline fails
   the gate, so **a new story must ship its baseline in the same PR**.
 
+### Capture resilience
+
+Each story is captured on its own fresh browser page (closed as soon as the
+story finishes), so a single story's capture failure — timeout, crashed tab —
+is recorded for that story alone and cannot poison the rest of the run. If the
+browser session itself dies mid-run (for example the runner kills the headless
+chromium process), the capture relaunches it and retries the interrupted story
+once; relaunches are bounded (2 after the initial launch). When the budget is
+exhausted, the run fails closed: every remaining story is reported in `failed`
+with a `browser recovery exhausted` error, so a partially-captured run can
+never exit green. Re-running after an isolated browser death is expected to
+succeed (this is what happened in the REP-1648 baseline-regeneration failure).
+
 ## Baseline rules
 
 1. **Baselines are committed to the repo** at `tmp/visual-baselines/*.png`
