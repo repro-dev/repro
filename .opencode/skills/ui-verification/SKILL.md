@@ -164,13 +164,13 @@ Do not log these as findings:
 - white print-to-PDF letter margins (print rendition, not the live surface)
 - print-rendition font differences vs live recapture
 - duplicate captures of the same surface — dedupe before scoring (2026-09-02 audit caveats)
-- REP-1635-class tooling failures (silent agent-browser input loss — see Troubleshooting below): broken input delivery is a toolchain problem — fix the tool first; never log it as a product finding
+- Silent agent-browser input loss (tooling failure — see Troubleshooting below): broken input delivery is a toolchain problem — fix the tool first; never log it as a product finding
 
 ### Audit findings feed /impeccable critique
 
 Audit findings and their evidence feed `/impeccable critique` snapshots so the score-trend history accumulates across deliveries. Commit the critique snapshots per the design-system conventions so later deliveries can compare against a named baseline.
 
-## Troubleshooting: silent browser input loss (REP-1635)
+## Troubleshooting: silent browser input loss
 
 The verification loop has no mandatory pre-flight — this section is the recovery path for one specific failure mode. agent-browser 0.33.1 (Homebrew) silently delivered zero CDP input events: every `click`, `press`, keyboard, and raw mouse command reported `✓ Done` while dispatching nothing to the page, which made a toolchain failure look like an app bug (`auth login` filled the form but the submit click never fired). Upstream fixed delivery in 0.33.2 (vercel-labs/agent-browser #1594 — keyboard payloads reached CDP as explicit `null`, silently dropping keys; #1432/#1434 — click reliability: scroll-into-view, dialog handling, mouse-state recovery, interception detection). No Chrome/agent-browser version-pairing matrix is documented upstream, so a live canary — not a version table — is the only reliable check.
 

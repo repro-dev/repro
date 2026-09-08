@@ -156,6 +156,8 @@ Without the negations the file is silently untracked and never appears in the PR
 
 When passing output paths to tools (e.g. Playwright `outputDir`, Storybook screenshot `outputPath`), always resolve to an absolute path under `<repo-root>/tmp/`.
 
+**Gotcha — gitignore-respecting tools vacuously pass on `tmp/` paths**: Prettier (v3, respects `.gitignore` even for explicitly-passed files) reports "All matched files use Prettier code style!" for a `tmp/<file>` check target without checking it — the same message it prints when no files match. Never validate formatting by copying a file into `tmp/`; run the check on the file at its real, tracked path (or stage it first). A vacuous pass is indistinguishable from a real one otherwise.
+
 ## Worktrees & OpenCode External Directory Permission
 
 Git worktrees created by `reproctl wt create` live as sibling directories of the main checkout (e.g. `../repro-wt-<name>`). When running OpenCode from the main checkout and accessing files in a worktree (or vice-versa), OpenCode will prompt for permission because the path is outside the working directory.

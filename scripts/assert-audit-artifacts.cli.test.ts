@@ -27,7 +27,7 @@ function fixture() {
   mkdirSync(path.join(auditDir, 'shots'), { recursive: true })
   writeFileSync(path.join(auditDir, 'shots', 'sessions-idle.png'), 'png-bytes')
 
-  // REP-1635: the manifest schema carries no canary/agentBrowserVersion fields.
+  // The manifest schema carries no canary/agentBrowserVersion fields.
   const manifest = {
     issue: 'REP-0000',
     generatedAt: GENERATED_AT,
@@ -191,7 +191,7 @@ describe('REP-1653 CLI exit codes', () => {
       for (const entry of report.results) {
         assert.equal(entry.ok, true, entry.id)
       }
-      // REP-1635: no canary assertion exists in the result list.
+      // No canary assertion exists in the result list.
       assert.ok(!report.results.some(r => r.id === 'canary'))
     } finally {
       f.cleanup()

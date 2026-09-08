@@ -21,7 +21,7 @@ Use this skill when the changed surface is a browser extension rather than a nor
 3. Verify the extension surface, host-page interaction, and evidence capture in the same browser session.
 4. Keep shared browser state in the main checkout `tmp/agent-browser/` tree and keep per-worktree artifacts under the worktree `tmp/` tree.
 
-Extension runs drive the same `agent-browser` toolchain as app runs. If clicks or keypresses silently do nothing (`✓ Done` with no page response), suspect the toolchain before the extension — see the `ui-verification` skill's **Troubleshooting: silent browser input loss** (REP-1635).
+Extension runs drive the same `agent-browser` toolchain as app runs. If clicks or keypresses silently do nothing (`✓ Done` with no page response), suspect the toolchain before the extension — see the `ui-verification` skill's **Troubleshooting: silent browser input loss**.
 
 ## Local surfaces
 

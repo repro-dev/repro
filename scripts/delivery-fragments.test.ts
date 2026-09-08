@@ -90,7 +90,7 @@ describe('REP-1646 UI audit gate wiring', () => {
     assert.match(skill, /Known-artifact ignore list/i)
   })
 
-  it('keeps the browser canary as troubleshooting-only guidance (REP-1635)', () => {
+  it('keeps the browser canary as troubleshooting-only guidance', () => {
     const skill = readText('.opencode/skills/ui-verification/SKILL.md')
 
     // The troubleshooting recipe is the only place describing the incident:
@@ -103,7 +103,7 @@ describe('REP-1646 UI audit gate wiring', () => {
     assert.doesNotMatch(skill, /"canary"/)
   })
 
-  it('keeps the audit gate canary-free in delivery-workflow (REP-1635)', () => {
+  it('keeps the audit gate canary-free in delivery-workflow', () => {
     const skill = readText('.opencode/skills/delivery-workflow/SKILL.md')
 
     // The §5 Step 3 audit prompt and §5 Step 4 assertion list must not

@@ -344,7 +344,7 @@ describe('REP-1653 assertAuditArtifacts (pure core)', () => {
   })
 
   it('passes without canary/agentBrowserVersion fields (not part of the gate)', () => {
-    // REP-1635: the browser input canary is troubleshooting-only guidance —
+    // The browser input canary is troubleshooting-only guidance —
     // the manifest schema and this gate no longer carry canary fields.
     const report = f.run()
     assert.equal(report.ok, true)
