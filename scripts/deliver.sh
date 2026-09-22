@@ -355,6 +355,11 @@ _create_worktree_and_launch() {
       attached_wt="$wt_entry_path"
     fi
 
+    if [[ -n "$attached_wt" && "$attached_wt" == "$MAIN_CHECKOUT" ]]; then
+      _err "PR branch '$branch' is checked out in the primary checkout ($MAIN_CHECKOUT); PR delivery requires an isolated worktree."
+      exit 1
+    fi
+
     if [[ -n "$local_branch_commit" ]]; then
       if [[ "$local_branch_commit" != "$pr_head" ]]; then
         _err "Local PR branch '$branch' does not match fetched PR #${mode_arg} head."

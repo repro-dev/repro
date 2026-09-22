@@ -1340,6 +1340,43 @@ test_pr_title_only_issue_id_routes_label_and_prompt() {
   fi
 }
 
+# Test 42 (REP-1693): the primary checkout must never be adopted for a PR,
+# even when its branch is already at the exact fetched head. Refuse before
+# opening a herdr workspace or launching the agent, without creating a second
+# worktree for the branch.
+test_pr_refuses_main_checkout_at_exact_fetched_head() {
+  local tmpdir rc=0 branch pr_head output open_log launch split_args worktree_list worktree_count
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  pr_head="$(_setup_pr_remote_fixture "$tmpdir" 706)"
+  branch="feature/pr-primary-checkout"
+  git -C "$tmpdir" branch -M "$branch"
+  _write_runner "$tmpdir" "--pr 706"
+
+  output="$(GH_STUB_PR_JSON="$(_pr_json "$branch" "" "PR branch in primary checkout")" \
+    REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  open_log="$(cat "$tmpdir/herdr_worktree_open.log" 2>/dev/null || true)"
+  launch="$(cat "$tmpdir/herdr_prompt_launch.txt" 2>/dev/null || true)"
+  split_args="$(cat "$tmpdir/herdr_split_args.log" 2>/dev/null || true)"
+  worktree_list="$(git -C "$tmpdir" worktree list --porcelain)"
+  worktree_count="$(printf '%s\n' "$worktree_list" | grep -c '^worktree ' || true)"
+  rm -rf "$tmpdir"
+
+  if [ "$rc" -ne 0 ] \
+    && printf '%s\n' "$output" | grep -qi 'primary checkout.*isolated worktree' \
+    && [ -z "$open_log" ] \
+    && [ -z "$launch" ] \
+    && [ -z "$split_args" ] \
+    && [ "$worktree_count" -eq 1 ] \
+    && printf '%s\n' "$worktree_list" | grep -Fxq "worktree $tmpdir" \
+    && printf '%s\n' "$worktree_list" | grep -Fxq "HEAD $pr_head" \
+    && printf '%s\n' "$worktree_list" | grep -Fxq "branch refs/heads/$branch"; then
+    _pass "PR refuses the exact-head primary checkout before herdr or agent launch"
+  else
+    _fail "PR refuses the exact-head primary checkout before herdr or agent launch" "rc=$rc; worktrees=$worktree_count; open: ${open_log:-<absent>}; split: ${split_args:-<absent>}; launch: ${launch:-<absent>}; output: $output; worktree list: $worktree_list"
+  fi
+}
+
 # ── Run all tests ──────────────────────────────────────────────────────
 
 test_file_exists
@@ -1384,6 +1421,7 @@ test_pr_refuses_mismatched_attached_branch
 test_pr_refuses_mismatched_unattached_branch
 test_pr_creates_fresh_branch_and_worktree
 test_pr_title_only_issue_id_routes_label_and_prompt
+test_pr_refuses_main_checkout_at_exact_fetched_head
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed out of $TESTS_RUN tests"
