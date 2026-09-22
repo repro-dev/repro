@@ -1602,6 +1602,130 @@ STUB
   fi
 }
 
+# Exercise the rejection checks in the post-scan race-recovery path itself:
+# a worktree at the requested path on another branch, the primary checkout,
+# and an isolated same-branch worktree at a different head.
+_assert_pr_race_competitor_is_rejected() {
+  local scenario="$1" tmpdir pr_head wrong_head branch other_branch requested_wt winner_wt
+  local competitor_path competitor_branch competitor_head expected_count output rc=0 real_git
+  local open_log launch split_args worktree_list worktree_count actual_head actual_branch
+  local add_count pushed_head remaining_refs marker_created=false
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  pr_head="$(_setup_pr_remote_fixture "$tmpdir" 713)"
+  wrong_head="$(git -C "$tmpdir" rev-parse "${pr_head}^")"
+  branch="feature/concurrent-pr-713"
+  other_branch="feature/unrelated-pr-713"
+  requested_wt="$tmpdir/workspaces/repro-wt-pr-713"
+  winner_wt="$tmpdir/workspaces/competing-pr-713"
+  real_git="$(command -v git)"
+  case "$scenario" in
+    mismatched)
+      competitor_path="$requested_wt"
+      competitor_branch="$other_branch"
+      competitor_head="$pr_head"
+      expected_count=2
+      ;;
+    primary)
+      competitor_path="$tmpdir"
+      competitor_branch="$branch"
+      competitor_head="$pr_head"
+      expected_count=1
+      ;;
+    wrong-head)
+      competitor_path="$winner_wt"
+      competitor_branch="$branch"
+      competitor_head="$wrong_head"
+      expected_count=2
+      ;;
+    *)
+      return 2
+      ;;
+  esac
+  _write_runner "$tmpdir" "--pr 713"
+
+  cat > "$tmpdir/git" <<'STUB'
+#!/bin/bash
+if [ "${1:-}" = "worktree" ] && [ "${2:-}" = "add" ] && [ "${3:-}" = "-b" ]; then
+  printf '%s\n' "$*" >> "$DELIVER_PR_ADD_LOG"
+  if [ ! -f "$DELIVER_PR_RACE_MARKER" ]; then
+    case "$DELIVER_PR_RACE_KIND" in
+      mismatched)
+        "$REAL_GIT" -C "$DELIVER_PR_RACE_REPO" worktree add -q -b \
+          "$DELIVER_PR_RACE_OTHER_BRANCH" "$DELIVER_PR_RACE_REQUESTED" "$6" ;;
+      primary)
+        "$REAL_GIT" -C "$DELIVER_PR_RACE_REPO" checkout -q -b "$4" "$6" ;;
+      wrong-head)
+        "$REAL_GIT" -C "$DELIVER_PR_RACE_REPO" worktree add -q -b \
+          "$4" "$DELIVER_PR_RACE_WINNER" "$DELIVER_PR_RACE_WRONG_HEAD" ;;
+    esac || exit 1
+    touch "$DELIVER_PR_RACE_MARKER"
+    echo 'fatal: simulated unsafe competing worktree creation' >&2
+    exit 1
+  fi
+fi
+exec "$REAL_GIT" "$@"
+STUB
+  chmod +x "$tmpdir/git"
+
+  output="$(REAL_GIT="$real_git" DELIVER_PR_RACE_KIND="$scenario" \
+    DELIVER_PR_RACE_REPO="$tmpdir" DELIVER_PR_RACE_WINNER="$winner_wt" \
+    DELIVER_PR_RACE_REQUESTED="$requested_wt" DELIVER_PR_RACE_OTHER_BRANCH="$other_branch" \
+    DELIVER_PR_RACE_WRONG_HEAD="$wrong_head" \
+    DELIVER_PR_RACE_MARKER="$tmpdir/race-competitor-created" \
+    DELIVER_PR_ADD_LOG="$tmpdir/pr-worktree-add.log" \
+    GH_STUB_PR_JSON="$(_pr_json "$branch" "" "Concurrent PR 713")" \
+    REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  open_log="$(cat "$tmpdir/herdr_worktree_open.log" 2>/dev/null || true)"
+  launch="$(cat "$tmpdir/herdr_prompt_launch.txt" 2>/dev/null || true)"
+  split_args="$(cat "$tmpdir/herdr_split_args.log" 2>/dev/null || true)"
+  worktree_list="$(git -C "$tmpdir" worktree list --porcelain)"
+  worktree_count="$(printf '%s\n' "$worktree_list" | grep -c '^worktree ' || true)"
+  actual_head="$(git -C "$competitor_path" rev-parse HEAD 2>/dev/null || true)"
+  actual_branch="$(git -C "$competitor_path" branch --show-current 2>/dev/null || true)"
+  add_count="$(wc -l < "$tmpdir/pr-worktree-add.log" 2>/dev/null | tr -d ' ' || true)"
+  pushed_head="$(git --git-dir="$tmpdir/origin.git" rev-parse --verify --quiet "refs/heads/$branch" 2>/dev/null || true)"
+  remaining_refs="$(git -C "$tmpdir" for-each-ref --format='%(refname)' refs/deliver/pr)"
+  if [ -f "$tmpdir/race-competitor-created" ]; then
+    marker_created=true
+  fi
+  rm -rf "$tmpdir"
+
+  if [ "$rc" -ne 0 ] \
+    && [ "$marker_created" = true ] \
+    && [ "$worktree_count" -eq "$expected_count" ] \
+    && [ "$actual_head" = "$competitor_head" ] \
+    && [ "$actual_branch" = "$competitor_branch" ] \
+    && [ -z "$open_log" ] && [ -z "$launch" ] && [ -z "$split_args" ] \
+    && [ -z "$pushed_head" ] && [ -z "$remaining_refs" ] \
+    && [ "$add_count" -eq 1 ]; then
+    return 0
+  fi
+
+  printf 'scenario=%s; rc=%s; marker=%s; competitor=%s (%s at %s); expected head=%s; worktrees=%s; add attempts=%s; pushed=%s; refs=%s; open=%s; split=%s; launch=%s; output=%s\n' \
+    "$scenario" "$rc" "$marker_created" \
+    "$actual_branch" "$actual_head" "$competitor_path" "$competitor_head" \
+    "$worktree_count" "$add_count" "${pushed_head:-<absent>}" "${remaining_refs:-<none>}" \
+    "${open_log:-<absent>}" "${split_args:-<absent>}" \
+    "${launch:-<absent>}" "$output" >&2
+  return 1
+}
+
+test_pr_rejects_unsafe_competitors_created_after_initial_scan() {
+  local scenario failures=""
+  for scenario in mismatched primary wrong-head; do
+    if ! _assert_pr_race_competitor_is_rejected "$scenario"; then
+      failures="$failures $scenario"
+    fi
+  done
+
+  if [ -z "$failures" ]; then
+    _pass "PR refuses mismatched, primary-checkout, and wrong-head race competitors"
+  else
+    _fail "PR refuses mismatched, primary-checkout, and wrong-head race competitors" "failed scenarios:$failures"
+  fi
+}
+
 # Test 46 (REP-1693): distinct PRs with the same title-only issue ID retain
 # their shared Herdr label/prompt while using distinct PR-specific worktrees.
 test_pr_same_issue_id_uses_distinct_pr_worktrees() {
@@ -1714,6 +1838,7 @@ test_pr_refuses_main_checkout_at_exact_fetched_head
 test_pr_fetch_head_isolated_between_same_checkout_fetches
 test_pr_fetch_ref_is_unique_for_simultaneous_same_pr_invocations
 test_pr_recovers_exact_head_worktree_created_after_initial_scan
+test_pr_rejects_unsafe_competitors_created_after_initial_scan
 test_pr_same_issue_id_uses_distinct_pr_worktrees
 
 echo ""
