@@ -131,18 +131,20 @@ _mode_pr() {
   title="$(printf '%s' "$pr_json" | jq -r '.title // empty' 2>/dev/null || true)"
   body="$(printf '%s' "$pr_json" | jq -r '.body // ""' 2>/dev/null || true)"
 
-  # Extract Linear issue ID from branch name (preferred) or PR body
+  # Extract Linear issue ID from branch name (preferred), PR body, then title.
   local issue_id=""
   if [[ "$branch" =~ [A-Z]+-[0-9]+ ]]; then
     issue_id="${BASH_REMATCH[0]}"
   elif [[ "$body" =~ [A-Z]+-[0-9]+ ]]; then
+    issue_id="${BASH_REMATCH[0]}"
+  elif [[ "$title" =~ [A-Z]+-[0-9]+ ]]; then
     issue_id="${BASH_REMATCH[0]}"
   fi
 
   printf '%s\n%s\n%s\n' "$issue_id" "$branch" "$title"
 
   if [[ -z "$issue_id" ]]; then
-    _warn "No Linear issue ID found in PR #${pr_number} (checked branch name and body)."
+    _warn "No Linear issue ID found in PR #${pr_number} (checked branch name, body, and title)."
   fi
 }
 
@@ -325,10 +327,62 @@ _create_worktree_and_launch() {
       echo "  Try: git fetch origin pull/${mode_arg}/head" >&2
       exit 1
     }
-    git worktree add "$wt_path" "FETCH_HEAD"
-    # Create a local branch at this ref so it can be pushed
-    git -C "$wt_path" checkout -b "$branch"
-    git push -u origin "$branch" 2>/dev/null || true
+
+    local pr_head local_branch_commit attached_wt="" attached_head=""
+    local wt_entry_path="" wt_entry_branch="" line
+    pr_head="$(git rev-parse --verify FETCH_HEAD 2>/dev/null)" || {
+      _err "Could not resolve the fetched head for PR #${mode_arg}."
+      exit 1
+    }
+    local_branch_commit="$(git rev-parse --verify --quiet "refs/heads/$branch" 2>/dev/null || true)"
+
+    # A local branch already checked out in a worktree is adoptable only when
+    # that worktree's HEAD is exactly the fetched PR head. Do not checkout,
+    # reset, or clean adopted worktrees: they may contain user-owned changes.
+    while IFS= read -r line; do
+      case "$line" in
+        worktree\ *) wt_entry_path="${line#worktree }" ;;
+        branch\ *)   wt_entry_branch="${line#branch refs/heads/}" ;;
+        "")
+          if [[ "$wt_entry_branch" == "$branch" ]]; then
+            attached_wt="$wt_entry_path"
+          fi
+          wt_entry_path="" wt_entry_branch=""
+          ;;
+      esac
+    done < <(git worktree list --porcelain)
+    if [[ "$wt_entry_branch" == "$branch" ]]; then
+      attached_wt="$wt_entry_path"
+    fi
+
+    if [[ -n "$local_branch_commit" ]]; then
+      if [[ "$local_branch_commit" != "$pr_head" ]]; then
+        _err "Local PR branch '$branch' does not match fetched PR #${mode_arg} head."
+        exit 1
+      fi
+
+      if [[ -n "$attached_wt" ]]; then
+        attached_head="$(git -C "$attached_wt" rev-parse --verify HEAD 2>/dev/null)" || attached_head=""
+        if [[ "$attached_head" != "$pr_head" ]]; then
+          _err "Worktree for local PR branch '$branch' does not match fetched PR #${mode_arg} head."
+          exit 1
+        fi
+        wt_path="$attached_wt"
+      else
+        git worktree add "$wt_path" "$branch" || {
+          _err "Could not attach local PR branch '$branch' to a worktree."
+          exit 1
+        }
+      fi
+    else
+      # Create the branch and worktree together so branch-creation failure
+      # cannot strand an extra detached worktree.
+      git worktree add -b "$branch" "$wt_path" "$pr_head" || {
+        _err "Could not create a worktree for PR #${mode_arg} on branch '$branch'."
+        exit 1
+      }
+      git push -u origin "$branch" 2>/dev/null || true
+    fi
   elif [[ "$mode" == "bare_branch" ]]; then
     # Bare branch mode — checkout existing branch or create from HEAD
     if git rev-parse --verify --quiet "refs/heads/$branch" >/dev/null 2>&1; then

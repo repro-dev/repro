@@ -86,6 +86,20 @@ printf '{"item":{"id":"uuid-1","identifier":"REP-123","title":"Test issue","bran
 STUB
   chmod +x "$tmpdir/linear"
 
+  # gh stub for PR-mode integration tests. GH_STUB_PR_JSON contains the
+  # controlled response from `gh pr view`; Git refs themselves are served by
+  # each test's local bare origin fixture.
+  cat > "$tmpdir/gh" << 'STUB'
+#!/bin/bash
+if [ "${1:-}" = "pr" ] && [ "${2:-}" = "view" ]; then
+  printf '%s\n' "${GH_STUB_PR_JSON:-{}}"
+  exit 0
+fi
+echo "unexpected gh invocation: $*" >&2
+exit 1
+STUB
+  chmod +x "$tmpdir/gh"
+
   # herdr stub: status, workspace open, pane list/read/split/run/send-keys,
   # agent start.
   # The pane split case records its arguments so tests can assert the ratio.
@@ -241,7 +255,8 @@ STUB
 # Copies deliver.sh into the tmpdir scripts/ subdir so SCRIPT_DIR resolves
 # to the sandbox. Stubs are found there for reproctl.sh and via PATH for
 # herdr and linear. CALLER_PWD points at the sandbox so common.sh resolves
-# REPO_ROOT/MAIN_CHECKOUT against the sandbox git repo.
+# REPO_ROOT/MAIN_CHECKOUT against the sandbox git repo. The runner also cd's
+# there so implicit git commands exercise that same fixture repo.
 _write_runner() {
   local tmpdir="$1"
   local args="$2"
@@ -252,9 +267,38 @@ _write_runner() {
   # settle before the Enter submit is asserted by no test and would otherwise
   # slow every test that reaches Stage 4. Individual tests can still override
   # it inline (the :- expansion keeps an inherited value).
-  printf '#!/bin/bash\nexport CALLER_PWD="%s"\nexport PATH="%s:$PATH"\nexport DELIVER_SUBMIT_SETTLE="${DELIVER_SUBMIT_SETTLE:-0}"\nexec bash "%s/scripts/deliver.sh" %s\n' \
-    "$tmpdir" "$tmpdir" "$tmpdir" "$args" > "$tmpdir/run_test.sh"
+  printf '#!/bin/bash\nexport CALLER_PWD="%s"\nexport PATH="%s:$PATH"\nexport DELIVER_SUBMIT_SETTLE="${DELIVER_SUBMIT_SETTLE:-0}"\ncd "%s" || exit 1\nexec bash "%s/scripts/deliver.sh" %s\n' \
+    "$tmpdir" "$tmpdir" "$tmpdir" "$tmpdir" "$args" > "$tmpdir/run_test.sh"
   chmod +x "$tmpdir/run_test.sh"
+}
+
+# Create a local bare origin and a real PR head ref for PR-mode integration
+# tests. Prints the fetched PR commit. No network access is used.
+_setup_pr_remote_fixture() {
+  local tmpdir="$1"
+  local pr_number="$2"
+
+  mkdir -p "$tmpdir/workspaces"
+  git -C "$tmpdir" config user.email test@example.com
+  git -C "$tmpdir" config user.name Test
+  git -C "$tmpdir" commit -q --allow-empty -m "PR fixture base"
+  git init -q --bare "$tmpdir/origin.git"
+  git -C "$tmpdir" remote add origin "$tmpdir/origin.git"
+  git -C "$tmpdir" push -q origin HEAD:refs/heads/main
+  git -C "$tmpdir" commit -q --allow-empty -m "PR fixture head"
+
+  local pr_head
+  pr_head="$(git -C "$tmpdir" rev-parse HEAD)"
+  git -C "$tmpdir" push -q origin "HEAD:refs/heads/pr-fixture-$pr_number"
+  git --git-dir="$tmpdir/origin.git" update-ref "refs/pull/${pr_number}/head" "$pr_head"
+  printf '%s\n' "$pr_head"
+}
+
+_pr_json() {
+  local branch="$1"
+  local body="$2"
+  local title="$3"
+  printf '{"headRefName":"%s","body":"%s","title":"%s"}' "$branch" "$body" "$title"
 }
 
 # ── Tests ─────────────────────────────────────────────────────────────
@@ -1090,6 +1134,212 @@ test_herdr_list_failure_fails_open_to_worktree_open() {
   fi
 }
 
+# ── PR worktree adoption regression coverage ───────────────────────────
+
+# Test 35: a worktree attached to the PR branch at the exact fetched head is
+# adopted as-is. In particular, the untracked --full-page sentinel must
+# survive, herdr must open the existing path, and the usual pane launch runs
+# in that path without adding a second worktree.
+test_pr_adopts_exact_head_worktree_without_touching_contents() {
+  local tmpdir rc=0 branch pr_head existing_wt output open_log split_args launch sentinel worktree_count
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  pr_head="$(_setup_pr_remote_fixture "$tmpdir" 701)"
+  branch="feature/pr-adoption"
+  existing_wt="$tmpdir/workspaces/existing-pr-worktree"
+  git -C "$tmpdir" worktree add -q -b "$branch" "$existing_wt" "$pr_head"
+  printf 'keep this untracked file\n' > "$existing_wt/--full-page"
+  _write_runner "$tmpdir" "--pr 701"
+
+  output="$(GH_STUB_PR_JSON="$(_pr_json "$branch" "" "Adopt exact head")" \
+    REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  open_log="$(cat "$tmpdir/herdr_worktree_open.log" 2>/dev/null || true)"
+  split_args="$(cat "$tmpdir/herdr_split_args.log" 2>/dev/null || true)"
+  launch="$(cat "$tmpdir/herdr_prompt_launch.txt" 2>/dev/null || true)"
+  sentinel="$(cat "$existing_wt/--full-page" 2>/dev/null || true)"
+
+  worktree_count="$(git -C "$tmpdir" worktree list --porcelain | grep -c '^worktree ' || true)"
+  rm -rf "$tmpdir"
+
+  if [ "$rc" -eq 0 ] \
+    && [ "$sentinel" = 'keep this untracked file' ] \
+    && printf '%s\n' "$open_log" | grep -qF -- "--path $existing_wt" \
+    && printf '%s\n' "$split_args" | grep -qF -- "--cwd $existing_wt" \
+    && printf '%s\n' "$launch" | grep -qF -- "cd \"$existing_wt\"" \
+    && [ "$worktree_count" -eq 2 ]; then
+    _pass "PR adopts exact-head worktree, preserves untracked content, and launches in the existing path"
+  else
+    _fail "PR adopts exact-head worktree, preserves untracked content, and launches in the existing path" "rc=$rc; worktrees=$worktree_count; sentinel=${sentinel:-<absent>}; open: ${open_log:-<absent>}; split: ${split_args:-<absent>}; launch: ${launch:-<absent>}; output: $output"
+  fi
+}
+
+# Test 36: an unattached local branch at the fetched PR head can be attached
+# directly, then opened in herdr at its new worktree path.
+test_pr_attaches_existing_exact_branch_without_worktree() {
+  local tmpdir rc=0 branch pr_head wt_path output open_log actual_head actual_branch worktree_count
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  pr_head="$(_setup_pr_remote_fixture "$tmpdir" 702)"
+  branch="feature/pr-existing-exact"
+  git -C "$tmpdir" branch "$branch" "$pr_head"
+  wt_path="$tmpdir/workspaces/repro-wt-pr-702"
+  _write_runner "$tmpdir" "--pr 702"
+
+  output="$(GH_STUB_PR_JSON="$(_pr_json "$branch" "" "Attach exact branch")" \
+    REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  open_log="$(cat "$tmpdir/herdr_worktree_open.log" 2>/dev/null || true)"
+  actual_head="$(git -C "$wt_path" rev-parse HEAD 2>/dev/null || true)"
+  actual_branch="$(git -C "$wt_path" branch --show-current 2>/dev/null || true)"
+  worktree_count="$(git -C "$tmpdir" worktree list --porcelain | grep -c '^worktree ' || true)"
+  rm -rf "$tmpdir"
+
+  if [ "$rc" -eq 0 ] \
+    && [ "$actual_head" = "$pr_head" ] \
+    && [ "$actual_branch" = "$branch" ] \
+    && printf '%s\n' "$open_log" | grep -qF -- "--path $wt_path" \
+    && [ "$worktree_count" -eq 2 ]; then
+    _pass "PR attaches an existing unattached branch only when its head matches"
+  else
+    _fail "PR attaches an existing unattached branch only when its head matches" "rc=$rc; head=$actual_head expected=$pr_head; branch=$actual_branch; worktrees=$worktree_count; open: ${open_log:-<absent>}; output: $output"
+  fi
+}
+
+# Test 37: branch ID wins over a different ID in the body/title; when the
+# branch has no ID, the body wins over the title. The title-only fallback is
+# separately exercised through a real worktree and prompt launch below.
+test_pr_issue_id_source_precedence() {
+  local tmpdir branch_output body_output
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  _write_runner "$tmpdir" "--dry-run --pr 703"
+
+  branch_output="$(GH_STUB_PR_JSON="$(_pr_json "feature/REP-111-branch" "Closes REP-222" "Title REP-333")" \
+    bash "$tmpdir/run_test.sh" 2>&1)"
+  body_output="$(GH_STUB_PR_JSON="$(_pr_json "feature/no-issue" "Closes REP-222" "Title REP-333")" \
+    bash "$tmpdir/run_test.sh" 2>&1)"
+  rm -rf "$tmpdir"
+
+  if printf '%s\n' "$branch_output" | grep -qF 'Workspace label: REP-111' \
+    && printf '%s\n' "$body_output" | grep -qF 'Workspace label: REP-222'; then
+    _pass "PR issue ID precedence is branch, then body, then title"
+  else
+    _fail "PR issue ID precedence is branch, then body, then title" "branch output: $branch_output; body output: $body_output"
+  fi
+}
+
+# Test 38: a local branch checked out at a different commit is rejected before
+# an extra worktree or herdr workspace can be created.
+test_pr_refuses_mismatched_attached_branch() {
+  local tmpdir rc=0 branch pr_head existing_wt output open_log worktree_count
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  pr_head="$(_setup_pr_remote_fixture "$tmpdir" 702)"
+  branch="feature/pr-mismatch-attached"
+  git -C "$tmpdir" commit -q --allow-empty -m "different local branch head"
+  existing_wt="$tmpdir/workspaces/mismatched-pr-worktree"
+  git -C "$tmpdir" worktree add -q -b "$branch" "$existing_wt" HEAD
+  _write_runner "$tmpdir" "--pr 702"
+
+  output="$(GH_STUB_PR_JSON="$(_pr_json "$branch" "" "Mismatched attached head")" \
+    REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  open_log="$(cat "$tmpdir/herdr_worktree_open.log" 2>/dev/null || true)"
+  worktree_count="$(git -C "$tmpdir" worktree list --porcelain | grep -c '^worktree ' || true)"
+  rm -rf "$tmpdir"
+
+  if [ "$rc" -ne 0 ] \
+    && printf '%s\n' "$output" | grep -qi 'does not match.*PR' \
+    && [ -z "$open_log" ] \
+    && [ "$worktree_count" -eq 2 ]; then
+    _pass "PR refuses mismatched attached branch before creating a worktree or workspace"
+  else
+    _fail "PR refuses mismatched attached branch before creating a worktree or workspace" "rc=$rc; worktrees=$worktree_count; open: ${open_log:-<absent>}; output: $output"
+  fi
+}
+
+# Test 39: an unattached local branch may only be attached if its commit equals
+# the fetched PR head. A mismatch must fail before `git worktree add`.
+test_pr_refuses_mismatched_unattached_branch() {
+  local tmpdir rc=0 branch pr_head output open_log worktree_count
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  pr_head="$(_setup_pr_remote_fixture "$tmpdir" 703)"
+  branch="feature/pr-mismatch-unattached"
+  git -C "$tmpdir" commit -q --allow-empty -m "different local branch head"
+  git -C "$tmpdir" branch "$branch" HEAD
+  _write_runner "$tmpdir" "--pr 703"
+
+  output="$(GH_STUB_PR_JSON="$(_pr_json "$branch" "" "Mismatched unattached head")" \
+    REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  open_log="$(cat "$tmpdir/herdr_worktree_open.log" 2>/dev/null || true)"
+  worktree_count="$(git -C "$tmpdir" worktree list --porcelain | grep -c '^worktree ' || true)"
+  rm -rf "$tmpdir"
+
+  if [ "$rc" -ne 0 ] \
+    && printf '%s\n' "$output" | grep -qi 'does not match.*PR' \
+    && [ -z "$open_log" ] \
+    && [ "$worktree_count" -eq 1 ]; then
+    _pass "PR refuses mismatched unattached branch before creating a worktree or workspace"
+  else
+    _fail "PR refuses mismatched unattached branch before creating a worktree or workspace" "rc=$rc; worktrees=$worktree_count; open: ${open_log:-<absent>}; output: $output"
+  fi
+}
+
+# Test 40: with no local PR branch or worktree, PR mode still creates the
+# branch and worktree at FETCH_HEAD and pushes the fresh branch to origin.
+test_pr_creates_fresh_branch_and_worktree() {
+  local tmpdir rc=0 branch pr_head output wt_path actual_head actual_branch pushed_head worktree_count
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  pr_head="$(_setup_pr_remote_fixture "$tmpdir" 704)"
+  branch="feature/fresh-pr-branch"
+  wt_path="$tmpdir/workspaces/repro-wt-pr-704"
+  _write_runner "$tmpdir" "--pr 704"
+
+  output="$(GH_STUB_PR_JSON="$(_pr_json "$branch" "" "Fresh PR")" \
+    REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  actual_head="$(git -C "$wt_path" rev-parse HEAD 2>/dev/null || true)"
+  actual_branch="$(git -C "$wt_path" branch --show-current 2>/dev/null || true)"
+  pushed_head="$(git --git-dir="$tmpdir/origin.git" rev-parse "refs/heads/$branch" 2>/dev/null || true)"
+  worktree_count="$(git -C "$tmpdir" worktree list --porcelain | grep -c '^worktree ' || true)"
+  rm -rf "$tmpdir"
+
+  if [ "$rc" -eq 0 ] \
+    && [ "$actual_head" = "$pr_head" ] \
+    && [ "$actual_branch" = "$branch" ] \
+    && [ "$pushed_head" = "$pr_head" ] \
+    && [ "$worktree_count" -eq 2 ]; then
+    _pass "PR creates a fresh branch/worktree at the fetched head and pushes the branch"
+  else
+    _fail "PR creates a fresh branch/worktree at the fetched head and pushes the branch" "rc=$rc; head=$actual_head expected=$pr_head; branch=$actual_branch; pushed=$pushed_head; worktrees=$worktree_count; output: $output"
+  fi
+}
+
+# Test 41: when the PR branch and body have no issue ID, the title is the last
+# extraction fallback and supplies both the workspace label and build prompt.
+test_pr_title_only_issue_id_routes_label_and_prompt() {
+  local tmpdir rc=0 branch pr_head output open_log prompt_seed
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  pr_head="$(_setup_pr_remote_fixture "$tmpdir" 705)"
+  branch="feature/title-only-issue"
+  _write_runner "$tmpdir" "--pr 705"
+
+  output="$(GH_STUB_PR_JSON="$(_pr_json "$branch" "" "Fix workflow (REP-583)")" \
+    REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  open_log="$(cat "$tmpdir/herdr_worktree_open.log" 2>/dev/null || true)"
+  prompt_seed="$(cat "$tmpdir/herdr_prompt_seed.txt" 2>/dev/null || true)"
+  rm -rf "$tmpdir"
+
+  if [ "$rc" -eq 0 ] \
+    && printf '%s\n' "$open_log" | grep -qF -- '--label REP-583' \
+    && [ "$prompt_seed" = '/build REP-583' ] \
+    && printf '%s\n' "$output" | grep -q 'Workspace: REP-583'; then
+    _pass "title-only PR issue ID routes the workspace label and /build prompt"
+  else
+    _fail "title-only PR issue ID routes the workspace label and /build prompt" "rc=$rc; open: ${open_log:-<absent>}; prompt=${prompt_seed:-<absent>}; output: $output"
+  fi
+}
+
 # ── Run all tests ──────────────────────────────────────────────────────
 
 test_file_exists
@@ -1127,6 +1377,13 @@ test_dry_run_announces_adopt_decision
 test_dry_run_announces_create_decision
 test_herdr_reuses_open_workspace_for_path
 test_herdr_list_failure_fails_open_to_worktree_open
+test_pr_adopts_exact_head_worktree_without_touching_contents
+test_pr_attaches_existing_exact_branch_without_worktree
+test_pr_issue_id_source_precedence
+test_pr_refuses_mismatched_attached_branch
+test_pr_refuses_mismatched_unattached_branch
+test_pr_creates_fresh_branch_and_worktree
+test_pr_title_only_issue_id_routes_label_and_prompt
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed out of $TESTS_RUN tests"
