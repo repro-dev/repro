@@ -395,11 +395,44 @@ _create_worktree_and_launch() {
     else
       # Create the branch and worktree together so branch-creation failure
       # cannot strand an extra detached worktree.
-      git worktree add -b "$branch" "$wt_path" "$pr_head" || {
-        _err "Could not create a worktree for PR #${mode_arg} on branch '$branch'."
-        exit 1
-      }
-      git push -u origin "$branch" 2>/dev/null || true
+      if git worktree add -b "$branch" "$wt_path" "$pr_head"; then
+        git push -u origin "$branch" 2>/dev/null || true
+      else
+        # Another same-PR invocation may have created the branch/worktree
+        # after our initial scan. Adopt it only when both ref and attached
+        # worktree still point at this invocation's fetched commit.
+        local raced_branch_commit raced_wt="" raced_wt_head=""
+        local raced_entry_path="" raced_entry_branch=""
+        raced_branch_commit="$(git rev-parse --verify --quiet "refs/heads/$branch" 2>/dev/null || true)"
+        while IFS= read -r line; do
+          case "$line" in
+            worktree\ *) raced_entry_path="${line#worktree }" ;;
+            branch\ *)   raced_entry_branch="${line#branch refs/heads/}" ;;
+            "")
+              if [[ "$raced_entry_branch" == "$branch" ]]; then
+                raced_wt="$raced_entry_path"
+              fi
+              raced_entry_path="" raced_entry_branch=""
+              ;;
+          esac
+        done < <(git worktree list --porcelain)
+        if [[ "$raced_entry_branch" == "$branch" ]]; then
+          raced_wt="$raced_entry_path"
+        fi
+
+        if [[ "$raced_branch_commit" == "$pr_head" && -n "$raced_wt" && "$raced_wt" != "$MAIN_CHECKOUT" ]]; then
+          raced_wt_head="$(git -C "$raced_wt" rev-parse --verify HEAD 2>/dev/null || true)"
+          if [[ "$raced_wt_head" == "$pr_head" ]]; then
+            wt_path="$raced_wt"
+          else
+            _err "Could not safely adopt the competing worktree for PR #${mode_arg} on branch '$branch'."
+            exit 1
+          fi
+        else
+          _err "Could not create or safely adopt a worktree for PR #${mode_arg} on branch '$branch'."
+          exit 1
+        fi
+      fi
     fi
     _deliver_cleanup_pr_fetch_ref
   elif [[ "$mode" == "bare_branch" ]]; then
@@ -796,7 +829,11 @@ case "$mode" in
     fi
 
     label="${pr_issue_id:-pr-${mode_arg}}"
-    slug="$(slugify "$label")"
+    if [[ -n "$pr_issue_id" ]]; then
+      slug="pr-$(slugify "$mode_arg")-$(slugify "$pr_issue_id")"
+    else
+      slug="$(slugify "$label")"
+    fi
 
     _create_worktree_and_launch \
       "pr" \

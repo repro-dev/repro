@@ -1538,6 +1538,134 @@ STUB
   fi
 }
 
+# Test 45 (REP-1693): a same-PR invocation may create the branch/worktree
+# after this process's initial scan but before its fresh `worktree add -b`.
+# Simulate the competing winner at that exact boundary and require this
+# invocation to adopt the winner only after checking its branch and HEAD.
+test_pr_recovers_exact_head_worktree_created_after_initial_scan() {
+  local tmpdir rc=0 branch pr_head output winner_wt requested_wt real_git
+  local open_log split_args launch actual_head actual_branch worktree_list worktree_count add_count
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  pr_head="$( _setup_pr_remote_fixture "$tmpdir" 710)"
+  branch="feature/concurrent-pr-710"
+  winner_wt="$tmpdir/workspaces/competing-pr-710"
+  requested_wt="$tmpdir/workspaces/repro-wt-pr-710"
+  real_git="$(command -v git)"
+  _write_runner "$tmpdir" "--pr 710"
+
+  cat > "$tmpdir/git" <<'STUB'
+#!/bin/bash
+if [ "${1:-}" = "worktree" ] && [ "${2:-}" = "add" ] && [ "${3:-}" = "-b" ]; then
+  printf '%s\n' "$*" >> "$DELIVER_PR_ADD_LOG"
+  if [ ! -f "$DELIVER_PR_RACE_MARKER" ]; then
+    if "$REAL_GIT" -C "$DELIVER_PR_RACE_REPO" worktree add -q -b "$4" "$DELIVER_PR_RACE_WINNER" "$6"; then
+      touch "$DELIVER_PR_RACE_MARKER"
+      echo 'fatal: simulated competing worktree creation won the race' >&2
+      exit 1
+    fi
+    echo 'test setup could not create the competing worktree' >&2
+    exit 1
+  fi
+fi
+exec "$REAL_GIT" "$@"
+STUB
+  chmod +x "$tmpdir/git"
+
+  output="$(REAL_GIT="$real_git" DELIVER_PR_RACE_REPO="$tmpdir" \
+    DELIVER_PR_RACE_WINNER="$winner_wt" DELIVER_PR_RACE_MARKER="$tmpdir/race-winner-created" \
+    DELIVER_PR_ADD_LOG="$tmpdir/pr-worktree-add.log" \
+    GH_STUB_PR_JSON="$(_pr_json "$branch" "" "Concurrent PR 710")" \
+    REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  open_log="$(cat "$tmpdir/herdr_worktree_open.log" 2>/dev/null || true)"
+  split_args="$(cat "$tmpdir/herdr_split_args.log" 2>/dev/null || true)"
+  launch="$(cat "$tmpdir/herdr_prompt_launch.txt" 2>/dev/null || true)"
+  actual_head="$(git -C "$winner_wt" rev-parse HEAD 2>/dev/null || true)"
+  actual_branch="$(git -C "$winner_wt" branch --show-current 2>/dev/null || true)"
+  worktree_list="$(git -C "$tmpdir" worktree list --porcelain)"
+  worktree_count="$(printf '%s\n' "$worktree_list" | grep -c '^worktree ' || true)"
+  add_count="$(wc -l < "$tmpdir/pr-worktree-add.log" 2>/dev/null | tr -d ' ' || true)"
+  rm -rf "$tmpdir"
+
+  if [ "$rc" -eq 0 ] \
+    && [ "$actual_head" = "$pr_head" ] \
+    && [ "$actual_branch" = "$branch" ] \
+    && [ "$worktree_count" -eq 2 ] \
+    && [ "$add_count" -eq 1 ] \
+    && ! printf '%s\n' "$worktree_list" | grep -Fxq "worktree $requested_wt" \
+    && printf '%s\n' "$open_log" | grep -qF -- "--path $winner_wt" \
+    && printf '%s\n' "$split_args" | grep -qF -- "--cwd $winner_wt" \
+    && printf '%s\n' "$launch" | grep -qF -- "cd \"$winner_wt\""; then
+    _pass "PR recovers the exact-head isolated worktree created after its initial scan"
+  else
+    _fail "PR recovers the exact-head isolated worktree created after its initial scan" "rc=$rc; head=$actual_head expected=$pr_head; branch=$actual_branch expected=$branch; worktrees=$worktree_count; add attempts=$add_count; open: ${open_log:-<absent>}; split: ${split_args:-<absent>}; launch: ${launch:-<absent>}; worktree list: $worktree_list; output: $output"
+  fi
+}
+
+# Test 46 (REP-1693): distinct PRs with the same title-only issue ID retain
+# their shared Herdr label/prompt while using distinct PR-specific worktrees.
+test_pr_same_issue_id_uses_distinct_pr_worktrees() {
+  local tmpdir first_rc=0 second_rc=0 branch_711 branch_712 head_711 head_712
+  local output_711 output_712 open_log first_path second_path actual_head_711 actual_head_712
+  local actual_branch_711 actual_branch_712 pushed_head_711 pushed_head_712 worktree_count
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  head_711="$( _setup_pr_remote_fixture "$tmpdir" 711)"
+  git -C "$tmpdir" commit -q --allow-empty -m "PR 712 fixture head"
+  head_712="$(git -C "$tmpdir" rev-parse HEAD)"
+  git -C "$tmpdir" push -q origin "HEAD:refs/heads/pr-fixture-712"
+  git --git-dir="$tmpdir/origin.git" update-ref refs/pull/712/head "$head_712"
+  branch_711="feature/title-only-issue-pr-711"
+  branch_712="feature/title-only-issue-pr-712"
+  _write_runner "$tmpdir" "--pr 711"
+
+  output_711="$(GH_STUB_PR_JSON="$(_pr_json "$branch_711" "" "PR 711 workflow (REP-583)")" \
+    REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" bash "$tmpdir/run_test.sh" 2>&1)" || first_rc=$?
+  _write_runner "$tmpdir" "--pr 712"
+  output_712="$(GH_STUB_PR_JSON="$(_pr_json "$branch_712" "" "PR 712 workflow (REP-583)")" \
+    REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" bash "$tmpdir/run_test.sh" 2>&1)" || second_rc=$?
+
+  open_log="$(cat "$tmpdir/herdr_worktree_open.log" 2>/dev/null || true)"
+  first_path="$(sed -n '1s/.*--path \([^ ]*\).*/\1/p' "$tmpdir/herdr_worktree_open.log" 2>/dev/null || true)"
+  second_path="$(sed -n '2s/.*--path \([^ ]*\).*/\1/p' "$tmpdir/herdr_worktree_open.log" 2>/dev/null || true)"
+  actual_head_711=""
+  actual_head_712=""
+  actual_branch_711=""
+  actual_branch_712=""
+  if [ -n "$first_path" ]; then
+    actual_head_711="$(git -C "$first_path" rev-parse HEAD 2>/dev/null || true)"
+    actual_branch_711="$(git -C "$first_path" branch --show-current 2>/dev/null || true)"
+  fi
+  if [ -n "$second_path" ]; then
+    actual_head_712="$(git -C "$second_path" rev-parse HEAD 2>/dev/null || true)"
+    actual_branch_712="$(git -C "$second_path" branch --show-current 2>/dev/null || true)"
+  fi
+  pushed_head_711="$(git --git-dir="$tmpdir/origin.git" rev-parse --verify --quiet "refs/heads/$branch_711" 2>/dev/null || true)"
+  pushed_head_712="$(git --git-dir="$tmpdir/origin.git" rev-parse --verify --quiet "refs/heads/$branch_712" 2>/dev/null || true)"
+  worktree_count="$(git -C "$tmpdir" worktree list --porcelain | grep -c '^worktree ' || true)"
+  rm -rf "$tmpdir"
+
+  if [ "$first_rc" -eq 0 ] \
+    && [ "$second_rc" -eq 0 ] \
+    && [ -n "$first_path" ] && [ -n "$second_path" ] \
+    && [ "$first_path" != "$second_path" ] \
+    && [[ "$first_path" == *711* ]] && [[ "$second_path" == *712* ]] \
+    && [ "$actual_head_711" = "$head_711" ] \
+    && [ "$actual_head_712" = "$head_712" ] \
+    && [ "$actual_branch_711" = "$branch_711" ] \
+    && [ "$actual_branch_712" = "$branch_712" ] \
+    && [ "$pushed_head_711" = "$head_711" ] \
+    && [ "$pushed_head_712" = "$head_712" ] \
+    && [ "$worktree_count" -eq 3 ] \
+    && [ "$(printf '%s\n' "$open_log" | grep -c -- '--label REP-583' || true)" -eq 2 ] \
+    && printf '%s\n' "$output_711" | grep -qF -- '/build REP-583' \
+    && printf '%s\n' "$output_712" | grep -qF -- '/build REP-583'; then
+    _pass "PRs sharing title-only REP-583 use distinct worktrees and preserve their own heads, pushes, and labels"
+  else
+    _fail "PRs sharing title-only REP-583 use distinct worktrees and preserve their own heads, pushes, and labels" "rcs=$first_rc/$second_rc; paths=${first_path:-<absent>} / ${second_path:-<absent>}; heads=$actual_head_711/$actual_head_712 expected=$head_711/$head_712; branches=$actual_branch_711/$actual_branch_712 expected=$branch_711/$branch_712; pushed=$pushed_head_711/$pushed_head_712; worktrees=$worktree_count; open log: ${open_log:-<absent>}; first output: $output_711; second output: $output_712"
+  fi
+}
+
 # ── Run all tests ──────────────────────────────────────────────────────
 
 test_file_exists
@@ -1585,6 +1713,8 @@ test_pr_title_only_issue_id_routes_label_and_prompt
 test_pr_refuses_main_checkout_at_exact_fetched_head
 test_pr_fetch_head_isolated_between_same_checkout_fetches
 test_pr_fetch_ref_is_unique_for_simultaneous_same_pr_invocations
+test_pr_recovers_exact_head_worktree_created_after_initial_scan
+test_pr_same_issue_id_uses_distinct_pr_worktrees
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed out of $TESTS_RUN tests"
