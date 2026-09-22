@@ -1230,7 +1230,7 @@ test_pr_issue_id_source_precedence() {
 # Test 38: a local branch checked out at a different commit is rejected before
 # an extra worktree or herdr workspace can be created.
 test_pr_refuses_mismatched_attached_branch() {
-  local tmpdir rc=0 branch pr_head existing_wt output open_log worktree_count
+  local tmpdir rc=0 branch pr_head existing_wt output open_log worktree_count remaining_refs
   tmpdir="$(_make_tmpdir)"
   _write_stubs "$tmpdir"
   pr_head="$(_setup_pr_remote_fixture "$tmpdir" 702)"
@@ -1244,15 +1244,17 @@ test_pr_refuses_mismatched_attached_branch() {
     REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
   open_log="$(cat "$tmpdir/herdr_worktree_open.log" 2>/dev/null || true)"
   worktree_count="$(git -C "$tmpdir" worktree list --porcelain | grep -c '^worktree ' || true)"
+  remaining_refs="$(git -C "$tmpdir" for-each-ref --format='%(refname)' refs/deliver/pr)"
   rm -rf "$tmpdir"
 
   if [ "$rc" -ne 0 ] \
     && printf '%s\n' "$output" | grep -qi 'does not match.*PR' \
     && [ -z "$open_log" ] \
+    && [ -z "$remaining_refs" ] \
     && [ "$worktree_count" -eq 2 ]; then
-    _pass "PR refuses mismatched attached branch before creating a worktree or workspace"
+    _pass "PR refuses mismatched attached branch and cleans its fetched temporary ref"
   else
-    _fail "PR refuses mismatched attached branch before creating a worktree or workspace" "rc=$rc; worktrees=$worktree_count; open: ${open_log:-<absent>}; output: $output"
+    _fail "PR refuses mismatched attached branch and cleans its fetched temporary ref" "rc=$rc; worktrees=$worktree_count; leftover refs=${remaining_refs:-<none>}; open: ${open_log:-<absent>}; output: $output"
   fi
 }
 
@@ -1435,6 +1437,107 @@ STUB
   fi
 }
 
+# Test 44 (REP-1693): two deliver processes fetching the same PR at once need
+# separate refs. Hold the first process after its fetch while the second one
+# completes, so its cleanup cannot remove the first process's fetched head.
+test_pr_fetch_ref_is_unique_for_simultaneous_same_pr_invocations() {
+  local tmpdir first_rc=0 second_rc=0 branch pr_head wt_path real_git barrier attempts first_pid
+  local first_refspec second_refspec first_ref second_ref first_output second_output actual_head pushed_head worktree_count remaining_refs
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  pr_head="$(_setup_pr_remote_fixture "$tmpdir" 709)"
+  branch="feature/concurrent-pr-709"
+  wt_path="$tmpdir/workspaces/repro-wt-pr-709"
+  barrier="$tmpdir/pr-fetch-barrier"
+  mkdir -p "$barrier"
+  _write_runner "$tmpdir" "--pr 709"
+
+  real_git="$(command -v git)"
+  cat > "$tmpdir/git" <<'STUB'
+#!/bin/bash
+if [ "${1:-}" = "fetch" ] \
+  && [ "${2:-}" = "origin" ] \
+  && { [ "${3:-}" = "pull/709/head" ] || [[ "${3:-}" == pull/709/head:* ]]; }; then
+  "$REAL_GIT" "$@"
+  fetch_status=$?
+  if [ "$fetch_status" -ne 0 ]; then
+    exit "$fetch_status"
+  fi
+  if mkdir "$DELIVER_PR_BARRIER/first-claim" 2>/dev/null; then
+    printf '%s\n' "${3:-}" > "$DELIVER_PR_BARRIER/first-refspec"
+    touch "$DELIVER_PR_BARRIER/first-ready"
+    attempts=0
+    while [ ! -f "$DELIVER_PR_BARRIER/release-first" ] && [ "$attempts" -lt 500 ]; do
+      sleep 0.01
+      attempts=$((attempts + 1))
+    done
+    if [ ! -f "$DELIVER_PR_BARRIER/release-first" ]; then
+      echo 'timed out waiting to release first PR fetch' >&2
+      exit 1
+    fi
+  else
+    printf '%s\n' "${3:-}" > "$DELIVER_PR_BARRIER/second-refspec"
+    touch "$DELIVER_PR_BARRIER/second-ready"
+  fi
+  exit 0
+fi
+exec "$REAL_GIT" "$@"
+STUB
+  chmod +x "$tmpdir/git"
+
+  REAL_GIT="$real_git" DELIVER_PR_BARRIER="$barrier" \
+    GH_STUB_PR_JSON="$(_pr_json "$branch" "" "Concurrent PR 709")" \
+    REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" bash "$tmpdir/run_test.sh" > "$tmpdir/first.out" 2>&1 &
+  first_pid=$!
+  attempts=0
+  while [ ! -f "$barrier/first-ready" ] && [ "$attempts" -lt 500 ]; do
+    if ! kill -0 "$first_pid" 2>/dev/null; then break; fi
+    sleep 0.01
+    attempts=$((attempts + 1))
+  done
+
+  if [ ! -f "$barrier/first-ready" ]; then
+    touch "$barrier/release-first"
+    wait "$first_pid" || first_rc=$?
+    first_output="$(cat "$tmpdir/first.out" 2>/dev/null || true)"
+    rm -rf "$tmpdir"
+    _fail "simultaneous same-PR deliveries use distinct temporary refs and clean them independently" "first fetch did not reach the barrier; rc=$first_rc; output: $first_output"
+    return
+  fi
+
+  REAL_GIT="$real_git" DELIVER_PR_BARRIER="$barrier" \
+    GH_STUB_PR_JSON="$(_pr_json "$branch" "" "Concurrent PR 709")" \
+    REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" bash "$tmpdir/run_test.sh" > "$tmpdir/second.out" 2>&1 || second_rc=$?
+  touch "$barrier/release-first"
+  wait "$first_pid" || first_rc=$?
+
+  first_refspec="$(cat "$barrier/first-refspec" 2>/dev/null || true)"
+  second_refspec="$(cat "$barrier/second-refspec" 2>/dev/null || true)"
+  first_ref="${first_refspec#*:}"
+  second_ref="${second_refspec#*:}"
+  first_output="$(cat "$tmpdir/first.out" 2>/dev/null || true)"
+  second_output="$(cat "$tmpdir/second.out" 2>/dev/null || true)"
+  actual_head="$(git -C "$wt_path" rev-parse HEAD 2>/dev/null || true)"
+  pushed_head="$(git --git-dir="$tmpdir/origin.git" rev-parse "refs/heads/$branch" 2>/dev/null || true)"
+  worktree_count="$(git -C "$tmpdir" worktree list --porcelain | grep -c '^worktree ' || true)"
+  remaining_refs="$(git -C "$tmpdir" for-each-ref --format='%(refname)' refs/deliver/pr)"
+  rm -rf "$tmpdir"
+
+  if [ "$first_rc" -eq 0 ] \
+    && [ "$second_rc" -eq 0 ] \
+    && [[ "$first_ref" == refs/deliver/pr/709/* ]] \
+    && [[ "$second_ref" == refs/deliver/pr/709/* ]] \
+    && [ "$first_ref" != "$second_ref" ] \
+    && [ "$actual_head" = "$pr_head" ] \
+    && [ "$pushed_head" = "$pr_head" ] \
+    && [ "$worktree_count" -eq 2 ] \
+    && [ -z "$remaining_refs" ]; then
+    _pass "simultaneous same-PR deliveries use distinct temporary refs and clean them independently"
+  else
+    _fail "simultaneous same-PR deliveries use distinct temporary refs and clean them independently" "rcs=$first_rc/$second_rc; refspecs=${first_refspec:-<absent>} / ${second_refspec:-<absent>}; worktree head=$actual_head expected=$pr_head; pushed head=$pushed_head; worktrees=$worktree_count; leftover refs=${remaining_refs:-<none>}; first output: $first_output; second output: $second_output"
+  fi
+}
+
 # ── Run all tests ──────────────────────────────────────────────────────
 
 test_file_exists
@@ -1481,6 +1584,7 @@ test_pr_creates_fresh_branch_and_worktree
 test_pr_title_only_issue_id_routes_label_and_prompt
 test_pr_refuses_main_checkout_at_exact_fetched_head
 test_pr_fetch_head_isolated_between_same_checkout_fetches
+test_pr_fetch_ref_is_unique_for_simultaneous_same_pr_invocations
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed out of $TESTS_RUN tests"
