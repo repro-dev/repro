@@ -1,0 +1,81 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "openai/gpt-6-luna",
+  "provider": {
+    "openai": {
+      "models": {
+        "gpt-6-luna": {
+          "options": {
+            "reasoningEffort": "max"
+          }
+        }
+      }
+    }
+  },
+  "command": {
+    "deliver": {
+      "model": "openai/gpt-6-luna",
+      "template": ""
+    },
+    "review": {
+      "model": "openai/gpt-6-luna",
+      "template": ""
+    }
+  },
+  "agent": {
+    "develop": {
+      "model": "openai/gpt-6-luna",
+      "options": {
+        "reasoningEffort": "max"
+      }
+    },
+    "filtered-runner": {
+      "model": "openai/gpt-6-luna",
+      "options": {
+        "reasoningEffort": "max"
+      }
+    },
+    "librarian": {
+      "model": "openai/gpt-6-luna",
+      "options": {
+        "reasoningEffort": "max"
+      }
+    },
+    "planner": {
+      "model": "openai/gpt-6-luna",
+      "options": {
+        "reasoningEffort": "max"
+      }
+    },
+    "review": {
+      "model": "openai/gpt-6-luna",
+      "options": {
+        "reasoningEffort": "max"
+      }
+    },
+    "adversarial-review": {
+      "model": "openai/gpt-6-luna",
+      "options": {
+        "reasoningEffort": "max"
+      }
+    },
+    "test": {
+      "model": "openai/gpt-6-luna",
+      "options": {
+        "reasoningEffort": "max"
+      }
+    },
+    "sequencer": {
+      "model": "openai/gpt-6-luna",
+      "options": {
+        "reasoningEffort": "max"
+      }
+    },
+    "release": {
+      "model": "openai/gpt-6-luna",
+      "options": {
+        "reasoningEffort": "max"
+      }
+    }
+  }
+}
