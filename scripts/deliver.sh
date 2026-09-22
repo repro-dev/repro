@@ -201,6 +201,15 @@ _deliver_numeric_or() {
   fi
 }
 
+DELIVER_PR_FETCH_REF=""
+_deliver_cleanup_pr_fetch_ref() {
+  if [[ -n "$DELIVER_PR_FETCH_REF" ]]; then
+    if git -C "$REPO_ROOT" update-ref -d "$DELIVER_PR_FETCH_REF" >/dev/null 2>&1; then
+      DELIVER_PR_FETCH_REF=""
+    fi
+  fi
+}
+
 # ── Worktree creation and agent launch ─────────────────────────────
 _create_worktree_and_launch() {
   local mode="$1"
@@ -321,8 +330,12 @@ _create_worktree_and_launch() {
       wt_path="$resolved_wt_path"
     fi
   elif [[ "$mode" == "pr" ]]; then
-    # Fetch PR head ref from GitHub
-    git fetch origin "pull/${mode_arg}/head" 2>/dev/null || {
+    # Keep each invocation's PR head in a private ref: FETCH_HEAD is shared by
+    # processes using this checkout and can be replaced by another fetch.
+    local pr_fetch_ref="refs/deliver/pr/${mode_arg}/$$-${RANDOM}"
+    DELIVER_PR_FETCH_REF="$pr_fetch_ref"
+    trap _deliver_cleanup_pr_fetch_ref EXIT
+    git fetch origin "pull/${mode_arg}/head:${pr_fetch_ref}" 2>/dev/null || {
       _err "Could not fetch PR #${mode_arg}. The branch may have been deleted."
       echo "  Try: git fetch origin pull/${mode_arg}/head" >&2
       exit 1
@@ -330,7 +343,7 @@ _create_worktree_and_launch() {
 
     local pr_head local_branch_commit attached_wt="" attached_head=""
     local wt_entry_path="" wt_entry_branch="" line
-    pr_head="$(git rev-parse --verify FETCH_HEAD 2>/dev/null)" || {
+    pr_head="$(git rev-parse --verify "${pr_fetch_ref}^{commit}" 2>/dev/null)" || {
       _err "Could not resolve the fetched head for PR #${mode_arg}."
       exit 1
     }
@@ -388,6 +401,7 @@ _create_worktree_and_launch() {
       }
       git push -u origin "$branch" 2>/dev/null || true
     fi
+    _deliver_cleanup_pr_fetch_ref
   elif [[ "$mode" == "bare_branch" ]]; then
     # Bare branch mode — checkout existing branch or create from HEAD
     if git rev-parse --verify --quiet "refs/heads/$branch" >/dev/null 2>&1; then

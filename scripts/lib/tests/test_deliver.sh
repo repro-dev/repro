@@ -1377,6 +1377,64 @@ test_pr_refuses_main_checkout_at_exact_fetched_head() {
   fi
 }
 
+# Test 43 (REP-1693): interleave a second local PR fetch from the same checkout
+# after PR 707's fetch but before deliver resolves its head. The first delivery
+# must keep using PR 707's OID rather than the shared FETCH_HEAD for PR 708.
+test_pr_fetch_head_isolated_between_same_checkout_fetches() {
+  local tmpdir rc=0 branch pr_707_head pr_708_head output wt_path actual_head pushed_head worktree_count remaining_refs real_git interleaving
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  pr_707_head="$(_setup_pr_remote_fixture "$tmpdir" 707)"
+  git -C "$tmpdir" commit -q --allow-empty -m "PR fixture second head"
+  pr_708_head="$(git -C "$tmpdir" rev-parse HEAD)"
+  git -C "$tmpdir" push -q origin "HEAD:refs/heads/pr-fixture-708"
+  git --git-dir="$tmpdir/origin.git" update-ref refs/pull/708/head "$pr_708_head"
+  branch="feature/concurrent-pr-707"
+  wt_path="$tmpdir/workspaces/repro-wt-pr-707"
+  _write_runner "$tmpdir" "--pr 707"
+
+  real_git="$(command -v git)"
+  cat > "$tmpdir/git" <<'STUB'
+#!/bin/bash
+if [ "${1:-}" = "fetch" ] \
+  && [ "${2:-}" = "origin" ] \
+  && { [ "${3:-}" = "pull/707/head" ] || [[ "${3:-}" == pull/707/head:* ]]; }; then
+  "$REAL_GIT" "$@"
+  fetch_status=$?
+  if [ "$fetch_status" -ne 0 ]; then
+    exit "$fetch_status"
+  fi
+  "$REAL_GIT" fetch origin pull/708/head >/dev/null 2>&1 || exit $?
+  printf 'fetched PR 708 after PR 707\n' >> "$DELIVER_PR_RACE_LOG"
+  exit 0
+fi
+exec "$REAL_GIT" "$@"
+STUB
+  chmod +x "$tmpdir/git"
+
+  output="$(REAL_GIT="$real_git" DELIVER_PR_RACE_LOG="$tmpdir/pr_fetch_interleaving.log" \
+    GH_STUB_PR_JSON="$( _pr_json "$branch" "" "Concurrent PR 707")" \
+    REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  actual_head="$(git -C "$wt_path" rev-parse HEAD 2>/dev/null || true)"
+  pushed_head="$(git --git-dir="$tmpdir/origin.git" rev-parse "refs/heads/$branch" 2>/dev/null || true)"
+  worktree_count="$(git -C "$tmpdir" worktree list --porcelain | grep -c '^worktree ' || true)"
+  remaining_refs="$(git -C "$tmpdir" for-each-ref --format='%(refname)' refs/deliver/pr)"
+  interleaving="$(cat "$tmpdir/pr_fetch_interleaving.log" 2>/dev/null || true)"
+  rm -rf "$tmpdir"
+
+  if [ "$rc" -eq 0 ] \
+    && [ "$actual_head" = "$pr_707_head" ] \
+    && [ "$actual_head" != "$pr_708_head" ] \
+    && [ "$pushed_head" = "$pr_707_head" ] \
+    && [ "$worktree_count" -eq 2 ] \
+    && [ -z "$remaining_refs" ] \
+    && [ "$interleaving" = 'fetched PR 708 after PR 707' ]; then
+    _pass "same-checkout PR fetch interleaving preserves requested head and cleans its temporary ref"
+  else
+    _fail "same-checkout PR fetch interleaving preserves requested head and cleans its temporary ref" "rc=$rc; worktree head=$actual_head expected PR 707=$pr_707_head and not PR 708=$pr_708_head; pushed head=$pushed_head; worktrees=$worktree_count; leftover refs=${remaining_refs:-<none>}; interleaving=${interleaving:-<not run>}; output: $output"
+  fi
+}
+
 # ── Run all tests ──────────────────────────────────────────────────────
 
 test_file_exists
@@ -1422,6 +1480,7 @@ test_pr_refuses_mismatched_unattached_branch
 test_pr_creates_fresh_branch_and_worktree
 test_pr_title_only_issue_id_routes_label_and_prompt
 test_pr_refuses_main_checkout_at_exact_fetched_head
+test_pr_fetch_head_isolated_between_same_checkout_fetches
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed out of $TESTS_RUN tests"
