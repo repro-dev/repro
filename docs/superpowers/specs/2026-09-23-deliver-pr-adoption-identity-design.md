@@ -1,7 +1,7 @@
 # PR Delivery Worktree Identity Design
 
 **Issue:** REP-1693
-**Status:** Design approved in conversation; awaiting written-spec review
+**Status:** Design and implementation plan approved by user on 2026-09-23
 
 ## Intent
 
