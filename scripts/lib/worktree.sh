@@ -215,8 +215,92 @@ _herdr_read_workspace_lock_owner() {
 # common Linux ordering, but reject malformed or multi-line query output.
 _herdr_validate_process_start() {
   local start="$1"
-  local start_regex='^(Sun|Mon|Tue|Wed|Thu|Fri|Sat)[[:space:]]+((Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[[:space:]]+[ 0-3]?[0-9]|[ 0-3]?[0-9][[:space:]]+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec))[[:space:]]+[0-9]{2}:[0-9]{2}:[0-9]{2}[[:space:]]+[0-9]{4}$'
-  [[ "$start" =~ $start_regex ]]
+  local LC_ALL=C
+  local bsd_regex='^(Sun|Mon|Tue|Wed|Thu|Fri|Sat)[[:space:]]+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[[:space:]]+([ 0-3]?[0-9])[[:space:]]+([0-9]{2}):([0-9]{2}):([0-9]{2})[[:space:]]+([0-9]{4})$'
+  local linux_regex='^(Sun|Mon|Tue|Wed|Thu|Fri|Sat)[[:space:]]+([ 0-3]?[0-9])[[:space:]]+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[[:space:]]+([0-9]{2}):([0-9]{2}):([0-9]{2})[[:space:]]+([0-9]{4})$'
+  local weekday month_text day_text hour_text minute_text second_text year_text
+  local month_num days_in_month leap_year day_num hour_num minute_num second_num year_num
+  local zeller_month zeller_year zeller_day weekday_num expected_weekday
+
+  if [[ "$start" =~ $bsd_regex ]]; then
+    weekday="${BASH_REMATCH[1]}"
+    month_text="${BASH_REMATCH[2]}"
+    day_text="${BASH_REMATCH[3]}"
+    hour_text="${BASH_REMATCH[4]}"
+    minute_text="${BASH_REMATCH[5]}"
+    second_text="${BASH_REMATCH[6]}"
+    year_text="${BASH_REMATCH[7]}"
+  elif [[ "$start" =~ $linux_regex ]]; then
+    weekday="${BASH_REMATCH[1]}"
+    day_text="${BASH_REMATCH[2]}"
+    month_text="${BASH_REMATCH[3]}"
+    hour_text="${BASH_REMATCH[4]}"
+    minute_text="${BASH_REMATCH[5]}"
+    second_text="${BASH_REMATCH[6]}"
+    year_text="${BASH_REMATCH[7]}"
+  else
+    return 1
+  fi
+
+  day_text="${day_text# }"
+  day_num=$((10#$day_text))
+  hour_num=$((10#$hour_text))
+  minute_num=$((10#$minute_text))
+  second_num=$((10#$second_text))
+  year_num=$((10#$year_text))
+  case "$month_text" in
+    Jan) month_num=1; days_in_month=31 ;;
+    Feb) month_num=2; days_in_month=28 ;;
+    Mar) month_num=3; days_in_month=31 ;;
+    Apr) month_num=4; days_in_month=30 ;;
+    May) month_num=5; days_in_month=31 ;;
+    Jun) month_num=6; days_in_month=30 ;;
+    Jul) month_num=7; days_in_month=31 ;;
+    Aug) month_num=8; days_in_month=31 ;;
+    Sep) month_num=9; days_in_month=30 ;;
+    Oct) month_num=10; days_in_month=31 ;;
+    Nov) month_num=11; days_in_month=30 ;;
+    Dec) month_num=12; days_in_month=31 ;;
+    *) return 1 ;;
+  esac
+
+  if (( year_num < 1 || hour_num > 23 || minute_num > 59 || second_num > 59 )); then
+    return 1
+  fi
+  leap_year=0
+  if (( year_num % 400 == 0 || (year_num % 4 == 0 && year_num % 100 != 0) )); then
+    leap_year=1
+  fi
+  if (( month_num == 2 && leap_year == 1 )); then
+    days_in_month=29
+  fi
+  if (( day_num < 1 || day_num > days_in_month )); then
+    return 1
+  fi
+
+  case "$weekday" in
+    Sun) expected_weekday=0 ;;
+    Mon) expected_weekday=1 ;;
+    Tue) expected_weekday=2 ;;
+    Wed) expected_weekday=3 ;;
+    Thu) expected_weekday=4 ;;
+    Fri) expected_weekday=5 ;;
+    Sat) expected_weekday=6 ;;
+    *) return 1 ;;
+  esac
+
+  # Zeller's congruence uses Saturday=0; translate to Sunday=0 and require
+  # the weekday in ps output to agree with the validated Gregorian date.
+  zeller_month="$month_num"
+  zeller_year="$year_num"
+  if (( zeller_month < 3 )); then
+    zeller_month=$((zeller_month + 12))
+    zeller_year=$((zeller_year - 1))
+  fi
+  zeller_day=$(( (day_num + (13 * (zeller_month + 1) / 5) + zeller_year \
+    + zeller_year / 4 - zeller_year / 100 + zeller_year / 400) % 7 ))
+  weekday_num=$(((zeller_day + 6) % 7))
+  [[ "$weekday_num" -eq "$expected_weekday" ]]
 }
 
 _herdr_workspace_process_start() {

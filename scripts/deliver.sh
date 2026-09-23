@@ -770,7 +770,8 @@ _create_worktree_and_launch() {
       exit 1
     }
 
-    local pr_head local_branch_commit attached_wt="" owner_state="" verify_status=0 recover_status=0 push_pr_source_branch=false
+    local pr_head local_branch_commit attached_wt="" existing_alias_wt="" expected_alias_branch=""
+    local owner_state="" verify_status=0 recover_status=0 push_pr_source_branch=false
     pr_head="$(git rev-parse --verify "${pr_fetch_ref}^{commit}" 2>/dev/null)" || {
       _err "Could not resolve the fetched head for PR #${mode_arg}."
       exit 1
@@ -794,7 +795,29 @@ _create_worktree_and_launch() {
     # Never mutate an adopted worktree. Ownership in its Git directory keeps
     # different PRs from treating one source-branch checkout as shared state.
     attached_wt="$(_worktree_path_for_branch "$branch" "$REPO_ROOT" 2>/dev/null || true)"
-    if [[ -n "$attached_wt" ]]; then
+    if [[ -z "$attached_wt" ]]; then
+      # A prior delivery may have moved this PR onto its local alias because
+      # another PR owned the source checkout. Reuse only that expected alias;
+      # otherwise the source branch's occupied PR path would be mistaken for
+      # a fresh worktree target after its original checkout is removed.
+      expected_alias_branch="$(_deliver_pr_alias_branch "$mode_arg" "$branch")" || {
+        _err "Could not derive the expected local alias branch for PR #${mode_arg}."
+        exit 1
+      }
+      existing_alias_wt="$(_worktree_path_for_branch "$expected_alias_branch" "$REPO_ROOT" 2>/dev/null || true)"
+      if [[ -n "$existing_alias_wt" ]]; then
+        if [[ "$existing_alias_wt" != "$wt_path" ]] \
+          || ! _deliver_pr_verify_worktree "$existing_alias_wt" "$expected_alias_branch" "$pr_head" "$mode_arg" false; then
+          _err "Existing alias worktree for PR #${mode_arg} is not owned by that PR at the fetched head and expected path."
+          exit 1
+        fi
+        wt_path="$existing_alias_wt"
+      fi
+    fi
+
+    if [[ -n "$existing_alias_wt" ]]; then
+      : # The expected alias was verified above; leave its contents untouched.
+    elif [[ -n "$attached_wt" ]]; then
       if ! _deliver_pr_is_isolated "$attached_wt"; then
         _err "PR branch '$branch' is checked out in the primary checkout ($MAIN_CHECKOUT) or its worktree path cannot be verified; PR delivery requires an isolated worktree."
         exit 1

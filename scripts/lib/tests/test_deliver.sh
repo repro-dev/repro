@@ -2159,6 +2159,87 @@ test_pr_same_source_branch_uses_owned_alias_for_second_pr() {
   fi
 }
 
+# REP-1693 review regression: after the source worktree is removed, a repeat
+# delivery must find and safely reuse the PR-owned alias already at its path.
+test_pr_reuses_owned_alias_after_source_worktree_removal() {
+  local tmpdir pr_head branch legacy_wt alias_wt expected_alias
+  local first_rc=0 second_rc=0 repeat_rc=0 first_output second_output repeat_output
+  local open_log first_path second_path repeat_path owner_file owner alias_branch alias_head alias_ref alias_root
+  local tracked_file staged_before unstaged_before tracked_after staged_after unstaged_after
+  local sentinel_before sentinel_after alias_remote worktree_count
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  pr_head="$(_setup_pr_remote_fixture "$tmpdir" 736 true)"
+  git --git-dir="$tmpdir/origin.git" update-ref refs/pull/737/head "$pr_head"
+  branch="feature/reused-pr-alias-source"
+  legacy_wt="$tmpdir/workspaces/legacy-reused-pr-source"
+  alias_wt="$tmpdir/workspaces/repro-wt-pr-737"
+  expected_alias="$(_test_expected_pr_alias_branch 737 "$branch")"
+  tracked_file="$alias_wt/pr-tracked-fixture.txt"
+  git -C "$tmpdir" worktree add -q -b "$branch" "$legacy_wt" "$pr_head"
+
+  _write_runner "$tmpdir" "--pr 736"
+  first_output="$(GH_STUB_PR_JSON="$(_pr_json "$branch" "" "Shared source PR 736")" \
+    REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" bash "$tmpdir/run_test.sh" 2>&1)" || first_rc=$?
+  _write_runner "$tmpdir" "--pr 737"
+  second_output="$(GH_STUB_PR_JSON="$(_pr_json "$branch" "" "Shared source PR 737")" \
+    REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" bash "$tmpdir/run_test.sh" 2>&1)" || second_rc=$?
+
+  printf 'staged alias edit\n' > "$tracked_file"
+  git -C "$alias_wt" add pr-tracked-fixture.txt
+  printf 'unstaged alias edit\n' > "$tracked_file"
+  printf 'preserve alias user file\n' > "$alias_wt/--full-page"
+  staged_before="$(git -C "$alias_wt" diff --cached -- pr-tracked-fixture.txt)"
+  unstaged_before="$(git -C "$alias_wt" diff -- pr-tracked-fixture.txt)"
+  sentinel_before="$(cat "$alias_wt/--full-page")"
+
+  git -C "$tmpdir" worktree remove --force "$legacy_wt"
+  _write_runner "$tmpdir" "--pr 737"
+  repeat_output="$(GH_STUB_PR_JSON="$(_pr_json "$branch" "" "Shared source PR 737 repeat")" \
+    REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" bash "$tmpdir/run_test.sh" 2>&1)" || repeat_rc=$?
+
+  open_log="$(cat "$tmpdir/herdr_worktree_open.log" 2>/dev/null || true)"
+  first_path="$(sed -n '1s/.*--path \([^ ]*\).*/\1/p' "$tmpdir/herdr_worktree_open.log" 2>/dev/null || true)"
+  second_path="$(sed -n '2s/.*--path \([^ ]*\).*/\1/p' "$tmpdir/herdr_worktree_open.log" 2>/dev/null || true)"
+  repeat_path="$(sed -n '3s/.*--path \([^ ]*\).*/\1/p' "$tmpdir/herdr_worktree_open.log" 2>/dev/null || true)"
+  owner_file="$(git -C "$alias_wt" rev-parse --absolute-git-dir)/deliver-pr-owner"
+  owner="$(cat "$owner_file" 2>/dev/null || true)"
+  alias_branch="$(git -C "$alias_wt" branch --show-current 2>/dev/null || true)"
+  alias_head="$(git -C "$alias_wt" rev-parse --verify HEAD 2>/dev/null || true)"
+  alias_ref="$(git -C "$tmpdir" rev-parse --verify "refs/heads/$expected_alias" 2>/dev/null || true)"
+  alias_root="$(git -C "$alias_wt" rev-parse --show-toplevel 2>/dev/null || true)"
+  tracked_after="$(cat "$tracked_file" 2>/dev/null || true)"
+  staged_after="$(git -C "$alias_wt" diff --cached -- pr-tracked-fixture.txt)"
+  unstaged_after="$(git -C "$alias_wt" diff -- pr-tracked-fixture.txt)"
+  sentinel_after="$(cat "$alias_wt/--full-page" 2>/dev/null || true)"
+  alias_remote="$(git --git-dir="$tmpdir/origin.git" rev-parse --verify --quiet "refs/heads/$expected_alias" 2>/dev/null || true)"
+  worktree_count="$(git -C "$tmpdir" worktree list --porcelain | grep -c '^worktree ' || true)"
+  rm -rf "$tmpdir"
+
+  if [ "$first_rc" -eq 0 ] \
+    && [ "$second_rc" -eq 0 ] \
+    && [ "$repeat_rc" -eq 0 ] \
+    && [ "$first_path" = "$legacy_wt" ] \
+    && [ "$second_path" = "$alias_wt" ] \
+    && [ "$repeat_path" = "$alias_wt" ] \
+    && [ "$owner" = 'pr=737' ] \
+    && [ "$alias_branch" = "$expected_alias" ] \
+    && [ "$alias_head" = "$pr_head" ] \
+    && [ "$alias_ref" = "$pr_head" ] \
+    && [ "$alias_root" = "$alias_wt" ] \
+    && [ "$tracked_after" = 'unstaged alias edit' ] \
+    && [ "$staged_after" = "$staged_before" ] \
+    && [ "$unstaged_after" = "$unstaged_before" ] \
+    && [ "$sentinel_after" = "$sentinel_before" ] \
+    && [ -z "$alias_remote" ] \
+    && [ "$worktree_count" -eq 2 ] \
+    && [ "$(printf '%s\n' "$open_log" | grep -c 'HERDR_WORKTREE_OPEN:' || true)" -eq 3 ]; then
+    _pass 'repeat delivery reuses the exact PR-owned alias after source removal without changing its contents'
+  else
+    _fail 'repeat delivery reuses the exact PR-owned alias after source removal without changing its contents' "rcs=$first_rc/$second_rc/$repeat_rc; paths=${first_path:-<absent>} / ${second_path:-<absent>} / ${repeat_path:-<absent>} expected=$legacy_wt / $alias_wt / $alias_wt; owner=$owner branch=$alias_branch expected=$expected_alias head=$alias_head/ref=$alias_ref expected=$pr_head root=$alias_root expected=$alias_wt; tracked=$tracked_after staged-preserved=$([ "$staged_after" = "$staged_before" ] && echo true || echo false) unstaged-preserved=$([ "$unstaged_after" = "$unstaged_before" ] && echo true || echo false) sentinel=$sentinel_after; remote-alias=${alias_remote:-<absent>} worktrees=$worktree_count opens=$(printf '%s\n' "$open_log" | grep -c 'HERDR_WORKTREE_OPEN:' || true); outputs: $first_output / $second_output / $repeat_output"
+  fi
+}
+
 # Test 48 (REP-1693): concurrent different-PR deliveries of an unowned
 # exact-head legacy worktree serialize discovery and ownership publication;
 # only one can claim it, and the other must create its own local alias.
@@ -3620,6 +3701,52 @@ UTC|C" ]; then
   fi
 }
 
+# REP-1693 review regression: impossible but regex-shaped timestamps cannot
+# prove PID reuse; the malformed lock owner must fail closed without unlinking.
+test_herdr_impossible_process_start_fails_closed() {
+  local tmpdir pr_head pr_number source_branch target lock start owner_record
+  local output rc open_log launch all_failed_closed=true
+  local malformed_starts=('Wed Sep 39 13:53:16 2026' 'Wed Sep 23 99:53:16 2026')
+  local index=0
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  pr_head="$(_setup_pr_remote_fixture "$tmpdir" 734)"
+  git --git-dir="$tmpdir/origin.git" update-ref refs/pull/735/head "$pr_head"
+
+  for start in "${malformed_starts[@]}"; do
+    if [ "$index" -eq 0 ]; then pr_number=734; else pr_number=735; fi
+    source_branch="feature/malformed-lock-owner-$pr_number"
+    target="$tmpdir/workspaces/repro-wt-pr-$pr_number"
+    lock="$(_expected_herdr_lock_path "$tmpdir" "$target")"
+    mkdir -p "$(dirname "$lock")"
+    owner_record="$(printf 'pid=%s\npath=%s\ntoken=malformed-owner-%s\nstart=%s\n' "$$" "$target" "$pr_number" "$start")"
+    printf '%s\n' "$owner_record" > "$lock"
+    _write_runner "$tmpdir" "--pr $pr_number"
+    rc=0
+    output="$(GH_STUB_PR_JSON="$(_pr_json "$source_branch" "" "Malformed lock owner $pr_number")" \
+      REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+    open_log="$(cat "$tmpdir/herdr_worktree_open.log" 2>/dev/null || true)"
+    launch="$(cat "$tmpdir/herdr_prompt_launch.txt" 2>/dev/null || true)"
+
+    if [ "$rc" -eq 0 ] \
+      || [ ! -f "$lock" ] \
+      || [ "$(cat "$lock" 2>/dev/null || true)" != "$owner_record" ] \
+      || ! printf '%s\n' "$output" | grep -qi 'Herdr workspace lock ownership is unverifiable' \
+      || [ -n "$open_log" ] \
+      || [ -n "$launch" ]; then
+      all_failed_closed=false
+    fi
+    index=$((index + 1))
+  done
+  rm -rf "$tmpdir"
+
+  if [ "$all_failed_closed" = true ]; then
+    _pass 'impossible process-start dates and times fail closed without reclaiming lock records'
+  else
+    _fail 'impossible process-start dates and times fail closed without reclaiming lock records' "index=$index rc=$rc; lock=$lock; open=${open_log:-<absent>}; launch=${launch:-<absent>}; output=$output"
+  fi
+}
+
 # Test 52 (REP-1693): one atomically installed owner record replaces the
 # mkdir/owner-file gap. A signal releases that complete record, and a one-time
 # release failure is retried by EXIT cleanup rather than leaving a lock behind.
@@ -3760,6 +3887,12 @@ STUB
 # ── Run all tests ──────────────────────────────────────────────────────
 
 case "${DELIVER_TEST_ONLY:-}" in
+  test_pr_reuses_owned_alias_after_source_worktree_removal)
+    test_pr_reuses_owned_alias_after_source_worktree_removal
+    ;;
+  test_herdr_impossible_process_start_fails_closed)
+    test_herdr_impossible_process_start_fails_closed
+    ;;
   test_pr_worktree_identity_uses_pr_number_when_issue_context_changes)
     test_pr_worktree_identity_uses_pr_number_when_issue_context_changes
     ;;
@@ -3844,6 +3977,7 @@ case "${DELIVER_TEST_ONLY:-}" in
   test_pr_rejects_unsafe_competitors_created_after_initial_scan
   test_pr_same_issue_id_uses_distinct_pr_worktrees
   test_pr_same_source_branch_uses_owned_alias_for_second_pr
+  test_pr_reuses_owned_alias_after_source_worktree_removal
   test_pr_legacy_ownership_claim_is_atomic_across_prs
   test_pr_source_branch_lock_waits_for_checkout_completion
   test_pr_unrelated_initializing_worktree_does_not_block_delivery
@@ -3858,6 +3992,7 @@ case "${DELIVER_TEST_ONLY:-}" in
   test_pr_herdr_lock_cleanup_and_unverifiable_lock_fail_closed
   test_herdr_lock_process_state_tracks_process_incarnation
   test_herdr_process_start_is_timezone_and_locale_stable
+  test_herdr_impossible_process_start_fails_closed
   test_herdr_lock_record_is_atomic_and_released_after_signal_or_failure
   test_pr_fetch_ref_exit_cleanup_survives_herdr_trap_install
     ;;
