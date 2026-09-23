@@ -41,37 +41,86 @@ REPO_ROOT="$(cd "$TESTS_DIR/../../.." && pwd -P)"
 PASS=0
 FAIL=0
 TESTS_RUN=0
-ACTIVE_DELIVER_TEST_BARRIER=""
+ACTIVE_DELIVER_TEST_BARRIERS=""
 ACTIVE_DELIVER_TEST_PIDS=""
+mkdir -p "$REPO_ROOT/tmp"
+TEST_RUN_ROOT="$(mktemp -d "$REPO_ROOT/tmp/test_deliver.run.XXXXXX")"
 
 _pass() { printf '  ✔ %s\n' "$1"; PASS=$((PASS + 1)); TESTS_RUN=$((TESTS_RUN + 1)); }
 _fail() { printf '  ✖ %s\n  %s\n' "$1" "${2:-}" >&2; FAIL=$((FAIL + 1)); TESTS_RUN=$((TESTS_RUN + 1)); }
 
 _cleanup_active_deliver_test_children() {
-  local pid
-  if [[ -n "$ACTIVE_DELIVER_TEST_BARRIER" ]]; then
-    touch "$ACTIVE_DELIVER_TEST_BARRIER/release" 2>/dev/null || true
-  fi
-  for pid in $ACTIVE_DELIVER_TEST_PIDS; do
+  local pid release_file
+  while IFS= read -r release_file || [[ -n "$release_file" ]]; do
+    [[ -n "$release_file" ]] || continue
+    touch "$release_file" 2>/dev/null || true
+  done <<< "$ACTIVE_DELIVER_TEST_BARRIERS"
+  while IFS= read -r pid || [[ -n "$pid" ]]; do
     [[ "$pid" =~ ^[1-9][0-9]*$ ]] || continue
     if kill -0 "$pid" 2>/dev/null; then
       kill -KILL "$pid" 2>/dev/null || true
     fi
     wait "$pid" 2>/dev/null || true
-  done
-  ACTIVE_DELIVER_TEST_BARRIER=""
+  done <<< "$ACTIVE_DELIVER_TEST_PIDS"
+  ACTIVE_DELIVER_TEST_BARRIERS=""
   ACTIVE_DELIVER_TEST_PIDS=""
+}
+
+_register_deliver_test_barrier() {
+  local release_file="$1"
+  [[ -n "$release_file" && "$release_file" != *$'\n'* ]] || return 1
+  if printf '%s\n' "$ACTIVE_DELIVER_TEST_BARRIERS" | grep -Fxq -- "$release_file"; then
+    return 0
+  fi
+  if [[ -n "$ACTIVE_DELIVER_TEST_BARRIERS" ]]; then
+    ACTIVE_DELIVER_TEST_BARRIERS="${ACTIVE_DELIVER_TEST_BARRIERS}"$'\n'"${release_file}"
+  else
+    ACTIVE_DELIVER_TEST_BARRIERS="$release_file"
+  fi
+}
+
+_register_deliver_test_child() {
+  local pid="$1"
+  [[ "$pid" =~ ^[1-9][0-9]*$ ]] || return 0
+  if printf '%s\n' "$ACTIVE_DELIVER_TEST_PIDS" | grep -Fxq -- "$pid"; then
+    return 0
+  fi
+  if [[ -n "$ACTIVE_DELIVER_TEST_PIDS" ]]; then
+    ACTIVE_DELIVER_TEST_PIDS="${ACTIVE_DELIVER_TEST_PIDS}"$'\n'"${pid}"
+  else
+    ACTIVE_DELIVER_TEST_PIDS="$pid"
+  fi
+}
+
+_clear_deliver_test_registration() {
+  local registrations="$1" remove="$2" remaining="" entry
+  while IFS= read -r entry || [[ -n "$entry" ]]; do
+    [[ -n "$entry" && "$entry" != "$remove" ]] || continue
+    if [[ -n "$remaining" ]]; then
+      remaining="${remaining}"$'\n'"${entry}"
+    else
+      remaining="$entry"
+    fi
+  done <<< "$registrations"
+  printf '%s' "$remaining"
+}
+
+_clear_deliver_test_child() {
+  ACTIVE_DELIVER_TEST_PIDS="$(_clear_deliver_test_registration "$ACTIVE_DELIVER_TEST_PIDS" "$1")"
+}
+
+_clear_deliver_test_barrier() {
+  ACTIVE_DELIVER_TEST_BARRIERS="$(_clear_deliver_test_registration "$ACTIVE_DELIVER_TEST_BARRIERS" "$1")"
 }
 
 # Never leak sandboxes: release fixture barriers and reap/kill any tracked child
 # before deleting its tmp/ directory, even when a test exits on an assertion.
 # Create a temp directory under the real repo's tmp/ (Bash 3.2 safe).
 _make_tmpdir() {
-  mkdir -p "$REPO_ROOT/tmp"
-  mktemp -d "$REPO_ROOT/tmp/test_deliver.XXXXXX"
+  mktemp -d "$TEST_RUN_ROOT/test.XXXXXX"
 }
 
-trap '_cleanup_active_deliver_test_children; rm -rf "$REPO_ROOT"/tmp/test_deliver.* 2>/dev/null || true' EXIT
+trap '_cleanup_active_deliver_test_children; rm -rf "$TEST_RUN_ROOT" 2>/dev/null || true' EXIT
 
 _write_stubs() {
   local tmpdir="$1"
@@ -1616,10 +1665,12 @@ exec "$REAL_GIT" "$@"
 STUB
   chmod +x "$tmpdir/git"
 
+  _register_deliver_test_barrier "$barrier/release-first"
   REAL_GIT="$real_git" DELIVER_PR_BARRIER="$barrier" \
     GH_STUB_PR_JSON="$(_pr_json "$branch" "" "Concurrent PR 709")" \
     REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" bash "$tmpdir/run_test.sh" > "$tmpdir/first.out" 2>&1 &
   first_pid=$!
+  _register_deliver_test_child "$first_pid"
   attempts=0
   while [ ! -f "$barrier/first-ready" ] && [ "$attempts" -lt 500 ]; do
     if ! kill -0 "$first_pid" 2>/dev/null; then break; fi
@@ -1630,6 +1681,8 @@ STUB
   if [ ! -f "$barrier/first-ready" ]; then
     touch "$barrier/release-first"
     wait "$first_pid" || first_rc=$?
+    _clear_deliver_test_child "$first_pid"
+    _clear_deliver_test_barrier "$barrier/release-first"
     first_output="$(cat "$tmpdir/first.out" 2>/dev/null || true)"
     rm -rf "$tmpdir"
     _fail "simultaneous same-PR deliveries use distinct temporary refs and clean them independently" "first fetch did not reach the barrier; rc=$first_rc; output: $first_output"
@@ -1641,6 +1694,8 @@ STUB
     REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" bash "$tmpdir/run_test.sh" > "$tmpdir/second.out" 2>&1 || second_rc=$?
   touch "$barrier/release-first"
   wait "$first_pid" || first_rc=$?
+  _clear_deliver_test_child "$first_pid"
+  _clear_deliver_test_barrier "$barrier/release-first"
 
   first_refspec="$(cat "$barrier/first-refspec" 2>/dev/null || true)"
   second_refspec="$(cat "$barrier/second-refspec" 2>/dev/null || true)"
@@ -2005,11 +2060,15 @@ test_pr_legacy_ownership_claim_is_atomic_across_prs() {
   GH_STUB_PR_JSON="$(_pr_json "$branch" "" "Atomic PR 722")" \
     REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" bash "$tmpdir/run_pr_722.sh" > "$tmpdir/first.out" 2>&1 &
   first_pid=$!
+  _register_deliver_test_child "$first_pid"
   GH_STUB_PR_JSON="$(_pr_json "$branch" "" "Atomic PR 723")" \
     REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" bash "$tmpdir/run_pr_723.sh" > "$tmpdir/second.out" 2>&1 &
   second_pid=$!
+  _register_deliver_test_child "$second_pid"
   wait "$first_pid" || first_rc=$?
+  _clear_deliver_test_child "$first_pid"
   wait "$second_pid" || second_rc=$?
+  _clear_deliver_test_child "$second_pid"
 
   first_output="$(cat "$tmpdir/first.out" 2>/dev/null || true)"
   second_output="$(cat "$tmpdir/second.out" 2>/dev/null || true)"
@@ -2117,11 +2176,13 @@ STUB
   _write_runner "$tmpdir" "--pr 733"
   cp "$tmpdir/run_test.sh" "$tmpdir/run_pr_733.sh"
 
+  _register_deliver_test_barrier "$barrier/release"
   DELIVER_CHECKOUT_BARRIER="$barrier" REAL_LN="$real_ln" \
     GH_STUB_PR_JSON="$(_pr_json "$branch" "" "Checkout race PR 732")" \
     REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" \
     bash "$tmpdir/run_pr_732.sh" > "$tmpdir/first.out" 2>&1 &
   first_pid=$!
+  _register_deliver_test_child "$first_pid"
   attempts=0
   while [ ! -f "$barrier/entered" ] && [ "$attempts" -lt 1000 ]; do
     if ! kill -0 "$first_pid" 2>/dev/null; then break; fi
@@ -2132,6 +2193,8 @@ STUB
   if [ ! -f "$barrier/entered" ]; then
     touch "$barrier/release"
     wait "$first_pid" || first_rc=$?
+    _clear_deliver_test_child "$first_pid"
+    _clear_deliver_test_barrier "$barrier/release"
     first_output="$(cat "$tmpdir/first.out" 2>/dev/null || true)"
     rm -rf "$tmpdir"
     _fail "source-branch lock waits for a complete worktree checkout before PR ownership or Herdr" "first delivery never reached the smudge barrier; rc=$first_rc; output=$first_output"
@@ -2157,6 +2220,7 @@ STUB
     REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" \
     bash "$tmpdir/run_pr_733.sh" > "$tmpdir/second.out" 2>&1 &
   second_pid=$!
+  _register_deliver_test_child "$second_pid"
   attempts=0
   while [ "$attempts" -lt 1000 ]; do
     if [ -f "$barrier/source-lock-contended" ]; then
@@ -2180,7 +2244,10 @@ STUB
   # process in a Git filter.
   touch "$barrier/release"
   wait "$first_pid" || first_rc=$?
+  _clear_deliver_test_child "$first_pid"
   wait "$second_pid" || second_rc=$?
+  _clear_deliver_test_child "$second_pid"
+  _clear_deliver_test_barrier "$barrier/release"
   first_output="$(cat "$tmpdir/first.out" 2>/dev/null || true)"
   second_output="$(cat "$tmpdir/second.out" 2>/dev/null || true)"
   worktree_list="$(git -C "$tmpdir" worktree list --porcelain)"
@@ -2257,7 +2324,7 @@ test_pr_waiter_waits_for_surviving_git_checkout_after_shell_kill() {
   source_wt="$tmpdir/workspaces/repro-wt-pr-734"
   barrier="$tmpdir/checkout-parent-death-barrier"
   mkdir -p "$barrier"
-  ACTIVE_DELIVER_TEST_BARRIER="$barrier"
+  _register_deliver_test_barrier "$barrier/release"
 
   printf 'checkout-filtered.txt filter=deliver-blocking\n' > "$tmpdir/.gitattributes"
   printf 'complete filtered checkout\n' > "$tmpdir/checkout-filtered.txt"
@@ -2309,7 +2376,7 @@ STUB
     DELIVER_CHECKOUT_GIT_PID_FILE="$barrier/git.pid" REAL_GIT="$real_git" \
     bash "$tmpdir/run_pr_734.sh" > "$tmpdir/first.out" 2>&1 &
   first_pid=$!
-  ACTIVE_DELIVER_TEST_PIDS="$first_pid"
+  _register_deliver_test_child "$first_pid"
 
   attempts=0
   while [ ! -f "$barrier/entered" ] && [ "$attempts" -lt 1000 ]; do
@@ -2321,7 +2388,8 @@ STUB
     touch "$barrier/release"
     git_child_pid="$(cat "$barrier/git.pid" 2>/dev/null || true)"
     filter_pid="$(cat "$barrier/filter.pid" 2>/dev/null || true)"
-    ACTIVE_DELIVER_TEST_PIDS="$first_pid $git_child_pid $filter_pid"
+    _register_deliver_test_child "$git_child_pid"
+    _register_deliver_test_child "$filter_pid"
     _cleanup_active_deliver_test_children
     first_output="$(cat "$tmpdir/first.out" 2>/dev/null || true)"
     rm -rf "$tmpdir"
@@ -2331,7 +2399,8 @@ STUB
 
   git_child_pid="$(cat "$barrier/git.pid" 2>/dev/null || true)"
   filter_pid="$(cat "$barrier/filter.pid" 2>/dev/null || true)"
-  ACTIVE_DELIVER_TEST_PIDS="$first_pid $git_child_pid $filter_pid"
+  _register_deliver_test_child "$git_child_pid"
+  _register_deliver_test_child "$filter_pid"
   source_git_dir="$(git -C "$source_wt" rev-parse --absolute-git-dir 2>/dev/null || true)"
   owner_file="$source_git_dir/deliver-pr-owner"
   worktree_list="$(git -C "$tmpdir" worktree list --porcelain 2>/dev/null || true)"
@@ -2345,6 +2414,7 @@ STUB
 
   kill -KILL "$first_pid" 2>/dev/null || true
   wait "$first_pid" 2>/dev/null || first_rc=$?
+  _clear_deliver_test_child "$first_pid"
   if [ -n "$git_child_pid" ] && kill -0 "$git_child_pid" 2>/dev/null; then
     git_child_survived=true
   fi
@@ -2360,7 +2430,7 @@ STUB
     DELIVER_CHECKOUT_GIT_PID_FILE="$barrier/git.pid" REAL_GIT="$real_git" \
     bash "$tmpdir/run_pr_735.sh" > "$tmpdir/second.out" 2>&1 &
   second_pid=$!
-  ACTIVE_DELIVER_TEST_PIDS="$first_pid $second_pid $git_child_pid $filter_pid"
+  _register_deliver_test_child "$second_pid"
 
   source_lock_path="$(find "$(git -C "$tmpdir" rev-parse --absolute-git-dir)/deliver-pr-branch-locks" \
     -type f -name '*.lock' -print 2>/dev/null | head -1)"
@@ -2404,6 +2474,7 @@ STUB
   # unexpected survivor if a failure left a child running.
   touch "$barrier/release"
   wait "$second_pid" 2>/dev/null || second_rc=$?
+  _clear_deliver_test_child "$second_pid"
   first_output="$(cat "$tmpdir/first.out" 2>/dev/null || true)"
   second_output="$(cat "$tmpdir/second.out" 2>/dev/null || true)"
   worktree_list="$(git -C "$tmpdir" worktree list --porcelain 2>/dev/null || true)"
@@ -2445,6 +2516,219 @@ STUB
   fi
 }
 
+# Test 53 (REP-1693): an initializing checkout on another source branch does
+# not delay an independent PR's Herdr open or agent launch.
+test_pr_unrelated_initializing_worktree_does_not_block_delivery() {
+  local tmpdir barrier pr_head source_branch unrelated_branch unrelated_wt
+  local unrelated_git_dir worktree_list unrelated_entry checkout_pid
+  local checkout_rc=0 delivery_rc=0 attempts output open_log launch delivery_pid=''
+  local unrelated_initializing=false unrelated_index_lock=false opened_before_release=false
+  local checkout_entered=false
+
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  pr_head="$(_setup_pr_remote_fixture "$tmpdir" 736)"
+  source_branch="feature/independent-pr-736"
+  unrelated_branch="feature/unrelated-initializing-checkout"
+  unrelated_wt="$tmpdir/workspaces/unrelated-checkout"
+  barrier="$tmpdir/unrelated-checkout-barrier"
+  mkdir -p "$barrier"
+  _register_deliver_test_barrier "$barrier/release"
+
+  printf 'checkout-filtered.txt filter=deliver-blocking\n' > "$tmpdir/.gitattributes"
+  printf 'independent checkout fixture\n' > "$tmpdir/checkout-filtered.txt"
+  git -C "$tmpdir" add .gitattributes checkout-filtered.txt
+  git -C "$tmpdir" commit -q -m 'Add filtered unrelated checkout fixture'
+  pr_head="$(git -C "$tmpdir" rev-parse HEAD)"
+  git -C "$tmpdir" push -q origin "HEAD:refs/heads/pr-fixture-736"
+  git --git-dir="$tmpdir/origin.git" update-ref refs/pull/736/head "$pr_head"
+
+  cat > "$tmpdir/blocking-smudge.sh" <<'STUB'
+#!/bin/bash
+if [ -n "${DELIVER_CHECKOUT_BARRIER:-}" ] && [ ! -f "$DELIVER_CHECKOUT_BARRIER/release" ] \
+  && mkdir "$DELIVER_CHECKOUT_BARRIER/claimed" 2>/dev/null; then
+  touch "$DELIVER_CHECKOUT_BARRIER/entered"
+  attempts=0
+  while [ ! -f "$DELIVER_CHECKOUT_BARRIER/release" ] && [ "$attempts" -lt 3000 ]; do
+    sleep 0.01
+    attempts=$((attempts + 1))
+  done
+  if [ ! -f "$DELIVER_CHECKOUT_BARRIER/release" ]; then
+    echo 'timed out waiting to release unrelated checkout' >&2
+    exit 1
+  fi
+fi
+cat
+STUB
+  chmod +x "$tmpdir/blocking-smudge.sh"
+  git -C "$tmpdir" config filter.deliver-blocking.clean cat
+  git -C "$tmpdir" config filter.deliver-blocking.smudge "bash $tmpdir/blocking-smudge.sh"
+  git -C "$tmpdir" config filter.deliver-blocking.required true
+
+  DELIVER_CHECKOUT_BARRIER="$barrier" git -C "$tmpdir" worktree add -q -b "$unrelated_branch" "$unrelated_wt" "$pr_head" \
+    > "$tmpdir/unrelated-checkout.out" 2>&1 &
+  checkout_pid=$!
+  _register_deliver_test_child "$checkout_pid"
+  attempts=0
+  while [ ! -f "$barrier/entered" ] && [ "$attempts" -lt 1000 ]; do
+    if ! kill -0 "$checkout_pid" 2>/dev/null; then break; fi
+    sleep 0.01
+    attempts=$((attempts + 1))
+  done
+
+  if [ -f "$barrier/entered" ]; then
+    checkout_entered=true
+    worktree_list="$(git -C "$tmpdir" worktree list --porcelain 2>/dev/null || true)"
+    unrelated_entry="$(printf '%s\n' "$worktree_list" | awk -v path="$unrelated_wt" '
+      $0 == "worktree " path { in_entry=1; next }
+      /^worktree / { in_entry=0 }
+      in_entry { print }
+    ')"
+    printf '%s\n' "$unrelated_entry" | grep -Fxq 'locked initializing' && unrelated_initializing=true
+    unrelated_git_dir="$(git -C "$unrelated_wt" rev-parse --absolute-git-dir 2>/dev/null || true)"
+    if [ -n "$unrelated_git_dir" ] && { [ -e "$unrelated_git_dir/index.lock" ] || [ -L "$unrelated_git_dir/index.lock" ]; }; then
+      unrelated_index_lock=true
+    fi
+
+    _write_runner "$tmpdir" '--pr 736'
+    GH_STUB_PR_JSON="$(_pr_json "$source_branch" '' 'Independent PR during unrelated checkout')" \
+      REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" \
+      bash "$tmpdir/run_test.sh" > "$tmpdir/delivery.out" 2>&1 &
+    delivery_pid=$!
+    _register_deliver_test_child "$delivery_pid"
+
+    attempts=0
+    while [ "$attempts" -lt 500 ]; do
+      open_log="$(cat "$tmpdir/herdr_worktree_open.log" 2>/dev/null || true)"
+      launch="$(cat "$tmpdir/herdr_prompt_launch.txt" 2>/dev/null || true)"
+      if [ -n "$open_log" ] && [ -n "$launch" ] \
+        && [ ! -f "$barrier/release" ] \
+        && kill -0 "$checkout_pid" 2>/dev/null; then
+        worktree_list="$(git -C "$tmpdir" worktree list --porcelain 2>/dev/null || true)"
+        unrelated_entry="$(printf '%s\n' "$worktree_list" | awk -v path="$unrelated_wt" '
+          $0 == "worktree " path { in_entry=1; next }
+          /^worktree / { in_entry=0 }
+          in_entry { print }
+        ')"
+        if printf '%s\n' "$unrelated_entry" | grep -Fxq 'locked initializing' \
+          || { [ -n "$unrelated_git_dir" ] && { [ -e "$unrelated_git_dir/index.lock" ] || [ -L "$unrelated_git_dir/index.lock" ]; }; }; then
+          opened_before_release=true
+        fi
+        break
+      fi
+      if ! kill -0 "$delivery_pid" 2>/dev/null; then break; fi
+      sleep 0.01
+      attempts=$((attempts + 1))
+    done
+  else
+    delivery_pid=''
+    open_log=''
+    launch=''
+  fi
+
+  # Always release the blocked smudge process before waiting, including red
+  # runs, so neither a failing assertion nor the EXIT trap leaks Git children.
+  touch "$barrier/release"
+  wait "$checkout_pid" || checkout_rc=$?
+  _clear_deliver_test_child "$checkout_pid"
+  if [ -n "$delivery_pid" ]; then
+    wait "$delivery_pid" || delivery_rc=$?
+    _clear_deliver_test_child "$delivery_pid"
+  fi
+  output="$(cat "$tmpdir/delivery.out" 2>/dev/null || true)"
+  open_log="$(cat "$tmpdir/herdr_worktree_open.log" 2>/dev/null || true)"
+  launch="$(cat "$tmpdir/herdr_prompt_launch.txt" 2>/dev/null || true)"
+  _clear_deliver_test_barrier "$barrier/release"
+  rm -rf "$tmpdir"
+
+  if [ "$checkout_entered" = true ] \
+    && { [ "$unrelated_initializing" = true ] || [ "$unrelated_index_lock" = true ]; } \
+    && [ "$opened_before_release" = true ] \
+    && [ "$checkout_rc" -eq 0 ] \
+    && [ "$delivery_rc" -eq 0 ] \
+    && [ -n "$open_log" ] \
+    && [ -n "$launch" ]; then
+    _pass 'unrelated initializing checkout does not block independent PR workspace open or launch'
+  else
+    _fail 'unrelated initializing checkout does not block independent PR workspace open or launch' "entered=$checkout_entered; initializing=$unrelated_initializing index-lock=$unrelated_index_lock; opened-before-release=$opened_before_release; rcs=$checkout_rc/$delivery_rc; open=${open_log:-<absent>}; launch=${launch:-<absent>}; output=$output"
+  fi
+}
+
+# Test 54 (REP-1693): a stale private index.lock in a PR alias for another
+# source branch is not treated as an active checkout for this delivery.
+test_pr_unrelated_pr_alias_index_lock_does_not_block_delivery() {
+  local tmpdir barrier pr_head source_branch unrelated_alias unrelated_wt alias_git_dir
+  local delivery_pid release_pid attempts delivery_rc=0 release_rc=0 output open_log launch
+  local opened_before_release=false
+
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  pr_head="$(_setup_pr_remote_fixture "$tmpdir" 737)"
+  source_branch='feature/independent-pr-737'
+  unrelated_alias='deliver/pr-998/unrelated-source-branch'
+  unrelated_wt="$tmpdir/workspaces/unrelated-pr-alias"
+  barrier="$tmpdir/unrelated-alias-index-lock-barrier"
+  mkdir -p "$barrier"
+  _register_deliver_test_barrier "$barrier/release"
+
+  git -C "$tmpdir" worktree add -q -b "$unrelated_alias" "$unrelated_wt" "$pr_head"
+  alias_git_dir="$(git -C "$unrelated_wt" rev-parse --absolute-git-dir)"
+  : > "$alias_git_dir/index.lock"
+  git --git-dir="$tmpdir/origin.git" update-ref refs/pull/737/head "$pr_head"
+  _write_runner "$tmpdir" '--pr 737'
+
+  (
+    attempts=0
+    while [ ! -f "$barrier/release" ] && [ "$attempts" -lt 3000 ]; do
+      sleep 0.01
+      attempts=$((attempts + 1))
+    done
+    rm -f "$alias_git_dir/index.lock"
+  ) &
+  release_pid=$!
+  _register_deliver_test_child "$release_pid"
+  GH_STUB_PR_JSON="$(_pr_json "$source_branch" '' 'Independent PR during unrelated alias lock')" \
+    REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" \
+    bash "$tmpdir/run_test.sh" > "$tmpdir/delivery.out" 2>&1 &
+  delivery_pid=$!
+  _register_deliver_test_child "$delivery_pid"
+
+  attempts=0
+  while [ "$attempts" -lt 500 ]; do
+    open_log="$(cat "$tmpdir/herdr_worktree_open.log" 2>/dev/null || true)"
+    launch="$(cat "$tmpdir/herdr_prompt_launch.txt" 2>/dev/null || true)"
+    if [ -n "$open_log" ] && [ -n "$launch" ] && [ -e "$alias_git_dir/index.lock" ]; then
+      opened_before_release=true
+      break
+    fi
+    if ! kill -0 "$delivery_pid" 2>/dev/null; then break; fi
+    sleep 0.01
+    attempts=$((attempts + 1))
+  done
+
+  # Release the exact marker before either wait so red runs remain bounded.
+  touch "$barrier/release"
+  wait "$release_pid" || release_rc=$?
+  _clear_deliver_test_child "$release_pid"
+  wait "$delivery_pid" || delivery_rc=$?
+  _clear_deliver_test_child "$delivery_pid"
+  output="$(cat "$tmpdir/delivery.out" 2>/dev/null || true)"
+  open_log="$(cat "$tmpdir/herdr_worktree_open.log" 2>/dev/null || true)"
+  launch="$(cat "$tmpdir/herdr_prompt_launch.txt" 2>/dev/null || true)"
+  _clear_deliver_test_barrier "$barrier/release"
+  rm -rf "$tmpdir"
+
+  if [ "$opened_before_release" = true ] \
+    && [ "$release_rc" -eq 0 ] \
+    && [ "$delivery_rc" -eq 0 ] \
+    && [ -n "$open_log" ] \
+    && [ -n "$launch" ]; then
+    _pass 'unrelated PR alias index.lock does not block independent workspace open or launch'
+  else
+    _fail 'unrelated PR alias index.lock does not block independent workspace open or launch' "opened-before-release=$opened_before_release; rcs=$release_rc/$delivery_rc; open=${open_log:-<absent>}; launch=${launch:-<absent>}; output=$output"
+  fi
+}
+
 # Test 50 (REP-1693): a signal while discovery holds the source lock must
 # release that lock and still run the invocation-specific fetched-ref cleanup.
 test_pr_source_branch_lock_signal_cleanup_preserves_fetch_cleanup() {
@@ -2478,11 +2762,13 @@ STUB
   barrier="$tmpdir/source-scan-barrier"
   mkdir -p "$barrier"
 
+  _register_deliver_test_barrier "$barrier/release"
   REAL_GIT="$(command -v git)" DELIVER_SOURCE_SCAN_BARRIER="$barrier" \
     GH_STUB_PR_JSON="$(_pr_json "$branch" "" "Source lock signal cleanup")" \
     REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" \
     bash "$tmpdir/run_test.sh" > "$tmpdir/signal.out" 2>&1 &
   runner_pid=$!
+  _register_deliver_test_child "$runner_pid"
   attempts=0
   while [ ! -f "$barrier/entered" ] && [ "$attempts" -lt 500 ]; do
     if ! kill -0 "$runner_pid" 2>/dev/null; then break; fi
@@ -2496,6 +2782,8 @@ STUB
   kill -TERM "$runner_pid" 2>/dev/null || true
   touch "$barrier/release"
   wait "$runner_pid" || rc=$?
+  _clear_deliver_test_child "$runner_pid"
+  _clear_deliver_test_barrier "$barrier/release"
   output="$(cat "$tmpdir/signal.out" 2>/dev/null || true)"
   remaining_locks="$(find "$tmpdir/.git/deliver-pr-branch-locks" -type f -name '*.lock' -print 2>/dev/null || true)"
   fetch_ref_after="$(git -C "$tmpdir" for-each-ref --format='%(refname)' refs/deliver/pr)"
@@ -2557,12 +2845,14 @@ exec "$REAL_LN" "$@"
 STUB
   chmod +x "$tmpdir/ln"
 
+  _register_deliver_test_barrier "$barrier/release-first"
   GH_STUB_PR_JSON="$(_pr_json "$branch" "" "Concurrent Herdr PR")" \
     HERDR_STUB_DYNAMIC_WORKSPACE_REGISTRY=1 HERDR_STUB_WORKSPACE_REGISTRY="$tmpdir/herdr-registry.json" \
     HERDR_STUB_OPEN_STARTED="$barrier/first-open-started" HERDR_STUB_OPEN_BARRIER="$barrier" \
     REAL_LN="$real_ln" REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" \
     bash "$tmpdir/run_test.sh" > "$tmpdir/first.out" 2>&1 &
   first_pid=$!
+  _register_deliver_test_child "$first_pid"
   attempts=0
   while [ ! -f "$barrier/first-open-started" ] && [ "$attempts" -lt 500 ]; do
     if ! kill -0 "$first_pid" 2>/dev/null; then break; fi
@@ -2573,6 +2863,8 @@ STUB
   if [ ! -f "$barrier/first-open-started" ]; then
     touch "$barrier/release-first"
     wait "$first_pid" || first_rc=$?
+    _clear_deliver_test_child "$first_pid"
+    _clear_deliver_test_barrier "$barrier/release-first"
     first_output="$(cat "$tmpdir/first.out" 2>/dev/null || true)"
     rm -rf "$tmpdir"
     _fail "concurrent same-PR deliveries issue one Herdr worktree open" "first delivery never reached open; rc=$first_rc; output=$first_output"
@@ -2585,6 +2877,7 @@ STUB
     DELIVER_LOCK_CONTENTION_MARKER="$barrier/second-lock-contention" REAL_LN="$real_ln" \
     REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" bash "$tmpdir/run_test.sh" > "$tmpdir/second.out" 2>&1 &
   second_pid=$!
+  _register_deliver_test_child "$second_pid"
   attempts=0
   while [ ! -f "$barrier/second-lock-contention" ] && [ "$attempts" -lt 500 ]; do
     if ! kill -0 "$second_pid" 2>/dev/null; then break; fi
@@ -2599,7 +2892,10 @@ STUB
   # the second process's failed atomic link attempt against the held lock.
   touch "$barrier/release-first"
   wait "$first_pid" || first_rc=$?
+  _clear_deliver_test_child "$first_pid"
   wait "$second_pid" || second_rc=$?
+  _clear_deliver_test_child "$second_pid"
+  _clear_deliver_test_barrier "$barrier/release-first"
 
   first_output="$(cat "$tmpdir/first.out" 2>/dev/null || true)"
   second_output="$(cat "$tmpdir/second.out" 2>/dev/null || true)"
@@ -2823,12 +3119,14 @@ test_herdr_lock_record_is_atomic_and_released_after_signal_or_failure() {
   first_lock="$(_expected_herdr_lock_path "$tmpdir" "$first_target")"
   _write_runner "$tmpdir" "--pr 729"
 
+  _register_deliver_test_barrier "$tmpdir/list-release"
   GH_STUB_PR_JSON="$(_pr_json "$first_branch" "" "Atomic lock signal")" \
     HERDR_STUB_LIST_STARTED="$tmpdir/list-started" \
     HERDR_STUB_LIST_RELEASE="$tmpdir/list-release" \
     REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" \
     bash "$tmpdir/run_test.sh" > "$tmpdir/signal.out" 2>&1 &
   first_pid=$!
+  _register_deliver_test_child "$first_pid"
   attempts=0
   while [ ! -f "$tmpdir/list-started" ] && [ "$attempts" -lt 500 ]; do
     if ! kill -0 "$first_pid" 2>/dev/null; then break; fi
@@ -2843,6 +3141,8 @@ test_herdr_lock_record_is_atomic_and_released_after_signal_or_failure() {
   kill -TERM "$first_pid" 2>/dev/null || true
   touch "$tmpdir/list-release"
   wait "$first_pid" || first_rc=$?
+  _clear_deliver_test_child "$first_pid"
+  _clear_deliver_test_barrier "$tmpdir/list-release"
   signal_output="$(cat "$tmpdir/signal.out" 2>/dev/null || true)"
   open_log="$(cat "$tmpdir/herdr_worktree_open.log" 2>/dev/null || true)"
   [ -e "$first_lock" ] || signal_lock_released=true
@@ -2948,6 +3248,12 @@ case "${DELIVER_TEST_ONLY:-}" in
   test_pr_source_branch_lock_waits_for_checkout_completion)
     test_pr_source_branch_lock_waits_for_checkout_completion
     ;;
+  test_pr_unrelated_initializing_worktree_does_not_block_delivery)
+    test_pr_unrelated_initializing_worktree_does_not_block_delivery
+    ;;
+  test_pr_unrelated_pr_alias_index_lock_does_not_block_delivery)
+    test_pr_unrelated_pr_alias_index_lock_does_not_block_delivery
+    ;;
   test_pr_waiter_waits_for_surviving_git_checkout_after_shell_kill)
     test_pr_waiter_waits_for_surviving_git_checkout_after_shell_kill
     ;;
@@ -3010,6 +3316,8 @@ case "${DELIVER_TEST_ONLY:-}" in
   test_pr_same_source_branch_uses_owned_alias_for_second_pr
   test_pr_legacy_ownership_claim_is_atomic_across_prs
   test_pr_source_branch_lock_waits_for_checkout_completion
+  test_pr_unrelated_initializing_worktree_does_not_block_delivery
+  test_pr_unrelated_pr_alias_index_lock_does_not_block_delivery
   test_pr_waiter_waits_for_surviving_git_checkout_after_shell_kill
   test_pr_source_branch_lock_signal_cleanup_preserves_fetch_cleanup
   test_pr_concurrent_deliveries_open_one_herdr_workspace

@@ -378,13 +378,28 @@ DELIVER_PR_SOURCE_LOCK_IDENTITY=""
 DELIVER_PR_SOURCE_SETUP_STATE=""
 
 _deliver_pr_inspect_source_worktree_setup() {
-  local expected_branch="$1" wt_path="$2" branch="$3" initializing="$4" git_dir
+  local expected_branch="$1" target_path="$2" wt_path="$3" branch="$4" initializing="$5"
+  local git_dir source_slug alias_remainder alias_pr_number alias_source_slug relevant=false
+
+  if [[ "$wt_path" == "$target_path" || "$branch" == "$expected_branch" ]]; then
+    relevant=true
+  elif [[ "$branch" == deliver/pr-* ]]; then
+    source_slug="$(slugify "$expected_branch" | cut -c 1-120)"
+    alias_remainder="${branch#deliver/pr-}"
+    alias_pr_number="${alias_remainder%%/*}"
+    alias_source_slug="${alias_remainder#*/}"
+    if [[ "$alias_pr_number" =~ ^[0-9]+$ && "$alias_source_slug" == "$source_slug" ]]; then
+      relevant=true
+    fi
+  fi
+
+  # Filter by branch/path identity before trusting initializing markers or
+  # private index locks; unrelated Git worktree operations must not serialize
+  # an independent PR delivery.
+  [[ "$relevant" == true ]] || return 0
 
   if [[ "$initializing" == true ]]; then
     DELIVER_PR_SOURCE_SETUP_STATE="in_progress"
-    return 0
-  fi
-  if [[ "$branch" != "$expected_branch" && "$branch" != deliver/pr-* ]]; then
     return 0
   fi
 
@@ -403,7 +418,8 @@ _deliver_pr_inspect_source_worktree_setup() {
 }
 
 _deliver_pr_source_worktree_setup_state() {
-  local expected_branch="$1" worktree_list line entry_path="" entry_branch="" entry_initializing=false
+  local expected_branch="$1" target_path="$2"
+  local worktree_list line entry_path="" entry_branch="" entry_initializing=false
   DELIVER_PR_SOURCE_SETUP_STATE="clear"
 
   worktree_list="$(git -C "$REPO_ROOT" worktree list --porcelain 2>/dev/null)" || {
@@ -416,7 +432,7 @@ _deliver_pr_source_worktree_setup_state() {
       worktree\ *)
         if [[ -n "$entry_path" ]]; then
           _deliver_pr_inspect_source_worktree_setup \
-            "$expected_branch" "$entry_path" "$entry_branch" "$entry_initializing"
+            "$expected_branch" "$target_path" "$entry_path" "$entry_branch" "$entry_initializing"
           case "$DELIVER_PR_SOURCE_SETUP_STATE" in
             in_progress|unverifiable) return 0 ;;
           esac
@@ -434,7 +450,7 @@ _deliver_pr_source_worktree_setup_state() {
       "")
         if [[ -n "$entry_path" ]]; then
           _deliver_pr_inspect_source_worktree_setup \
-            "$expected_branch" "$entry_path" "$entry_branch" "$entry_initializing"
+            "$expected_branch" "$target_path" "$entry_path" "$entry_branch" "$entry_initializing"
           case "$DELIVER_PR_SOURCE_SETUP_STATE" in
             in_progress|unverifiable) return 0 ;;
           esac
@@ -448,7 +464,7 @@ _deliver_pr_source_worktree_setup_state() {
 
   if [[ -n "$entry_path" ]]; then
     _deliver_pr_inspect_source_worktree_setup \
-      "$expected_branch" "$entry_path" "$entry_branch" "$entry_initializing"
+      "$expected_branch" "$target_path" "$entry_path" "$entry_branch" "$entry_initializing"
   fi
 }
 
@@ -456,10 +472,10 @@ _deliver_pr_source_worktree_setup_state() {
 # still be populating a source or PR-alias worktree in a child process. Wait
 # while Git exposes an initializing marker or the relevant private index.lock.
 _deliver_pr_wait_for_source_worktree_setup() {
-  local branch="$1" attempts=0 max_attempts=1200
+  local branch="$1" target_path="$2" attempts=0 max_attempts=1200
 
   while [[ "$attempts" -lt "$max_attempts" ]]; do
-    _deliver_pr_source_worktree_setup_state "$branch"
+    _deliver_pr_source_worktree_setup_state "$branch" "$target_path"
     case "$DELIVER_PR_SOURCE_SETUP_STATE" in
       clear) return 0 ;;
       in_progress) ;;
@@ -756,7 +772,7 @@ _create_worktree_and_launch() {
       _err "Could not safely acquire the shared source-branch lock for PR #${mode_arg} on '$branch'."
       exit 1
     fi
-    if ! _deliver_pr_wait_for_source_worktree_setup "$branch"; then
+    if ! _deliver_pr_wait_for_source_worktree_setup "$branch" "$wt_path"; then
       _err "Could not safely adopt PR #${mode_arg} worktree for source branch '$branch'."
       exit 1
     fi
