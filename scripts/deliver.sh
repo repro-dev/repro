@@ -131,18 +131,20 @@ _mode_pr() {
   title="$(printf '%s' "$pr_json" | jq -r '.title // empty' 2>/dev/null || true)"
   body="$(printf '%s' "$pr_json" | jq -r '.body // ""' 2>/dev/null || true)"
 
-  # Extract Linear issue ID from branch name (preferred) or PR body
+  # Extract Linear issue ID from branch name (preferred), PR body, then title.
   local issue_id=""
   if [[ "$branch" =~ [A-Z]+-[0-9]+ ]]; then
     issue_id="${BASH_REMATCH[0]}"
   elif [[ "$body" =~ [A-Z]+-[0-9]+ ]]; then
+    issue_id="${BASH_REMATCH[0]}"
+  elif [[ "$title" =~ [A-Z]+-[0-9]+ ]]; then
     issue_id="${BASH_REMATCH[0]}"
   fi
 
   printf '%s\n%s\n%s\n' "$issue_id" "$branch" "$title"
 
   if [[ -z "$issue_id" ]]; then
-    _warn "No Linear issue ID found in PR #${pr_number} (checked branch name and body)."
+    _warn "No Linear issue ID found in PR #${pr_number} (checked branch name, body, and title)."
   fi
 }
 
@@ -197,6 +199,444 @@ _deliver_numeric_or() {
   else
     printf '%s\n' "$fallback"
   fi
+}
+
+DELIVER_PR_FETCH_REF=""
+DELIVER_PR_OWNER_TEMP=""
+_deliver_cleanup_pr_fetch_ref() {
+  if [[ -n "$DELIVER_PR_FETCH_REF" ]]; then
+    if git -C "$REPO_ROOT" update-ref -d "$DELIVER_PR_FETCH_REF" >/dev/null 2>&1; then
+      DELIVER_PR_FETCH_REF=""
+    fi
+  fi
+  if [[ -n "$DELIVER_PR_OWNER_TEMP" ]]; then
+    rm -f "$DELIVER_PR_OWNER_TEMP" >/dev/null 2>&1 || true
+    DELIVER_PR_OWNER_TEMP=""
+  fi
+}
+
+# Ownership is Git metadata, not a file in the user's worktree. A hard link
+# installs the complete owner record atomically and fails rather than
+# overwriting a competing PR's claim.
+DELIVER_PR_OWNER_STATE=""
+_deliver_pr_read_owner() {
+  local wt_path="$1" pr_number="$2" git_dir owner_file owner_record
+  DELIVER_PR_OWNER_STATE="invalid"
+
+  git_dir="$(git -C "$wt_path" rev-parse --absolute-git-dir 2>/dev/null)" || return 0
+  owner_file="$git_dir/deliver-pr-owner"
+  if [[ -L "$owner_file" ]]; then
+    return 0
+  fi
+  if [[ ! -e "$owner_file" ]]; then
+    DELIVER_PR_OWNER_STATE="missing"
+    return 0
+  fi
+  if [[ ! -f "$owner_file" || ! -r "$owner_file" ]]; then
+    return 0
+  fi
+
+  owner_record="$(cat "$owner_file" 2>/dev/null)" || return 0
+  if [[ ! "$owner_record" =~ ^pr=[0-9]+$ ]]; then
+    return 0
+  fi
+  if [[ "${owner_record#pr=}" == "$pr_number" ]]; then
+    DELIVER_PR_OWNER_STATE="owned"
+  else
+    DELIVER_PR_OWNER_STATE="foreign"
+  fi
+}
+
+_deliver_pr_claim_owner() {
+  local wt_path="$1" pr_number="$2" git_dir owner_file temp_file
+
+  _deliver_pr_read_owner "$wt_path" "$pr_number"
+  case "$DELIVER_PR_OWNER_STATE" in
+    owned|foreign|invalid) return 0 ;;
+    missing) ;;
+  esac
+
+  git_dir="$(git -C "$wt_path" rev-parse --absolute-git-dir 2>/dev/null)" || return 0
+  owner_file="$git_dir/deliver-pr-owner"
+  temp_file="$git_dir/deliver-pr-owner.$$.${RANDOM}.tmp"
+  if ! (umask 077; set -C; printf 'pr=%s\n' "$pr_number" > "$temp_file"); then
+    # No-clobber creation can fail because a similarly named temporary file
+    # already exists; never remove a file we did not create.
+    DELIVER_PR_OWNER_STATE="invalid"
+    return 0
+  fi
+  DELIVER_PR_OWNER_TEMP="$temp_file"
+
+  if ln "$temp_file" "$owner_file" 2>/dev/null; then
+    rm -f "$temp_file" >/dev/null 2>&1 || true
+    DELIVER_PR_OWNER_TEMP=""
+    DELIVER_PR_OWNER_STATE="owned"
+    return 0
+  fi
+
+  rm -f "$temp_file" >/dev/null 2>&1 || true
+  DELIVER_PR_OWNER_TEMP=""
+  _deliver_pr_read_owner "$wt_path" "$pr_number"
+}
+
+_deliver_pr_is_isolated() {
+  local wt_path="$1" worktree_real main_real
+  worktree_real="$(cd "$wt_path" 2>/dev/null && pwd -P)" || return 1
+  main_real="$(cd "$MAIN_CHECKOUT" 2>/dev/null && pwd -P)" || return 1
+  [[ "$worktree_real" != "$main_real" ]]
+}
+
+# Verify the requested branch/ref, exact fetched OID, isolated path, and PR
+# owner. Legacy worktrees may be claimed only after the other checks pass.
+# Return 0 for current-PR ownership, 2 for foreign ownership, 3 for an
+# unclaimed race winner that has not published its owner record yet, 1 unsafe.
+_deliver_pr_verify_worktree() {
+  local wt_path="$1" branch="$2" pr_head="$3" pr_number="$4" claim_legacy="$5"
+  local current_branch branch_oid worktree_head
+
+  _deliver_pr_read_owner "$wt_path" "$pr_number"
+  case "$DELIVER_PR_OWNER_STATE" in
+    foreign) return 2 ;;
+    invalid) return 1 ;;
+    missing)
+      if [[ "$claim_legacy" != true ]]; then
+        return 3
+      fi
+      ;;
+    owned) ;;
+    *) return 1 ;;
+  esac
+
+  _deliver_pr_is_isolated "$wt_path" || return 1
+  current_branch="$(git -C "$wt_path" branch --show-current 2>/dev/null)" || return 1
+  [[ "$current_branch" == "$branch" ]] || return 1
+  branch_oid="$(git -C "$REPO_ROOT" rev-parse --verify "refs/heads/$branch" 2>/dev/null)" || return 1
+  worktree_head="$(git -C "$wt_path" rev-parse --verify HEAD 2>/dev/null)" || return 1
+  [[ "$branch_oid" == "$pr_head" && "$worktree_head" == "$pr_head" ]] || return 1
+
+  if [[ "$DELIVER_PR_OWNER_STATE" == missing ]]; then
+    _deliver_pr_claim_owner "$wt_path" "$pr_number"
+    case "$DELIVER_PR_OWNER_STATE" in
+      owned) return 0 ;;
+      foreign) return 2 ;;
+      *) return 1 ;;
+    esac
+  fi
+  return 0
+}
+
+DELIVER_PR_RECOVERED_WT=""
+_deliver_pr_recover_source_worktree() {
+  local branch="$1" pr_head="$2" pr_number="$3"
+  local raced_wt current_branch branch_oid worktree_head attempts verify_status
+  DELIVER_PR_RECOVERED_WT=""
+  attempts=0
+
+  while [[ "$attempts" -lt 200 ]]; do
+    raced_wt="$(_worktree_path_for_branch "$branch" "$REPO_ROOT" 2>/dev/null || true)"
+    if [[ -n "$raced_wt" ]]; then
+      _deliver_pr_is_isolated "$raced_wt" || return 1
+      _deliver_pr_read_owner "$raced_wt" "$pr_number"
+      case "$DELIVER_PR_OWNER_STATE" in
+        foreign) return 2 ;;
+        invalid) return 1 ;;
+        owned)
+          if _deliver_pr_verify_worktree "$raced_wt" "$branch" "$pr_head" "$pr_number" false; then
+            DELIVER_PR_RECOVERED_WT="$raced_wt"
+            return 0
+          else
+            verify_status=$?
+            [[ "$verify_status" == 2 ]] && return 2
+            return 1
+          fi
+          ;;
+        missing)
+          current_branch="$(git -C "$raced_wt" branch --show-current 2>/dev/null)" || return 1
+          branch_oid="$(git -C "$REPO_ROOT" rev-parse --verify "refs/heads/$branch" 2>/dev/null)" || return 1
+          worktree_head="$(git -C "$raced_wt" rev-parse --verify HEAD 2>/dev/null)" || return 1
+          if [[ "$current_branch" != "$branch" || "$branch_oid" != "$pr_head" || "$worktree_head" != "$pr_head" ]]; then
+            return 1
+          fi
+          ;;
+      esac
+    fi
+    sleep 0.01
+    attempts=$((attempts + 1))
+  done
+  return 1
+}
+
+_deliver_pr_alias_source_suffix() {
+  local source_branch="$1" branch_slug hash_output digest
+  branch_slug="$(slugify "$source_branch" | cut -c 1-120)"
+  [[ -n "$branch_slug" ]] || return 1
+  hash_output="$(printf '%s' "$source_branch" | shasum -a 256 2>/dev/null)" || return 1
+  digest="${hash_output%% *}"
+  [[ "$digest" =~ ^[[:xdigit:]]{64}$ ]] || return 1
+  printf '%s-%s\n' "$branch_slug" "$digest"
+}
+
+_deliver_pr_alias_branch() {
+  local pr_number="$1" source_branch="$2" source_suffix
+  source_suffix="$(_deliver_pr_alias_source_suffix "$source_branch")" || return 1
+  printf 'deliver/pr-%s/%s\n' "$pr_number" "$source_suffix"
+}
+
+DELIVER_PR_SOURCE_LOCK_PATH=""
+DELIVER_PR_SOURCE_LOCK_IDENTITY=""
+DELIVER_PR_SOURCE_SETUP_STATE=""
+
+_deliver_pr_inspect_source_worktree_setup() {
+  local expected_branch="$1" target_path="$2" wt_path="$3" branch="$4" initializing="$5"
+  local git_dir source_suffix alias_remainder alias_pr_number alias_source_suffix relevant=false
+
+  if [[ "$wt_path" == "$target_path" || "$branch" == "$expected_branch" ]]; then
+    relevant=true
+  elif [[ "$branch" == deliver/pr-* ]]; then
+    source_suffix="$(_deliver_pr_alias_source_suffix "$expected_branch")" || {
+      DELIVER_PR_SOURCE_SETUP_STATE="unverifiable"
+      return 0
+    }
+    alias_remainder="${branch#deliver/pr-}"
+    alias_pr_number="${alias_remainder%%/*}"
+    alias_source_suffix="${alias_remainder#*/}"
+    if [[ "$alias_pr_number" =~ ^[0-9]+$ && "$alias_source_suffix" == "$source_suffix" ]]; then
+      relevant=true
+    fi
+  fi
+
+  # Filter by branch/path identity before trusting initializing markers or
+  # private index locks; unrelated Git worktree operations must not serialize
+  # an independent PR delivery.
+  [[ "$relevant" == true ]] || return 0
+
+  if [[ "$initializing" == true ]]; then
+    DELIVER_PR_SOURCE_SETUP_STATE="in_progress"
+    return 0
+  fi
+
+  git_dir="$(git -C "$wt_path" rev-parse --absolute-git-dir 2>/dev/null)" || {
+    DELIVER_PR_SOURCE_SETUP_STATE="unverifiable"
+    return 0
+  }
+  if [[ "$git_dir" != /* || "$git_dir" == *$'\n'* || ! -d "$git_dir" ]]; then
+    DELIVER_PR_SOURCE_SETUP_STATE="unverifiable"
+    return 0
+  fi
+
+  if [[ -e "$git_dir/index.lock" || -L "$git_dir/index.lock" ]]; then
+    DELIVER_PR_SOURCE_SETUP_STATE="in_progress"
+  fi
+}
+
+_deliver_pr_source_worktree_setup_state() {
+  local expected_branch="$1" target_path="$2"
+  local worktree_list line entry_path="" entry_branch="" entry_initializing=false
+  DELIVER_PR_SOURCE_SETUP_STATE="clear"
+
+  worktree_list="$(git -C "$REPO_ROOT" worktree list --porcelain 2>/dev/null)" || {
+    DELIVER_PR_SOURCE_SETUP_STATE="unverifiable"
+    return 0
+  }
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    case "$line" in
+      worktree\ *)
+        if [[ -n "$entry_path" ]]; then
+          _deliver_pr_inspect_source_worktree_setup \
+            "$expected_branch" "$target_path" "$entry_path" "$entry_branch" "$entry_initializing"
+          case "$DELIVER_PR_SOURCE_SETUP_STATE" in
+            in_progress|unverifiable) return 0 ;;
+          esac
+        fi
+        entry_path="${line#worktree }"
+        entry_branch=""
+        entry_initializing=false
+        ;;
+      branch\ refs/heads/*)
+        entry_branch="${line#branch refs/heads/}"
+        ;;
+      locked\ initializing)
+        entry_initializing=true
+        ;;
+      "")
+        if [[ -n "$entry_path" ]]; then
+          _deliver_pr_inspect_source_worktree_setup \
+            "$expected_branch" "$target_path" "$entry_path" "$entry_branch" "$entry_initializing"
+          case "$DELIVER_PR_SOURCE_SETUP_STATE" in
+            in_progress|unverifiable) return 0 ;;
+          esac
+          entry_path=""
+          entry_branch=""
+          entry_initializing=false
+        fi
+        ;;
+    esac
+  done <<< "$worktree_list"
+
+  if [[ -n "$entry_path" ]]; then
+    _deliver_pr_inspect_source_worktree_setup \
+      "$expected_branch" "$target_path" "$entry_path" "$entry_branch" "$entry_initializing"
+  fi
+}
+
+# Stale source-lock recovery only proves that the delivery shell died; Git may
+# still be populating a source or PR-alias worktree in a child process. Wait
+# while Git exposes an initializing marker or the relevant private index.lock.
+_deliver_pr_wait_for_source_worktree_setup() {
+  local branch="$1" target_path="$2" attempts=0 max_attempts=1200
+
+  while [[ "$attempts" -lt "$max_attempts" ]]; do
+    _deliver_pr_source_worktree_setup_state "$branch" "$target_path"
+    case "$DELIVER_PR_SOURCE_SETUP_STATE" in
+      clear) return 0 ;;
+      in_progress) ;;
+      *)
+        _err "Cannot safely verify whether Git is still setting up the PR worktree for source branch '$branch'."
+        return 1
+        ;;
+    esac
+    sleep 0.05
+    attempts=$((attempts + 1))
+  done
+
+  _err "Timed out waiting for Git to finish setting up the PR worktree for source branch '$branch'."
+  return 1
+}
+
+# Reuse the atomic owner-record lock machinery from worktree.sh, but give PR
+# source branches a separate namespace in shared Git metadata. Linked worktrees
+# resolve to the same common dir, so every deliver invocation for this source
+# branch contends on the same lock regardless of its checkout path.
+_deliver_pr_acquire_source_branch_lock() {
+  local branch="$1" git_common_dir lock_root hash_output digest
+  DELIVER_PR_SOURCE_LOCK_PATH=""
+  DELIVER_PR_SOURCE_LOCK_IDENTITY=""
+
+  git_common_dir="$(git -C "$REPO_ROOT" rev-parse --git-common-dir 2>/dev/null)" || return 1
+  case "$git_common_dir" in
+    /*) ;;
+    *) git_common_dir="$REPO_ROOT/$git_common_dir" ;;
+  esac
+  git_common_dir="$(cd "$git_common_dir" 2>/dev/null && pwd -P)" || return 1
+  if [[ "$git_common_dir" == *$'\n'* || "$branch" == *$'\n'* ]]; then
+    _err "Cannot derive a safe PR source-branch lock identity for '$branch'."
+    return 1
+  fi
+
+  hash_output="$(printf '%s\n%s\n' "$git_common_dir" "$branch" | shasum -a 256 2>/dev/null)" || return 1
+  digest="${hash_output%% *}"
+  if [[ ! "$digest" =~ ^[[:xdigit:]]{64}$ ]]; then
+    _err "Cannot verify PR source-branch lock identity for '$branch'."
+    return 1
+  fi
+
+  lock_root="$git_common_dir/deliver-pr-branch-locks"
+  mkdir -p "$lock_root" || {
+    _err "Cannot create PR source-branch lock directory: $lock_root"
+    return 1
+  }
+  DELIVER_PR_SOURCE_LOCK_PATH="$lock_root/$digest.lock"
+  DELIVER_PR_SOURCE_LOCK_IDENTITY="source-branch:$git_common_dir:$branch"
+
+  # This lock spans worktree discovery and complete checkout/owner publication.
+  # Install the existing cleanup chain before acquisition: its EXIT handler
+  # releases this lock, restores the prior traps, then lets the invocation's
+  # fetch-ref cleanup run unchanged on errors and signals.
+  _herdr_install_lock_cleanup_traps
+  if ! _herdr_acquire_workspace_lock "$DELIVER_PR_SOURCE_LOCK_PATH" "$DELIVER_PR_SOURCE_LOCK_IDENTITY"; then
+    _herdr_restore_lock_cleanup_traps
+    DELIVER_PR_SOURCE_LOCK_PATH=""
+    DELIVER_PR_SOURCE_LOCK_IDENTITY=""
+    return 1
+  fi
+  return 0
+}
+
+_deliver_pr_release_source_branch_lock() {
+  if [[ -z "$DELIVER_PR_SOURCE_LOCK_PATH" || -z "$DELIVER_PR_SOURCE_LOCK_IDENTITY" ]]; then
+    _err "PR source-branch lock state is missing during release."
+    return 1
+  fi
+  if ! _herdr_release_workspace_lock "$DELIVER_PR_SOURCE_LOCK_PATH" "$HERDR_LOCK_ACTIVE_TOKEN" "$DELIVER_PR_SOURCE_LOCK_IDENTITY"; then
+    return 1
+  fi
+  _herdr_restore_lock_cleanup_traps
+  DELIVER_PR_SOURCE_LOCK_PATH=""
+  DELIVER_PR_SOURCE_LOCK_IDENTITY=""
+  return 0
+}
+
+_deliver_pr_alias_worktree() {
+  local pr_number="$1" source_branch="$2" pr_head="$3" wt_path="$4"
+  local alias_branch alias_oid alias_wt verify_status attempts
+
+  alias_branch="$(_deliver_pr_alias_branch "$pr_number" "$source_branch")" || {
+    _err "Could not derive a valid local alias branch for PR #${pr_number}."
+    return 1
+  }
+  if ! git check-ref-format "refs/heads/$alias_branch" >/dev/null 2>&1; then
+    _err "Could not derive a valid local alias branch for PR #${pr_number}."
+    return 1
+  fi
+
+  alias_wt="$(_worktree_path_for_branch "$alias_branch" "$REPO_ROOT" 2>/dev/null || true)"
+  if [[ -n "$alias_wt" ]]; then
+    if _deliver_pr_verify_worktree "$alias_wt" "$alias_branch" "$pr_head" "$pr_number" true; then
+      printf '%s\n' "$alias_wt"
+      return 0
+    fi
+    _err "Existing alias worktree for PR #${pr_number} is not owned by that PR at the fetched head."
+    return 1
+  fi
+
+  alias_oid="$(git rev-parse --verify --quiet "refs/heads/$alias_branch" 2>/dev/null || true)"
+  if [[ -n "$alias_oid" && "$alias_oid" != "$pr_head" ]]; then
+    _err "Local alias branch '$alias_branch' does not match fetched PR #${pr_number} head."
+    return 1
+  fi
+
+  if [[ -n "$alias_oid" ]]; then
+    if git worktree add "$wt_path" "$alias_branch" >/dev/null 2>&1; then
+      if _deliver_pr_verify_worktree "$wt_path" "$alias_branch" "$pr_head" "$pr_number" true; then
+        printf '%s\n' "$wt_path"
+        return 0
+      fi
+      _err "Could not verify the local alias worktree for PR #${pr_number}."
+      return 1
+    fi
+  else
+    if git worktree add -b "$alias_branch" "$wt_path" "$pr_head" >/dev/null 2>&1; then
+      if _deliver_pr_verify_worktree "$wt_path" "$alias_branch" "$pr_head" "$pr_number" true; then
+        printf '%s\n' "$wt_path"
+        return 0
+      fi
+      _err "Could not verify the local alias worktree for PR #${pr_number}."
+      return 1
+    fi
+  fi
+
+  # A same-PR invocation can win the alias creation race. Reuse it only after
+  # its branch/ref, HEAD, isolation, and Git-dir ownership all validate.
+  attempts=0
+  while [[ "$attempts" -lt 100 ]]; do
+    alias_wt="$(_worktree_path_for_branch "$alias_branch" "$REPO_ROOT" 2>/dev/null || true)"
+    if [[ -n "$alias_wt" ]]; then
+      if _deliver_pr_verify_worktree "$alias_wt" "$alias_branch" "$pr_head" "$pr_number" true; then
+        printf '%s\n' "$alias_wt"
+        return 0
+      else
+        verify_status=$?
+      fi
+      if [[ "$verify_status" != 3 ]]; then
+        break
+      fi
+    fi
+    sleep 0.01
+    attempts=$((attempts + 1))
+  done
+  _err "Could not create or safely adopt a local alias worktree for PR #${pr_number}."
+  return 1
 }
 
 # ── Worktree creation and agent launch ─────────────────────────────
@@ -319,16 +759,154 @@ _create_worktree_and_launch() {
       wt_path="$resolved_wt_path"
     fi
   elif [[ "$mode" == "pr" ]]; then
-    # Fetch PR head ref from GitHub
-    git fetch origin "pull/${mode_arg}/head" 2>/dev/null || {
+    # Keep each invocation's PR head in a private ref: FETCH_HEAD is shared by
+    # processes using this checkout and can be replaced by another fetch.
+    local pr_fetch_ref="refs/deliver/pr/${mode_arg}/$$-${RANDOM}"
+    DELIVER_PR_FETCH_REF="$pr_fetch_ref"
+    trap _deliver_cleanup_pr_fetch_ref EXIT
+    git fetch origin "pull/${mode_arg}/head:${pr_fetch_ref}" 2>/dev/null || {
       _err "Could not fetch PR #${mode_arg}. The branch may have been deleted."
       echo "  Try: git fetch origin pull/${mode_arg}/head" >&2
       exit 1
     }
-    git worktree add "$wt_path" "FETCH_HEAD"
-    # Create a local branch at this ref so it can be pushed
-    git -C "$wt_path" checkout -b "$branch"
-    git push -u origin "$branch" 2>/dev/null || true
+
+    local pr_head local_branch_commit attached_wt="" existing_alias_wt="" expected_alias_branch=""
+    local owner_state="" verify_status=0 recover_status=0 push_pr_source_branch=false
+    pr_head="$(git rev-parse --verify "${pr_fetch_ref}^{commit}" 2>/dev/null)" || {
+      _err "Could not resolve the fetched head for PR #${mode_arg}."
+      exit 1
+    }
+
+    # Serialize discovery, legacy ownership claims, and all source/alias
+    # worktree creation in the common Git directory. The scan below must be
+    # performed only after lock acquisition; a registered worktree may still
+    # be in its checkout phase until its creating git process returns.
+    if ! _deliver_pr_acquire_source_branch_lock "$branch"; then
+      _err "Could not safely acquire the shared source-branch lock for PR #${mode_arg} on '$branch'."
+      exit 1
+    fi
+    if ! _deliver_pr_wait_for_source_worktree_setup "$branch" "$wt_path"; then
+      _err "Could not safely adopt PR #${mode_arg} worktree for source branch '$branch'."
+      exit 1
+    fi
+
+    local_branch_commit="$(git rev-parse --verify --quiet "refs/heads/$branch" 2>/dev/null || true)"
+
+    # Never mutate an adopted worktree. Ownership in its Git directory keeps
+    # different PRs from treating one source-branch checkout as shared state.
+    attached_wt="$(_worktree_path_for_branch "$branch" "$REPO_ROOT" 2>/dev/null || true)"
+    if [[ -z "$attached_wt" ]]; then
+      # A prior delivery may have moved this PR onto its local alias because
+      # another PR owned the source checkout. Reuse only that expected alias;
+      # otherwise the source branch's occupied PR path would be mistaken for
+      # a fresh worktree target after its original checkout is removed.
+      expected_alias_branch="$(_deliver_pr_alias_branch "$mode_arg" "$branch")" || {
+        _err "Could not derive the expected local alias branch for PR #${mode_arg}."
+        exit 1
+      }
+      existing_alias_wt="$(_worktree_path_for_branch "$expected_alias_branch" "$REPO_ROOT" 2>/dev/null || true)"
+      if [[ -n "$existing_alias_wt" ]]; then
+        if [[ "$existing_alias_wt" != "$wt_path" ]] \
+          || ! _deliver_pr_verify_worktree "$existing_alias_wt" "$expected_alias_branch" "$pr_head" "$mode_arg" false; then
+          _err "Existing alias worktree for PR #${mode_arg} is not owned by that PR at the fetched head and expected path."
+          exit 1
+        fi
+        wt_path="$existing_alias_wt"
+      fi
+    fi
+
+    if [[ -n "$existing_alias_wt" ]]; then
+      : # The expected alias was verified above; leave its contents untouched.
+    elif [[ -n "$attached_wt" ]]; then
+      if ! _deliver_pr_is_isolated "$attached_wt"; then
+        _err "PR branch '$branch' is checked out in the primary checkout ($MAIN_CHECKOUT) or its worktree path cannot be verified; PR delivery requires an isolated worktree."
+        exit 1
+      fi
+
+      _deliver_pr_read_owner "$attached_wt" "$mode_arg"
+      owner_state="$DELIVER_PR_OWNER_STATE"
+      case "$owner_state" in
+        invalid)
+          _err "Could not verify PR ownership metadata for the worktree on branch '$branch'."
+          exit 1
+          ;;
+        foreign)
+          # Another PR owns this branch checkout. Keep it untouched and use a
+          # PR-scoped local alias at this invocation's fetched commit.
+          wt_path="$(_deliver_pr_alias_worktree "$mode_arg" "$branch" "$pr_head" "$wt_path")" || exit 1
+          ;;
+        owned|missing)
+          if _deliver_pr_verify_worktree "$attached_wt" "$branch" "$pr_head" "$mode_arg" true; then
+            wt_path="$attached_wt"
+          else
+            verify_status=$?
+            if [[ "$verify_status" == 2 ]]; then
+              wt_path="$(_deliver_pr_alias_worktree "$mode_arg" "$branch" "$pr_head" "$wt_path")" || exit 1
+            else
+              _err "Local PR worktree for branch '$branch' does not match fetched PR #${mode_arg} head or ownership."
+              exit 1
+            fi
+          fi
+          ;;
+      esac
+    elif [[ -n "$local_branch_commit" ]]; then
+      if [[ "$local_branch_commit" != "$pr_head" ]]; then
+        _err "Local PR branch '$branch' does not match fetched PR #${mode_arg} head."
+        exit 1
+      fi
+
+      if git worktree add "$wt_path" "$branch"; then
+        if ! _deliver_pr_verify_worktree "$wt_path" "$branch" "$pr_head" "$mode_arg" true; then
+          _err "Could not verify PR #${mode_arg} ownership and exact head after attaching branch '$branch'."
+          exit 1
+        fi
+      else
+        if _deliver_pr_recover_source_worktree "$branch" "$pr_head" "$mode_arg"; then
+          wt_path="$DELIVER_PR_RECOVERED_WT"
+        else
+          recover_status=$?
+          if [[ "$recover_status" == 2 ]]; then
+            wt_path="$(_deliver_pr_alias_worktree "$mode_arg" "$branch" "$pr_head" "$wt_path")" || exit 1
+          else
+            _err "Could not attach or safely adopt local PR branch '$branch' for PR #${mode_arg}."
+            exit 1
+          fi
+        fi
+      fi
+    else
+      # Create the fresh source branch and worktree together. Only this
+      # successful source-branch creation keeps the historical push behavior.
+      if git worktree add -b "$branch" "$wt_path" "$pr_head"; then
+        if ! _deliver_pr_verify_worktree "$wt_path" "$branch" "$pr_head" "$mode_arg" true; then
+          _err "Could not verify fresh PR #${mode_arg} worktree ownership and head."
+          exit 1
+        fi
+        push_pr_source_branch=true
+      else
+        if _deliver_pr_recover_source_worktree "$branch" "$pr_head" "$mode_arg"; then
+          wt_path="$DELIVER_PR_RECOVERED_WT"
+        else
+          recover_status=$?
+          if [[ "$recover_status" == 2 ]]; then
+            wt_path="$(_deliver_pr_alias_worktree "$mode_arg" "$branch" "$pr_head" "$wt_path")" || exit 1
+          else
+            _err "Could not create or safely adopt a worktree for PR #${mode_arg} on branch '$branch'."
+            exit 1
+          fi
+        fi
+      fi
+    fi
+
+    if ! _deliver_pr_release_source_branch_lock; then
+      _err "Could not safely release the shared source-branch lock for PR #${mode_arg} on '$branch'."
+      exit 1
+    fi
+    if [[ "$push_pr_source_branch" == true ]]; then
+      # Preserve the historic best-effort push, but do not hold the shared
+      # source-branch lock over a network operation after ownership is durable.
+      git push -u origin "$branch" 2>/dev/null || true
+    fi
+    _deliver_cleanup_pr_fetch_ref
   elif [[ "$mode" == "bare_branch" ]]; then
     # Bare branch mode — checkout existing branch or create from HEAD
     if git rev-parse --verify --quiet "refs/heads/$branch" >/dev/null 2>&1; then
@@ -358,7 +936,11 @@ _create_worktree_and_launch() {
   # Stage 2: Sibling workspace via herdr
   _step 2 4 "Adding herdr sibling workspace..."
   local ws_id
-  ws_id="$(_herdr_workspace_add_sibling "$wt_path" "$label")"
+  if ! _herdr_workspace_add_sibling "$wt_path" "$label"; then
+    _err "Could not safely acquire or release the Herdr workspace lock for PR/worktree delivery."
+    exit 1
+  fi
+  ws_id="$HERDR_WORKSPACE_ID"
 
   if [[ -z "$ws_id" ]]; then
     _warn "Could not open herdr workspace — worktree created but no OpenCode session was opened."
@@ -723,7 +1305,7 @@ case "$mode" in
     fi
 
     label="${pr_issue_id:-pr-${mode_arg}}"
-    slug="$(slugify "$label")"
+    slug="pr-$(slugify "$mode_arg")"
 
     _create_worktree_and_launch \
       "pr" \
