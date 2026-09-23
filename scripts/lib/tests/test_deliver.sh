@@ -1936,11 +1936,11 @@ test_pr_same_source_branch_uses_owned_alias_for_second_pr() {
   fi
 }
 
-# Test 48 (REP-1693): two different PRs both observe an unowned exact-head
-# legacy worktree. Pause both immediately before the exclusive metadata link;
-# only one can win ownership, and the loser must create its own local alias.
+# Test 48 (REP-1693): concurrent different-PR deliveries of an unowned
+# exact-head legacy worktree serialize discovery and ownership publication;
+# only one can claim it, and the other must create its own local alias.
 test_pr_legacy_ownership_claim_is_atomic_across_prs() {
-  local tmpdir branch pr_head legacy_wt barrier first_pid second_pid
+  local tmpdir branch pr_head legacy_wt first_pid second_pid
   local first_rc=0 second_rc=0 first_output second_output first_path second_path
   local owner owner_file alias_count worktree_count source_remote open_count
   tmpdir="$(_make_tmpdir)"
@@ -1950,38 +1950,14 @@ test_pr_legacy_ownership_claim_is_atomic_across_prs() {
   branch="feature/atomic-shared-pr"
   legacy_wt="$tmpdir/workspaces/legacy-atomic-shared"
   git -C "$tmpdir" worktree add -q -b "$branch" "$legacy_wt" "$pr_head"
-  barrier="$tmpdir/ownership-claim-barrier"
-  mkdir -p "$barrier/arrivals"
-  local real_ln
-  real_ln="$(command -v ln)"
-  cat > "$tmpdir/ln" <<'STUB'
-#!/bin/bash
-destination="${2:-}"
-case "$destination" in
-  */deliver-pr-owner)
-    touch "$DELIVER_OWNER_BARRIER/arrivals/$$"
-    attempts=0
-    while [ "$(find "$DELIVER_OWNER_BARRIER/arrivals" -type f | wc -l | tr -d ' ')" -lt 2 ] && [ "$attempts" -lt 500 ]; do
-      sleep 0.01
-      attempts=$((attempts + 1))
-    done
-    if [ "$(find "$DELIVER_OWNER_BARRIER/arrivals" -type f | wc -l | tr -d ' ')" -lt 2 ]; then
-      echo 'timed out waiting for competing ownership claim' >&2
-      exit 1
-    fi
-    ;;
-esac
-exec "$REAL_LN" "$@"
-STUB
-  chmod +x "$tmpdir/ln"
   _write_runner "$tmpdir" "--pr 722"
   cp "$tmpdir/run_test.sh" "$tmpdir/run_pr_722.sh"
   _write_runner "$tmpdir" "--pr 723"
   cp "$tmpdir/run_test.sh" "$tmpdir/run_pr_723.sh"
-  REAL_LN="$real_ln" DELIVER_OWNER_BARRIER="$barrier" GH_STUB_PR_JSON="$(_pr_json "$branch" "" "Atomic PR 722")" \
+  GH_STUB_PR_JSON="$(_pr_json "$branch" "" "Atomic PR 722")" \
     REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" bash "$tmpdir/run_pr_722.sh" > "$tmpdir/first.out" 2>&1 &
   first_pid=$!
-  REAL_LN="$real_ln" DELIVER_OWNER_BARRIER="$barrier" GH_STUB_PR_JSON="$(_pr_json "$branch" "" "Atomic PR 723")" \
+  GH_STUB_PR_JSON="$(_pr_json "$branch" "" "Atomic PR 723")" \
     REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" bash "$tmpdir/run_pr_723.sh" > "$tmpdir/second.out" 2>&1 &
   second_pid=$!
   wait "$first_pid" || first_rc=$?
@@ -2011,6 +1987,282 @@ STUB
     _pass "different PRs cannot both claim one legacy worktree; loser uses an unpushed alias"
   else
     _fail "different PRs cannot both claim one legacy worktree; loser uses an unpushed alias" "rcs=$first_rc/$second_rc; owner=$owner; aliases=$alias_count; source remote=${source_remote:-<absent>}; worktrees=$worktree_count; opens=$open_count; paths=${first_path:-<absent>} / ${second_path:-<absent>}; outputs: $first_output / $second_output"
+  fi
+}
+
+# Test 49 (REP-1693): Git registers the source branch and HEAD before checkout
+# filters finish. A second PR for the same source must wait for the first
+# delivery's shared source-branch lock rather than claim the incomplete legacy
+# worktree or opening Herdr against its partially populated path.
+test_pr_source_branch_lock_waits_for_checkout_completion() {
+  local tmpdir barrier pr_head branch source_wt alias_wt first_pid second_pid
+  local first_rc=0 second_rc=0 first_output second_output worktree_list owner_file owner owner_before
+  local registered_head registered_branch tracked_before tracked_after first_path second_path
+  local source_head source_remote alias_remote remaining_refs source_locks source_lock_temps herdr_locks
+  local contention=false early_owner=false early_open=false early_launch=false waiter_alive=false
+  local attempts real_ln
+
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  pr_head="$(_setup_pr_remote_fixture "$tmpdir" 732)"
+  branch="feature/in-progress-checkout"
+  source_wt="$tmpdir/workspaces/repro-wt-pr-732"
+  alias_wt="$tmpdir/workspaces/repro-wt-pr-733"
+  barrier="$tmpdir/checkout-filter-barrier"
+  mkdir -p "$barrier"
+
+  # Add the filtered file after the base fixture is committed, then publish
+  # the same head for both PRs. The filter blocks only its first checkout.
+  printf 'checkout-filtered.txt filter=deliver-blocking\n' > "$tmpdir/.gitattributes"
+  printf 'complete filtered checkout\n' > "$tmpdir/checkout-filtered.txt"
+  git -C "$tmpdir" add .gitattributes checkout-filtered.txt
+  git -C "$tmpdir" commit -q -m 'Add filtered PR checkout fixture'
+  pr_head="$(git -C "$tmpdir" rev-parse HEAD)"
+  git -C "$tmpdir" push -q origin "HEAD:refs/heads/pr-fixture-732"
+  git --git-dir="$tmpdir/origin.git" update-ref refs/pull/732/head "$pr_head"
+  git --git-dir="$tmpdir/origin.git" update-ref refs/pull/733/head "$pr_head"
+
+  cat > "$tmpdir/blocking-smudge.sh" <<'STUB'
+#!/bin/bash
+if [ -n "${DELIVER_CHECKOUT_BARRIER:-}" ] && [ ! -f "$DELIVER_CHECKOUT_BARRIER/release" ] \
+  && mkdir "$DELIVER_CHECKOUT_BARRIER/claimed" 2>/dev/null; then
+  touch "$DELIVER_CHECKOUT_BARRIER/entered"
+  attempts=0
+  while [ ! -f "$DELIVER_CHECKOUT_BARRIER/release" ] && [ "$attempts" -lt 3000 ]; do
+    sleep 0.01
+    attempts=$((attempts + 1))
+  done
+  if [ ! -f "$DELIVER_CHECKOUT_BARRIER/release" ]; then
+    echo 'timed out waiting to release filtered checkout' >&2
+    exit 1
+  fi
+fi
+cat
+STUB
+  chmod +x "$tmpdir/blocking-smudge.sh"
+  git -C "$tmpdir" config filter.deliver-blocking.clean cat
+  git -C "$tmpdir" config filter.deliver-blocking.smudge "bash $tmpdir/blocking-smudge.sh"
+  git -C "$tmpdir" config filter.deliver-blocking.required true
+
+  real_ln="$(command -v ln)"
+  cat > "$tmpdir/ln" <<'STUB'
+#!/bin/bash
+destination="${2:-}"
+case "$destination" in
+  */deliver-pr-branch-locks/*.lock)
+    if [ -e "$destination" ] && [ -n "${DELIVER_SOURCE_LOCK_CONTENTION:-}" ]; then
+      "$REAL_LN" "$@"
+      link_status=$?
+      if [ "$link_status" -ne 0 ]; then
+        touch "$DELIVER_SOURCE_LOCK_CONTENTION"
+      fi
+      exit "$link_status"
+    fi
+    ;;
+esac
+exec "$REAL_LN" "$@"
+STUB
+  chmod +x "$tmpdir/ln"
+
+  _write_runner "$tmpdir" "--pr 732"
+  cp "$tmpdir/run_test.sh" "$tmpdir/run_pr_732.sh"
+  _write_runner "$tmpdir" "--pr 733"
+  cp "$tmpdir/run_test.sh" "$tmpdir/run_pr_733.sh"
+
+  DELIVER_CHECKOUT_BARRIER="$barrier" REAL_LN="$real_ln" \
+    GH_STUB_PR_JSON="$(_pr_json "$branch" "" "Checkout race PR 732")" \
+    REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" \
+    bash "$tmpdir/run_pr_732.sh" > "$tmpdir/first.out" 2>&1 &
+  first_pid=$!
+  attempts=0
+  while [ ! -f "$barrier/entered" ] && [ "$attempts" -lt 1000 ]; do
+    if ! kill -0 "$first_pid" 2>/dev/null; then break; fi
+    sleep 0.01
+    attempts=$((attempts + 1))
+  done
+
+  if [ ! -f "$barrier/entered" ]; then
+    touch "$barrier/release"
+    wait "$first_pid" || first_rc=$?
+    first_output="$(cat "$tmpdir/first.out" 2>/dev/null || true)"
+    rm -rf "$tmpdir"
+    _fail "source-branch lock waits for a complete worktree checkout before PR ownership or Herdr" "first delivery never reached the smudge barrier; rc=$first_rc; output=$first_output"
+    return
+  fi
+
+  # Git's worktree registry must already expose the branch and fetched OID,
+  # while the filtered checkout has not yet emitted its tracked file.
+  worktree_list="$(git -C "$tmpdir" worktree list --porcelain)"
+  registered_head="$(printf '%s\n' "$worktree_list" | awk -v path="$source_wt" '$1 == "worktree" && $2 == path {found=1; next} found && $1 == "HEAD" {print $2; exit}')"
+  registered_branch="$(printf '%s\n' "$worktree_list" | awk -v path="$source_wt" '$1 == "worktree" && $2 == path {found=1; next} found && $1 == "branch" {sub("refs/heads/", "", $2); print $2; exit}')"
+  owner_file="$(git -C "$source_wt" rev-parse --absolute-git-dir 2>/dev/null || true)/deliver-pr-owner"
+  owner_before="$(cat "$owner_file" 2>/dev/null || true)"
+  tracked_before="$(cat "$source_wt/checkout-filtered.txt" 2>/dev/null || true)"
+
+  # Observe either the expected failed lock-link attempt or the pre-fix bug
+  # (owner publication, Herdr open, agent launch, or process completion).
+  _write_runner "$tmpdir" "--pr 733"
+  cp "$tmpdir/run_test.sh" "$tmpdir/run_pr_733.sh"
+  DELIVER_CHECKOUT_BARRIER="$barrier" REAL_LN="$real_ln" \
+    DELIVER_SOURCE_LOCK_CONTENTION="$barrier/source-lock-contended" \
+    GH_STUB_PR_JSON="$(_pr_json "$branch" "" "Checkout race PR 733")" \
+    REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" \
+    bash "$tmpdir/run_pr_733.sh" > "$tmpdir/second.out" 2>&1 &
+  second_pid=$!
+  attempts=0
+  while [ "$attempts" -lt 1000 ]; do
+    if [ -f "$barrier/source-lock-contended" ]; then
+      contention=true
+      break
+    fi
+    [ -e "$owner_file" ] && early_owner=true
+    [ -s "$tmpdir/herdr_worktree_open.log" ] && early_open=true
+    [ -s "$tmpdir/herdr_prompt_launch.txt" ] && early_launch=true
+    if ! kill -0 "$second_pid" 2>/dev/null; then break; fi
+    sleep 0.01
+    attempts=$((attempts + 1))
+  done
+  [ -f "$barrier/source-lock-contended" ] && contention=true
+  if kill -0 "$second_pid" 2>/dev/null; then waiter_alive=true; fi
+  [ -e "$owner_file" ] && early_owner=true
+  [ -s "$tmpdir/herdr_worktree_open.log" ] && early_open=true
+  [ -s "$tmpdir/herdr_prompt_launch.txt" ] && early_launch=true
+
+  # Always release before assertions so a red result cannot strand either
+  # process in a Git filter.
+  touch "$barrier/release"
+  wait "$first_pid" || first_rc=$?
+  wait "$second_pid" || second_rc=$?
+  first_output="$(cat "$tmpdir/first.out" 2>/dev/null || true)"
+  second_output="$(cat "$tmpdir/second.out" 2>/dev/null || true)"
+  worktree_list="$(git -C "$tmpdir" worktree list --porcelain)"
+  owner="$(cat "$owner_file" 2>/dev/null || true)"
+  tracked_after="$(cat "$source_wt/checkout-filtered.txt" 2>/dev/null || true)"
+  first_path="$(printf '%s\n' "$first_output" | sed -n 's/.*Worktree created at: //p' | tail -1)"
+  second_path="$(printf '%s\n' "$second_output" | sed -n 's/.*Worktree created at: //p' | tail -1)"
+  source_head="$(git -C "$tmpdir" rev-parse --verify --quiet "refs/heads/$branch" 2>/dev/null || true)"
+  source_remote="$(git --git-dir="$tmpdir/origin.git" rev-parse --verify --quiet "refs/heads/$branch" 2>/dev/null || true)"
+  local second_branch second_head alias_file source_status worktree_count source_branch_count
+  second_branch="$(git -C "$alias_wt" branch --show-current 2>/dev/null || true)"
+  second_head="$(git -C "$alias_wt" rev-parse --verify HEAD 2>/dev/null || true)"
+  alias_file="$(cat "$alias_wt/checkout-filtered.txt" 2>/dev/null || true)"
+  alias_remote="$(git --git-dir="$tmpdir/origin.git" rev-parse --verify --quiet "refs/heads/$second_branch" 2>/dev/null || true)"
+  source_status="$(git -C "$source_wt" status --porcelain 2>/dev/null || true)"
+  remaining_refs="$(git -C "$tmpdir" for-each-ref --format='%(refname)' refs/deliver/pr)"
+  source_locks="$(find "$(git -C "$tmpdir" rev-parse --absolute-git-dir)/deliver-pr-branch-locks" -type f -name '*.lock' -print 2>/dev/null || true)"
+  source_lock_temps="$(find "$(git -C "$tmpdir" rev-parse --absolute-git-dir)/deliver-pr-branch-locks" -type f -name '*.owner.*' -print 2>/dev/null || true)"
+  herdr_locks="$(find "$tmpdir/tmp/deliver-herdr-locks" -type f -name '*.lock' -print 2>/dev/null || true)"
+  worktree_count="$(printf '%s\n' "$worktree_list" | grep -c '^worktree ' || true)"
+  source_branch_count="$(git -C "$tmpdir" for-each-ref --format='%(refname:short)' "refs/heads/$branch" | grep -cx "$branch" || true)"
+  rm -rf "$tmpdir"
+
+  if [ "$registered_head" = "$pr_head" ] \
+    && [ "$registered_branch" = "$branch" ] \
+    && [ -z "$owner_before" ] \
+    && [ -z "$tracked_before" ] \
+    && [ "$contention" = true ] \
+    && [ "$waiter_alive" = true ] \
+    && [ "$early_owner" = false ] \
+    && [ "$early_open" = false ] \
+    && [ "$early_launch" = false ] \
+    && [ "$first_rc" -eq 0 ] \
+    && [ "$second_rc" -eq 0 ] \
+    && [ "$owner" = 'pr=732' ] \
+    && [ "$first_path" = "$source_wt" ] \
+    && [ "$second_path" = "$alias_wt" ] \
+    && [ "$second_branch" = 'deliver/pr-733/feature-in-progress-checkout' ] \
+    && [ "$second_head" = "$pr_head" ] \
+    && [ "$tracked_after" = 'complete filtered checkout' ] \
+    && [ "$alias_file" = 'complete filtered checkout' ] \
+    && [ "$source_head" = "$pr_head" ] \
+    && [ "$source_remote" = "$pr_head" ] \
+    && [ -z "$source_status" ] \
+    && [ -z "$alias_remote" ] \
+    && [ -z "$remaining_refs" ] \
+    && [ -z "$source_locks" ] \
+    && [ -z "$source_lock_temps" ] \
+    && [ -z "$herdr_locks" ] \
+    && [ "$worktree_count" -eq 3 ] \
+    && [ "$source_branch_count" -eq 1 ]; then
+    _pass "source-branch lock blocks PR 733 until checkout completes, then aliases without touching PR 732's worktree"
+  else
+    _fail "source-branch lock blocks PR 733 until checkout completes, then aliases without touching PR 732's worktree" "registered=$registered_branch@$registered_head expected=$branch@$pr_head; owner-before=${owner_before:-<absent>}; incomplete-file=${tracked_before:-<absent>}; contention=$contention waiter-alive=$waiter_alive early-owner=$early_owner early-open=$early_open early-launch=$early_launch; rcs=$first_rc/$second_rc; owner=${owner:-<absent>}; paths=${first_path:-<absent>} / ${second_path:-<absent>} expected=$source_wt / $alias_wt; alias=$second_branch@$second_head expected=deliver/pr-733/feature-in-progress-checkout@$pr_head; file=$tracked_after / $alias_file; source-head=$source_head source-remote=${source_remote:-<absent>} status=${source_status:-<clean>}; alias-remote=${alias_remote:-<absent>}; refs=${remaining_refs:-<none>}; locks=${source_locks:-<none>} ${source_lock_temps:-<none>} ${herdr_locks:-<none>}; worktrees=$worktree_count source-branches=$source_branch_count; outputs: $first_output / $second_output"
+  fi
+}
+
+# Test 50 (REP-1693): a signal while discovery holds the source lock must
+# release that lock and still run the invocation-specific fetched-ref cleanup.
+test_pr_source_branch_lock_signal_cleanup_preserves_fetch_cleanup() {
+  local tmpdir pr_head branch lock_count remaining_locks fetch_ref_before fetch_ref_after
+  local runner_pid rc=0 attempts output open_log launch worktree_count local_branch barrier_reached=false
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  pr_head="$(_setup_pr_remote_fixture "$tmpdir" 734)"
+  branch="feature/source-lock-signal-cleanup"
+  _write_runner "$tmpdir" "--pr 734"
+
+  cat > "$tmpdir/git" <<'STUB'
+#!/bin/bash
+if [ "${1:-}" = "-C" ] && [ "${3:-}" = "worktree" ] \
+  && [ "${4:-}" = "list" ] && [ "${5:-}" = "--porcelain" ] \
+  && [ -n "${DELIVER_SOURCE_SCAN_BARRIER:-}" ]; then
+  touch "$DELIVER_SOURCE_SCAN_BARRIER/entered"
+  attempts=0
+  while [ ! -f "$DELIVER_SOURCE_SCAN_BARRIER/release" ] && [ "$attempts" -lt 1000 ]; do
+    sleep 0.01
+    attempts=$((attempts + 1))
+  done
+  if [ ! -f "$DELIVER_SOURCE_SCAN_BARRIER/release" ]; then
+    echo 'timed out waiting to release source-branch scan' >&2
+    exit 1
+  fi
+fi
+exec "$REAL_GIT" "$@"
+STUB
+  chmod +x "$tmpdir/git"
+  barrier="$tmpdir/source-scan-barrier"
+  mkdir -p "$barrier"
+
+  REAL_GIT="$(command -v git)" DELIVER_SOURCE_SCAN_BARRIER="$barrier" \
+    GH_STUB_PR_JSON="$(_pr_json "$branch" "" "Source lock signal cleanup")" \
+    REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" \
+    bash "$tmpdir/run_test.sh" > "$tmpdir/signal.out" 2>&1 &
+  runner_pid=$!
+  attempts=0
+  while [ ! -f "$barrier/entered" ] && [ "$attempts" -lt 500 ]; do
+    if ! kill -0 "$runner_pid" 2>/dev/null; then break; fi
+    sleep 0.01
+    attempts=$((attempts + 1))
+  done
+  [ -f "$barrier/entered" ] && barrier_reached=true
+  lock_count="$(find "$tmpdir/.git/deliver-pr-branch-locks" -type f -name '*.lock' -print 2>/dev/null | wc -l | tr -d '[:space:]')"
+  fetch_ref_before="$(git -C "$tmpdir" for-each-ref --format='%(refname)' refs/deliver/pr)"
+
+  kill -TERM "$runner_pid" 2>/dev/null || true
+  touch "$barrier/release"
+  wait "$runner_pid" || rc=$?
+  output="$(cat "$tmpdir/signal.out" 2>/dev/null || true)"
+  remaining_locks="$(find "$tmpdir/.git/deliver-pr-branch-locks" -type f -name '*.lock' -print 2>/dev/null || true)"
+  fetch_ref_after="$(git -C "$tmpdir" for-each-ref --format='%(refname)' refs/deliver/pr)"
+  open_log="$(cat "$tmpdir/herdr_worktree_open.log" 2>/dev/null || true)"
+  launch="$(cat "$tmpdir/herdr_prompt_launch.txt" 2>/dev/null || true)"
+  worktree_count="$(git -C "$tmpdir" worktree list --porcelain | grep -c '^worktree ' || true)"
+  local_branch="$(git -C "$tmpdir" rev-parse --verify --quiet "refs/heads/$branch" 2>/dev/null || true)"
+  rm -rf "$tmpdir"
+
+  if [ "$barrier_reached" = true ] \
+    && [ "$lock_count" -eq 1 ] \
+    && [[ "$fetch_ref_before" == refs/deliver/pr/734/* ]] \
+    && [ "$rc" -eq 143 ] \
+    && [ -z "$remaining_locks" ] \
+    && [ -z "$fetch_ref_after" ] \
+    && [ -z "$open_log" ] \
+    && [ -z "$launch" ] \
+    && [ "$worktree_count" -eq 1 ] \
+    && [ -z "$local_branch" ]; then
+    _pass "source-lock signal cleanup releases the Git-metadata lock and preserves PR fetch-ref EXIT cleanup"
+  else
+    _fail "source-lock signal cleanup releases the Git-metadata lock and preserves PR fetch-ref EXIT cleanup" "barrier=$barrier_reached; initial-locks=$lock_count; rc=$rc expected=143; remaining-locks=${remaining_locks:-<none>}; initial-ref=${fetch_ref_before:-<absent>}; remaining-ref=${fetch_ref_after:-<none>}; worktrees=$worktree_count branch=${local_branch:-<absent>}; open=${open_log:-<absent>}; launch=${launch:-<absent>}; output=$output"
   fi
 }
 
@@ -2395,61 +2647,73 @@ STUB
 
 # ── Run all tests ──────────────────────────────────────────────────────
 
-test_file_exists
-test_no_flags_uses_default
-test_profile_flag_passes_profile
-test_profile_flag_before_issue
-test_pick_autoselects_single
-test_pick_before_issue_autoselects
-test_help_exits_zero
-test_h_flag_exits_zero
-test_missing_args_exits_one
-test_invalid_argument_errors
-test_profile_missing_value
-test_profile_nonexistent
-test_profile_and_pick_mutually_exclusive
-test_pick_and_profile_mutually_exclusive
-test_env_var_is_honored
-test_profile_overrides_env_var
-test_pick_overrides_env_var
-test_layout_is_two_pane_with_pnpm_install
-test_herdr_down_installs_synchronously
-test_split_failure_installs_synchronously
-test_pane_list_failure_installs_synchronously
-test_bug_label_routes_to_bugfix
-test_pen_label_routes_to_pen_reconcile
-test_no_label_routes_to_build
-test_opencode_launch_uses_worktree_context
-test_stage4_submits_seeded_prompt
-test_stage4_send_keys_failure_warns
-test_stage4_no_tui_skips_submit
-test_stage4_unconfirmed_kickoff_warns
-test_stage4_echo_only_does_not_submit
-test_stage4_wrapped_echo_does_not_submit
-test_dry_run_announces_adopt_decision
-test_dry_run_announces_create_decision
-test_herdr_reuses_open_workspace_for_path
-test_herdr_list_failure_fails_open_to_worktree_open
-test_pr_adopts_exact_head_worktree_without_touching_contents
-test_pr_attaches_existing_exact_branch_without_worktree
-test_pr_issue_id_source_precedence
-test_pr_refuses_mismatched_attached_branch
-test_pr_refuses_mismatched_unattached_branch
-test_pr_creates_fresh_branch_and_worktree
-test_pr_title_only_issue_id_routes_label_and_prompt
-test_pr_refuses_main_checkout_at_exact_fetched_head
-test_pr_fetch_head_isolated_between_same_checkout_fetches
-test_pr_fetch_ref_is_unique_for_simultaneous_same_pr_invocations
-test_pr_recovers_exact_head_worktree_created_after_initial_scan
-test_pr_rejects_unsafe_competitors_created_after_initial_scan
-test_pr_same_issue_id_uses_distinct_pr_worktrees
-test_pr_same_source_branch_uses_owned_alias_for_second_pr
-test_pr_legacy_ownership_claim_is_atomic_across_prs
-test_pr_concurrent_deliveries_open_one_herdr_workspace
-test_pr_herdr_lock_cleanup_and_unverifiable_lock_fail_closed
-test_herdr_lock_process_state_tracks_process_incarnation
-test_herdr_lock_record_is_atomic_and_released_after_signal_or_failure
-test_pr_fetch_ref_exit_cleanup_survives_herdr_trap_install
+case "${DELIVER_TEST_ONLY:-}" in
+  test_pr_source_branch_lock_waits_for_checkout_completion)
+    test_pr_source_branch_lock_waits_for_checkout_completion
+    ;;
+  test_pr_source_branch_lock_signal_cleanup_preserves_fetch_cleanup)
+    test_pr_source_branch_lock_signal_cleanup_preserves_fetch_cleanup
+    ;;
+  *)
+  test_file_exists
+  test_no_flags_uses_default
+  test_profile_flag_passes_profile
+  test_profile_flag_before_issue
+  test_pick_autoselects_single
+  test_pick_before_issue_autoselects
+  test_help_exits_zero
+  test_h_flag_exits_zero
+  test_missing_args_exits_one
+  test_invalid_argument_errors
+  test_profile_missing_value
+  test_profile_nonexistent
+  test_profile_and_pick_mutually_exclusive
+  test_pick_and_profile_mutually_exclusive
+  test_env_var_is_honored
+  test_profile_overrides_env_var
+  test_pick_overrides_env_var
+  test_layout_is_two_pane_with_pnpm_install
+  test_herdr_down_installs_synchronously
+  test_split_failure_installs_synchronously
+  test_pane_list_failure_installs_synchronously
+  test_bug_label_routes_to_bugfix
+  test_pen_label_routes_to_pen_reconcile
+  test_no_label_routes_to_build
+  test_opencode_launch_uses_worktree_context
+  test_stage4_submits_seeded_prompt
+  test_stage4_send_keys_failure_warns
+  test_stage4_no_tui_skips_submit
+  test_stage4_unconfirmed_kickoff_warns
+  test_stage4_echo_only_does_not_submit
+  test_stage4_wrapped_echo_does_not_submit
+  test_dry_run_announces_adopt_decision
+  test_dry_run_announces_create_decision
+  test_herdr_reuses_open_workspace_for_path
+  test_herdr_list_failure_fails_open_to_worktree_open
+  test_pr_adopts_exact_head_worktree_without_touching_contents
+  test_pr_attaches_existing_exact_branch_without_worktree
+  test_pr_issue_id_source_precedence
+  test_pr_refuses_mismatched_attached_branch
+  test_pr_refuses_mismatched_unattached_branch
+  test_pr_creates_fresh_branch_and_worktree
+  test_pr_title_only_issue_id_routes_label_and_prompt
+  test_pr_refuses_main_checkout_at_exact_fetched_head
+  test_pr_fetch_head_isolated_between_same_checkout_fetches
+  test_pr_fetch_ref_is_unique_for_simultaneous_same_pr_invocations
+  test_pr_recovers_exact_head_worktree_created_after_initial_scan
+  test_pr_rejects_unsafe_competitors_created_after_initial_scan
+  test_pr_same_issue_id_uses_distinct_pr_worktrees
+  test_pr_same_source_branch_uses_owned_alias_for_second_pr
+  test_pr_legacy_ownership_claim_is_atomic_across_prs
+  test_pr_source_branch_lock_waits_for_checkout_completion
+  test_pr_source_branch_lock_signal_cleanup_preserves_fetch_cleanup
+  test_pr_concurrent_deliveries_open_one_herdr_workspace
+  test_pr_herdr_lock_cleanup_and_unverifiable_lock_fail_closed
+  test_herdr_lock_process_state_tracks_process_incarnation
+  test_herdr_lock_record_is_atomic_and_released_after_signal_or_failure
+  test_pr_fetch_ref_exit_cleanup_survives_herdr_trap_install
+    ;;
+esac
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed out of $TESTS_RUN tests"

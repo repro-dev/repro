@@ -373,6 +373,72 @@ _deliver_pr_alias_branch() {
   printf 'deliver/pr-%s/%s\n' "$pr_number" "$branch_slug"
 }
 
+DELIVER_PR_SOURCE_LOCK_PATH=""
+DELIVER_PR_SOURCE_LOCK_IDENTITY=""
+
+# Reuse the atomic owner-record lock machinery from worktree.sh, but give PR
+# source branches a separate namespace in shared Git metadata. Linked worktrees
+# resolve to the same common dir, so every deliver invocation for this source
+# branch contends on the same lock regardless of its checkout path.
+_deliver_pr_acquire_source_branch_lock() {
+  local branch="$1" git_common_dir lock_root hash_output digest
+  DELIVER_PR_SOURCE_LOCK_PATH=""
+  DELIVER_PR_SOURCE_LOCK_IDENTITY=""
+
+  git_common_dir="$(git -C "$REPO_ROOT" rev-parse --git-common-dir 2>/dev/null)" || return 1
+  case "$git_common_dir" in
+    /*) ;;
+    *) git_common_dir="$REPO_ROOT/$git_common_dir" ;;
+  esac
+  git_common_dir="$(cd "$git_common_dir" 2>/dev/null && pwd -P)" || return 1
+  if [[ "$git_common_dir" == *$'\n'* || "$branch" == *$'\n'* ]]; then
+    _err "Cannot derive a safe PR source-branch lock identity for '$branch'."
+    return 1
+  fi
+
+  hash_output="$(printf '%s\n%s\n' "$git_common_dir" "$branch" | shasum -a 256 2>/dev/null)" || return 1
+  digest="${hash_output%% *}"
+  if [[ ! "$digest" =~ ^[[:xdigit:]]{64}$ ]]; then
+    _err "Cannot verify PR source-branch lock identity for '$branch'."
+    return 1
+  fi
+
+  lock_root="$git_common_dir/deliver-pr-branch-locks"
+  mkdir -p "$lock_root" || {
+    _err "Cannot create PR source-branch lock directory: $lock_root"
+    return 1
+  }
+  DELIVER_PR_SOURCE_LOCK_PATH="$lock_root/$digest.lock"
+  DELIVER_PR_SOURCE_LOCK_IDENTITY="source-branch:$git_common_dir:$branch"
+
+  # This lock spans worktree discovery and complete checkout/owner publication.
+  # Install the existing cleanup chain before acquisition: its EXIT handler
+  # releases this lock, restores the prior traps, then lets the invocation's
+  # fetch-ref cleanup run unchanged on errors and signals.
+  _herdr_install_lock_cleanup_traps
+  if ! _herdr_acquire_workspace_lock "$DELIVER_PR_SOURCE_LOCK_PATH" "$DELIVER_PR_SOURCE_LOCK_IDENTITY"; then
+    _herdr_restore_lock_cleanup_traps
+    DELIVER_PR_SOURCE_LOCK_PATH=""
+    DELIVER_PR_SOURCE_LOCK_IDENTITY=""
+    return 1
+  fi
+  return 0
+}
+
+_deliver_pr_release_source_branch_lock() {
+  if [[ -z "$DELIVER_PR_SOURCE_LOCK_PATH" || -z "$DELIVER_PR_SOURCE_LOCK_IDENTITY" ]]; then
+    _err "PR source-branch lock state is missing during release."
+    return 1
+  fi
+  if ! _herdr_release_workspace_lock "$DELIVER_PR_SOURCE_LOCK_PATH" "$HERDR_LOCK_ACTIVE_TOKEN" "$DELIVER_PR_SOURCE_LOCK_IDENTITY"; then
+    return 1
+  fi
+  _herdr_restore_lock_cleanup_traps
+  DELIVER_PR_SOURCE_LOCK_PATH=""
+  DELIVER_PR_SOURCE_LOCK_IDENTITY=""
+  return 0
+}
+
 _deliver_pr_alias_worktree() {
   local pr_number="$1" source_branch="$2" pr_head="$3" wt_path="$4"
   local alias_branch alias_oid alias_wt verify_status attempts
@@ -576,11 +642,21 @@ _create_worktree_and_launch() {
       exit 1
     }
 
-    local pr_head local_branch_commit attached_wt="" owner_state="" verify_status=0 recover_status=0
+    local pr_head local_branch_commit attached_wt="" owner_state="" verify_status=0 recover_status=0 push_pr_source_branch=false
     pr_head="$(git rev-parse --verify "${pr_fetch_ref}^{commit}" 2>/dev/null)" || {
       _err "Could not resolve the fetched head for PR #${mode_arg}."
       exit 1
     }
+
+    # Serialize discovery, legacy ownership claims, and all source/alias
+    # worktree creation in the common Git directory. The scan below must be
+    # performed only after lock acquisition; a registered worktree may still
+    # be in its checkout phase until its creating git process returns.
+    if ! _deliver_pr_acquire_source_branch_lock "$branch"; then
+      _err "Could not safely acquire the shared source-branch lock for PR #${mode_arg} on '$branch'."
+      exit 1
+    fi
+
     local_branch_commit="$(git rev-parse --verify --quiet "refs/heads/$branch" 2>/dev/null || true)"
 
     # Never mutate an adopted worktree. Ownership in its Git directory keeps
@@ -650,7 +726,7 @@ _create_worktree_and_launch() {
           _err "Could not verify fresh PR #${mode_arg} worktree ownership and head."
           exit 1
         fi
-        git push -u origin "$branch" 2>/dev/null || true
+        push_pr_source_branch=true
       else
         if _deliver_pr_recover_source_worktree "$branch" "$pr_head" "$mode_arg"; then
           wt_path="$DELIVER_PR_RECOVERED_WT"
@@ -664,6 +740,16 @@ _create_worktree_and_launch() {
           fi
         fi
       fi
+    fi
+
+    if ! _deliver_pr_release_source_branch_lock; then
+      _err "Could not safely release the shared source-branch lock for PR #${mode_arg} on '$branch'."
+      exit 1
+    fi
+    if [[ "$push_pr_source_branch" == true ]]; then
+      # Preserve the historic best-effort push, but do not hold the shared
+      # source-branch lock over a network operation after ownership is durable.
+      git push -u origin "$branch" 2>/dev/null || true
     fi
     _deliver_cleanup_pr_fetch_ref
   elif [[ "$mode" == "bare_branch" ]]; then

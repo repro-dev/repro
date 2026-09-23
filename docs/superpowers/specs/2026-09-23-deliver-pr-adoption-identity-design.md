@@ -15,10 +15,11 @@
 4. An existing worktree can be adopted only when its PR ownership is compatible and its branch identity is either the PR source branch or a local alias already assigned to that PR, with HEAD matching the fetched PR head.
 5. If a source branch is already owned by another PR, create a PR-specific local alias branch at the fetched commit. Do not push the alias or alter the existing worktree.
 6. Legacy exact-head worktrees without ownership metadata can be claimed by the first matching PR without changing tracked or untracked working files. Later PRs with the same source branch use aliases.
-7. Concurrent same-PR worktree creation losers recover only by validating and adopting the exact-head isolated winner.
-8. The fetch result is held in invocation-specific Git state until setup succeeds, then cleaned on success and failure.
-9. Serialize Herdr's list/open sequence per worktree path. A waiting invocation rechecks the list after acquiring the lock and reuses the registered workspace instead of issuing a duplicate open.
-10. If ownership, ref, worktree, or lock state cannot be validated safely, fail before launching the agent.
+7. Serialize PR worktree discovery, legacy ownership claims, and creation by source branch in shared Git metadata. Never adopt a `git worktree add` registration while its checkout is still in progress.
+8. Concurrent same-PR worktree creation losers recover only by validating and adopting the completed exact-head isolated winner.
+9. The fetch result is held in invocation-specific Git state until setup succeeds, then cleaned on success and failure.
+10. Serialize Herdr's list/open sequence per worktree path. A waiting invocation rechecks the list after acquiring the lock and reuses the registered workspace instead of issuing a duplicate open.
+11. If ownership, ref, worktree, or lock state cannot be validated safely, fail before launching the agent.
 
 ## Proposed Design
 
@@ -26,13 +27,14 @@
 
 - Include the PR number in every PR-mode worktree slug. Keep the Herdr label and seeded command based on the issue ID when present; otherwise keep the `pr-<number>` label.
 - Store the owning PR number in metadata under the worktree's Git directory, not in the worktree contents. Claim an unowned legacy exact-head worktree atomically. Existing ownership for the same PR permits reuse; ownership for a different PR requires a new PR-specific alias branch/worktree.
+- Hold a source-branch-keyed lock in the shared Git directory from worktree discovery through creation/adoption and ownership publication. This prevents another `deliver --pr` process from seeing the Git registration before `git worktree add` has completed checkout. After the lock is acquired, re-scan and make the ownership/alias decision from current state.
 - Derive the alias branch from the PR number and sanitized source branch. The alias points at the fetched commit and is local-only; the source branch and remote PR branch remain unchanged.
 - Use a per-invocation ref for the fetched PR head. Retain it until the target branch/worktree is validated or created, then remove it. An exit cleanup handles earlier failures.
 - Keep the existing attached worktree untouched: no reset, clean, checkout, or tracked/untracked file changes.
 
 ### Concurrent creation recovery
 
-After a fresh `git worktree add -b` fails, re-read the local source branch and worktree registry. Recover only if the branch OID and attached worktree HEAD equal the fetched PR OID, the worktree is isolated from `MAIN_CHECKOUT`, and ownership resolves to the current PR. Every other state fails closed without opening Herdr.
+After a fresh `git worktree add -b` fails, re-read the local source branch and worktree registry while holding the source-branch lock. Recover only after the competing `git worktree add` has exited and the branch OID and attached worktree HEAD equal the fetched PR OID, the worktree is isolated from `MAIN_CHECKOUT`, and ownership resolves to the current PR. Every other state fails closed without opening Herdr.
 
 ### Herdr workspace serialization
 
@@ -51,6 +53,7 @@ After a fresh `git worktree add -b` fails, re-read the local source branch and w
 - Two PR numbers with the same source branch and commit: first claims/adopts the legacy worktree; second gets a distinct alias branch and worktree; both heads match and neither changes remote source branch.
 - Two PR numbers with the same issue ID but different source branches/heads: worktree paths remain distinct while labels/prompts retain the issue ID.
 - Same-PR concurrent fresh creation: the loser adopts only the exact-head winner; wrong branch, wrong head, or primary-checkout winner is rejected.
+- Different-PR concurrent creation: pause the first `git worktree add` during checkout after Git has registered the branch and HEAD; the second delivery must wait, then observe the completed first owner and create its own local alias.
 - Concurrent same-PR Herdr lookup/open: a deterministic barrier proves only one `worktree open` request is sent and the waiter reuses the first workspace.
 - Retain existing tests for fetch interleaving, temp-ref cleanup, exact-head content preservation, issue-ID precedence, and fresh branch push.
 - Run `bash scripts/lib/tests/test_deliver.sh`, `bash -n scripts/deliver.sh scripts/lib/worktree.sh scripts/lib/tests/test_deliver.sh`, and `git diff --check`.

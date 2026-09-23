@@ -158,7 +158,7 @@ _herdr_resolve_workspace_lock() {
 }
 
 _herdr_read_workspace_lock_owner() {
-  local lock_path="$1" canonical_path="$2" line_count pid_line path_line token_line start_line
+  local lock_path="$1" canonical_path="$2" line_count pid_line path_line token_line start_line lock_record
   HERDR_LOCK_OWNER_STATE="invalid"
   HERDR_LOCK_OWNER_PID=""
   HERDR_LOCK_OWNER_PATH=""
@@ -175,15 +175,27 @@ _herdr_read_workspace_lock_owner() {
   if [[ ! -f "$lock_path" || ! -r "$lock_path" ]]; then
     return 0
   fi
-  line_count="$(wc -l < "$lock_path" 2>/dev/null | tr -d '[:space:]')" || return 0
+  line_count="$({ wc -l < "$lock_path"; } 2>/dev/null)" || {
+    if [[ ! -e "$lock_path" && ! -L "$lock_path" ]]; then
+      HERDR_LOCK_OWNER_STATE="missing"
+    fi
+    return 0
+  }
+  line_count="$(printf '%s' "$line_count" | tr -d '[:space:]')"
   if [[ "$line_count" != 4 ]]; then
     return 0
   fi
 
-  pid_line="$(sed -n '1p' "$lock_path")"
-  path_line="$(sed -n '2p' "$lock_path")"
-  token_line="$(sed -n '3p' "$lock_path")"
-  start_line="$(sed -n '4p' "$lock_path")"
+  lock_record="$({ cat "$lock_path"; } 2>/dev/null)" || {
+    if [[ ! -e "$lock_path" && ! -L "$lock_path" ]]; then
+      HERDR_LOCK_OWNER_STATE="missing"
+    fi
+    return 0
+  }
+  pid_line="$(printf '%s\n' "$lock_record" | sed -n '1p')"
+  path_line="$(printf '%s\n' "$lock_record" | sed -n '2p')"
+  token_line="$(printf '%s\n' "$lock_record" | sed -n '3p')"
+  start_line="$(printf '%s\n' "$lock_record" | sed -n '4p')"
   [[ "$pid_line" == pid=* && "$path_line" == path=* && "$token_line" == token=* && "$start_line" == start=* ]] || return 0
   HERDR_LOCK_OWNER_PID="${pid_line#pid=}"
   HERDR_LOCK_OWNER_PATH="${path_line#path=}"
@@ -444,10 +456,14 @@ _herdr_trap_parts() {
 }
 
 _herdr_run_saved_trap() {
-  local trap_definition="$1"
+  local trap_definition="$1" exit_status="${2:-0}"
   _herdr_trap_parts "$trap_definition"
   if [[ "$HERDR_TRAP_INSTALLED" == true && -n "$HERDR_TRAP_COMMAND" ]]; then
-    eval "$HERDR_TRAP_COMMAND" || true
+    if [[ "$exit_status" -eq 0 ]]; then
+      eval "$HERDR_TRAP_COMMAND" || true
+    else
+      (exit "$exit_status") || eval "$HERDR_TRAP_COMMAND" || true
+    fi
   fi
 }
 
@@ -462,14 +478,17 @@ _herdr_restore_lock_cleanup_traps() {
 
 _herdr_lock_cleanup_on_exit() {
   local exit_status=$?
+  local previous_exit_trap="$HERDR_LOCK_PREVIOUS_EXIT_TRAP"
   trap - EXIT HUP INT TERM
   if [[ "$HERDR_LOCK_HELD" == true ]]; then
     _herdr_release_workspace_lock "$HERDR_LOCK_ACTIVE_PATH" "$HERDR_LOCK_ACTIVE_TOKEN" \
       "$HERDR_LOCK_ACTIVE_CANONICAL_PATH" >/dev/null 2>&1 || true
   fi
-  # Restore the original trap, then exit with the pre-cleanup status so its
-  # body observes the same `$?` value it would have received without locking.
+  # Bash does not re-enter a newly restored EXIT trap while already executing
+  # one, so invoke its saved body explicitly with the original exit status.
   _herdr_restore_lock_cleanup_traps
+  _herdr_run_saved_trap "$previous_exit_trap" "$exit_status"
+  trap - EXIT
   exit "$exit_status"
 }
 
