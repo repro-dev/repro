@@ -366,11 +366,20 @@ _deliver_pr_recover_source_worktree() {
   return 1
 }
 
-_deliver_pr_alias_branch() {
-  local pr_number="$1" source_branch="$2" branch_slug
+_deliver_pr_alias_source_suffix() {
+  local source_branch="$1" branch_slug hash_output digest
   branch_slug="$(slugify "$source_branch" | cut -c 1-120)"
   [[ -n "$branch_slug" ]] || return 1
-  printf 'deliver/pr-%s/%s\n' "$pr_number" "$branch_slug"
+  hash_output="$(printf '%s' "$source_branch" | shasum -a 256 2>/dev/null)" || return 1
+  digest="${hash_output%% *}"
+  [[ "$digest" =~ ^[[:xdigit:]]{64}$ ]] || return 1
+  printf '%s-%s\n' "$branch_slug" "$digest"
+}
+
+_deliver_pr_alias_branch() {
+  local pr_number="$1" source_branch="$2" source_suffix
+  source_suffix="$(_deliver_pr_alias_source_suffix "$source_branch")" || return 1
+  printf 'deliver/pr-%s/%s\n' "$pr_number" "$source_suffix"
 }
 
 DELIVER_PR_SOURCE_LOCK_PATH=""
@@ -379,16 +388,19 @@ DELIVER_PR_SOURCE_SETUP_STATE=""
 
 _deliver_pr_inspect_source_worktree_setup() {
   local expected_branch="$1" target_path="$2" wt_path="$3" branch="$4" initializing="$5"
-  local git_dir source_slug alias_remainder alias_pr_number alias_source_slug relevant=false
+  local git_dir source_suffix alias_remainder alias_pr_number alias_source_suffix relevant=false
 
   if [[ "$wt_path" == "$target_path" || "$branch" == "$expected_branch" ]]; then
     relevant=true
   elif [[ "$branch" == deliver/pr-* ]]; then
-    source_slug="$(slugify "$expected_branch" | cut -c 1-120)"
+    source_suffix="$(_deliver_pr_alias_source_suffix "$expected_branch")" || {
+      DELIVER_PR_SOURCE_SETUP_STATE="unverifiable"
+      return 0
+    }
     alias_remainder="${branch#deliver/pr-}"
     alias_pr_number="${alias_remainder%%/*}"
-    alias_source_slug="${alias_remainder#*/}"
-    if [[ "$alias_pr_number" =~ ^[0-9]+$ && "$alias_source_slug" == "$source_slug" ]]; then
+    alias_source_suffix="${alias_remainder#*/}"
+    if [[ "$alias_pr_number" =~ ^[0-9]+$ && "$alias_source_suffix" == "$source_suffix" ]]; then
       relevant=true
     fi
   fi
