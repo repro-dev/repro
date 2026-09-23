@@ -69,10 +69,12 @@ _write_stubs() {
 
   # reproctl.sh stub: print received args plus a worktree Path line (mirrors
   # real reproctl output) so deliver.sh skips its git-worktree fallback scan.
-  cat > "$tmpdir/scripts/reproctl.sh" << 'STUB'
+cat > "$tmpdir/scripts/reproctl.sh" << 'STUB'
 #!/bin/bash
 echo "REPROCTL_ARGS: $*"
-echo "Path: $(dirname "$(dirname "$0")")/repro-wt-rep-123"
+worktree_path="$(dirname "$(dirname "$0")")/repro-wt-rep-123"
+mkdir -p "$worktree_path"
+echo "Path: $worktree_path"
 STUB
   chmod +x "$tmpdir/scripts/reproctl.sh"
 
@@ -148,13 +150,45 @@ STUB
         echo 'herdr: daemon not ready' >&2
         exit 1
       fi
+      if [ "${HERDR_STUB_DYNAMIC_WORKSPACE_REGISTRY:-0}" = "1" ]; then
+        if [ -s "$HERDR_STUB_WORKSPACE_REGISTRY" ]; then
+          cat "$HERDR_STUB_WORKSPACE_REGISTRY"
+        else
+          printf '{"result":{"worktrees":[]}}\n'
+        fi
+        exit 0
+      fi
       printf '{"result":{"worktrees":[%s]}}\n' "${HERDR_STUB_WORKTREE_LIST_JSON:-}"
       exit 0
     fi
     printf 'HERDR_WORKTREE_OPEN: %s\n' "$*" >> "$(dirname "$0")/herdr_worktree_open.log"
+    if [ -n "${HERDR_STUB_EXPECT_LOCK_PATH:-}" ]; then
+      if [ -d "$HERDR_STUB_EXPECT_LOCK_PATH" ]; then
+        printf 'locked\n' >> "$HERDR_STUB_LOCK_OBSERVATIONS"
+      else
+        printf 'unlocked\n' >> "$HERDR_STUB_LOCK_OBSERVATIONS"
+      fi
+    fi
     if [ "${HERDR_STUB_WORKTREE_OPEN_FAIL:-0}" = "1" ]; then
       echo 'herdr: daemon not ready' >&2
       exit 1
+    fi
+    if [ "${HERDR_STUB_DYNAMIC_WORKSPACE_REGISTRY:-0}" = "1" ]; then
+      open_path=""
+      while [ "$#" -gt 0 ]; do
+        if [ "$1" = "--path" ]; then
+          shift
+          open_path="${1:-}"
+        fi
+        shift || break
+      done
+      touch "$HERDR_STUB_OPEN_STARTED"
+      sleep "${HERDR_STUB_OPEN_DELAY:-0}"
+      registry_tmp="$HERDR_STUB_WORKSPACE_REGISTRY.$$"
+      printf '{"result":{"worktrees":[{"path":"%s","open_workspace_id":"ws-serialized"}]}}\n' "$open_path" > "$registry_tmp"
+      mv "$registry_tmp" "$HERDR_STUB_WORKSPACE_REGISTRY"
+      echo '{"result":{"workspace":{"workspace_id":"ws-serialized"}}}'
+      exit 0
     fi
     echo '{"result":{"workspace":{"workspace_id":"ws-123"}}}'
     exit 0
@@ -1560,6 +1594,8 @@ if [ "${1:-}" = "worktree" ] && [ "${2:-}" = "add" ] && [ "${3:-}" = "-b" ]; the
   printf '%s\n' "$*" >> "$DELIVER_PR_ADD_LOG"
   if [ ! -f "$DELIVER_PR_RACE_MARKER" ]; then
     if "$REAL_GIT" -C "$DELIVER_PR_RACE_REPO" worktree add -q -b "$4" "$DELIVER_PR_RACE_WINNER" "$6"; then
+      winner_git_dir="$("$REAL_GIT" -C "$DELIVER_PR_RACE_WINNER" rev-parse --absolute-git-dir)"
+      printf 'pr=%s\n' "$DELIVER_PR_RACE_PR" > "$winner_git_dir/deliver-pr-owner"
       touch "$DELIVER_PR_RACE_MARKER"
       echo 'fatal: simulated competing worktree creation won the race' >&2
       exit 1
@@ -1574,6 +1610,7 @@ STUB
 
   output="$(REAL_GIT="$real_git" DELIVER_PR_RACE_REPO="$tmpdir" \
     DELIVER_PR_RACE_WINNER="$winner_wt" DELIVER_PR_RACE_MARKER="$tmpdir/race-winner-created" \
+    DELIVER_PR_RACE_PR=710 \
     DELIVER_PR_ADD_LOG="$tmpdir/pr-worktree-add.log" \
     GH_STUB_PR_JSON="$(_pr_json "$branch" "" "Concurrent PR 710")" \
     REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
@@ -1790,6 +1827,292 @@ test_pr_same_issue_id_uses_distinct_pr_worktrees() {
   fi
 }
 
+# Test 47 (REP-1693): the first PR atomically claims an exact-head legacy
+# worktree. A second PR for the same source branch/head gets a PR-specific
+# local alias at that OID, leaving the first worktree and remote source branch
+# untouched and never pushing the alias.
+test_pr_same_source_branch_uses_owned_alias_for_second_pr() {
+  local tmpdir first_rc=0 second_rc=0 branch pr_head legacy_wt sentinel
+  local output_first output_second open_log first_path second_path owner_file owner
+  local second_branch second_head source_remote alias_remote source_local_head remaining_refs worktree_count
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  pr_head="$(_setup_pr_remote_fixture "$tmpdir" 720)"
+  git --git-dir="$tmpdir/origin.git" update-ref refs/pull/721/head "$pr_head"
+  branch="feature/shared-pr-source"
+  legacy_wt="$tmpdir/workspaces/legacy-shared-pr"
+  git -C "$tmpdir" worktree add -q -b "$branch" "$legacy_wt" "$pr_head"
+  printf 'preserve this legacy user file\n' > "$legacy_wt/--full-page"
+  _write_runner "$tmpdir" "--pr 720"
+
+  output_first="$(GH_STUB_PR_JSON="$(_pr_json "$branch" "" "Shared source PR 720")" \
+    REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" bash "$tmpdir/run_test.sh" 2>&1)" || first_rc=$?
+  _write_runner "$tmpdir" "--pr 721"
+  output_second="$(GH_STUB_PR_JSON="$(_pr_json "$branch" "" "Shared source PR 721")" \
+    REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" bash "$tmpdir/run_test.sh" 2>&1)" || second_rc=$?
+
+  open_log="$(cat "$tmpdir/herdr_worktree_open.log" 2>/dev/null || true)"
+  first_path="$(sed -n '1s/.*--path \([^ ]*\).*/\1/p' "$tmpdir/herdr_worktree_open.log" 2>/dev/null || true)"
+  second_path="$(sed -n '2s/.*--path \([^ ]*\).*/\1/p' "$tmpdir/herdr_worktree_open.log" 2>/dev/null || true)"
+  sentinel="$(cat "$legacy_wt/--full-page" 2>/dev/null || true)"
+  owner_file="$(git -C "$legacy_wt" rev-parse --absolute-git-dir)/deliver-pr-owner"
+  owner="$(cat "$owner_file" 2>/dev/null || true)"
+  second_branch="$(git -C "$second_path" branch --show-current 2>/dev/null || true)"
+  second_head="$(git -C "$second_path" rev-parse HEAD 2>/dev/null || true)"
+  source_local_head="$(git -C "$tmpdir" rev-parse --verify --quiet "refs/heads/$branch" 2>/dev/null || true)"
+  source_remote="$(git --git-dir="$tmpdir/origin.git" rev-parse --verify --quiet "refs/heads/$branch" 2>/dev/null || true)"
+  alias_remote="$(git --git-dir="$tmpdir/origin.git" rev-parse --verify --quiet "refs/heads/$second_branch" 2>/dev/null || true)"
+  remaining_refs="$(git -C "$tmpdir" for-each-ref --format='%(refname)' refs/deliver/pr)"
+  worktree_count="$(git -C "$tmpdir" worktree list --porcelain | grep -c '^worktree ' || true)"
+  rm -rf "$tmpdir"
+
+  if [ "$first_rc" -eq 0 ] \
+    && [ "$second_rc" -eq 0 ] \
+    && [ "$first_path" = "$legacy_wt" ] \
+    && [ "$second_path" != "$legacy_wt" ] \
+    && [[ "$second_path" == *pr-721* ]] \
+    && [ "$owner" = 'pr=720' ] \
+    && [ "$sentinel" = 'preserve this legacy user file' ] \
+    && [ ! -e "$legacy_wt/deliver-pr-owner" ] \
+    && [ "$second_head" = "$pr_head" ] \
+    && [[ "$second_branch" == deliver/pr-721/* ]] \
+    && [ "$source_local_head" = "$pr_head" ] \
+    && [ -z "$source_remote" ] \
+    && [ -z "$alias_remote" ] \
+    && [ -z "$remaining_refs" ] \
+    && [ "$worktree_count" -eq 3 ]; then
+    _pass "PR ownership keeps a same-source second PR isolated on an unpushed alias"
+  else
+    _fail "PR ownership keeps a same-source second PR isolated on an unpushed alias" "rcs=$first_rc/$second_rc; paths=${first_path:-<absent>} / ${second_path:-<absent>}; owner=$owner expected=pr=720; sentinel=${sentinel:-<absent>}; alias=$second_branch at $second_head expected=$pr_head; source local=$source_local_head expected=$pr_head; remote source=${source_remote:-<absent>}; remote alias=${alias_remote:-<absent>}; refs=${remaining_refs:-<none>}; worktrees=$worktree_count; open=${open_log:-<absent>}; first output=$output_first; second output=$output_second"
+  fi
+}
+
+# Test 48 (REP-1693): two different PRs both observe an unowned exact-head
+# legacy worktree. Pause both immediately before the exclusive metadata link;
+# only one can win ownership, and the loser must create its own local alias.
+test_pr_legacy_ownership_claim_is_atomic_across_prs() {
+  local tmpdir branch pr_head legacy_wt barrier first_pid second_pid
+  local first_rc=0 second_rc=0 first_output second_output first_path second_path
+  local owner owner_file alias_count worktree_count source_remote open_count
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  pr_head="$(_setup_pr_remote_fixture "$tmpdir" 722)"
+  git --git-dir="$tmpdir/origin.git" update-ref refs/pull/723/head "$pr_head"
+  branch="feature/atomic-shared-pr"
+  legacy_wt="$tmpdir/workspaces/legacy-atomic-shared"
+  git -C "$tmpdir" worktree add -q -b "$branch" "$legacy_wt" "$pr_head"
+  barrier="$tmpdir/ownership-claim-barrier"
+  mkdir -p "$barrier/arrivals"
+  local real_ln
+  real_ln="$(command -v ln)"
+  cat > "$tmpdir/ln" <<'STUB'
+#!/bin/bash
+destination="${2:-}"
+case "$destination" in
+  */deliver-pr-owner)
+    touch "$DELIVER_OWNER_BARRIER/arrivals/$$"
+    attempts=0
+    while [ "$(find "$DELIVER_OWNER_BARRIER/arrivals" -type f | wc -l | tr -d ' ')" -lt 2 ] && [ "$attempts" -lt 500 ]; do
+      sleep 0.01
+      attempts=$((attempts + 1))
+    done
+    if [ "$(find "$DELIVER_OWNER_BARRIER/arrivals" -type f | wc -l | tr -d ' ')" -lt 2 ]; then
+      echo 'timed out waiting for competing ownership claim' >&2
+      exit 1
+    fi
+    ;;
+esac
+exec "$REAL_LN" "$@"
+STUB
+  chmod +x "$tmpdir/ln"
+  _write_runner "$tmpdir" "--pr 722"
+  cp "$tmpdir/run_test.sh" "$tmpdir/run_pr_722.sh"
+  _write_runner "$tmpdir" "--pr 723"
+  cp "$tmpdir/run_test.sh" "$tmpdir/run_pr_723.sh"
+  REAL_LN="$real_ln" DELIVER_OWNER_BARRIER="$barrier" GH_STUB_PR_JSON="$(_pr_json "$branch" "" "Atomic PR 722")" \
+    REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" bash "$tmpdir/run_pr_722.sh" > "$tmpdir/first.out" 2>&1 &
+  first_pid=$!
+  REAL_LN="$real_ln" DELIVER_OWNER_BARRIER="$barrier" GH_STUB_PR_JSON="$(_pr_json "$branch" "" "Atomic PR 723")" \
+    REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" bash "$tmpdir/run_pr_723.sh" > "$tmpdir/second.out" 2>&1 &
+  second_pid=$!
+  wait "$first_pid" || first_rc=$?
+  wait "$second_pid" || second_rc=$?
+
+  first_output="$(cat "$tmpdir/first.out" 2>/dev/null || true)"
+  second_output="$(cat "$tmpdir/second.out" 2>/dev/null || true)"
+  open_count="$(grep -c 'HERDR_WORKTREE_OPEN:' "$tmpdir/herdr_worktree_open.log" 2>/dev/null || true)"
+  first_path="$(sed -n '1s/.*--path \([^ ]*\).*/\1/p' "$tmpdir/herdr_worktree_open.log" 2>/dev/null || true)"
+  second_path="$(sed -n '2s/.*--path \([^ ]*\).*/\1/p' "$tmpdir/herdr_worktree_open.log" 2>/dev/null || true)"
+  owner_file="$(git -C "$legacy_wt" rev-parse --absolute-git-dir)/deliver-pr-owner"
+  owner="$(cat "$owner_file" 2>/dev/null || true)"
+  alias_count="$(git -C "$tmpdir" for-each-ref --format='%(refname)' refs/heads | grep -c '^refs/heads/deliver/pr-' || true)"
+  source_remote="$(git --git-dir="$tmpdir/origin.git" rev-parse --verify --quiet "refs/heads/$branch" 2>/dev/null || true)"
+  worktree_count="$(git -C "$tmpdir" worktree list --porcelain | grep -c '^worktree ' || true)"
+  rm -rf "$tmpdir"
+
+  if [ "$first_rc" -eq 0 ] \
+    && [ "$second_rc" -eq 0 ] \
+    && { [ "$owner" = 'pr=722' ] || [ "$owner" = 'pr=723' ]; } \
+    && [ "$alias_count" -eq 1 ] \
+    && [ "$source_remote" = '' ] \
+    && [ "$worktree_count" -eq 3 ] \
+    && [ "$open_count" -eq 2 ] \
+    && [ -n "$first_path" ] && [ -n "$second_path" ] \
+    && [ "$first_path" != "$second_path" ]; then
+    _pass "different PRs cannot both claim one legacy worktree; loser uses an unpushed alias"
+  else
+    _fail "different PRs cannot both claim one legacy worktree; loser uses an unpushed alias" "rcs=$first_rc/$second_rc; owner=$owner; aliases=$alias_count; source remote=${source_remote:-<absent>}; worktrees=$worktree_count; opens=$open_count; paths=${first_path:-<absent>} / ${second_path:-<absent>}; outputs: $first_output / $second_output"
+  fi
+}
+
+# Test 49 (REP-1693): concurrent same-PR deliveries race the Herdr list/open
+# sequence. The first open registers a workspace while holding the path lock;
+# the waiter must re-list after acquiring it and reuse that workspace.
+test_pr_concurrent_deliveries_open_one_herdr_workspace() {
+  local tmpdir pr_head branch first_pid first_rc=0 second_rc=0
+  local attempts first_output second_output open_log registry_path open_count worktree_count
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  pr_head="$(_setup_pr_remote_fixture "$tmpdir" 724)"
+  branch="feature/concurrent-herdr-pr"
+  _write_runner "$tmpdir" "--pr 724"
+
+  GH_STUB_PR_JSON="$(_pr_json "$branch" "" "Concurrent Herdr PR")" \
+    HERDR_STUB_DYNAMIC_WORKSPACE_REGISTRY=1 HERDR_STUB_WORKSPACE_REGISTRY="$tmpdir/herdr-registry.json" \
+    HERDR_STUB_OPEN_STARTED="$tmpdir/herdr-open-started" HERDR_STUB_OPEN_DELAY=0.5 \
+    REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" bash "$tmpdir/run_test.sh" > "$tmpdir/first.out" 2>&1 &
+  first_pid=$!
+  attempts=0
+  while [ ! -f "$tmpdir/herdr-open-started" ] && [ "$attempts" -lt 500 ]; do
+    if ! kill -0 "$first_pid" 2>/dev/null; then break; fi
+    sleep 0.01
+    attempts=$((attempts + 1))
+  done
+
+  if [ ! -f "$tmpdir/herdr-open-started" ]; then
+    wait "$first_pid" || first_rc=$?
+    first_output="$(cat "$tmpdir/first.out" 2>/dev/null || true)"
+    rm -rf "$tmpdir"
+    _fail "concurrent same-PR deliveries issue one Herdr worktree open" "first delivery never reached open; rc=$first_rc; output=$first_output"
+    return
+  fi
+
+  GH_STUB_PR_JSON="$(_pr_json "$branch" "" "Concurrent Herdr PR")" \
+    HERDR_STUB_DYNAMIC_WORKSPACE_REGISTRY=1 HERDR_STUB_WORKSPACE_REGISTRY="$tmpdir/herdr-registry.json" \
+    HERDR_STUB_OPEN_STARTED="$tmpdir/herdr-open-started-second" HERDR_STUB_OPEN_DELAY=0.5 \
+    REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" bash "$tmpdir/run_test.sh" > "$tmpdir/second.out" 2>&1 &
+  local second_pid=$!
+  wait "$first_pid" || first_rc=$?
+  wait "$second_pid" || second_rc=$?
+
+  first_output="$(cat "$tmpdir/first.out" 2>/dev/null || true)"
+  second_output="$(cat "$tmpdir/second.out" 2>/dev/null || true)"
+  open_log="$(cat "$tmpdir/herdr_worktree_open.log" 2>/dev/null || true)"
+  open_count="$(printf '%s\n' "$open_log" | grep -c 'HERDR_WORKTREE_OPEN:' || true)"
+  registry_path="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["result"]["worktrees"][0]["path"])' "$tmpdir/herdr-registry.json" 2>/dev/null || true)"
+  worktree_count="$(git -C "$tmpdir" worktree list --porcelain | grep -c '^worktree ' || true)"
+  rm -rf "$tmpdir"
+
+  if [ "$first_rc" -eq 0 ] \
+    && [ "$second_rc" -eq 0 ] \
+    && [ "$open_count" -eq 1 ] \
+    && [[ "$registry_path" == *repro-wt-pr-724 ]] \
+    && [ "$worktree_count" -eq 2 ] \
+    && printf '%s\n' "$second_output" | grep -q 'Reusing open herdr workspace' \
+    && printf '%s\n' "$second_output" | grep -q 'ws-serialized'; then
+    _pass "concurrent same-PR deliveries serialize Herdr open and reuse the registered workspace"
+  else
+    _fail "concurrent same-PR deliveries serialize Herdr open and reuse the registered workspace" "rcs=$first_rc/$second_rc; opens=$open_count; registry=${registry_path:-<absent>}; worktrees=$worktree_count; open log=${open_log:-<absent>}; outputs: $first_output / $second_output"
+  fi
+}
+
+_expected_herdr_lock_path() {
+  local tmpdir="$1" target="$2" canonical digest
+  canonical="$(python3 -c 'from pathlib import Path; import sys; print(Path(sys.argv[1]).resolve(strict=False))' "$target")"
+  digest="$(printf '%s' "$canonical" | shasum -a 256 | awk '{print $1}')"
+  printf '%s/tmp/deliver-herdr-locks/%s.lock\n' "$tmpdir" "$digest"
+}
+
+# Test 50 (REP-1693): successful and failed Herdr open attempts release the
+# acquired lock; a valid dead-owner lock is reclaimed; a lock without verifiable
+# ownership fails closed before list/open or agent launch.
+test_pr_herdr_lock_cleanup_and_unverifiable_lock_fail_closed() {
+  local tmpdir pr_head branch success_target success_lock output rc=0
+  local open_fail_target open_fail_lock fail_output fail_rc=0 observations
+  local stale_target stale_lock stale_output stale_rc=0 unverifiable_target unverifiable_lock
+  local unverifiable_output unverifiable_rc=0 open_log launch
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  pr_head="$(_setup_pr_remote_fixture "$tmpdir" 725)"
+  branch="feature/lock-cleanup-success"
+  success_target="$tmpdir/workspaces/repro-wt-pr-725"
+  success_lock="$(_expected_herdr_lock_path "$tmpdir" "$success_target")"
+  _write_runner "$tmpdir" "--pr 725"
+  output="$(GH_STUB_PR_JSON="$(_pr_json "$branch" "" "Lock success")" \
+    HERDR_STUB_EXPECT_LOCK_PATH="$success_lock" HERDR_STUB_LOCK_OBSERVATIONS="$tmpdir/lock-observations.log" \
+    REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  observations="$(cat "$tmpdir/lock-observations.log" 2>/dev/null || true)"
+  local success_released=true
+  [ ! -e "$success_lock" ] || success_released=false
+
+  git --git-dir="$tmpdir/origin.git" update-ref refs/pull/726/head "$pr_head"
+  open_fail_target="$tmpdir/workspaces/repro-wt-pr-726"
+  open_fail_lock="$(_expected_herdr_lock_path "$tmpdir" "$open_fail_target")"
+  cat > "$tmpdir/pnpm" <<'STUB'
+#!/bin/bash
+exit 0
+STUB
+  chmod +x "$tmpdir/pnpm"
+  _write_runner "$tmpdir" "--pr 726"
+  fail_output="$(GH_STUB_PR_JSON="$(_pr_json "feature/lock-cleanup-error" "" "Lock error")" \
+    HERDR_STUB_WORKTREE_OPEN_FAIL=1 HERDR_STUB_EXPECT_LOCK_PATH="$open_fail_lock" \
+    HERDR_STUB_LOCK_OBSERVATIONS="$tmpdir/error-lock-observations.log" \
+    REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" bash "$tmpdir/run_test.sh" 2>&1)" || fail_rc=$?
+  local error_observations error_released=true
+  error_observations="$(cat "$tmpdir/error-lock-observations.log" 2>/dev/null || true)"
+  [ ! -e "$open_fail_lock" ] || error_released=false
+
+  git --git-dir="$tmpdir/origin.git" update-ref refs/pull/727/head "$pr_head"
+  stale_target="$tmpdir/workspaces/repro-wt-pr-727"
+  stale_lock="$(_expected_herdr_lock_path "$tmpdir" "$stale_target")"
+  mkdir -p "$stale_lock"
+  printf 'pid=99999999\npath=%s\ntoken=stale-owner\n' "$stale_target" > "$stale_lock/owner"
+  _write_runner "$tmpdir" "--pr 727"
+  stale_output="$(GH_STUB_PR_JSON="$(_pr_json "feature/stale-lock" "" "Stale lock")" \
+    REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" bash "$tmpdir/run_test.sh" 2>&1)" || stale_rc=$?
+  local stale_recovered=true
+  [ ! -e "$stale_lock" ] || stale_recovered=false
+
+  git --git-dir="$tmpdir/origin.git" update-ref refs/pull/728/head "$pr_head"
+  rm -f "$tmpdir/herdr_worktree_open.log" "$tmpdir/herdr_prompt_launch.txt"
+  unverifiable_target="$tmpdir/workspaces/repro-wt-pr-728"
+  unverifiable_lock="$(_expected_herdr_lock_path "$tmpdir" "$unverifiable_target")"
+  mkdir -p "$unverifiable_lock"
+  _write_runner "$tmpdir" "--pr 728"
+  unverifiable_output="$(GH_STUB_PR_JSON="$(_pr_json "feature/unverifiable-lock" "" "Unverifiable lock")" \
+    REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" bash "$tmpdir/run_test.sh" 2>&1)" || unverifiable_rc=$?
+  open_log="$(cat "$tmpdir/herdr_worktree_open.log" 2>/dev/null || true)"
+  launch="$(cat "$tmpdir/herdr_prompt_launch.txt" 2>/dev/null || true)"
+  rm -rf "$tmpdir"
+
+  if [ "$rc" -eq 0 ] \
+    && [ "$success_released" = true ] \
+    && [ "$observations" = 'locked' ] \
+    && [ "$fail_rc" -eq 0 ] \
+    && [ "$error_released" = true ] \
+    && [ "$error_observations" = 'locked' ] \
+    && [ "$stale_rc" -eq 0 ] \
+    && [ "$stale_recovered" = true ] \
+    && [ "$unverifiable_rc" -ne 0 ] \
+    && printf '%s\n' "$unverifiable_output" | grep -qi 'unverifiable.*lock' \
+    && [ -z "$open_log" ] \
+    && [ -z "$launch" ]; then
+    _pass "Herdr locks release on success/error, reclaim a proven stale owner, and reject unverifiable ownership"
+  else
+    _fail "Herdr locks release on success/error, reclaim a proven stale owner, and reject unverifiable ownership" "success=$rc released=$success_released observed=${observations:-<none>}; error=$fail_rc released=$error_released observed=${error_observations:-<none>} output=$fail_output; stale=$stale_rc recovered=$stale_recovered output=$stale_output; unverifiable=$unverifiable_rc output=$unverifiable_output; open=${open_log:-<absent>}; launch=${launch:-<absent>}"
+  fi
+}
+
 # ── Run all tests ──────────────────────────────────────────────────────
 
 test_file_exists
@@ -1840,6 +2163,10 @@ test_pr_fetch_ref_is_unique_for_simultaneous_same_pr_invocations
 test_pr_recovers_exact_head_worktree_created_after_initial_scan
 test_pr_rejects_unsafe_competitors_created_after_initial_scan
 test_pr_same_issue_id_uses_distinct_pr_worktrees
+test_pr_same_source_branch_uses_owned_alias_for_second_pr
+test_pr_legacy_ownership_claim_is_atomic_across_prs
+test_pr_concurrent_deliveries_open_one_herdr_workspace
+test_pr_herdr_lock_cleanup_and_unverifiable_lock_fail_closed
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed out of $TESTS_RUN tests"
