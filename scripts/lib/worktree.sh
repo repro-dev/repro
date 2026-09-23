@@ -108,7 +108,22 @@ HERDR_LOCK_OWNER_STATE=""
 HERDR_LOCK_OWNER_PID=""
 HERDR_LOCK_OWNER_PATH=""
 HERDR_LOCK_OWNER_TOKEN=""
+HERDR_LOCK_OWNER_START=""
 HERDR_LOCK_PROCESS_STATE=""
+HERDR_PROCESS_START=""
+HERDR_LOCK_RECLAIM_STATE=""
+HERDR_LOCK_HELD=false
+HERDR_LOCK_TRAPS_INSTALLED=false
+HERDR_LOCK_ACTIVE_PATH=""
+HERDR_LOCK_ACTIVE_CANONICAL_PATH=""
+HERDR_LOCK_ACTIVE_TOKEN=""
+HERDR_LOCK_ACTIVE_PID=""
+HERDR_LOCK_ACTIVE_START=""
+HERDR_LOCK_PREVIOUS_EXIT_TRAP=""
+HERDR_LOCK_PREVIOUS_HUP_TRAP=""
+HERDR_LOCK_PREVIOUS_INT_TRAP=""
+HERDR_LOCK_PREVIOUS_TERM_TRAP=""
+HERDR_WORKTREE_LIBRARY_PATH="${BASH_SOURCE[0]}"
 
 _herdr_resolve_workspace_lock() {
   local wt_path="$1" canonical hash_output digest lock_root
@@ -143,82 +158,212 @@ _herdr_resolve_workspace_lock() {
 }
 
 _herdr_read_workspace_lock_owner() {
-  local lock_path="$1" canonical_path="$2" owner_file line_count pid_line path_line token_line
+  local lock_path="$1" canonical_path="$2" line_count pid_line path_line token_line start_line
   HERDR_LOCK_OWNER_STATE="invalid"
   HERDR_LOCK_OWNER_PID=""
   HERDR_LOCK_OWNER_PATH=""
   HERDR_LOCK_OWNER_TOKEN=""
+  HERDR_LOCK_OWNER_START=""
 
-  owner_file="$lock_path/owner"
-  if [[ -L "$owner_file" ]]; then
+  if [[ -L "$lock_path" ]]; then
     return 0
   fi
-  if [[ ! -e "$owner_file" ]]; then
+  if [[ ! -e "$lock_path" ]]; then
     HERDR_LOCK_OWNER_STATE="missing"
     return 0
   fi
-  if [[ ! -f "$owner_file" || ! -r "$owner_file" ]]; then
+  if [[ ! -f "$lock_path" || ! -r "$lock_path" ]]; then
     return 0
   fi
-  line_count="$(wc -l < "$owner_file" 2>/dev/null | tr -d '[:space:]')" || return 0
-  if [[ "$line_count" != 3 ]]; then
+  line_count="$(wc -l < "$lock_path" 2>/dev/null | tr -d '[:space:]')" || return 0
+  if [[ "$line_count" != 4 ]]; then
     return 0
   fi
 
-  pid_line="$(sed -n '1p' "$owner_file")"
-  path_line="$(sed -n '2p' "$owner_file")"
-  token_line="$(sed -n '3p' "$owner_file")"
-  [[ "$pid_line" == pid=* && "$path_line" == path=* && "$token_line" == token=* ]] || return 0
+  pid_line="$(sed -n '1p' "$lock_path")"
+  path_line="$(sed -n '2p' "$lock_path")"
+  token_line="$(sed -n '3p' "$lock_path")"
+  start_line="$(sed -n '4p' "$lock_path")"
+  [[ "$pid_line" == pid=* && "$path_line" == path=* && "$token_line" == token=* && "$start_line" == start=* ]] || return 0
   HERDR_LOCK_OWNER_PID="${pid_line#pid=}"
   HERDR_LOCK_OWNER_PATH="${path_line#path=}"
   HERDR_LOCK_OWNER_TOKEN="${token_line#token=}"
+  HERDR_LOCK_OWNER_START="${start_line#start=}"
   if [[ ! "$HERDR_LOCK_OWNER_PID" =~ ^[1-9][0-9]*$ ]] \
     || [[ "$HERDR_LOCK_OWNER_PATH" != "$canonical_path" ]] \
-    || [[ ! "$HERDR_LOCK_OWNER_TOKEN" =~ ^[A-Za-z0-9_-]+$ ]]; then
+    || [[ ! "$HERDR_LOCK_OWNER_TOKEN" =~ ^[A-Za-z0-9_-]+$ ]] \
+    || ! _herdr_validate_process_start "$HERDR_LOCK_OWNER_START"; then
     return 0
   fi
   HERDR_LOCK_OWNER_STATE="valid"
 }
 
+# ps lstart is the process-incarnation key. Accept both BSD/macOS and the
+# common Linux ordering, but reject malformed or multi-line query output.
+_herdr_validate_process_start() {
+  local start="$1"
+  local start_regex='^(Sun|Mon|Tue|Wed|Thu|Fri|Sat)[[:space:]]+((Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[[:space:]]+[ 0-3]?[0-9]|[ 0-3]?[0-9][[:space:]]+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec))[[:space:]]+[0-9]{2}:[0-9]{2}:[0-9]{2}[[:space:]]+[0-9]{4}$'
+  [[ "$start" =~ $start_regex ]]
+}
+
+_herdr_workspace_process_start() {
+  local pid="$1" ps_output reported_pid start_line
+  HERDR_PROCESS_START=""
+  [[ "$pid" =~ ^[1-9][0-9]*$ ]] || return 1
+
+  ps_output="$(ps -p "$pid" -o pid= -o lstart= 2>/dev/null)" || return 1
+  [[ -n "$ps_output" && "$ps_output" != *$'\n'* ]] || return 1
+  IFS=$' \t' read -r reported_pid start_line <<< "$ps_output"
+  [[ "$reported_pid" == "$pid" ]] || return 1
+  _herdr_validate_process_start "$start_line" || return 1
+  HERDR_PROCESS_START="$start_line"
+  return 0
+}
+
 _herdr_workspace_lock_process_state() {
-  local pid="$1" ps_output ps_status
+  local pid="$1" expected_start="$2" presence current_start
   HERDR_LOCK_PROCESS_STATE="unknown"
-  if kill -0 "$pid" 2>/dev/null; then
-    HERDR_LOCK_PROCESS_STATE="alive"
+  [[ "$pid" =~ ^[1-9][0-9]*$ ]] || return 0
+  _herdr_validate_process_start "$expected_start" || return 0
+
+  # os.kill(..., 0) exposes ESRCH separately from EPERM. ps exit status alone
+  # is not proof of death: an unavailable or ambiguous process query fails shut.
+  presence="$(python3 - "$pid" 2>/dev/null <<'PY'
+import errno
+import os
+import sys
+
+try:
+    os.kill(int(sys.argv[1]), 0)
+except OSError as error:
+    if error.errno == errno.ESRCH:
+        print("dead")
+    elif error.errno in (errno.EPERM, errno.EACCES):
+        print("exists")
+    else:
+        print("unknown")
+else:
+    print("exists")
+PY
+)" || return 0
+  case "$presence" in
+    dead)
+      HERDR_LOCK_PROCESS_STATE="dead"
+      return 0
+      ;;
+    exists) ;;
+    *) return 0 ;;
+  esac
+
+  if ! _herdr_workspace_process_start "$pid"; then
     return 0
   fi
-  ps_output="$(ps -p "$pid" -o pid= 2>/dev/null)"
-  ps_status=$?
-  if [[ -n "$ps_output" ]]; then
+  current_start="$HERDR_PROCESS_START"
+  if [[ "$current_start" == "$expected_start" ]]; then
     HERDR_LOCK_PROCESS_STATE="alive"
-  elif [[ "$ps_status" -eq 1 ]]; then
-    HERDR_LOCK_PROCESS_STATE="stale"
+  else
+    HERDR_LOCK_PROCESS_STATE="reused"
   fi
 }
 
+_herdr_reclaim_stale_workspace_lock() {
+  local lock_path="$1" canonical_path="$2" owner_pid="$3" owner_path="$4" owner_token="$5" owner_start="$6"
+  local reclaim_status
+  HERDR_LOCK_RECLAIM_STATE="unknown"
+  if ! command -v lockf >/dev/null 2>&1; then
+    return 1
+  fi
+
+  # lockf's kernel advisory lock serializes reapers and is released by the OS
+  # on process death. -k keeps the gate inode stable; its existence is not an
+  # ownerless lock and it is never unlinked by delivery cleanup.
+  lockf -k -s -t 1 "$lock_path.reaper" "${BASH:-/bin/bash}" -c '
+    source "$1" || exit 1
+    lock_path="$2"
+    canonical_path="$3"
+    expected_pid="$4"
+    expected_path="$5"
+    expected_token="$6"
+    expected_start="$7"
+    _herdr_read_workspace_lock_owner "$lock_path" "$canonical_path"
+    if [[ "$HERDR_LOCK_OWNER_STATE" != valid \
+      || "$HERDR_LOCK_OWNER_PID" != "$expected_pid" \
+      || "$HERDR_LOCK_OWNER_PATH" != "$expected_path" \
+      || "$HERDR_LOCK_OWNER_TOKEN" != "$expected_token" \
+      || "$HERDR_LOCK_OWNER_START" != "$expected_start" ]]; then
+      exit 2
+    fi
+    _herdr_workspace_lock_process_state "$expected_pid" "$expected_start"
+    case "$HERDR_LOCK_PROCESS_STATE" in
+      dead|reused) rm -f "$lock_path" || exit 1; exit 0 ;;
+      alive) exit 3 ;;
+      *) exit 4 ;;
+    esac
+  ' herdr-lock-reaper "$HERDR_WORKTREE_LIBRARY_PATH" "$lock_path" "$canonical_path" \
+    "$owner_pid" "$owner_path" "$owner_token" "$owner_start" >/dev/null 2>&1
+  reclaim_status=$?
+  case "$reclaim_status" in
+    0) HERDR_LOCK_RECLAIM_STATE="reclaimed" ;;
+    2) HERDR_LOCK_RECLAIM_STATE="changed" ;;
+    3) HERDR_LOCK_RECLAIM_STATE="alive" ;;
+    75) HERDR_LOCK_RECLAIM_STATE="busy" ;;
+    *) HERDR_LOCK_RECLAIM_STATE="unknown"; return 1 ;;
+  esac
+  return 0
+}
+
 _herdr_acquire_workspace_lock() {
-  local lock_path="$1" canonical_path="$2" token owner_tmp attempts init_attempts
-  local stale_pid stale_token stale_path
+  local lock_path="$1" canonical_path="$2" token owner_tmp attempts
+  local stale_pid stale_path stale_token stale_start reclaim_state nested_link
   attempts=0
-  init_attempts=0
+  if ! _herdr_workspace_process_start "$$"; then
+    echo "Cannot verify this process start time for Herdr workspace lock at $canonical_path" >&2
+    return 1
+  fi
+  HERDR_LOCK_ACTIVE_START="$HERDR_PROCESS_START"
 
   while true; do
-    if mkdir "$lock_path" 2>/dev/null; then
-      token="$$-${RANDOM}-${RANDOM}"
-      owner_tmp="$lock_path/owner.$token"
-      if (umask 077; set -C; printf 'pid=%s\npath=%s\ntoken=%s\n' "$$" "$canonical_path" "$token" > "$owner_tmp") \
-        && mv "$owner_tmp" "$lock_path/owner"; then
-        HERDR_LOCK_OWNER_PID="$$"
-        HERDR_LOCK_OWNER_PATH="$canonical_path"
-        HERDR_LOCK_OWNER_TOKEN="$token"
-        return 0
-      fi
+    token="$$-${RANDOM}-${RANDOM}"
+    owner_tmp="$(mktemp "$lock_path.owner.XXXXXX" 2>/dev/null)" || {
+      echo "Could not create temporary Herdr lock record for $canonical_path" >&2
+      return 1
+    }
+    if ! (umask 077; printf 'pid=%s\npath=%s\ntoken=%s\nstart=%s\n' "$$" "$canonical_path" "$token" "$HERDR_LOCK_ACTIVE_START" > "$owner_tmp"); then
       rm -f "$owner_tmp" >/dev/null 2>&1 || true
-      echo "Could not write Herdr lock ownership for $canonical_path" >&2
+      echo "Could not write Herdr lock record for $canonical_path" >&2
       return 1
     fi
 
-    if [[ ! -d "$lock_path" ]]; then
+    if [[ ! -d "$lock_path" && ! -L "$lock_path" ]] \
+      && ln "$owner_tmp" "$lock_path" 2>/dev/null; then
+      if [[ -f "$lock_path" && ! -L "$lock_path" && "$lock_path" -ef "$owner_tmp" ]]; then
+        rm -f "$owner_tmp" >/dev/null 2>&1 || true
+        HERDR_LOCK_OWNER_PID="$$"
+        HERDR_LOCK_OWNER_PATH="$canonical_path"
+        HERDR_LOCK_OWNER_TOKEN="$token"
+        HERDR_LOCK_OWNER_START="$HERDR_LOCK_ACTIVE_START"
+        HERDR_LOCK_ACTIVE_PATH="$lock_path"
+        HERDR_LOCK_ACTIVE_CANONICAL_PATH="$canonical_path"
+        HERDR_LOCK_ACTIVE_TOKEN="$token"
+        HERDR_LOCK_ACTIVE_PID="$$"
+        HERDR_LOCK_HELD=true
+        return 0
+      fi
+
+      # BSD ln treats an existing directory destination as a directory into
+      # which to link. Remove only our own accidental nested hard link, then
+      # fail closed on the unexpected representation.
+      nested_link="$lock_path/$(basename "$owner_tmp")"
+      if [[ -f "$nested_link" && "$nested_link" -ef "$owner_tmp" ]]; then
+        rm -f "$nested_link" >/dev/null 2>&1 || true
+      fi
+      rm -f "$owner_tmp" >/dev/null 2>&1 || true
+      echo "Herdr workspace lock changed representation while acquiring $canonical_path" >&2
+      return 1
+    fi
+    rm -f "$owner_tmp" >/dev/null 2>&1 || true
+
+    if [[ ! -e "$lock_path" && ! -L "$lock_path" ]]; then
       attempts=$((attempts + 1))
       if [[ "$attempts" -ge 1200 ]]; then
         echo "Timed out acquiring Herdr workspace lock for $canonical_path" >&2
@@ -231,26 +376,20 @@ _herdr_acquire_workspace_lock() {
     _herdr_read_workspace_lock_owner "$lock_path" "$canonical_path"
     case "$HERDR_LOCK_OWNER_STATE" in
       missing)
-        # mkdir and the atomic owner-file installation are separate syscalls;
-        # allow that tiny initialization window, but never treat an empty lock
-        # as permission to race an unknown owner.
-        init_attempts=$((init_attempts + 1))
-        if [[ "$init_attempts" -ge 100 ]]; then
-          echo "Herdr workspace lock ownership is unverifiable for $canonical_path" >&2
-          return 1
-        fi
-        sleep 0.01
+        # The owner record is installed in one hard-link operation; missing
+        # means it disappeared between the failed link and this read.
+        continue
         ;;
       invalid)
         echo "Herdr workspace lock ownership is unverifiable for $canonical_path" >&2
         return 1
         ;;
       valid)
-        init_attempts=0
         stale_pid="$HERDR_LOCK_OWNER_PID"
         stale_path="$HERDR_LOCK_OWNER_PATH"
         stale_token="$HERDR_LOCK_OWNER_TOKEN"
-        _herdr_workspace_lock_process_state "$stale_pid"
+        stale_start="$HERDR_LOCK_OWNER_START"
+        _herdr_workspace_lock_process_state "$stale_pid" "$stale_start"
         case "$HERDR_LOCK_PROCESS_STATE" in
           alive)
             attempts=$((attempts + 1))
@@ -264,40 +403,29 @@ _herdr_acquire_workspace_lock() {
             echo "Cannot verify Herdr workspace lock owner PID $stale_pid for $canonical_path" >&2
             return 1
             ;;
-          stale)
-            if mkdir "$lock_path/reaper" 2>/dev/null; then
-              _herdr_read_workspace_lock_owner "$lock_path" "$canonical_path"
-              if [[ "$HERDR_LOCK_OWNER_STATE" == valid \
-                && "$HERDR_LOCK_OWNER_PID" == "$stale_pid" \
-                && "$HERDR_LOCK_OWNER_PATH" == "$stale_path" \
-                && "$HERDR_LOCK_OWNER_TOKEN" == "$stale_token" ]]; then
-                _herdr_workspace_lock_process_state "$stale_pid"
-                if [[ "$HERDR_LOCK_PROCESS_STATE" == stale ]]; then
-                  if rm -f "$lock_path/owner" \
-                    && rmdir "$lock_path/reaper" \
-                    && rmdir "$lock_path"; then
-                    attempts=0
-                    init_attempts=0
-                    continue
-                  fi
-                  echo "Could not safely reclaim stale Herdr workspace lock for $canonical_path" >&2
+          dead|reused)
+            if ! _herdr_reclaim_stale_workspace_lock "$lock_path" "$canonical_path" \
+              "$stale_pid" "$stale_path" "$stale_token" "$stale_start"; then
+              echo "Cannot safely verify stale Herdr workspace lock for $canonical_path" >&2
+              return 1
+            fi
+            reclaim_state="$HERDR_LOCK_RECLAIM_STATE"
+            case "$reclaim_state" in
+              reclaimed|changed) attempts=0; continue ;;
+              alive) sleep 0.05 ;;
+              busy)
+                attempts=$((attempts + 1))
+                if [[ "$attempts" -ge 1200 ]]; then
+                  echo "Timed out waiting to verify stale Herdr workspace lock for $canonical_path" >&2
                   return 1
                 fi
-              fi
-              rmdir "$lock_path/reaper" >/dev/null 2>&1 || true
-              if [[ "$HERDR_LOCK_PROCESS_STATE" == alive ]]; then
                 sleep 0.05
-                continue
-              fi
-              echo "Herdr workspace lock changed while verifying stale owner for $canonical_path" >&2
-              return 1
-            fi
-            attempts=$((attempts + 1))
-            if [[ "$attempts" -ge 1200 ]]; then
-              echo "Timed out verifying stale Herdr workspace lock for $canonical_path" >&2
-              return 1
-            fi
-            sleep 0.05
+                ;;
+              *)
+                echo "Herdr workspace lock changed while verifying stale owner for $canonical_path" >&2
+                return 1
+                ;;
+            esac
             ;;
         esac
         ;;
@@ -305,21 +433,89 @@ _herdr_acquire_workspace_lock() {
   done
 }
 
+_herdr_trap_parts() {
+  local trap_definition="$1"
+  HERDR_TRAP_INSTALLED=false
+  HERDR_TRAP_COMMAND=""
+  [[ -n "$trap_definition" ]] || return 0
+  eval "set -- ${trap_definition#trap -- }"
+  HERDR_TRAP_INSTALLED=true
+  HERDR_TRAP_COMMAND="${1:-}"
+}
+
+_herdr_run_saved_trap() {
+  local trap_definition="$1"
+  _herdr_trap_parts "$trap_definition"
+  if [[ "$HERDR_TRAP_INSTALLED" == true && -n "$HERDR_TRAP_COMMAND" ]]; then
+    eval "$HERDR_TRAP_COMMAND" || true
+  fi
+}
+
+_herdr_restore_lock_cleanup_traps() {
+  trap - EXIT HUP INT TERM
+  [[ -z "$HERDR_LOCK_PREVIOUS_EXIT_TRAP" ]] || eval "$HERDR_LOCK_PREVIOUS_EXIT_TRAP"
+  [[ -z "$HERDR_LOCK_PREVIOUS_HUP_TRAP" ]] || eval "$HERDR_LOCK_PREVIOUS_HUP_TRAP"
+  [[ -z "$HERDR_LOCK_PREVIOUS_INT_TRAP" ]] || eval "$HERDR_LOCK_PREVIOUS_INT_TRAP"
+  [[ -z "$HERDR_LOCK_PREVIOUS_TERM_TRAP" ]] || eval "$HERDR_LOCK_PREVIOUS_TERM_TRAP"
+  HERDR_LOCK_TRAPS_INSTALLED=false
+}
+
+_herdr_lock_cleanup_on_exit() {
+  local exit_status=$?
+  trap - EXIT HUP INT TERM
+  if [[ "$HERDR_LOCK_HELD" == true ]]; then
+    _herdr_release_workspace_lock "$HERDR_LOCK_ACTIVE_PATH" "$HERDR_LOCK_ACTIVE_TOKEN" \
+      "$HERDR_LOCK_ACTIVE_CANONICAL_PATH" >/dev/null 2>&1 || true
+  fi
+  # Restore the original trap, then exit with the pre-cleanup status so its
+  # body observes the same `$?` value it would have received without locking.
+  _herdr_restore_lock_cleanup_traps
+  exit "$exit_status"
+}
+
+_herdr_lock_cleanup_on_signal() {
+  local signal="$1" exit_status="$2" previous_trap=""
+  case "$signal" in
+    HUP) previous_trap="$HERDR_LOCK_PREVIOUS_HUP_TRAP" ;;
+    INT) previous_trap="$HERDR_LOCK_PREVIOUS_INT_TRAP" ;;
+    TERM) previous_trap="$HERDR_LOCK_PREVIOUS_TERM_TRAP" ;;
+  esac
+  _herdr_trap_parts "$previous_trap"
+  if [[ "$HERDR_TRAP_INSTALLED" == true && -z "$HERDR_TRAP_COMMAND" ]]; then
+    # Respect an explicitly ignored signal, as the shell did before locking.
+    return 0
+  fi
+  _herdr_run_saved_trap "$previous_trap"
+  exit "$exit_status"
+}
+
+_herdr_install_lock_cleanup_traps() {
+  HERDR_LOCK_PREVIOUS_EXIT_TRAP="$(trap -p EXIT)"
+  HERDR_LOCK_PREVIOUS_HUP_TRAP="$(trap -p HUP)"
+  HERDR_LOCK_PREVIOUS_INT_TRAP="$(trap -p INT)"
+  HERDR_LOCK_PREVIOUS_TERM_TRAP="$(trap -p TERM)"
+  trap '_herdr_lock_cleanup_on_exit' EXIT
+  trap '_herdr_lock_cleanup_on_signal HUP 129' HUP
+  trap '_herdr_lock_cleanup_on_signal INT 130' INT
+  trap '_herdr_lock_cleanup_on_signal TERM 143' TERM
+  HERDR_LOCK_TRAPS_INSTALLED=true
+}
+
 _herdr_release_workspace_lock() {
   local lock_path="$1" token="$2" canonical_path="$3"
-  local owner_file
-  owner_file="$lock_path/owner"
   _herdr_read_workspace_lock_owner "$lock_path" "$canonical_path"
   if [[ "$HERDR_LOCK_OWNER_STATE" != valid \
-    || "$HERDR_LOCK_OWNER_PID" != "$$" \
-    || "$HERDR_LOCK_OWNER_TOKEN" != "$token" ]]; then
+    || "$HERDR_LOCK_OWNER_PID" != "$HERDR_LOCK_ACTIVE_PID" \
+    || "$HERDR_LOCK_OWNER_TOKEN" != "$token" \
+    || "$HERDR_LOCK_OWNER_START" != "$HERDR_LOCK_ACTIVE_START" ]]; then
     echo "Refusing to remove Herdr lock not owned by this delivery for $canonical_path" >&2
     return 1
   fi
-  if ! rm -f "$owner_file" || ! rmdir "$lock_path"; then
+  if ! rm -f "$lock_path"; then
     echo "Could not release Herdr workspace lock for $canonical_path" >&2
     return 1
   fi
+  HERDR_LOCK_HELD=false
   return 0
 }
 
@@ -371,10 +567,7 @@ _herdr_workspace_add_sibling() {
     return 1
   fi
   lock_token="$HERDR_LOCK_OWNER_TOKEN"
-  trap '_herdr_release_workspace_lock "$lock_path" "$lock_token" "$canonical_path" >/dev/null 2>&1 || true' EXIT
-  trap 'exit 129' HUP
-  trap 'exit 130' INT
-  trap 'exit 143' TERM
+  _herdr_install_lock_cleanup_traps
 
   # Already-open guard: herdr's `worktree open` idempotency for an
   # already-registered path is not documented as guaranteed. The list and
@@ -410,7 +603,7 @@ _herdr_workspace_add_sibling() {
   if ! _herdr_release_workspace_lock "$lock_path" "$lock_token" "$canonical_path"; then
     return 1
   fi
-  trap - EXIT HUP INT TERM
+  _herdr_restore_lock_cleanup_traps
   HERDR_WORKSPACE_ID="$ws_id"
   return 0
 }

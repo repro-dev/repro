@@ -150,6 +150,20 @@ STUB
         echo 'herdr: daemon not ready' >&2
         exit 1
       fi
+      if [ -n "${HERDR_STUB_LIST_STARTED:-}" ]; then
+        touch "$HERDR_STUB_LIST_STARTED"
+        attempts=0
+        while [ -n "${HERDR_STUB_LIST_RELEASE:-}" ] \
+          && [ ! -f "$HERDR_STUB_LIST_RELEASE" ] \
+          && [ "$attempts" -lt 500 ]; do
+          sleep 0.01
+          attempts=$((attempts + 1))
+        done
+        if [ -n "${HERDR_STUB_LIST_RELEASE:-}" ] && [ ! -f "$HERDR_STUB_LIST_RELEASE" ]; then
+          echo 'timed out waiting to release worktree list' >&2
+          exit 1
+        fi
+      fi
       if [ "${HERDR_STUB_DYNAMIC_WORKSPACE_REGISTRY:-0}" = "1" ]; then
         if [ -s "$HERDR_STUB_WORKSPACE_REGISTRY" ]; then
           cat "$HERDR_STUB_WORKSPACE_REGISTRY"
@@ -163,7 +177,7 @@ STUB
     fi
     printf 'HERDR_WORKTREE_OPEN: %s\n' "$*" >> "$(dirname "$0")/herdr_worktree_open.log"
     if [ -n "${HERDR_STUB_EXPECT_LOCK_PATH:-}" ]; then
-      if [ -d "$HERDR_STUB_EXPECT_LOCK_PATH" ]; then
+      if [ -e "$HERDR_STUB_EXPECT_LOCK_PATH" ]; then
         printf 'locked\n' >> "$HERDR_STUB_LOCK_OBSERVATIONS"
       else
         printf 'unlocked\n' >> "$HERDR_STUB_LOCK_OBSERVATIONS"
@@ -183,6 +197,17 @@ STUB
         shift || break
       done
       touch "$HERDR_STUB_OPEN_STARTED"
+      if [ -n "${HERDR_STUB_OPEN_BARRIER:-}" ]; then
+        attempts=0
+        while [ ! -f "$HERDR_STUB_OPEN_BARRIER/release-first" ] && [ "$attempts" -lt 500 ]; do
+          sleep 0.01
+          attempts=$((attempts + 1))
+        done
+        if [ ! -f "$HERDR_STUB_OPEN_BARRIER/release-first" ]; then
+          echo 'timed out waiting to release first Herdr open' >&2
+          exit 1
+        fi
+      fi
       sleep "${HERDR_STUB_OPEN_DELAY:-0}"
       registry_tmp="$HERDR_STUB_WORKSPACE_REGISTRY.$$"
       printf '{"result":{"worktrees":[{"path":"%s","open_workspace_id":"ws-serialized"}]}}\n' "$open_path" > "$registry_tmp"
@@ -311,6 +336,7 @@ _write_runner() {
 _setup_pr_remote_fixture() {
   local tmpdir="$1"
   local pr_number="$2"
+  local tracked_fixture="${3:-false}"
 
   mkdir -p "$tmpdir/workspaces"
   git -C "$tmpdir" config user.email test@example.com
@@ -319,6 +345,11 @@ _setup_pr_remote_fixture() {
   git init -q --bare "$tmpdir/origin.git"
   git -C "$tmpdir" remote add origin "$tmpdir/origin.git"
   git -C "$tmpdir" push -q origin HEAD:refs/heads/main
+  if [ "$tracked_fixture" = true ]; then
+    printf 'committed PR fixture content\n' > "$tmpdir/pr-tracked-fixture.txt"
+    git -C "$tmpdir" add pr-tracked-fixture.txt
+    git -C "$tmpdir" commit -q -m "Add tracked PR fixture file"
+  fi
   git -C "$tmpdir" commit -q --allow-empty -m "PR fixture head"
 
   local pr_head
@@ -1171,18 +1202,28 @@ test_herdr_list_failure_fails_open_to_worktree_open() {
 # ── PR worktree adoption regression coverage ───────────────────────────
 
 # Test 35: a worktree attached to the PR branch at the exact fetched head is
-# adopted as-is. In particular, the untracked --full-page sentinel must
-# survive, herdr must open the existing path, and the usual pane launch runs
-# in that path without adding a second worktree.
+# adopted as-is. Untracked content, tracked bytes, index state, and unstaged
+# edits must all survive; herdr opens the existing path without adding a
+# second worktree.
 test_pr_adopts_exact_head_worktree_without_touching_contents() {
   local tmpdir rc=0 branch pr_head existing_wt output open_log split_args launch sentinel worktree_count
+  local tracked_file tracked_bytes_before tracked_bytes_after staged_before staged_after
+  local unstaged_before unstaged_after index_before index_after
   tmpdir="$(_make_tmpdir)"
   _write_stubs "$tmpdir"
-  pr_head="$(_setup_pr_remote_fixture "$tmpdir" 701)"
+  pr_head="$(_setup_pr_remote_fixture "$tmpdir" 701 true)"
   branch="feature/pr-adoption"
   existing_wt="$tmpdir/workspaces/existing-pr-worktree"
   git -C "$tmpdir" worktree add -q -b "$branch" "$existing_wt" "$pr_head"
   printf 'keep this untracked file\n' > "$existing_wt/--full-page"
+  tracked_file="$existing_wt/pr-tracked-fixture.txt"
+  printf 'staged tracked edit\n' > "$tracked_file"
+  git -C "$existing_wt" add pr-tracked-fixture.txt
+  printf 'unstaged tracked edit\n' >> "$tracked_file"
+  tracked_bytes_before="$(cat "$tracked_file")"
+  staged_before="$(git -C "$existing_wt" diff --cached --binary)"
+  unstaged_before="$(git -C "$existing_wt" diff --binary)"
+  index_before="$(git -C "$existing_wt" ls-files --stage -- pr-tracked-fixture.txt)"
   _write_runner "$tmpdir" "--pr 701"
 
   output="$(GH_STUB_PR_JSON="$(_pr_json "$branch" "" "Adopt exact head")" \
@@ -1191,19 +1232,27 @@ test_pr_adopts_exact_head_worktree_without_touching_contents() {
   split_args="$(cat "$tmpdir/herdr_split_args.log" 2>/dev/null || true)"
   launch="$(cat "$tmpdir/herdr_prompt_launch.txt" 2>/dev/null || true)"
   sentinel="$(cat "$existing_wt/--full-page" 2>/dev/null || true)"
+  tracked_bytes_after="$(cat "$tracked_file" 2>/dev/null || true)"
+  staged_after="$(git -C "$existing_wt" diff --cached --binary 2>/dev/null || true)"
+  unstaged_after="$(git -C "$existing_wt" diff --binary 2>/dev/null || true)"
+  index_after="$(git -C "$existing_wt" ls-files --stage -- pr-tracked-fixture.txt 2>/dev/null || true)"
 
   worktree_count="$(git -C "$tmpdir" worktree list --porcelain | grep -c '^worktree ' || true)"
   rm -rf "$tmpdir"
 
   if [ "$rc" -eq 0 ] \
     && [ "$sentinel" = 'keep this untracked file' ] \
+    && [ "$tracked_bytes_after" = "$tracked_bytes_before" ] \
+    && [ "$staged_after" = "$staged_before" ] \
+    && [ "$unstaged_after" = "$unstaged_before" ] \
+    && [ "$index_after" = "$index_before" ] \
     && printf '%s\n' "$open_log" | grep -qF -- "--path $existing_wt" \
     && printf '%s\n' "$split_args" | grep -qF -- "--cwd $existing_wt" \
     && printf '%s\n' "$launch" | grep -qF -- "cd \"$existing_wt\"" \
     && [ "$worktree_count" -eq 2 ]; then
-    _pass "PR adopts exact-head worktree, preserves untracked content, and launches in the existing path"
+    _pass "PR adoption preserves tracked bytes, staged and unstaged diffs, untracked content, and launches in the existing path"
   else
-    _fail "PR adopts exact-head worktree, preserves untracked content, and launches in the existing path" "rc=$rc; worktrees=$worktree_count; sentinel=${sentinel:-<absent>}; open: ${open_log:-<absent>}; split: ${split_args:-<absent>}; launch: ${launch:-<absent>}; output: $output"
+    _fail "PR adoption preserves tracked bytes, staged and unstaged diffs, untracked content, and launches in the existing path" "rc=$rc; worktrees=$worktree_count; sentinel=${sentinel:-<absent>}; tracked bytes unchanged=$([ "$tracked_bytes_after" = "$tracked_bytes_before" ] && echo yes || echo no); staged unchanged=$([ "$staged_after" = "$staged_before" ] && echo yes || echo no); unstaged unchanged=$([ "$unstaged_after" = "$unstaged_before" ] && echo yes || echo no); index unchanged=$([ "$index_after" = "$index_before" ] && echo yes || echo no); open: ${open_log:-<absent>}; split: ${split_args:-<absent>}; launch: ${launch:-<absent>}; output: $output"
   fi
 }
 
@@ -1969,27 +2018,53 @@ STUB
 # sequence. The first open registers a workspace while holding the path lock;
 # the waiter must re-list after acquiring it and reuse that workspace.
 test_pr_concurrent_deliveries_open_one_herdr_workspace() {
-  local tmpdir pr_head branch first_pid first_rc=0 second_rc=0
+  local tmpdir pr_head branch first_pid second_pid first_rc=0 second_rc=0
   local attempts first_output second_output open_log registry_path open_count worktree_count
+  local barrier real_ln contention
+  local waiter_proved=false second_open_started=false
   tmpdir="$(_make_tmpdir)"
   _write_stubs "$tmpdir"
   pr_head="$(_setup_pr_remote_fixture "$tmpdir" 724)"
   branch="feature/concurrent-herdr-pr"
   _write_runner "$tmpdir" "--pr 724"
+  barrier="$tmpdir/herdr-open-barrier"
+  mkdir -p "$barrier"
+  real_ln="$(command -v ln)"
+  cat > "$tmpdir/ln" <<'STUB'
+#!/bin/bash
+destination=""
+for argument in "$@"; do destination="$argument"; done
+case "$destination" in
+  */deliver-herdr-locks/*.lock)
+    if [ -n "${DELIVER_LOCK_CONTENTION_MARKER:-}" ] && [ -e "$destination" ]; then
+      "$REAL_LN" "$@"
+      link_status=$?
+      if [ "$link_status" -ne 0 ]; then
+        printf 'contended lock file: %s\n' "$destination" > "$DELIVER_LOCK_CONTENTION_MARKER"
+      fi
+      exit "$link_status"
+    fi
+    ;;
+esac
+exec "$REAL_LN" "$@"
+STUB
+  chmod +x "$tmpdir/ln"
 
   GH_STUB_PR_JSON="$(_pr_json "$branch" "" "Concurrent Herdr PR")" \
     HERDR_STUB_DYNAMIC_WORKSPACE_REGISTRY=1 HERDR_STUB_WORKSPACE_REGISTRY="$tmpdir/herdr-registry.json" \
-    HERDR_STUB_OPEN_STARTED="$tmpdir/herdr-open-started" HERDR_STUB_OPEN_DELAY=0.5 \
-    REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" bash "$tmpdir/run_test.sh" > "$tmpdir/first.out" 2>&1 &
+    HERDR_STUB_OPEN_STARTED="$barrier/first-open-started" HERDR_STUB_OPEN_BARRIER="$barrier" \
+    REAL_LN="$real_ln" REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" \
+    bash "$tmpdir/run_test.sh" > "$tmpdir/first.out" 2>&1 &
   first_pid=$!
   attempts=0
-  while [ ! -f "$tmpdir/herdr-open-started" ] && [ "$attempts" -lt 500 ]; do
+  while [ ! -f "$barrier/first-open-started" ] && [ "$attempts" -lt 500 ]; do
     if ! kill -0 "$first_pid" 2>/dev/null; then break; fi
     sleep 0.01
     attempts=$((attempts + 1))
   done
 
-  if [ ! -f "$tmpdir/herdr-open-started" ]; then
+  if [ ! -f "$barrier/first-open-started" ]; then
+    touch "$barrier/release-first"
     wait "$first_pid" || first_rc=$?
     first_output="$(cat "$tmpdir/first.out" 2>/dev/null || true)"
     rm -rf "$tmpdir"
@@ -1999,9 +2074,23 @@ test_pr_concurrent_deliveries_open_one_herdr_workspace() {
 
   GH_STUB_PR_JSON="$(_pr_json "$branch" "" "Concurrent Herdr PR")" \
     HERDR_STUB_DYNAMIC_WORKSPACE_REGISTRY=1 HERDR_STUB_WORKSPACE_REGISTRY="$tmpdir/herdr-registry.json" \
-    HERDR_STUB_OPEN_STARTED="$tmpdir/herdr-open-started-second" HERDR_STUB_OPEN_DELAY=0.5 \
+    HERDR_STUB_OPEN_STARTED="$barrier/second-open-started" \
+    DELIVER_LOCK_CONTENTION_MARKER="$barrier/second-lock-contention" REAL_LN="$real_ln" \
     REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" bash "$tmpdir/run_test.sh" > "$tmpdir/second.out" 2>&1 &
-  local second_pid=$!
+  second_pid=$!
+  attempts=0
+  while [ ! -f "$barrier/second-lock-contention" ] && [ "$attempts" -lt 500 ]; do
+    if ! kill -0 "$second_pid" 2>/dev/null; then break; fi
+    sleep 0.01
+    attempts=$((attempts + 1))
+  done
+  contention="$(cat "$barrier/second-lock-contention" 2>/dev/null || true)"
+  if [ -n "$contention" ] && [ ! -f "$barrier/release-first" ]; then
+    touch "$barrier/waiter-proved-blocked"
+  fi
+  # The first open cannot publish the workspace until after the test observes
+  # the second process's failed atomic link attempt against the held lock.
+  touch "$barrier/release-first"
   wait "$first_pid" || first_rc=$?
   wait "$second_pid" || second_rc=$?
 
@@ -2011,18 +2100,23 @@ test_pr_concurrent_deliveries_open_one_herdr_workspace() {
   open_count="$(printf '%s\n' "$open_log" | grep -c 'HERDR_WORKTREE_OPEN:' || true)"
   registry_path="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["result"]["worktrees"][0]["path"])' "$tmpdir/herdr-registry.json" 2>/dev/null || true)"
   worktree_count="$(git -C "$tmpdir" worktree list --porcelain | grep -c '^worktree ' || true)"
+  [ ! -f "$barrier/waiter-proved-blocked" ] || waiter_proved=true
+  [ ! -f "$barrier/second-open-started" ] || second_open_started=true
   rm -rf "$tmpdir"
 
   if [ "$first_rc" -eq 0 ] \
     && [ "$second_rc" -eq 0 ] \
+    && [ -n "$contention" ] \
+    && [ "$waiter_proved" = true ] \
+    && [ "$second_open_started" = false ] \
     && [ "$open_count" -eq 1 ] \
     && [[ "$registry_path" == *repro-wt-pr-724 ]] \
     && [ "$worktree_count" -eq 2 ] \
     && printf '%s\n' "$second_output" | grep -q 'Reusing open herdr workspace' \
     && printf '%s\n' "$second_output" | grep -q 'ws-serialized'; then
-    _pass "concurrent same-PR deliveries serialize Herdr open and reuse the registered workspace"
+    _pass "barrier proves Herdr waiter contended before release; one open occurs and waiter reuses it"
   else
-    _fail "concurrent same-PR deliveries serialize Herdr open and reuse the registered workspace" "rcs=$first_rc/$second_rc; opens=$open_count; registry=${registry_path:-<absent>}; worktrees=$worktree_count; open log=${open_log:-<absent>}; outputs: $first_output / $second_output"
+    _fail "barrier proves Herdr waiter contended before release; one open occurs and waiter reuses it" "rcs=$first_rc/$second_rc; contention=${contention:-<absent>}; proved=$waiter_proved; second-open-started=$second_open_started; opens=$open_count; registry=${registry_path:-<absent>}; worktrees=$worktree_count; open log=${open_log:-<absent>}; outputs: $first_output / $second_output"
   fi
 }
 
@@ -2075,8 +2169,8 @@ STUB
   git --git-dir="$tmpdir/origin.git" update-ref refs/pull/727/head "$pr_head"
   stale_target="$tmpdir/workspaces/repro-wt-pr-727"
   stale_lock="$(_expected_herdr_lock_path "$tmpdir" "$stale_target")"
-  mkdir -p "$stale_lock"
-  printf 'pid=99999999\npath=%s\ntoken=stale-owner\n' "$stale_target" > "$stale_lock/owner"
+  printf 'pid=99999999\npath=%s\ntoken=stale-owner\nstart=Wed 23 Sep 13:53:16 2026\n' \
+    "$stale_target" > "$stale_lock"
   _write_runner "$tmpdir" "--pr 727"
   stale_output="$(GH_STUB_PR_JSON="$(_pr_json "feature/stale-lock" "" "Stale lock")" \
     REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" bash "$tmpdir/run_test.sh" 2>&1)" || stale_rc=$?
@@ -2110,6 +2204,192 @@ STUB
     _pass "Herdr locks release on success/error, reclaim a proven stale owner, and reject unverifiable ownership"
   else
     _fail "Herdr locks release on success/error, reclaim a proven stale owner, and reject unverifiable ownership" "success=$rc released=$success_released observed=${observations:-<none>}; error=$fail_rc released=$error_released observed=${error_observations:-<none>} output=$fail_output; stale=$stale_rc recovered=$stale_recovered output=$stale_output; unverifiable=$unverifiable_rc output=$unverifiable_output; open=${open_log:-<absent>}; launch=${launch:-<absent>}"
+  fi
+}
+
+# Test 51 (REP-1693): process state is tied to PID plus a validated start time.
+# Simulated PID reuse and ps failures must not be treated as the lock owner's
+# live process or as proof of death.
+test_herdr_lock_process_state_tracks_process_incarnation() {
+  local tmpdir real_ps states
+  tmpdir="$(_make_tmpdir)"
+  real_ps="$(command -v ps)"
+  cat > "$tmpdir/ps" <<'STUB'
+#!/bin/bash
+case "${PS_STUB_MODE:-real}" in
+  fixed)
+    printf '%s %s\n' "$PS_STUB_PID" "$PS_STUB_START"
+    exit 0
+    ;;
+  unavailable)
+    exit 1
+    ;;
+  *)
+    exec "$REAL_PS" "$@"
+    ;;
+esac
+STUB
+  chmod +x "$tmpdir/ps"
+
+  states="$(PATH="$tmpdir:$PATH" REAL_PS="$real_ps" bash -c '
+    source "$1"
+    me="$$"
+    export PS_STUB_MODE=real
+    _herdr_workspace_process_start "$me"
+    incarnation="$HERDR_PROCESS_START"
+    _herdr_workspace_lock_process_state "$me" "$incarnation"
+    printf "%s " "$HERDR_LOCK_PROCESS_STATE"
+    export PS_STUB_MODE=fixed PS_STUB_PID="$me" PS_STUB_START="Thu 01 Jan 00:00:00 1970"
+    _herdr_workspace_lock_process_state "$me" "$incarnation"
+    printf "%s " "$HERDR_LOCK_PROCESS_STATE"
+    export PS_STUB_MODE=unavailable
+    _herdr_workspace_lock_process_state "$me" "$incarnation"
+    printf "%s " "$HERDR_LOCK_PROCESS_STATE"
+    export PS_STUB_MODE=real
+    _herdr_workspace_lock_process_state 99999999 "$incarnation"
+    printf "%s " "$HERDR_LOCK_PROCESS_STATE"
+    _herdr_workspace_lock_process_state invalid "$incarnation"
+    printf "%s\n" "$HERDR_LOCK_PROCESS_STATE"
+  ' test "$REPO_ROOT/scripts/lib/worktree.sh" 2>&1)"
+  rm -rf "$tmpdir"
+
+  if [ "$states" = 'alive reused unknown dead unknown' ]; then
+    _pass "Herdr lock owner identity distinguishes alive, reused, dead, and unverifiable process states"
+  else
+    _fail "Herdr lock owner identity distinguishes alive, reused, dead, and unverifiable process states" "states=${states:-<empty>}"
+  fi
+}
+
+# Test 52 (REP-1693): one atomically installed owner record replaces the
+# mkdir/owner-file gap. A signal releases that complete record, and a one-time
+# release failure is retried by EXIT cleanup rather than leaving a lock behind.
+test_herdr_lock_record_is_atomic_and_released_after_signal_or_failure() {
+  local tmpdir pr_head first_branch first_target first_lock first_pid first_rc=0
+  local attempts output record owner_path open_log signal_output second_branch second_target second_lock
+  local real_rm fail_output fail_rc=0 release_count
+  local signal_lock_released=false signal_lock_is_file=false signal_list_started=false
+  local release_lock_released=false record_lines
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  pr_head="$(_setup_pr_remote_fixture "$tmpdir" 729)"
+  first_branch="feature/atomic-lock-signal"
+  first_target="$tmpdir/workspaces/repro-wt-pr-729"
+  first_lock="$(_expected_herdr_lock_path "$tmpdir" "$first_target")"
+  _write_runner "$tmpdir" "--pr 729"
+
+  GH_STUB_PR_JSON="$(_pr_json "$first_branch" "" "Atomic lock signal")" \
+    HERDR_STUB_LIST_STARTED="$tmpdir/list-started" \
+    HERDR_STUB_LIST_RELEASE="$tmpdir/list-release" \
+    REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" \
+    bash "$tmpdir/run_test.sh" > "$tmpdir/signal.out" 2>&1 &
+  first_pid=$!
+  attempts=0
+  while [ ! -f "$tmpdir/list-started" ] && [ "$attempts" -lt 500 ]; do
+    if ! kill -0 "$first_pid" 2>/dev/null; then break; fi
+    sleep 0.01
+    attempts=$((attempts + 1))
+  done
+  [ -f "$first_lock" ] && signal_lock_is_file=true
+  [ -f "$tmpdir/list-started" ] && signal_list_started=true
+  record="$(cat "$first_lock" 2>/dev/null || cat "$first_lock/owner" 2>/dev/null || true)"
+  record_lines="$(printf '%s\n' "$record" | wc -l | tr -d '[:space:]')"
+  owner_path="$(printf '%s\n' "$record" | sed -n '2s/^path=//p')"
+  kill -TERM "$first_pid" 2>/dev/null || true
+  touch "$tmpdir/list-release"
+  wait "$first_pid" || first_rc=$?
+  signal_output="$(cat "$tmpdir/signal.out" 2>/dev/null || true)"
+  open_log="$(cat "$tmpdir/herdr_worktree_open.log" 2>/dev/null || true)"
+  [ -e "$first_lock" ] || signal_lock_released=true
+
+  git --git-dir="$tmpdir/origin.git" update-ref refs/pull/730/head "$pr_head"
+  second_branch="feature/atomic-lock-release-retry"
+  second_target="$tmpdir/workspaces/repro-wt-pr-730"
+  second_lock="$(_expected_herdr_lock_path "$tmpdir" "$second_target")"
+  real_rm="$(command -v rm)"
+  cat > "$tmpdir/rm" <<'STUB'
+#!/bin/bash
+target=""
+for argument in "$@"; do target="$argument"; done
+if [ "$target" = "$HERDR_STUB_FAIL_RM_TARGET" ]; then
+  count=0
+  [ ! -f "$HERDR_STUB_RM_COUNT" ] || count="$(cat "$HERDR_STUB_RM_COUNT")"
+  count=$((count + 1))
+  printf '%s\n' "$count" > "$HERDR_STUB_RM_COUNT"
+  if [ "$count" -eq 1 ]; then
+    exit 1
+  fi
+fi
+exec "$REAL_RM" "$@"
+STUB
+  chmod +x "$tmpdir/rm"
+  _write_runner "$tmpdir" "--pr 730"
+  fail_output="$(GH_STUB_PR_JSON="$(_pr_json "$second_branch" "" "Atomic lock release retry")" \
+    REAL_RM="$real_rm" HERDR_STUB_FAIL_RM_TARGET="$second_lock" \
+    HERDR_STUB_RM_COUNT="$tmpdir/release-rm-count" \
+    REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" \
+    bash "$tmpdir/run_test.sh" 2>&1)" || fail_rc=$?
+  release_count="$(cat "$tmpdir/release-rm-count" 2>/dev/null || true)"
+  [ -e "$second_lock" ] || release_lock_released=true
+  rm -rf "$tmpdir"
+
+  if [ "$attempts" -lt 500 ] \
+    && [ "$signal_lock_is_file" = true ] \
+    && [ "$signal_list_started" = true ] \
+    && [ "$first_rc" -eq 143 ] \
+    && [ "$signal_lock_released" = true ] \
+    && [ -z "$open_log" ] \
+    && [ "$record_lines" = 4 ] \
+    && printf '%s\n' "$record" | grep -q "^pid=$first_pid$" \
+    && [ "$owner_path" = "$first_target" ] \
+    && printf '%s\n' "$record" | grep -q '^start=' \
+    && [ "$fail_rc" -ne 0 ] \
+    && [ "$release_count" = 2 ] \
+    && [ "$release_lock_released" = true ]; then
+    _pass "Herdr lock record is complete at install, signal cleanup is safe, and failed release retries on EXIT"
+  else
+    _fail "Herdr lock record is complete at install, signal cleanup is safe, and failed release retries on EXIT" "list attempts=$attempts; signal rc=$first_rc lock file=$signal_lock_is_file list started=$signal_list_started released=$signal_lock_released record=$record owner-path=$owner_path open=${open_log:-<absent>}; signal output=$signal_output; release rc=$fail_rc attempts=${release_count:-<none>} lock released=$release_lock_released output=$fail_output"
+  fi
+}
+
+# Test 53 (REP-1693): the explicit fetch-ref cleanup can fail transiently
+# before Herdr setup. Herdr's EXIT trap must chain, not erase, the delivery
+# cleanup so the ref deletion is retried at process exit.
+test_pr_fetch_ref_exit_cleanup_survives_herdr_trap_install() {
+  local tmpdir pr_head branch real_git output rc=0 refs attempts
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  pr_head="$(_setup_pr_remote_fixture "$tmpdir" 731)"
+  branch="feature/fetch-ref-cleanup-retry"
+  real_git="$(command -v git)"
+  cat > "$tmpdir/git" <<'STUB'
+#!/bin/bash
+if [ "${1:-}" = "-C" ] && [ "${3:-}" = "update-ref" ] \
+  && [ "${4:-}" = "-d" ] && [[ "${5:-}" == refs/deliver/pr/* ]]; then
+  count=0
+  [ ! -f "$DELIVER_CLEANUP_ATTEMPTS" ] || count="$(cat "$DELIVER_CLEANUP_ATTEMPTS")"
+  count=$((count + 1))
+  printf '%s\n' "$count" > "$DELIVER_CLEANUP_ATTEMPTS"
+  if [ "$count" -eq 1 ]; then
+    echo 'simulated transient update-ref deletion failure' >&2
+    exit 1
+  fi
+fi
+exec "$REAL_GIT" "$@"
+STUB
+  chmod +x "$tmpdir/git"
+  _write_runner "$tmpdir" "--pr 731"
+
+  output="$(REAL_GIT="$real_git" DELIVER_CLEANUP_ATTEMPTS="$tmpdir/fetch-cleanup-attempts" \
+    GH_STUB_PR_JSON="$(_pr_json "$branch" "" "Cleanup retry")" \
+    REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  attempts="$(cat "$tmpdir/fetch-cleanup-attempts" 2>/dev/null || true)"
+  refs="$(git -C "$tmpdir" for-each-ref --format='%(refname)' refs/deliver/pr)"
+  rm -rf "$tmpdir"
+
+  if [ "$rc" -eq 0 ] && [ "$attempts" = 2 ] && [ -z "$refs" ]; then
+    _pass "Herdr trap preserves and retries the invocation-specific PR fetch-ref EXIT cleanup"
+  else
+    _fail "Herdr trap preserves and retries the invocation-specific PR fetch-ref EXIT cleanup" "rc=$rc; deletion attempts=${attempts:-<none>}; remaining refs=${refs:-<none>}; output=$output"
   fi
 }
 
@@ -2167,6 +2447,9 @@ test_pr_same_source_branch_uses_owned_alias_for_second_pr
 test_pr_legacy_ownership_claim_is_atomic_across_prs
 test_pr_concurrent_deliveries_open_one_herdr_workspace
 test_pr_herdr_lock_cleanup_and_unverifiable_lock_fail_closed
+test_herdr_lock_process_state_tracks_process_incarnation
+test_herdr_lock_record_is_atomic_and_released_after_signal_or_failure
+test_pr_fetch_ref_exit_cleanup_survives_herdr_trap_install
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed out of $TESTS_RUN tests"
