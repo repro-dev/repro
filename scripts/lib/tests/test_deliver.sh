@@ -21,9 +21,6 @@ TESTS_DIR="$(cd "$(dirname "$0")" && pwd -P)"
 DELIVER_SH="$TESTS_DIR/../../deliver.sh"
 REPO_ROOT="$(cd "$TESTS_DIR/../../.." && pwd -P)"
 
-# Never leak sandboxes: a test that dies early (set -e) would skip its rm -rf.
-trap 'rm -rf "$REPO_ROOT"/tmp/test_deliver.* 2>/dev/null || true' EXIT
-
 # ── Harness ──────────────────────────────────────────────────────────
 #
 # The sandbox (tmpdir) lives under the real repo's tmp/ and is its own git
@@ -44,15 +41,37 @@ trap 'rm -rf "$REPO_ROOT"/tmp/test_deliver.* 2>/dev/null || true' EXIT
 PASS=0
 FAIL=0
 TESTS_RUN=0
+ACTIVE_DELIVER_TEST_BARRIER=""
+ACTIVE_DELIVER_TEST_PIDS=""
 
 _pass() { printf '  ✔ %s\n' "$1"; PASS=$((PASS + 1)); TESTS_RUN=$((TESTS_RUN + 1)); }
 _fail() { printf '  ✖ %s\n  %s\n' "$1" "${2:-}" >&2; FAIL=$((FAIL + 1)); TESTS_RUN=$((TESTS_RUN + 1)); }
 
+_cleanup_active_deliver_test_children() {
+  local pid
+  if [[ -n "$ACTIVE_DELIVER_TEST_BARRIER" ]]; then
+    touch "$ACTIVE_DELIVER_TEST_BARRIER/release" 2>/dev/null || true
+  fi
+  for pid in $ACTIVE_DELIVER_TEST_PIDS; do
+    [[ "$pid" =~ ^[1-9][0-9]*$ ]] || continue
+    if kill -0 "$pid" 2>/dev/null; then
+      kill -KILL "$pid" 2>/dev/null || true
+    fi
+    wait "$pid" 2>/dev/null || true
+  done
+  ACTIVE_DELIVER_TEST_BARRIER=""
+  ACTIVE_DELIVER_TEST_PIDS=""
+}
+
+# Never leak sandboxes: release fixture barriers and reap/kill any tracked child
+# before deleting its tmp/ directory, even when a test exits on an assertion.
 # Create a temp directory under the real repo's tmp/ (Bash 3.2 safe).
 _make_tmpdir() {
   mkdir -p "$REPO_ROOT/tmp"
   mktemp -d "$REPO_ROOT/tmp/test_deliver.XXXXXX"
 }
+
+trap '_cleanup_active_deliver_test_children; rm -rf "$REPO_ROOT"/tmp/test_deliver.* 2>/dev/null || true' EXIT
 
 _write_stubs() {
   local tmpdir="$1"
@@ -1310,6 +1329,35 @@ test_pr_issue_id_source_precedence() {
   fi
 }
 
+# REP-1693 review regression: changing issue context for one PR must not
+# change its worktree identity, while body/title extraction still updates the
+# workspace label and routed issue context.
+test_pr_worktree_identity_uses_pr_number_when_issue_context_changes() {
+  local tmpdir branch first_output second_output first_path second_path rc=0
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  branch="feature/stable-pr-path"
+  _write_runner "$tmpdir" "--dry-run --pr 744"
+
+  first_output="$(GH_STUB_PR_JSON="$(_pr_json "$branch" "Closes REP-333" "Context before")" \
+    REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  second_output="$(GH_STUB_PR_JSON="$(_pr_json "$branch" "" "Updated context REP-444")" \
+    REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  first_path="$(printf '%s\n' "$first_output" | sed -n 's/.*Worktree path: //p' | tail -1)"
+  second_path="$(printf '%s\n' "$second_output" | sed -n 's/.*Worktree path: //p' | tail -1)"
+  rm -rf "$tmpdir"
+
+  if [ "$rc" -eq 0 ] \
+    && [ "$first_path" = "$tmpdir/workspaces/repro-wt-pr-744" ] \
+    && [ "$second_path" = "$first_path" ] \
+    && printf '%s\n' "$first_output" | grep -qF 'Workspace label: REP-333' \
+    && printf '%s\n' "$second_output" | grep -qF 'Workspace label: REP-444'; then
+    _pass "PR worktree path is PR-number-only while changed issue context updates the label"
+  else
+    _fail "PR worktree path is PR-number-only while changed issue context updates the label" "rc=$rc; paths=${first_path:-<absent>} / ${second_path:-<absent>}; first output: $first_output; second output: $second_output"
+  fi
+}
+
 # Test 38: a local branch checked out at a different commit is rejected before
 # an extra worktree or herdr workspace can be created.
 test_pr_refuses_mismatched_attached_branch() {
@@ -2190,6 +2238,213 @@ STUB
   fi
 }
 
+# REP-1693 review regression: a killed delivery shell does not prove its
+# `git worktree add` child stopped. The waiter must keep the source lock and
+# defer adoption/open/launch until Git's initializing/index-lock state clears.
+test_pr_waiter_waits_for_surviving_git_checkout_after_shell_kill() {
+  local tmpdir barrier pr_head branch source_wt first_pid second_pid
+  local first_rc=0 second_rc=0 first_output second_output worktree_list owner_file owner
+  local git_child_pid filter_pid real_git source_git_dir source_lock_path source_lock_pid
+  local locked_initializing=false index_lock_present=false init_state_before=false init_state_while_locked=false
+  local git_child_survived=false filter_survived=false waiter_alive=false waiter_has_lock=false waiter_lock_retained=true
+  local early_owner=false early_open=false early_launch=false tracked_after actual_branch actual_head
+  local first_path second_path open_log launch worktree_count attempts
+
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  pr_head="$(_setup_pr_remote_fixture "$tmpdir" 734)"
+  branch="feature/killed-delivery-checkout"
+  source_wt="$tmpdir/workspaces/repro-wt-pr-734"
+  barrier="$tmpdir/checkout-parent-death-barrier"
+  mkdir -p "$barrier"
+  ACTIVE_DELIVER_TEST_BARRIER="$barrier"
+
+  printf 'checkout-filtered.txt filter=deliver-blocking\n' > "$tmpdir/.gitattributes"
+  printf 'complete filtered checkout\n' > "$tmpdir/checkout-filtered.txt"
+  git -C "$tmpdir" add .gitattributes checkout-filtered.txt
+  git -C "$tmpdir" commit -q -m 'Add filtered PR checkout fixture'
+  pr_head="$(git -C "$tmpdir" rev-parse HEAD)"
+  git -C "$tmpdir" push -q origin "HEAD:refs/heads/pr-fixture-734"
+  git --git-dir="$tmpdir/origin.git" update-ref refs/pull/734/head "$pr_head"
+  git --git-dir="$tmpdir/origin.git" update-ref refs/pull/735/head "$pr_head"
+
+  cat > "$tmpdir/blocking-smudge.sh" <<'STUB'
+#!/bin/bash
+if [ -n "${DELIVER_CHECKOUT_BARRIER:-}" ] && [ ! -f "$DELIVER_CHECKOUT_BARRIER/release" ] \
+  && mkdir "$DELIVER_CHECKOUT_BARRIER/claimed" 2>/dev/null; then
+  printf '%s\n' "$$" > "$DELIVER_CHECKOUT_BARRIER/filter.pid"
+  touch "$DELIVER_CHECKOUT_BARRIER/entered"
+  attempts=0
+  while [ ! -f "$DELIVER_CHECKOUT_BARRIER/release" ] && [ "$attempts" -lt 3000 ]; do
+    sleep 0.01
+    attempts=$((attempts + 1))
+  done
+  if [ ! -f "$DELIVER_CHECKOUT_BARRIER/release" ]; then
+    echo 'timed out waiting to release filtered checkout' >&2
+    exit 1
+  fi
+fi
+cat
+STUB
+  chmod +x "$tmpdir/blocking-smudge.sh"
+  git -C "$tmpdir" config filter.deliver-blocking.clean cat
+  git -C "$tmpdir" config filter.deliver-blocking.smudge "bash $tmpdir/blocking-smudge.sh"
+  git -C "$tmpdir" config filter.deliver-blocking.required true
+
+  real_git="$(command -v git)"
+  cat > "$tmpdir/git" <<'STUB'
+#!/bin/bash
+if [ "${1:-}" = worktree ] && [ "${2:-}" = add ]; then
+  printf '%s\n' "$$" > "$DELIVER_CHECKOUT_GIT_PID_FILE"
+fi
+exec "$REAL_GIT" "$@"
+STUB
+  chmod +x "$tmpdir/git"
+
+  _write_runner "$tmpdir" "--pr 734"
+  cp "$tmpdir/run_test.sh" "$tmpdir/run_pr_734.sh"
+  GH_STUB_PR_JSON="$(_pr_json "$branch" "" "Parent-death PR 734")" \
+    REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" \
+    DELIVER_CHECKOUT_BARRIER="$barrier" \
+    DELIVER_CHECKOUT_GIT_PID_FILE="$barrier/git.pid" REAL_GIT="$real_git" \
+    bash "$tmpdir/run_pr_734.sh" > "$tmpdir/first.out" 2>&1 &
+  first_pid=$!
+  ACTIVE_DELIVER_TEST_PIDS="$first_pid"
+
+  attempts=0
+  while [ ! -f "$barrier/entered" ] && [ "$attempts" -lt 1000 ]; do
+    if ! kill -0 "$first_pid" 2>/dev/null; then break; fi
+    sleep 0.01
+    attempts=$((attempts + 1))
+  done
+  if [ ! -f "$barrier/entered" ]; then
+    touch "$barrier/release"
+    git_child_pid="$(cat "$barrier/git.pid" 2>/dev/null || true)"
+    filter_pid="$(cat "$barrier/filter.pid" 2>/dev/null || true)"
+    ACTIVE_DELIVER_TEST_PIDS="$first_pid $git_child_pid $filter_pid"
+    _cleanup_active_deliver_test_children
+    first_output="$(cat "$tmpdir/first.out" 2>/dev/null || true)"
+    rm -rf "$tmpdir"
+    _fail "dead delivery shell cannot expose an incomplete worktree while Git checkout survives" "Git checkout never reached the smudge barrier; output: $first_output"
+    return
+  fi
+
+  git_child_pid="$(cat "$barrier/git.pid" 2>/dev/null || true)"
+  filter_pid="$(cat "$barrier/filter.pid" 2>/dev/null || true)"
+  ACTIVE_DELIVER_TEST_PIDS="$first_pid $git_child_pid $filter_pid"
+  source_git_dir="$(git -C "$source_wt" rev-parse --absolute-git-dir 2>/dev/null || true)"
+  owner_file="$source_git_dir/deliver-pr-owner"
+  worktree_list="$(git -C "$tmpdir" worktree list --porcelain 2>/dev/null || true)"
+  printf '%s\n' "$worktree_list" | grep -Fxq 'locked initializing' && locked_initializing=true
+  if [ -n "$source_git_dir" ] && [ -e "$source_git_dir/index.lock" ]; then
+    index_lock_present=true
+  fi
+  if [ "$locked_initializing" = true ] || [ "$index_lock_present" = true ]; then
+    init_state_before=true
+  fi
+
+  kill -KILL "$first_pid" 2>/dev/null || true
+  wait "$first_pid" 2>/dev/null || first_rc=$?
+  if [ -n "$git_child_pid" ] && kill -0 "$git_child_pid" 2>/dev/null; then
+    git_child_survived=true
+  fi
+  if [ -n "$filter_pid" ] && kill -0 "$filter_pid" 2>/dev/null; then
+    filter_survived=true
+  fi
+
+  _write_runner "$tmpdir" "--pr 735"
+  cp "$tmpdir/run_test.sh" "$tmpdir/run_pr_735.sh"
+  GH_STUB_PR_JSON="$(_pr_json "$branch" "" "Waiter PR 735")" \
+    REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" \
+    DELIVER_CHECKOUT_BARRIER="$barrier" \
+    DELIVER_CHECKOUT_GIT_PID_FILE="$barrier/git.pid" REAL_GIT="$real_git" \
+    bash "$tmpdir/run_pr_735.sh" > "$tmpdir/second.out" 2>&1 &
+  second_pid=$!
+  ACTIVE_DELIVER_TEST_PIDS="$first_pid $second_pid $git_child_pid $filter_pid"
+
+  source_lock_path="$(find "$(git -C "$tmpdir" rev-parse --absolute-git-dir)/deliver-pr-branch-locks" \
+    -type f -name '*.lock' -print 2>/dev/null | head -1)"
+  attempts=0
+  while [ "$attempts" -lt 1000 ]; do
+    [ -e "$owner_file" ] && early_owner=true
+    [ -s "$tmpdir/herdr_worktree_open.log" ] && early_open=true
+    [ -s "$tmpdir/herdr_prompt_launch.txt" ] && early_launch=true
+    source_lock_pid="$(sed -n 's/^pid=//p' "$source_lock_path" 2>/dev/null || true)"
+    if [ "$source_lock_pid" = "$second_pid" ]; then
+      waiter_has_lock=true
+      break
+    fi
+    if ! kill -0 "$second_pid" 2>/dev/null; then break; fi
+    sleep 0.01
+    attempts=$((attempts + 1))
+  done
+
+  attempts=0
+  while [ "$attempts" -lt 100 ]; do
+    [ -e "$owner_file" ] && early_owner=true
+    [ -s "$tmpdir/herdr_worktree_open.log" ] && early_open=true
+    [ -s "$tmpdir/herdr_prompt_launch.txt" ] && early_launch=true
+    source_lock_pid="$(sed -n 's/^pid=//p' "$source_lock_path" 2>/dev/null || true)"
+    [ "$source_lock_pid" = "$second_pid" ] || waiter_lock_retained=false
+    worktree_list="$(git -C "$tmpdir" worktree list --porcelain 2>/dev/null || true)"
+    if printf '%s\n' "$worktree_list" | grep -Fxq 'locked initializing' \
+      || { [ -n "$source_git_dir" ] && [ -e "$source_git_dir/index.lock" ]; }; then
+      init_state_while_locked=true
+    fi
+    if ! kill -0 "$second_pid" 2>/dev/null; then break; fi
+    sleep 0.01
+    attempts=$((attempts + 1))
+  done
+  if kill -0 "$second_pid" 2>/dev/null; then waiter_alive=true; fi
+  [ -e "$owner_file" ] && early_owner=true
+  [ -s "$tmpdir/herdr_worktree_open.log" ] && early_open=true
+  [ -s "$tmpdir/herdr_prompt_launch.txt" ] && early_launch=true
+
+  # Release the filter before checking assertions; cleanup also kills any
+  # unexpected survivor if a failure left a child running.
+  touch "$barrier/release"
+  wait "$second_pid" 2>/dev/null || second_rc=$?
+  first_output="$(cat "$tmpdir/first.out" 2>/dev/null || true)"
+  second_output="$(cat "$tmpdir/second.out" 2>/dev/null || true)"
+  worktree_list="$(git -C "$tmpdir" worktree list --porcelain 2>/dev/null || true)"
+  owner="$(cat "$owner_file" 2>/dev/null || true)"
+  tracked_after="$(cat "$source_wt/checkout-filtered.txt" 2>/dev/null || true)"
+  actual_branch="$(git -C "$source_wt" branch --show-current 2>/dev/null || true)"
+  actual_head="$(git -C "$source_wt" rev-parse --verify HEAD 2>/dev/null || true)"
+  first_path="$(printf '%s\n' "$first_output" | sed -n 's/.*Worktree created at: //p' | tail -1)"
+  second_path="$(printf '%s\n' "$second_output" | sed -n 's/.*Worktree created at: //p' | tail -1)"
+  open_log="$(cat "$tmpdir/herdr_worktree_open.log" 2>/dev/null || true)"
+  launch="$(cat "$tmpdir/herdr_prompt_launch.txt" 2>/dev/null || true)"
+  worktree_count="$(printf '%s\n' "$worktree_list" | grep -c '^worktree ' || true)"
+
+  _cleanup_active_deliver_test_children
+  rm -rf "$tmpdir"
+
+  if [ "$init_state_before" = true ] \
+    && [ "$git_child_survived" = true ] \
+    && [ "$filter_survived" = true ] \
+    && [ "$waiter_has_lock" = true ] \
+    && [ "$waiter_lock_retained" = true ] \
+    && [ "$init_state_while_locked" = true ] \
+    && [ "$waiter_alive" = true ] \
+    && [ "$early_owner" = false ] \
+    && [ "$early_open" = false ] \
+    && [ "$early_launch" = false ] \
+    && [ "$second_rc" -eq 0 ] \
+    && [ "$owner" = 'pr=735' ] \
+    && [ "$actual_branch" = "$branch" ] \
+    && [ "$actual_head" = "$pr_head" ] \
+    && [ "$tracked_after" = 'complete filtered checkout' ] \
+    && [ "$second_path" = "$source_wt" ] \
+    && printf '%s\n' "$open_log" | grep -qF -- "--path $source_wt" \
+    && printf '%s\n' "$launch" | grep -qF -- "cd \"$source_wt\"" \
+    && [ "$worktree_count" -eq 2 ]; then
+    _pass "waiter holds the source lock through surviving Git checkout, then adopts the complete unowned worktree"
+  else
+    _fail "waiter holds the source lock through surviving Git checkout, then adopts the complete unowned worktree" "init-before=$init_state_before (locked=$locked_initializing index=$index_lock_present); Git/filter survived parent=$git_child_survived/$filter_survived; waiter lock=$waiter_has_lock retained=$waiter_lock_retained init-while-locked=$init_state_while_locked alive=$waiter_alive; early owner/open/launch=$early_owner/$early_open/$early_launch; rcs=$first_rc/$second_rc; owner=${owner:-<absent>}; branch/head=$actual_branch@$actual_head expected=$branch@$pr_head; file=${tracked_after:-<absent>}; paths=${first_path:-<absent>} / ${second_path:-<absent>} expected waiter=$source_wt; worktrees=$worktree_count; open=${open_log:-<absent>}; launch=${launch:-<absent>}; outputs: $first_output / $second_output"
+  fi
+}
+
 # Test 50 (REP-1693): a signal while discovery holds the source lock must
 # release that lock and still run the invocation-specific fetched-ref cleanup.
 test_pr_source_branch_lock_signal_cleanup_preserves_fetch_cleanup() {
@@ -2512,6 +2767,45 @@ STUB
   fi
 }
 
+# REP-1693 review regression: query the same live PID in different caller
+# timezones/locales and require one stable process-incarnation value.
+test_herdr_process_start_is_timezone_and_locale_stable() {
+  local tmpdir real_ps identities utc_start los_angeles_start ps_environment
+  tmpdir="$(_make_tmpdir)"
+  real_ps="$(command -v ps)"
+  cat > "$tmpdir/ps" <<'STUB'
+#!/bin/bash
+printf '%s|%s\n' "${TZ:-<unset>}" "${LC_ALL:-<unset>}" >> "$PS_ENV_LOG"
+exec "$REAL_PS" "$@"
+STUB
+  chmod +x "$tmpdir/ps"
+
+  identities="$(PATH="$tmpdir:$PATH" REAL_PS="$real_ps" PS_ENV_LOG="$tmpdir/ps-environment.log" \
+    bash -c '
+      source "$1"
+      pid="$$"
+      export LC_ALL=POSIX TZ=UTC
+      _herdr_workspace_process_start "$pid" || exit 1
+      printf "%s\n" "$HERDR_PROCESS_START"
+      export TZ=America/Los_Angeles
+      _herdr_workspace_process_start "$pid" || exit 1
+      printf "%s\n" "$HERDR_PROCESS_START"
+    ' test "$REPO_ROOT/scripts/lib/worktree.sh" 2>&1)"
+  utc_start="$(printf '%s\n' "$identities" | sed -n '1p')"
+  los_angeles_start="$(printf '%s\n' "$identities" | sed -n '2p')"
+  ps_environment="$(cat "$tmpdir/ps-environment.log" 2>/dev/null || true)"
+  rm -rf "$tmpdir"
+
+  if [ -n "$utc_start" ] \
+    && [ "$utc_start" = "$los_angeles_start" ] \
+    && [ "$ps_environment" = "UTC|C
+UTC|C" ]; then
+    _pass "Herdr process-start identity is stable across caller timezone and locale changes"
+  else
+    _fail "Herdr process-start identity is stable across caller timezone and locale changes" "starts=${utc_start:-<absent>} / ${los_angeles_start:-<absent>}; ps environment=${ps_environment:-<absent>}; output=$identities"
+  fi
+}
+
 # Test 52 (REP-1693): one atomically installed owner record replaces the
 # mkdir/owner-file gap. A signal releases that complete record, and a one-time
 # release failure is retried by EXIT cleanup rather than leaving a lock behind.
@@ -2648,8 +2942,17 @@ STUB
 # ── Run all tests ──────────────────────────────────────────────────────
 
 case "${DELIVER_TEST_ONLY:-}" in
+  test_pr_worktree_identity_uses_pr_number_when_issue_context_changes)
+    test_pr_worktree_identity_uses_pr_number_when_issue_context_changes
+    ;;
   test_pr_source_branch_lock_waits_for_checkout_completion)
     test_pr_source_branch_lock_waits_for_checkout_completion
+    ;;
+  test_pr_waiter_waits_for_surviving_git_checkout_after_shell_kill)
+    test_pr_waiter_waits_for_surviving_git_checkout_after_shell_kill
+    ;;
+  test_herdr_process_start_is_timezone_and_locale_stable)
+    test_herdr_process_start_is_timezone_and_locale_stable
     ;;
   test_pr_source_branch_lock_signal_cleanup_preserves_fetch_cleanup)
     test_pr_source_branch_lock_signal_cleanup_preserves_fetch_cleanup
@@ -2697,6 +3000,7 @@ case "${DELIVER_TEST_ONLY:-}" in
   test_pr_refuses_mismatched_unattached_branch
   test_pr_creates_fresh_branch_and_worktree
   test_pr_title_only_issue_id_routes_label_and_prompt
+  test_pr_worktree_identity_uses_pr_number_when_issue_context_changes
   test_pr_refuses_main_checkout_at_exact_fetched_head
   test_pr_fetch_head_isolated_between_same_checkout_fetches
   test_pr_fetch_ref_is_unique_for_simultaneous_same_pr_invocations
@@ -2706,10 +3010,12 @@ case "${DELIVER_TEST_ONLY:-}" in
   test_pr_same_source_branch_uses_owned_alias_for_second_pr
   test_pr_legacy_ownership_claim_is_atomic_across_prs
   test_pr_source_branch_lock_waits_for_checkout_completion
+  test_pr_waiter_waits_for_surviving_git_checkout_after_shell_kill
   test_pr_source_branch_lock_signal_cleanup_preserves_fetch_cleanup
   test_pr_concurrent_deliveries_open_one_herdr_workspace
   test_pr_herdr_lock_cleanup_and_unverifiable_lock_fail_closed
   test_herdr_lock_process_state_tracks_process_incarnation
+  test_herdr_process_start_is_timezone_and_locale_stable
   test_herdr_lock_record_is_atomic_and_released_after_signal_or_failure
   test_pr_fetch_ref_exit_cleanup_survives_herdr_trap_install
     ;;

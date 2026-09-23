@@ -223,7 +223,7 @@ _herdr_workspace_process_start() {
   HERDR_PROCESS_START=""
   [[ "$pid" =~ ^[1-9][0-9]*$ ]] || return 1
 
-  ps_output="$(ps -p "$pid" -o pid= -o lstart= 2>/dev/null)" || return 1
+  ps_output="$(TZ=UTC LC_ALL=C ps -p "$pid" -o pid= -o lstart= 2>/dev/null)" || return 1
   [[ -n "$ps_output" && "$ps_output" != *$'\n'* ]] || return 1
   IFS=$' \t' read -r reported_pid start_line <<< "$ps_output"
   [[ "$reported_pid" == "$pid" ]] || return 1

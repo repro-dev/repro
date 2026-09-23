@@ -375,6 +375,106 @@ _deliver_pr_alias_branch() {
 
 DELIVER_PR_SOURCE_LOCK_PATH=""
 DELIVER_PR_SOURCE_LOCK_IDENTITY=""
+DELIVER_PR_SOURCE_SETUP_STATE=""
+
+_deliver_pr_inspect_source_worktree_setup() {
+  local expected_branch="$1" wt_path="$2" branch="$3" initializing="$4" git_dir
+
+  if [[ "$initializing" == true ]]; then
+    DELIVER_PR_SOURCE_SETUP_STATE="in_progress"
+    return 0
+  fi
+  if [[ "$branch" != "$expected_branch" && "$branch" != deliver/pr-* ]]; then
+    return 0
+  fi
+
+  git_dir="$(git -C "$wt_path" rev-parse --absolute-git-dir 2>/dev/null)" || {
+    DELIVER_PR_SOURCE_SETUP_STATE="unverifiable"
+    return 0
+  }
+  if [[ "$git_dir" != /* || "$git_dir" == *$'\n'* || ! -d "$git_dir" ]]; then
+    DELIVER_PR_SOURCE_SETUP_STATE="unverifiable"
+    return 0
+  fi
+
+  if [[ -e "$git_dir/index.lock" || -L "$git_dir/index.lock" ]]; then
+    DELIVER_PR_SOURCE_SETUP_STATE="in_progress"
+  fi
+}
+
+_deliver_pr_source_worktree_setup_state() {
+  local expected_branch="$1" worktree_list line entry_path="" entry_branch="" entry_initializing=false
+  DELIVER_PR_SOURCE_SETUP_STATE="clear"
+
+  worktree_list="$(git -C "$REPO_ROOT" worktree list --porcelain 2>/dev/null)" || {
+    DELIVER_PR_SOURCE_SETUP_STATE="unverifiable"
+    return 0
+  }
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    case "$line" in
+      worktree\ *)
+        if [[ -n "$entry_path" ]]; then
+          _deliver_pr_inspect_source_worktree_setup \
+            "$expected_branch" "$entry_path" "$entry_branch" "$entry_initializing"
+          case "$DELIVER_PR_SOURCE_SETUP_STATE" in
+            in_progress|unverifiable) return 0 ;;
+          esac
+        fi
+        entry_path="${line#worktree }"
+        entry_branch=""
+        entry_initializing=false
+        ;;
+      branch\ refs/heads/*)
+        entry_branch="${line#branch refs/heads/}"
+        ;;
+      locked\ initializing)
+        entry_initializing=true
+        ;;
+      "")
+        if [[ -n "$entry_path" ]]; then
+          _deliver_pr_inspect_source_worktree_setup \
+            "$expected_branch" "$entry_path" "$entry_branch" "$entry_initializing"
+          case "$DELIVER_PR_SOURCE_SETUP_STATE" in
+            in_progress|unverifiable) return 0 ;;
+          esac
+          entry_path=""
+          entry_branch=""
+          entry_initializing=false
+        fi
+        ;;
+    esac
+  done <<< "$worktree_list"
+
+  if [[ -n "$entry_path" ]]; then
+    _deliver_pr_inspect_source_worktree_setup \
+      "$expected_branch" "$entry_path" "$entry_branch" "$entry_initializing"
+  fi
+}
+
+# Stale source-lock recovery only proves that the delivery shell died; Git may
+# still be populating a source or PR-alias worktree in a child process. Wait
+# while Git exposes an initializing marker or the relevant private index.lock.
+_deliver_pr_wait_for_source_worktree_setup() {
+  local branch="$1" attempts=0 max_attempts=1200
+
+  while [[ "$attempts" -lt "$max_attempts" ]]; do
+    _deliver_pr_source_worktree_setup_state "$branch"
+    case "$DELIVER_PR_SOURCE_SETUP_STATE" in
+      clear) return 0 ;;
+      in_progress) ;;
+      *)
+        _err "Cannot safely verify whether Git is still setting up the PR worktree for source branch '$branch'."
+        return 1
+        ;;
+    esac
+    sleep 0.05
+    attempts=$((attempts + 1))
+  done
+
+  _err "Timed out waiting for Git to finish setting up the PR worktree for source branch '$branch'."
+  return 1
+}
 
 # Reuse the atomic owner-record lock machinery from worktree.sh, but give PR
 # source branches a separate namespace in shared Git metadata. Linked worktrees
@@ -654,6 +754,10 @@ _create_worktree_and_launch() {
     # be in its checkout phase until its creating git process returns.
     if ! _deliver_pr_acquire_source_branch_lock "$branch"; then
       _err "Could not safely acquire the shared source-branch lock for PR #${mode_arg} on '$branch'."
+      exit 1
+    fi
+    if ! _deliver_pr_wait_for_source_worktree_setup "$branch"; then
+      _err "Could not safely adopt PR #${mode_arg} worktree for source branch '$branch'."
       exit 1
     fi
 
@@ -1150,11 +1254,7 @@ case "$mode" in
     fi
 
     label="${pr_issue_id:-pr-${mode_arg}}"
-    if [[ -n "$pr_issue_id" ]]; then
-      slug="pr-$(slugify "$mode_arg")-$(slugify "$pr_issue_id")"
-    else
-      slug="$(slugify "$label")"
-    fi
+    slug="pr-$(slugify "$mode_arg")"
 
     _create_worktree_and_launch \
       "pr" \
