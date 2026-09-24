@@ -110,6 +110,9 @@ fi
     ;;
   workspace)
     if [ "${2:-}" = "report-metadata" ]; then
+      if [ -n "${HERDR_STUB_METADATA:-}" ]; then
+        printf '%s' "${7#issue_title=}" > "$HERDR_STUB_METADATA"
+      fi
       exit 0
     fi
     ;;
@@ -242,6 +245,42 @@ test_reused_workspace_reports_nonempty_issue_title() {
   else
     _fail 'reused workspace still reports a nonempty issue_title without reopening it' \
       "rc=$rc; metadata=${metadata:-<absent>}; opens=$open_count; calls=$(cat "$tmpdir/herdr.log" 2>/dev/null || true); output=$output"
+  fi
+  rm -rf "$tmpdir"
+}
+
+test_issue_title_truncates_utf8_by_codepoint_under_c_locale() {
+  local tmpdir repo output rc=0
+  tmpdir="$(_make_tmpdir)"
+  _write_fixture "$tmpdir"
+  repo="$tmpdir/repro"
+
+  output="$(cd "$repo" && CALLER_PWD="$repo" REPROCTL_SCRIPTS_ROOT="$REPO_ROOT" \
+    HERDR_STUB_LOG="$tmpdir/herdr.log" HERDR_STUB_REGISTRY="$tmpdir/state/workspaces.json" \
+    HERDR_STUB_METADATA="$tmpdir/metadata" HERDR_STUB_EXPECTED="$tmpdir/expected" \
+    LC_ALL=C PATH="$tmpdir/bin:$PATH" bash -c '
+      source "$REPROCTL_SCRIPTS_ROOT/scripts/lib/common.sh"
+      source "$REPROCTL_SCRIPTS_ROOT/scripts/lib/herdr.sh"
+      source "$REPROCTL_SCRIPTS_ROOT/scripts/lib/worktree.sh"
+      title=""
+      index=0
+      while [ "$index" -lt 79 ]; do
+        title="${title}a"
+        index=$((index + 1))
+      done
+      expected_title="${title}é"
+      printf "%s" "$expected_title" > "$HERDR_STUB_EXPECTED"
+      _herdr_workspace_add_sibling "$REPO_ROOT" "repro" "${expected_title}bc" true
+    ' 2>&1)" || rc=$?
+
+  if [ "$rc" -eq 0 ] \
+    && cmp -s "$tmpdir/expected" "$tmpdir/metadata" \
+    && iconv -f UTF-8 -t UTF-8 "$tmpdir/metadata" >/dev/null 2>&1 \
+    && printf '%s\n' "$output" | grep -q "issue_title metadata truncated to Herdr's 80-character token value limit."; then
+    _pass 'issue_title truncation keeps 80 valid UTF-8 codepoints under LC_ALL=C'
+  else
+    _fail 'issue_title truncation keeps 80 valid UTF-8 codepoints under LC_ALL=C' \
+      "rc=$rc; expected=$(cat "$tmpdir/expected" 2>/dev/null || true); metadata=$(cat "$tmpdir/metadata" 2>/dev/null || true); output=$output"
   fi
   rm -rf "$tmpdir"
 }
@@ -455,6 +494,7 @@ test_open_uses_project_config_and_current_checkout
 test_open_reuses_workspace_and_uses_one_named_session
 test_registered_but_closed_worktree_is_opened_once
 test_reused_workspace_reports_nonempty_issue_title
+test_issue_title_truncates_utf8_by_codepoint_under_c_locale
 test_open_from_worktree_targets_worktree_and_parent_checkout
 test_missing_herdr_has_install_recovery
 test_unavailable_daemon_has_session_scoped_recovery

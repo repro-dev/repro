@@ -724,6 +724,33 @@ _herdr_open_workspace_under_gate() {
     "$HERDR_PROJECT_MAIN_CHECKOUT" "$canonical_path" "$label" > "$stdout_path" 2> "$stderr_path"
 }
 
+# Set HERDR_ISSUE_TITLE_RESULT and HERDR_ISSUE_TITLE_TRUNCATED for an 80-codepoint prefix.
+_herdr_limit_issue_title() {
+  local LC_ALL=C
+  local title="$1" max_codepoints="$2"
+  local byte_length byte_offset=0 codepoint_count=0 byte byte_value
+
+  HERDR_ISSUE_TITLE_RESULT="$title"
+  HERDR_ISSUE_TITLE_TRUNCATED=false
+  byte_length="${#title}"
+
+  # Count UTF-8 leading bytes in C locale; cut at the next one, never mid-sequence.
+  while (( byte_offset < byte_length )); do
+    byte="${title:byte_offset:1}"
+    printf -v byte_value '%d' "'$byte"
+    byte_value=$((byte_value & 255))
+    if (( byte_value < 128 || byte_value >= 192 )); then
+      if (( codepoint_count == max_codepoints )); then
+        HERDR_ISSUE_TITLE_RESULT="${title:0:byte_offset}"
+        HERDR_ISSUE_TITLE_TRUNCATED=true
+        return 0
+      fi
+      codepoint_count=$((codepoint_count + 1))
+    fi
+    byte_offset=$((byte_offset + 1))
+  done
+}
+
 _herdr_workspace_add_sibling() {
   local wt_path="$1"
   local label="${2:-}"
@@ -856,8 +883,9 @@ _herdr_workspace_add_sibling() {
     [[ "$required" == true ]] && return 1
     return 0
   fi
-  if [[ ${#issue_title} -gt 80 ]]; then
-    issue_title="${issue_title:0:80}"
+  _herdr_limit_issue_title "$issue_title" 80
+  if [[ "$HERDR_ISSUE_TITLE_TRUNCATED" == true ]]; then
+    issue_title="$HERDR_ISSUE_TITLE_RESULT"
     echo "issue_title metadata truncated to Herdr's 80-character token value limit." >&2
   fi
   if [[ -n "$issue_title" ]]; then
