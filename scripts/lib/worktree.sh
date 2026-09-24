@@ -6,6 +6,11 @@
 # first (provides REPO_ROOT, MAIN_CHECKOUT, PARENT_DIR, slugify,
 # worktree_path, die).
 
+if [[ "${REPROCTL_HERDR_LIBRARY_LOADED:-false}" != true ]]; then
+  # shellcheck source=scripts/lib/herdr.sh
+  source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/herdr.sh"
+fi
+
 WT_DRY_RUN=false
 WT_FROM_ISSUE=""
 WT_NO_STATUS_UPDATE=false
@@ -94,7 +99,12 @@ _copy_worktree_bootstrap_local_files() {
 }
 
 _herdr_is_running() {
-  herdr status &>/dev/null
+  local status_json
+
+  command -v jq >/dev/null 2>&1 || return 1
+  status_json="$(herdr_project_cmd status --json 2>/dev/null)" || return 1
+  printf '%s\n' "$status_json" | jq -e \
+    '(.server.running == true) and (.server.status != "not_running")' >/dev/null 2>&1
 }
 
 _herdr_is_installed() {
@@ -668,20 +678,9 @@ _herdr_release_workspace_lock() {
 _herdr_worktree_open() {
   local wt_path="$1"
   local label="${2:-}"
-
-  if ! _herdr_is_running; then
-    return 0
+  if ! _herdr_workspace_add_sibling "$wt_path" "$label" "${WT_ISSUE_TITLE:-}" false; then
+    _warn "Could not safely open the Herdr workspace for $wt_path; worktree creation continues without Herdr."
   fi
-
-  local herdr_stderr
-  herdr_stderr="$(mktemp "$MAIN_CHECKOUT/tmp/herdr.XXXXXX")"
-
-  if herdr worktree open --cwd "$MAIN_CHECKOUT" --path "$wt_path" --label "$label" --no-focus --json 2>"$herdr_stderr"; then
-    rm -f "$herdr_stderr"
-    return 0
-  fi
-
-  rm -f "$herdr_stderr"
   return 0
 }
 
@@ -693,16 +692,17 @@ _herdr_open_workspace_under_gate() {
   fi
 
   # The wrapper validates this owner after acquiring the same kernel gate as
-  # stale reapers. `exec` keeps that gate held until the Herdr CLI exits.
+  # stale reapers. The shell waits for Herdr before exiting, keeping the gate.
   lockf -k -s "$lock_path.reaper" "${BASH:-/bin/bash}" -c '
     source "$1" || exit 1
-    lock_path="$2"
-    canonical_path="$3"
-    expected_pid="$4"
-    expected_token="$5"
-    expected_start="$6"
-    main_checkout="$7"
-    label="$9"
+    source "$2" || exit 1
+    lock_path="$3"
+    canonical_path="$4"
+    expected_pid="$5"
+    expected_token="$6"
+    expected_start="$7"
+    main_checkout="$8"
+    label="${10}"
     _herdr_read_workspace_lock_owner "$lock_path" "$canonical_path"
     if [[ "$HERDR_LOCK_OWNER_STATE" != valid \
       || "$HERDR_LOCK_OWNER_PID" != "$expected_pid" \
@@ -717,31 +717,49 @@ _herdr_open_workspace_under_gate() {
       echo "Herdr workspace lock owner is no longer alive before open for $canonical_path" >&2
       exit 1
     fi
-    exec herdr worktree open --cwd "$main_checkout" --path "$canonical_path" \
+    herdr_project_cmd worktree open --cwd "$main_checkout" --path "$canonical_path" \
       --label "$label" --no-focus --json
-  ' herdr-open-gated "$HERDR_WORKTREE_LIBRARY_PATH" "$lock_path" "$canonical_path" \
+  ' herdr-open-gated "$HERDR_WORKTREE_LIBRARY_PATH" "$HERDR_LIBRARY_PATH" "$lock_path" "$canonical_path" \
     "$HERDR_LOCK_ACTIVE_PID" "$HERDR_LOCK_ACTIVE_TOKEN" "$HERDR_LOCK_ACTIVE_START" \
-    "$MAIN_CHECKOUT" "$canonical_path" "$label" > "$stdout_path" 2> "$stderr_path"
+    "$HERDR_PROJECT_MAIN_CHECKOUT" "$canonical_path" "$label" > "$stdout_path" 2> "$stderr_path"
 }
 
 _herdr_workspace_add_sibling() {
   local wt_path="$1"
   local label="${2:-}"
-  local canonical_path lock_path lock_token existing_ws herdr_stdout herdr_stderr json_output ws_id=""
+  local issue_title="${3:-}" required="${4:-false}"
+  local canonical_path lock_path lock_token existing_ws herdr_stdout herdr_stderr json_output ws_id="" recovery_command
   HERDR_WORKSPACE_ID=""
+
+  if ! herdr_project_context_init "${REPO_ROOT:-$wt_path}" "${MAIN_CHECKOUT:-${REPO_ROOT:-$wt_path}}"; then
+    return 1
+  fi
+  canonical_path="$(cd "$wt_path" 2>/dev/null && pwd -P)" || {
+    echo "Cannot resolve checkout path for Herdr: $wt_path" >&2
+    return 1
+  }
+  if [[ ! -f "$HERDR_PROJECT_CONFIG_PATH" ]]; then
+    echo "Project Herdr config not found: $HERDR_PROJECT_CONFIG_PATH" >&2
+    [[ "$required" == true ]] && return 1
+    return 0
+  fi
 
   if ! _herdr_is_installed; then
     echo "${CLR_RED}herdr binary not found in PATH.${CLR_RESET}" >&2
     echo "  Install it: brew install herdr" >&2
-    echo "  Or add /opt/homebrew/bin to your PATH." >&2
+    [[ "$required" == true ]] && return 1
     return 0
   fi
 
   if ! _herdr_is_running; then
-    echo "${CLR_RED}herdr daemon is not running.${CLR_RESET}" >&2
-    echo "  Start it with: herdr start" >&2
+    echo "${CLR_RED}herdr named session is not running or its status could not be verified.${CLR_RESET}" >&2
+    recovery_command="$(herdr_project_start_recovery_command)"
+    echo "  Start it in the foreground with: $recovery_command" >&2
+    [[ "$required" == true ]] && return 1
     return 0
   fi
+
+  echo "Herdr active server config: unverified (Herdr exposes no supported query for the config loaded by a running session)." >&2
 
   if ! _herdr_resolve_workspace_lock "$wt_path"; then
     return 1
@@ -759,7 +777,17 @@ _herdr_workspace_add_sibling() {
   # already-registered path is not documented as guaranteed. The list and
   # open happen under the same per-canonical-path lock, and this lookup is
   # deliberately repeated after lock acquisition by every waiter.
-  existing_ws="$(_herdr_open_workspace_id_for_path "$canonical_path")" || existing_ws=""
+  if ! existing_ws="$(_herdr_open_workspace_id_for_path "$canonical_path")"; then
+    echo "${CLR_RED}herdr named session is not running or its status could not be verified.${CLR_RESET}" >&2
+    recovery_command="$(herdr_project_start_recovery_command)"
+    echo "  Start it in the foreground with: $recovery_command" >&2
+    if ! _herdr_release_workspace_lock "$lock_path" "$lock_token" "$canonical_path"; then
+      return 1
+    fi
+    _herdr_restore_lock_cleanup_traps
+    [[ "$required" == true ]] && return 1
+    return 0
+  fi
   if [ -n "$existing_ws" ] && [ "$existing_ws" != "null" ]; then
     echo "Reusing open herdr workspace for ${canonical_path} (${existing_ws})" >&2
     ws_id="$existing_ws"
@@ -797,23 +825,38 @@ _herdr_workspace_add_sibling() {
   fi
   _herdr_restore_lock_cleanup_traps
   HERDR_WORKSPACE_ID="$ws_id"
+  if [[ -z "$ws_id" || "$ws_id" == null ]]; then
+    [[ "$required" == true ]] && return 1
+    return 0
+  fi
+  if [[ ${#issue_title} -gt 80 ]]; then
+    issue_title="${issue_title:0:80}"
+    echo "issue_title metadata truncated to Herdr's 80-character token value limit." >&2
+  fi
+  if [[ -n "$issue_title" ]]; then
+    if ! herdr_project_cmd workspace report-metadata "$ws_id" --source reproctl \
+      --token "issue_title=$issue_title"; then
+      echo "Could not report issue_title metadata for Herdr workspace $ws_id; the workspace remains open." >&2
+      [[ "$required" == true ]] && return 1
+    fi
+  fi
   return 0
 }
 
 # _herdr_open_workspace_id_for_path <wt_path>
 # Prints the open workspace id herdr has registered for <wt_path>, or nothing
-# when none is found. Fail-open by design: any list or jq failure (including
-# jq missing entirely) yields empty output, so callers treat "unknown" the
-# same as "not open" and proceed with their normal path.
+# when none is found. Status failures return nonzero so callers never proceed
+# to list or open worktrees for an unavailable session. Once status is known
+# live, list or response-parsing failures remain fail-open as "not found."
 _herdr_open_workspace_id_for_path() {
   local wt_path="$1"
 
   if ! _herdr_is_running; then
-    return 0
+    return 1
   fi
 
   local list_output
-  list_output="$(herdr worktree list --cwd "$MAIN_CHECKOUT" --json 2>/dev/null)" || return 0
+  list_output="$(herdr_project_cmd worktree list --cwd "$HERDR_PROJECT_MAIN_CHECKOUT" --json 2>/dev/null)" || return 0
 
   if [ -z "$list_output" ]; then
     return 0
@@ -829,7 +872,7 @@ _herdr_workspace_close_for_path() {
   ws_id="$(_herdr_open_workspace_id_for_path "$wt_path")" || return 0
 
   if [ -n "$ws_id" ] && [ "$ws_id" != "null" ]; then
-    herdr workspace close "$ws_id" 2>/dev/null || true
+    herdr_project_cmd workspace close "$ws_id" 2>/dev/null || true
   fi
 
   return 0

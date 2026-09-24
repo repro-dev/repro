@@ -227,9 +227,10 @@ trap '_deliver_test_exit_cleanup' EXIT
 _write_stubs() {
   local tmpdir="$1"
 
-  mkdir -p "$tmpdir/scripts"
+  mkdir -p "$tmpdir/scripts" "$tmpdir/.herdr"
   mkdir -p "$tmpdir/.opencode/profiles"
   mkdir -p "$tmpdir/tmp"
+  : > "$tmpdir/.herdr/config.toml"
 
   # The sandbox must be a git repo so common.sh can resolve REPO_ROOT.
   git init -q "$tmpdir" || return 1
@@ -254,7 +255,8 @@ STUB
   cat > "$tmpdir/linear" << 'STUB'
 #!/bin/bash
 labels="${LINEAR_STUB_LABELS_JSON:-[]}"
-printf '{"item":{"id":"uuid-1","identifier":"REP-123","title":"Test issue","branchName":"feat/rep-123-test","status":{"name":"Todo","type":"unstarted"},"labels":%s}}\n' "$labels"
+title="${LINEAR_STUB_TITLE-Test issue}"
+printf '{"item":{"id":"uuid-1","identifier":"REP-123","title":"%s","branchName":"feat/rep-123-test","status":{"name":"Todo","type":"unstarted"},"labels":%s}}\n' "$title" "$labels"
 STUB
   chmod +x "$tmpdir/linear"
 
@@ -308,8 +310,15 @@ STUB
   # can assert it was (or was not) called.
   cat > "$tmpdir/herdr" << 'STUB'
 #!/bin/bash
+printf 'HERDR_CALL: config=%s args=%s\n' "${HERDR_CONFIG_PATH:-<unset>}" "$*" >> "$(dirname "$0")/herdr_calls.log"
+if [ "${1:-}" = "--session" ]; then
+  shift 2
+fi
   case "${1:-}" in
-  status) exit 0 ;;
+  status)
+    printf '{"server":{"status":"running","running":true}}\n'
+    exit 0
+    ;;
   worktree)
     if [ "${2:-}" = "list" ]; then
       if [ "${HERDR_STUB_WORKTREE_LIST_FAIL:-0}" = "1" ]; then
@@ -477,6 +486,30 @@ STUB
     esac
     ;;
   agent) echo "HERDR_AGENT_ARGS: $*"; exit 0 ;;
+  workspace)
+    if [ "${2:-}" = "report-metadata" ]; then
+      metadata_workspace="${3:-}"
+      shift 3
+      metadata_source=""
+      metadata_token=""
+      while [ "$#" -gt 0 ]; do
+        case "$1" in
+          --source)
+            shift
+            metadata_source="${1:-}"
+            ;;
+          --token)
+            shift
+            metadata_token="${1:-}"
+            ;;
+        esac
+        shift || break
+      done
+      printf 'HERDR_METADATA: %s|%s|%s\n' "$metadata_workspace" "$metadata_source" "$metadata_token" \
+        >> "$(dirname "$0")/herdr_calls.log"
+    fi
+    exit 0
+    ;;
   *) echo "HERDR_UNKNOWN: $*"; exit 0 ;;
 esac
 STUB
@@ -553,6 +586,84 @@ _test_expected_pr_alias_branch() {
 }
 
 # ── Tests ─────────────────────────────────────────────────────────────
+
+# REP-1695: issue delivery publishes the known Linear title and sends every
+# Herdr operation through the project config + deterministic named session.
+test_issue_title_uses_project_herdr_session() {
+  local tmpdir rc=0 output metadata open_call config session ok=1 call_line
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  _write_runner "$tmpdir" "REP-123"
+
+  output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  config="$tmpdir/.herdr/config.toml"
+  metadata="$(grep '^HERDR_METADATA:' "$tmpdir/herdr_calls.log" 2>/dev/null || true)"
+  open_call="$(grep '^HERDR_WORKTREE_OPEN:' "$tmpdir/herdr_worktree_open.log" 2>/dev/null || true)"
+  session="$(sed -n 's/^HERDR_CALL: config=.* args=--session \(repro-[0-9a-f]*\) .*/\1/p' "$tmpdir/herdr_calls.log" | head -1)"
+
+  [[ "$metadata" == 'HERDR_METADATA: ws-123|reproctl|issue_title=Test issue' ]] || ok=0
+  printf '%s\n' "$open_call" | grep -Fq -- "--path $tmpdir/repro-wt-rep-123 --label REP-123 --no-focus" || ok=0
+  [[ "$session" =~ ^repro-[0-9a-f]{24}$ ]] || ok=0
+  if [[ -z "$open_call" ]]; then ok=0; fi
+  if [[ -n "$session" ]]; then
+    while IFS= read -r call_line; do
+      [[ "$call_line" == "HERDR_CALL: config=$config args=--session $session "* ]] || ok=0
+    done < <(grep '^HERDR_CALL:' "$tmpdir/herdr_calls.log" 2>/dev/null || true)
+    grep -Fq "HERDR_CALL: config=$config args=--session $session pane " "$tmpdir/herdr_calls.log" || ok=0
+  else
+    ok=0
+  fi
+
+  if [ "$rc" -eq 0 ] && [ "$ok" -eq 1 ]; then
+    _pass 'issue delivery preserves the REP label/path, reports its title, and scopes all Herdr calls'
+  else
+    _fail 'issue delivery preserves the REP label/path, reports its title, and scopes all Herdr calls' \
+      "rc=$rc; session=${session:-<empty>}; metadata=${metadata:-<absent>}; open=${open_call:-<absent>}; Herdr calls=$(cat "$tmpdir/herdr_calls.log" 2>/dev/null || true); output=$output"
+  fi
+  rm -rf "$tmpdir"
+}
+
+test_empty_issue_title_is_omitted_and_preserves_workspace_identity() {
+  local tmpdir rc=0 output metadata open_call
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  _write_runner "$tmpdir" "REP-123"
+
+  output="$(LINEAR_STUB_TITLE='' bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  metadata="$(grep '^HERDR_METADATA:' "$tmpdir/herdr_calls.log" 2>/dev/null || true)"
+  open_call="$(grep '^HERDR_WORKTREE_OPEN:' "$tmpdir/herdr_worktree_open.log" 2>/dev/null || true)"
+
+  if [ "$rc" -eq 0 ] && [ -z "$metadata" ] \
+    && printf '%s\n' "$open_call" | grep -qF -- "--path $tmpdir/repro-wt-rep-123 --label REP-123 --no-focus"; then
+    _pass 'empty Linear title omits issue_title metadata while preserving the issue label and worktree path'
+  else
+    _fail 'empty Linear title omits issue_title metadata while preserving the issue label and worktree path' \
+      "rc=$rc; metadata=${metadata:-<absent>}; open=${open_call:-<absent>}; output=$output"
+  fi
+  rm -rf "$tmpdir"
+}
+
+test_long_issue_title_respects_herdr_metadata_limit() {
+  local tmpdir rc=0 output title metadata reported_title
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  _write_runner "$tmpdir" "REP-123"
+  title="$(printf '%100s' '' | tr ' ' x)"
+
+  output="$(LINEAR_STUB_TITLE="$title" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  metadata="$(grep '^HERDR_METADATA:' "$tmpdir/herdr_calls.log" 2>/dev/null || true)"
+  reported_title="${metadata#HERDR_METADATA: ws-123|reproctl|issue_title=}"
+
+  if [ "$rc" -eq 0 ] && [ "${#reported_title}" -eq 80 ] \
+    && [ "$reported_title" = "${title:0:80}" ] \
+    && printf '%s\n' "$output" | grep -q 'truncated to Herdr.*80-character'; then
+    _pass 'long issue titles are truncated to the Herdr metadata token limit with a warning'
+  else
+    _fail 'long issue titles are truncated to the Herdr metadata token limit with a warning' \
+      "rc=$rc; length=${#reported_title}; metadata=${metadata:-<absent>}; output=$output"
+  fi
+  rm -rf "$tmpdir"
+}
 
 # Test 1: No flags uses REPRO_OPENCODE_PROFILE default (deepseek-v4)
 test_no_flags_uses_default() {
@@ -3887,6 +3998,15 @@ STUB
 # ── Run all tests ──────────────────────────────────────────────────────
 
 case "${DELIVER_TEST_ONLY:-}" in
+  test_issue_title_uses_project_herdr_session)
+    test_issue_title_uses_project_herdr_session
+    ;;
+  test_empty_issue_title_is_omitted_and_preserves_workspace_identity)
+    test_empty_issue_title_is_omitted_and_preserves_workspace_identity
+    ;;
+  test_long_issue_title_respects_herdr_metadata_limit)
+    test_long_issue_title_respects_herdr_metadata_limit
+    ;;
   test_pr_reuses_owned_alias_after_source_worktree_removal)
     test_pr_reuses_owned_alias_after_source_worktree_removal
     ;;
@@ -3945,6 +4065,9 @@ case "${DELIVER_TEST_ONLY:-}" in
   test_profile_overrides_env_var
   test_pick_overrides_env_var
   test_layout_is_two_pane_with_pnpm_install
+  test_issue_title_uses_project_herdr_session
+  test_empty_issue_title_is_omitted_and_preserves_workspace_identity
+  test_long_issue_title_respects_herdr_metadata_limit
   test_herdr_down_installs_synchronously
   test_split_failure_installs_synchronously
   test_pane_list_failure_installs_synchronously

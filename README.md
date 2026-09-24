@@ -100,6 +100,12 @@ reproctl logs -f api-server
 | `reproctl db reset`          | Drop + recreate + migrate database |
 | `reproctl db shell`          | Open psql session                  |
 | `reproctl doctor`            | Check environment health           |
+| `reproctl herdr open`        | Open or reuse this checkout in Herdr |
+
+Herdr uses a separate named session and repository-owned sidebar settings; it
+does not start or stop Tilt or change your global Herdr config. To open it
+after setup instead, use `reproctl setup --open-herdr`. Setup otherwise leaves
+Herdr untouched. If Herdr is unavailable, reproctl prints the recovery command.
 
 ### Parallel development with worktrees
 

@@ -181,6 +181,56 @@ RUNNER
   trap - RETURN
 }
 
+test_issue_title_is_forwarded_to_herdr_workspace_metadata() {
+  local tmpdir output rc=0
+  tmpdir="$(mktemp -d "$REPO_ROOT/tmp/test_wt_issue_title_metadata.XXXXXX")"
+  export tmpdir
+  trap 'rm -rf "$tmpdir"' RETURN
+
+  {
+    _write_real_git_prelude
+    _write_metadata_stub
+    cat <<'BODY'
+
+WT_OPEN=true
+_herdr_workspace_add_sibling() {
+  printf '%s\n%s\n%s\n%s\n' "$1" "$2" "$3" "$4" > "$tmpdir/herdr_metadata_args"
+  HERDR_WORKSPACE_ID='ws-issue-title'
+}
+
+cmd_wt_create_from_issue REP-123
+
+reported_path="$(sed -n '1p' "$tmpdir/herdr_metadata_args")"
+reported_label="$(sed -n '2p' "$tmpdir/herdr_metadata_args")"
+reported_title="$(sed -n '3p' "$tmpdir/herdr_metadata_args")"
+reported_required="$(sed -n '4p' "$tmpdir/herdr_metadata_args")"
+
+if [[ "$reported_path" != "$WT_ISSUE_WORKTREE_PATH" || ! -d "$reported_path" ]]; then
+  die "Herdr metadata did not retain the created issue worktree path: ${reported_path:-<empty>}"
+fi
+if [[ "$reported_label" != 'REP-123' ]]; then
+  die "Herdr workspace label changed: ${reported_label:-<empty>}"
+fi
+if [[ "$reported_title" != 'Existing delivery' ]]; then
+  die "Herdr issue_title metadata did not retain the Linear title: ${reported_title:-<empty>}"
+fi
+if [[ "$reported_required" != false ]]; then
+  die "worktree creation should remain best-effort when Herdr is unavailable"
+fi
+BODY
+  } > "$tmpdir/run_test.sh"
+  chmod +x "$tmpdir/run_test.sh"
+
+  output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  if [ "${rc:-0}" -eq 0 ]; then
+    _pass 'issue worktree preserves label and path while forwarding the Linear title to Herdr metadata'
+  else
+    _fail 'issue worktree preserves label and path while forwarding the Linear title to Herdr metadata' "$output"
+  fi
+  rm -rf "$tmpdir"
+  trap - RETURN
+}
+
 test_resolve_issue_worktree_metadata_parses_cli_json() {
   local tmpdir output rc=0
   tmpdir="$(mktemp -d "$REPO_ROOT/tmp/test_resolve_issue_worktree_metadata_parses_cli_json.XXXXXX")"
@@ -1739,6 +1789,7 @@ BODY
 
 test_records_linear_sync_failure
 test_creates_issue_worktree_path_from_metadata
+test_issue_title_is_forwarded_to_herdr_workspace_metadata
 test_resolve_issue_worktree_metadata_parses_cli_json
 test_resolve_issue_worktree_metadata_rejects_invalid_id
 test_resolve_issue_worktree_metadata_dies_on_empty_branch
@@ -1760,7 +1811,7 @@ test_prune_skips_stale_registration_elsewhere
 test_reattach_prune_warns_about_collateral_stale_paths
 test_reattach_skips_push_but_mint_still_pushes
 
-printf '\nResults: %d passed, %d failed out of 22 tests\n' "$PASS" "$FAIL"
+printf '\nResults: %d passed, %d failed out of 23 tests\n' "$PASS" "$FAIL"
 
 if [ "$FAIL" -gt 0 ]; then
   exit 1

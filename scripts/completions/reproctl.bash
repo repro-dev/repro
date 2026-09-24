@@ -61,13 +61,14 @@ _reproctl() {
   local cur prev words cword
   _init_completion || return
 
-  local top_commands="setup doctor checkhealth cluster db code-index start stop restart status logs ui launch context worktree wt completion version help opencode"
+  local top_commands="setup doctor checkhealth cluster db code-index herdr start stop restart status logs ui launch context worktree wt completion version help opencode"
   local cluster_sub="up down status reset"
   local db_sub="reset migrate shell status"
   local code_index_sub="help"
+  local herdr_sub="open"
   local wt_sub="create remove list attach prune"
   local completion_shells="bash zsh fish"
-  local help_topics="setup doctor checkhealth cluster db code-index start stop restart status logs ui launch context worktree wt completion version environment exit-codes json opencode"
+  local help_topics="setup doctor checkhealth cluster db code-index herdr start stop restart status logs ui launch context worktree wt completion version environment exit-codes json opencode"
 
   # Find the subcommand position (skip global flags)
   local cmd="" subcmd=""
@@ -94,7 +95,13 @@ _reproctl() {
 
   case "$cmd" in
     setup)
-      COMPREPLY=($(compgen -W "--skip-cluster -h --help" -- "$cur"))
+      COMPREPLY=($(compgen -W "--skip-cluster --open-herdr -h --help" -- "$cur"))
+      ;;
+
+    herdr)
+      if [[ -z "$subcmd" ]]; then
+        COMPREPLY=($(compgen -W "$herdr_sub -h --help" -- "$cur"))
+      fi
       ;;
 
     doctor)

@@ -5,6 +5,7 @@
 reproctl\-setup \- bootstrap the local development environment
 .SH SYNOPSIS
 \f[B]reproctl setup\f[R] [\f[B]\-\-skip\-cluster\f[R]]
+[\f[B]\-\-open\-herdr\f[R]]
 .SH DESCRIPTION
 Runs a 9\-step bootstrap sequence to prepare the local development
 environment:
@@ -51,6 +52,13 @@ The supported checks are \f[CR]reproctl doctor\f[R] and
 Skip step 9 (kind cluster creation).
 Useful when you only need to update dependencies without touching the
 cluster.
+.TP
+\f[B]\-\-open\-herdr\f[R]
+After every bootstrap step succeeds, open or reuse the current checkout
+in its project\-scoped Herdr session.
+Setup does not start Tilt through this option.
+If Herdr fails, the completed bootstrap work remains intact and reproctl
+prints a recovery action.
 .SH EXAMPLES
 .TP
 reproctl setup
@@ -58,6 +66,9 @@ Run the full bootstrap sequence.
 .TP
 reproctl setup \-\-skip\-cluster
 Bootstrap without creating the cluster.
+.TP
+reproctl setup \-\-open\-herdr
+Bootstrap, then open the current checkout in Herdr.
 .SH SEE ALSO
 \f[B]reproctl\f[R](1), \f[B]reproctl\-doctor\f[R](1),
 \f[B]reproctl\-cluster\f[R](1)
