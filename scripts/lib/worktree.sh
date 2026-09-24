@@ -728,7 +728,7 @@ _herdr_workspace_add_sibling() {
   local wt_path="$1"
   local label="${2:-}"
   local issue_title="${3:-}" required="${4:-false}"
-  local canonical_path lock_path lock_token existing_ws herdr_stdout herdr_stderr json_output ws_id="" recovery_command
+  local canonical_path lock_path lock_token existing_ws herdr_stdout herdr_stderr json_output ws_id="" recovery_command lookup_status
   HERDR_WORKSPACE_ID=""
 
   if ! herdr_project_context_init "${REPO_ROOT:-$wt_path}" "${MAIN_CHECKOUT:-${REPO_ROOT:-$wt_path}}"; then
@@ -747,6 +747,13 @@ _herdr_workspace_add_sibling() {
   if ! _herdr_is_installed; then
     echo "${CLR_RED}herdr binary not found in PATH.${CLR_RESET}" >&2
     echo "  Install it: brew install herdr" >&2
+    [[ "$required" == true ]] && return 1
+    return 0
+  fi
+
+  if ! command -v jq >/dev/null 2>&1; then
+    echo "${CLR_RED}jq is required to verify Herdr session and workspace state.${CLR_RESET}" >&2
+    echo "  Install it: brew install jq" >&2
     [[ "$required" == true ]] && return 1
     return 0
   fi
@@ -777,16 +784,36 @@ _herdr_workspace_add_sibling() {
   # already-registered path is not documented as guaranteed. The list and
   # open happen under the same per-canonical-path lock, and this lookup is
   # deliberately repeated after lock acquisition by every waiter.
-  if ! existing_ws="$(_herdr_open_workspace_id_for_path "$canonical_path")"; then
-    echo "${CLR_RED}herdr named session is not running or its status could not be verified.${CLR_RESET}" >&2
-    recovery_command="$(herdr_project_start_recovery_command)"
-    echo "  Start it in the foreground with: $recovery_command" >&2
-    if ! _herdr_release_workspace_lock "$lock_path" "$lock_token" "$canonical_path"; then
+  if existing_ws="$(
+    _herdr_open_workspace_id_for_path "$canonical_path"
+  )"; then
+    :
+  else
+    lookup_status=$?
+    if [[ "$lookup_status" -eq 2 && "$required" == true ]]; then
+      echo "${CLR_RED}Herdr worktree list could not be verified for ${canonical_path}; refusing to open to avoid a duplicate.${CLR_RESET}" >&2
+      printf '  Verify the running session list with: HERDR_CONFIG_PATH=%q herdr --session %q worktree list --cwd %q --json\n' \
+        "$HERDR_PROJECT_CONFIG_PATH" "$HERDR_PROJECT_SESSION_NAME" "$HERDR_PROJECT_MAIN_CHECKOUT" >&2
+      echo "  Then retry: reproctl herdr open" >&2
+      if ! _herdr_release_workspace_lock "$lock_path" "$lock_token" "$canonical_path"; then
+        return 1
+      fi
+      _herdr_restore_lock_cleanup_traps
       return 1
+    elif [[ "$lookup_status" -eq 2 ]]; then
+      echo "Herdr worktree list could not be verified for ${canonical_path}; continuing with best-effort optional workspace registration." >&2
+      existing_ws=""
+    else
+      echo "${CLR_RED}herdr named session is not running or its status could not be verified.${CLR_RESET}" >&2
+      recovery_command="$(herdr_project_start_recovery_command)"
+      echo "  Start it in the foreground with: $recovery_command" >&2
+      if ! _herdr_release_workspace_lock "$lock_path" "$lock_token" "$canonical_path"; then
+        return 1
+      fi
+      _herdr_restore_lock_cleanup_traps
+      [[ "$required" == true ]] && return 1
+      return 0
     fi
-    _herdr_restore_lock_cleanup_traps
-    [[ "$required" == true ]] && return 1
-    return 0
   fi
   if [ -n "$existing_ws" ] && [ "$existing_ws" != "null" ]; then
     echo "Reusing open herdr workspace for ${canonical_path} (${existing_ws})" >&2
@@ -844,25 +871,40 @@ _herdr_workspace_add_sibling() {
 }
 
 # _herdr_open_workspace_id_for_path <wt_path>
-# Prints the open workspace id herdr has registered for <wt_path>, or nothing
-# when none is found. Status failures return nonzero so callers never proceed
-# to list or open worktrees for an unavailable session. Once status is known
-# live, list or response-parsing failures remain fail-open as "not found."
+# Prints the open workspace id Herdr has registered for <wt_path>, or nothing
+# when a valid list confirms none is open. Returns 1 when session status cannot
+# be verified and 2 when the worktree list is unavailable or unverifiable.
 _herdr_open_workspace_id_for_path() {
-  local wt_path="$1"
+  local wt_path="$1" list_output workspace_id
 
   if ! _herdr_is_running; then
     return 1
   fi
 
-  local list_output
-  list_output="$(herdr_project_cmd worktree list --cwd "$HERDR_PROJECT_MAIN_CHECKOUT" --json 2>/dev/null)" || return 0
+  list_output="$(herdr_project_cmd worktree list --cwd "$HERDR_PROJECT_MAIN_CHECKOUT" --json 2>/dev/null)" || return 2
 
   if [ -z "$list_output" ]; then
-    return 0
+    return 2
   fi
 
-  printf '%s' "$list_output" | jq -r --arg path "$wt_path" '.result.worktrees // [] | map(select(.path == $path)) | .[0].open_workspace_id // .[0].id // empty' 2>/dev/null || return 0
+  if ! workspace_id="$(printf '%s' "$list_output" | jq -r --arg path "$wt_path" '
+    if type != "object" then error("invalid list response")
+    elif (.result | type) != "object" then error("invalid list response")
+    elif (.result.worktrees | type) != "array" then error("invalid worktree list")
+    elif any(.result.worktrees[]; (type != "object") or (.path | type) != "string") then error("invalid worktree entry")
+    else
+      [ .result.worktrees[] | select(.path == $path) ] as $matches
+      | if ($matches | length) == 0 then ""
+        else
+          ($matches[0].open_workspace_id // $matches[0].id) as $id
+          | if ($id | type) == "string" and ($id | length) > 0 then $id else error("missing workspace id") end
+        end
+    end
+  ' 2>/dev/null)"; then
+    return 2
+  fi
+
+  printf '%s' "$workspace_id"
 }
 
 _herdr_workspace_close_for_path() {

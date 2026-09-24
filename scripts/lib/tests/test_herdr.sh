@@ -69,6 +69,18 @@ fi
   worktree)
     case "${2:-}" in
       list)
+        if [ "${HERDR_STUB_LIST_FAIL:-0}" = "1" ]; then
+          echo 'herdr: simulated worktree list failure' >&2
+          exit 1
+        fi
+        if [ "${HERDR_STUB_LIST_MALFORMED:-0}" = "1" ]; then
+          printf '{malformed worktree list json}\n'
+          exit 0
+        fi
+        if [ "${HERDR_STUB_LIST_SCHEMA_INVALID:-0}" = "1" ]; then
+          printf '{"result":{}}\n'
+          exit 0
+        fi
         if [ -s "$HERDR_STUB_REGISTRY" ]; then
           cat "$HERDR_STUB_REGISTRY"
         else
@@ -290,14 +302,42 @@ test_status_failure_and_malformed_json_are_unavailable() {
   _pass 'command failure and malformed status JSON are unavailable without worktree calls'
 }
 
-test_missing_jq_treats_session_as_unavailable() {
-  local tmpdir repo output rc=0 digest session expected_command
+test_required_open_fails_closed_when_workspace_list_is_unknown() {
+  local list_mode tmpdir repo output rc open_count
+
+  for list_mode in FAIL MALFORMED SCHEMA_INVALID; do
+    tmpdir="$(_make_tmpdir)"
+    _write_fixture "$tmpdir"
+    repo="$tmpdir/repro"
+    printf '{"result":{"worktrees":[{"path":"%s","open_workspace_id":"ws-existing"}]}}\n' \
+      "$repo" > "$tmpdir/state/workspaces.json"
+
+    rc=0
+    output="$(cd "$repo" && env "HERDR_STUB_LIST_${list_mode}=1" \
+      CALLER_PWD="$repo" HERDR_STUB_LOG="$tmpdir/herdr.log" \
+      HERDR_STUB_REGISTRY="$tmpdir/state/workspaces.json" \
+      PATH="$tmpdir/bin:$PATH" bash "$REPROCTL_SH" herdr open 2>&1)" || rc=$?
+    open_count="$(grep -c '^CALL: .*worktree open ' "$tmpdir/herdr.log" 2>/dev/null || true)"
+
+    if [ "$rc" -eq 0 ] || [ "$open_count" -ne 0 ] \
+      || ! printf '%s\n' "$output" | grep -qi 'worktree list.*could not be verified' \
+      || printf '%s\n' "$output" | grep -q 'Start it in the foreground with:'; then
+      _fail "required Herdr open fails closed when worktree list is $list_mode" \
+        "rc=$rc; opens=$open_count; output=$output; calls=$(cat "$tmpdir/herdr.log" 2>/dev/null || true)"
+      rm -rf "$tmpdir"
+      return
+    fi
+    rm -rf "$tmpdir"
+  done
+
+  _pass 'required Herdr open fails closed for failed, malformed, and unverifiable workspace lists'
+}
+
+test_missing_jq_has_dependency_recovery_without_probing_herdr() {
+  local tmpdir repo output rc=0
   tmpdir="$(_make_tmpdir)"
   _write_fixture "$tmpdir"
   repo="$tmpdir/repro"
-  digest="$(printf '%s' "$repo" | shasum -a 256 | awk '{print $1}')"
-  session="repro-${digest:0:24}"
-  expected_command="$(printf 'HERDR_CONFIG_PATH=%q herdr --session %q server' "$repo/.herdr/config.toml" "$session")"
   : > "$tmpdir/herdr.log"
 
   output="$(
@@ -315,12 +355,14 @@ test_missing_jq_treats_session_as_unavailable() {
   )" || rc=$?
 
   if [ "$rc" -ne 0 ] \
-    && printf '%s\n' "$output" | grep -qF "Start it in the foreground with: $expected_command" \
-    && ! grep -Eq '^CALL: .* worktree (list|open)( |$)' "$tmpdir/herdr.log" \
-    && ! grep -Eq '^CALL: .* (stop|server stop|workspace close|worktree close)( |$)' "$tmpdir/herdr.log"; then
-    _pass 'missing jq prevents listing or opening worktrees and prints scoped recovery'
+    && printf '%s\n' "$output" | grep -qi 'jq.*required' \
+    && printf '%s\n' "$output" | grep -qF 'brew install jq' \
+    && ! printf '%s\n' "$output" | grep -q 'Start it in the foreground with:' \
+    && ! grep -q '^CALL:' "$tmpdir/herdr.log"; then
+    _pass 'missing jq fails with dependency recovery before any Herdr command is issued'
   else
-    _fail 'missing jq prevents listing or opening worktrees and prints scoped recovery' "rc=$rc; output=$output; calls=$(cat "$tmpdir/herdr.log" 2>/dev/null || true)"
+    _fail 'missing jq fails with dependency recovery before any Herdr command is issued' \
+      "rc=$rc; output=$output; calls=$(cat "$tmpdir/herdr.log" 2>/dev/null || true)"
   fi
   rm -rf "$tmpdir"
 }
@@ -349,7 +391,8 @@ test_open_from_worktree_targets_worktree_and_parent_checkout
 test_missing_herdr_has_install_recovery
 test_unavailable_daemon_has_session_scoped_recovery
 test_status_failure_and_malformed_json_are_unavailable
-test_missing_jq_treats_session_as_unavailable
+test_required_open_fails_closed_when_workspace_list_is_unknown
+test_missing_jq_has_dependency_recovery_without_probing_herdr
 test_direct_open_failure_is_nonzero
 
 echo ""

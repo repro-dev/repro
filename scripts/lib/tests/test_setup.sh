@@ -498,6 +498,26 @@ test_setup_default_does_not_open_herdr() {
   fi
 }
 
+test_setup_forwards_no_bootstrap_args_on_system_bash() {
+  local tmpdir rc=0 output events
+  tmpdir="$(mktemp -d "$REPO_ROOT/tmp/test_setup_herdr_no_args.XXXXXX")"
+  _write_setup_herdr_runner "$tmpdir"
+  : > "$tmpdir/events"
+
+  output="$(TEST_REPO_ROOT="$tmpdir/repo" TEST_SCRIPTS_DIR="$tmpdir/scripts" \
+    SETUP_SH="$SETUP_SH" SETUP_EVENT_LOG="$tmpdir/events" \
+    SETUP_BOOTSTRAP_MARKER="$tmpdir/bootstrap-done" \
+    /bin/bash "$tmpdir/run_setup.sh" 2>&1)" || rc=$?
+  events="$(cat "$tmpdir/events")"
+  rm -rf "$tmpdir"
+
+  if [ "$rc" -eq 0 ] && [ "$events" = 'bootstrap:' ]; then
+    _pass 'setup safely forwards no bootstrap arguments under system Bash'
+  else
+    _fail 'setup safely forwards no bootstrap arguments under system Bash' "rc=$rc; events=$events; output=$output"
+  fi
+}
+
 test_setup_opens_herdr_after_successful_bootstrap() {
   local tmpdir rc=0
   tmpdir="$(mktemp -d "$REPO_ROOT/tmp/test_setup_herdr_order.XXXXXX")"
@@ -517,6 +537,27 @@ test_setup_opens_herdr_after_successful_bootstrap() {
     _pass 'setup opens Herdr only after bootstrap succeeds and forwards only bootstrap options'
   else
     _fail 'setup opens Herdr only after bootstrap succeeds and forwards only bootstrap options' "rc=$rc; events=$events; output=$output"
+  fi
+}
+
+test_setup_opens_herdr_with_no_bootstrap_args_on_system_bash() {
+  local tmpdir rc=0 output events
+  tmpdir="$(mktemp -d "$REPO_ROOT/tmp/test_setup_herdr_no_args_open.XXXXXX")"
+  _write_setup_herdr_runner "$tmpdir"
+  : > "$tmpdir/events"
+
+  output="$(TEST_REPO_ROOT="$tmpdir/repo" TEST_SCRIPTS_DIR="$tmpdir/scripts" \
+    SETUP_SH="$SETUP_SH" SETUP_EVENT_LOG="$tmpdir/events" \
+    SETUP_BOOTSTRAP_MARKER="$tmpdir/bootstrap-done" \
+    /bin/bash "$tmpdir/run_setup.sh" --open-herdr 2>&1)" || rc=$?
+  events="$(cat "$tmpdir/events")"
+  rm -rf "$tmpdir"
+
+  if [ "$rc" -eq 0 ] && [ "$events" = $'bootstrap:\nherdr:open' ]; then
+    _pass 'setup opens Herdr after bootstrap when no bootstrap arguments are forwarded under system Bash'
+  else
+    _fail 'setup opens Herdr after bootstrap when no bootstrap arguments are forwarded under system Bash' \
+      "rc=$rc; events=$events; output=$output"
   fi
 }
 
@@ -585,7 +626,9 @@ test_doctor_reports_missing_agent_browser_binary
 test_doctor_reports_missing_linear_sdk_dependency
 test_envrc_adds_repo_local_workspace_bin_path
 test_setup_default_does_not_open_herdr
+test_setup_forwards_no_bootstrap_args_on_system_bash
 test_setup_opens_herdr_after_successful_bootstrap
+test_setup_opens_herdr_with_no_bootstrap_args_on_system_bash
 test_setup_bootstrap_failure_skips_herdr
 test_setup_herdr_failure_preserves_successful_bootstrap
 
