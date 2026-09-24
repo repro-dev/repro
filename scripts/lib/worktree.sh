@@ -874,6 +874,7 @@ _herdr_workspace_add_sibling() {
 # Prints the open workspace id Herdr has registered for <wt_path>, or nothing
 # when a valid list confirms none is open. Returns 1 when session status cannot
 # be verified and 2 when the worktree list is unavailable or unverifiable.
+# Herdr 0.8.2 omits open_workspace_id on registered-but-closed rows.
 _herdr_open_workspace_id_for_path() {
   local wt_path="$1" list_output workspace_id
 
@@ -891,13 +892,18 @@ _herdr_open_workspace_id_for_path() {
     if type != "object" then error("invalid list response")
     elif (.result | type) != "object" then error("invalid list response")
     elif (.result.worktrees | type) != "array" then error("invalid worktree list")
-    elif any(.result.worktrees[]; (type != "object") or (.path | type) != "string") then error("invalid worktree entry")
+    elif any(.result.worktrees[];
+      if type != "object" then true
+      elif (.path | type) != "string" then true
+      elif has("open_workspace_id") and .open_workspace_id != null then
+        if (.open_workspace_id | type) != "string" then true
+        else (.open_workspace_id | length) == 0 end
+      else false end
+    ) then error("invalid worktree entry")
     else
       [ .result.worktrees[] | select(.path == $path) ] as $matches
       | if ($matches | length) == 0 then ""
-        else
-          ($matches[0].open_workspace_id // $matches[0].id) as $id
-          | if ($id | type) == "string" and ($id | length) > 0 then $id else error("missing workspace id") end
+        else ($matches[0].open_workspace_id // "")
         end
     end
   ' 2>/dev/null)"; then

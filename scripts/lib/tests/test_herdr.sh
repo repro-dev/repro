@@ -181,6 +181,41 @@ test_open_reuses_workspace_and_uses_one_named_session() {
   rm -rf "$tmpdir"
 }
 
+test_registered_but_closed_worktree_is_opened_once() {
+  local tmpdir repo closed_mode output rc open_count open_call
+  tmpdir="$(_make_tmpdir)"
+  _write_fixture "$tmpdir"
+  repo="$tmpdir/repro"
+
+  for closed_mode in OMITTED NULL; do
+    : > "$tmpdir/herdr.log"
+    if [ "$closed_mode" = OMITTED ]; then
+      printf '{"result":{"worktrees":[{"path":"%s","branch":"main","head":"0123456789abcdef0123456789abcdef01234567"}]}}\n' \
+        "$repo" > "$tmpdir/state/workspaces.json"
+    else
+      printf '{"result":{"worktrees":[{"path":"%s","branch":"main","head":"0123456789abcdef0123456789abcdef01234567","open_workspace_id":null}]}}\n' \
+        "$repo" > "$tmpdir/state/workspaces.json"
+    fi
+
+    rc=0
+    output="$(_run_reproctl "$repo" "$tmpdir" herdr open 2>&1)" || rc=$?
+    open_count="$(grep -c '^CALL: .*worktree open ' "$tmpdir/herdr.log" 2>/dev/null || true)"
+    open_call="$(grep '^CALL: .*worktree open ' "$tmpdir/herdr.log" 2>/dev/null || true)"
+
+    if [ "$rc" -ne 0 ] || [ "$open_count" -ne 1 ] \
+      || ! printf '%s\n' "$open_call" | grep -qF -- "--cwd $repo --path $repo" \
+      || printf '%s\n' "$output" | grep -q 'worktree list could not be verified'; then
+      _fail "registered Herdr worktree with $closed_mode open_workspace_id is opened exactly once" \
+        "rc=$rc; opens=$open_count; open=${open_call:-<absent>}; output=$output; calls=$(cat "$tmpdir/herdr.log" 2>/dev/null || true)"
+      rm -rf "$tmpdir"
+      return
+    fi
+  done
+
+  _pass 'registered Herdr worktree with omitted or null open_workspace_id and no row id is opened exactly once'
+  rm -rf "$tmpdir"
+}
+
 test_reused_workspace_reports_nonempty_issue_title() {
   local tmpdir repo output rc=0 metadata open_count
   tmpdir="$(_make_tmpdir)"
@@ -303,7 +338,7 @@ test_status_failure_and_malformed_json_are_unavailable() {
 }
 
 test_required_open_fails_closed_when_workspace_list_is_unknown() {
-  local list_mode tmpdir repo output rc open_count
+  local list_mode schema_mode tmpdir repo output rc open_count
 
   for list_mode in FAIL MALFORMED SCHEMA_INVALID; do
     tmpdir="$(_make_tmpdir)"
@@ -330,7 +365,39 @@ test_required_open_fails_closed_when_workspace_list_is_unknown() {
     rm -rf "$tmpdir"
   done
 
-  _pass 'required Herdr open fails closed for failed, malformed, and unverifiable workspace lists'
+  for schema_mode in TOP_LEVEL RESULT WORKTREES ENTRY PATH OPEN_WORKSPACE_ID; do
+    tmpdir="$(_make_tmpdir)"
+    _write_fixture "$tmpdir"
+    repo="$tmpdir/repro"
+    case "$schema_mode" in
+      TOP_LEVEL) printf '[]\n' > "$tmpdir/state/workspaces.json" ;;
+      RESULT) printf '{"result":[]}\n' > "$tmpdir/state/workspaces.json" ;;
+      WORKTREES) printf '{"result":{"worktrees":{}}}\n' > "$tmpdir/state/workspaces.json" ;;
+      ENTRY) printf '{"result":{"worktrees":[null]}}\n' > "$tmpdir/state/workspaces.json" ;;
+      PATH) printf '{"result":{"worktrees":[{"path":42}]}}\n' > "$tmpdir/state/workspaces.json" ;;
+      OPEN_WORKSPACE_ID)
+        printf '{"result":{"worktrees":[{"path":"%s","open_workspace_id":42}]}}\n' \
+          "$repo" > "$tmpdir/state/workspaces.json"
+        ;;
+    esac
+
+    rc=0
+    output="$(cd "$repo" && CALLER_PWD="$repo" HERDR_STUB_LOG="$tmpdir/herdr.log" \
+      HERDR_STUB_REGISTRY="$tmpdir/state/workspaces.json" PATH="$tmpdir/bin:$PATH" \
+      bash "$REPROCTL_SH" herdr open 2>&1)" || rc=$?
+    open_count="$(grep -c '^CALL: .*worktree open ' "$tmpdir/herdr.log" 2>/dev/null || true)"
+
+    if [ "$rc" -eq 0 ] || [ "$open_count" -ne 0 ] \
+      || ! printf '%s\n' "$output" | grep -qi 'worktree list.*could not be verified'; then
+      _fail "required Herdr open fails closed for $schema_mode worktree-list schema" \
+        "rc=$rc; opens=$open_count; output=$output; calls=$(cat "$tmpdir/herdr.log" 2>/dev/null || true)"
+      rm -rf "$tmpdir"
+      return
+    fi
+    rm -rf "$tmpdir"
+  done
+
+  _pass 'required Herdr open fails closed for failed, malformed, and invalid workspace-list responses'
 }
 
 test_missing_jq_has_dependency_recovery_without_probing_herdr() {
@@ -386,6 +453,7 @@ test_direct_open_failure_is_nonzero() {
 
 test_open_uses_project_config_and_current_checkout
 test_open_reuses_workspace_and_uses_one_named_session
+test_registered_but_closed_worktree_is_opened_once
 test_reused_workspace_reports_nonempty_issue_title
 test_open_from_worktree_targets_worktree_and_parent_checkout
 test_missing_herdr_has_install_recovery
