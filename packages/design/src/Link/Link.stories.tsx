@@ -39,13 +39,16 @@ export const ExternalLink: Story = {
 }
 
 export const CustomUnderline: Story = {
+  // Demo text uses tokens (REP-1658): the hardcoded 13px/15px sizes injected
+  // non-token entries into the page's computed size set; fontSize.sm and
+  // fontSize.md carry the same roles.
   render: () => (
     <Col gap={16} padding={16}>
-      <Block color={color.text.default} fontSize={15} lineHeight={1.5}>
+      <Block color={color.text.default} fontSize={fontSize.md} lineHeight={1.5}>
         Please read our <Link href="#">terms of service</Link> and{' '}
         <Link href="#">privacy policy</Link> before continuing.
       </Block>
-      <Block color={color.text.secondary} fontSize={13}>
+      <Block color={color.text.secondary} fontSize={fontSize.sm}>
         Secondary text with a <Link href="#">link</Link> inside.
       </Block>
       <Block color={color.text.muted} fontSize={fontSize.xs}>

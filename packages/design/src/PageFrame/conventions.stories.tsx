@@ -97,9 +97,22 @@ const pageConventionWaiver = {
   },
 }
 
+// REP-1658 waiver (flat-type-hierarchy re-arm) for the convention pages whose
+// chrome composes representative UI at token sizes (button label 12 / body 14 /
+// title 20): a single demo page cannot span the detector's 2.0 max/min ratio.
+// Applied per firing story — page-detail has skeleton-only content and does
+// not fire, so it keeps the base waiver only.
+const pageConventionTypeRampWaiver = {
+  impeccable: {
+    disable: ['cramped-padding', 'flat-type-hierarchy'],
+    reason:
+      'shell root is a structural frame; children carry their own inset; page chrome composes token sizes (label 12 / body 14 / title 20)',
+  },
+}
+
 export const PageList: Story = {
   name: 'page-list',
-  parameters: pageConventionWaiver,
+  parameters: pageConventionTypeRampWaiver,
   render: () => (
     <SampleShell>
       <PageFrame>
@@ -130,7 +143,7 @@ export const PageList: Story = {
 
 export const PageListEmpty: Story = {
   name: 'page-list (Empty)',
-  parameters: pageConventionWaiver,
+  parameters: pageConventionTypeRampWaiver,
   render: () => (
     <SampleShell>
       <PageFrame>
@@ -209,7 +222,7 @@ export const PageDetail: Story = {
 
 export const PageDashboard: Story = {
   name: 'page-dashboard',
-  parameters: pageConventionWaiver,
+  parameters: pageConventionTypeRampWaiver,
   render: () => (
     <SampleShell>
       <PageFrame>
@@ -247,7 +260,7 @@ export const PageDashboard: Story = {
 
 export const PageSettings: Story = {
   name: 'page-settings',
-  parameters: pageConventionWaiver,
+  parameters: pageConventionTypeRampWaiver,
   render: () => (
     <SampleShell>
       <PageFrame>
@@ -305,7 +318,7 @@ export const PageSettings: Story = {
 
 export const PageSingle: Story = {
   name: 'page-single',
-  parameters: pageConventionWaiver,
+  parameters: pageConventionTypeRampWaiver,
   render: () => (
     <SampleShell>
       <PageFrame>

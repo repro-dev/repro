@@ -17,6 +17,12 @@
 // htmlparser2 is not resolvable from its path, which would make these
 // assertions vacuous. `--no-config` keeps repo-level ignoreFiles from masking
 // the planted fixture. Exit codes: 0 clean, 2 findings.
+//
+// Serialization contract (REP-1658 review): this file renders tmp/storybook-html
+// on demand (writeFileSync, non-atomic). `test:tooling-config` therefore runs
+// it in a dedicated `--test-concurrency=1` invocation so sibling render-on-demand
+// files cannot race it mid-rewrite on cold state — pinned by the REP-1658
+// serialization test in scripts/tooling-config.test.ts.
 import assert from 'node:assert/strict'
 import { execFile, execFileSync } from 'node:child_process'
 import {
@@ -30,7 +36,6 @@ import path from 'node:path'
 import { describe, it } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { applyStoryDecorators, mergeStoryArgs } from './story-render-utils.ts'
-import { buildWaiverDirective } from './story-waiver-directive.ts'
 
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -47,6 +52,11 @@ const CLEAN_FIXTURE = path.join(
   repoRoot,
   'tmp',
   'impeccable-html-gate-clean-fixture.html'
+)
+const FLAT_TYPE_FIXTURE = path.join(
+  repoRoot,
+  'tmp',
+  'impeccable-html-gate-flat-type-fixture.html'
 )
 
 // Planted violation: a card div nested inside another card div. Both cards
@@ -96,6 +106,32 @@ const CLEAN_HTML = `<!doctype html>
   </head>
   <body>
     <p>A simple paragraph page with a short sentence of plain body text.</p>
+  </body>
+</html>
+`
+
+// Planted violation: three distinct computed font sizes (12/14/16px) with a
+// max/min ratio of ~1.3 — exactly the condition `flat-type-hierarchy` flags
+// (>= 3 sizes, ratio < 2.0). REP-1658 re-armed the rule (config.json
+// ignoreRules is empty); this fixture proves the rule still executes in the
+// --no-config gate suite, so a future regression (rule dropped upstream, or
+// its firing condition broken) fails here instead of passing silently. The
+// companion config pin lives in scripts/tooling-config.test.ts.
+const FLAT_TYPE_HTML = `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      body { font-family: sans-serif; }
+      .label { font-size: 12px; }
+      .body { font-size: 14px; }
+      .title { font-size: 16px; }
+    </style>
+  </head>
+  <body>
+    <p class="title">A modest page title</p>
+    <p class="body">Some body copy sitting on the same page.</p>
+    <p class="label">A small label</p>
   </body>
 </html>
 `
@@ -160,6 +196,33 @@ describe('REP-1650 impeccable static-html gate (planted violation)', () => {
     assert.equal(code, 0, `expected exit 0 (clean), got ${code}: ${stderr}`)
     const findings = JSON.parse(stdout) as Array<Record<string, unknown>>
     assert.deepEqual(findings, [])
+  })
+
+  it('flags a planted flat-type-hierarchy violation — the re-armed rule executes', async () => {
+    writeFixture(FLAT_TYPE_FIXTURE, FLAT_TYPE_HTML)
+    const { code, stdout, stderr } = await runDetector(FLAT_TYPE_FIXTURE)
+    assert.equal(code, 2, `expected exit 2 (findings), got ${code}: ${stderr}`)
+    const findings = JSON.parse(stdout) as Array<Record<string, unknown>>
+    const flatType = findings.filter(
+      finding => finding.antipattern === 'flat-type-hierarchy'
+    )
+    assert.equal(
+      flatType.length,
+      1,
+      `expected exactly one flat-type-hierarchy finding, got: ${stdout.slice(
+        0,
+        600
+      )}`
+    )
+    const finding = flatType[0] as Record<string, unknown>
+    assert.equal(finding.file, FLAT_TYPE_FIXTURE)
+    assert.match(
+      String(finding.snippet),
+      /Sizes: .*ratio \d+\.\d+:1/,
+      `expected the detector's size-set snippet, got: ${String(
+        finding.snippet
+      )}`
+    )
   })
 })
 
@@ -391,99 +454,5 @@ describe('REP-1657 render-failure blind-spot guard', () => {
     // Preserve the existing cleanup invariant: the next fresh run exercises
     // the harness again rather than reading a stale manifest.
     rmSync(MANIFEST_PATH)
-  })
-})
-
-describe('REP-1656 story-parameter waiver directives', () => {
-  // Source-level inline ignores cannot survive re-render: the detector scans
-  // the generated HTML, not the story source. Stories declare
-  // `parameters.impeccable = { disable, reason }` instead, and the harness
-  // injects the whole-file `impeccable-disable` directive the static-html
-  // engine honors into every rendered doc.
-  it('builds a whole-file impeccable-disable directive from story parameters', () => {
-    const noParams = buildWaiverDirective({ name: 'story' })
-    assert.equal(noParams, '')
-
-    const emptyDisable = buildWaiverDirective({
-      parameters: { impeccable: { disable: [], reason: 'nothing to waive' } },
-    })
-    assert.equal(emptyDisable, '')
-
-    const single = buildWaiverDirective({
-      parameters: {
-        impeccable: {
-          disable: ['cramped-padding'],
-          reason: 'edge-to-edge component anatomy',
-        },
-      },
-    })
-    assert.equal(
-      single,
-      '<!-- impeccable-disable cramped-padding -- edge-to-edge component anatomy -->'
-    )
-
-    const multiple = buildWaiverDirective({
-      parameters: {
-        impeccable: {
-          disable: ['cramped-padding', 'numbered-section-markers'],
-        },
-      },
-    })
-    assert.equal(
-      multiple,
-      '<!-- impeccable-disable cramped-padding, numbered-section-markers -->'
-    )
-
-    // Unknown-safe: non-string and empty rule entries are dropped.
-    const filtered = buildWaiverDirective({
-      parameters: {
-        impeccable: { disable: ['cramped-padding', 42, null, ''] },
-      },
-    })
-    assert.equal(filtered, '<!-- impeccable-disable cramped-padding -->')
-  })
-
-  it('injects waiver directives from a workspace story into its rendered HTML', async () => {
-    // The Accordion SingleExpand story declares parameters.impeccable with a
-    // cramped-padding waiver; its rendered doc must carry the directive so the
-    // waiver survives any re-render by construction.
-    const targetFile = path.join(
-      HTML_DIR,
-      'packages-design-src-Accordion-Accordion-SingleExpand.html'
-    )
-
-    const hasDirective = (): boolean =>
-      existsSync(targetFile) &&
-      readFileSync(targetFile, 'utf8').includes(
-        '<!-- impeccable-disable cramped-padding'
-      )
-
-    if (!hasDirective()) {
-      // Stale or missing render output: re-render so the assertion reflects
-      // the current harness. A broken mechanism still fails below — a fresh
-      // render without injection never gains the directive.
-      try {
-        execFileSync('pnpm', ['run', 'render-stories-html'], {
-          cwd: repoRoot,
-          timeout: 600_000,
-          maxBuffer: 32 * 1024 * 1024,
-        })
-      } catch (err) {
-        const failure = err as { stdout?: string; stderr?: string }
-        assert.fail(
-          `render-stories-html failed: ${failure.stdout ?? ''}\n${
-            failure.stderr ?? String(err)
-          }`
-        )
-      }
-    }
-
-    assert.ok(
-      hasDirective(),
-      `expected the injected waiver directive in ${targetFile}`
-    )
-    // Preserve the existing cleanup invariant: the next fresh run exercises
-    // the harness again rather than reading a stale manifest.
-    if (existsSync(MANIFEST_PATH)) rmSync(MANIFEST_PATH)
   })
 })

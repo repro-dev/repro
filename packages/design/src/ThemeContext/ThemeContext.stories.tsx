@@ -81,7 +81,22 @@ function ThemeDemo({ title }: { title: string }) {
   )
 }
 
+// Waiver (REP-1658 re-arm of flat-type-hierarchy): the theme preview
+// deliberately composes representative UI — heading3 demo titles, caption
+// swatch labels and button labels — so the page's size set spans the token
+// ramp by design.
+const themePreviewTypeRampWaiver = {
+  parameters: {
+    impeccable: {
+      disable: ['flat-type-hierarchy'],
+      reason:
+        'theme preview composes representative UI (heading3 titles, caption swatch labels, button labels); deliberate token ramp',
+    },
+  },
+}
+
 export const System: Story = {
+  ...themePreviewTypeRampWaiver,
   render: () => (
     <Block padding={spacing.xl}>
       <ThemeProvider colorScheme="light dark">
@@ -92,6 +107,7 @@ export const System: Story = {
 }
 
 export const Light: Story = {
+  ...themePreviewTypeRampWaiver,
   render: () => (
     <Block padding={spacing.xl}>
       <ThemeProvider colorScheme="light">
@@ -102,6 +118,7 @@ export const Light: Story = {
 }
 
 export const Dark: Story = {
+  ...themePreviewTypeRampWaiver,
   render: () => (
     <Block padding={spacing.xl} backgroundColor={color.bg.surface}>
       <ThemeProvider colorScheme="dark">
@@ -114,6 +131,7 @@ export const Dark: Story = {
 // Per-subtree theming: each ThemeProvider scopes its own `color-scheme` via a
 // `display: contents` wrapper, so light and dark render side by side in one view.
 export const SideBySide: Story = {
+  ...themePreviewTypeRampWaiver,
   render: () => (
     <Block padding={spacing.xl}>
       <Col gap={spacing.lg}>

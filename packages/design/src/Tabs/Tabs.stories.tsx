@@ -177,6 +177,17 @@ export const ManyTabs: Story = {
 }
 
 export const WithRichContent: Story = {
+  // Waiver (REP-1658 re-arm of flat-type-hierarchy): the rich-content demo
+  // deliberately composes the panel's real vocabulary — tab labels, badges,
+  // heading3 panel titles and body text — so the page's size set spans the
+  // token ramp by design.
+  parameters: {
+    impeccable: {
+      disable: ['flat-type-hierarchy'],
+      reason:
+        'rich-content demo composes heading3 panel titles, body copy and label-size contact text; deliberate token ramp',
+    },
+  },
   render: () => (
     <Tabs defaultValue="profile">
       <Tabs.List aria-label="Account settings">

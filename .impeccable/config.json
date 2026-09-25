@@ -1,6 +1,6 @@
 {
   "detector": {
-    "ignoreRules": ["flat-type-hierarchy"],
+    "ignoreRules": [],
     "ignoreFiles": [
       "**/*.test.ts*",
       "**/__tests__/**",

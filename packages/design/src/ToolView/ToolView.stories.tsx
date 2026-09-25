@@ -20,6 +20,16 @@ export default meta
 type Story = StoryObj<typeof ToolView>
 
 export const Default: Story = {
+  // Waiver (REP-1658 re-arm of flat-type-hierarchy): the component demo
+  // deliberately spans the header (sm) / body base / content placeholder (lg)
+  // sizes the component composes in real usage.
+  parameters: {
+    impeccable: {
+      disable: ['flat-type-hierarchy'],
+      reason:
+        'component demo composes header text (sm 12), body base (14) and content placeholder (lg 18); deliberate token ramp',
+    },
+  },
   render: () => (
     <ToolView>
       <ToolView.Header>

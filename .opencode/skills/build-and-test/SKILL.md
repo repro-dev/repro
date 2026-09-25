@@ -46,6 +46,25 @@ For formatting, prefer a package-scoped command or Moon target when one exists. 
 
 Individual project configs are in `moon.yml` files within each app/package directory and use `toolchains:` (plural) for toolchain overrides.
 
+**Gotchas (observed 2026-09, REP-1658):**
+
+- **Test-task cache only hashes test files.** The inherited `test` task sets
+  `inputs` to `src/**/*.test.ts(x)` — changing a *source* file without touching
+  the test file leaves the task hash stale, so `moon run repro/<pkg>:test` can
+  report a cached pass that did not execute. Pass `--force` when you changed
+  source and need proof the suite actually ran against it.
+- **moon/proto may be missing from the agent shell PATH** even though proto
+  shims are documented elsewhere. The binaries live in `~/.proto/bin` — prefix
+  moon commands with `export PATH="$HOME/.proto/bin:$PATH"` instead of relying
+  on `eval "$(proto activate bash)"` (the `proto` shim itself may also be off
+  PATH).
+- **Fresh-worktree `pnpm run lint` fails until the design plugin is built.**
+  `oxlint` loads `packages/oxlint-plugin-design/dist/plugin.js`, which is
+  gitignored. Run `moon run repro/oxlint-plugin-design:build` first
+  (`reproctl wt create`'s `moon run :build` normally covers this, but a
+  worktree created before that step existed or with a partial setup won't have
+  it).
+
 ## reproctl CLI
 
 `reproctl` is the unified CLI for local development (cluster, services, worktrees, database). Run `reproctl help` for an overview, or `reproctl help <command>` for detailed usage of any subcommand:

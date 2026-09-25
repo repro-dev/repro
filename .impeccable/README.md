@@ -18,7 +18,7 @@ dispositioned under REP-1656 (fixed / suppressed+justified / story waiver):
 
 | Rule                     | Baseline | Disposition                                                                                                                                    |
 | ------------------------ | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| flat-type-hierarchy      | 86       | 35 fixed by the `font-size-xs` 11px→12px token bump; remaining 51 suppressed project-wide via `detector.ignoreRules` (see justification below) |
+| flat-type-hierarchy      | 86       | 35 fixed by the `font-size-xs` 11px→12px token bump; remaining 51 suppressed at triage; **re-armed in REP-1658** — residual 27 pages per-story waived, 1 demo fixed at source (see re-arm record below) |
 | tiny-text                | 71       | 70 fixed by the token bump; 1 fixed at source (hardcoded `fontSize={11}` → `fontSize.xs` in `Link-CustomUnderline` demo)                       |
 | cramped-padding          | 26       | 26 story-level waivers after container-by-container rubric check (see waiver inventory)                                                        |
 | numbered-section-markers | 9        | 9 story-level waivers — detector regex `\b(0[1-9]                                                                                              | 1[0-2])\b` fires on calendar dates (`2024-03-01`) and pagination page numbers (`10, 11, 12`) in demo data, not prose markers |
@@ -26,7 +26,7 @@ dispositioned under REP-1656 (fixed / suppressed+justified / story waiver):
 | em-dash-overuse          | 1        | 1 fixed — `Card` story copy reworded (colon forms)                                                                                             |
 | skipped-heading          | 1        | 1 fixed — `EmptyState.Title` gained `headingLevel?: 'h2' \| 'h3'` (default `h3`); `PageListEmpty` composes `h2` under the page `<h1>`          |
 
-Totals: 111 fixed, 51 suppressed (config), 35 story-waived = 197.
+Totals: 111 fixed, 51 suppressed at triage (config — see re-arm record), 35 story-waived = 197.
 
 Post-triage proof: `npx impeccable detect tmp/storybook-html/ --json` exits **0**
 with zero findings. Working JSON snapshots live in `tmp/` (git-ignored); this
@@ -60,32 +60,97 @@ Two render-safe mechanisms exist:
    The render harness (`scripts/render-stories-html.ts` → `buildWaiverDirective`)
    injects a whole-file `<!-- impeccable-disable <rules> -- <reason> -->`
    directive into the generated doc, which the detector's static-html engine
-   honors. Gate-tested in `scripts/impeccable-html-gate.test.ts`.
+   honors. Gate-tested in `scripts/story-render-waivers.test.ts`.
 
 2. **Project-wide rule ignore** — add the rule id to `config.json`
-   `detector.ignoreRules`. Used only for `flat-type-hierarchy` (below).
+   `detector.ignoreRules`. **Currently unused** (the array is empty): the one
+   entry this mechanism ever held — `flat-type-hierarchy` (REP-1656) — was
+   re-armed in REP-1658 in favor of per-story waivers (below). The mechanism
+   remains available for repo-wide policy, but every active suppression today
+   is a per-story waiver with a reason on the story export.
 
 Note: the gate test runs the detector with `--no-config`, which bypasses both
 config ignores and injected directives — planted violations must always flag.
 
-## Config suppression: `flat-type-hierarchy` (51 findings)
+## Re-arm record: `flat-type-hierarchy` (REP-1658)
 
-**Justification.** The rule flags a page with ≥3 distinct computed font sizes
-and a max/min ratio < 2.0. After the 12px floor bump, every residual finding
-was on a `packages/design` story page whose size set is inherent to a
-component-gallery page: the page deliberately displays the type scale
-(e.g. `Avatar-Modes`: `12px, 15px, 16px`) alongside browser-default 16px
-ambient text from unstyled story wrappers. No scale with a 12px readability
-floor can reach max/min ≥ 2.0 on such pages, and the design package's stories
-exist precisely to show size variety. A rule-level ignore was chosen over
-`ignoreFiles` patterns (which would mask ALL rules on design pages) and over a
-type-scale redesign (out of triage scope). **Trade-off:** the rule is also
-muted on future app-surface story pages; re-evaluate when the type scale is
-reviewed (follow-up). Verified before suppressing: zero non-design pages
-triggered FTH after the bump (the two `AskUserPrompt` pages cleared with the
-token change).
+REP-1656 suppressed the rule project-wide (`detector.ignoreRules`) after
+triage. The original rationale — pages whose size set is inherent to a
+component-gallery page cannot reach max/min ≥ 2.0 under a 12px readability
+floor — was correct, but the suppression carried a known trade-off: the rule
+was muted on **all future app-surface story pages**, not just the design
+galleries that triggered it. REP-1658 (the type-scale review this suppression
+was queued behind) resolved the trade-off with two changes that make the rule
+passable outside the galleries, then re-armed it:
 
-## Story-waiver inventory (38 findings / 27 pages)
+1. **Render-harness base font-size = `fontSize.md` (14px).** The harness
+   (`scripts/render-stories-html.ts` → `scripts/story-html-document.ts`) now
+   emits an explicit `body{font-size:14px}` rule on every rendered doc.
+   Unstyled story text previously computed at the browser-default 16px,
+   injecting a phantom entry into every page's computed size set. 14px mirrors
+   the app's ambient condition: text is always styled inside the app, and
+   `fontSize.md` is primary body text. This is scoped to the static render
+   harness only — real Storybook and the app are unaffected. The value is
+   imported from the design tokens module (`packages/design/src/tokens/
+   typography.ts`), not hardcoded. Combined with REP-1656's token bump, this
+   alone cleared 23 of the 51 suppressed findings (51 → 28 on re-arm).
+2. **Per-story waivers for the residual findings.** After the Link demo fix
+   (below), the remaining 27 firing pages fall into three honest categories,
+   each waived with a page-specific reason on the story export:
+   - **Component size-range galleries** — `Avatar-Modes`,
+     `Checkbox/RadioGroup/Select/Toggle-Sizes`: the page deliberately displays
+     the component's full density range; the 15px entries come from the
+     component's own `base × 1.25` label scaling, not demo hardcodes.
+   - **Component anatomy demos** — `EmptyState` (WithAction, Complete),
+     `FullPageError` (WithAction, FullPage), `Tabs-WithRichContent`,
+     `ToolView-Default`: the component composes a deliberate token ramp
+     (label 12 / body 14 / heading3 18) in one page; a single-instance demo
+     cannot span the detector's 2.0 threshold.
+   - **Page-shell / convention / theme demos** — `AppShell` conventions,
+     `PageFrame` demos + conventions, `ThemeContext`: representative page
+     chrome at token sizes (label 12 / body 14 / title 20).
+
+   **App-surface pages were checked, not blanket-waived.** The two firing
+   `AgenticView` pages (WithHypotheses, WithRecordingMeta) were verified
+   against the render output: every size is token-sourced (caption 12 /
+   body 14 / heading3 18) with no non-token values, and no display-size
+   element exists in the panel — so "fix at source" has no lever short of
+   redesigning the panel's typography, which is out of scope. They carry the
+   waiver with that finding recorded here; a future display-size element in
+   the hypotheses panel would let the waiver be dropped.
+3. **One demo fixed at source.** `Link-CustomUnderline` used hardcoded demo
+   sizes (13px/15px) where tokens exist; now `fontSize.sm`/`fontSize.md`.
+
+Exit gate: `pnpm run render-stories-html && npx impeccable detect
+tmp/storybook-html/ --json` exits **0 with zero findings** with the rule
+live (`ignoreRules: []`). Waivers sit on the firing story exports, never the
+meta — `buildWaiverDirective` reads only the story export's `parameters`.
+
+## Type-scale decisions (REP-1658)
+
+The review of the type scale this issue performed, for the record:
+
+- **xs/sm aliasing is intentional.** `fontSize.xs` and `fontSize.sm` both sit
+  at 12px by documented decision (see the `fontSize` scale in
+  `packages/design/src/tokens/typography.ts`): the 12px readability floor caps
+  `xs`, and a distinct `sm` would have to be 13px, which fragments the
+  documented step rhythm (12→14→18→20→24→32) with no readability or detector
+  benefit (max/min stays 32/12 ≈ 2.67 either way). `typography.test.ts` pins
+  the aliasing as an explicit invariant. No token values changed, so
+  `DESIGN.md` needed no regeneration.
+- **Harness base font-size**: `fontSize.md` (14px), as recorded above — set,
+  not left at the browser default.
+
+## Story-waiver inventory (66 non-flat-type-hierarchy + 27 flat-type-hierarchy = 93 findings / 62 distinct pages / 26 story files)
+
+Counting convention (recounted for the REP-1658 review; the totals reconcile
+with the table rows below): one finding = one waived (page, rule) pair —
+multi-rule rows waive one finding per listed rule per page, and
+`DragHandle-AllEdges` / `Table-DensityComparison` each carry 2 findings on
+their single page. The 66 non-`flat-type-hierarchy` findings sit on 47
+distinct pages; the 27 `flat-type-hierarchy` findings sit on their 27 firing
+pages (12 of which also carry a non-FTH waiver above), giving 62 distinct
+pages. The 27 firing pages span 14 story files; the full inventory spans 26.
 
 Every waived page was eyeballed against the rubric: waive only when the flagged
 container is (a) the component's intended edge-to-edge anatomy or (b) a demo
@@ -93,7 +158,9 @@ frame; fix the component instead when genuine content crams against a surface
 that should inset it. Two verified misfire classes cover all 26 cramped-padding
 findings — structural flex-column page/shell roots (`display:flex` column with
 surface background, no own padding, padded children provide the inset) and
-bordered demo canvases whose flushness is the demonstration.
+bordered demo canvases whose flushness is the demonstration. The REP-1658
+`flat-type-hierarchy` rows follow the same discipline (see the re-arm record
+above for the three verified categories and the app-surface check).
 
 | Story page(s)                                                                                                                                                                          | Rule                                                   | Reason                                                                                                                                                                                                                                                                                                              |
 | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -115,6 +182,16 @@ bordered demo canvases whose flushness is the demonstration.
 | DevTools ×2 (Default, WithClusteredErrors) — REP-1657                                                                                                                                  | layout-transition, cramped-padding                     | SimpleTimeline collapse animates height by design; timeline/grid shells are structural frames with inset children (pages began rendering after the REP-1657 fixes)                                                                                                                                                  |
 | Toolbar-Default — REP-1657                                                                                                                                                             | layout-transition, cramped-padding, monotonous-spacing | edge-to-edge tool strip with intended uniform 4px density; embedded SimpleTimeline collapse animates height by design                                                                                                                                                                                               |
 | PlaybackEditor-Default, RangeTimeline (Default, With error markers) — REP-1662                                                                                                         | layout-transition                                      | embedded SimpleTimeline collapse animates height by design (grid-template-rows rework is a follow-up); pages began rendering only after the REP-1662 tdl encoder fix                                                                                                                                                |
+| AgenticView ×2 (WithHypotheses, WithRecordingMeta) — REP-1658                                                                                                                          | flat-type-hierarchy                                    | token-scaled app UI (caption 12 / body 14 / heading3 18) with no display-size element; app-surface page verified at re-arm — no non-token sizes to fix at source                                                                                                                                                     |
+| AppShell conventions ×2 (app-shell, auth-flow) — REP-1658                                                                                                                              | flat-type-hierarchy                                    | pattern demo composes representative page chrome at token sizes (label 12 / body 14 / heading2 20); carries the existing cramped-padding waiver too                                                                                                                                                                 |
+| Avatar-Modes — REP-1658                                                                                                                                                                | flat-type-hierarchy                                    | mode gallery displays all avatar modes; initials text scales at half the avatar size (component anatomy)                                                                                                                                                                                                            |
+| Checkbox-Sizes, RadioGroup-Sizes, Select-Sizes, Toggle-Sizes — REP-1658                                                                                                                | flat-type-hierarchy                                    | size-range galleries deliberately display small/medium/large; 15px entries come from the component's own density scaling (`base × 1.25`), not demo hardcodes                                                                                                                                                        |
+| EmptyState (WithAction, Complete), FullPageError (WithAction, FullPage) — REP-1658                                                                                                     | flat-type-hierarchy                                    | component anatomy is title (heading3 18) + description (body 14) + action button (label 12); deliberate token ramp on one page                                                                                                                                                                                      |
+| PageFrame (Default, ScrollableContent, InsideAppShell) — REP-1658                                                                                                                      | flat-type-hierarchy                                    | page chrome composes token sizes (label 12 / body 14 / title 20); carries the existing cramped-padding waiver too (ConstrainedWidth does not fire — skeleton-only body)                                                                                                                                             |
+| PageFrame conventions ×5 (page-list, page-list (Empty), page-dashboard, page-settings, page-single) — REP-1658                                                                         | flat-type-hierarchy                                    | page chrome composes token sizes (label 12 / body 14 / title 20); carries the existing cramped-padding waiver too (page-detail has skeleton-only content and does not fire)                                                                                                                                         |
+| Tabs-WithRichContent — REP-1658                                                                                                                                                        | flat-type-hierarchy                                    | rich-content demo composes heading3 panel titles, body copy and label-size contact text; deliberate token ramp                                                                                                                                                                                                      |
+| ThemeContext ×4 (System, Light, Dark, SideBySide) — REP-1658                                                                                                                           | flat-type-hierarchy                                    | theme preview composes representative UI (heading3 titles, caption swatch labels, button labels); deliberate token ramp (SideBySide also carries heading2)                                                                                                                                                          |
+| ToolView-Default — REP-1658                                                                                                                                                            | flat-type-hierarchy                                    | component demo composes header text (sm 12), body base (14) and content placeholder (lg 18); deliberate token ramp                                                                                                                                                                                                  |
 
 ## Known gate blind spots
 

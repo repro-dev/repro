@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import path from 'node:path'
 import { describe, it } from 'node:test'
 import { fileURLToPath } from 'node:url'
@@ -8,6 +8,16 @@ const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   '..'
 )
+
+// Matches ANY reference to the render harness by name inside a test file —
+// spawn sites (execFileSync('pnpm', ['run', 'render-stories-html'])), direct
+// tsx invocations, shared-helper imports, or prose. Bare-name-broad on
+// purpose (REP-1658 review): a narrow spawn-shape regex let a future file
+// that triggers a render another way escape the serialization contract
+// silently, and any file that can render writes tmp/storybook-html
+// non-atomically. This file is excluded from the candidate set below so its
+// own prose about the harness cannot self-match.
+const RENDER_REFERENCE_PATTERN = /render-stories-html/
 
 function readText(relativePath: string) {
   return readFileSync(path.join(repoRoot, relativePath), 'utf8')
@@ -195,5 +205,120 @@ describe('REP-1245 tool version pinning', () => {
     assert.match(buildAndTestSkill, /moon = "2\.2\.5"/)
     assert.match(buildAndTestSkill, /proto = "0\.57\.2"/)
     assert.match(buildAndTestSkill, /proto\.version: 0\.57\.2/)
+  })
+})
+
+describe('REP-1658 render-on-demand serialization', () => {
+  it('runs every render-on-demand test file under --test-concurrency=1', () => {
+    const packageJson = JSON.parse(readText('package.json')) as {
+      scripts: Record<string, string>
+    }
+    const script = packageJson.scripts['test:tooling-config'] ?? ''
+    const invocations = script.split('&&').map(part => part.trim())
+
+    // `node --test` runs each listed file as a concurrent child process by
+    // default. Test files that render on demand spawn render-stories-html,
+    // which writes tmp/storybook-html non-atomically (writeFileSync) while
+    // sibling files read it — on a cold tmp/ two concurrent full renders race
+    // mid-rewrite and fail assertions spuriously. Every such file must sit in
+    // an invocation serialized with --test-concurrency=1 (the render-on-demand
+    // files live in their own second invocation; the pure unit-test files keep
+    // running concurrently in the first).
+    const scriptsDir = path.join(repoRoot, 'scripts')
+    const renderFiles = readdirSync(scriptsDir)
+      .filter(file => file.endsWith('.test.ts'))
+      // This file names the harness in its own prose about the serialization
+      // contract; exclude it so the bare-name pattern cannot self-match (it
+      // renders nothing and belongs to the first, concurrent invocation).
+      .filter(file => file !== 'tooling-config.test.ts')
+      .filter(file =>
+        RENDER_REFERENCE_PATTERN.test(
+          readFileSync(path.join(scriptsDir, file), 'utf8')
+        )
+      )
+      .map(file => `scripts/${file}`)
+
+    assert.ok(
+      renderFiles.length >= 2,
+      'expected to discover the render-on-demand gate test files ' +
+        `(found: ${renderFiles.join(', ') || 'none'})`
+    )
+
+    for (const file of renderFiles) {
+      const hosts = invocations.filter(invocation => invocation.includes(file))
+      assert.equal(
+        hosts.length,
+        1,
+        `${file} must appear in exactly one test:tooling-config invocation`
+      )
+      assert.ok(
+        hosts[0]!.includes('--test-concurrency=1'),
+        `${file} references render-stories-html, so it can render ` +
+          `tmp/storybook-html on demand and must run under ` +
+          `--test-concurrency=1 — concurrent renders race mid-rewrite on cold state`
+      )
+    }
+  })
+})
+
+describe('REP-1658 flat-type-hierarchy re-arm pins', () => {
+  it('keeps flat-type-hierarchy out of detector.ignoreRules', () => {
+    const config = JSON.parse(readText('.impeccable/config.json')) as {
+      detector?: { ignoreRules?: string[] }
+    }
+    // Semantics (chosen, per the REP-1658 review): assert on the actual array
+    // — the rule id must be ABSENT from detector.ignoreRules. An empty array
+    // and an array holding other rule ids both pass, because the ignoreRules
+    // mechanism stays available for repo-wide policy; only flat-type-hierarchy
+    // must never return to it. REP-1658 re-armed the rule: its residual
+    // findings carry per-story waivers (see .impeccable/README.md re-arm
+    // record), and a project-wide ignore would mute the rule on all future
+    // app-surface pages again — silently, unless this pin fails.
+    const ignoreRules = config.detector?.ignoreRules ?? []
+    assert.ok(
+      Array.isArray(ignoreRules),
+      'detector.ignoreRules must be an array when present'
+    )
+    assert.equal(
+      ignoreRules.includes('flat-type-hierarchy'),
+      false,
+      'flat-type-hierarchy is suppressed project-wide in ' +
+        '.impeccable/config.json — REP-1658 re-armed it via per-story waivers; ' +
+        'do not silence it again (waive the firing story instead)'
+    )
+  })
+
+  it('keeps detector.ignoreFiles from matching the rendered-scan directory', () => {
+    const config = JSON.parse(readText('.impeccable/config.json')) as {
+      detector?: { ignoreRules?: string[]; ignoreFiles?: string[] }
+    }
+    // Semantics (per the REP-1658 adversarial re-review): the CI detect step
+    // (`npx impeccable detect tmp/storybook-html/ --json`) runs WITH this
+    // config and scans exactly tmp/storybook-html/. An ignoreFiles entry that
+    // matches that directory empties the scan — zero files in, zero findings
+    // out — so the gate passes vacuously while the --no-config fixture tests
+    // (hardcoded flag, config-independent) and the ignoreRules pin above stay
+    // green. No entry may therefore name the tmp/ tree at any path position
+    // (`tmp`, `tmp/**`, `tmp/storybook-html/**`, `**/tmp/**`); ignoreFiles
+    // exists for generated/build outputs (dist/, out/, storybook-static/,
+    // generated/), never the scan target. Do not silence the gate this way —
+    // waive the firing story instead.
+    const ignoreFiles = config.detector?.ignoreFiles ?? []
+    assert.ok(
+      Array.isArray(ignoreFiles),
+      'detector.ignoreFiles must be an array when present'
+    )
+    const coveringScanDir = ignoreFiles.filter(
+      pattern => pattern.startsWith('tmp') || pattern.split('/').includes('tmp')
+    )
+    assert.deepEqual(
+      coveringScanDir,
+      [],
+      'detector.ignoreFiles has an entry that can match the rendered-scan ' +
+        'directory tmp/storybook-html/ — the CI detect step scans that ' +
+        'directory WITH this config, so the entry empties the scan and the ' +
+        'gate passes vacuously with zero findings. Do not silence the gate; ' +
+        'scope the entry away from tmp/ or waive the firing story instead.'
+    )
   })
 })

@@ -23,15 +23,22 @@ export default meta
 
 type Story = StoryObj<typeof PageFrame>
 
+// Waiver (REP-1656 cramped-padding; REP-1658 flat-type-hierarchy re-arm): the
+// 100vh demo root is page framing, and the page chrome composes representative
+// UI at token sizes (button label 12 / body 14 / title 20) — a single demo
+// page cannot span the detector's 2.0 max/min ratio.
+const pageFrameChromeWaiver = {
+  impeccable: {
+    disable: ['cramped-padding', 'flat-type-hierarchy'],
+    reason:
+      '100vh demo root is page framing; header/body carry the inset; page chrome composes token sizes (label 12 / body 14 / title 20)',
+  },
+}
+
 export const Default: Story = {
   // Waiver (REP-1656): the 100vh demo root is page framing; the PageFrame
   // header/body provide the content inset.
-  parameters: {
-    impeccable: {
-      disable: ['cramped-padding'],
-      reason: '100vh demo root is page framing; header/body carry the inset',
-    },
-  },
+  parameters: pageFrameChromeWaiver,
   render: () => (
     <Block height="100vh" backgroundColor={color.bg.subtle}>
       <PageFrame>
@@ -98,12 +105,7 @@ export const ConstrainedWidth: Story = {
 
 export const ScrollableContent: Story = {
   name: 'Scrollable Content',
-  parameters: {
-    impeccable: {
-      disable: ['cramped-padding'],
-      reason: '100vh demo root is page framing; header/body carry the inset',
-    },
-  },
+  parameters: pageFrameChromeWaiver,
   render: () => (
     <Block height="100vh" backgroundColor={color.bg.subtle}>
       <PageFrame>
@@ -134,12 +136,7 @@ export const ScrollableContent: Story = {
 
 export const InsideAppShell: Story = {
   name: 'Inside AppShell (Composed)',
-  parameters: {
-    impeccable: {
-      disable: ['cramped-padding'],
-      reason: '100vh demo root is page framing; header/body carry the inset',
-    },
-  },
+  parameters: pageFrameChromeWaiver,
   render: () => (
     <AppShell>
       <AppShell.Sidebar>
