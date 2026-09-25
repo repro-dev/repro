@@ -27,29 +27,28 @@ function fixture() {
   mkdirSync(path.join(auditDir, 'shots'), { recursive: true })
   writeFileSync(path.join(auditDir, 'shots', 'sessions-idle.png'), 'png-bytes')
 
-  let canary = 'pass'
+  // The manifest schema carries no canary/agentBrowserVersion fields.
+  const manifest = {
+    issue: 'REP-0000',
+    generatedAt: GENERATED_AT,
+    base: 'origin/main',
+    surfaces: [
+      {
+        surface: 'workspace::Sessions',
+        states: [
+          {
+            state: 'idle',
+            screenshot: SHOT_REL,
+            interactionNotes: 'loaded',
+          },
+        ],
+      },
+    ],
+  }
   const writeArtifacts = () => {
     writeFileSync(
       path.join(auditDir, 'manifest.json'),
-      JSON.stringify({
-        issue: 'REP-0000',
-        generatedAt: GENERATED_AT,
-        base: 'origin/main',
-        agentBrowserVersion: '1.2.3',
-        canary,
-        surfaces: [
-          {
-            surface: 'workspace::Sessions',
-            states: [
-              {
-                state: 'idle',
-                screenshot: SHOT_REL,
-                interactionNotes: 'loaded',
-              },
-            ],
-          },
-        ],
-      })
+      JSON.stringify(manifest)
     )
     writeFileSync(
       path.join(auditDir, 'audit.md'),
@@ -65,8 +64,8 @@ function fixture() {
   return {
     root,
     auditDir,
-    setCanary(value: string) {
-      canary = value
+    setBase(value: string) {
+      manifest.base = value
       writeArtifacts()
     },
     removeManifest() {
@@ -188,10 +187,12 @@ describe('REP-1653 CLI exit codes', () => {
       assert.equal(report.issue, 'REP-0000')
       assert.equal(report.auditDir, f.auditDir)
       assert.equal(report.ok, true)
-      assert.equal(report.results.length, 7)
+      assert.equal(report.results.length, 6)
       for (const entry of report.results) {
         assert.equal(entry.ok, true, entry.id)
       }
+      // No canary assertion exists in the result list.
+      assert.ok(!report.results.some(r => r.id === 'canary'))
     } finally {
       f.cleanup()
     }
@@ -200,7 +201,7 @@ describe('REP-1653 CLI exit codes', () => {
   it('exits 1 with JSON listing the failed assertions on a gate violation', () => {
     const f = fixture()
     try {
-      f.setCanary('fail')
+      f.setBase('feature/branch')
       const jsonOuts: string[] = []
       const result = runAssert(
         { ...baseOptions, worktreeRoot: f.root },
@@ -218,9 +219,9 @@ describe('REP-1653 CLI exit codes', () => {
       const failed = report.results.filter(r => !r.ok)
       assert.deepEqual(
         failed.map(r => r.id),
-        ['canary']
+        ['freshness']
       )
-      assert.match(failed[0]?.detail ?? '', /expected "pass"/)
+      assert.match(failed[0]?.detail ?? '', /classification base/)
     } finally {
       f.cleanup()
     }
@@ -263,8 +264,6 @@ describe('REP-1653 CLI exit codes', () => {
           issue: 'REP-0000',
           generatedAt: GENERATED_AT,
           base: 'origin/main',
-          agentBrowserVersion: '1.2.3',
-          canary: 'pass',
           surfaces: [null],
         })
       )

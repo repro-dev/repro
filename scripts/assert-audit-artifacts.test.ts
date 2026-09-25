@@ -27,8 +27,6 @@ const VALID_MANIFEST = {
   issue: 'REP-0000',
   generatedAt: GENERATED_AT,
   base: 'origin/main',
-  agentBrowserVersion: '1.2.3',
-  canary: 'pass',
   surfaces: [
     {
       surface: 'workspace::Sessions',
@@ -137,7 +135,6 @@ describe('REP-1653 assertAuditArtifacts (pure core)', () => {
       'manifest-parses',
       'manifest-nonempty',
       'screenshots',
-      'canary',
       'freshness',
       'surface-coverage',
       'audit-findings',
@@ -346,19 +343,16 @@ describe('REP-1653 assertAuditArtifacts (pure core)', () => {
     assertFails(report, 'manifest-parses', /unreadable/)
   })
 
-  it('fails when canary is not "pass" or agentBrowserVersion is missing/empty', () => {
-    for (const [canary, agentBrowserVersion] of [
-      ['fail', '1.2.3'],
-      [undefined, '1.2.3'],
-      ['pass', undefined],
-      ['pass', ''],
-    ] as const) {
-      assertFails(
-        f.run({ manifest: { ...VALID_MANIFEST, canary, agentBrowserVersion } }),
-        'canary',
-        /canary|agentBrowserVersion/
-      )
-    }
+  it('passes without canary/agentBrowserVersion fields (not part of the gate)', () => {
+    // The browser input canary is troubleshooting-only guidance —
+    // the manifest schema and this gate no longer carry canary fields.
+    const report = f.run()
+    assert.equal(report.ok, true)
+    assert.ok(!ids(report).includes('canary'))
+    // A stale canary field from an older manifest is ignored, not failed.
+    const stale = f.run({ manifest: { ...VALID_MANIFEST, canary: 'fail' } })
+    assert.equal(stale.ok, true)
+    assert.ok(!ids(stale).includes('canary'))
   })
 
   it('fails freshness on a base mismatch', () => {
@@ -471,14 +465,14 @@ describe('REP-1653 assertAuditArtifacts (pure core)', () => {
 
   it('reports every simultaneous failure, not just the first (assert-all)', () => {
     const report = f.run({
-      manifest: { ...VALID_MANIFEST, canary: 'fail', base: 'feature/branch' },
+      manifest: { ...VALID_MANIFEST, base: 'feature/branch' },
       auditText: '# no table',
       inputs: { expectedSurfaces: ['admin::Billing'] },
     })
     assert.equal(report.ok, false)
     assert.deepEqual(
       report.results.filter(r => !r.ok).map(r => r.id),
-      ['canary', 'freshness', 'surface-coverage', 'audit-findings']
+      ['freshness', 'surface-coverage', 'audit-findings']
     )
     // passing assertions still present alongside the failures
     assert.ok(ids(report).includes('manifest-parses'))
