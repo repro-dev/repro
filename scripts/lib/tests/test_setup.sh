@@ -446,6 +446,172 @@ EOF
   fi
 }
 
+_write_setup_herdr_runner() {
+  local tmpdir="$1"
+  mkdir -p "$tmpdir/scripts" "$tmpdir/repo"
+  cat > "$tmpdir/scripts/bootstrap.sh" <<'BOOTSTRAP'
+#!/bin/bash
+printf 'bootstrap:%s\n' "$*" >> "$SETUP_EVENT_LOG"
+: > "$SETUP_BOOTSTRAP_MARKER"
+exit "${BOOTSTRAP_STUB_EXIT:-0}"
+BOOTSTRAP
+  chmod +x "$tmpdir/scripts/bootstrap.sh"
+
+  cat > "$tmpdir/run_setup.sh" <<'RUNNER'
+#!/bin/bash
+set -euo pipefail
+REPO_ROOT="$TEST_REPO_ROOT"
+MAIN_CHECKOUT="$REPO_ROOT"
+SCRIPTS_DIR="$TEST_SCRIPTS_DIR"
+die() { printf 'Error: %b\n' "$*" >&2; exit 1; }
+source "$SETUP_SH"
+cmd_herdr() {
+  printf 'herdr:%s\n' "$*" >> "$SETUP_EVENT_LOG"
+  return "${HERDR_STUB_EXIT:-0}"
+}
+status=0
+cmd_setup "$@" || status=$?
+exit "$status"
+RUNNER
+  chmod +x "$tmpdir/run_setup.sh"
+}
+
+test_setup_default_does_not_open_herdr() {
+  local tmpdir rc=0
+  tmpdir="$(mktemp -d "$REPO_ROOT/tmp/test_setup_herdr_default.XXXXXX")"
+  _write_setup_herdr_runner "$tmpdir"
+  : > "$tmpdir/events"
+
+  local output
+  output="$(TEST_REPO_ROOT="$tmpdir/repo" TEST_SCRIPTS_DIR="$tmpdir/scripts" \
+    SETUP_SH="$SETUP_SH" SETUP_EVENT_LOG="$tmpdir/events" \
+    SETUP_BOOTSTRAP_MARKER="$tmpdir/bootstrap-done" \
+    bash "$tmpdir/run_setup.sh" --skip-cluster 2>&1)" || rc=$?
+  local events
+  events="$(cat "$tmpdir/events")"
+  rm -rf "$tmpdir"
+
+  if [ "$rc" -eq 0 ] && [ "$events" = 'bootstrap:--no-cluster' ]; then
+    _pass 'setup remains unchanged by default and does not start Herdr'
+  else
+    _fail 'setup remains unchanged by default and does not start Herdr' "rc=$rc; events=$events; output=$output"
+  fi
+}
+
+test_setup_forwards_no_bootstrap_args_on_system_bash() {
+  local tmpdir rc=0 output events
+  tmpdir="$(mktemp -d "$REPO_ROOT/tmp/test_setup_herdr_no_args.XXXXXX")"
+  _write_setup_herdr_runner "$tmpdir"
+  : > "$tmpdir/events"
+
+  output="$(TEST_REPO_ROOT="$tmpdir/repo" TEST_SCRIPTS_DIR="$tmpdir/scripts" \
+    SETUP_SH="$SETUP_SH" SETUP_EVENT_LOG="$tmpdir/events" \
+    SETUP_BOOTSTRAP_MARKER="$tmpdir/bootstrap-done" \
+    /bin/bash "$tmpdir/run_setup.sh" 2>&1)" || rc=$?
+  events="$(cat "$tmpdir/events")"
+  rm -rf "$tmpdir"
+
+  if [ "$rc" -eq 0 ] && [ "$events" = 'bootstrap:' ]; then
+    _pass 'setup safely forwards no bootstrap arguments under system Bash'
+  else
+    _fail 'setup safely forwards no bootstrap arguments under system Bash' "rc=$rc; events=$events; output=$output"
+  fi
+}
+
+test_setup_opens_herdr_after_successful_bootstrap() {
+  local tmpdir rc=0
+  tmpdir="$(mktemp -d "$REPO_ROOT/tmp/test_setup_herdr_order.XXXXXX")"
+  _write_setup_herdr_runner "$tmpdir"
+  : > "$tmpdir/events"
+
+  local output events
+  output="$(TEST_REPO_ROOT="$tmpdir/repo" TEST_SCRIPTS_DIR="$tmpdir/scripts" \
+    SETUP_SH="$SETUP_SH" SETUP_EVENT_LOG="$tmpdir/events" \
+    SETUP_BOOTSTRAP_MARKER="$tmpdir/bootstrap-done" \
+    bash "$tmpdir/run_setup.sh" --skip-cluster --open-herdr 2>&1)" || rc=$?
+  events="$(cat "$tmpdir/events")"
+  rm -rf "$tmpdir"
+
+  if [ "$rc" -eq 0 ] \
+    && [ "$events" = $'bootstrap:--no-cluster\nherdr:open' ]; then
+    _pass 'setup opens Herdr only after bootstrap succeeds and forwards only bootstrap options'
+  else
+    _fail 'setup opens Herdr only after bootstrap succeeds and forwards only bootstrap options' "rc=$rc; events=$events; output=$output"
+  fi
+}
+
+test_setup_opens_herdr_with_no_bootstrap_args_on_system_bash() {
+  local tmpdir rc=0 output events
+  tmpdir="$(mktemp -d "$REPO_ROOT/tmp/test_setup_herdr_no_args_open.XXXXXX")"
+  _write_setup_herdr_runner "$tmpdir"
+  : > "$tmpdir/events"
+
+  output="$(TEST_REPO_ROOT="$tmpdir/repo" TEST_SCRIPTS_DIR="$tmpdir/scripts" \
+    SETUP_SH="$SETUP_SH" SETUP_EVENT_LOG="$tmpdir/events" \
+    SETUP_BOOTSTRAP_MARKER="$tmpdir/bootstrap-done" \
+    /bin/bash "$tmpdir/run_setup.sh" --open-herdr 2>&1)" || rc=$?
+  events="$(cat "$tmpdir/events")"
+  rm -rf "$tmpdir"
+
+  if [ "$rc" -eq 0 ] && [ "$events" = $'bootstrap:\nherdr:open' ]; then
+    _pass 'setup opens Herdr after bootstrap when no bootstrap arguments are forwarded under system Bash'
+  else
+    _fail 'setup opens Herdr after bootstrap when no bootstrap arguments are forwarded under system Bash' \
+      "rc=$rc; events=$events; output=$output"
+  fi
+}
+
+test_setup_bootstrap_failure_skips_herdr() {
+  local tmpdir rc=0
+  tmpdir="$(mktemp -d "$REPO_ROOT/tmp/test_setup_herdr_bootstrap_failure.XXXXXX")"
+  _write_setup_herdr_runner "$tmpdir"
+  : > "$tmpdir/events"
+
+  local output events
+  output="$(TEST_REPO_ROOT="$tmpdir/repo" TEST_SCRIPTS_DIR="$tmpdir/scripts" \
+    SETUP_SH="$SETUP_SH" SETUP_EVENT_LOG="$tmpdir/events" \
+    SETUP_BOOTSTRAP_MARKER="$tmpdir/bootstrap-attempted" BOOTSTRAP_STUB_EXIT=17 \
+    bash "$tmpdir/run_setup.sh" --skip-cluster --open-herdr 2>&1)" || rc=$?
+  events="$(cat "$tmpdir/events")"
+  local bootstrap_attempted=false
+  [ -f "$tmpdir/bootstrap-attempted" ] && bootstrap_attempted=true
+  rm -rf "$tmpdir"
+
+  if [ "$rc" -eq 17 ] && [ "$bootstrap_attempted" = true ] \
+    && [ "$events" = 'bootstrap:--no-cluster' ] \
+    && ! printf '%s\n' "$output" | grep -q 'Herdr could not be opened'; then
+    _pass 'setup propagates bootstrap failure and does not attempt Herdr'
+  else
+    _fail 'setup propagates bootstrap failure and does not attempt Herdr' \
+      "rc=$rc; bootstrap_attempted=$bootstrap_attempted; events=$events; output=$output"
+  fi
+}
+
+test_setup_herdr_failure_preserves_successful_bootstrap() {
+  local tmpdir rc=0
+  tmpdir="$(mktemp -d "$REPO_ROOT/tmp/test_setup_herdr_failure.XXXXXX")"
+  _write_setup_herdr_runner "$tmpdir"
+  : > "$tmpdir/events"
+
+  local output events
+  output="$(TEST_REPO_ROOT="$tmpdir/repo" TEST_SCRIPTS_DIR="$tmpdir/scripts" \
+    SETUP_SH="$SETUP_SH" SETUP_EVENT_LOG="$tmpdir/events" \
+    SETUP_BOOTSTRAP_MARKER="$tmpdir/bootstrap-done" HERDR_STUB_EXIT=17 \
+    bash "$tmpdir/run_setup.sh" --open-herdr 2>&1)" || rc=$?
+  events="$(cat "$tmpdir/events")"
+  local bootstrap_kept=false
+  [ -f "$tmpdir/bootstrap-done" ] && bootstrap_kept=true
+  rm -rf "$tmpdir"
+
+  if [ "$rc" -ne 0 ] && [ "$bootstrap_kept" = true ] \
+    && [ "$events" = $'bootstrap:\nherdr:open' ] \
+    && printf '%s\n' "$output" | grep -q 'reproctl herdr open'; then
+    _pass 'setup reports Herdr failure with recovery while retaining completed bootstrap changes'
+  else
+    _fail 'setup reports Herdr failure with recovery while retaining completed bootstrap changes' "rc=$rc; bootstrap_kept=$bootstrap_kept; events=$events; output=$output"
+  fi
+}
+
 test_bootstrap_installs_browser_runtime_when_health_check_fails
 test_bootstrap_seeds_agent_browser_auth_vault_profiles_and_is_idempotent
 test_bootstrap_uses_repo_local_linear_cli_from_pnpm_install
@@ -459,6 +625,12 @@ test_doctor_reports_broken_agent_browser_runtime_with_recovery_guidance
 test_doctor_reports_missing_agent_browser_binary
 test_doctor_reports_missing_linear_sdk_dependency
 test_envrc_adds_repo_local_workspace_bin_path
+test_setup_default_does_not_open_herdr
+test_setup_forwards_no_bootstrap_args_on_system_bash
+test_setup_opens_herdr_after_successful_bootstrap
+test_setup_opens_herdr_with_no_bootstrap_args_on_system_bash
+test_setup_bootstrap_failure_skips_herdr
+test_setup_herdr_failure_preserves_successful_bootstrap
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed out of $TESTS_RUN tests"

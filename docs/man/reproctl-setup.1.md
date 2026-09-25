@@ -8,7 +8,7 @@ reproctl-setup - bootstrap the local development environment
 
 # SYNOPSIS
 
-**reproctl setup** [**--skip-cluster**]
+**reproctl setup** [**--skip-cluster**] [**--open-herdr**]
 
 # DESCRIPTION
 
@@ -33,6 +33,9 @@ Agent sessions assume the shared machine-local `agent-browser` CLI/runtime has a
 **--skip-cluster**
 : Skip step 9 (kind cluster creation). Useful when you only need to update dependencies without touching the cluster.
 
+**--open-herdr**
+: After every bootstrap step succeeds, open or reuse the current checkout in its project-scoped Herdr session. Setup does not start Tilt through this option. If Herdr fails, the completed bootstrap work remains intact and reproctl prints a recovery action.
+
 # EXAMPLES
 
 reproctl setup
@@ -40,6 +43,9 @@ reproctl setup
 
 reproctl setup --skip-cluster
 : Bootstrap without creating the cluster.
+
+reproctl setup --open-herdr
+: Bootstrap, then open the current checkout in Herdr.
 
 # SEE ALSO
 

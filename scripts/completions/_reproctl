@@ -62,6 +62,7 @@ _reproctl() {
     'cluster:Manage local k8s cluster and registry'
     'db:Database operations'
     'code-index:Code intelligence index management'
+    'herdr:Open the current checkout in Herdr'
     'start:Start services'
     'stop:Stop services or tear down Tilt'
     'restart:Rebuild and redeploy services'
@@ -102,6 +103,7 @@ _reproctl() {
         cluster)    _reproctl_cluster ;;
         db)         _reproctl_db ;;
         code-index) _reproctl_code_index ;;
+        herdr)      _reproctl_herdr ;;
         start)      _reproctl_start ;;
         stop)       _reproctl_stop ;;
         restart)    _reproctl_restart ;;
@@ -127,7 +129,29 @@ _reproctl() {
 _reproctl_setup() {
   _arguments \
     '--skip-cluster[Skip kind cluster creation]' \
+    '--open-herdr[Open the current checkout in Herdr after bootstrap]' \
     '(-h --help)'{-h,--help}'[Show help]'
+}
+
+_reproctl_herdr() {
+  local -a herdr_commands
+  herdr_commands=(
+    'open:Open or reuse the current checkout in Herdr'
+  )
+
+  _arguments -C \
+    '(-h --help)'{-h,--help}'[Show help]' \
+    '1:subcommand:->subcommand' \
+    '*::arg:->args' && return
+
+  case "$state" in
+    subcommand) _describe -t commands 'herdr subcommand' herdr_commands ;;
+    args)
+      case "${line[1]}" in
+        open) _arguments '(-h --help)'{-h,--help}'[Show help]' ;;
+      esac
+      ;;
+  esac
 }
 
 _reproctl_checkhealth() {
@@ -337,7 +361,7 @@ _reproctl_help() {
     'setup' 'doctor' 'checkhealth' 'cluster' 'db' 'code-index'
     'start' 'stop' 'restart' 'status' 'logs'
     'ui' 'launch' 'context' 'worktree' 'wt'
-    'completion' 'version' 'opencode'
+    'completion' 'version' 'herdr' 'opencode'
     'environment' 'exit-codes' 'json'
   )
   compadd -a help_topics

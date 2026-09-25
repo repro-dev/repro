@@ -651,6 +651,7 @@ _create_worktree_and_launch() {
   local nightshift="${8:-false}"
   local dry_run="${9:-false}"
   local mode_arg="${10:-}"
+  local issue_title="${11:-}"
 
   local wt_path prompt_arg
   wt_path="$(worktree_path "$slug")"
@@ -936,7 +937,7 @@ _create_worktree_and_launch() {
   # Stage 2: Sibling workspace via herdr
   _step 2 4 "Adding herdr sibling workspace..."
   local ws_id
-  if ! _herdr_workspace_add_sibling "$wt_path" "$label"; then
+  if ! _herdr_workspace_add_sibling "$wt_path" "$label" "$issue_title"; then
     _err "Could not safely acquire or release the Herdr workspace lock for PR/worktree delivery."
     exit 1
   fi
@@ -967,7 +968,7 @@ _create_worktree_and_launch() {
   # Worktree is already bootstrapped by reproctl.sh wt create.
   _step 3 4 "Setting up workspace layout..."
   local root_pane_id
-  root_pane_id="$(herdr pane list --workspace "$ws_id" 2>/dev/null | jq -r '.result.panes[0].pane_id // .result.panes[0].id // empty' 2>/dev/null || true)"
+  root_pane_id="$(herdr_project_cmd pane list --workspace "$ws_id" 2>/dev/null | jq -r '.result.panes[0].pane_id // .result.panes[0].id // empty' 2>/dev/null || true)"
   if [[ -z "$root_pane_id" || "$root_pane_id" == "null" ]]; then
     _warn "Could not find a pane for the workspace — agent launch skipped."
     # No pane at all to defer pnpm install to — install synchronously so the
@@ -980,7 +981,7 @@ _create_worktree_and_launch() {
   # Note: herdr's --ratio sizes the split node's FIRST (original) pane, so 0.7
   # sizes opencode at 70% left and leaves the new right pane (terminal) at 30%.
   local right_split_result right_pane_id opencode_pane_id term_pane_id
-  right_split_result="$(herdr pane split --pane "$root_pane_id" --direction right --cwd "$wt_path" --ratio 0.7 --no-focus 2>&1)" || true
+  right_split_result="$(herdr_project_cmd pane split --pane "$root_pane_id" --direction right --cwd "$wt_path" --ratio 0.7 --no-focus 2>&1)" || true
   right_pane_id="$(printf '%s' "$right_split_result" | jq -r '.result.pane.pane_id // .result.pane_id // empty' 2>/dev/null || true)"
   if [[ -z "$right_pane_id" || "$right_pane_id" == "null" ]]; then
     _warn "Pane split failed — falling back to single-pane layout."
@@ -998,7 +999,7 @@ _create_worktree_and_launch() {
   # (issue_id mode) or never ran it (PR/bare-branch/prompt modes), so send it
   # to the terminal pane now, fire-and-forget.
   if [[ -n "${term_pane_id:-}" ]]; then
-    herdr pane run "$term_pane_id" "cd \"$wt_path\" && pnpm install" 2>/dev/null || true
+    herdr_project_cmd pane run "$term_pane_id" "cd \"$wt_path\" && pnpm install" 2>/dev/null || true
   fi
 
   # Stage 4: Agent launch in the opencode pane
@@ -1020,7 +1021,7 @@ _create_worktree_and_launch() {
   # `herdr agent start --kind opencode` here: in herdr 0.7.5 that kind's
   # canonical executable is the v1 `opencode` binary, which races this v2
   # launch in the same pane (v1 wins, the prompt is lost, the session sits idle).
-  herdr pane run "$opencode_pane_id" "cd \"$wt_path\" && $opencode_cmd" || {
+  herdr_project_cmd pane run "$opencode_pane_id" "cd \"$wt_path\" && $opencode_cmd" || {
     _warn "Failed to send OpenCode launch command to pane ${opencode_pane_id}."
     return 0
   }
@@ -1048,7 +1049,7 @@ _create_worktree_and_launch() {
     # head (with `--prompt`) can scroll out of the visible viewport while its
     # tail (seed) remains — bounded consequence, lands in the graceful
     # could-not-confirm path.
-    pane_visible="$(herdr pane read --source visible "$opencode_pane_id" 2>/dev/null | tr -d '\r\n' || true)"
+    pane_visible="$(herdr_project_cmd pane read --source visible "$opencode_pane_id" 2>/dev/null | tr -d '\r\n' || true)"
     if grep -qF -- "$prompt_arg" <<<"$pane_visible" && ! grep -qF -- '--prompt' <<<"$pane_visible"; then
       tui_detected=true
       break
@@ -1067,7 +1068,7 @@ _create_worktree_and_launch() {
   # the command and would duplicate the seeded editor text. If the submit
   # fails, the seeded prompt stays intact for a manual Enter.
   sleep "$(_deliver_numeric_or "${DELIVER_SUBMIT_SETTLE:-}" 2)"
-  if ! herdr pane send-keys "$opencode_pane_id" enter >/dev/null 2>&1; then
+  if ! herdr_project_cmd pane send-keys "$opencode_pane_id" enter >/dev/null 2>&1; then
     _warn "Could not submit the seeded build prompt in pane ${opencode_pane_id} (herdr pane send-keys failed — herdr may not accept key events for this pane)."
     echo "  The prompt is seeded but not submitted: press Enter in the pane to kick off the build."
     return 0
@@ -1083,7 +1084,7 @@ _create_worktree_and_launch() {
   local state_poll_interval
   state_poll_interval="$(_deliver_numeric_or "${DELIVER_STATE_POLL_INTERVAL:-}" 1)"
   for state_poll in $(seq 1 "$state_poll_attempts"); do
-    if herdr pane list --workspace "$ws_id" 2>/dev/null \
+    if herdr_project_cmd pane list --workspace "$ws_id" 2>/dev/null \
       | jq -e --arg pane_id "$opencode_pane_id" 'any(.result.panes[]; .pane_id == $pane_id and .agent_status == "working")' >/dev/null 2>&1; then
       state_confirmed=true
       break
@@ -1280,7 +1281,9 @@ case "$mode" in
       "$delivery_command" \
       "$profile" \
       "$nightshift" \
-      "$dry_run"
+      "$dry_run" \
+      "" \
+      "$title"
     ;;
 
   pr)

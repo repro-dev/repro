@@ -5,6 +5,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # shellcheck source=scripts/lib/common.sh
 source "$SCRIPT_DIR/lib/common.sh"
+# shellcheck source=scripts/lib/herdr.sh
+source "$SCRIPT_DIR/lib/herdr.sh"
 # shellcheck source=scripts/lib/services.sh
 source "$SCRIPT_DIR/lib/services.sh"
 # shellcheck source=scripts/lib/cluster.sh
@@ -62,6 +64,7 @@ ${CLR_BOLD}INFRASTRUCTURE${CLR_RESET}
   cluster <subcommand>            Manage the local k8s cluster and registry
   db <subcommand>                 Database operations
   code-index <subcommand>         Code intelligence index management
+  herdr <subcommand>              Open the current checkout in Herdr
 
 ${CLR_BOLD}WORKTREES${CLR_RESET}
   wt create <branch>              Create a new worktree for a branch
@@ -78,11 +81,12 @@ ${CLR_BOLD}GENERAL${CLR_RESET}
   completion <shell>              Generate shell completions (bash, zsh, fish)
   version                         Print the reproctl commit and date
   help [<command>|<topic>]        Show manpage for a command or topic
-                                  Topics: environment, exit-codes, json
+                                  Topics: environment, exit-codes, json, herdr
   opencode [--profile <name>|--pick]  Launch OpenCode with optional model profile
 
 Examples:
   reproctl setup                              # bootstrap entire environment
+  reproctl herdr open                         # open this checkout in Herdr
   reproctl doctor                             # check installed tools and versions
   reproctl --json checkhealth                 # machine-readable health check
   reproctl --json status                      # machine-readable service status
@@ -135,6 +139,7 @@ shift
 
 case "$COMMAND" in
   setup)   cmd_setup "$@" ;;
+  herdr)   cmd_herdr "$@" ;;
   doctor)  cmd_doctor "$@" ;;
   checkhealth)
     for arg in "$@"; do
@@ -207,7 +212,7 @@ USAGE
   -h|--help)      usage ;;
   --version|-V)    cmd_version "$@" ;;
   *)
-    KNOWN_COMMANDS="setup doctor checkhealth cluster db code-index start stop restart status logs ui launch context worktree wt completion version help opencode"
+    KNOWN_COMMANDS="setup doctor checkhealth cluster db code-index herdr start stop restart status logs ui launch context worktree wt completion version help opencode"
     suggestions=$(python3 "$SCRIPT_DIR/lib/py/suggest_command.py" "$COMMAND" $KNOWN_COMMANDS 2>/dev/null) || true
     if [ -n "$suggestions" ]; then
       printf 'Error: Unknown command: %s\n' "$COMMAND" >&2

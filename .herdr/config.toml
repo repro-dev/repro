@@ -1,0 +1,11 @@
+[ui]
+sidebar_width = 40
+sidebar_max_width = 48
+
+[ui.sidebar.spaces]
+row_gap = 0
+rows = [
+  ["state_icon", "workspace"],
+  ["$issue_title"],
+  ["branch", "git_status"],
+]

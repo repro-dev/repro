@@ -1,4 +1,4 @@
-set -l commands setup doctor checkhealth cluster db code-index start stop restart status logs ui launch context worktree wt completion version help opencode
+set -l commands setup doctor checkhealth cluster db code-index herdr start stop restart status logs ui launch context worktree wt completion version help opencode
 
 function __reproctl_no_subcommand
     set -l cmd (commandline -opc)
@@ -54,6 +54,7 @@ complete -c reproctl -n __reproctl_no_subcommand -f -a checkhealth -d 'Runtime h
 complete -c reproctl -n __reproctl_no_subcommand -f -a cluster -d 'Manage local k8s cluster and registry'
 complete -c reproctl -n __reproctl_no_subcommand -f -a db -d 'Database operations'
 complete -c reproctl -n __reproctl_no_subcommand -f -a code-index -d 'Code intelligence index management'
+complete -c reproctl -n __reproctl_no_subcommand -f -a herdr -d 'Open the current checkout in Herdr'
 complete -c reproctl -n __reproctl_no_subcommand -f -a start -d 'Start services'
 complete -c reproctl -n __reproctl_no_subcommand -f -a stop -d 'Stop services or tear down Tilt'
 complete -c reproctl -n __reproctl_no_subcommand -f -a restart -d 'Rebuild and redeploy services'
@@ -74,6 +75,11 @@ complete -c reproctl -s q -l quiet -d 'Suppress non-error output'
 complete -c reproctl -l verbose -d 'Show diagnostic details'
 
 complete -c reproctl -n '__reproctl_using_command setup' -f -l skip-cluster -d 'Skip kind cluster creation'
+complete -c reproctl -n '__reproctl_using_command setup' -f -l open-herdr -d 'Open the current checkout in Herdr after bootstrap'
+
+complete -c reproctl -n '__reproctl_using_command herdr' -f -a open -d 'Open or reuse the current checkout in Herdr'
+complete -c reproctl -n '__reproctl_using_command herdr' -f -s h -l help -d 'Show help'
+complete -c reproctl -n '__reproctl_using_subcommand herdr open' -f -s h -l help -d 'Show help'
 
 complete -c reproctl -n '__reproctl_using_command checkhealth' -f -l json -d 'Output machine-readable JSON'
 
@@ -164,4 +170,4 @@ end
 complete -c reproctl -n '__reproctl_using_command opencode' -f -l profile -d 'Model profile name' -ra '(__reproctl_opencode_profiles)'
 complete -c reproctl -n '__reproctl_using_command opencode' -f -s h -l help -d 'Show help'
 
-complete -c reproctl -n '__reproctl_using_command help' -f -a 'setup doctor checkhealth cluster db code-index start stop restart status logs ui launch context worktree wt completion environment exit-codes json opencode'
+complete -c reproctl -n '__reproctl_using_command help' -f -a 'setup doctor checkhealth cluster db code-index herdr start stop restart status logs ui launch context worktree wt completion environment exit-codes json opencode'

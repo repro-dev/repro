@@ -91,10 +91,13 @@ read_prototools_version() {
 
 cmd_setup() {
   local args=()
+  local has_bootstrap_args=false
+  local open_herdr=false
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --skip-cluster) args+=("--no-cluster"); shift ;;
+      --skip-cluster) args+=("--no-cluster"); has_bootstrap_args=true; shift ;;
+      --open-herdr) open_herdr=true; shift ;;
       -h|--help)
         cat <<'EOF'
 Usage: reproctl setup [options]
@@ -104,6 +107,7 @@ scripts/bootstrap.sh which handles the full dependency chain.
 
 Options:
   --skip-cluster    Skip kind cluster creation
+  --open-herdr      Open the current checkout in Herdr after bootstrap succeeds
 
 Run './scripts/bootstrap.sh --help' for full details.
 EOF
@@ -115,7 +119,17 @@ EOF
     esac
   done
 
-  exec "$SCRIPTS_DIR/bootstrap.sh" ${args[@]+"${args[@]}"}
+  if [[ "$has_bootstrap_args" == true ]]; then
+    "$SCRIPTS_DIR/bootstrap.sh" "${args[@]}" || return $?
+  else
+    "$SCRIPTS_DIR/bootstrap.sh" || return $?
+  fi
+  if [[ "$open_herdr" == true ]]; then
+    if ! cmd_herdr open; then
+      echo "Environment setup completed, but Herdr could not be opened. Follow the recovery guidance above, then retry: reproctl herdr open" >&2
+      return 1
+    fi
+  fi
 }
 
 # ── Doctor command ──────────────────────────────────────────────────

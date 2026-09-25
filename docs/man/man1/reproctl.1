@@ -84,6 +84,10 @@ See \f[B]reproctl\-cluster\f[R](1).
 \f[B]db\f[R] \f[I]subcommand\f[R]
 Database operations.
 See \f[B]reproctl\-db\f[R](1).
+.TP
+\f[B]herdr open\f[R]
+Open or reuse the current checkout in a project\-scoped Herdr session.
+See \f[B]reproctl\-herdr\f[R](1).
 .SS Worktrees
 .TP
 \f[B]wt create\f[R] \f[I]branch\f[R]
@@ -114,7 +118,7 @@ With \f[B]\-\-json\f[R], outputs a JSON object with context fields.
 \f[B]help\f[R] [\f[I]command\f[R]|\f[I]topic\f[R]]
 Show manpage for reproctl, a subcommand, or a topic.
 Available topics: \f[B]environment\f[R], \f[B]exit\-codes\f[R],
-\f[B]json\f[R].
+\f[B]herdr\f[R], \f[B]json\f[R].
 .TP
 \f[B]completion\f[R] \f[I]shell\f[R]
 Generate shell completion scripts.
@@ -123,6 +127,10 @@ See \f[B]reproctl\-completion\f[R](1).
 .TP
 reproctl setup
 Bootstrap the entire environment.
+.TP
+reproctl herdr open
+Open the current checkout in the named project Herdr session without
+starting Tilt.
 .TP
 reproctl start api\-server workspace
 Start api\-server and workspace from main checkout.
@@ -186,12 +194,12 @@ Exit codes returned by reproctl commands.
 \f[B]reproctl\-help\-json\f[R](7)
 JSON output conventions for commands that support \f[B]\-\-json\f[R].
 .SH SEE ALSO
-\f[B]reproctl\-setup\f[R](1), \f[B]reproctl\-doctor\f[R](1),
-\f[B]reproctl\-cluster\f[R](1), \f[B]reproctl\-db\f[R](1),
-\f[B]reproctl\-start\f[R](1), \f[B]reproctl\-stop\f[R](1),
-\f[B]reproctl\-restart\f[R](1), \f[B]reproctl\-logs\f[R](1),
-\f[B]reproctl\-worktree\f[R](1), \f[B]reproctl\-completion\f[R](1),
-\f[B]reproctl\-exit\-codes\f[R](1),
+\f[B]reproctl\-setup\f[R](1), \f[B]reproctl\-herdr\f[R](1),
+\f[B]reproctl\-doctor\f[R](1), \f[B]reproctl\-cluster\f[R](1),
+\f[B]reproctl\-db\f[R](1), \f[B]reproctl\-start\f[R](1),
+\f[B]reproctl\-stop\f[R](1), \f[B]reproctl\-restart\f[R](1),
+\f[B]reproctl\-logs\f[R](1), \f[B]reproctl\-worktree\f[R](1),
+\f[B]reproctl\-completion\f[R](1), \f[B]reproctl\-exit\-codes\f[R](1),
 \f[B]reproctl\-help\-environment\f[R](7),
 \f[B]reproctl\-help\-exit\-codes\f[R](7),
 \f[B]reproctl\-help\-json\f[R](7)

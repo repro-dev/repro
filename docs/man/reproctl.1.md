@@ -71,6 +71,9 @@ Context is detected automatically: from the main checkout, services run as main;
 **db** *subcommand*
 : Database operations. See **reproctl-db**(1).
 
+**herdr open**
+: Open or reuse the current checkout in a project-scoped Herdr session. See **reproctl-herdr**(1).
+
 ## Worktrees
 
 **wt create** *branch*
@@ -97,7 +100,7 @@ Context is detected automatically: from the main checkout, services run as main;
 : Show the current development context (worktree, branch, issue, delta vs main, services). With **--json**, outputs a JSON object with context fields.
 
 **help** [*command*|*topic*]
-: Show manpage for reproctl, a subcommand, or a topic. Available topics: **environment**, **exit-codes**, **json**.
+: Show manpage for reproctl, a subcommand, or a topic. Available topics: **environment**, **exit-codes**, **herdr**, **json**.
 
 **completion** *shell*
 : Generate shell completion scripts. See **reproctl-completion**(1).
@@ -106,6 +109,9 @@ Context is detected automatically: from the main checkout, services run as main;
 
 reproctl setup
 : Bootstrap the entire environment.
+
+reproctl herdr open
+: Open the current checkout in the named project Herdr session without starting Tilt.
 
 reproctl start api-server workspace
 : Start api-server and workspace from main checkout.
@@ -160,4 +166,4 @@ See **reproctl-exit-codes**(1) for the full exit code conventions.
 
 # SEE ALSO
 
-**reproctl-setup**(1), **reproctl-doctor**(1), **reproctl-cluster**(1), **reproctl-db**(1), **reproctl-start**(1), **reproctl-stop**(1), **reproctl-restart**(1), **reproctl-logs**(1), **reproctl-worktree**(1), **reproctl-completion**(1), **reproctl-exit-codes**(1), **reproctl-help-environment**(7), **reproctl-help-exit-codes**(7), **reproctl-help-json**(7)
+**reproctl-setup**(1), **reproctl-herdr**(1), **reproctl-doctor**(1), **reproctl-cluster**(1), **reproctl-db**(1), **reproctl-start**(1), **reproctl-stop**(1), **reproctl-restart**(1), **reproctl-logs**(1), **reproctl-worktree**(1), **reproctl-completion**(1), **reproctl-exit-codes**(1), **reproctl-help-environment**(7), **reproctl-help-exit-codes**(7), **reproctl-help-json**(7)
