@@ -174,7 +174,9 @@ One team: **Repro** (key `REP`). All issues: `REP-<number>`.
 
 **Milestones**: optional sub-goals within a project. Only create when a project has 3+ issues that form a natural phase.
 
-**Labels** — apply exactly one per issue:
+**Labels**
+
+- Apply exactly one issue-type label to new issues:
 
 | Label       | When to use                            |
 | ----------- | -------------------------------------- |
@@ -182,6 +184,9 @@ One team: **Repro** (key `REP`). All issues: `REP-<number>`.
 | Feature     | New user-facing functionality          |
 | Improvement | Enhancement to existing functionality  |
 | Tech Debt   | Internal quality, refactoring, cleanup |
+
+- Workflow labels are a separate dimension and may be added without replacing the issue-type label. Use at most one lane/workstream label per issue so cross-project plans can be grouped and filtered in Linear.
+- Remove temporary workflow labels when their condition is resolved; keep issue-type labels stable.
 
 **Cycles** are not currently used.
 

@@ -26,14 +26,14 @@ The repo's `Brewfile` installs `jq` for trimming high-volume JSON responses duri
 - Show an issue: `linear issue show ISSUE-1`
 - Show child issues: `linear issue children ISSUE-1`
 - Start work: `linear issue start ISSUE-1`
-- Update issue fields: `linear issue update ISSUE-1 --title "Tracker: Workspace" --status "In Review" --description "..." --label "Feature" --add-label "needs-spec" --remove-label "Bug" --project "Workspace" --milestone "Sprint 1" --priority high --assignee "test@example.com"`
+- Update issue fields: `linear issue update ISSUE-1 --title "Tracker: Workspace" --status "In Review" --description "..." --project "Workspace" --milestone "Sprint 1" --priority high --assignee "test@example.com"`
 - Remove issue relations: `linear issue update ISSUE-1 --remove-related ISSUE-2 --remove-blocks ISSUE-3 --remove-blocked-by ISSUE-4 --remove-duplicate-of ISSUE-5`
 - Assign to self: `linear issue update ISSUE-1 --mine`
 - Reparent an issue: `linear issue update ISSUE-2 --parent ISSUE-1`
 - Remove a parent: `linear issue update ISSUE-2 --remove-parent`
 - Add a comment: `linear issue comment ISSUE-1 "needs follow-up"`
-- Create a document from stdin: `linear document create --title "Runbook" --issue ISSUE-1 < README.md`
-- Show or update a document: `linear document show https://linear.app/.../doc/...` / `linear document update DOC-1 --title "Runbook v2"`
+- Create a document from stdin: `linear document create --title "Runbook" --issue ISSUE-1 --json < README.md`
+- Show or update a document: `linear document show https://linear.app/.../doc/...` / `linear document update DOC-1 --title "Runbook v2" < README.md`
 - Link a document URL to issues: `linear document link https://linear.app/.../doc/... --issue ISSUE-1 --issue ISSUE-2`
 - Compatibility only: `linear issue attach ISSUE-1 --document "Runbook"` (prefer the first-class document commands)
 - List labels: `linear label list`
@@ -62,6 +62,8 @@ The CLI has convenience aliases: `linear issues` = `linear issue list`, `linear 
 - `linear issue update` accepts `--title <title>` for renaming, `--parent <issue-id>` / `--remove-parent` for reparenting, and `--milestone <name>` for milestone association.
 - `linear issue update` accepts repeatable `--remove-related`, `--remove-blocks`, `--remove-blocked-by`, and `--remove-duplicate-of` options. Each removal must match the requested issue, relation type, and direction: `related` is symmetric; `--remove-blocks` requires the current issue as source; `--remove-blocked-by` requires it as target; and `--remove-duplicate-of` matches an outgoing `duplicate` relation.
 - Relation removal deletes only the matched relation entity by its relation ID using the Linear SDK (`deleteIssueRelation`, with `issueRelationDelete` as a compatibility alias), then re-reads the issue to verify that relation ID is absent. Missing targets or relations, unavailable deletion support, an unsuccessful mutation, or failed verification return a non-zero actionable error; unrelated relations are preserved.
+- Document creation and updates read Markdown from stdin. Use `--json` when creating or updating if you need the resulting document URL/ID; the default text output only confirms the title/action. `document update` accepts content from stdin even though the short CLI help only mentions `--title`.
+- Label safety: `--label` replaces the complete label set; repeat it for every label that should remain. The current CLI's `--add-label`/`--remove-label` path may drop existing labels because it reads an empty `labelIds` field. Until fixed, inspect labels with `linear issue show ISSUE --json` and use repeated `--label` flags to write the full intended set.
 - `linear issue list` supports `--mine` for issues assigned to the authenticated user.
 - `linear issue list` supports `--json <fields>` for flat field projection (e.g. `--json id,identifier,title,priority`). Without field args, `--json` returns the full issue object.
 - When creating or updating issue bodies, pass the body through a single-quoted heredoc so Markdown, backticks, and other code spans survive unchanged. Example:
