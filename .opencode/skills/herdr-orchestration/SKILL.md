@@ -32,6 +32,19 @@ The `deliver` CLI (`scripts/deliver.sh`, invoked as `deliver REP-123`) is the pr
 - **Post-PR feedback loop**: after a PR is reviewed, find the workspace for that branch and inject review feedback or CI fix instructions — the same pattern we used for the CI triage sweep.
 - **Completion detection**: monitor `herdr agent wait <target> --status done` to know when a delivered issue's work is complete (PR opened, Linear transitioned).
 
+### Preserve the caller's Herdr session
+
+Herdr-managed processes expose `HERDR_ENV=1`, `HERDR_SESSION`, and
+`HERDR_SOCKET_PATH`. `HERDR_WORKSPACE_ID` can be empty in a session-root pane,
+so do not require it to recognize the active session. When a script launched
+inside Herdr should open a sibling worktree, invoke plain `herdr ...` commands
+so Herdr routes them through the inherited session and socket. Do not force a
+different `--session` or `HERDR_CONFIG_PATH`; that bypasses the session the user
+is already working in. Outside Herdr, a project-scoped session/config can remain
+the fallback. Recovery commands for an inherited session should preserve
+`HERDR_SESSION` and `HERDR_SOCKET_PATH`, but should not set `HERDR_ENV=1` in a
+regular shell.
+
 ## Discovery
 
 ### List all workspaces

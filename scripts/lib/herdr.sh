@@ -22,25 +22,53 @@ herdr_project_context_init() {
     echo "Cannot resolve main checkout path for Herdr: $main_checkout" >&2
     return 1
   }
-  hash_output="$(printf '%s' "$canonical_main" | shasum -a 256 2>/dev/null)" || {
-    echo "Cannot calculate Herdr session identity for $canonical_main" >&2
-    return 1
-  }
-  digest="${hash_output%% *}"
-  if [[ ! "$digest" =~ ^[[:xdigit:]]{64}$ ]]; then
-    echo "Cannot verify Herdr session identity for $canonical_main" >&2
-    return 1
+
+  if [[ "${HERDR_ENV:-}" == "1" ]]; then
+    if [[ -z "${HERDR_SESSION:-}" ]]; then
+      echo "Cannot adopt Herdr context: HERDR_SESSION is missing." >&2
+      return 1
+    fi
+    if [[ -z "${HERDR_SOCKET_PATH:-}" ]]; then
+      echo "Cannot adopt Herdr context: HERDR_SOCKET_PATH is missing." >&2
+      return 1
+    fi
+  else
+    hash_output="$(printf '%s' "$canonical_main" | shasum -a 256 2>/dev/null)" || {
+      echo "Cannot calculate Herdr session identity for $canonical_main" >&2
+      return 1
+    }
+    digest="${hash_output%% *}"
+    if [[ ! "$digest" =~ ^[[:xdigit:]]{64}$ ]]; then
+      echo "Cannot verify Herdr session identity for $canonical_main" >&2
+      return 1
+    fi
   fi
 
   HERDR_PROJECT_CHECKOUT_PATH="$canonical_checkout"
   HERDR_PROJECT_MAIN_CHECKOUT="$canonical_main"
   HERDR_PROJECT_CONFIG_PATH="$canonical_checkout/.herdr/config.toml"
-  HERDR_PROJECT_SESSION_NAME="repro-${digest:0:24}"
+  if [[ "${HERDR_ENV:-}" == "1" ]]; then
+    HERDR_PROJECT_SESSION_NAME="$HERDR_SESSION"
+    HERDR_PROJECT_CONTEXT_MODE="ambient"
+  else
+    HERDR_PROJECT_SESSION_NAME="repro-${digest:0:24}"
+    HERDR_PROJECT_CONTEXT_MODE="project"
+  fi
   export HERDR_PROJECT_CHECKOUT_PATH HERDR_PROJECT_MAIN_CHECKOUT
-  export HERDR_PROJECT_CONFIG_PATH HERDR_PROJECT_SESSION_NAME
+  export HERDR_PROJECT_CONFIG_PATH
+  export HERDR_PROJECT_SESSION_NAME HERDR_PROJECT_CONTEXT_MODE
 }
 
 herdr_project_cmd() {
+  if [[ "${HERDR_ENV:-}" == "1" ]]; then
+    if [[ -z "${HERDR_SESSION:-}" || -z "${HERDR_SOCKET_PATH:-}" \
+      || "${HERDR_PROJECT_CONTEXT_MODE:-}" != "ambient" ]]; then
+      herdr_project_context_init || return $?
+    fi
+    herdr "$@"
+    return $?
+  fi
+
   if [[ -z "${HERDR_PROJECT_SESSION_NAME:-}" || -z "${HERDR_PROJECT_CONFIG_PATH:-}" ]]; then
     herdr_project_context_init || return $?
   fi
@@ -50,6 +78,16 @@ herdr_project_cmd() {
 }
 
 herdr_project_start_recovery_command() {
+  if [[ "${HERDR_ENV:-}" == "1" ]]; then
+    if [[ -z "${HERDR_SESSION:-}" || -z "${HERDR_SOCKET_PATH:-}" \
+      || "${HERDR_PROJECT_CONTEXT_MODE:-}" != "ambient" ]]; then
+      herdr_project_context_init || return $?
+    fi
+    printf 'HERDR_SESSION=%q HERDR_SOCKET_PATH=%q herdr server' \
+      "$HERDR_SESSION" "$HERDR_SOCKET_PATH"
+    return 0
+  fi
+
   if [[ -z "${HERDR_PROJECT_SESSION_NAME:-}" || -z "${HERDR_PROJECT_CONFIG_PATH:-}" ]]; then
     herdr_project_context_init || return $?
   fi
@@ -62,14 +100,15 @@ cmd_herdr_help() {
   cat <<'EOF'
 Usage: reproctl herdr open
 
-Open or reuse the current checkout in the repository's named Herdr session.
-The project config is .herdr/config.toml; Herdr does not expose a supported
-query for the config already loaded by a running server, so its active config
-is reported as unverified. Existing sessions are never stopped or restarted.
+Open or reuse the current checkout in Herdr. Inside a managed Herdr pane,
+reproctl adopts the inherited session and socket. Outside Herdr, it uses a
+deterministic checkout-scoped session and the .herdr/config.toml project config.
+Herdr does not expose a supported query for a running server's loaded config, so
+its active config is reported as unverified. Existing sessions are never
+stopped or restarted.
 
-If Herdr is missing, install it with 'brew install herdr'. If the named
-daemon is unavailable, start it with the session-scoped command printed by
-reproctl.
+If Herdr is missing, install it with 'brew install herdr'. If the active session
+is unavailable, reproctl prints a recovery command for that session.
 EOF
 }
 
@@ -107,7 +146,11 @@ cmd_herdr() {
         return 1
       fi
       echo "Herdr workspace ready: $checkout (${HERDR_WORKSPACE_ID})"
-      echo "Project config selected: $HERDR_PROJECT_CONFIG_PATH"
+      if [[ "${HERDR_PROJECT_CONTEXT_MODE:-}" == "ambient" ]]; then
+        echo "Herdr session adopted: $HERDR_SESSION"
+      else
+        echo "Project config selected: $HERDR_PROJECT_CONFIG_PATH"
+      fi
       ;;
     -h|--help)
       cmd_herdr_help
