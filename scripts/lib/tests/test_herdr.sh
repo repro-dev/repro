@@ -12,6 +12,9 @@ PASS=0
 FAIL=0
 SYSTEM_PATH='/usr/bin:/bin:/usr/sbin:/sbin'
 
+# Keep the standalone fixtures independent of whichever Herdr pane runs them.
+unset HERDR_ENV HERDR_SESSION HERDR_SOCKET_PATH HERDR_WORKSPACE_ID HERDR_CONFIG_PATH
+
 _pass() { printf '  ✔ %s\n' "$1"; PASS=$((PASS + 1)); }
 _fail() { printf '  ✖ %s\n  %s\n' "$1" "${2:-}" >&2; FAIL=$((FAIL + 1)); }
 
@@ -23,6 +26,7 @@ _make_tmpdir() {
 _write_fixture() {
   local tmpdir="$1" repo="$1/repro"
   mkdir -p "$repo" "$tmpdir/bin" "$tmpdir/state"
+  : > "$tmpdir/herdr.log"
   git init -q -b main "$repo"
   git -C "$repo" config user.email test@example.com
   git -C "$repo" config user.name Test
@@ -37,15 +41,28 @@ _write_fixture() {
 
   cat > "$tmpdir/bin/herdr" <<'STUB'
 #!/bin/bash
-if [ "${1:-}" != "--session" ] || [ -z "${2:-}" ]; then
-  echo "missing explicit --session: $*" >&2
-  exit 90
+if [ "${HERDR_ENV:-}" = "1" ]; then
+  if [ "${1:-}" = "--session" ]; then
+    echo "ambient Herdr command forced an explicit --session: $*" >&2
+    exit 90
+  fi
+  if [ -z "${HERDR_SESSION:-}" ] || [ -z "${HERDR_SOCKET_PATH:-}" ]; then
+    echo "ambient Herdr command is missing inherited session/socket metadata: $*" >&2
+    exit 90
+  fi
+  session="$HERDR_SESSION"
+  printf 'CALL: ambient session=%s socket=%s %s\n' "$session" "$HERDR_SOCKET_PATH" "$*" >> "$HERDR_STUB_LOG"
+else
+  if [ "${1:-}" != "--session" ] || [ -z "${2:-}" ]; then
+    echo "missing explicit --session: $*" >&2
+    exit 90
+  fi
+  session="$2"
+  shift 2
+  printf 'CALL: --session %s %s\n' "$session" "$*" >> "$HERDR_STUB_LOG"
 fi
-session="$2"
-shift 2
-printf 'CALL: --session %s %s\n' "$session" "$*" >> "$HERDR_STUB_LOG"
 printf 'CONFIG: %s\n' "${HERDR_CONFIG_PATH:-}" >> "$HERDR_STUB_LOG"
-if [ -z "${HERDR_CONFIG_PATH:-}" ]; then
+if [ "${HERDR_ENV:-}" != "1" ] && [ -z "${HERDR_CONFIG_PATH:-}" ]; then
   echo 'missing HERDR_CONFIG_PATH' >&2
   exit 91
 fi
@@ -138,6 +155,114 @@ _run_reproctl() {
       PATH="$tmpdir/bin:$PATH" \
       bash "$REPROCTL_SH" "$@"
   )
+}
+
+_run_reproctl_with_herdr_context() {
+  local checkout="$1" tmpdir="$2" session="$3" socket_path="$4" config_path="$5"
+  shift 5
+  (
+    cd "$checkout"
+    CALLER_PWD="$checkout" \
+      HERDR_ENV=1 \
+      HERDR_SESSION="$session" \
+      HERDR_SOCKET_PATH="$socket_path" \
+      HERDR_WORKSPACE_ID="" \
+      HERDR_CONFIG_PATH="$config_path" \
+      HERDR_STUB_LOG="$tmpdir/herdr.log" \
+      HERDR_STUB_REGISTRY="$tmpdir/state/workspaces.json" \
+      PATH="$tmpdir/bin:$PATH" \
+      bash "$REPROCTL_SH" "$@"
+  )
+}
+
+test_open_adopts_inherited_session_with_empty_workspace_id() {
+  local tmpdir repo socket_path config_path output rc=0 open_call
+  tmpdir="$(_make_tmpdir)"
+  _write_fixture "$tmpdir"
+  repo="$tmpdir/repro"
+  socket_path="$tmpdir/state/repro.sock"
+  config_path="$tmpdir/state/inherited-config.toml"
+
+  output="$(_run_reproctl_with_herdr_context "$repo" "$tmpdir" repro "$socket_path" "$config_path" herdr open 2>&1)" || rc=$?
+  open_call="$(grep '^CALL: ambient .*worktree open ' "$tmpdir/herdr.log" 2>/dev/null || true)"
+
+  if [ "$rc" -eq 0 ] \
+    && grep -qF "CALL: ambient session=repro socket=$socket_path status --json" "$tmpdir/herdr.log" \
+    && grep -qF "CALL: ambient session=repro socket=$socket_path worktree list --cwd $repo --json" "$tmpdir/herdr.log" \
+    && grep -qF "CALL: ambient session=repro socket=$socket_path worktree open --cwd $repo --path $repo" "$tmpdir/herdr.log" \
+    && printf '%s\n' "$open_call" | grep -qF -- "--cwd $repo --path $repo" \
+    && ! grep -q -- '--session' "$tmpdir/herdr.log" \
+    && grep -F "CONFIG: $config_path" "$tmpdir/herdr.log" >/dev/null \
+    && ! grep -F "CONFIG: $repo/.herdr/config.toml" "$tmpdir/herdr.log" >/dev/null \
+    && printf '%s\n' "$output" | grep -qF "Herdr workspace ready: $repo (ws-open)" \
+    && printf '%s\n' "$output" | grep -qF 'Herdr session adopted: repro'; then
+    _pass 'herdr open adopts the inherited session and socket when HERDR_WORKSPACE_ID is empty'
+  else
+    _fail 'herdr open adopts the inherited session and socket when HERDR_WORKSPACE_ID is empty' \
+      "rc=$rc; open=${open_call:-<absent>}; calls=$(cat "$tmpdir/herdr.log" 2>/dev/null || true); output=$output"
+  fi
+  rm -rf "$tmpdir"
+}
+
+test_unavailable_ambient_session_has_adopted_recovery() {
+  local tmpdir repo socket_path config_path output rc=0 expected_command
+  tmpdir="$(_make_tmpdir)"
+  _write_fixture "$tmpdir"
+  repo="$tmpdir/repro"
+  socket_path="$tmpdir/state/repro.sock"
+  config_path="$tmpdir/state/inherited-config.toml"
+
+  output="$(HERDR_STUB_DOWN=1 _run_reproctl_with_herdr_context \
+    "$repo" "$tmpdir" repro "$socket_path" "$config_path" herdr open 2>&1)" || rc=$?
+  expected_command="$(printf 'HERDR_SESSION=%q HERDR_SOCKET_PATH=%q herdr server' repro "$socket_path")"
+
+  if [ "$rc" -ne 0 ] \
+    && grep -qF "CALL: ambient session=repro socket=$socket_path status --json" "$tmpdir/herdr.log" \
+    && printf '%s\n' "$output" | grep -qF "Start it in the foreground with: $expected_command" \
+    && ! printf '%s\n' "$output" | grep -q 'HERDR_ENV=1' \
+    && ! printf '%s\n' "$output" | grep -q 'HERDR_CONFIG_PATH=' \
+    && ! printf '%s\n' "$output" | grep -q -- '--session' \
+    && ! printf '%s\n' "$output" | grep -q 'repro-[[:xdigit:]]\{24\}' \
+    && ! grep -Eq '^CALL: ambient .*worktree (list|open)( |$)' "$tmpdir/herdr.log"; then
+    _pass 'unavailable inherited session recovery names repro and preserves its socket without a project override'
+  else
+    _fail 'unavailable inherited session recovery names repro and preserves its socket without a project override' \
+      "rc=$rc; expected=$expected_command; output=$output; calls=$(cat "$tmpdir/herdr.log" 2>/dev/null || true)"
+  fi
+  rm -rf "$tmpdir"
+}
+
+test_incomplete_ambient_metadata_fails_closed() {
+  local missing tmpdir repo session socket_path output rc
+
+  for missing in SESSION SOCKET; do
+    tmpdir="$(_make_tmpdir)"
+    _write_fixture "$tmpdir"
+    repo="$tmpdir/repro"
+    session=repro
+    socket_path="$tmpdir/state/repro.sock"
+    if [ "$missing" = "SESSION" ]; then
+      session=""
+    else
+      socket_path=""
+    fi
+
+    rc=0
+    output="$(_run_reproctl_with_herdr_context "$repo" "$tmpdir" "$session" "$socket_path" \
+      "$tmpdir/state/inherited-config.toml" herdr open 2>&1)" || rc=$?
+
+    if [ "$rc" -eq 0 ] || grep -q '^CALL:' "$tmpdir/herdr.log" \
+      || ! printf '%s\n' "$output" | grep -qF "HERDR_$missing" \
+      || printf '%s\n' "$output" | grep -q 'Start it in the foreground with:'; then
+      _fail "ambient Herdr metadata missing $missing fails closed before CLI routing" \
+        "rc=$rc; output=$output; calls=$(cat "$tmpdir/herdr.log" 2>/dev/null || true)"
+      rm -rf "$tmpdir"
+      return
+    fi
+    rm -rf "$tmpdir"
+  done
+
+  _pass 'ambient Herdr metadata missing session or socket fails closed before CLI routing'
 }
 
 test_open_uses_project_config_and_current_checkout() {
@@ -490,6 +615,9 @@ test_direct_open_failure_is_nonzero() {
   rm -rf "$tmpdir"
 }
 
+test_open_adopts_inherited_session_with_empty_workspace_id
+test_unavailable_ambient_session_has_adopted_recovery
+test_incomplete_ambient_metadata_fails_closed
 test_open_uses_project_config_and_current_checkout
 test_open_reuses_workspace_and_uses_one_named_session
 test_registered_but_closed_worktree_is_opened_once
