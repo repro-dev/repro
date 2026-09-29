@@ -1,6 +1,10 @@
-import { Block, Row } from '@jsxstyle/react'
+import { Block, Col, Row } from '@jsxstyle/react'
+import { useAuthContext, useSession, useSessionLoading } from '@repro/auth'
 import { formatTime } from '@repro/date-utils'
 import {
+  Alert,
+  Button,
+  Text,
   ToggleGroup,
   color,
   fontSize,
@@ -14,19 +18,23 @@ import { View } from '@repro/devtools/src/types'
 import { RecordingMode } from '@repro/domain'
 import { Playback, PlaybackProvider, SimpleTimeline } from '@repro/playback'
 import { findErrorAndWarningEvents } from '@repro/source-utils'
-import React, { useEffect, useMemo } from 'react'
+import { type Cancel, fork } from 'fluture'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { DetailsFields } from '../ReportForm/DetailsFields'
 import { AsideRegion, Layout, PlaybackRegion } from '../ReportForm/Layout'
 import { ProgressOverlay } from '../ReportForm/ProgressOverlay'
-import { AgenticSection } from './AgenticSection'
 import { useCaptureUpload } from './CaptureUploadProvider'
 import { type PrivacyOverrides } from './PrivacySection'
-import { RecordingActions } from './useRecordingActions'
+import {
+  type ProjectChoice,
+  ProjectSelection,
+  useProjectCatalog,
+} from './ProjectSelection'
 
 const DEFAULT_SELECTED_DURATION = 60_000
 
 interface CaptureReviewProps {
   onClose: () => void
-  actions: RecordingActions
   playback: Playback
   recordingMode: RecordingMode
   selectedDuration: number
@@ -36,7 +44,6 @@ interface CaptureReviewProps {
 
 export const CaptureReview: React.FC<CaptureReviewProps> = ({
   onClose,
-  actions,
   playback,
   recordingMode,
   selectedDuration,
@@ -62,8 +69,92 @@ export const CaptureReview: React.FC<CaptureReviewProps> = ({
     setSelectedDuration(Math.min(DEFAULT_SELECTED_DURATION, maxTime))
   }, [maxTime, setSelectedDuration])
 
-  const { uploadState, setPrivacyOverrides: setUploadPrivacyOverrides } =
-    useCaptureUpload()
+  const {
+    enqueueUpload,
+    uploadState,
+    setPrivacyOverrides: setUploadPrivacyOverrides,
+  } = useCaptureUpload()
+  const session = useSession()
+  const sessionLoading = useSessionLoading()
+  const authContext = useAuthContext()
+  const { projects, projectsLoading, createProject } = useProjectCatalog(
+    !sessionLoading && session !== null
+  )
+  const [projectChoice, setProjectChoice] = useState<ProjectChoice>(null)
+  const [projectError, setProjectError] = useState<string | null>(null)
+  const [creatingProject, setCreatingProject] = useState(false)
+  const [showSignInPrompt, setShowSignInPrompt] = useState(false)
+  const createCancelRef = useRef<Cancel | null>(null)
+  const signInButtonRef = useRef<HTMLButtonElement | null>(null)
+
+  useEffect(() => {
+    return () => createCancelRef.current?.()
+  }, [])
+
+  useEffect(() => {
+    if (showSignInPrompt) signInButtonRef.current?.focus()
+  }, [showSignInPrompt])
+
+  const projectReady =
+    projectChoice?.type === 'existing' ||
+    (projectChoice?.type === 'create' && projectChoice.name.trim().length > 0)
+  const submitDisabled =
+    sessionLoading ||
+    creatingProject ||
+    uploadState.isUploading ||
+    (session !== null && !projectReady)
+
+  const handleSignIn = useCallback(() => {
+    window.open(
+      `${process.env.REPRO_APP_URL}${authContext.loginPath}`,
+      '_blank',
+      'noopener,noreferrer'
+    )
+  }, [authContext.loginPath])
+
+  const handleReportSubmit = useCallback(
+    (details: { title: string; description: string }) => {
+      if (sessionLoading) return
+
+      if (session === null) {
+        setShowSignInPrompt(true)
+        return
+      }
+
+      setShowSignInPrompt(false)
+      setProjectError(null)
+
+      if (projectChoice?.type === 'existing') {
+        enqueueUpload(
+          projectChoice.projectId,
+          details.title,
+          details.description
+        )
+        return
+      }
+
+      if (projectChoice?.type !== 'create' || !projectChoice.name.trim()) {
+        setProjectError('Select or create a project before submitting.')
+        return
+      }
+
+      setCreatingProject(true)
+      const name = projectChoice.name.trim()
+      createCancelRef.current = fork(() => {
+        setCreatingProject(false)
+        setProjectError('Failed to create project. Please try again.')
+      })((project: { id: string }) => {
+        setCreatingProject(false)
+        if (!project.id) {
+          setProjectError('Failed to create project. Please try again.')
+          return
+        }
+        setProjectChoice({ type: 'existing', projectId: project.id })
+        enqueueUpload(project.id, details.title, details.description)
+      })(createProject(name))
+    },
+    [createProject, enqueueUpload, projectChoice, session, sessionLoading]
+  )
 
   // Sync privacy overrides into the upload provider so its enqueueUpload
   // includes them in the upload payload. Actual event transforms happen
@@ -131,7 +222,54 @@ export const CaptureReview: React.FC<CaptureReviewProps> = ({
         </PlaybackRegion>
 
         <AsideRegion>
-          <AgenticSection getSelectedRecording={actions.getSelectedRecording} />
+          <Col
+            gap={spacing['2xl']}
+            padding={spacing.xl}
+            height="100%"
+            overflowY="auto"
+          >
+            <Text variant="heading3">Create bug report</Text>
+
+            <ProjectSelection
+              ariaLabel="Report project"
+              value={projectChoice}
+              onChange={choice => {
+                setProjectChoice(choice)
+                setProjectError(null)
+              }}
+              projects={projects}
+              projectsLoading={projectsLoading}
+              disabled={
+                sessionLoading || session === null || uploadState.isUploading
+              }
+              creating={creatingProject}
+              error={projectError}
+            />
+
+            <DetailsFields
+              onSubmit={handleReportSubmit}
+              disabled={submitDisabled}
+            />
+
+            {showSignInPrompt && (
+              <Alert type="info">
+                <Col gap={spacing.md} alignItems="flex-start">
+                  <Block>
+                    Sign in to Repro before submitting. Your report details will
+                    stay in place.
+                  </Block>
+                  <Button
+                    ref={signInButtonRef}
+                    variant="contained"
+                    size="small"
+                    onClick={handleSignIn}
+                  >
+                    Sign in
+                  </Button>
+                </Col>
+              </Alert>
+            )}
+          </Col>
         </AsideRegion>
 
         {uploadState.progress && (

@@ -12,9 +12,13 @@ interface FormState {
 
 interface Props {
   onSubmit(data: FormState): void
+  disabled?: boolean
 }
 
-export const DetailsFields: React.FC<Props> = ({ onSubmit }) => {
+export const DetailsFields: React.FC<Props> = ({
+  onSubmit,
+  disabled = false,
+}) => {
   const { handleSubmit, register, formState } = useForm<FormState>({
     defaultValues: {
       title: '',
@@ -51,7 +55,12 @@ export const DetailsFields: React.FC<Props> = ({ onSubmit }) => {
         />
 
         <Row>
-          <Button type="submit" context="success" size="large">
+          <Button
+            type="submit"
+            context="success"
+            size="large"
+            disabled={disabled}
+          >
             <BugPlayIcon size={20} />
             Create Bug Report
           </Button>

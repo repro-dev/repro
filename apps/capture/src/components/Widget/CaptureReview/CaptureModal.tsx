@@ -120,7 +120,6 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
       >
         <CaptureReview
           onClose={onClose}
-          actions={actions}
           playback={playback}
           recordingMode={recordingMode}
           selectedDuration={selectedDuration}

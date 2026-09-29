@@ -11538,6 +11538,315 @@
               ]
             }
           ]
+        },
+        {
+          "type": "group",
+          "id": "4e500e80-80c9-5293-98d0-ff8b3c2dc964",
+          "name": "capture",
+          "x": 0,
+          "y": 0,
+          "children": [
+            {
+              "type": "group",
+              "id": "2d96ee03-5e47-51b4-90ea-c8a8b4b3c34a",
+              "name": "review",
+              "x": 0,
+              "y": 0,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "S1702",
+                  "name": "Capture: Review",
+                  "x": 5200,
+                  "y": 0,
+                  "width": 1440,
+                  "height": 960,
+                  "fill": "$color-bg-subtle",
+                  "layout": "horizontal",
+                  "gap": "$spacing-2xl",
+                  "padding": "$spacing-3xl",
+                  "clip": true,
+                  "metadata": {
+                    "type": "screen",
+                    "stateFamily": "screens/capture/review",
+                    "state": "content"
+                  },
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "W1702",
+                      "name": "Playback region",
+                      "width": "fill_container",
+                      "height": "fill_container",
+                      "layout": "vertical",
+                      "gap": "$spacing-md",
+                      "children": [
+                        {
+                          "type": "ref",
+                          "id": "P1702",
+                          "ref": "JFccj",
+                          "name": "Playback heading",
+                          "width": "fill_container",
+                          "descendants": {
+                            "F4X4h": {
+                              "content": "Recording playback"
+                            },
+                            "oDVi3": {
+                              "content": "Captured page preview and timeline controls"
+                            }
+                          }
+                        },
+                        {
+                          "type": "frame",
+                          "id": "V1702",
+                          "name": "Playback viewport",
+                          "width": "fill_container",
+                          "height": "fill_container",
+                          "fill": "$color-bg-surface",
+                          "cornerRadius": "$radius-sm",
+                          "stroke": "$color-border-default",
+                          "strokeWidth": 1,
+                          "layout": "vertical",
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "gap": "$spacing-md",
+                          "padding": "$spacing-2xl",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "T1702",
+                              "name": "Playback label",
+                              "width": "fill_container",
+                              "textGrowth": "fixed-width",
+                              "fill": "$color-text-secondary",
+                              "content": "Captured browser session",
+                              "lineHeight": 1.25,
+                              "fontFamily": "$font-sans",
+                              "fontSize": "$font-size-lg",
+                              "fontWeight": "600",
+                              "textAlign": "center"
+                            },
+                            {
+                              "type": "text",
+                              "id": "D1702",
+                              "name": "Playback description",
+                              "width": "fill_container",
+                              "textGrowth": "fixed-width",
+                              "fill": "$color-text-muted",
+                              "content": "The recorded page remains available to inspect.",
+                              "lineHeight": 1.5,
+                              "fontFamily": "$font-sans",
+                              "fontSize": "$font-size-sm",
+                              "fontWeight": "normal",
+                              "textAlign": "center"
+                            },
+                            {
+                              "type": "text",
+                              "id": "L1702",
+                              "name": "Playback timeline",
+                              "width": "fill_container",
+                              "textGrowth": "fixed-width",
+                              "fill": "$color-text-secondary",
+                              "content": "00:42  ·  Timeline and events",
+                              "lineHeight": 1.5,
+                              "fontFamily": "$font-sans",
+                              "fontSize": "$font-size-xs",
+                              "fontWeight": "600",
+                              "textAlign": "center"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "ref",
+                      "id": "C1702",
+                      "ref": "JFccj",
+                      "name": "Bug report form",
+                      "width": 420,
+                      "height": "fill_container",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "H1703",
+                          "name": "Form title",
+                          "width": "fill_container",
+                          "textGrowth": "fixed-width",
+                          "fill": "$color-text-default",
+                          "content": "Create a bug report",
+                          "lineHeight": 1.25,
+                          "fontFamily": "$font-sans",
+                          "fontSize": "$font-size-lg",
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "H1704",
+                          "name": "Form introduction",
+                          "width": "fill_container",
+                          "textGrowth": "fixed-width",
+                          "fill": "$color-text-secondary",
+                          "content": "Choose a project and describe what happened.",
+                          "lineHeight": 1.5,
+                          "fontFamily": "$font-sans",
+                          "fontSize": "$font-size-sm",
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "F1702",
+                          "name": "Project selection",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": "$spacing-sm",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "L1703",
+                              "name": "Project label",
+                              "fill": "$color-text-label",
+                              "content": "Project",
+                              "fontFamily": "$font-sans",
+                              "fontSize": "$font-size-sm",
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "ref",
+                              "id": "S1703",
+                              "ref": "mOtgf",
+                              "name": "Project select",
+                              "width": "fill_container",
+                              "descendants": {
+                                "oe0kK": {
+                                  "width": "fill_container"
+                                },
+                                "glajW": {
+                                  "content": "MVP Pilot"
+                                },
+                                "UZ8IN": {
+                                  "width": "fill_container"
+                                },
+                                "DW3Eb": {
+                                  "content": "MVP Pilot"
+                                },
+                                "uQ081": {
+                                  "content": "Product bugs"
+                                },
+                                "aCOsd": {
+                                  "content": "Create new project…"
+                                }
+                              }
+                            },
+                            {
+                              "type": "text",
+                              "id": "H1702",
+                              "name": "Project help",
+                              "width": "fill_container",
+                              "textGrowth": "fixed-width",
+                              "fill": "$color-text-muted",
+                              "content": "Choose an existing project or create a new one.",
+                              "lineHeight": 1.5,
+                              "fontFamily": "$font-sans",
+                              "fontSize": "$font-size-xs",
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "ref",
+                          "id": "T1703",
+                          "ref": "Q6CWT",
+                          "name": "Title field",
+                          "width": "fill_container",
+                          "descendants": {
+                            "WGsF1": {
+                              "content": "Title"
+                            },
+                            "Mtldk": {
+                              "width": "fill_container"
+                            },
+                            "k7Szg": {
+                              "content": "What is the bug?",
+                              "fill": "$color-text-muted"
+                            },
+                            "v16Rdg": {
+                              "content": ""
+                            }
+                          }
+                        },
+                        {
+                          "type": "ref",
+                          "id": "D1703",
+                          "ref": "Q6CWT",
+                          "name": "Description field",
+                          "width": "fill_container",
+                          "descendants": {
+                            "WGsF1": {
+                              "content": "Description"
+                            },
+                            "Mtldk": {
+                              "width": "fill_container",
+                              "height": 136,
+                              "alignItems": "start",
+                              "padding": [
+                                "$spacing-md",
+                                "$spacing-lg"
+                              ]
+                            },
+                            "k7Szg": {
+                              "content": "What else would help reproduce it?",
+                              "fill": "$color-text-muted",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container"
+                            },
+                            "v16Rdg": {
+                              "content": ""
+                            }
+                          }
+                        },
+                        {
+                          "type": "ref",
+                          "id": "B1702",
+                          "ref": "eqZG0",
+                          "name": "Create Bug Report",
+                          "fill": "$color-success",
+                          "descendants": {
+                            "s0ellJ": {
+                              "content": "Create Bug Report"
+                            }
+                          }
+                        },
+                        {
+                          "type": "ref",
+                          "id": "A1702",
+                          "ref": "flKba",
+                          "name": "Sign-in prompt",
+                          "width": "fill_container",
+                          "descendants": {
+                            "aXE4T": {
+                              "content": "Sign in to submit. Your project and report details will stay here."
+                            }
+                          }
+                        },
+                        {
+                          "type": "ref",
+                          "id": "B1703",
+                          "ref": "eqZG0",
+                          "name": "Sign in action",
+                          "fill": "$color-info",
+                          "descendants": {
+                            "s0ellJ": {
+                              "content": "Sign in"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
         }
       ]
     }

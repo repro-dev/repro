@@ -62,6 +62,50 @@ describe('Routers > Project recording membership', () => {
 
     expect(createRes.statusCode).toEqual(201)
     const recording = createRes.json()
+    expect(recording.title).toEqual('Uploaded recording')
+    expect(recording.description).toEqual('Created through the project route')
+
+    const listRes = await app.inject({
+      method: 'GET',
+      url: `/${project.id}/recordings`,
+      cookies: {
+        [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
+      },
+    })
+
+    expect(listRes.statusCode).toEqual(200)
+    expect(listRes.json()).toEqual({ items: [recording] })
+  })
+
+  it('accepts and persists an empty description for uploaded recordings', async () => {
+    const [project, , session] = await harness.loadFixtures([
+      fixtures.project.ProjectA,
+      fixtures.project.UserA_ProjectA_Contributor,
+      fixtures.account.UserA_Session,
+    ])
+
+    const createRes = await app.inject({
+      method: 'POST',
+      url: `/${project.id}/recordings`,
+      body: {
+        title: 'No description provided',
+        url: 'https://example.com/no-description',
+        description: '',
+        mode: RecordingMode.Replay,
+        duration: 0,
+        browserName: 'Chrome',
+        browserVersion: '120.0.0',
+        operatingSystem: 'Linux x86_64',
+      },
+      cookies: {
+        [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
+      },
+    })
+
+    expect(createRes.statusCode).toEqual(201)
+    const recording = createRes.json()
+    expect(recording.title).toEqual('No description provided')
+    expect(recording.description).toEqual('')
 
     const listRes = await app.inject({
       method: 'GET',

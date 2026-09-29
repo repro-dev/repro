@@ -8,6 +8,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react'
 import { type FutureInstance, reject, resolve } from 'fluture'
 import assert from 'node:assert/strict'
@@ -38,7 +39,7 @@ let mockFetch: (
 const originalPostMessage = window.postMessage.bind(window)
 window.postMessage = () => {}
 
-// Polyfill ResizeObserver and scrollTo for jsdom — used by agentic-ui hooks
+// Polyfill ResizeObserver and scrollTo for jsdom.
 class ResizeObserverStub {
   observe() {}
   unobserve() {}
@@ -130,15 +131,6 @@ mock.module('@repro/devtools', {
   },
 })
 
-/**
- * Mock AgenticSection to avoid infinite re-render in AgenticView under jsdom.
- */
-mock.module('./AgenticSection', {
-  namedExports: {
-    AgenticSection: () => null,
-  },
-})
-
 mock.module('~/state', {
   namedExports: {
     useRecordingMode: () => [1, noop],
@@ -216,6 +208,10 @@ describe('CaptureModal', () => {
     )
   }
 
+  function getSavePopover() {
+    return screen.getByLabelText('Save recording')
+  }
+
   // ── Save button behavior ──
 
   it('render Save button trigger text', () => {
@@ -288,7 +284,9 @@ describe('CaptureModal', () => {
     fireEvent.click(screen.getByText('Save'))
 
     // Wait for projects to load and Select placeholder to appear
-    const selectPlaceholder = await screen.findByText('Select a project…')
+    const selectPlaceholder = await within(getSavePopover()).findByText(
+      'Select a project…'
+    )
     assert.ok(
       selectPlaceholder,
       'Project Select placeholder should render in popover'
@@ -303,10 +301,12 @@ describe('CaptureModal', () => {
     fireEvent.click(screen.getByText('Save'))
 
     // Wait for projects to load
-    await screen.findByText('Select a project…')
+    await within(getSavePopover()).findByText('Select a project…')
 
     // Open the Select dropdown
-    const selectTrigger = screen.getByLabelText('Select project')
+    const selectTrigger = within(getSavePopover()).getByLabelText(
+      'Select project'
+    )
     assert.ok(selectTrigger, 'Select trigger should be rendered')
     fireEvent.click(selectTrigger)
 
@@ -326,24 +326,26 @@ describe('CaptureModal', () => {
     fireEvent.click(screen.getByText('Save'))
 
     // Wait for projects to load
-    await screen.findByText('Select a project…')
+    await within(getSavePopover()).findByText('Select a project…')
 
     // Open the Select dropdown
-    fireEvent.click(screen.getByLabelText('Select project'))
+    fireEvent.click(within(getSavePopover()).getByLabelText('Select project'))
 
     // Click the "Create new project…" option
     const createOption = await screen.findByText('Create new project…')
     fireEvent.click(createOption)
 
-    // The Select should still be visible with the same placeholder
-    const selectPlaceholder = screen.getByText('Select a project…')
+    // The Select should remain visible in create mode.
+    const selectTrigger = within(getSavePopover()).getByLabelText(
+      'Select project'
+    )
     assert.ok(
-      selectPlaceholder,
+      selectTrigger,
       'Select should remain visible after selecting create option'
     )
 
     // The project name input should appear below the Select
-    const input = screen.getByPlaceholderText('Project name')
+    const input = within(getSavePopover()).getByPlaceholderText('Project name')
     assert.ok(
       input,
       'Project name input should appear after selecting create option'
@@ -367,11 +369,15 @@ describe('CaptureModal', () => {
     fireEvent.click(screen.getByText('Save'))
 
     // Wait for loading to complete — the input should appear directly
-    const input = await screen.findByPlaceholderText('Project name')
+    const input = await within(getSavePopover()).findByPlaceholderText(
+      'Project name'
+    )
     assert.ok(input, 'Project name input should render when no projects exist')
 
     // Select placeholder should NOT be present
-    const selectPlaceholder = screen.queryByText('Select a project…')
+    const selectPlaceholder = within(getSavePopover()).queryByText(
+      'Select a project…'
+    )
     assert.equal(
       selectPlaceholder,
       null,
@@ -379,7 +385,7 @@ describe('CaptureModal', () => {
     )
 
     // No inline Create button should exist
-    const createButton = screen.queryByText('Create')
+    const createButton = within(getSavePopover()).queryByText('Create')
     assert.equal(
       createButton,
       null,
@@ -397,10 +403,12 @@ describe('CaptureModal', () => {
     fireEvent.click(screen.getByText('Save'))
 
     // Wait for projects to load
-    await screen.findByText('Select a project…')
+    await within(getSavePopover()).findByText('Select a project…')
 
     // Select a project from the dropdown
-    const selectTrigger = screen.getByLabelText('Select project')
+    const selectTrigger = within(getSavePopover()).getByLabelText(
+      'Select project'
+    )
     fireEvent.click(selectTrigger)
 
     // Click a project option
@@ -408,7 +416,9 @@ describe('CaptureModal', () => {
     fireEvent.click(option)
 
     // Fill in the title field (required for Save to be enabled)
-    const titleInput = screen.getByPlaceholderText('What did you record?')
+    const titleInput = within(getSavePopover()).getByPlaceholderText(
+      'What did you record?'
+    )
     fireEvent.input(titleInput, { target: { value: 'My test recording' } })
 
     // The Save button inside the popover should now be enabled
@@ -459,23 +469,25 @@ describe('CaptureModal', () => {
     fireEvent.click(screen.getByText('Save'))
 
     // Wait for projects to load
-    await screen.findByText('Select a project…')
+    await within(getSavePopover()).findByText('Select a project…')
 
     // Switch to create mode via the Select
-    fireEvent.click(screen.getByLabelText('Select project'))
+    fireEvent.click(within(getSavePopover()).getByLabelText('Select project'))
 
     // Wait for "Create new project…" in the dropdown
     const createOption = await screen.findByText('Create new project…')
     fireEvent.click(createOption)
 
     // Type a project name
-    const input = screen.getByPlaceholderText(
+    const input = within(getSavePopover()).getByPlaceholderText(
       'Project name'
     ) as HTMLInputElement
     fireEvent.input(input, { target: { value: 'My New Project' } })
 
     // Fill in the title (required for Save to be enabled)
-    const titleInput = screen.getByPlaceholderText('What did you record?')
+    const titleInput = within(getSavePopover()).getByPlaceholderText(
+      'What did you record?'
+    )
     fireEvent.input(titleInput, { target: { value: 'My test recording' } })
 
     // Click Save instead of Create
@@ -522,21 +534,23 @@ describe('CaptureModal', () => {
     fireEvent.click(screen.getByText('Save'))
 
     // Wait for projects to load
-    await screen.findByText('Select a project…')
+    await within(getSavePopover()).findByText('Select a project…')
 
     // Switch to create mode via the Select
-    fireEvent.click(screen.getByLabelText('Select project'))
+    fireEvent.click(within(getSavePopover()).getByLabelText('Select project'))
     const createOption = await screen.findByText('Create new project…')
     fireEvent.click(createOption)
 
     // Type name
-    const input = screen.getByPlaceholderText(
+    const input = within(getSavePopover()).getByPlaceholderText(
       'Project name'
     ) as HTMLInputElement
     fireEvent.input(input, { target: { value: 'New Project' } })
 
     // Fill in the title (required for Save to be enabled)
-    const titleInput = screen.getByPlaceholderText('What did you record?')
+    const titleInput = within(getSavePopover()).getByPlaceholderText(
+      'What did you record?'
+    )
     fireEvent.input(titleInput, { target: { value: 'My test recording' } })
 
     // Click Save instead of Create
@@ -583,10 +597,12 @@ describe('CaptureModal', () => {
     fireEvent.click(screen.getByText('Save'))
 
     // Wait for data to load and create form to appear
-    await screen.findByPlaceholderText('Project name')
+    await within(getSavePopover()).findByPlaceholderText('Project name')
 
     // Fill in title but leave project name empty
-    const titleInput = screen.getByPlaceholderText('What did you record?')
+    const titleInput = within(getSavePopover()).getByPlaceholderText(
+      'What did you record?'
+    )
     fireEvent.input(titleInput, { target: { value: 'My test recording' } })
 
     // Save button should be disabled because project name is empty
@@ -618,7 +634,9 @@ describe('CaptureModal', () => {
     fireEvent.click(screen.getByText('Save'))
 
     // Before the async fetch resolves, the loading state should be visible
-    const loadingPlaceholder = screen.queryByText('Loading projects…')
+    const loadingPlaceholder = within(getSavePopover()).queryByText(
+      'Loading projects…'
+    )
     // Note: due to fluture's async resolution, the fetch might resolve before
     // this assertion runs. If it doesn't show, the loading was too fast to observe,
     // which is also acceptable behavior.

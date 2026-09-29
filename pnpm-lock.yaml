@@ -417,18 +417,9 @@ importers:
       '@jsxstyle/react':
         specifier: ^3.0.1
         version: 3.0.1(@types/react@18.3.10)(react@18.3.1)
-      '@m2d/react-markdown':
-        specifier: ^1.0.0
-        version: 1.0.0(@types/react@18.3.10)(react@18.3.1)
       '@react-spring/web':
         specifier: ^9.7.5
         version: 9.7.5(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@repro/agentic':
-        specifier: workspace:*
-        version: link:../../packages/agentic
-      '@repro/agentic-ui':
-        specifier: workspace:*
-        version: link:../../packages/agentic-ui
       '@repro/analytics':
         specifier: workspace:*
         version: link:../../packages/analytics
@@ -513,9 +504,6 @@ importers:
       detect-browser:
         specifier: ^5.3.0
         version: 5.3.0
-      event-stream-parser:
-        specifier: ^1.0.2
-        version: 1.0.2
       fflate:
         specifier: ^0.7.3
         version: 0.7.3
@@ -7439,10 +7427,6 @@ packages:
   etag@1.8.1:
     resolution: {integrity: sha512-aIL5Fx7mawVa300al2BnEE4iNvo1qETxLrPI/o05L7z6go7fCw1J6EQmbK4FmJ2AS7kgVF/KEZWufBfdClMcPg==}
     engines: {node: '>= 0.6'}
-
-  event-stream-parser@1.0.2:
-    resolution: {integrity: sha512-1kjvYFXbllDc7ouFuFk6FhYA+B6Qk1dg7XpUU0Cmi11bf/ixijhoygVuXDRN7XeLUUwZ0GmF89VjNyOvlXEO5A==}
-    engines: {node: '>=18.0.0'}
 
   event-target-shim@5.0.1:
     resolution: {integrity: sha512-i/2XbnSz/uxRCU6+NdVJgKWDTM427+MqYbkQzD321DuCQJUqOuJKIA0IM2+W2xtYHdKOmZ4dR6fExsd4SXL+WQ==}
@@ -15817,8 +15801,6 @@ snapshots:
   esutils@2.0.3: {}
 
   etag@1.8.1: {}
-
-  event-stream-parser@1.0.2: {}
 
   event-target-shim@5.0.1: {}
 
