@@ -1,8 +1,15 @@
 import assert from 'node:assert/strict'
 import { afterEach, describe, it, mock } from 'node:test'
 import React from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import * as ReactRouter from 'react-router'
-import { Route, Routes } from 'react-router-dom'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
+
+// @types/node lags the Node 26 runtime: mock.module accepts options.exports.
+const mockModule = mock.module.bind(mock) as unknown as (
+  specifier: string,
+  options: Record<string, unknown>
+) => void
 
 globalThis.document = {
   // Return the app root so the bootstrap path runs during module load.
@@ -183,6 +190,33 @@ mock.module('./routes/HealthRoute', {
   },
 })
 
+// RequireAdminSession is a passthrough: the unmatched-path matrix below only
+// covers authenticated users. In production, anonymous users hit the login
+// redirect before any route matching occurs.
+mockModule('./components/RequireAdminSession', {
+  exports: {
+    RequireAdminSession: () => <ReactRouter.Outlet />,
+  },
+})
+
+mockModule('./components/RequireAdminStaffSession', {
+  exports: {
+    RequireAdminStaffSession: () => <ReactRouter.Outlet />,
+  },
+})
+
+mockModule('./components/NotFoundRoute', {
+  exports: {
+    NotFoundRoute: () => <div>not-found marker</div>,
+  },
+})
+
+mockModule('./components/Loading', {
+  exports: {
+    Loading: () => <div>Loading…</div>,
+  },
+})
+
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { AppRoutes } = require('./index') as typeof import('./index')
 
@@ -280,6 +314,14 @@ function findElementByName(
   return null
 }
 
+function renderAppRoutesAt(initialEntry: string) {
+  return renderToStaticMarkup(
+    <MemoryRouter initialEntries={[initialEntry]}>
+      <AppRoutes />
+    </MemoryRouter>
+  )
+}
+
 describe('AppRoutes', () => {
   it('mounts AuthProvider with the admin base path and browser login path', () => {
     assert.deepEqual(authProviderProps, {
@@ -327,5 +369,34 @@ describe('AppRoutes', () => {
         'StaffUsersRoute',
       ]
     )
+  })
+
+  it('renders the not-found catch-all behind the admin session boundary', () => {
+    const routesElement = AppRoutes({})
+    assert.ok(React.isValidElement(routesElement))
+    assert.equal(routesElement.type, Routes)
+
+    const routeTree = collectRouteTree(routesElement.props.children)
+    const catchAllPath = findRoutePath(routeTree, route => route.path === '*')
+
+    assert.ok(catchAllPath)
+    assert.deepEqual(
+      catchAllPath.map(route => getComponentName(route.element)),
+      ['Layout', 'RequireAdminSession', 'NotFoundRoute']
+    )
+  })
+
+  it('renders the not-found route for an unmatched path and never a known route', () => {
+    const html = renderAppRoutesAt('/nope')
+
+    assert.match(html, /not-found marker/)
+    assert.doesNotMatch(html, /health route/)
+  })
+
+  it('renders a known route at its path (positive control for the catch-all)', () => {
+    const html = renderAppRoutesAt('/health')
+
+    assert.match(html, /health route/)
+    assert.doesNotMatch(html, /not-found marker/)
   })
 })

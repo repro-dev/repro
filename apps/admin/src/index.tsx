@@ -8,6 +8,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { AuthLayout } from './AuthLayout'
 import { GlobalErrorBoundary } from './components/GlobalErrorBoundary'
 import { Loading } from './components/Loading'
+import { NotFoundRoute } from './components/NotFoundRoute'
 import { RequireAdminSession } from './components/RequireAdminSession'
 import { RequireAdminStaffSession } from './components/RequireAdminStaffSession'
 import { defaultEnv as env } from './config/env'
@@ -65,6 +66,7 @@ export const AppRoutes: React.FC = () => (
           <Route path="staff-users" element={<StaffUsersRoute />} />
           <Route path="users/:userId" element={<UserDetailRoute />} />
         </Route>
+        <Route path="*" element={<NotFoundRoute />} />
       </Route>
     </Route>
 
@@ -75,9 +77,10 @@ export const AppRoutes: React.FC = () => (
       />
       {/*
        * Backward compatibility: old links may still point to
-       * /recordings/:recordingId. projectId will be undefined
-       * here, which RecordingRoute handles by falling back to
-       * empty string (the original behavior for these cases).
+       * /recordings/:recordingId. RecordingRoute resolves the owning
+       * project via the staff project-lookup endpoint
+       * (GET /staff/recordings/:recordingId/project) and redirects to
+       * the canonical /projects/:projectId/recordings/:recordingId route.
        */}
       <Route path="recordings/:recordingId" element={<RecordingRoute />} />
     </Route>

@@ -444,5 +444,35 @@ export function createStaffRouter(
         })
       )
     })
+
+    // GET /recordings/:recordingId/project — resolve the project containing a
+    // recording (staff-only). Backing lookup for the admin recording detail
+    // backward-compat route.
+    const recordingProjectSchema = {
+      params: z.object({
+        recordingId: z.string(),
+      }),
+    } as const
+
+    app.get<{
+      Params: z.infer<typeof recordingProjectSchema.params>
+    }>(
+      '/recordings/:recordingId/project',
+      { schema: recordingProjectSchema },
+      (req, res) => {
+        const { recordingId } = req.params
+        respondWith(
+          res,
+          go(function* () {
+            const user = yield req.getCurrentUser()
+            yield accountService.ensureStaffUser(user)
+            const projectId = yield projectService.getProjectIdForRecording(
+              recordingId
+            )
+            return { projectId }
+          })
+        )
+      }
+    )
   }
 }

@@ -344,6 +344,30 @@ export function createProjectService(
     ).pipe(map(() => undefined))
   }
 
+  function getProjectIdForRecording(
+    recordingId: string
+  ): FutureInstance<Error, string | null> {
+    const decodedRecordingId = decodeId(recordingId)
+
+    if (decodedRecordingId == null) {
+      return reject(badRequest('Invalid recording ID'))
+    }
+
+    // The schema enforces one project per recording (project_recordings has a
+    // UNIQUE constraint on recordingId), so this resolves at most one row.
+    // executeTakeFirst() treats a missing row as null, and the projectId
+    // ordering is a deterministic tie-break safeguard so the lookup stays
+    // stable even if a duplicate row ever appeared.
+    return attemptQuery(() =>
+      database
+        .selectFrom('project_recordings')
+        .select('projectId')
+        .where('recordingId', '=', decodedRecordingId)
+        .orderBy('projectId asc')
+        .executeTakeFirst()
+    ).pipe(map(row => (row ? encodeId(row.projectId) : null)))
+  }
+
   function createRecordingForProject(
     projectId: string,
     authorId: string,
@@ -456,6 +480,7 @@ export function createProjectService(
     ensureUserIsProjectContributor,
     ensureUserIsProjectAdmin,
     ensureRecordingBelongsToProject,
+    getProjectIdForRecording,
 
     // Queries
     getProjectById,

@@ -53,6 +53,19 @@ Modules with module-level code (agent subscriptions, worker initialization, etc.
 - Be careful when reusing fixtures across projects or packages. Shared recording fixtures can embed assumptions that collide when the consuming project differs.
 - If a fixture behaves differently across contexts, keep the divergence explicit in the test rather than hiding it in unrelated setup.
 
+### State-matrix render tests
+
+Stateful surfaces (billing states, pagination states, health agreement, router catch-alls, detail-route resolution) get a **state-matrix render test**: one matrix with a **positive AND a negative assertion per state** — e.g. the free-plan state must render the plan name AND must NOT render the "Billing period" row, renewal date, or Cancel button.
+
+Conventions (established by REP-1649):
+
+- **Colocation**: add the matrix as a sibling `*.state-matrix.test.tsx` (e.g. `BillingSettingsRoute.state-matrix.test.tsx`), extend the surface's existing test file, or add a new colocated file when the matrix spans multiple components — whichever keeps the file under the ~400-line CI guardrail (`scripts/check-test-file-size.sh`; >500 lines is an error).
+- **Fix-gating**: a state-logic fix ships only together with the matrix that fails without it. If a matrix test passes without any production change, that is fine (it documents current behavior); if a fix is included, the matrix must demonstrate the documented failure against the pre-fix behavior first (red → green).
+- **Revert-verification**: for behavioral fixes, temporarily revert the one fixed file (`git checkout HEAD -- <file>` before the fix is committed, or `git checkout HEAD~1 -- <file>` after), re-run the matrix, and confirm the documented tests fail — then restore and re-run green. Record per-test results so the PR body can cite them.
+- **Realistic fixtures**: live-state fixtures use realistic values (real-looking URLs like `https://vendors.paddle.com/subscription-portal/ps_3xk29f`, plausible ids like `acc_8f42c1e9`). Never present `example.com` or `"foo"`-class placeholders as live state.
+- **Negative assertions must be behavioral, not vacuous**: assert the absence of specific UI (a row, a button, a route marker) or that a fetch did not fire — never assert on mock internals. When the surface needs module mocks, prefer mocking local app modules over `@repro/design` (never mock the design system in consumer tests — assert real DOM).
+- Examples: `apps/workspace/src/routes/BillingSettingsRoute/BillingSettingsRoute.state-matrix.test.tsx` (4-state billing matrix), `apps/admin/src/routes/RecordingRoute/RecordingRoute.test.tsx` (detail-route resolution matrix), `apps/admin/src/components/HealthStatusAgreement.test.tsx` (chip ↔ page agreement).
+
 ## 4. Interpreting failures
 
 - Separate harness/setup failures from product regressions before editing code.
