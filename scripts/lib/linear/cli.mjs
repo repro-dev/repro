@@ -12,6 +12,7 @@ import {
   createIssueLabelWithFallback,
   createIssueWithFallback,
   createIssueRelationWithFallback,
+  deleteIssueRelationWithFallback,
   createLinearClient,
   callBoundMethod,
   fetchIssueByNumber,
@@ -197,6 +198,14 @@ function parseOptions(args, allowed) {
       out.blockedBy = [...(out.blockedBy ?? []), next];
     else if (arg === "--duplicate-of")
       out.duplicateOf = [...(out.duplicateOf ?? []), next];
+    else if (arg === "--remove-related")
+      out.removeRelated = [...(out.removeRelated ?? []), next];
+    else if (arg === "--remove-blocks")
+      out.removeBlocks = [...(out.removeBlocks ?? []), next];
+    else if (arg === "--remove-blocked-by")
+      out.removeBlockedBy = [...(out.removeBlockedBy ?? []), next];
+    else if (arg === "--remove-duplicate-of")
+      out.removeDuplicateOf = [...(out.removeDuplicateOf ?? []), next];
     else if (arg === "--parent") out.parent = next;
     else if (arg === "--priority") out.priority = next;
     else if (arg === "--assignee") out.assignee = next;
@@ -410,6 +419,15 @@ function issueHelp() {
     "    --remove-parent",
     "    --assignee <name|email>",
     "    --mine",
+    "    --related <issue-id> (repeatable)",
+    "    --blocks <issue-id> (repeatable)",
+    "    --blocked-by <issue-id> (repeatable)",
+    "    --duplicate-of <issue-id> (repeatable)",
+    "    --remove-related <issue-id> (repeatable)",
+    "    --remove-blocks <issue-id> (repeatable)",
+    "    --remove-blocked-by <issue-id> (repeatable)",
+    "    --remove-duplicate-of <issue-id> (repeatable)",
+    "    Relation removals match issue, type, and direction and verify the relation ID is absent.",
     "  comment <id> <body>",
     "  attach <id> --document <title>",
     "    Compatibility command; prefer linear document create --issue <id>",
@@ -835,6 +853,18 @@ async function resolveIssueConnection(issue, value, first = 50) {
   }
 
   return resolveRelationValue(value);
+}
+
+async function readIssueRelationEdges(issue) {
+  const [relations, inverseRelations] = await Promise.all([
+    resolveIssueConnection(issue, issue.relations),
+    resolveIssueConnection(issue, issue.inverseRelations),
+  ]);
+
+  return [
+    ...(relations?.nodes ?? []).map((relation) => ({ relation })),
+    ...(inverseRelations?.nodes ?? []).map((relation) => ({ relation })),
+  ];
 }
 
 async function serializeMilestoneProject(milestone, project = null) {
@@ -2120,6 +2150,155 @@ async function issueCreateCommand(args, context) {
   };
 }
 
+async function removeIssueRelationWithVerification({
+  context,
+  client,
+  team,
+  issue,
+  issueIdentifier,
+  spec,
+  issueResolutionCache,
+  batchRelationResult,
+}) {
+  let targetIssue;
+  try {
+    targetIssue = (
+      await resolveIssueByIdentifierOnTeam(
+        context,
+        client,
+        team,
+        spec.targetIssueIdentifier,
+        issueResolutionCache,
+        batchRelationResult,
+      )
+    ).issue;
+  } catch (error) {
+    runtimeError(
+      `Cannot ${spec.flag} ${spec.targetIssueIdentifier}: target issue could not be resolved. ${error?.message ?? error}`,
+    );
+  }
+
+  if (!targetIssue?.id) {
+    runtimeError(
+      `Cannot ${spec.flag} ${spec.targetIssueIdentifier}: the resolved target has no issue ID.`,
+    );
+  }
+
+  const issueNumber = parseIssueIdentifier(issueIdentifier).number;
+  const readCurrentIssue = async () => {
+    const response = await fetchIssueByNumber(client, team, issueNumber);
+    return response?.nodes?.[0] ?? null;
+  };
+
+  let currentIssue;
+  let relationEdges;
+  try {
+    currentIssue = await readCurrentIssue();
+    if (!currentIssue) {
+      runtimeError(
+        `Cannot ${spec.flag} ${spec.targetIssueIdentifier}: current issue ${issueIdentifier} could not be re-read.`,
+      );
+    }
+    if (currentIssue.id !== issue.id) {
+      runtimeError(
+        `Cannot ${spec.flag} ${spec.targetIssueIdentifier}: re-read ${issueIdentifier} resolved to a different issue.`,
+      );
+    }
+    relationEdges = await readIssueRelationEdges(currentIssue);
+  } catch (error) {
+    runtimeError(
+      `Cannot read relation state for ${spec.flag} ${spec.targetIssueIdentifier}: ${error?.message ?? error}`,
+    );
+  }
+
+  const matchingRelations = new Map();
+  let matchingRelationHasNoId = false;
+  try {
+    for (const { relation } of relationEdges) {
+      if (relation.type !== spec.type) continue;
+
+      const [sourceIssue, relatedIssue] = await Promise.all([
+        resolveRelationValue(relation.issue),
+        resolveRelationValue(relation.relatedIssue),
+      ]);
+      const outgoingMatch =
+        sourceIssue?.id === issue.id && relatedIssue?.id === targetIssue.id;
+      const incomingMatch =
+        sourceIssue?.id === targetIssue.id && relatedIssue?.id === issue.id;
+      const directionMatches =
+        spec.direction === "either"
+          ? outgoingMatch || incomingMatch
+          : spec.direction === "outgoing"
+          ? outgoingMatch
+          : incomingMatch;
+
+      if (!directionMatches) continue;
+      if (!notEmpty(relation.id)) {
+        matchingRelationHasNoId = true;
+        continue;
+      }
+      matchingRelations.set(relation.id, relation);
+    }
+  } catch (error) {
+    runtimeError(
+      `Cannot inspect relation state for ${spec.flag} ${spec.targetIssueIdentifier}: ${error?.message ?? error}`,
+    );
+  }
+
+  if (matchingRelationHasNoId) {
+    runtimeError(
+      `Cannot ${spec.flag} ${spec.targetIssueIdentifier}: a matching relation has no relation ID, so it cannot be safely deleted.`,
+    );
+  }
+  if (matchingRelations.size === 0) {
+    runtimeError(
+      `Cannot ${spec.flag} ${spec.targetIssueIdentifier}: the exact ${spec.type} relation in the requested direction was not found on ${issueIdentifier}.`,
+    );
+  }
+  if (matchingRelations.size > 1) {
+    runtimeError(
+      `Cannot ${spec.flag} ${spec.targetIssueIdentifier}: multiple exact ${spec.type} relations were found; refusing an ambiguous deletion.`,
+    );
+  }
+
+  const relation = matchingRelations.values().next().value;
+  let deletionPayload;
+  try {
+    deletionPayload = await deleteIssueRelationWithFallback(client, relation.id);
+  } catch (error) {
+    runtimeError(
+      `Could not delete relation for ${spec.flag} ${spec.targetIssueIdentifier}: ${error?.message ?? error}`,
+    );
+  }
+  if (deletionPayload?.success !== true) {
+    runtimeError(
+      `Deletion failed for ${spec.flag} ${spec.targetIssueIdentifier}: Linear deleteIssueRelation returned success=${String(deletionPayload?.success)}.`,
+    );
+  }
+
+  let verifiedIssue;
+  let verifiedEdges;
+  try {
+    verifiedIssue = await readCurrentIssue();
+    if (!verifiedIssue || verifiedIssue.id !== issue.id) {
+      runtimeError(
+        `Could not verify removal for ${spec.flag} ${spec.targetIssueIdentifier}: current issue ${issueIdentifier} could not be re-read.`,
+      );
+    }
+    verifiedEdges = await readIssueRelationEdges(verifiedIssue);
+  } catch (error) {
+    runtimeError(
+      `Could not verify removal for ${spec.flag} ${spec.targetIssueIdentifier}: ${error?.message ?? error}`,
+    );
+  }
+
+  if (verifiedEdges.some(({ relation: remaining }) => remaining.id === relation.id)) {
+    runtimeError(
+      `Could not verify removal for ${spec.flag} ${spec.targetIssueIdentifier}: relation ID ${relation.id} still exists after Linear reported success.`,
+    );
+  }
+}
+
 async function issueUpdateCommand(args, context) {
   const options = parseOptions(args, [
     "--status",
@@ -2139,6 +2318,10 @@ async function issueUpdateCommand(args, context) {
     "--blocks",
     "--blocked-by",
     "--duplicate-of",
+    "--remove-related",
+    "--remove-blocks",
+    "--remove-blocked-by",
+    "--remove-duplicate-of",
   ]);
   if (options.help)
     return {
@@ -2162,6 +2345,12 @@ async function issueUpdateCommand(args, context) {
         "  --blocks <issue-id> (repeatable)",
         "  --blocked-by <issue-id> (repeatable)",
         "  --duplicate-of <issue-id> (repeatable)",
+        "  --remove-related <issue-id> (repeatable; matches either relation direction)",
+        "  --remove-blocks <issue-id> (repeatable; this issue must be the source)",
+        "  --remove-blocked-by <issue-id> (repeatable; this issue must be the target)",
+        "  --remove-duplicate-of <issue-id> (repeatable; outgoing duplicate relation)",
+        "  Removals require an exact relation, issue, type, and direction match.",
+        "  Matching relation entities are deleted by relation ID and re-read for verification.",
         "  --json",
       ])}\n`,
       stderr: "",
@@ -2191,7 +2380,11 @@ async function issueUpdateCommand(args, context) {
     options.related?.length ||
     options.blocks?.length ||
     options.blockedBy?.length ||
-    options.duplicateOf?.length;
+    options.duplicateOf?.length ||
+    options.removeRelated?.length ||
+    options.removeBlocks?.length ||
+    options.removeBlockedBy?.length ||
+    options.removeDuplicateOf?.length;
 
   if (!hasUpdateFields) usageError("Missing update fields.");
   if (statusNames.length > 1) usageError("Missing --status <name>.");
@@ -2282,11 +2475,17 @@ async function issueUpdateCommand(args, context) {
   if (resolvedParent) input.parentId = resolvedParent.issue.id;
   else if (options.removeParent) input.parentId = null;
 
-  const hasRelationFlags =
+  const hasRelationCreateFlags =
     options.related?.length ||
     options.blocks?.length ||
     options.blockedBy?.length ||
     options.duplicateOf?.length;
+  const hasRelationRemovalFlags =
+    options.removeRelated?.length ||
+    options.removeBlocks?.length ||
+    options.removeBlockedBy?.length ||
+    options.removeDuplicateOf?.length;
+  const hasRelationFlags = hasRelationCreateFlags || hasRelationRemovalFlags;
 
   if (!Object.keys(input).length && !hasRelationFlags)
     usageError("Missing update fields.");
@@ -2314,6 +2513,10 @@ async function issueUpdateCommand(args, context) {
       ...(options.blocks ?? []),
       ...(options.blockedBy ?? []),
       ...(options.duplicateOf ?? []),
+      ...(options.removeRelated ?? []),
+      ...(options.removeBlocks ?? []),
+      ...(options.removeBlockedBy ?? []),
+      ...(options.removeDuplicateOf ?? []),
     ];
     const uniqueIdentifiers = [...new Set(relationIdentifiers)];
     let batchRelationResult = null;
@@ -2326,58 +2529,100 @@ async function issueUpdateCommand(args, context) {
       );
     }
 
-    const relationSpecs = [
-      ...(options.related ?? []).map((issueId) => ({
-        sourceIssueId: issue.id,
-        targetIssueIdentifier: issueId,
+    if (hasRelationCreateFlags) {
+      const relationSpecs = [
+        ...(options.related ?? []).map((issueId) => ({
+          sourceIssueId: issue.id,
+          targetIssueIdentifier: issueId,
+          type: "related",
+        })),
+        ...(options.blocks ?? []).map((issueId) => ({
+          sourceIssueId: issue.id,
+          targetIssueIdentifier: issueId,
+          type: "blocks",
+        })),
+        ...(options.blockedBy ?? []).map((issueId) => ({
+          sourceIssueIdentifier: issueId,
+          targetIssueId: issue.id,
+          type: "blocks",
+        })),
+        ...(options.duplicateOf ?? []).map((issueId) => ({
+          sourceIssueId: issue.id,
+          targetIssueIdentifier: issueId,
+          type: "duplicate",
+        })),
+      ];
+
+      for (const relationSpec of relationSpecs) {
+        const sourceIssueId = relationSpec.sourceIssueIdentifier
+          ? (
+              await resolveIssueByIdentifierOnTeam(
+                context,
+                client,
+                team,
+                relationSpec.sourceIssueIdentifier,
+                issueResolutionCache,
+                batchRelationResult,
+              )
+            ).issue.id
+          : relationSpec.sourceIssueId;
+        const targetIssueId = relationSpec.targetIssueIdentifier
+          ? (
+              await resolveIssueByIdentifierOnTeam(
+                context,
+                client,
+                team,
+                relationSpec.targetIssueIdentifier,
+                issueResolutionCache,
+                batchRelationResult,
+              )
+            ).issue.id
+          : relationSpec.targetIssueId;
+        await createIssueRelationWithFallback(client, {
+          issueId: sourceIssueId,
+          relatedIssueId: targetIssueId,
+          type: relationSpec.type,
+        });
+      }
+    }
+
+    const relationRemovalSpecs = [
+      ...(options.removeRelated ?? []).map((targetIssueIdentifier) => ({
+        flag: "--remove-related",
+        targetIssueIdentifier,
         type: "related",
+        direction: "either",
       })),
-      ...(options.blocks ?? []).map((issueId) => ({
-        sourceIssueId: issue.id,
-        targetIssueIdentifier: issueId,
+      ...(options.removeBlocks ?? []).map((targetIssueIdentifier) => ({
+        flag: "--remove-blocks",
+        targetIssueIdentifier,
         type: "blocks",
+        direction: "outgoing",
       })),
-      ...(options.blockedBy ?? []).map((issueId) => ({
-        sourceIssueIdentifier: issueId,
-        targetIssueId: issue.id,
+      ...(options.removeBlockedBy ?? []).map((targetIssueIdentifier) => ({
+        flag: "--remove-blocked-by",
+        targetIssueIdentifier,
         type: "blocks",
+        direction: "incoming",
       })),
-      ...(options.duplicateOf ?? []).map((issueId) => ({
-        sourceIssueId: issue.id,
-        targetIssueIdentifier: issueId,
+      ...(options.removeDuplicateOf ?? []).map((targetIssueIdentifier) => ({
+        flag: "--remove-duplicate-of",
+        targetIssueIdentifier,
         type: "duplicate",
+        direction: "outgoing",
       })),
     ];
 
-    for (const relationSpec of relationSpecs) {
-      const sourceIssueId = relationSpec.sourceIssueIdentifier
-        ? (
-            await resolveIssueByIdentifierOnTeam(
-              context,
-              client,
-              team,
-              relationSpec.sourceIssueIdentifier,
-              issueResolutionCache,
-              batchRelationResult,
-            )
-          ).issue.id
-        : relationSpec.sourceIssueId;
-      const targetIssueId = relationSpec.targetIssueIdentifier
-        ? (
-            await resolveIssueByIdentifierOnTeam(
-              context,
-              client,
-              team,
-              relationSpec.targetIssueIdentifier,
-              issueResolutionCache,
-              batchRelationResult,
-            )
-          ).issue.id
-        : relationSpec.targetIssueId;
-      await createIssueRelationWithFallback(client, {
-        issueId: sourceIssueId,
-        relatedIssueId: targetIssueId,
-        type: relationSpec.type,
+    for (const spec of relationRemovalSpecs) {
+      await removeIssueRelationWithVerification({
+        context,
+        client,
+        team,
+        issue,
+        issueIdentifier: issueId,
+        spec,
+        issueResolutionCache,
+        batchRelationResult,
       });
     }
   }
@@ -3149,6 +3394,12 @@ async function helpCommand(args) {
         "  --blocks <issue-id> (repeatable)",
         "  --blocked-by <issue-id> (repeatable)",
         "  --duplicate-of <issue-id> (repeatable)",
+        "  --remove-related <issue-id> (repeatable; matches either relation direction)",
+        "  --remove-blocks <issue-id> (repeatable; this issue must be the source)",
+        "  --remove-blocked-by <issue-id> (repeatable; this issue must be the target)",
+        "  --remove-duplicate-of <issue-id> (repeatable; outgoing duplicate relation)",
+        "  Removals require an exact relation, issue, type, and direction match.",
+        "  Matching relation entities are deleted by relation ID and re-read for verification.",
         "  --json",
       ])}\n`,
       stderr: "",

@@ -269,6 +269,10 @@ test("issue help lists the new issue subcommands", async () => {
   assert.match(result.stdout, /update <id> \[options\]/);
   assert.match(result.stdout, /comment <id> <body>/);
   assert.match(result.stdout, /attach <id> --document <title>/);
+  assert.match(result.stdout, /--remove-related <issue-id> \(repeatable/);
+  assert.match(result.stdout, /--remove-blocks <issue-id> \(repeatable/);
+  assert.match(result.stdout, /--remove-blocked-by <issue-id> \(repeatable/);
+  assert.match(result.stdout, /--remove-duplicate-of <issue-id> \(repeatable/);
 });
 
 test("document help lists the document subcommands", async () => {
@@ -332,7 +336,7 @@ test("label help lists the new label subcommands", async () => {
   assert.match(result.stdout, /create --name <name>/);
 });
 
-test("issue update help advertises label merge and mine flags", async () => {
+test("issue update help advertises field, relation, and removal flags", async () => {
   const result = await execute(["help", "issue", "update"], {
     env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
     clientFactory: async () => makeClient(),
@@ -349,6 +353,12 @@ test("issue update help advertises label merge and mine flags", async () => {
   assert.match(result.stdout, /--blocks <issue-id>/);
   assert.match(result.stdout, /--blocked-by <issue-id>/);
   assert.match(result.stdout, /--duplicate-of <issue-id>/);
+  assert.match(result.stdout, /--remove-related <issue-id> \(repeatable/);
+  assert.match(result.stdout, /--remove-blocks <issue-id> \(repeatable/);
+  assert.match(result.stdout, /--remove-blocked-by <issue-id> \(repeatable/);
+  assert.match(result.stdout, /--remove-duplicate-of <issue-id> \(repeatable/);
+  assert.match(result.stdout, /exact relation/i);
+  assert.match(result.stdout, /relation ID/i);
 });
 
 test("version output remains available for bootstrap checks", async () => {

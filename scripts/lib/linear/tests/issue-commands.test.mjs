@@ -18,6 +18,9 @@ function makeClient(records) {
   records.createComment ??= [];
   records.createIssue ??= [];
   records.issueRelationCreate ??= [];
+  records.deleteIssueRelation ??= [];
+  records.relations ??= [];
+  records.relationReads ??= 0;
   records.calls ??= [];
   records.issueLabels ??= new Map([
     ["label-feature", { id: "label-feature", name: "Feature" }],
@@ -77,6 +80,40 @@ function makeClient(records) {
         pageInfo: { hasNextPage: false, endCursor: null },
       };
     },
+    relations: async function () {
+      records.relationReads += 1;
+      return {
+        nodes: records.relations
+          .filter((relation) => relation.issueId === issue.id)
+          .map((relation) => ({
+            id: relation.id,
+            type: relation.type,
+            issue: Promise.resolve(issue),
+            relatedIssue: Promise.resolve(
+              [...(records.issueLookups?.values() ?? [])].find(
+                (candidate) => candidate?.id === relation.relatedIssueId,
+              ) ?? { id: relation.relatedIssueId },
+            ),
+          })),
+      };
+    },
+    inverseRelations: async function () {
+      records.relationReads += 1;
+      return {
+        nodes: records.relations
+          .filter((relation) => relation.relatedIssueId === issue.id)
+          .map((relation) => ({
+            id: relation.id,
+            type: relation.type,
+            issue: Promise.resolve(
+              [...(records.issueLookups?.values() ?? [])].find(
+                (candidate) => candidate?.id === relation.issueId,
+              ) ?? { id: relation.issueId },
+            ),
+            relatedIssue: Promise.resolve(issue),
+          })),
+      };
+    },
   };
 
   const team = {
@@ -119,7 +156,9 @@ function makeClient(records) {
     issues: async function (vars) {
       records.issues = [...(records.issues ?? []), vars];
       const issueNumber = vars?.filter?.number?.eq;
-      const lookupIssue = records.issueLookups?.get(issueNumber) ?? issue;
+      const lookupIssue = records.issueLookups?.has(issueNumber)
+        ? records.issueLookups.get(issueNumber)
+        : issue;
       return {
         nodes: [lookupIssue],
         pageInfo: { hasNextPage: false, endCursor: null },
@@ -143,6 +182,24 @@ function makeClient(records) {
               },
             },
           };
+        }
+        if (_query.includes("query BatchIssues")) {
+          const issueNumbers = [
+            ..._query.matchAll(/n\d+: issues\(filter: \{ number: \{ eq: (\d+) \}/g),
+          ].map((match) => Number(match[1]));
+          const batch = Object.fromEntries(
+            issueNumbers.map((number, index) => [
+              `n${index}`,
+              {
+                nodes: [
+                  records.issueLookups?.has(number)
+                    ? records.issueLookups.get(number)
+                    : issue,
+                ],
+              },
+            ]),
+          );
+          return { data: { team: batch } };
         }
         return { data: {} };
       },
@@ -238,6 +295,20 @@ function makeClient(records) {
           relatedIssue: Promise.resolve({ id: input.relatedIssueId }),
         },
       };
+    },
+    deleteIssueRelation: async function (relationId) {
+      records.deleteIssueRelation.push(relationId);
+      records.relationReadsAtDelete = records.relationReads;
+      if (records.deleteIssueRelationError) {
+        throw records.deleteIssueRelationError;
+      }
+      const result = records.deleteIssueRelationResult ?? { success: true };
+      if (result.success && !records.keepRelationsOnDelete) {
+        records.relations = records.relations.filter(
+          (relation) => relation.id !== relationId,
+        );
+      }
+      return result;
     },
     createComment: async function (input) {
       records.createComment.push(input);
@@ -418,6 +489,9 @@ test("issue children preserves summary relations without expanding details", asy
   };
 
   const client = {
+    client: {
+      request: async () => ({ data: { team: { issues: { nodes: [issue] } } } }),
+    },
     viewer: async () => ({
       id: "viewer-1",
       name: "Test User",
@@ -1049,6 +1123,251 @@ test("issue update accepts multiple relation flags combined", async () => {
   assert.equal(records.issueRelationCreate[1].issueId, "issue-1");
   assert.equal(records.issueRelationCreate[1].relatedIssueId, "issue-3");
   assert.equal(records.issueRelationCreate[1].type, "blocks");
+});
+
+test("issue update removes each supported relation type and direction", async (t) => {
+  const removals = [
+    {
+      flag: "--remove-related",
+      type: "related",
+      issueId: "issue-1",
+      relatedIssueId: "issue-2",
+    },
+    {
+      flag: "--remove-related",
+      type: "related",
+      issueId: "issue-2",
+      relatedIssueId: "issue-1",
+    },
+    {
+      flag: "--remove-blocks",
+      type: "blocks",
+      issueId: "issue-1",
+      relatedIssueId: "issue-2",
+    },
+    {
+      flag: "--remove-blocked-by",
+      type: "blocks",
+      issueId: "issue-2",
+      relatedIssueId: "issue-1",
+    },
+    {
+      flag: "--remove-duplicate-of",
+      type: "duplicate",
+      issueId: "issue-1",
+      relatedIssueId: "issue-2",
+    },
+  ];
+
+  for (const [index, removal] of removals.entries()) {
+    await t.test(`${removal.flag} relation ${index + 1}`, async () => {
+      const records = {
+        issueLookups: new Map([
+          [876, { id: "issue-2", identifier: "REP-876", title: "Target" }],
+        ]),
+        relations: [
+          {
+            id: `relation-${index}`,
+            type: removal.type,
+            issueId: removal.issueId,
+            relatedIssueId: removal.relatedIssueId,
+          },
+        ],
+      };
+
+      const result = await execute(
+        ["issue", "update", "REP-875", removal.flag, "REP-876", "--json"],
+        {
+          env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+          clientFactory: async () => makeClient(records),
+        },
+      );
+
+      assert.equal(result.code, 0);
+      assert.deepEqual(records.deleteIssueRelation, [`relation-${index}`]);
+      assert.deepEqual(records.relations, []);
+      assert.ok(records.relationReadsAtDelete > 0);
+      assert.ok(records.relationReads > records.relationReadsAtDelete);
+      assert.equal(JSON.parse(result.stdout).item.identifier, "REP-875");
+    });
+  }
+});
+
+test("issue update removes only exact requested relations and preserves unrelated edges", async () => {
+  const records = {
+    issueLookups: new Map([
+      [876, { id: "issue-2", identifier: "REP-876", title: "Target" }],
+      [880, { id: "issue-3", identifier: "REP-880", title: "Second target" }],
+      [881, { id: "issue-4", identifier: "REP-881", title: "Other" }],
+    ]),
+    relations: [
+      { id: "related-876", type: "related", issueId: "issue-1", relatedIssueId: "issue-2" },
+      { id: "related-880", type: "related", issueId: "issue-1", relatedIssueId: "issue-3" },
+      { id: "related-881", type: "related", issueId: "issue-1", relatedIssueId: "issue-4" },
+      { id: "blocks-876", type: "blocks", issueId: "issue-1", relatedIssueId: "issue-2" },
+      { id: "blocked-by-876", type: "blocks", issueId: "issue-2", relatedIssueId: "issue-1" },
+      { id: "duplicate-of-876", type: "duplicate", issueId: "issue-1", relatedIssueId: "issue-2" },
+      { id: "duplicate-incoming-876", type: "duplicate", issueId: "issue-2", relatedIssueId: "issue-1" },
+    ],
+  };
+
+  const result = await execute(
+    [
+      "issue",
+      "update",
+      "REP-875",
+      "--remove-related",
+      "REP-876",
+      "--remove-related",
+      "REP-880",
+      "--remove-blocked-by",
+      "REP-876",
+      "--remove-duplicate-of",
+      "REP-876",
+      "--json",
+    ],
+    {
+      env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+      clientFactory: async () => makeClient(records),
+    },
+  );
+
+  assert.equal(result.code, 0);
+  assert.deepEqual(records.deleteIssueRelation, [
+    "related-876",
+    "related-880",
+    "blocked-by-876",
+    "duplicate-of-876",
+  ]);
+  assert.deepEqual(
+    records.relations.map((relation) => relation.id),
+    ["related-881", "blocks-876", "duplicate-incoming-876"],
+  );
+});
+
+test("issue update reports relation removal failures without swallowing them", async (t) => {
+  const makeRecords = () => ({
+    issueLookups: new Map([
+      [876, { id: "issue-2", identifier: "REP-876", title: "Target" }],
+    ]),
+    relations: [
+      {
+        id: "relation-876",
+        type: "blocks",
+        issueId: "issue-1",
+        relatedIssueId: "issue-2",
+      },
+    ],
+  });
+  const args = ["issue", "update", "REP-875", "--remove-blocks", "REP-876"];
+
+  await t.test("missing target", async () => {
+    const records = makeRecords();
+    records.issueLookups.set(876, null);
+    const result = await execute(args, {
+      env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+      clientFactory: async () => makeClient(records),
+    });
+
+    assert.notEqual(result.code, 0);
+    assert.match(result.stderr, /REP-876/);
+    assert.deepEqual(records.deleteIssueRelation, []);
+  });
+
+  await t.test("missing relation", async () => {
+    const records = makeRecords();
+    records.relations = [];
+    const result = await execute(args, {
+      env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+      clientFactory: async () => makeClient(records),
+    });
+
+    assert.notEqual(result.code, 0);
+    assert.match(result.stderr, /--remove-blocks.*REP-876.*not found/i);
+    assert.deepEqual(records.deleteIssueRelation, []);
+  });
+
+  await t.test("unavailable deletion API", async () => {
+    const records = makeRecords();
+    const result = await execute(args, {
+      env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+      clientFactory: async () => {
+        const client = makeClient(records);
+        delete client.deleteIssueRelation;
+        return client;
+      },
+    });
+
+    assert.notEqual(result.code, 0);
+    assert.match(result.stderr, /deleteIssueRelation/i);
+    assert.deepEqual(records.relations.map((relation) => relation.id), ["relation-876"]);
+  });
+
+  await t.test("unsuccessful deletion payload", async () => {
+    const records = makeRecords();
+    records.deleteIssueRelationResult = { success: false };
+    const result = await execute(args, {
+      env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+      clientFactory: async () => makeClient(records),
+    });
+
+    assert.notEqual(result.code, 0);
+    assert.match(result.stderr, /delete.*failed|success.*false/i);
+    assert.deepEqual(records.relations.map((relation) => relation.id), ["relation-876"]);
+  });
+
+  await t.test("rejected deletion mutation", async () => {
+    const records = makeRecords();
+    records.deleteIssueRelationError = new Error("transport unavailable");
+    const result = await execute(args, {
+      env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+      clientFactory: async () => makeClient(records),
+    });
+
+    assert.notEqual(result.code, 0);
+    assert.match(result.stderr, /REP-876.*transport unavailable/i);
+    assert.deepEqual(records.relations.map((relation) => relation.id), ["relation-876"]);
+  });
+
+  await t.test("failed post-delete verification", async () => {
+    const records = makeRecords();
+    records.keepRelationsOnDelete = true;
+    const result = await execute(args, {
+      env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+      clientFactory: async () => makeClient(records),
+    });
+
+    assert.notEqual(result.code, 0);
+    assert.match(result.stderr, /verify|still exists|not removed/i);
+    assert.ok(records.relationReadsAtDelete > 0);
+    assert.ok(records.relationReads > records.relationReadsAtDelete);
+    assert.deepEqual(records.relations.map((relation) => relation.id), ["relation-876"]);
+  });
+});
+
+test("issue update rejects relation removals when the target relation is ambiguous", async () => {
+  const records = {
+    issueLookups: new Map([
+      [876, { id: "issue-2", identifier: "REP-876", title: "Target" }],
+    ]),
+    relations: [
+      { id: "relation-1", type: "related", issueId: "issue-1", relatedIssueId: "issue-2" },
+      { id: "relation-2", type: "related", issueId: "issue-1", relatedIssueId: "issue-2" },
+    ],
+  };
+
+  const result = await execute(
+    ["issue", "update", "REP-875", "--remove-related", "REP-876"],
+    {
+      env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+      clientFactory: async () => makeClient(records),
+    },
+  );
+
+  assert.notEqual(result.code, 0);
+  assert.match(result.stderr, /ambiguous/i);
+  assert.deepEqual(records.deleteIssueRelation, []);
+  assert.equal(records.relations.length, 2);
 });
 
 test("issue update accepts relation flags as only update fields", async () => {
