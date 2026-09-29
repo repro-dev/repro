@@ -27,6 +27,7 @@ The repo's `Brewfile` installs `jq` for trimming high-volume JSON responses duri
 - Show child issues: `linear issue children ISSUE-1`
 - Start work: `linear issue start ISSUE-1`
 - Update issue fields: `linear issue update ISSUE-1 --title "Tracker: Workspace" --status "In Review" --description "..." --label "Feature" --add-label "needs-spec" --remove-label "Bug" --project "Workspace" --milestone "Sprint 1" --priority high --assignee "test@example.com"`
+- Remove issue relations: `linear issue update ISSUE-1 --remove-related ISSUE-2 --remove-blocks ISSUE-3 --remove-blocked-by ISSUE-4 --remove-duplicate-of ISSUE-5`
 - Assign to self: `linear issue update ISSUE-1 --mine`
 - Reparent an issue: `linear issue update ISSUE-2 --parent ISSUE-1`
 - Remove a parent: `linear issue update ISSUE-2 --remove-parent`
@@ -59,6 +60,8 @@ The CLI has convenience aliases: `linear issues` = `linear issue list`, `linear 
 - `linear issue create` accepts `--parent <issue-id>` for tracker/sub-issue setup.
 - `linear issue create` and `linear issue update` verify parent-link mutations by refetching the issue; they return non-zero if Linear reads back the wrong parent.
 - `linear issue update` accepts `--title <title>` for renaming, `--parent <issue-id>` / `--remove-parent` for reparenting, and `--milestone <name>` for milestone association.
+- `linear issue update` accepts repeatable `--remove-related`, `--remove-blocks`, `--remove-blocked-by`, and `--remove-duplicate-of` options. Each removal must match the requested issue, relation type, and direction: `related` is symmetric; `--remove-blocks` requires the current issue as source; `--remove-blocked-by` requires it as target; and `--remove-duplicate-of` matches an outgoing `duplicate` relation.
+- Relation removal deletes only the matched relation entity by its relation ID using the Linear SDK (`deleteIssueRelation`, with `issueRelationDelete` as a compatibility alias), then re-reads the issue to verify that relation ID is absent. Missing targets or relations, unavailable deletion support, an unsuccessful mutation, or failed verification return a non-zero actionable error; unrelated relations are preserved.
 - `linear issue list` supports `--mine` for issues assigned to the authenticated user.
 - `linear issue list` supports `--json <fields>` for flat field projection (e.g. `--json id,identifier,title,priority`). Without field args, `--json` returns the full issue object.
 - When creating or updating issue bodies, pass the body through a single-quoted heredoc so Markdown, backticks, and other code spans survive unchanged. Example:

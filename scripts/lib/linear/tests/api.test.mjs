@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { fetchIssuesByIdentifiers } from "../api.mjs";
+import {
+  deleteIssueRelationWithFallback,
+  fetchIssuesByIdentifiers,
+} from "../api.mjs";
 
 function clientWith(requestFn) {
   return {
@@ -229,6 +232,49 @@ test("fetchIssuesByIdentifiers with zero identifiers returns empty map", async (
   assert.equal(result.size, 0);
   // No GraphQL calls should be made
   assert.equal(requests.length, 0);
+});
+
+test("deleteIssueRelationWithFallback uses the SDK mutation with the relation ID", async () => {
+  const ids = [];
+  const receiver = {
+    async deleteIssueRelation(id) {
+      ids.push(id);
+      return { success: true };
+    },
+  };
+
+  const result = await deleteIssueRelationWithFallback(
+    receiver,
+    "relation-123",
+  );
+
+  assert.deepEqual(ids, ["relation-123"]);
+  assert.deepEqual(result, { success: true });
+});
+
+test("deleteIssueRelationWithFallback supports the issueRelationDelete compatibility alias", async () => {
+  const ids = [];
+  const receiver = {
+    async issueRelationDelete(id) {
+      ids.push(id);
+      return { success: true };
+    },
+  };
+
+  const result = await deleteIssueRelationWithFallback(
+    receiver,
+    "relation-456",
+  );
+
+  assert.deepEqual(ids, ["relation-456"]);
+  assert.deepEqual(result, { success: true });
+});
+
+test("deleteIssueRelationWithFallback fails when the client cannot delete relations", async () => {
+  await assert.rejects(
+    () => deleteIssueRelationWithFallback({}, "relation-789"),
+    /deleteIssueRelation.*issueRelationDelete/i,
+  );
 });
 
 test("fetchIssuesByIdentifiers returns null entries for missing issues", async () => {

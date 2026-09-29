@@ -478,6 +478,18 @@ export async function createIssueRelationWithFallback(receiver, payload) {
   return null;
 }
 
+export async function deleteIssueRelationWithFallback(receiver, relationId) {
+  for (const methodName of ["deleteIssueRelation", "issueRelationDelete"]) {
+    if (typeof receiver?.[methodName] === "function") {
+      return callBoundMethod(receiver, receiver[methodName], relationId);
+    }
+  }
+
+  throw new Error(
+    "Linear client does not expose deleteIssueRelation or issueRelationDelete",
+  );
+}
+
 export function buildSearchIssuesQuery(fields) {
   const requestedFields = new Set(fields ?? []);
   const selectStatus = !fields || requestedFields.has("status");
