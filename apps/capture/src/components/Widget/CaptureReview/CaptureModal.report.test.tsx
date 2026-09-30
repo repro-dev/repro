@@ -19,6 +19,8 @@ const noop = () => {}
 const session = { id: 'session-1' }
 let currentSession: typeof session | null = session
 let sessionLoading = false
+let loadSessionCalls = 0
+const sessionListeners = new Set<() => void>()
 const intents: Array<{ type: string; payload: Record<string, unknown> }> = []
 const requests: Array<{
   path: string
@@ -84,11 +86,25 @@ function createPlaybackStub() {
   }
 }
 
+function loadSession() {
+  loadSessionCalls++
+  currentSession = session
+  sessionListeners.forEach(listener => listener())
+  return resolve(session)
+}
+
 mock.module('@repro/auth', {
   namedExports: {
-    useSession: () => currentSession,
+    useSession: () =>
+      React.useSyncExternalStore(
+        listener => {
+          sessionListeners.add(listener)
+          return () => sessionListeners.delete(listener)
+        },
+        () => currentSession
+      ),
     useSessionLoading: () => sessionLoading,
-    useAuthContext: () => ({ loginPath: '/account/login' }),
+    useAuthContext: () => ({ loginPath: '/account/login', loadSession }),
   },
 })
 
@@ -197,6 +213,8 @@ describe('CaptureModal report flow', () => {
     cleanup()
     currentSession = session
     sessionLoading = false
+    loadSessionCalls = 0
+    sessionListeners.clear()
     fetchResponse = () =>
       resolve({
         items: [
@@ -302,6 +320,14 @@ describe('CaptureModal report flow', () => {
     currentSession = null
     let openedUrl: string | undefined
     const originalOpen = window.open
+    const originalVisibilityState = Object.getOwnPropertyDescriptor(
+      document,
+      'visibilityState'
+    )
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      value: 'visible',
+    })
     window.open = ((url?: string | URL) => {
       openedUrl = String(url)
       return null
@@ -345,8 +371,38 @@ describe('CaptureModal report flow', () => {
 
       fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
       assert.equal(openedUrl, 'https://app.repro.test/account/login')
+
+      fireEvent(document, new window.Event('visibilitychange'))
+      await waitFor(() => assert.equal(loadSessionCalls, 1))
+
+      await selectReportProject('MVP Pilot')
+      fireEvent.click(screen.getByRole('button', { name: 'Create Bug Report' }))
+
+      await waitFor(() => {
+        const upload = intents.find(intent => intent.type === 'upload:enqueue')
+        assert.ok(
+          upload,
+          'returning from sign-in should allow report submission'
+        )
+        assert.equal(upload.payload.projectId, 'project-1')
+        assert.equal(upload.payload.title, 'Lost draft')
+        assert.equal(
+          upload.payload.description,
+          'Keep this report after sign-in.'
+        )
+      })
     } finally {
       window.open = originalOpen
+      if (originalVisibilityState) {
+        Object.defineProperty(
+          document,
+          'visibilityState',
+          originalVisibilityState
+        )
+      } else {
+        delete (document as { visibilityState?: DocumentVisibilityState })
+          .visibilityState
+      }
     }
   })
 

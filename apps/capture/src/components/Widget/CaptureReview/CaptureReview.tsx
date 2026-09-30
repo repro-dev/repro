@@ -16,6 +16,7 @@ import { DevTools, useDevToolsView } from '@repro/devtools'
 import { useInspecting } from '@repro/devtools/src/hooks'
 import { View } from '@repro/devtools/src/types'
 import { RecordingMode } from '@repro/domain'
+import { forget } from '@repro/future-utils'
 import { Playback, PlaybackProvider, SimpleTimeline } from '@repro/playback'
 import { findErrorAndWarningEvents } from '@repro/source-utils'
 import { type Cancel, fork } from 'fluture'
@@ -77,6 +78,21 @@ export const CaptureReview: React.FC<CaptureReviewProps> = ({
   const session = useSession()
   const sessionLoading = useSessionLoading()
   const authContext = useAuthContext()
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        forget(authContext.loadSession())
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [authContext])
+
   const { projects, projectsLoading, createProject } = useProjectCatalog(
     !sessionLoading && session !== null
   )
