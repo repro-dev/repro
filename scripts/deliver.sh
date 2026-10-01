@@ -61,6 +61,22 @@ usage() {
 # Resolve delivery command based on Linear issue labels.
 # Bug → /bugfix, Pen → /pen-reconcile, everything else → /build (fail-open).
 # Labels live under .item in the linear CLI JSON envelope.
+_resolve_command_from_json() {
+  local json_output="$1"
+
+  if printf '%s' "$json_output" | jq -e '
+    .item.labels // [] | map(select(.name == "Bug")) | length > 0
+  ' >/dev/null 2>&1; then
+    echo "/bugfix"
+  elif printf '%s' "$json_output" | jq -e '
+    .item.labels // [] | map(select(.name == "Pen")) | length > 0
+  ' >/dev/null 2>&1; then
+    echo "/pen-reconcile"
+  else
+    echo "/build"
+  fi
+}
+
 resolve_command() {
   local issue_id="$1"
 
@@ -80,33 +96,100 @@ resolve_command() {
     return 0
   fi
 
-  # Use jq to check for Bug and Pen labels
-  if printf '%s' "$json_output" | jq -e '
-    .item.labels // [] | map(select(.name == "Bug")) | length > 0
-  ' >/dev/null 2>&1; then
-    echo "/bugfix"
-  elif printf '%s' "$json_output" | jq -e '
-    .item.labels // [] | map(select(.name == "Pen")) | length > 0
-  ' >/dev/null 2>&1; then
-    echo "/pen-reconcile"
-  else
-    echo "/build"
+  _resolve_command_from_json "$json_output"
+}
+
+_validate_issue_id() {
+  local issue_id="$1"
+
+  if [[ "$issue_id" =~ ^REP-[0-9]+$ ]]; then
+    return 0
   fi
+
+  _err "Invalid issue ID '$issue_id'."
+  echo "  Expected a Repro issue ID in the form REP-123." >&2
+  echo "  Run 'deliver --help' for usage." >&2
+  return 1
+}
+
+DELIVER_LINEAR_STDERR_FILE=""
+_deliver_cleanup_linear_stderr() {
+  if [[ -n "$DELIVER_LINEAR_STDERR_FILE" ]]; then
+    local stderr_file="$DELIVER_LINEAR_STDERR_FILE"
+    DELIVER_LINEAR_STDERR_FILE=""
+    rm -f "$stderr_file" >/dev/null 2>&1 || true
+  fi
+}
+
+_deliver_handle_linear_lookup_signal() {
+  local exit_status="$1"
+  _deliver_cleanup_linear_stderr
+  exit "$exit_status"
 }
 
 # ── Mode functions ─────────────────────────────────────────────────
 _mode_issue_id() {
   local issue_id="$1"
-  local delivery_command
-  delivery_command="$(resolve_command "$issue_id")"
+  _validate_issue_id "$issue_id" || return 1
 
-  local issue_json branch title
-  issue_json="$(linear issue show "$issue_id" --json 2>/dev/null || true)"
-
-  if [[ -n "$issue_json" ]]; then
-    branch="$(printf '%s' "$issue_json" | jq -r '.item.branchName // .branchName // empty' 2>/dev/null || true)"
-    title="$(printf '%s' "$issue_json" | jq -r '.item.title // .title // empty' 2>/dev/null || true)"
+  if ! command -v linear > /dev/null 2>&1; then
+    _err "Cannot look up Linear issue $issue_id: the Linear CLI is not available."
+    echo "  Check that the Linear CLI is installed and on PATH." >&2
+    echo "  Expected issue ID format: REP-123. Run 'deliver --help' for usage." >&2
+    return 1
   fi
+
+  local issue_json branch title delivery_command resolved_issue_id
+  local linear_stderr_file linear_stderr lookup_status
+  linear_stderr_file="$(mktemp "$REPO_ROOT/tmp/deliver-linear.XXXXXX" 2>/dev/null)" || {
+    _err "Cannot look up Linear issue $issue_id: could not capture lookup diagnostics."
+    echo "  Ensure $REPO_ROOT/tmp exists and is writable, then retry." >&2
+    return 1
+  }
+  DELIVER_LINEAR_STDERR_FILE="$linear_stderr_file"
+  trap '_deliver_cleanup_linear_stderr' EXIT
+  trap '_deliver_handle_linear_lookup_signal 129' HUP
+  trap '_deliver_handle_linear_lookup_signal 130' INT
+  trap '_deliver_handle_linear_lookup_signal 143' TERM
+
+  if issue_json="$(linear issue show "$issue_id" --json 2>"$linear_stderr_file")"; then
+    lookup_status=0
+  else
+    lookup_status=$?
+  fi
+  linear_stderr="$(cat "$linear_stderr_file" 2>/dev/null || true)"
+  _deliver_cleanup_linear_stderr
+
+  if [[ "$lookup_status" -ne 0 ]]; then
+    if [[ "$linear_stderr" == "Issue $issue_id not found." ]]; then
+      _err "Linear issue $issue_id was not found."
+      echo "  Check that the issue exists and the ID is correct (expected format: REP-123)." >&2
+      echo "  Run 'deliver --help' for usage." >&2
+      [[ -z "$linear_stderr" ]] || printf '  Linear: %s\n' "$linear_stderr" >&2
+    else
+      _err "Linear lookup failed for issue $issue_id."
+      if [[ -n "$linear_stderr" ]]; then
+        printf '  Linear: %s\n' "$linear_stderr" >&2
+      else
+        printf '  Linear exited with status %s and no diagnostic.\n' "$lookup_status" >&2
+      fi
+      echo "  Check Linear CLI authentication and network access, then retry." >&2
+      echo "  Expected issue ID format: REP-123. Run 'deliver --help' for usage." >&2
+    fi
+    return 1
+  fi
+
+  resolved_issue_id="$(printf '%s' "$issue_json" | jq -r '.item.identifier // empty' 2>/dev/null || true)"
+  if [[ "$resolved_issue_id" != "$issue_id" ]]; then
+    _err "Linear lookup for $issue_id returned an unexpected issue (${resolved_issue_id:-no issue identifier})."
+    echo "  Verify the Linear response with 'linear issue show $issue_id --json'." >&2
+    echo "  Expected issue ID format: REP-123. Run 'deliver --help' for usage." >&2
+    return 1
+  fi
+
+  branch="$(printf '%s' "$issue_json" | jq -r '.item.branchName // .branchName // empty' 2>/dev/null || true)"
+  title="$(printf '%s' "$issue_json" | jq -r '.item.title // .title // empty' 2>/dev/null || true)"
+  delivery_command="$(_resolve_command_from_json "$issue_json")"
 
   printf '%s\n%s\n%s\n%s\n' "$issue_id" "${branch:-}" "${title:-}" "$delivery_command"
 }
@@ -1179,7 +1262,8 @@ if [[ -z "$mode" ]]; then
     usage
   fi
 
-  if [[ "$mode_arg" =~ ^[A-Z]+-[0-9]+$ ]]; then
+  if [[ "$mode_arg" != */* && ( "$mode_arg" =~ ^[A-Z]+-[0-9]+$ || "$mode_arg" =~ ^[Rr][Ee][Pp]- ) ]]; then
+    _validate_issue_id "$mode_arg" || exit 1
     mode="issue_id"
   elif [[ "$mode_arg" =~ ^[0-9]+$ ]]; then
     mode="pr"
