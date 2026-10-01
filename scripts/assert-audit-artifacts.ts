@@ -16,9 +16,8 @@
 // but the process exits 1.
 //
 // Flags:
-//   --issue <id>            issue id (required unless --audit-dir)
-//   --audit-dir <path>      audit dir override (default
-//                           <worktree-root>/tmp/ui-verification/<issue>)
+//   --issue <id>            issue id (optional when inferred from candidate path)
+//   --audit-dir <path>      candidate attempt directory (required)
 //   --base <ref>            classification base, e.g. origin/main (required)
 //   --commit <sha>          successful audit checkpoint commit (required)
 //   --surface <name>        changed surface; repeat the flag (>=1 required)
@@ -31,7 +30,7 @@ import { fileURLToPath } from 'node:url'
 
 export type AssertInputs = {
   issueId: string
-  /** Override; default: tmp/ui-verification/<issueId> under worktreeRoot. */
+  /** Optional for direct use of the assertion core; the CLI requires --audit-dir. */
   auditDir?: string
   /** Surfaces whose behavior changed since the last successful audit. */
   expectedSurfaces: readonly string[]
@@ -698,8 +697,11 @@ export function runAssert(
   const errorOut = io.errorOut ?? ((message: string) => console.error(message))
   const execGit = io.execGit ?? defaultExecGit
 
-  if (!options.issue && !options.auditDir) {
-    errorOut('ERROR: --issue <id> is required unless --audit-dir is provided')
+  const auditDirOption = options.auditDir
+  if (!auditDirOption) {
+    errorOut(
+      'ERROR: --audit-dir <candidate-attempt-dir> is required for the proof assertion'
+    )
     return { code: 1 }
   }
   if (!options.base) {
@@ -722,9 +724,7 @@ export function runAssert(
   }
 
   const worktreeRoot = resolve(options.worktreeRoot ?? process.cwd())
-  const auditDir = options.auditDir
-    ? resolve(worktreeRoot, options.auditDir)
-    : defaultAuditDir(options.issue ?? '', worktreeRoot)
+  const auditDir = resolve(worktreeRoot, auditDirOption)
   const auditDirName = basename(auditDir)
   const issueId =
     options.issue ??
@@ -790,22 +790,25 @@ export function runAssert(
 function printUsage(): void {
   console.error(`assert-audit-artifacts — mechanical proof-bundle assertion (REP-1653)
 
-Asserts the REP-1646 ui-verification capture artifacts in
-tmp/ui-verification/<issue-id>/ (manifest.json + audit.md) satisfy the
-delivery-workflow §5 Step 5 proof-bundle assertions. Any failed assertion is a
-gate violation.
+Asserts the supplied candidate attempt's REP-1646 ui-verification artifacts
+(manifest.json + audit.md) satisfy the
+delivery-workflow §5 Step 5 proof-bundle assertions. Any failed assertion is
+a gate violation.
 
 Usage:
-  pnpm run ui:assert-audit --issue REP-xxx --base <classification-base> \\
-  --commit <audit-checkpoint-sha> --surface <changed-surface-1> --surface <changed-surface-2> ...
-                                   The delivery-workflow §5 Step 5 invocation
-                                   (no -- separator: pnpm forwards it
-                                   literally). --commit is the code commit
-                                   audited by this bundle; each --surface names
-                                   a UI surface whose behavior changed since the
-                                   previous successful audit checkpoint.
-  --audit-dir <path>              Audit dir override (default
-                                  <worktree-root>/tmp/ui-verification/<issue>).
+  pnpm run ui:assert-audit --audit-dir tmp/ui-verification/REP-xxx/candidate-<checkpoint-sha>-<attempt> \\
+  --base <classification-base> --commit <audit-checkpoint-sha> --surface <changed-surface-1> --surface <changed-surface-2> ...
+                                    The delivery-workflow §5 Step 5 invocation
+                                    (no -- separator: pnpm forwards it
+                                    literally). --commit is the code commit
+                                    audited by this bundle; each --surface names
+                                    a UI surface whose behavior changed since the
+                                    previous successful audit checkpoint.
+  --issue <id>                    Optional when it can be inferred from the
+                                  candidate directory's parent issue directory.
+  --audit-dir <candidate-attempt-dir> (required)
+                                  Candidate attempt directory under the issue's
+                                  canonical audit directory.
   --worktree-root <path>          Worktree root for resolving screenshot paths
                                   (default: process.cwd()).
   tsx scripts/assert-audit-artifacts.ts --help (-h)

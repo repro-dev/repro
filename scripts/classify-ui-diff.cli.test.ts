@@ -4,6 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, it } from 'node:test'
+import { fileURLToPath } from 'node:url'
 
 import { parseCliArgs, runClassify } from './classify-ui-diff.ts'
 
@@ -320,7 +321,11 @@ describe('REP-1646 CLI git mode', () => {
   })
 
   it('does not reclassify an unchanged audited UI path across divergent history', () => {
-    const dir = mkdtempSync(path.join(tmpdir(), 'classify-ui-rebase-'))
+    const repoTmp = path.resolve(
+      path.dirname(fileURLToPath(import.meta.url)),
+      '../tmp'
+    )
+    const dir = mkdtempSync(path.join(repoTmp, 'classify-ui-rebase-'))
     try {
       const git = (args: string[]) =>
         execFileSync(

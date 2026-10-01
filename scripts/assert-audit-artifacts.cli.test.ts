@@ -165,6 +165,12 @@ describe('REP-1653 CLI parsing', () => {
       'utf8'
     )
     assert.match(source, /delivery-workflow §5 Step 5 proof-bundle assertions/)
+    assert.match(source, /--audit-dir <candidate-attempt-dir> \(required\)/)
+    assert.match(source, /--issue <id>\s+Optional when it can be inferred/)
+    assert.doesNotMatch(
+      source,
+      /default\s+[\s\S]{0,100}tmp\/ui-verification\/<issue>/i
+    )
     assert.doesNotMatch(
       source,
       /delivery-workflow §5 Step 4 proof-bundle assertions/
@@ -412,19 +418,14 @@ describe('REP-1653 CLI required-argument errors', () => {
     return copy
   }
 
-  it('requires --issue unless --audit-dir is provided', () => {
-    const f = fixture()
-    try {
-      const errors: string[] = []
-      const result = runAssert(without('issue', 'auditDir'), {
-        ...stubIo(),
-        errorOut: message => errors.push(message),
-      })
-      assert.equal(result.code, 1)
-      assert.match(errors[0]!, /--issue/)
-    } finally {
-      f.cleanup()
-    }
+  it('requires --audit-dir to identify a candidate attempt', () => {
+    const errors: string[] = []
+    const result = runAssert(without('auditDir'), {
+      ...stubIo(),
+      errorOut: message => errors.push(message),
+    })
+    assert.equal(result.code, 1)
+    assert.match(errors[0]!, /--audit-dir.*required/)
   })
 
   it('requires --base, --commit, and at least one --surface', () => {
@@ -448,7 +449,7 @@ describe('REP-1653 CLI required-argument errors', () => {
     }
   })
 
-  it('accepts --audit-dir as the --issue alternative', () => {
+  it('infers --issue from a candidate --audit-dir when omitted', () => {
     const f = fixture()
     try {
       const jsonOuts: string[] = []
@@ -467,7 +468,7 @@ describe('REP-1653 CLI required-argument errors', () => {
       )
       assert.equal(result.code, 0)
       const report = JSON.parse(jsonOuts[0]!) as { issue: string }
-      // issue falls back to the audit dir basename.
+      // The candidate's parent directory supplies the issue id.
       assert.equal(report.issue, 'REP-0000')
     } finally {
       f.cleanup()
