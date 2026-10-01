@@ -1242,7 +1242,7 @@ if [[ -z "$mode" ]]; then
     usage
   fi
 
-  if [[ "$mode_arg" != */* && ( "$mode_arg" =~ ^[A-Z]+-[0-9] || "$mode_arg" =~ ^[Rr][Ee][Pp]- ) ]]; then
+  if [[ "$mode_arg" != */* && ( "$mode_arg" =~ ^[A-Z]+-[0-9]+$ || "$mode_arg" =~ ^[Rr][Ee][Pp]- ) ]]; then
     _validate_issue_id "$mode_arg" || exit 1
     mode="issue_id"
   elif [[ "$mode_arg" =~ ^[0-9]+$ ]]; then
