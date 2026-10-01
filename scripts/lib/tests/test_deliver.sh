@@ -1296,6 +1296,69 @@ test_malformed_issue_id_fails_before_side_effects() {
   fi
 }
 
+# REP-1708 review regression: case variants of the expected team prefix remain
+# issue attempts, even when the rest of the argument is malformed.
+test_lowercase_malformed_issue_id_fails_before_side_effects() {
+  local tmpdir rc=0 stderr linear_calls ok=1 worktree_list worktree_count
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  git -C "$tmpdir" config user.email test@example.com
+  git -C "$tmpdir" config user.name Test
+  git -C "$tmpdir" commit -q --allow-empty -m 'Issue classifier fixture'
+  mkdir -p "$tmpdir/workspaces"
+  _write_runner "$tmpdir" "rep-17x"
+
+  REPRO_WORKSPACE_ROOT="$tmpdir/workspaces" \
+    bash "$tmpdir/run_test.sh" >"$tmpdir/stdout.log" 2>"$tmpdir/stderr.log" || rc=$?
+  stderr="$(cat "$tmpdir/stderr.log")"
+  linear_calls="$(cat "$tmpdir/linear_calls.log" 2>/dev/null || true)"
+  worktree_list="$(git -C "$tmpdir" worktree list --porcelain)"
+  worktree_count="$(printf '%s\n' "$worktree_list" | grep -c '^worktree ' || true)"
+  [[ "$rc" -ne 0 ]] || ok=0
+  printf '%s\n' "$stderr" | grep -q 'REP-123' || ok=0
+  printf '%s\n' "$stderr" | grep -q 'deliver --help' || ok=0
+  [[ -z "$linear_calls" ]] || ok=0
+  [[ ! -s "$tmpdir/reproctl_calls.log" ]] || ok=0
+  [[ ! -s "$tmpdir/herdr_calls.log" && ! -s "$tmpdir/herdr_worktree_open.log" ]] || ok=0
+  git -C "$tmpdir" show-ref --verify --quiet refs/heads/rep-17x && ok=0
+  [[ ! -e "$tmpdir/workspaces/repro-wt-rep-17x" ]] || ok=0
+  [[ "$worktree_count" -eq 1 ]] || ok=0
+  rm -rf "$tmpdir"
+
+  if [[ "$ok" -eq 1 ]]; then
+    _pass 'lowercase malformed issue IDs fail with expected format/help before side effects'
+  else
+    _fail 'lowercase malformed issue IDs fail with expected format/help before side effects' \
+      "rc=$rc; stderr=$stderr; linear=$linear_calls; worktrees=$worktree_list"
+  fi
+}
+
+# REP-1708 review regression: unrelated uppercase branch names are not issue
+# attempts merely because they contain a hyphen.
+test_uppercase_bare_branch_is_preserved() {
+  local tmpdir rc=0 output linear_calls ok=1
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  _write_runner "$tmpdir" "FEATURE-task --dry-run"
+
+  bash "$tmpdir/run_test.sh" >"$tmpdir/stdout.log" 2>"$tmpdir/stderr.log" || rc=$?
+  output="$(cat "$tmpdir/stdout.log" "$tmpdir/stderr.log")"
+  linear_calls="$(cat "$tmpdir/linear_calls.log" 2>/dev/null || true)"
+  [[ "$rc" -eq 0 ]] || ok=0
+  printf '%s\n' "$output" | grep -q 'Mode: Bare Branch' || ok=0
+  printf '%s\n' "$output" | grep -q 'Branch: FEATURE-task' || ok=0
+  printf '%s\n' "$output" | grep -q 'Command: /build' || ok=0
+  [[ -z "$linear_calls" ]] || ok=0
+  rm -rf "$tmpdir"
+
+  if [[ "$ok" -eq 1 ]]; then
+    _pass 'uppercase non-issue branch names remain in bare-branch mode'
+  else
+    _fail 'uppercase non-issue branch names remain in bare-branch mode' \
+      "rc=$rc; linear=$linear_calls; output=$output"
+  fi
+}
+
 # REP-1708: a valid-format issue that Linear cannot find gets a not-found error,
 # rather than becoming a /build delivery with empty metadata.
 test_unknown_issue_fails_before_side_effects() {
@@ -1348,6 +1411,36 @@ test_linear_lookup_failure_fails_before_side_effects() {
   else
     _fail 'Linear lookup failures preserve diagnostics and stop before side effects' \
       "rc=$rc; stderr=$stderr; linear=$linear_calls; stdout=$(cat "$tmpdir/stdout.log" 2>/dev/null || true)"
+  fi
+}
+
+# REP-1708 review regression: an API diagnostic that quotes the not-found text
+# is still a lookup failure, and its complete diagnostic remains visible.
+test_mixed_not_found_phrase_remains_lookup_failure() {
+  local tmpdir rc=0 stderr linear_calls ok=1 diagnostic
+  diagnostic='Authorization failed while fetching issue metadata. Issue REP-123 not found.'
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  _write_runner "$tmpdir" "REP-123"
+
+  LINEAR_STUB_RESULT=api_error LINEAR_STUB_ERROR="$diagnostic" \
+    bash "$tmpdir/run_test.sh" >"$tmpdir/stdout.log" 2>"$tmpdir/stderr.log" || rc=$?
+  stderr="$(cat "$tmpdir/stderr.log")"
+  linear_calls="$(cat "$tmpdir/linear_calls.log" 2>/dev/null || true)"
+  [[ "$rc" -ne 0 ]] || ok=0
+  printf '%s\n' "$stderr" | grep -q 'Linear lookup failed' || ok=0
+  printf '%s\n' "$stderr" | grep -Fq -- "$diagnostic" || ok=0
+  printf '%s\n' "$stderr" | grep -q 'deliver --help' || ok=0
+  if printf '%s\n' "$stderr" | grep -q 'Linear issue REP-123 was not found'; then ok=0; fi
+  [[ "$(printf '%s\n' "$linear_calls" | grep -c '^LINEAR_CALL: issue show REP-123 --json$' || true)" -eq 1 ]] || ok=0
+  _issue_delivery_has_no_side_effects "$tmpdir" || ok=0
+  rm -rf "$tmpdir"
+
+  if [[ "$ok" -eq 1 ]]; then
+    _pass 'mixed not-found phrase remains a lookup failure with full diagnostic preserved'
+  else
+    _fail 'mixed not-found phrase remains a lookup failure with full diagnostic preserved' \
+      "rc=$rc; stderr=$stderr; linear=$linear_calls"
   fi
 }
 
@@ -4288,11 +4381,20 @@ case "${DELIVER_TEST_ONLY:-}" in
   test_malformed_issue_id_fails_before_side_effects)
     test_malformed_issue_id_fails_before_side_effects
     ;;
+  test_lowercase_malformed_issue_id_fails_before_side_effects)
+    test_lowercase_malformed_issue_id_fails_before_side_effects
+    ;;
+  test_uppercase_bare_branch_is_preserved)
+    test_uppercase_bare_branch_is_preserved
+    ;;
   test_unknown_issue_fails_before_side_effects)
     test_unknown_issue_fails_before_side_effects
     ;;
   test_linear_lookup_failure_fails_before_side_effects)
     test_linear_lookup_failure_fails_before_side_effects
+    ;;
+  test_mixed_not_found_phrase_remains_lookup_failure)
+    test_mixed_not_found_phrase_remains_lookup_failure
     ;;
   test_issue_lookup_must_identify_requested_issue)
     test_issue_lookup_must_identify_requested_issue
@@ -4333,8 +4435,11 @@ case "${DELIVER_TEST_ONLY:-}" in
   test_no_label_routes_to_build
   test_wrong_team_issue_id_fails_before_side_effects
   test_malformed_issue_id_fails_before_side_effects
+  test_lowercase_malformed_issue_id_fails_before_side_effects
+  test_uppercase_bare_branch_is_preserved
   test_unknown_issue_fails_before_side_effects
   test_linear_lookup_failure_fails_before_side_effects
+  test_mixed_not_found_phrase_remains_lookup_failure
   test_issue_lookup_must_identify_requested_issue
   test_valid_issue_routes_from_single_validated_lookup
   test_issue_slug_bare_branch_mode_is_preserved

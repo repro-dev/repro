@@ -141,7 +141,7 @@ _mode_issue_id() {
   rm -f "$linear_stderr_file" >/dev/null 2>&1 || true
 
   if [[ "$lookup_status" -ne 0 ]]; then
-    if printf '%s\n' "$linear_stderr" | grep -Fq "Issue $issue_id not found."; then
+    if [[ "$linear_stderr" == "Issue $issue_id not found." ]]; then
       _err "Linear issue $issue_id was not found."
       echo "  Check that the issue exists and the ID is correct (expected format: REP-123)." >&2
       echo "  Run 'deliver --help' for usage." >&2
@@ -1242,7 +1242,7 @@ if [[ -z "$mode" ]]; then
     usage
   fi
 
-  if [[ "$mode_arg" != */* && "$mode_arg" =~ ^[A-Z]+- ]]; then
+  if [[ "$mode_arg" != */* && ( "$mode_arg" =~ ^[A-Z]+-[0-9] || "$mode_arg" =~ ^[Rr][Ee][Pp]- ) ]]; then
     _validate_issue_id "$mode_arg" || exit 1
     mode="issue_id"
   elif [[ "$mode_arg" =~ ^[0-9]+$ ]]; then
