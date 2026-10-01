@@ -242,6 +242,7 @@ _write_stubs() {
   # real reproctl output) so deliver.sh skips its git-worktree fallback scan.
 cat > "$tmpdir/scripts/reproctl.sh" << 'STUB'
 #!/bin/bash
+printf 'REPROCTL_CALL: %s\n' "$*" >> "$(dirname "$(dirname "$0")")/reproctl_calls.log"
 echo "REPROCTL_ARGS: $*"
 worktree_path="$(dirname "$(dirname "$0")")/repro-wt-rep-123"
 mkdir -p "$worktree_path"
@@ -249,14 +250,25 @@ echo "Path: $worktree_path"
 STUB
   chmod +x "$tmpdir/scripts/reproctl.sh"
 
-  # linear stub: deterministic JSON. Labels are injectable via
-  # LINEAR_STUB_LABELS_JSON (default: none) so routing tests can simulate
-  # Bug / Pen / Feature-labeled issues.
+  # Linear stub: deterministic JSON with injectable lookup results and labels.
   cat > "$tmpdir/linear" << 'STUB'
 #!/bin/bash
+printf 'LINEAR_CALL: %s\n' "$*" >> "$(dirname "$0")/linear_calls.log"
+case "${LINEAR_STUB_RESULT:-success}" in
+  not_found)
+    printf '%s\n' "${LINEAR_STUB_ERROR:-Issue ${3:-unknown} not found.}" >&2
+    exit 1
+    ;;
+  api_error)
+    printf '%s\n' "${LINEAR_STUB_ERROR:-Linear API request failed: HTTP 503 Service Unavailable}" >&2
+    exit 1
+    ;;
+esac
 labels="${LINEAR_STUB_LABELS_JSON:-[]}"
 title="${LINEAR_STUB_TITLE-Test issue}"
-printf '{"item":{"id":"uuid-1","identifier":"REP-123","title":"%s","branchName":"feat/rep-123-test","status":{"name":"Todo","type":"unstarted"},"labels":%s}}\n' "$title" "$labels"
+identifier="${LINEAR_STUB_IDENTIFIER:-REP-123}"
+branch="${LINEAR_STUB_BRANCH:-feat/rep-123-test}"
+printf '{"item":{"id":"uuid-1","identifier":"%s","title":"%s","branchName":"%s","status":{"name":"Todo","type":"unstarted"},"labels":%s}}\n' "$identifier" "$title" "$branch" "$labels"
 STUB
   chmod +x "$tmpdir/linear"
 
@@ -570,6 +582,41 @@ _pr_json() {
   local body="$2"
   local title="$3"
   printf '{"headRefName":"%s","body":"%s","title":"%s"}' "$branch" "$body" "$title"
+}
+
+_issue_delivery_has_no_side_effects() {
+  local tmpdir="$1" ok=1 call worktree branches
+  local reproctl_log="$tmpdir/reproctl_calls.log"
+  local herdr_log="$tmpdir/herdr_calls.log"
+  local herdr_open_log="$tmpdir/herdr_worktree_open.log"
+  local linear_log="$tmpdir/linear_calls.log"
+
+  [[ ! -s "$reproctl_log" ]] || ok=0
+  [[ ! -s "$herdr_log" && ! -s "$herdr_open_log" ]] || ok=0
+  for worktree in "$tmpdir"/repro-wt-*; do
+    [[ ! -e "$worktree" ]] || ok=0
+  done
+  branches="$(git -C "$tmpdir" for-each-ref --format='%(refname:short)' refs/heads 2>/dev/null || true)"
+  [[ -z "$branches" ]] || ok=0
+  if [[ -f "$linear_log" ]]; then
+    while IFS= read -r call || [[ -n "$call" ]]; do
+      case "$call" in
+        'LINEAR_CALL: issue show '*) ;;
+        *) ok=0 ;;
+      esac
+    done < "$linear_log"
+  fi
+
+  if [[ "$ok" -eq 1 ]]; then
+    return 0
+  fi
+  printf 'Unexpected side effects: reproctl=%s herdr=%s herdr-worktree=%s branches=%s linear=%s\n' \
+    "$(cat "$reproctl_log" 2>/dev/null || true)" \
+    "$(cat "$herdr_log" 2>/dev/null || true)" \
+    "$(cat "$herdr_open_log" 2>/dev/null || true)" \
+    "${branches:-<none>}" \
+    "$(cat "$linear_log" 2>/dev/null || true)" >&2
+  return 1
 }
 
 _test_pr_alias_suffix() {
@@ -1194,6 +1241,195 @@ test_no_label_routes_to_build() {
   else
     _fail "no matching label routes to /build (fail-open)" "rc=$rc; output: $output"
   fi
+}
+
+# REP-1708: issue-looking IDs with the wrong team prefix are rejected before
+# Linear, worktree, or session handling starts.
+test_wrong_team_issue_id_fails_before_side_effects() {
+  local tmpdir rc=0 output stderr ok=1 linear_calls
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  _write_runner "$tmpdir" "RPE-1707"
+
+  bash "$tmpdir/run_test.sh" >"$tmpdir/stdout.log" 2>"$tmpdir/stderr.log" || rc=$?
+  output="$(cat "$tmpdir/stdout.log")"
+  stderr="$(cat "$tmpdir/stderr.log")"
+  linear_calls="$(cat "$tmpdir/linear_calls.log" 2>/dev/null || true)"
+  [[ "$rc" -ne 0 ]] || ok=0
+  printf '%s\n' "$stderr" | grep -q 'REP-123' || ok=0
+  printf '%s\n' "$stderr" | grep -q 'deliver --help' || ok=0
+  [[ -z "$linear_calls" ]] || ok=0
+  _issue_delivery_has_no_side_effects "$tmpdir" || ok=0
+  rm -rf "$tmpdir"
+
+  if [[ "$ok" -eq 1 ]]; then
+    _pass 'wrong-team issue IDs fail with expected format/help before side effects'
+  else
+    _fail 'wrong-team issue IDs fail with expected format/help before side effects' \
+      "rc=$rc; stderr=$stderr; linear=$linear_calls; stdout=$(cat "$tmpdir/stdout.log" 2>/dev/null || true)"
+  fi
+}
+
+# REP-1708: malformed issue-looking arguments must not fall through as branches.
+test_malformed_issue_id_fails_before_side_effects() {
+  local tmpdir rc=0 output stderr ok=1 linear_calls
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  _write_runner "$tmpdir" "REP-17x"
+
+  bash "$tmpdir/run_test.sh" >"$tmpdir/stdout.log" 2>"$tmpdir/stderr.log" || rc=$?
+  output="$(cat "$tmpdir/stdout.log")"
+  stderr="$(cat "$tmpdir/stderr.log")"
+  linear_calls="$(cat "$tmpdir/linear_calls.log" 2>/dev/null || true)"
+  [[ "$rc" -ne 0 ]] || ok=0
+  printf '%s\n' "$stderr" | grep -q 'REP-123' || ok=0
+  printf '%s\n' "$stderr" | grep -q 'deliver --help' || ok=0
+  [[ -z "$linear_calls" ]] || ok=0
+  _issue_delivery_has_no_side_effects "$tmpdir" || ok=0
+  rm -rf "$tmpdir"
+
+  if [[ "$ok" -eq 1 ]]; then
+    _pass 'malformed issue IDs fail with expected format/help before side effects'
+  else
+    _fail 'malformed issue IDs fail with expected format/help before side effects' \
+      "rc=$rc; stderr=$stderr; linear=$linear_calls; stdout=$(cat "$tmpdir/stdout.log" 2>/dev/null || true)"
+  fi
+}
+
+# REP-1708: a valid-format issue that Linear cannot find gets a not-found error,
+# rather than becoming a /build delivery with empty metadata.
+test_unknown_issue_fails_before_side_effects() {
+  local tmpdir rc=0 output stderr ok=1 linear_calls
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  _write_runner "$tmpdir" "REP-999999"
+
+  LINEAR_STUB_RESULT=not_found bash "$tmpdir/run_test.sh" >"$tmpdir/stdout.log" 2>"$tmpdir/stderr.log" || rc=$?
+  output="$(cat "$tmpdir/stdout.log")"
+  stderr="$(cat "$tmpdir/stderr.log")"
+  linear_calls="$(cat "$tmpdir/linear_calls.log" 2>/dev/null || true)"
+  [[ "$rc" -ne 0 ]] || ok=0
+  printf '%s\n' "$stderr" | grep -Eiq 'REP-999999.*not found|not found.*REP-999999' || ok=0
+  printf '%s\n' "$stderr" | grep -q 'REP-123' || ok=0
+  printf '%s\n' "$stderr" | grep -q 'deliver --help' || ok=0
+  [[ "$(printf '%s\n' "$linear_calls" | grep -c '^LINEAR_CALL: issue show REP-999999 --json$' || true)" -eq 1 ]] || ok=0
+  _issue_delivery_has_no_side_effects "$tmpdir" || ok=0
+  rm -rf "$tmpdir"
+
+  if [[ "$ok" -eq 1 ]]; then
+    _pass 'unknown issue IDs report not-found and stop before side effects'
+  else
+    _fail 'unknown issue IDs report not-found and stop before side effects' \
+      "rc=$rc; stderr=$stderr; linear=$linear_calls; stdout=$(cat "$tmpdir/stdout.log" 2>/dev/null || true)"
+  fi
+}
+
+# REP-1708: non-not-found Linear failures remain visible and distinct.
+test_linear_lookup_failure_fails_before_side_effects() {
+  local tmpdir rc=0 output stderr ok=1 linear_calls
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  _write_runner "$tmpdir" "REP-123"
+
+  LINEAR_STUB_RESULT=api_error bash "$tmpdir/run_test.sh" >"$tmpdir/stdout.log" 2>"$tmpdir/stderr.log" || rc=$?
+  output="$(cat "$tmpdir/stdout.log")"
+  stderr="$(cat "$tmpdir/stderr.log")"
+  linear_calls="$(cat "$tmpdir/linear_calls.log" 2>/dev/null || true)"
+  [[ "$rc" -ne 0 ]] || ok=0
+  printf '%s\n' "$stderr" | grep -q 'Linear lookup failed' || ok=0
+  printf '%s\n' "$stderr" | grep -q 'HTTP 503 Service Unavailable' || ok=0
+  printf '%s\n' "$stderr" | grep -q 'deliver --help' || ok=0
+  [[ "$(printf '%s\n' "$linear_calls" | grep -c '^LINEAR_CALL: issue show REP-123 --json$' || true)" -eq 1 ]] || ok=0
+  _issue_delivery_has_no_side_effects "$tmpdir" || ok=0
+  rm -rf "$tmpdir"
+
+  if [[ "$ok" -eq 1 ]]; then
+    _pass 'Linear lookup failures preserve diagnostics and stop before side effects'
+  else
+    _fail 'Linear lookup failures preserve diagnostics and stop before side effects' \
+      "rc=$rc; stderr=$stderr; linear=$linear_calls; stdout=$(cat "$tmpdir/stdout.log" 2>/dev/null || true)"
+  fi
+}
+
+# REP-1708: reject a successful response for a different issue and use a single
+# validated lookup for title, branch, and label-based routing.
+test_issue_lookup_must_identify_requested_issue() {
+  local tmpdir rc=0 output stderr ok=1 linear_calls
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  _write_runner "$tmpdir" "REP-123"
+
+  LINEAR_STUB_IDENTIFIER=REP-124 bash "$tmpdir/run_test.sh" >"$tmpdir/stdout.log" 2>"$tmpdir/stderr.log" || rc=$?
+  output="$(cat "$tmpdir/stdout.log")"
+  stderr="$(cat "$tmpdir/stderr.log")"
+  linear_calls="$(cat "$tmpdir/linear_calls.log" 2>/dev/null || true)"
+  [[ "$rc" -ne 0 ]] || ok=0
+  printf '%s\n' "$stderr" | grep -q 'REP-123' || ok=0
+  [[ "$(printf '%s\n' "$linear_calls" | grep -c '^LINEAR_CALL: issue show REP-123 --json$' || true)" -eq 1 ]] || ok=0
+  _issue_delivery_has_no_side_effects "$tmpdir" || ok=0
+  rm -rf "$tmpdir"
+
+  if [[ "$ok" -eq 1 ]]; then
+    _pass 'Linear responses for another issue are rejected before side effects'
+  else
+    _fail 'Linear responses for another issue are rejected before side effects' \
+      "rc=$rc; stderr=$stderr; linear=$linear_calls; stdout=$(cat "$tmpdir/stdout.log" 2>/dev/null || true)"
+  fi
+}
+
+test_valid_issue_routes_from_single_validated_lookup() {
+  local tmpdir rc=0 output stderr linear_calls ok=1 lookup_count total_linear_calls
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  _write_runner "$tmpdir" "REP-123 --dry-run"
+
+  LINEAR_STUB_IDENTIFIER=REP-123 \
+    LINEAR_STUB_TITLE='Validated issue title' \
+    LINEAR_STUB_BRANCH='feature/validated-issue' \
+    LINEAR_STUB_LABELS_JSON='[{"name":"Bug"}]' \
+    bash "$tmpdir/run_test.sh" >"$tmpdir/stdout.log" 2>"$tmpdir/stderr.log" || rc=$?
+  stderr="$(cat "$tmpdir/stderr.log")"
+  output="$(cat "$tmpdir/stdout.log")"
+  linear_calls="$(cat "$tmpdir/linear_calls.log" 2>/dev/null || true)"
+  lookup_count="$(printf '%s\n' "$linear_calls" | grep -c '^LINEAR_CALL: issue show REP-123 --json$' || true)"
+  total_linear_calls="$(printf '%s\n' "$linear_calls" | grep -c '^LINEAR_CALL:' || true)"
+  [[ "$rc" -eq 0 ]] || ok=0
+  printf '%s\n' "$output" | grep -q 'Title: Validated issue title' || ok=0
+  printf '%s\n' "$output" | grep -q 'Branch: feature/validated-issue' || ok=0
+  printf '%s\n' "$output" | grep -q 'Command: /bugfix' || ok=0
+  [[ "$lookup_count" -eq 1 ]] || ok=0
+  [[ "$total_linear_calls" -eq 1 ]] || ok=0
+  if [[ "$ok" -eq 1 ]]; then
+    _pass 'valid issues use one lookup for title, branch, and label routing'
+  else
+    _fail 'valid issues use one lookup for title, branch, and label routing' \
+      "rc=$rc; lookups=$lookup_count; total_linear_calls=$total_linear_calls; stderr=$stderr; linear=$linear_calls; output=$output"
+  fi
+  rm -rf "$tmpdir"
+}
+
+test_issue_slug_bare_branch_mode_is_preserved() {
+  local tmpdir rc=0 output linear_calls ok=1
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  _write_runner "$tmpdir" "--dry-run REP-123/fix"
+
+  LINEAR_STUB_IDENTIFIER=REP-123 bash "$tmpdir/run_test.sh" >"$tmpdir/stdout.log" 2>"$tmpdir/stderr.log" || rc=$?
+  output="$(cat "$tmpdir/stdout.log" "$tmpdir/stderr.log")"
+  linear_calls="$(cat "$tmpdir/linear_calls.log" 2>/dev/null || true)"
+  [[ "$rc" -eq 0 ]] || ok=0
+  printf '%s\n' "$output" | grep -q 'Mode: Bare Branch' || ok=0
+  printf '%s\n' "$output" | grep -q 'Branch: REP-123/fix' || ok=0
+  printf '%s\n' "$output" | grep -q 'Command: /build' || ok=0
+  [[ "$(printf '%s\n' "$linear_calls" | grep -c '^LINEAR_CALL: issue show REP-123 --json$' || true)" -eq 1 ]] || ok=0
+
+  if [[ "$ok" -eq 1 ]]; then
+    _pass 'issue-slug branch names keep bare-branch mode and label routing'
+  else
+    _fail 'issue-slug branch names keep bare-branch mode and label routing' \
+      "rc=$rc; linear=$linear_calls; output=$output"
+  fi
+  rm -rf "$tmpdir"
 }
 
 # Test 25: the OpenCode launch must resolve reproctl context from the created
@@ -4046,6 +4282,27 @@ case "${DELIVER_TEST_ONLY:-}" in
   test_herdr_open_child_gate_survives_parent_kill)
     test_herdr_open_child_gate_survives_parent_kill
     ;;
+  test_wrong_team_issue_id_fails_before_side_effects)
+    test_wrong_team_issue_id_fails_before_side_effects
+    ;;
+  test_malformed_issue_id_fails_before_side_effects)
+    test_malformed_issue_id_fails_before_side_effects
+    ;;
+  test_unknown_issue_fails_before_side_effects)
+    test_unknown_issue_fails_before_side_effects
+    ;;
+  test_linear_lookup_failure_fails_before_side_effects)
+    test_linear_lookup_failure_fails_before_side_effects
+    ;;
+  test_issue_lookup_must_identify_requested_issue)
+    test_issue_lookup_must_identify_requested_issue
+    ;;
+  test_valid_issue_routes_from_single_validated_lookup)
+    test_valid_issue_routes_from_single_validated_lookup
+    ;;
+  test_issue_slug_bare_branch_mode_is_preserved)
+    test_issue_slug_bare_branch_mode_is_preserved
+    ;;
   *)
   test_file_exists
   test_no_flags_uses_default
@@ -4074,6 +4331,13 @@ case "${DELIVER_TEST_ONLY:-}" in
   test_bug_label_routes_to_bugfix
   test_pen_label_routes_to_pen_reconcile
   test_no_label_routes_to_build
+  test_wrong_team_issue_id_fails_before_side_effects
+  test_malformed_issue_id_fails_before_side_effects
+  test_unknown_issue_fails_before_side_effects
+  test_linear_lookup_failure_fails_before_side_effects
+  test_issue_lookup_must_identify_requested_issue
+  test_valid_issue_routes_from_single_validated_lookup
+  test_issue_slug_bare_branch_mode_is_preserved
   test_opencode_launch_uses_worktree_context
   test_stage4_submits_seeded_prompt
   test_stage4_send_keys_failure_warns
