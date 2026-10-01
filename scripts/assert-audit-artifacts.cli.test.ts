@@ -1,5 +1,11 @@
 import assert from 'node:assert/strict'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, it } from 'node:test'
@@ -17,6 +23,7 @@ import {
 const GENERATED_AT = '2026-09-02T12:00:00.000Z'
 const COMMIT_ISO = '2026-09-02T11:00:00.000Z'
 const COMMIT_SHA = 'abc1234'
+const PRIOR_COMMIT_SHA = 'def5678'
 const SHOT_REL = 'tmp/ui-verification/REP-0000/shots/sessions-idle.png'
 
 function fixture() {
@@ -32,14 +39,27 @@ function fixture() {
     issue: 'REP-0000',
     generatedAt: GENERATED_AT,
     base: 'origin/main',
+    auditCheckpointCommit: COMMIT_SHA,
     surfaces: [
       {
         surface: 'workspace::Sessions',
+        auditedAtCommit: COMMIT_SHA,
         states: [
           {
             state: 'idle',
             screenshot: SHOT_REL,
             interactionNotes: 'loaded',
+          },
+        ],
+      },
+      {
+        surface: 'workspace::History',
+        auditedAtCommit: PRIOR_COMMIT_SHA,
+        states: [
+          {
+            state: 'idle',
+            screenshot: SHOT_REL,
+            interactionNotes: 'unchanged and reused',
           },
         ],
       },
@@ -137,6 +157,18 @@ describe('REP-1653 CLI parsing', () => {
     assert.deepEqual(parseCliArgs([]).options, {})
   })
 
+  it('keeps help prose aligned with the Step 5 proof assertion', () => {
+    const source = readFileSync(
+      new URL('./assert-audit-artifacts.ts', import.meta.url),
+      'utf8'
+    )
+    assert.match(source, /delivery-workflow §5 Step 5 proof-bundle assertions/)
+    assert.doesNotMatch(
+      source,
+      /delivery-workflow §5 Step 4 proof-bundle assertions/
+    )
+  })
+
   it('rejects blank --surface values (classify error style)', () => {
     assert.match(
       parseCliArgs(['--surface', '']).error!,
@@ -187,10 +219,12 @@ describe('REP-1653 CLI exit codes', () => {
       assert.equal(report.issue, 'REP-0000')
       assert.equal(report.auditDir, f.auditDir)
       assert.equal(report.ok, true)
-      assert.equal(report.results.length, 6)
+      assert.equal(report.results.length, 8)
       for (const entry of report.results) {
         assert.equal(entry.ok, true, entry.id)
       }
+      // Unchanged surface evidence can be older than the current checkpoint.
+      assert.ok(report.results.some(r => r.id === 'surface-checkpoints'))
       // No canary assertion exists in the result list.
       assert.ok(!report.results.some(r => r.id === 'canary'))
     } finally {

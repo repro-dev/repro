@@ -33,9 +33,11 @@ const VALID_MANIFEST = {
   issue: 'REP-0000',
   generatedAt: GENERATED_AT,
   base: 'origin/main',
+  auditCheckpointCommit: 'abc1234',
   surfaces: [
     {
       surface: 'workspace::Sessions',
+      auditedAtCommit: 'abc1234',
       states: [{ state: 'idle', screenshot: SHOT_REL }],
     },
   ],
@@ -78,6 +80,7 @@ function fixture() {
         issueId: 'REP-0000',
         expectedSurfaces: ['workspace::Sessions'],
         classificationBase: 'origin/main',
+        checkpointCommit: 'abc1234',
         commitTimeMs: COMMIT_TIME_MS,
         worktreeRoot: root,
         ...overrides?.inputs,
@@ -220,5 +223,80 @@ describe('REP-1653 hardening: details, coverage, table boundary', () => {
     })
     const findings = report.results.find(r => r.id === 'audit-findings')
     assert.equal(findings?.ok, true, findings?.detail)
+  })
+
+  it('fails closed when the manifest checkpoint is missing or does not match the asserted commit', () => {
+    const missing = f.run({
+      manifest: { ...VALID_MANIFEST, auditCheckpointCommit: undefined },
+    })
+    assertFails(missing, 'audit-checkpoint', /missing|does not match/i)
+
+    const stale = f.run({
+      manifest: { ...VALID_MANIFEST, auditCheckpointCommit: 'older123' },
+    })
+    assertFails(
+      stale,
+      'audit-checkpoint',
+      /older123.*abc1234|abc1234.*older123/i
+    )
+  })
+
+  it('requires changed surfaces to be audited at the asserted checkpoint but permits older unchanged evidence', () => {
+    const staleChanged = f.run({
+      manifest: {
+        ...VALID_MANIFEST,
+        surfaces: [
+          {
+            ...VALID_MANIFEST.surfaces[0],
+            auditedAtCommit: 'older123',
+          },
+          {
+            surface: 'workspace::History',
+            auditedAtCommit: 'prior456',
+            states: [{ state: 'idle', screenshot: SHOT_REL }],
+          },
+        ],
+      },
+    })
+    assertFails(
+      staleChanged,
+      'surface-checkpoints',
+      /workspace::Sessions.*older123.*abc1234/
+    )
+
+    const reusedUnchanged = f.run({
+      manifest: {
+        ...VALID_MANIFEST,
+        surfaces: [
+          VALID_MANIFEST.surfaces[0],
+          {
+            surface: 'workspace::History',
+            auditedAtCommit: 'prior456',
+            states: [{ state: 'idle', screenshot: SHOT_REL }],
+          },
+        ],
+      },
+    })
+    assert.equal(reusedUnchanged.ok, true)
+  })
+
+  it('fails closed when any surface omits audit checkpoint provenance', () => {
+    const report = f.run({
+      manifest: {
+        ...VALID_MANIFEST,
+        surfaces: [
+          VALID_MANIFEST.surfaces[0],
+          {
+            surface: 'workspace::History',
+            states: [{ state: 'idle', screenshot: SHOT_REL }],
+          },
+        ],
+      },
+    })
+    assertFails(
+      report,
+      'surface-checkpoints',
+      /History.*auditedAtCommit.*missing/i
+    )
   })
 })

@@ -27,9 +27,11 @@ const VALID_MANIFEST = {
   issue: 'REP-0000',
   generatedAt: GENERATED_AT,
   base: 'origin/main',
+  auditCheckpointCommit: 'abc1234',
   surfaces: [
     {
       surface: 'workspace::Sessions',
+      auditedAtCommit: 'abc1234',
       url: 'http://localhost:3000/sessions',
       viewport: '1440x900',
       states: [
@@ -55,7 +57,13 @@ const findingRow = (disposition: string) =>
 
 const manifestWith = (states: unknown) => ({
   ...VALID_MANIFEST,
-  surfaces: [{ surface: 'workspace::Sessions', states }],
+  surfaces: [
+    {
+      surface: 'workspace::Sessions',
+      auditedAtCommit: 'abc1234',
+      states,
+    },
+  ],
 })
 
 function fixture() {
@@ -91,6 +99,7 @@ function fixture() {
         issueId: 'REP-0000',
         expectedSurfaces: ['workspace::Sessions'],
         classificationBase: 'origin/main',
+        checkpointCommit: 'abc1234',
         commitTimeMs: COMMIT_TIME_MS,
         worktreeRoot: root,
         ...overrides?.inputs,
@@ -136,7 +145,9 @@ describe('REP-1653 assertAuditArtifacts (pure core)', () => {
       'manifest-nonempty',
       'screenshots',
       'freshness',
+      'audit-checkpoint',
       'surface-coverage',
+      'surface-checkpoints',
       'audit-findings',
     ])
     for (const result of report.results) {
@@ -161,6 +172,7 @@ describe('REP-1653 assertAuditArtifacts (pure core)', () => {
       issueId: 'REP-0000',
       expectedSurfaces: ['workspace::Sessions'],
       classificationBase: 'origin/main',
+      checkpointCommit: 'abc1234',
       commitTimeMs: COMMIT_TIME_MS,
       worktreeRoot: f.root,
     })
@@ -336,6 +348,7 @@ describe('REP-1653 assertAuditArtifacts (pure core)', () => {
       issueId: 'REP-0000',
       expectedSurfaces: ['workspace::Sessions'],
       classificationBase: 'origin/main',
+      checkpointCommit: 'abc1234',
       commitTimeMs: COMMIT_TIME_MS,
       worktreeRoot: path.dirname(f.root),
     })
@@ -406,6 +419,7 @@ describe('REP-1653 assertAuditArtifacts (pure core)', () => {
           ...VALID_MANIFEST.surfaces,
           {
             surface: 'admin::Billing',
+            auditedAtCommit: 'abc1234',
             states: [{ state: 'idle', screenshot: SHOT_REL }],
           },
         ],

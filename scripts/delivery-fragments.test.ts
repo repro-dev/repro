@@ -72,7 +72,6 @@ describe('REP-1646 UI audit gate wiring', () => {
     assert.match(skill, /## 5\. Audit gate/)
     assert.match(skill, /ui:classify/)
     assert.match(skill, /proof-bundle assertion/i)
-    // Sections renumbered after the gate insertion (previously 5/6/7).
     assert.match(skill, /## 6\. Review loop/)
     assert.match(skill, /## 7\. Publish/)
     assert.match(
@@ -93,12 +92,9 @@ describe('REP-1646 UI audit gate wiring', () => {
   it('keeps the browser canary as troubleshooting-only guidance', () => {
     const skill = readText('.opencode/skills/ui-verification/SKILL.md')
 
-    // The troubleshooting recipe is the only place describing the incident:
-    // failure signature, copy-paste canary, recovery, diagnostic-only rule.
     assert.match(skill, /Troubleshooting: silent browser input loss/)
     assert.match(skill, /### Browser input canary/)
     assert.match(skill, /Diagnostic-only eval interaction/)
-    // The routine manifest contract no longer carries canary fields.
     assert.doesNotMatch(skill, /agentBrowserVersion/)
     assert.doesNotMatch(skill, /"canary"/)
   })
@@ -106,19 +102,20 @@ describe('REP-1646 UI audit gate wiring', () => {
   it('keeps the audit gate canary-free in delivery-workflow', () => {
     const skill = readText('.opencode/skills/delivery-workflow/SKILL.md')
 
-    // The §5 Step 3 audit prompt and §5 Step 4 assertion list must not
-    // require the canary or an agentBrowserVersion field.
     assert.doesNotMatch(skill, /canary/i)
     assert.doesNotMatch(skill, /agentBrowserVersion/)
-    // The remaining Step 4 assertions are renumbered with no gap.
-    assert.match(skill, /3\. `freshness` — the manifest `base` field/)
-    assert.match(skill, /4\. `surface-coverage` — every surface name/)
-    assert.match(skill, /5\. `audit-findings` — `tmp\/ui-verification/)
-    assert.match(skill, /6\. The §4 implementation develop return's REP-1081/)
-    // The Step 3 prompt renumbered its remaining steps too.
+    assert.match(skill, /3\. `freshness` — manifest `base` equals/)
     assert.match(
       skill,
-      /3\. Navigate exactly the affected surfaces listed above/
+      /4\. `audit-checkpoint` — top-level `auditCheckpointCommit`/
+    )
+    assert.match(skill, /5\. `surface-coverage` — every changed-surface name/)
+    assert.match(skill, /6\. `surface-checkpoints` — every surface/)
+    assert.match(skill, /7\. `audit-findings` — `audit\.md`/)
+    assert.match(skill, /8\. The §4 implementation return's REP-1081/)
+    assert.match(
+      skill,
+      /3\. Audit exactly the changed surfaces and applicable states/
     )
   })
 
@@ -163,19 +160,14 @@ describe('REP-1646 UI audit gate wiring', () => {
     // §5 fail-closed preamble — the gate is never silently skipped.
     assert.match(skill, /Fail-closed preamble/)
     assert.match(skill, /The gate is never silently skipped/)
-    // Step 1 checkpoint commit — classification runs only on a clean tree
-    // (uncommitted UI files would classify as a false non-UI).
-    assert.match(skill, /never classify on a dirty tree/)
+    assert.match(skill, /tree is dirty, escalate rather than classify/)
   })
 
   it('requires the tightened proof-bundle assertions in the gate', () => {
     const skill = readText('.opencode/skills/delivery-workflow/SKILL.md')
 
-    // manifest.json must parse AND contain at least one surface with one state.
     assert.match(skill, /≥1 surface with ≥1 state/)
-    // Every state screenshot must be non-empty and resolve on disk.
-    assert.match(skill, /NON-EMPTY `screenshot` path/)
-    // audit.md must carry the findings-table header or the exact no-findings row.
+    assert.match(skill, /NON-EMPTY screenshot path/)
     assert.match(
       skill,
       /pillar \| severity \| evidence screenshot \| description \| disposition/
@@ -186,10 +178,8 @@ describe('REP-1646 UI audit gate wiring', () => {
   it('documents both real exit-1 modes of the proof-bundle assertion', () => {
     const skill = readText('.opencode/skills/delivery-workflow/SKILL.md')
 
-    // (a) gate violation: JSON on stdout — after the pnpm run banner lines.
     assert.match(skill, /parse from the first `\{` line/)
-    // (b) execution error: stderr ERROR line and no JSON verdict.
-    assert.match(skill, /stderr `ERROR:` line and NO JSON/)
+    assert.match(skill, /stderr has `ERROR:` and there is NO JSON/)
   })
 
   it('rejects a header-only audit.md and reserves `none` for the sentinel row', () => {
@@ -197,11 +187,11 @@ describe('REP-1646 UI audit gate wiring', () => {
 
     // A header with no rows is vacuous — the audit must carry ≥1
     // dispositioned finding row or the exact no-findings row.
-    assert.match(skill, /≥1 finding row each carrying a valid disposition/)
+    assert.match(skill, /≥1 dispositioned finding/)
     // `none` is not a finding-row disposition — it is reserved for the
     // no-findings sentinel row only (a `none` finding is neither fixed nor
     // filed and would let review start without resolution).
-    assert.match(skill, /`none` is reserved for the no-findings sentinel row/)
+    assert.match(skill, /`none` is reserved for the exact no-findings sentinel/)
     assert.doesNotMatch(
       skill,
       /disposition \(`fixed <commit>` \| `filed REP-xxx` \| `none`\)/
@@ -210,53 +200,67 @@ describe('REP-1646 UI audit gate wiring', () => {
     assert.match(uiSkill, /never for a finding row/)
   })
 
-  it('requires re-classification after post-gate UI drift opportunities', () => {
+  it('classifies post-gate changes from the last successful audit checkpoint', () => {
     const skill = readText('.opencode/skills/delivery-workflow/SKILL.md')
 
-    // The gate classifies once (§5 Step 2). Every later commit path —
-    // review-fix loop, non-blocker sweep, publish — must re-run the
-    // classifier and re-run §5 Steps 3–5 when the verdict flips.
-    assert.match(skill, /after every review-fix-loop commit/)
-    assert.match(skill, /after the non-blocker sweep/)
     assert.match(
       skill,
-      /review may not complete until the audit gate has passed/
+      /If the fix changed UI behavior, classify from the last successful UI audit checkpoint/
     )
     assert.match(
       skill,
-      /publish may not proceed until the audit gate has passed/
+      /After the non-blocker sweep, classify its delta from the last successful UI audit checkpoint/
     )
-    const classifyRuns =
-      skill.match(/pnpm run ui:classify --base origin\/main/g) ?? []
-    assert.ok(
-      classifyRuns.length >= 4,
-      `expected ≥4 classifier invocations (gate, fix loop, sweep, publish), found ${classifyRuns.length}`
+    assert.match(skill, /last successful audit checkpoint/)
+    assert.match(skill, /final UI changes[\s\S]*?current audit coverage/)
+    assert.match(skill, /after rebase[\s\S]*?last successful audit checkpoint/i)
+    assert.doesNotMatch(skill, /pnpm run ui:classify --base origin\/main/g)
+  })
+
+  it('preserves per-surface evidence and advances audit checkpoints only on success', () => {
+    const skill = readText('.opencode/skills/delivery-workflow/SKILL.md')
+    const uiSkill = readText('.opencode/skills/ui-verification/SKILL.md')
+
+    assert.match(skill, /top-level `auditCheckpointCommit`/)
+    assert.match(skill, /each changed surface's\s+`auditedAtCommit`/)
+    assert.match(
+      skill,
+      /P1\/P2 fix commit[\s\S]*?changes UI behavior[\s\S]*?discard the current candidate[\s\S]*?fresh candidate before promotion/i
     )
-    // S4: already-UI deliveries re-audit too — a flip is not the only
-    // trigger; an intersection with the audited surfaces is.
-    const alreadyUi =
-      skill.match(
-        /and the new `matched` set intersects the audited surfaces/g
-      ) ?? []
-    assert.ok(
-      alreadyUi.length >= 3,
-      `expected the already-UI clause in all 3 re-classification bullets, found ${alreadyUi.length}`
+    assert.match(
+      skill,
+      /Write each candidate to a unique path[\s\S]*?Store new screenshots under the unique\s+candidate path/
     )
+    assert.match(
+      skill,
+      /Only after every assertion and required disposition passes[\s\S]*?promote the candidate/i
+    )
+    assert.match(
+      skill,
+      /Only after every assertion and required disposition passes[\s\S]*?advance the successful audit checkpoint/i
+    )
+    assert.match(
+      skill,
+      /Carry forward prior surface entries[\s\S]*?valid top-level and per-surface provenance[\s\S]*?legacy manifest[\s\S]*?do not carry\s+forward unproven entries/i
+    )
+    assert.match(
+      skill,
+      /If the full delta confirms no audited UI behavior changed[\s\S]*?reuse valid evidence[\s\S]*?Do not start the stack or advance the checkpoint/
+    )
+    assert.match(
+      skill,
+      /If any audited UI behavior or relevant state changed[\s\S]*?only the changed surfaces and their applicable states/
+    )
+    assert.doesNotMatch(skill, /rm -rf tmp\/ui-verification/)
+    assert.match(uiSkill, /`auditCheckpointCommit`/)
+    assert.match(uiSkill, /`auditedAtCommit`/)
   })
 
   it('pins the capture-side manifest inputs (base and surface naming)', () => {
     const skill = readText('.opencode/skills/delivery-workflow/SKILL.md')
 
-    // S1: the audit prompt tells the auditor what to record in manifest.base
-    // — otherwise it records its branch name or HEAD and the freshness
-    // assertion fails closed.
-    assert.match(skill, /Record `base` exactly as `origin\/main`/)
-    // S2: surface names echo the prompt slot verbatim so the coverage
-    // assertion cannot fail on a label mismatch.
-    assert.match(
-      skill,
-      /echo each affected-surfaces\s+entry above verbatim as `surfaces\[\]\.surface`/
-    )
+    assert.match(skill, /Set `base` to the audit baseline/)
+    assert.match(skill, /echo each changed-surface entry verbatim as `surface`/)
     const uiSkill = readText('.opencode/skills/ui-verification/SKILL.md')
     assert.match(
       uiSkill,
@@ -264,7 +268,7 @@ describe('REP-1646 UI audit gate wiring', () => {
     )
     assert.match(
       uiSkill,
-      /echoes the audit prompt's affected-surfaces entries verbatim/
+      /echoes the audit prompt's changed-surface entries verbatim/
     )
   })
 
@@ -316,26 +320,169 @@ describe('REP-1646 UI audit gate wiring', () => {
   })
 })
 
-describe('REP-1625 adversarial review wiring', () => {
-  it('has the adversarial-review agent file', () => {
-    assert.ok(
-      existsSync(path.join(repoRoot, '.opencode/agents/adversarial-review.md')),
-      'missing .opencode/agents/adversarial-review.md'
+describe('REP-1707 review routing and convergence contract', () => {
+  it('keeps standard review for all code changes and routes independent reviews by risk', () => {
+    const skill = readText('.opencode/skills/delivery-workflow/SKILL.md')
+
+    for (const pattern of [
+      /Every code change[\s\S]*?standard review/i,
+      /\*\*Standard-risk issues\*\*:\s*launch one `review` agent/,
+      /Run `adversarial-review` only for high-risk `\/build` deliveries/,
+      /Correctness \+ Security reviewer[\s\S]*?always spawned/,
+      /Architecture \+ Conventions reviewer[\s\S]*?always spawned/,
+      /Performance reviewer[\s\S]*?only spawned when data-heavy/,
+      /For every security-sensitive change, regardless of aggregate risk,[\s\S]*?focused `security-review`/,
+      /security-sensitive-only change remains standard-risk for adversarial routing/,
+      /security-review[\s\S]*?additive to the standard reviewer/i,
+      /2\+ signals[\s\S]*?high-risk/i,
+    ]) {
+      assert.match(skill, pattern)
+    }
+    assert.doesNotMatch(skill, /Every issue[^\n]*adversarial pass/i)
+  })
+
+  it('uses a justified relevant adversarial-technique subset across all instruction sources', () => {
+    const skill = readText('.opencode/skills/delivery-workflow/SKILL.md')
+    const standards = readText('.opencode/skills/review-standards/SKILL.md')
+    const agent = readText('.opencode/agents/adversarial-review.md')
+
+    for (const [source, text] of [
+      ['delivery-workflow', skill],
+      ['review-standards', standards],
+      ['adversarial-review agent', agent],
+    ]) {
+      assert.match(
+        text,
+        /(?:relevant.{0,40}techniques|techniques.{0,40}relevant)/i,
+        source
+      )
+      assert.match(text, /justify|justification/i, source)
+      assert.match(text, /omit[^\n]*irrelevant|irrelevant[^\n]*omit/i, source)
+      assert.match(
+        text,
+        /seven techniques[^\n]*available(?: options)?[^\n]*(?:not a required|not a mandatory) checklist/i,
+        source
+      )
+      assert.doesNotMatch(
+        text,
+        /^(?![^\n]*\b(?:do not|don't|never|not required|not mandatory)\b)(?=[^\n]*\ball seven\b)(?=[^\n]*\b(?:must|required|mandatory|always|apply|use|perform|run)\b)[^\n]*$/im,
+        source
+      )
+      assert.match(
+        text,
+        /direct.{0,60}(?:request|requested).{0,30}adversarial review/i,
+        source
+      )
+    }
+  })
+
+  it('limits adversarial criterion reporting to changed-code failure modes', () => {
+    const agent = readText('.opencode/agents/adversarial-review.md')
+
+    assert.match(agent, /## Criterion failure modes/)
+    assert.match(
+      agent,
+      /only criterion failure modes relevant to the changed code and selected techniques/i
+    )
+    assert.match(agent, /Do not rate every acceptance criterion/i)
+    assert.doesNotMatch(agent, /## Requirements checklist/)
+  })
+
+  it('pins one exact HEAD across review lanes and advances the checkpoint after the full cycle', () => {
+    const skill = readText('.opencode/skills/delivery-workflow/SKILL.md')
+
+    assert.match(
+      skill,
+      /At the start of every review cycle, capture one exact HEAD SHA/i
+    )
+    assert.match(skill, /same exact HEAD SHA to every applicable review lane/i)
+    assert.match(
+      skill,
+      /After all applicable review-lane results are collected[\s\S]*?set the last review checkpoint to that SHA/i
+    )
+    assert.match(skill, /git diff <review-checkpoint>\.\.<review-head-sha>/)
+    assert.match(skill, /paths needed to reverify accepted blockers/i)
+    assert.match(
+      skill,
+      /checkpoint advances only after the next full applicable review cycle/i
     )
   })
 
-  it('wires the adversarial pass into the delivery-workflow SKILL.md', () => {
+  it('propagates smoke-test failures to every applicable triggered review lane', () => {
     const skill = readText('.opencode/skills/delivery-workflow/SKILL.md')
 
-    assert.match(skill, /role: adversarial/)
-    assert.match(skill, /adversarial-review/)
+    assert.match(
+      skill,
+      /append its structured failure context to every applicable triggered reviewer-lane prompt/i
+    )
+    for (const lane of [
+      '`review`',
+      '`security-review`',
+      'Correctness + Security',
+      'Architecture + Conventions',
+      'Performance reviewer',
+      '`adversarial-review`',
+    ]) {
+      assert.ok(skill.includes(lane), `missing smoke-test lane: ${lane}`)
+    }
+    assert.doesNotMatch(
+      skill,
+      /every reviewer prompt \(standard and adversarial\)/i
+    )
+  })
 
-    // Every-issue spawn rule: the adversarial pass is spawned for every issue,
-    // regardless of risk level.
-    assert.match(skill, /Every issue[^\n]*adversarial pass/)
+  it('consolidates evidenced blockers and bounds remediation without publishing unresolved blockers', () => {
+    const skill = readText('.opencode/skills/delivery-workflow/SKILL.md')
 
-    // Fix-loop generalization: the bounded review loop applies to every review
-    // pass (standard and adversarial).
-    assert.match(skill, /all review passes|either review pass/)
+    assert.match(skill, /underlying failure[\s\S]*?provenance/i)
+    assert.match(skill, /concrete evidence[\s\S]*?actionable fix/i)
+    assert.match(skill, /one consolidated blocker (?:set|batch)/i)
+    assert.match(skill, /verify each accepted blocker/i)
+    assert.match(
+      skill,
+      /endpoint diff `git diff <review-checkpoint>\.\.<review-head-sha>`[\s\S]*?paths needed to reverify accepted blockers/i
+    )
+    assert.match(skill, /3 fix attempts[\s\S]*?No fourth automatic fix pass/i)
+    assert.match(
+      skill,
+      /accepted Blockers remaining[\s\S]*?do not push, create a PR, mark the issue publishable, or set it to In Review/i
+    )
+    assert.match(
+      skill,
+      /Do not create a PR or set `In Review` while any accepted Blocker remains/i
+    )
+    assert.match(skill, /Only after all accepted Blockers clear/i)
+    assert.match(skill, /Never run non-blocker cleanup while Blockers remain/i)
+  })
+
+  it('does not require broad review or audit restarts for optional cleanup', () => {
+    const skill = readText('.opencode/skills/delivery-workflow/SKILL.md')
+
+    assert.match(
+      skill,
+      /optional cleanup[\s\S]*?must not cause an unrelated full review/i
+    )
+    assert.doesNotMatch(
+      skill,
+      /The adversarial pass is spawned for every issue/i
+    )
+  })
+
+  it('rechecks final UI changes after rebase before publishing', () => {
+    const skill = readText('.opencode/skills/delivery-workflow/SKILL.md')
+    const publish = skill
+      .split('\n## 7. Publish\n')[1]
+      ?.split('\n## 8. Manual verification output')[0]
+
+    assert.ok(publish, 'missing publish phase')
+    assert.match(
+      publish,
+      /After rebase, classify the final delta from the last successful audit checkpoint[\s\S]*?inspect the full delta for indirect UI effects[\s\S]*?Audit only newly affected surfaces\/states[\s\S]*?otherwise reuse the valid successful evidence without advancing the checkpoint[\s\S]*?final UI changes must have current audit coverage before publish[\s\S]*?If the rebase or later publish step changes UI behavior, return to §5[\s\S]*?do not publish until the candidate passes assertions and dispositions/
+    )
+    assert.ok(
+      publish.indexOf('After rebase, classify the final delta') <
+        publish.indexOf('### Step 2 — push with retry'),
+      'final UI coverage must precede the publish push'
+    )
   })
 })

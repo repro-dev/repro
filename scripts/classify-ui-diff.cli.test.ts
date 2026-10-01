@@ -134,7 +134,7 @@ describe('REP-1646 CLI stdin mode', () => {
 })
 
 describe('REP-1646 CLI git mode', () => {
-  it('passes base...head to git and classifies its output', () => {
+  it('passes base..head to git and classifies its output', () => {
     const jsonOuts: string[] = []
     let receivedArgs: string[] = []
     const result = runClassify(
@@ -156,7 +156,7 @@ describe('REP-1646 CLI git mode', () => {
       '-z',
       '--name-only',
       '--no-renames',
-      'origin/main...HEAD',
+      'origin/main..HEAD',
     ])
     const verdict = JSON.parse(jsonOuts[0]!) as {
       uiTouching: boolean
@@ -190,7 +190,7 @@ describe('REP-1646 CLI git mode', () => {
       '-z',
       '--name-only',
       '--no-renames',
-      'origin/main...HEAD',
+      'origin/main..HEAD',
     ])
     const verdict = JSON.parse(jsonOuts[0]!) as {
       uiTouching: boolean
@@ -314,6 +314,71 @@ describe('REP-1646 CLI git mode', () => {
       assert.equal(verdict.totalChangedFiles, 2)
       assert.equal(verdict.base, base)
       assert.equal(verdict.head, 'HEAD')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('does not reclassify an unchanged audited UI path across divergent history', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'classify-ui-rebase-'))
+    try {
+      const git = (args: string[]) =>
+        execFileSync(
+          'git',
+          [
+            '-c',
+            'user.email=fixture@rep',
+            '-c',
+            'user.name=fixture',
+            '-c',
+            'commit.gpgsign=false',
+            ...args,
+          ],
+          { cwd: dir, encoding: 'utf8' }
+        )
+      git(['init', '-q'])
+      writeFileSync(path.join(dir, 'README.md'), 'base\n')
+      git(['add', 'README.md'])
+      git(['commit', '-q', '-m', 'base'])
+      const base = git(['rev-parse', 'HEAD']).trim()
+
+      const uiPath = 'apps/demo/src/Sessions.tsx'
+      const uiContent = 'export const audited = true\n'
+      mkdirSync(path.dirname(path.join(dir, uiPath)), { recursive: true })
+      writeFileSync(path.join(dir, uiPath), uiContent)
+      git(['add', uiPath])
+      git(['commit', '-q', '-m', 'audit UI surface'])
+      const checkpoint = git(['rev-parse', 'HEAD']).trim()
+
+      git(['checkout', '-q', '-b', 'rebased-head', base])
+      writeFileSync(path.join(dir, 'README.md'), 'upstream change\n')
+      mkdirSync(path.dirname(path.join(dir, uiPath)), { recursive: true })
+      writeFileSync(path.join(dir, uiPath), uiContent)
+      git(['add', '-A'])
+      git(['commit', '-q', '-m', 'rebased UI surface'])
+      const head = git(['rev-parse', 'HEAD']).trim()
+      assert.equal(git(['merge-base', checkpoint, head]).trim(), base)
+      assert.equal(git(['show', `${checkpoint}:${uiPath}`]), uiContent)
+      assert.equal(git(['show', `${head}:${uiPath}`]), uiContent)
+
+      const jsonOuts: string[] = []
+      const result = runClassify(
+        { base: checkpoint, head },
+        {
+          execGit: args =>
+            execFileSync('git', args, { cwd: dir, encoding: 'utf8' }),
+          jsonOut: json => jsonOuts.push(json),
+        }
+      )
+      assert.equal(result.code, 0)
+      const verdict = JSON.parse(jsonOuts[0]!) as {
+        uiTouching: boolean
+        matched: Array<{ path: string; rule: string }>
+        totalChangedFiles: number
+      }
+      assert.equal(verdict.uiTouching, false)
+      assert.deepEqual(verdict.matched, [])
+      assert.equal(verdict.totalChangedFiles, 1)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

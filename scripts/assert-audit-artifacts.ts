@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 // REP-1653: mechanical proof-bundle assertion for the delivery-workflow §5
-// audit gate (Step 4). Asserts the REP-1646 ui-verification capture artifacts
+// audit gate (Step 5). Asserts the REP-1646 ui-verification capture artifacts
 // (manifest.json + audit.md) satisfy the proof-bundle assertions that were
 // previously orchestrator prompt text: manifest parse/coverage, screenshot
-// existence, freshness against the checkpoint commit, expected-surface
-// coverage, and the audit.md findings table.
+// existence, freshness, checkpoint provenance, changed-surface coverage, and
+// the audit.md findings table.
 //
-// Consumer: delivery-workflow §5 Step 4 (`pnpm run ui:assert-audit`).
+// Consumer: delivery-workflow §5 Step 5 (`pnpm run ui:assert-audit`).
 //
 // Determinism: same inputs -> same report. The core never reads a clock
 // (commitTimeMs is injected by the CLI from git) and never writes to stdout
@@ -20,8 +20,8 @@
 //   --audit-dir <path>      audit dir override (default
 //                           <worktree-root>/tmp/ui-verification/<issue>)
 //   --base <ref>            classification base, e.g. origin/main (required)
-//   --commit <sha>          checkpoint commit for freshness (required)
-//   --surface <name>        expected surface; repeat the flag (>=1 required)
+//   --commit <sha>          successful audit checkpoint commit (required)
+//   --surface <name>        changed surface; repeat the flag (>=1 required)
 //   --worktree-root <path>  worktree root (default: process.cwd())
 //   --help, -h              show usage
 import { execFileSync } from 'node:child_process'
@@ -33,9 +33,12 @@ export type AssertInputs = {
   issueId: string
   /** Override; default: tmp/ui-verification/<issueId> under worktreeRoot. */
   auditDir?: string
+  /** Surfaces whose behavior changed since the last successful audit. */
   expectedSurfaces: readonly string[]
   /** --base, e.g. origin/main — compared against the manifest `base` field. */
   classificationBase: string
+  /** --commit — must match the manifest auditCheckpointCommit. */
+  checkpointCommit: string
   /** Injected — the core never reads a clock. */
   commitTimeMs: number
   /** Absolute; screenshot paths in the manifest resolve against it. */
@@ -75,7 +78,11 @@ const ISO_8601_RE =
   /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/
 
 type ManifestState = { state?: unknown; screenshot?: unknown }
-type ManifestSurface = { surface?: unknown; states?: unknown }
+type ManifestSurface = {
+  surface?: unknown
+  auditedAtCommit?: unknown
+  states?: unknown
+}
 
 // JSON.parse can return any JSON value; the manifest-derived assertions below
 // only read plain-object shapes. Non-object roots and non-object entries
@@ -375,7 +382,31 @@ export function assertAuditArtifacts(
       freshnessProblems.join('; ') || undefined
     )
 
-    // 5. surface-coverage — every expected surface recorded; extras allowed.
+    // 5. audit-checkpoint — the bundle itself must name the commit it proves.
+    const auditCheckpointCommit = manifest.auditCheckpointCommit
+    const checkpointProblems: string[] = []
+    if (
+      typeof auditCheckpointCommit !== 'string' ||
+      auditCheckpointCommit.trim().length === 0
+    ) {
+      checkpointProblems.push('auditCheckpointCommit is missing or empty')
+    } else if (auditCheckpointCommit !== inputs.checkpointCommit) {
+      checkpointProblems.push(
+        `manifest auditCheckpointCommit ${JSON.stringify(
+          auditCheckpointCommit
+        )} != asserted checkpoint commit ${JSON.stringify(
+          inputs.checkpointCommit
+        )}`
+      )
+    }
+    add(
+      'audit-checkpoint',
+      checkpointProblems.length === 0,
+      checkpointProblems.join('; ') || undefined
+    )
+
+    // 6. surface-coverage — every expected changed surface is recorded;
+    //    extras are retained so unchanged surfaces may reuse older evidence.
     //    Unnamed surfaces record under the same `<unnamed surface>` label the
     //    screenshots assertion uses (never the empty string), so a blank
     //    --surface flag can never satisfy an unnamed entry.
@@ -394,9 +425,42 @@ export function assertAuditArtifacts(
           )}`
         : undefined
     )
+
+    // 7. surface-checkpoints — provenance is required for every surface, but
+    //    only surfaces whose behavior changed in this audit pass must match
+    //    the bundle's current checkpoint. Older evidence is reusable for an
+    //    unchanged surface after the full delta has been reviewed.
+    const changedSurfaces = new Set(inputs.expectedSurfaces)
+    const surfaceCheckpointProblems: string[] = []
+    for (const surface of surfaces) {
+      const surfaceName = String(surface.surface ?? '<unnamed surface>')
+      const auditedAtCommit = surface.auditedAtCommit
+      if (
+        typeof auditedAtCommit !== 'string' ||
+        auditedAtCommit.trim().length === 0
+      ) {
+        surfaceCheckpointProblems.push(
+          `${surfaceName}: auditedAtCommit is missing or empty`
+        )
+      } else if (
+        changedSurfaces.has(surfaceName) &&
+        auditedAtCommit !== inputs.checkpointCommit
+      ) {
+        surfaceCheckpointProblems.push(
+          `${surfaceName}: auditedAtCommit ${JSON.stringify(
+            auditedAtCommit
+          )} != checkpoint commit ${JSON.stringify(inputs.checkpointCommit)}`
+        )
+      }
+    }
+    add(
+      'surface-checkpoints',
+      surfaceCheckpointProblems.length === 0,
+      surfaceCheckpointProblems.join('; ') || undefined
+    )
   }
 
-  // 6. audit-findings — runs even when the manifest is unparseable.
+  // 8. audit-findings — runs even when the manifest is unparseable.
   const auditPath = join(auditDir, 'audit.md')
   try {
     const problems = auditFindingsProblems(readFile(auditPath, 'utf8'))
@@ -564,13 +628,13 @@ export function runAssert(
   }
   if (!options.commit) {
     errorOut(
-      'ERROR: --commit <sha> is required (the delivery-workflow §5 Step 1 checkpoint commit)'
+      'ERROR: --commit <sha> is required (the delivery-workflow §5 Step 1 code checkpoint under audit)'
     )
     return { code: 1 }
   }
   if (!options.surfaces || options.surfaces.length === 0) {
     errorOut(
-      'ERROR: at least one --surface <name> is required (repeat the flag per expected surface)'
+      'ERROR: at least one --surface <name> is required (repeat the flag per changed surface)'
     )
     return { code: 1 }
   }
@@ -626,6 +690,7 @@ export function runAssert(
       auditDir,
       expectedSurfaces: options.surfaces,
       classificationBase: options.base,
+      checkpointCommit: options.commit,
       commitTimeMs,
       worktreeRoot,
     },
@@ -640,17 +705,18 @@ function printUsage(): void {
 
 Asserts the REP-1646 ui-verification capture artifacts in
 tmp/ui-verification/<issue-id>/ (manifest.json + audit.md) satisfy the
-delivery-workflow §5 Step 4 proof-bundle assertions. Any failed assertion is a
+delivery-workflow §5 Step 5 proof-bundle assertions. Any failed assertion is a
 gate violation.
 
 Usage:
-  pnpm run ui:assert-audit --issue REP-xxx --base origin/main \\
-    --commit <checkpoint-sha> --surface <surface-1> --surface <surface-2> ...
-                                  The delivery-workflow §5 Step 4 invocation
-                                  (no -- separator: pnpm forwards it
-                                  literally). --commit is the §5 Step 1
-                                  checkpoint commit; each --surface echoes a
-                                  §5 Step 3 <affected-surfaces> entry.
+  pnpm run ui:assert-audit --issue REP-xxx --base <classification-base> \\
+  --commit <audit-checkpoint-sha> --surface <changed-surface-1> --surface <changed-surface-2> ...
+                                   The delivery-workflow §5 Step 5 invocation
+                                   (no -- separator: pnpm forwards it
+                                   literally). --commit is the code commit
+                                   audited by this bundle; each --surface names
+                                   a UI surface whose behavior changed since the
+                                   previous successful audit checkpoint.
   --audit-dir <path>              Audit dir override (default
                                   <worktree-root>/tmp/ui-verification/<issue>).
   --worktree-root <path>          Worktree root for resolving screenshot paths
