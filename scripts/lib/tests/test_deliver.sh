@@ -263,6 +263,32 @@ case "${LINEAR_STUB_RESULT:-success}" in
     printf '%s\n' "${LINEAR_STUB_ERROR:-Linear API request failed: HTTP 503 Service Unavailable}" >&2
     exit 1
     ;;
+  interrupt)
+    # The command-substitution shell launched for stdout capture is between
+    # the lookup owner and this stub; interrupt the shell that owns the temp.
+    lookup_parent_parent="$(ps -o ppid= -p "$PPID" | tr -d ' ')"
+    lookup_tmp_file=""
+    for lookup_candidate in "$(dirname "$0")"/tmp/deliver-linear.*; do
+      if [ -f "$lookup_candidate" ]; then
+        lookup_tmp_file="$lookup_candidate"
+        break
+      fi
+    done
+    if [ -z "$lookup_tmp_file" ]; then
+      echo 'interrupt lookup started without a diagnostic file' >&2
+      exit 2
+    fi
+    printf '%s\n' "$lookup_tmp_file" > "$(dirname "$0")/linear_interrupt_temp_path"
+    touch "$(dirname "$0")/linear_interrupt_started"
+    if ! kill -TERM "$lookup_parent_parent"; then
+      echo 'could not interrupt lookup parent' >&2
+      exit 3
+    fi
+    touch "$(dirname "$0")/linear_interrupt_signaled"
+    sleep 0.1
+    touch "$(dirname "$0")/linear_interrupt_finished"
+    exit 0
+    ;;
 esac
 labels="${LINEAR_STUB_LABELS_JSON:-[]}"
 title="${LINEAR_STUB_TITLE-Test issue}"
@@ -617,6 +643,14 @@ _issue_delivery_has_no_side_effects() {
     "${branches:-<none>}" \
     "$(cat "$linear_log" 2>/dev/null || true)" >&2
   return 1
+}
+
+_deliver_linear_temp_files_absent() {
+  local tmpdir="$1" temp_file
+  for temp_file in "$tmpdir"/tmp/deliver-linear.*; do
+    [[ ! -e "$temp_file" ]] || return 1
+  done
+  return 0
 }
 
 _test_pr_alias_suffix() {
@@ -1438,6 +1472,7 @@ test_unknown_issue_fails_before_side_effects() {
   printf '%s\n' "$stderr" | grep -q 'deliver --help' || ok=0
   [[ "$(printf '%s\n' "$linear_calls" | grep -c '^LINEAR_CALL: issue show REP-999999 --json$' || true)" -eq 1 ]] || ok=0
   _issue_delivery_has_no_side_effects "$tmpdir" || ok=0
+  _deliver_linear_temp_files_absent "$tmpdir" || ok=0
   rm -rf "$tmpdir"
 
   if [[ "$ok" -eq 1 ]]; then
@@ -1465,6 +1500,7 @@ test_linear_lookup_failure_fails_before_side_effects() {
   printf '%s\n' "$stderr" | grep -q 'deliver --help' || ok=0
   [[ "$(printf '%s\n' "$linear_calls" | grep -c '^LINEAR_CALL: issue show REP-123 --json$' || true)" -eq 1 ]] || ok=0
   _issue_delivery_has_no_side_effects "$tmpdir" || ok=0
+  _deliver_linear_temp_files_absent "$tmpdir" || ok=0
   rm -rf "$tmpdir"
 
   if [[ "$ok" -eq 1 ]]; then
@@ -1473,6 +1509,47 @@ test_linear_lookup_failure_fails_before_side_effects() {
     _fail 'Linear lookup failures preserve diagnostics and stop before side effects' \
       "rc=$rc; stderr=$stderr; linear=$linear_calls; stdout=$(cat "$tmpdir/stdout.log" 2>/dev/null || true)"
   fi
+}
+
+# REP-1708 post-review regression: SIGTERM during an active Linear lookup must
+# remove the diagnostic capture file and stop before delivery side effects.
+test_interrupted_linear_lookup_cleans_diagnostic_file() {
+  local tmpdir rc=0 ok=1 deliver_pid lookup_tmp_file linear_calls temp_file
+  local attempts=0
+  tmpdir="$(_make_tmpdir)"
+  _write_stubs "$tmpdir"
+  _write_runner "$tmpdir" "REP-123"
+
+  LINEAR_STUB_RESULT=interrupt bash "$tmpdir/run_test.sh" \
+    >"$tmpdir/stdout.log" 2>"$tmpdir/stderr.log" &
+  deliver_pid=$!
+  _register_deliver_test_child "$deliver_pid"
+  wait "$deliver_pid" || rc=$?
+  _clear_deliver_test_child "$deliver_pid"
+
+  while [[ ! -f "$tmpdir/linear_interrupt_finished" && "$attempts" -lt 200 ]]; do
+    sleep 0.01
+    attempts=$((attempts + 1))
+  done
+  lookup_tmp_file="$(cat "$tmpdir/linear_interrupt_temp_path" 2>/dev/null || true)"
+  linear_calls="$(cat "$tmpdir/linear_calls.log" 2>/dev/null || true)"
+  [[ "$rc" -eq 143 ]] || ok=0
+  [[ -f "$tmpdir/linear_interrupt_started" && -f "$tmpdir/linear_interrupt_signaled" \
+    && -f "$tmpdir/linear_interrupt_finished" ]] || ok=0
+  [[ "$lookup_tmp_file" == "$tmpdir/tmp/deliver-linear."* && -f "$tmpdir/linear_interrupt_started" ]] || ok=0
+  [[ "$(printf '%s\n' "$linear_calls" | grep -c '^LINEAR_CALL: issue show REP-123 --json$' || true)" -eq 1 ]] || ok=0
+  for temp_file in "$tmpdir"/tmp/deliver-linear.*; do
+    [[ ! -e "$temp_file" ]] || ok=0
+  done
+  _issue_delivery_has_no_side_effects "$tmpdir" || ok=0
+
+  if [[ "$ok" -eq 1 ]]; then
+    _pass 'interrupted Linear lookups remove diagnostic files before delivery side effects'
+  else
+    _fail 'interrupted Linear lookups remove diagnostic files before delivery side effects' \
+      "rc=$rc; lookup_file=${lookup_tmp_file:-<absent>}; remaining=$(printf '%s ' "$tmpdir"/tmp/deliver-linear.*); linear=$linear_calls; stderr=$(cat "$tmpdir/stderr.log" 2>/dev/null || true); stdout=$(cat "$tmpdir/stdout.log" 2>/dev/null || true)"
+  fi
+  rm -rf "$tmpdir"
 }
 
 # REP-1708 review regression: an API diagnostic that quotes the not-found text
@@ -1553,6 +1630,7 @@ test_valid_issue_routes_from_single_validated_lookup() {
   printf '%s\n' "$output" | grep -q 'Command: /bugfix' || ok=0
   [[ "$lookup_count" -eq 1 ]] || ok=0
   [[ "$total_linear_calls" -eq 1 ]] || ok=0
+  _deliver_linear_temp_files_absent "$tmpdir" || ok=0
   if [[ "$ok" -eq 1 ]]; then
     _pass 'valid issues use one lookup for title, branch, and label routing'
   else
@@ -4460,6 +4538,9 @@ case "${DELIVER_TEST_ONLY:-}" in
   test_linear_lookup_failure_fails_before_side_effects)
     test_linear_lookup_failure_fails_before_side_effects
     ;;
+  test_interrupted_linear_lookup_cleans_diagnostic_file)
+    test_interrupted_linear_lookup_cleans_diagnostic_file
+    ;;
   test_mixed_not_found_phrase_remains_lookup_failure)
     test_mixed_not_found_phrase_remains_lookup_failure
     ;;
@@ -4508,6 +4589,7 @@ case "${DELIVER_TEST_ONLY:-}" in
   test_uppercase_numeric_suffix_bare_branch_is_preserved
   test_unknown_issue_fails_before_side_effects
   test_linear_lookup_failure_fails_before_side_effects
+  test_interrupted_linear_lookup_cleans_diagnostic_file
   test_mixed_not_found_phrase_remains_lookup_failure
   test_issue_lookup_must_identify_requested_issue
   test_valid_issue_routes_from_single_validated_lookup

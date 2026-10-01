@@ -112,6 +112,21 @@ _validate_issue_id() {
   return 1
 }
 
+DELIVER_LINEAR_STDERR_FILE=""
+_deliver_cleanup_linear_stderr() {
+  if [[ -n "$DELIVER_LINEAR_STDERR_FILE" ]]; then
+    local stderr_file="$DELIVER_LINEAR_STDERR_FILE"
+    DELIVER_LINEAR_STDERR_FILE=""
+    rm -f "$stderr_file" >/dev/null 2>&1 || true
+  fi
+}
+
+_deliver_handle_linear_lookup_signal() {
+  local exit_status="$1"
+  _deliver_cleanup_linear_stderr
+  exit "$exit_status"
+}
+
 # ── Mode functions ─────────────────────────────────────────────────
 _mode_issue_id() {
   local issue_id="$1"
@@ -131,6 +146,11 @@ _mode_issue_id() {
     echo "  Ensure $REPO_ROOT/tmp exists and is writable, then retry." >&2
     return 1
   }
+  DELIVER_LINEAR_STDERR_FILE="$linear_stderr_file"
+  trap '_deliver_cleanup_linear_stderr' EXIT
+  trap '_deliver_handle_linear_lookup_signal 129' HUP
+  trap '_deliver_handle_linear_lookup_signal 130' INT
+  trap '_deliver_handle_linear_lookup_signal 143' TERM
 
   if issue_json="$(linear issue show "$issue_id" --json 2>"$linear_stderr_file")"; then
     lookup_status=0
@@ -138,7 +158,7 @@ _mode_issue_id() {
     lookup_status=$?
   fi
   linear_stderr="$(cat "$linear_stderr_file" 2>/dev/null || true)"
-  rm -f "$linear_stderr_file" >/dev/null 2>&1 || true
+  _deliver_cleanup_linear_stderr
 
   if [[ "$lookup_status" -ne 0 ]]; then
     if [[ "$linear_stderr" == "Issue $issue_id not found." ]]; then
