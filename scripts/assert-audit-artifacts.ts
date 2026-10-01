@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 // REP-1653: mechanical proof-bundle assertion for the delivery-workflow §5
-// audit gate (Step 4). Asserts the REP-1646 ui-verification capture artifacts
+// audit gate (Step 5). Asserts the REP-1646 ui-verification capture artifacts
 // (manifest.json + audit.md) satisfy the proof-bundle assertions that were
 // previously orchestrator prompt text: manifest parse/coverage, screenshot
-// existence, freshness against the checkpoint commit, expected-surface
-// coverage, and the audit.md findings table.
+// existence, freshness, checkpoint provenance, changed-surface coverage, and
+// the audit.md findings table.
 //
-// Consumer: delivery-workflow §5 Step 4 (`pnpm run ui:assert-audit`).
+// Consumer: delivery-workflow §5 Step 5 (`pnpm run ui:assert-audit`).
 //
 // Determinism: same inputs -> same report. The core never reads a clock
 // (commitTimeMs is injected by the CLI from git) and never writes to stdout
@@ -16,26 +16,28 @@
 // but the process exits 1.
 //
 // Flags:
-//   --issue <id>            issue id (required unless --audit-dir)
-//   --audit-dir <path>      audit dir override (default
-//                           <worktree-root>/tmp/ui-verification/<issue>)
+//   --issue <id>            issue id (optional when inferred from candidate path)
+//   --audit-dir <path>      candidate attempt directory (required)
 //   --base <ref>            classification base, e.g. origin/main (required)
-//   --commit <sha>          checkpoint commit for freshness (required)
-//   --surface <name>        expected surface; repeat the flag (>=1 required)
+//   --commit <sha>          successful audit checkpoint commit (required)
+//   --surface <name>        changed surface; repeat the flag (>=1 required)
 //   --worktree-root <path>  worktree root (default: process.cwd())
 //   --help, -h              show usage
 import { execFileSync } from 'node:child_process'
 import { readFileSync, realpathSync, statSync } from 'node:fs'
-import { basename, isAbsolute, join, resolve, sep } from 'node:path'
+import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 export type AssertInputs = {
   issueId: string
-  /** Override; default: tmp/ui-verification/<issueId> under worktreeRoot. */
+  /** Optional for direct use of the assertion core; the CLI requires --audit-dir. */
   auditDir?: string
+  /** Surfaces whose behavior changed since the last successful audit. */
   expectedSurfaces: readonly string[]
   /** --base, e.g. origin/main — compared against the manifest `base` field. */
   classificationBase: string
+  /** --commit — must match the manifest auditCheckpointCommit. */
+  checkpointCommit: string
   /** Injected — the core never reads a clock. */
   commitTimeMs: number
   /** Absolute; screenshot paths in the manifest resolve against it. */
@@ -75,7 +77,11 @@ const ISO_8601_RE =
   /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/
 
 type ManifestState = { state?: unknown; screenshot?: unknown }
-type ManifestSurface = { surface?: unknown; states?: unknown }
+type ManifestSurface = {
+  surface?: unknown
+  auditedAtCommit?: unknown
+  states?: unknown
+}
 
 // JSON.parse can return any JSON value; the manifest-derived assertions below
 // only read plain-object shapes. Non-object roots and non-object entries
@@ -243,7 +249,61 @@ export function assertAuditArtifacts(
       nonemptyProblems.join('; ') || undefined
     )
 
-    // 3. screenshots — every state's screenshot is a non-empty relative path
+    // 3. candidate-audit-directory — changed-surface evidence must live in a
+    //    distinct attempt directory beneath the issue's canonical bundle.
+    const lexicalRoot = resolve(inputs.worktreeRoot)
+    const lexicalIssueDir = resolve(
+      lexicalRoot,
+      'tmp/ui-verification',
+      inputs.issueId
+    )
+    const lexicalAuditDir = resolve(lexicalRoot, auditDir)
+    const candidateName = basename(lexicalAuditDir)
+    const candidatePrefix = `candidate-${inputs.checkpointCommit}-`
+    const candidateDirectoryProblems: string[] = []
+    let issueDirReal: string | null = null
+    let candidateAuditDirReal: string | null = null
+    try {
+      issueDirReal = realPath(lexicalIssueDir)
+    } catch {
+      // An unresolvable issue directory cannot prove a candidate attempt.
+    }
+    try {
+      candidateAuditDirReal = realPath(lexicalAuditDir)
+    } catch {
+      // An unresolvable candidate directory cannot prove a distinct attempt.
+    }
+    if (inputs.expectedSurfaces.length > 0) {
+      if (dirname(lexicalAuditDir) !== lexicalIssueDir) {
+        candidateDirectoryProblems.push(
+          'audit directory is not a direct child of the issue audit directory'
+        )
+      }
+      if (
+        !candidateName.startsWith(candidatePrefix) ||
+        candidateName.length === candidatePrefix.length
+      ) {
+        candidateDirectoryProblems.push(
+          `audit directory name must be ${candidatePrefix}<attempt>`
+        )
+      }
+      if (issueDirReal === null || candidateAuditDirReal === null) {
+        candidateDirectoryProblems.push(
+          'issue audit directory or candidate audit directory cannot be canonicalized'
+        )
+      } else if (candidateAuditDirReal !== join(issueDirReal, candidateName)) {
+        candidateDirectoryProblems.push(
+          'audit directory canonical path does not match its distinct candidate path'
+        )
+      }
+    }
+    add(
+      'candidate-audit-directory',
+      candidateDirectoryProblems.length === 0,
+      candidateDirectoryProblems.join('; ') || undefined
+    )
+
+    // 4. screenshots — every state's screenshot is a non-empty relative path
     //    resolving to a non-empty file inside the worktree root. Non-object
     //    state entries are guarded into named failures (same JSON-report
     //    contract: no uncaught TypeError, exit 1 still emits the report).
@@ -254,7 +314,6 @@ export function assertAuditArtifacts(
     // Canonicalize BOTH sides consistently — the tmpdir fixtures on macOS
     // are themselves under a symlink (/var -> /private/var), so one-sided
     // canonicalization would false-fail.
-    const lexicalRoot = resolve(inputs.worktreeRoot)
     let rootReal: string
     try {
       rootReal = realPath(lexicalRoot)
@@ -262,6 +321,14 @@ export function assertAuditArtifacts(
       // Unresolvable root (injectable-fs tests): fall back to lexical.
       rootReal = lexicalRoot
     }
+    let auditDirReal: string
+    try {
+      auditDirReal = realPath(lexicalAuditDir)
+    } catch {
+      // Match the root fallback for injectable-fs tests and missing paths.
+      auditDirReal = lexicalAuditDir
+    }
+    const changedSurfaceNames = new Set(inputs.expectedSurfaces)
     for (const surface of surfaces) {
       const statesRaw: unknown[] = Array.isArray(surface.states)
         ? (surface.states as unknown[])
@@ -304,6 +371,16 @@ export function assertAuditArtifacts(
           )
           return
         }
+        const isChangedSurface = changedSurfaceNames.has(surfaceLabel)
+        if (
+          isChangedSurface &&
+          !resolvedShot.startsWith(lexicalAuditDir + sep)
+        ) {
+          problems.push(
+            `${label}: screenshot is outside the candidate audit directory: ${shot}`
+          )
+          return
+        }
         // Canonical containment: a lexically-inside path can still resolve
         // outside the root via a symlink. An unresolvable target (typically
         // nonexistent) falls through to the stat check, which reports it.
@@ -320,6 +397,17 @@ export function assertAuditArtifacts(
         ) {
           problems.push(
             `${label}: screenshot escapes the worktree root: ${shot}`
+          )
+          return
+        }
+        if (
+          isChangedSurface &&
+          realShot !== null &&
+          realShot !== auditDirReal &&
+          !realShot.startsWith(auditDirReal + sep)
+        ) {
+          problems.push(
+            `${label}: screenshot is outside the candidate audit directory: ${shot}`
           )
           return
         }
@@ -345,7 +433,7 @@ export function assertAuditArtifacts(
     }
     add('screenshots', problems.length === 0, problems.join('; ') || undefined)
 
-    // 4. freshness — right base, strict ISO-8601 generatedAt, strictly newer
+    // 5. freshness — right base, strict ISO-8601 generatedAt, strictly newer
     //    than the checkpoint commit (same-second capture fails).
     const freshnessProblems: string[] = []
     if (manifest.base !== inputs.classificationBase) {
@@ -375,7 +463,31 @@ export function assertAuditArtifacts(
       freshnessProblems.join('; ') || undefined
     )
 
-    // 5. surface-coverage — every expected surface recorded; extras allowed.
+    // 6. audit-checkpoint — the bundle itself must name the commit it proves.
+    const auditCheckpointCommit = manifest.auditCheckpointCommit
+    const checkpointProblems: string[] = []
+    if (
+      typeof auditCheckpointCommit !== 'string' ||
+      auditCheckpointCommit.trim().length === 0
+    ) {
+      checkpointProblems.push('auditCheckpointCommit is missing or empty')
+    } else if (auditCheckpointCommit !== inputs.checkpointCommit) {
+      checkpointProblems.push(
+        `manifest auditCheckpointCommit ${JSON.stringify(
+          auditCheckpointCommit
+        )} != asserted checkpoint commit ${JSON.stringify(
+          inputs.checkpointCommit
+        )}`
+      )
+    }
+    add(
+      'audit-checkpoint',
+      checkpointProblems.length === 0,
+      checkpointProblems.join('; ') || undefined
+    )
+
+    // 7. surface-coverage — every expected changed surface is recorded;
+    //    extras are retained so unchanged surfaces may reuse older evidence.
     //    Unnamed surfaces record under the same `<unnamed surface>` label the
     //    screenshots assertion uses (never the empty string), so a blank
     //    --surface flag can never satisfy an unnamed entry.
@@ -394,9 +506,42 @@ export function assertAuditArtifacts(
           )}`
         : undefined
     )
+
+    // 8. surface-checkpoints — provenance is required for every surface, but
+    //    only surfaces whose behavior changed in this audit pass must match
+    //    the bundle's current checkpoint. Older evidence is reusable for an
+    //    unchanged surface after the full delta has been reviewed.
+    const changedSurfaces = new Set(inputs.expectedSurfaces)
+    const surfaceCheckpointProblems: string[] = []
+    for (const surface of surfaces) {
+      const surfaceName = String(surface.surface ?? '<unnamed surface>')
+      const auditedAtCommit = surface.auditedAtCommit
+      if (
+        typeof auditedAtCommit !== 'string' ||
+        auditedAtCommit.trim().length === 0
+      ) {
+        surfaceCheckpointProblems.push(
+          `${surfaceName}: auditedAtCommit is missing or empty`
+        )
+      } else if (
+        changedSurfaces.has(surfaceName) &&
+        auditedAtCommit !== inputs.checkpointCommit
+      ) {
+        surfaceCheckpointProblems.push(
+          `${surfaceName}: auditedAtCommit ${JSON.stringify(
+            auditedAtCommit
+          )} != checkpoint commit ${JSON.stringify(inputs.checkpointCommit)}`
+        )
+      }
+    }
+    add(
+      'surface-checkpoints',
+      surfaceCheckpointProblems.length === 0,
+      surfaceCheckpointProblems.join('; ') || undefined
+    )
   }
 
-  // 6. audit-findings — runs even when the manifest is unparseable.
+  // 9. audit-findings — runs even when the manifest is unparseable.
   const auditPath = join(auditDir, 'audit.md')
   try {
     const problems = auditFindingsProblems(readFile(auditPath, 'utf8'))
@@ -552,8 +697,11 @@ export function runAssert(
   const errorOut = io.errorOut ?? ((message: string) => console.error(message))
   const execGit = io.execGit ?? defaultExecGit
 
-  if (!options.issue && !options.auditDir) {
-    errorOut('ERROR: --issue <id> is required unless --audit-dir is provided')
+  const auditDirOption = options.auditDir
+  if (!auditDirOption) {
+    errorOut(
+      'ERROR: --audit-dir <candidate-attempt-dir> is required for the proof assertion'
+    )
     return { code: 1 }
   }
   if (!options.base) {
@@ -564,22 +712,25 @@ export function runAssert(
   }
   if (!options.commit) {
     errorOut(
-      'ERROR: --commit <sha> is required (the delivery-workflow §5 Step 1 checkpoint commit)'
+      'ERROR: --commit <sha> is required (the delivery-workflow §5 Step 1 code checkpoint under audit)'
     )
     return { code: 1 }
   }
   if (!options.surfaces || options.surfaces.length === 0) {
     errorOut(
-      'ERROR: at least one --surface <name> is required (repeat the flag per expected surface)'
+      'ERROR: at least one --surface <name> is required (repeat the flag per changed surface)'
     )
     return { code: 1 }
   }
 
   const worktreeRoot = resolve(options.worktreeRoot ?? process.cwd())
-  const auditDir = options.auditDir
-    ? resolve(worktreeRoot, options.auditDir)
-    : defaultAuditDir(options.issue ?? '', worktreeRoot)
-  const issueId = options.issue ?? basename(auditDir)
+  const auditDir = resolve(worktreeRoot, auditDirOption)
+  const auditDirName = basename(auditDir)
+  const issueId =
+    options.issue ??
+    (auditDirName.startsWith('candidate-')
+      ? basename(dirname(auditDir))
+      : auditDirName)
 
   // Execution-error pre-check: missing/unreadable artifacts are an environment
   // failure, not a gate verdict — stderr ERROR, exit 1, no JSON.
@@ -626,6 +777,7 @@ export function runAssert(
       auditDir,
       expectedSurfaces: options.surfaces,
       classificationBase: options.base,
+      checkpointCommit: options.commit,
       commitTimeMs,
       worktreeRoot,
     },
@@ -638,21 +790,25 @@ export function runAssert(
 function printUsage(): void {
   console.error(`assert-audit-artifacts — mechanical proof-bundle assertion (REP-1653)
 
-Asserts the REP-1646 ui-verification capture artifacts in
-tmp/ui-verification/<issue-id>/ (manifest.json + audit.md) satisfy the
-delivery-workflow §5 Step 4 proof-bundle assertions. Any failed assertion is a
-gate violation.
+Asserts the supplied candidate attempt's REP-1646 ui-verification artifacts
+(manifest.json + audit.md) satisfy the
+delivery-workflow §5 Step 5 proof-bundle assertions. Any failed assertion is
+a gate violation.
 
 Usage:
-  pnpm run ui:assert-audit --issue REP-xxx --base origin/main \\
-    --commit <checkpoint-sha> --surface <surface-1> --surface <surface-2> ...
-                                  The delivery-workflow §5 Step 4 invocation
-                                  (no -- separator: pnpm forwards it
-                                  literally). --commit is the §5 Step 1
-                                  checkpoint commit; each --surface echoes a
-                                  §5 Step 3 <affected-surfaces> entry.
-  --audit-dir <path>              Audit dir override (default
-                                  <worktree-root>/tmp/ui-verification/<issue>).
+  pnpm run ui:assert-audit --audit-dir tmp/ui-verification/REP-xxx/candidate-<checkpoint-sha>-<attempt> \\
+  --base <classification-base> --commit <audit-checkpoint-sha> --surface <changed-surface-1> --surface <changed-surface-2> ...
+                                    The delivery-workflow §5 Step 5 invocation
+                                    (no -- separator: pnpm forwards it
+                                    literally). --commit is the code commit
+                                    audited by this bundle; each --surface names
+                                    a UI surface whose behavior changed since the
+                                    previous successful audit checkpoint.
+  --issue <id>                    Optional when it can be inferred from the
+                                  candidate directory's parent issue directory.
+  --audit-dir <candidate-attempt-dir> (required)
+                                  Candidate attempt directory under the issue's
+                                  canonical audit directory.
   --worktree-root <path>          Worktree root for resolving screenshot paths
                                   (default: process.cwd()).
   tsx scripts/assert-audit-artifacts.ts --help (-h)

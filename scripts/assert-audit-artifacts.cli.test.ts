@@ -1,5 +1,11 @@
 import assert from 'node:assert/strict'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, it } from 'node:test'
@@ -17,29 +23,44 @@ import {
 const GENERATED_AT = '2026-09-02T12:00:00.000Z'
 const COMMIT_ISO = '2026-09-02T11:00:00.000Z'
 const COMMIT_SHA = 'abc1234'
-const SHOT_REL = 'tmp/ui-verification/REP-0000/shots/sessions-idle.png'
+const PRIOR_COMMIT_SHA = 'def5678'
+const ISSUE_AUDIT_REL = 'tmp/ui-verification/REP-0000'
+const CANDIDATE_AUDIT_REL = `${ISSUE_AUDIT_REL}/candidate-${COMMIT_SHA}-attempt-1`
+const SHOT_REL = `${CANDIDATE_AUDIT_REL}/shots/sessions-idle.png`
+const PRIOR_SHOT_REL = `${ISSUE_AUDIT_REL}/sessions-idle.png`
 
 function fixture() {
   const root = mkdtempSync(path.join(tmpdir(), 'assert-audit-cli-'))
-  // Files live at the DEFAULT derived path so tests exercise
-  // <worktree-root>/tmp/ui-verification/<issue> derivation.
-  const auditDir = path.join(root, 'tmp', 'ui-verification', 'REP-0000')
+  const auditDir = path.join(root, CANDIDATE_AUDIT_REL)
   mkdirSync(path.join(auditDir, 'shots'), { recursive: true })
   writeFileSync(path.join(auditDir, 'shots', 'sessions-idle.png'), 'png-bytes')
+  writeFileSync(path.join(root, PRIOR_SHOT_REL), 'prior-png-bytes')
 
-  // The manifest schema carries no canary/agentBrowserVersion fields.
   const manifest = {
     issue: 'REP-0000',
     generatedAt: GENERATED_AT,
     base: 'origin/main',
+    auditCheckpointCommit: COMMIT_SHA,
     surfaces: [
       {
         surface: 'workspace::Sessions',
+        auditedAtCommit: COMMIT_SHA,
         states: [
           {
             state: 'idle',
             screenshot: SHOT_REL,
             interactionNotes: 'loaded',
+          },
+        ],
+      },
+      {
+        surface: 'workspace::History',
+        auditedAtCommit: PRIOR_COMMIT_SHA,
+        states: [
+          {
+            state: 'idle',
+            screenshot: PRIOR_SHOT_REL,
+            interactionNotes: 'unchanged and reused',
           },
         ],
       },
@@ -89,6 +110,7 @@ const stubIo = () => ({
 
 const baseOptions = {
   issue: 'REP-0000',
+  auditDir: CANDIDATE_AUDIT_REL,
   base: 'origin/main',
   commit: COMMIT_SHA,
   surfaces: ['workspace::Sessions'],
@@ -137,6 +159,24 @@ describe('REP-1653 CLI parsing', () => {
     assert.deepEqual(parseCliArgs([]).options, {})
   })
 
+  it('keeps help prose aligned with the Step 5 proof assertion', () => {
+    const source = readFileSync(
+      new URL('./assert-audit-artifacts.ts', import.meta.url),
+      'utf8'
+    )
+    assert.match(source, /delivery-workflow §5 Step 5 proof-bundle assertions/)
+    assert.match(source, /--audit-dir <candidate-attempt-dir> \(required\)/)
+    assert.match(source, /--issue <id>\s+Optional when it can be inferred/)
+    assert.doesNotMatch(
+      source,
+      /default\s+[\s\S]{0,100}tmp\/ui-verification\/<issue>/i
+    )
+    assert.doesNotMatch(
+      source,
+      /delivery-workflow §5 Step 4 proof-bundle assertions/
+    )
+  })
+
   it('rejects blank --surface values (classify error style)', () => {
     assert.match(
       parseCliArgs(['--surface', '']).error!,
@@ -164,7 +204,7 @@ describe('REP-1653 CLI parsing', () => {
 })
 
 describe('REP-1653 CLI exit codes', () => {
-  it('exits 0 with ok:true JSON on a passing bundle, deriving the default audit dir', () => {
+  it('exits 0 with ok:true JSON on a passing candidate bundle', () => {
     const f = fixture()
     try {
       const jsonOuts: string[] = []
@@ -187,11 +227,13 @@ describe('REP-1653 CLI exit codes', () => {
       assert.equal(report.issue, 'REP-0000')
       assert.equal(report.auditDir, f.auditDir)
       assert.equal(report.ok, true)
-      assert.equal(report.results.length, 6)
+      assert.equal(report.results.length, 9)
       for (const entry of report.results) {
         assert.equal(entry.ok, true, entry.id)
       }
-      // No canary assertion exists in the result list.
+      // Unchanged surface evidence can be older than the current checkpoint.
+      assert.ok(report.results.some(r => r.id === 'surface-checkpoints'))
+      assert.ok(report.results.some(r => r.id === 'candidate-audit-directory'))
       assert.ok(!report.results.some(r => r.id === 'canary'))
     } finally {
       f.cleanup()
@@ -376,19 +418,14 @@ describe('REP-1653 CLI required-argument errors', () => {
     return copy
   }
 
-  it('requires --issue unless --audit-dir is provided', () => {
-    const f = fixture()
-    try {
-      const errors: string[] = []
-      const result = runAssert(without('issue'), {
-        ...stubIo(),
-        errorOut: message => errors.push(message),
-      })
-      assert.equal(result.code, 1)
-      assert.match(errors[0]!, /--issue/)
-    } finally {
-      f.cleanup()
-    }
+  it('requires --audit-dir to identify a candidate attempt', () => {
+    const errors: string[] = []
+    const result = runAssert(without('auditDir'), {
+      ...stubIo(),
+      errorOut: message => errors.push(message),
+    })
+    assert.equal(result.code, 1)
+    assert.match(errors[0]!, /--audit-dir.*required/)
   })
 
   it('requires --base, --commit, and at least one --surface', () => {
@@ -412,13 +449,13 @@ describe('REP-1653 CLI required-argument errors', () => {
     }
   })
 
-  it('accepts --audit-dir as the --issue alternative', () => {
+  it('infers --issue from a candidate --audit-dir when omitted', () => {
     const f = fixture()
     try {
       const jsonOuts: string[] = []
       const result = runAssert(
         {
-          auditDir: 'tmp/ui-verification/REP-0000',
+          auditDir: CANDIDATE_AUDIT_REL,
           base: 'origin/main',
           commit: COMMIT_SHA,
           surfaces: ['workspace::Sessions'],
@@ -431,7 +468,7 @@ describe('REP-1653 CLI required-argument errors', () => {
       )
       assert.equal(result.code, 0)
       const report = JSON.parse(jsonOuts[0]!) as { issue: string }
-      // issue falls back to the audit dir basename.
+      // The candidate's parent directory supplies the issue id.
       assert.equal(report.issue, 'REP-0000')
     } finally {
       f.cleanup()
@@ -445,7 +482,7 @@ describe('REP-1653 CLI required-argument errors', () => {
       const result = runAssert(
         {
           ...baseOptions,
-          auditDir: 'tmp/ui-verification/REP-0000',
+          auditDir: CANDIDATE_AUDIT_REL,
           worktreeRoot: f.root,
         },
         {

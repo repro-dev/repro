@@ -12,6 +12,7 @@ description: Review contract for branch and PR reviews — changed-code focus, s
 - Omit low-confidence findings.
 - Zero-finding reviews are valid.
 - Every finding must include an actionable fix path.
+- A Blocker must include concrete evidence tied to changed behavior and an actionable fix path; weak or unsupported claims do not enter the fix queue as blockers.
 - Prefer specific, testable feedback over broad style commentary.
 - Do not cap findings arbitrarily; improve signal with deduplication, relevance, and confidence filtering instead.
 
@@ -41,19 +42,19 @@ Classify every finding using one of these four levels:
 
 **Use this severity map as a starting point**:
 
-| Checklist item                           | Default severity |
-| ---------------------------------------- | ---------------- |
-| Type errors or build failures            | Blocker          |
-| Broken or missing acceptance criteria    | Blocker          |
-| Security or auth issues                  | Blocker          |
-| Missing audit artifact on a UI-touching PR (REP-1646) | Blocker |
-| Missing test coverage for new behavior   | Major            |
-| Architectural deviation from conventions | Major            |
-| Incomplete requirement (partial impl)    | Major            |
-| Naming inconsistency                     | Minor            |
-| Missing comment on non-obvious code      | Minor            |
-| Suboptimal pattern (code still correct)  | Minor            |
-| Style preference or formatting           | Nit              |
+| Checklist item                                        | Default severity |
+| ----------------------------------------------------- | ---------------- |
+| Type errors or build failures                         | Blocker          |
+| Broken or missing acceptance criteria                 | Blocker          |
+| Security or auth issues                               | Blocker          |
+| Missing audit artifact on a UI-touching PR (REP-1646) | Blocker          |
+| Missing test coverage for new behavior                | Major            |
+| Architectural deviation from conventions              | Major            |
+| Incomplete requirement (partial impl)                 | Major            |
+| Naming inconsistency                                  | Minor            |
+| Missing comment on non-obvious code                   | Minor            |
+| Suboptimal pattern (code still correct)               | Minor            |
+| Style preference or formatting                        | Nit              |
 
 ## Review output
 
@@ -78,7 +79,7 @@ Classify every finding using one of these four levels:
 
 ### Purpose
 
-The adversarial pass is a skeptical second review that assumes the implementation is wrong and tries to prove it fails. It runs in addition to the standard review for every issue built via `/build`, regardless of risk level. It does not replace the standard review: `review` remains the merge gate for requirements and conventions, and `security-review` remains the policy/security-boundary lane. The adversarial pass is additive and reports only — it never fixes.
+The adversarial pass is a skeptical second review that assumes the implementation may be wrong and tries to prove it fails. In `/build`, run it only when the explicit high-risk trigger in `delivery-workflow` is met; it is additive and never replaces standard review. Every code change still receives standard review, and every security-sensitive change receives a focused `security-review` even when it is the only aggregate-risk signal. Directly requested adversarial reviews remain available outside `/build` risk routing. The adversarial pass reports only — it never fixes.
 
 ### Mindset
 
@@ -88,7 +89,7 @@ The adversarial pass is a skeptical second review that assumes the implementatio
 
 ### Techniques
 
-Apply all seven, and note which were applied in `## Techniques applied`:
+The following seven techniques are available, not a mandatory checklist. Select only techniques relevant to the changed code and risk profile. For every selected technique, give a concise justification; explicitly list techniques omitted as irrelevant and why. Do not apply a technique mechanically when the code and risk provide no useful target:
 
 1. **Bug-seeking mindset** — hunt for ways the implementation fails with concrete counterexamples.
 2. **Edge-case and boundary-value enumeration** — empty, zero, negative, max, and large inputs; off-by-one errors; null and undefined inputs; type coercion surprises.
@@ -101,8 +102,8 @@ Apply all seven, and note which were applied in `## Techniques applied`:
 ### Output framing
 
 - Use the same severity schema (Blocker / Major / Minor / Nit) and `fixable_by_agent: true | false` fields as the standard review, so findings feed the existing Blocker loop and non-blocker sweep unchanged.
-- Tag every finding `role: adversarial`. The `<file-path>:<line-number>:<role>` merge key means adversarial findings do not deduplicate against standard-review findings on the same line — that overlap is expected and accepted.
-- Include `## Techniques applied` in the output.
+- Tag every finding `role: adversarial`; role is provenance, not a deduplication key. `/build` consolidates findings by underlying failure while preserving all reviewer roles, locations, evidence, and rationale.
+- Include `## Techniques applied` with selected techniques and justifications plus explicit irrelevant omissions.
 - State merge-readiness for the adversarial pass itself, but note that the standard review remains the merge gate.
 - End with a verdict: approve, request changes, or discuss.
 
@@ -123,11 +124,11 @@ Apply all seven, and note which were applied in `## Techniques applied`:
 
 If the PR touches UI code (classifier verdict `uiTouching: true` recorded in the delivery status table), verify the interactive states, motion, accessibility, copy, and token usage at a review level, and verify the REP-1646 audit artifact:
 
-1. Confirm `tmp/ui-verification/<issue-id>/manifest.json` and `audit.md` exist and are complete for the affected surfaces — every manifest screenshot resolves on disk, and every surface/state the change affects is captured.
+1. Confirm `tmp/ui-verification/<issue-id>/manifest.json` and `audit.md` exist and are complete for affected surfaces. Require top-level `auditCheckpointCommit` and per-surface `auditedAtCommit` provenance; every changed surface must be audited at the current successful checkpoint, while older evidence may be reused only for surfaces omitted from the changed-surface set after the full delta confirms behavior unchanged. Legacy manifests without provenance are not reusable.
 2. Confirm P0 findings in `audit.md` were fixed (disposition `fixed <commit>`).
 3. Confirm every P1/P2 finding has a fixed-or-filed disposition (`fixed <commit>` or `filed REP-xxx`).
 4. Cite `audit.md` findings as review input for the UI verdict.
 
-If no verdict is recorded, run `pnpm run ui:classify --base origin/main` and use its output — ad-hoc `/review` runs have no delivery status table to read from.
+If no verdict is recorded, use a valid successful audit checkpoint from the preserved manifest as the classification base; otherwise use `origin/main`. Run `pnpm run ui:classify --base <classification-base>` and inspect the full delta for indirect UI effects — ad-hoc `/review` runs have no delivery status table to read from.
 
 If the PR touches only non-UI code (migrations, API routes, utilities, or skill files — classifier verdict `uiTouching: false`, from the delivery status table or the fallback classification above, not reviewer judgment), skip this gate.

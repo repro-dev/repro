@@ -16,7 +16,9 @@ import {
 
 const GENERATED_AT = '2026-09-02T12:00:00.000Z'
 const COMMIT_TIME_MS = Date.parse('2026-09-02T11:00:00.000Z') // 1h older
-const SHOT_DIR = 'tmp/ui-verification/REP-0000/shots'
+const ISSUE_AUDIT_DIR = 'tmp/ui-verification/REP-0000'
+const CANDIDATE_DIR = `${ISSUE_AUDIT_DIR}/candidate-abc1234-attempt-1`
+const SHOT_DIR = `${CANDIDATE_DIR}/shots`
 const SHOT_REL = `${SHOT_DIR}/sessions-idle.png`
 const AUDIT_HEADER =
   '| pillar | severity | evidence screenshot | description | disposition |'
@@ -27,9 +29,11 @@ const VALID_MANIFEST = {
   issue: 'REP-0000',
   generatedAt: GENERATED_AT,
   base: 'origin/main',
+  auditCheckpointCommit: 'abc1234',
   surfaces: [
     {
       surface: 'workspace::Sessions',
+      auditedAtCommit: 'abc1234',
       url: 'http://localhost:3000/sessions',
       viewport: '1440x900',
       states: [
@@ -55,12 +59,18 @@ const findingRow = (disposition: string) =>
 
 const manifestWith = (states: unknown) => ({
   ...VALID_MANIFEST,
-  surfaces: [{ surface: 'workspace::Sessions', states }],
+  surfaces: [
+    {
+      surface: 'workspace::Sessions',
+      auditedAtCommit: 'abc1234',
+      states,
+    },
+  ],
 })
 
 function fixture() {
   const root = mkdtempSync(path.join(tmpdir(), 'assert-audit-core-'))
-  const auditDir = path.join(root, 'tmp', 'ui-verification', 'REP-0000')
+  const auditDir = path.join(root, CANDIDATE_DIR)
   mkdirSync(path.join(root, SHOT_DIR), { recursive: true })
   writeFileSync(path.join(root, SHOT_REL), 'png-bytes')
   // Fixtures for the screenshot edge cases (zero byte + root escape).
@@ -91,8 +101,10 @@ function fixture() {
         issueId: 'REP-0000',
         expectedSurfaces: ['workspace::Sessions'],
         classificationBase: 'origin/main',
+        checkpointCommit: 'abc1234',
         commitTimeMs: COMMIT_TIME_MS,
         worktreeRoot: root,
+        auditDir,
         ...overrides?.inputs,
       })
     },
@@ -134,9 +146,12 @@ describe('REP-1653 assertAuditArtifacts (pure core)', () => {
     assert.deepEqual(ids(report), [
       'manifest-parses',
       'manifest-nonempty',
+      'candidate-audit-directory',
       'screenshots',
       'freshness',
+      'audit-checkpoint',
       'surface-coverage',
+      'surface-checkpoints',
       'audit-findings',
     ])
     for (const result of report.results) {
@@ -161,8 +176,10 @@ describe('REP-1653 assertAuditArtifacts (pure core)', () => {
       issueId: 'REP-0000',
       expectedSurfaces: ['workspace::Sessions'],
       classificationBase: 'origin/main',
+      checkpointCommit: 'abc1234',
       commitTimeMs: COMMIT_TIME_MS,
       worktreeRoot: f.root,
+      auditDir: f.auditDir,
     })
     assert.equal(report.ok, false)
     assert.deepEqual(ids(report), ['manifest-parses', 'audit-findings'])
@@ -336,6 +353,7 @@ describe('REP-1653 assertAuditArtifacts (pure core)', () => {
       issueId: 'REP-0000',
       expectedSurfaces: ['workspace::Sessions'],
       classificationBase: 'origin/main',
+      checkpointCommit: 'abc1234',
       commitTimeMs: COMMIT_TIME_MS,
       worktreeRoot: path.dirname(f.root),
     })
@@ -406,6 +424,7 @@ describe('REP-1653 assertAuditArtifacts (pure core)', () => {
           ...VALID_MANIFEST.surfaces,
           {
             surface: 'admin::Billing',
+            auditedAtCommit: 'abc1234',
             states: [{ state: 'idle', screenshot: SHOT_REL }],
           },
         ],

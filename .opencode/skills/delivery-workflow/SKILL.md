@@ -44,6 +44,7 @@ Apply this policy only to `planner`, `develop`, `review`, and `adversarial-revie
 When keeping the status table updated, make backoff explicit so the operator can tell the command is intentionally waiting rather than hung.
 
 - Show active retry waits, for example `develop launch rate-limited; retry 2/4 in 30s`.
+
 ## Load these support skills as needed
 
 - `implementation-rigor` — red/green/refactor, verification, and test expectations
@@ -70,22 +71,26 @@ Before proceeding to planning, run these readiness checks:
 1. **Fetch issue**: Run `linear issue show <issue-id> --json` and read the full description, decisions, and considerations.
 
 2. **Fetch children**: Run `linear issue children <issue-id> --json`. If any child issues exist, the target is a tracking issue rather than a bounded implementation issue. Stop with:
+
    > "/build operates on a single bounded issue. This issue has child issues — it is a tracking issue. Run `/build REP-<child>` on a concrete child issue instead."
-   Add the issue ID to `escalated_issues` and stop.
+   > Add the issue ID to `escalated_issues` and stop.
 
 3. **Fetch blockers**: For each blocker in `relations.blockedBy`, run `linear issue show <blocker-id> --json`. If any blocker is not `Done` or `Canceled`, stop with:
+
    > "Issue is blocked by REP-<blocker-id> which is not Done or Canceled. Resolve the blocker, then re-run `/build REP-<issue-id>`."
-   Add the issue ID to `escalated_issues` and stop.
+   > Add the issue ID to `escalated_issues` and stop.
 
 4. **Check issue status**: If the issue is already `Done` or `Canceled`, stop with:
+
    > "Issue REP-<id> is already <status>. Pick a live issue or reopen this one, then re-run `/build`."
-   If the issue is already **In Progress** or **In Review**, stop with:
+   > If the issue is already **In Progress** or **In Review**, stop with:
    > "Issue REP-<id> is already in <status>. Finish the in-flight work or move it back to Todo, then re-run `/build`."
-   Add the issue ID to `escalated_issues` and stop.
+   > Add the issue ID to `escalated_issues` and stop.
 
 5. **Check spec completeness**: If the issue does not provide enough concrete information for a bounded implementation plan without human clarification, stop with:
+
    > "Issue REP-<id> does not have enough concrete detail for autonomous implementation. Add missing scope or split off child issues, then re-run `/build`."
-   Add the `needs-spec` label, add the issue ID to `escalated_issues`, and stop.
+   > Add the `needs-spec` label, add the issue ID to `escalated_issues`, and stop.
 
 6. If all checks pass, set the issue to **In Progress** and continue to planning.
 
@@ -95,8 +100,8 @@ Before proceeding to planning, run these readiness checks:
 2. Identify affected packages and read any package-level `AGENTS.md` files.
 3. Use jcodemunch before full-file reads: `resolve_repo` → `search_symbols` → `get_file_outline` → `get_blast_radius`.
 4. Delegate planning to a single `planner` subagent for the issue. Do not delegate to `planner` until the matching `tmp/context-<issue-id>.md` or `tmp/context-<topic>.md` artifact exists.
-6. For non-trivial behavior changes, produce a small `tmp/test-plan-<issue-id>.md` artifact before implementation starts. If a `develop` agent will implement this, the test plan is required.
-7. When a required `tmp/context-*` or `tmp/test-plan-*` artifact is the only blocker, enter an enforce-and-retry loop: create the artifact, then retry the blocked planning step.
+5. For non-trivial behavior changes, produce a small `tmp/test-plan-<issue-id>.md` artifact before implementation starts. If a `develop` agent will implement this, the test plan is required.
+6. When a required `tmp/context-*` or `tmp/test-plan-*` artifact is the only blocker, enter an enforce-and-retry loop: create the artifact, then retry the blocked planning step.
 
 ### Inline skill matching (before each planner spawn)
 
@@ -122,7 +127,6 @@ General-purpose skills (`delivery-workflow`, `implementation-rigor`, `git-workfl
 3. Collect all matching skill file paths.
 4. If more than 3 match, keep the 3 most specific (prefer full package-path matches over keyword-only matches; prefer longer path segments over shorter ones).
 5. If 0 rows match, skip injection — use the prompt template below unchanged.
-
 
 ### Planner prompt template
 
@@ -232,6 +236,8 @@ Classification rules:
 
 - If 2+ signals are present: mark the issue as **high-risk**
 - If fewer than 2 signals: mark as **standard**
+- Security-sensitive changes always receive a focused `security-review`, even when this is the only signal and the issue remains standard-risk.
+- The focused security review is additive to the standard reviewer(s); it does not replace the requirements/conventions merge gate.
 
 Store the risk level alongside the issue in the status table for the rest of the run. The risk level drives reviewer spawning in the review phase.
 
@@ -257,7 +263,7 @@ This generalizes the REP-1488 pattern: the issue declares the hand-off; the orch
 Design is necessarily **ahead** of implementation and the two may land in separate PRs. If the issue is design-touching — `Pen` label on the issue, OR presence of a `## Design (locked)` section in the issue body — `/build` MUST sweep relevant design changes in as part of implementation (the pen-reconcile hand-off):
 
 1. **Planning**: tell the planner to include pen-contract detection as a pre-implementation step: run `pnpm run pen:contract` (and `pnpm run pen:lint` drift checks) to build the candidate inventory of design deltas, and judge which candidates are in scope for this issue vs explicitly deferred.
-2. **Implementation**: the `develop` prompt MUST instruct the agent to load the `pen-reconcile` skill and run detect + judge + apply over the *relevant* design deltas as part of implementation: translate in-vocabulary overrides into props via the closed override vocabulary (zero LLM involvement), surface out-of-vocabulary instances with candidates for judgment (never guess), patch existing behavioral components (never regenerate), wire state families from the contract into loading/empty/error/content rendering, and record the applied manifest to `tmp/pen-applied.json`. Guard the hand-off scope: unrelated design changes are explicitly deferred and listed, never swept in. Implementation PRs never write `repro.pen` (two-PR model).
+2. **Implementation**: the `develop` prompt MUST instruct the agent to load the `pen-reconcile` skill and run detect + judge + apply over the _relevant_ design deltas as part of implementation: translate in-vocabulary overrides into props via the closed override vocabulary (zero LLM involvement), surface out-of-vocabulary instances with candidates for judgment (never guess), patch existing behavioral components (never regenerate), wire state families from the contract into loading/empty/error/content rendering, and record the applied manifest to `tmp/pen-applied.json`. Guard the hand-off scope: unrelated design changes are explicitly deferred and listed, never swept in. Implementation PRs never write `repro.pen` (two-PR model).
 3. **Lifecycle unchanged**: `/build` still owns plan → branch → commit → review → PR. The hand-off replaces the design step, not the delivery lifecycle.
 4. **Verification**: the skill's candidate-report shape feeds the manual-verification `## Design reconciliation` section (delivery-workflow §8): in-scope design deltas, screens/masters involved, explicit out-of-scope changes, and the human pen-screenshot vs browser-evidence check.
 
@@ -361,82 +367,96 @@ If the `develop` run reports an unresolved build failure, typecheck failure, or 
 
 ## 5. Audit gate (UI-touching deliveries)
 
-Runs after implementation (§4), before the review loop. The gate is mechanical: a script classifies the diff, and UI-touching deliveries must produce a five-pillar visual audit before review starts.
+Runs after implementation (§4), before the review loop. The gate classifies committed changes and requires a five-pillar visual audit for newly affected UI behavior. Its baseline is incremental: use `origin/main` only when no successful audit checkpoint exists; otherwise classify from the last successful `auditCheckpointCommit` in the preserved manifest.
 
-**Fail-closed preamble**: if the gate cannot complete (classifier fails, stack won't start, browser unavailable), escalate via the phase-local failure handling (Linear comment, issue back to Todo). The gate is never silently skipped. Boundary: this agent audit covers judgment classes (semantics, IA, consistency); the deterministic/mechanical classes (CI visual regression, route smoke, Storybook rendering) are tracked in REP-1648/1649/1650 and are out of scope here.
+**Fail-closed preamble**: if the gate cannot complete (classifier fails, stack won't start, browser unavailable, or checkpoint provenance is missing/unresolvable), escalate via the phase-local failure handling (Linear comment, issue back to Todo). The gate is never silently skipped. Legacy manifests without checkpoint provenance are not reusable; recapture from a valid baseline. Boundary: this agent audit covers judgment classes (semantics, IA, consistency); the deterministic/mechanical classes (CI visual regression, route smoke, Storybook rendering) are tracked in REP-1648/1649/1650 and are out of scope here.
 
-### Step 1 — checkpoint commit
+### Step 1 — commit the candidate code checkpoint
 
-Classification needs a committed diff, and the classifier only sees committed history — uncommitted UI files would classify as a false non-UI. Run the commit inspection steps (`git status`, `git diff`, `git log -5 --oneline`), stage the implementation changes, and create a local commit in the repository's Conventional Commit style with the Linear issue ID. Do **not** push. Then run `git status --porcelain` and require it to be EMPTY before classification runs; if the tree is not clean after the checkpoint commit, escalate via the fail-closed preamble — never classify on a dirty tree. (The review loop keeps a fallback commit path only for resuming an interrupted run without this commit.)
+Classification needs a committed diff. Run the commit inspection steps (`git status`, `git diff`, `git log -5 --oneline`), stage the implementation changes, and create a local Conventional Commit with the Linear issue ID. Do **not** push. Then require `git status --porcelain` to be empty before classification; if the tree is dirty, escalate rather than classify. The code commit is a candidate audit checkpoint only; it becomes the successful checkpoint after proof assertions and dispositions pass.
 
-### Step 2 — classify the diff
+### Step 2 — choose the audit baseline and inspect the delta
+
+Resolve the prior successful `auditCheckpointCommit` from the preserved canonical manifest. If none exists, or a legacy manifest has no valid provenance, use `origin/main` as the baseline and do a fresh full audit of the affected surfaces. Otherwise run:
 
 ```sh
-pnpm run ui:classify --base origin/main
+pnpm run ui:classify --base <last-successful-audit-checkpoint>
 ```
 
-Pass script args directly after the script name — never with `--` (see `build-and-test`). Parse the JSON verdict:
+Pass script args directly after the script name — never with `--` (see `build-and-test`). Inspect the **full delta** from this baseline as well as the classifier's `matched` files; include indirect UI/state effects even when the changed source path is not classified as UI.
 
-- `uiTouching: false` ⇒ record `ui_audit: skipped (non-UI, N changed files)` in the status table and skip to §6 (review loop). The verdict is the mechanical skip evidence.
-- `uiTouching: true` ⇒ record `ui_audit: required` in the status table and continue.
+- If the full delta confirms no audited UI behavior changed and a successful manifest is available, unchanged surfaces may reuse valid evidence: record `ui_audit: reused` and reuse the prior bundle. Do not start the stack or advance the checkpoint.
+- If no UI behavior is affected and there is no prior UI audit to reuse, record `ui_audit: skipped (non-UI, N changed files)`.
+- If any audited UI behavior or relevant state changed, record `ui_audit: required` and continue with only the changed surfaces and their applicable states. Preserve the full five-pillar visual/state audit for each materially changed surface; never turn a material UI change into a screenshot-only check.
 
-Scope rule: keep the audit scoped to affected surfaces + reachable states derived from the classifier's `matched` files plus the plan — never a full-app sweep (cost-control decision).
+### Step 3 — stage a candidate audit bundle
 
-### Step 3 — delegate the audit pass
-
-Launch `develop` with the audit prompt:
+Keep the last successful `tmp/ui-verification/<issue-id>/manifest.json`, `audit.md`, and screenshots intact while auditing. Write each candidate to a unique path such as `tmp/ui-verification/<issue-id>/candidate-<checkpoint-sha>-<attempt>/`; do not delete or overwrite the successful evidence or any promoted screenshot path. Launch `develop` with:
 
 ```
 Run the REP-1646 UI audit pass for REP-xxx in worktree <absolute-worktree-path>.
 
-Affected surfaces (from the §5 Step 2 `matched` list plus the plan): <affected-surfaces>
+Changed surfaces and applicable states (from the full delta plus classifier result): <changed-surfaces-and-states>
+Candidate bundle: tmp/ui-verification/REP-xxx/candidate-<checkpoint-sha>-<attempt>/
+Audit baseline: <classification-base>
+Code checkpoint under audit: <checkpoint-sha>
 
-1. Load the `ui-verification` skill and follow its REP-1646 audit sections exactly:
-   the five-pillar audit rubric, severity calibration, capture manifest format,
-   and known-artifact ignore list.
-2. Start the stack with `reproctl start --wait --full-stack`. If it fails, stop and
+1. Load `ui-verification` and follow its five-pillar rubric, severity calibration,
+   capture manifest format, and known-artifact ignore list.
+2. Start the stack with `reproctl start --wait --full-stack`; if it fails, stop and
    report — do not silently skip the audit.
-3. Navigate exactly the affected surfaces listed above (plus their reachable states);
-   capture affected states plus loading/empty/error where the surface has them.
-4. Clear any stale `tmp/ui-verification/<issue-id>/` directory first
-   (`rm -rf tmp/ui-verification/<issue-id>`) so the artifacts reflect THIS pass,
-   never an earlier attempt's replay.
-5. Write `tmp/ui-verification/<issue-id>/manifest.json` and `audit.md` per the skill's
-   capture manifest format. Record `base` exactly as `origin/main` (the §5 Step 2
-   classification base — never a branch name or HEAD), and echo each affected-surfaces
-   entry above verbatim as `surfaces[].surface`.
-6. Return: manifest path, audit path, finding counts by severity, and disposition
-   summary. This is a capture-and-analyze pass — no code fixes in this pass.
+3. Audit exactly the changed surfaces and applicable states; for each material UI
+   change include the full affected, loading, empty, error, and reachable interaction
+   states that apply.
+4. Preserve the prior successful bundle. Use a new candidate path for every attempt;
+   never clear `tmp/ui-verification/REP-xxx/` or overwrite promoted screenshots.
+5. Write candidate `manifest.json` and `audit.md`. Set `base` to the audit baseline,
+   `auditCheckpointCommit` to the code checkpoint SHA, and each changed surface's
+   `auditedAtCommit` to that same SHA. Carry forward prior surface entries, screenshot
+   references, and finding rows/dispositions for unchanged surfaces only when the
+   previous manifest has valid top-level and per-surface provenance; their
+   `auditedAtCommit` stays unchanged. For a first audit or legacy manifest, do not carry
+   forward unproven entries: capture every surface affected since `origin/main` in the
+    fresh candidate at the current checkpoint. Store new screenshots under the unique
+    candidate path and echo each changed-surface entry verbatim as `surface`.
+6. Return candidate paths, finding counts by severity, and disposition summary. This
+   is a capture-and-analyze pass — no code fixes in this pass.
 ```
 
-### Step 4 — proof-bundle assertion (REP-1081 becomes load-bearing)
+### Step 4 — disposition enforcement
 
-Orchestrator-level, mechanical, no judgment. Run the script (REP-1653):
+Before asserting or promoting a candidate, resolve all audit findings while preserving the last successful bundle:
+
+- **P0** ⇒ fix before review. Send the finding to `develop`, commit the fix, classify again from the last successful audit checkpoint, and capture a new candidate for the affected surfaces/states. Cite the fix commit in the P0 row's `fixed <commit>` disposition. Do not use or advance a pre-fix candidate.
+- **P1/P2** ⇒ fix each finding or file a Linear issue; record `fixed <commit>` or `filed REP-xxx` in the candidate audit. Preserve prior finding rows and dispositions for unchanged surfaces. After a P1/P2 fix commit, inspect the delta from the last successful audit checkpoint; if it changes UI behavior or relevant states, discard the current candidate and classify/audit the affected surfaces and states into a fresh candidate before promotion. If the fix is confirmed not to change audited UI behavior, the current candidate remains valid for the UI checkpoint.
+- Every candidate finding row must have a valid disposition. `none` is reserved for the exact no-findings sentinel when there are no findings. Do not promote the candidate at this step.
+
+### Step 5 — proof-bundle assertion and promotion (REP-1081 becomes load-bearing)
+
+Orchestrator-level, mechanical, no judgment. After Step 4 dispositions are complete, assert the candidate bundle before promotion:
 
 ```
-pnpm run ui:assert-audit --issue REP-xxx --base origin/main \
-  --commit <checkpoint-sha> --surface <surface-1> --surface <surface-2> …
+pnpm run ui:assert-audit --issue REP-xxx --audit-dir tmp/ui-verification/REP-xxx/candidate-<checkpoint-sha>-<attempt> \
+  --base <classification-base> --commit <checkpoint-sha> \
+  --surface <changed-surface-1> --surface <changed-surface-2> …
 ```
 
-- No `--` separator (pnpm 10 forwards it literally). `--base` is the §5 Step 2 classification base (`origin/main`); `--commit` is the §5 Step 1 checkpoint commit; each `--surface` echoes a §5 Step 3 `<affected-surfaces>` entry verbatim.
-- Exit 0 = pass. Exit 1 = gate violation — the JSON on stdout lists every failed assertion (`results[]` entries carry `id`, `ok`, `detail`); note `pnpm run` prints its command banner lines to stdout before the JSON, so parse from the first `{` line. The other exit-1 mode is an execution error (missing/unreadable manifest/audit.md, git failure): exit 1 with an stderr `ERROR:` line and NO JSON.
+- No `--` separator (pnpm 10 forwards it literally). `--base` is the classifier baseline; `--commit` is the code checkpoint under audit; each `--surface` names a surface whose behavior changed since the previous successful checkpoint.
+- Exit 0 = pass. Exit 1 = gate violation — JSON on stdout lists every failed assertion (`results[]` has `id`, `ok`, `detail`); parse from the first `{` line after pnpm's banner. The other exit-1 mode is an execution error (missing/unreadable manifest/audit.md, git failure): stderr has `ERROR:` and there is NO JSON.
 
 The script asserts (ids match the JSON report):
 
-1. `manifest-parses` / `manifest-nonempty` — `tmp/ui-verification/<issue-id>/manifest.json` parses as JSON AND contains ≥1 surface with ≥1 state.
-2. `screenshots` — every state has a NON-EMPTY `screenshot` path that exists on disk AND is non-empty (size > 0) — relative paths resolve from the worktree root.
-3. `freshness` — the manifest `base` field equals the classification base (`origin/main`) AND `generatedAt` is present AND newer than the Step 1 checkpoint commit — artifacts replayed from an older base, an earlier attempt, or a pre-commit capture are a gate violation.
-4. `surface-coverage` — every surface name the orchestrator passed in the Step 3 prompt's `<affected-surfaces>` slot appears in the manifest's `surfaces[].surface` list.
-5. `audit-findings` — `tmp/ui-verification/<issue-id>/audit.md` contains the ui-verification findings-table header (`pillar | severity | evidence screenshot | description | disposition`) AND (≥1 finding row each carrying a valid disposition (`fixed <commit>` | `filed REP-xxx`), OR the exact no-findings row (`| none | none | none | no findings | none |`)) — a header with zero finding rows is a gate violation, not a clean audit. `none` is reserved for the no-findings sentinel row; a finding row dispositioned `none` is neither fixed nor filed and fails this assertion.
-6. The §4 implementation develop return's REP-1081 proof-bundle evidence paths resolve to real files (orchestrator-side check — the script does not cover this).
+1. `manifest-parses` / `manifest-nonempty` — candidate `manifest.json` parses and contains ≥1 surface with ≥1 state.
+2. `candidate-audit-directory` — `--audit-dir` is a direct child of the issue's canonical audit directory named `candidate-<checkpoint-sha>-<attempt>`, and its canonical real path matches that distinct candidate path. The canonical bundle and symlink aliases fail closed.
+3. `screenshots` — every state has a NON-EMPTY screenshot path that resolves to a non-empty regular file inside the worktree root; screenshots for changed surfaces must also resolve beneath the candidate audit directory passed with `--audit-dir`. Unchanged surfaces may continue to reference screenshots in earlier versioned evidence directories.
+4. `freshness` — manifest `base` equals the classifier baseline and `generatedAt` is strict ISO-8601 newer than the code checkpoint commit.
+5. `audit-checkpoint` — top-level `auditCheckpointCommit` exactly matches `--commit`; missing or legacy provenance fails closed.
+6. `surface-coverage` — every changed-surface name passed with `--surface` appears in `surfaces[].surface`.
+7. `surface-checkpoints` — every surface has `auditedAtCommit`; each changed surface exactly matches `--commit`. Older values are allowed only for surfaces omitted from the changed-surface set.
+8. `audit-findings` — `audit.md` contains the findings-table header (`pillar | severity | evidence screenshot | description | disposition`) and ≥1 dispositioned finding (`fixed <commit>` | `filed REP-xxx`) or the exact no-findings sentinel (`| none | none | none | no findings | none |`). A finding dispositioned `none` is invalid.
+9. The §4 implementation return's REP-1081 evidence paths resolve to real files (orchestrator-side check).
 
-Any assertion failure = gate violation ⇒ escalate via the phase-local failure handling.
-
-### Step 5 — disposition enforcement
-
-- **P0** ⇒ fix before review: re-run `develop` with the P0 findings, then re-run the audit pass (bounded by the existing 3-attempt loop discipline). Commit the P0 fix before re-running the audit pass and cite that commit in the row's `fixed <commit>` disposition. After the P0 fix commit, re-run `pnpm run ui:classify --base origin/main` and extend the re-audit scope from the new `matched` set (same post-gate re-classification rule as §6).
-- **P1/P2** ⇒ each finding is fixed or filed as a Linear issue; the audit artifact records both.
-- Review may not start until every finding row in `audit.md` has a disposition (`fixed <commit>` | `filed REP-xxx`) — `none` is reserved for the no-findings sentinel row, never a valid finding-row disposition.
+Any failed assertion is a gate violation ⇒ escalate via phase-local failure handling. Only after every assertion and required disposition passes, promote the candidate manifest and audit to the canonical paths, retain its versioned screenshot directory as immutable evidence, and advance the successful audit checkpoint.
 
 ## 6. Review loop
 
@@ -454,21 +474,30 @@ For the completed implementation before review (fallback path when the audit gat
 
 If the implementation is later fixed during the bounded review loop, create a new local commit for the review-fix pass before re-running `review`. Do not rely on dirty worktree diffs.
 
+### Review-cycle SHA and checkpoint
+
+At the start of every review cycle, capture one exact HEAD SHA for that cycle (`review-head-sha=$(git rev-parse HEAD)`). Pass the same exact HEAD SHA to every applicable review lane, along with the shared `<review-checkpoint>` base. The first cycle uses `origin/main`; each later cycle uses the last completed review checkpoint. Require every lane to inspect `git diff <review-checkpoint>..<review-head-sha>` plus directly affected paths needed to verify requirements. No lane may substitute the live `HEAD`. If HEAD changes before all lanes finish, discard the incomplete result set and rerun every applicable lane against one newly captured SHA. After all applicable review-lane results are collected and findings are consolidated, set the last review checkpoint to that SHA. The checkpoint advances only after the next full applicable review cycle completes with every lane inspecting that same captured SHA.
+
 ### Conditional reviewer spawning by risk level
 
-Every issue — regardless of risk level — gets an adversarial pass via the `adversarial-review` agent, spawned in parallel with the standard reviewer(s) using the `#### Adversarial review pass` template below. The standard review remains the merge gate for requirements and conventions; the adversarial pass is additive.
+Every code change gets a standard `review` pass; it remains the merge gate for requirements and conventions at every risk level. Add independent reviewers only for the explicit risk triggers below. These lanes are additive and do not replace the standard reviewer.
 
-Spawn the standard reviewers based on the risk level computed in the risk classification phase:
+Spawn the standard reviewers based on the risk level computed in §3:
 
-**Standard-risk issues**: launch a single `review` agent using the standard prompt template below, plus the adversarial pass.
+**Standard-risk issues**: launch one `review` agent using the standard prompt template below.
 
-**High-risk issues**: spawn 2–3 focused `review` agents in parallel, each with a scoped prompt, plus the adversarial pass:
+**High-risk issues** (2+ of the §3 signals): launch the full standard `review` agent using the standard prompt template below, then add the focused lanes and a relevant adversarial pass. The focused lanes supplement — never replace — the standard requirements-and-conventions merge gate:
 
-1. **Correctness + Security reviewer** — always spawned for high-risk issues
-2. **Architecture + Conventions reviewer** — always spawned for high-risk issues
-3. **Performance reviewer** — only spawned when data-heavy changes are detected (e.g. data model changes signal, large batch operations, streaming or pipeline patterns in Sequence Notes)
+1. **Standard `review` agent** — always spawned; reviews requirements coverage, correctness, test coverage, conventions, and architecture.
+2. **Correctness + Security reviewer** — always spawned for high-risk issues
+3. **Architecture + Conventions reviewer** — always spawned for high-risk issues
+4. **Performance reviewer** — only spawned when data-heavy changes are detected (e.g. data model changes signal, large batch operations, streaming or pipeline patterns in Sequence Notes)
 
-When `smoke_test_result` is `fail` for this issue, append this block to every reviewer prompt (standard and adversarial):
+For every security-sensitive change, regardless of aggregate risk, launch the focused `security-review` agent in addition to the standard reviewer(s). Keep it limited to security boundaries and implications in changed code; this does not broaden REP-1069's multi-lens scope. A security-sensitive-only change remains standard-risk for adversarial routing unless another §3 signal makes it high-risk. Pass the shared review checkpoint and exact captured HEAD SHA to this lane too.
+
+Run `adversarial-review` only for high-risk `/build` deliveries, in parallel with the standard reviewers. Direct adversarial reviews explicitly requested by a user remain available outside that `/build` routing rule. Pass the risk profile, changed-code scope, and review checkpoint to the agent. The seven techniques in the shared contract are available options, not a required checklist: select only techniques relevant to the changed code and risk, justify each selection, and explicitly list techniques omitted as irrelevant. Do not expand the existing reviewer lanes or build shared prompt fragments here; REP-1069 and REP-1129 own those scopes.
+
+When `smoke_test_result` is `fail` for this issue, append its structured failure context to every applicable triggered reviewer-lane prompt: standard `review` and each triggered independent lane, including focused `security-review`, Correctness + Security, Architecture + Conventions, Performance, and `adversarial-review` when present. Do not omit it from a lane because that lane has a narrower review scope.
 
 ```
 ## Smoke test failures
@@ -490,7 +519,7 @@ Review the implementation for REP-xxx in worktree <absolute-worktree-path>.
 Focus exclusively on correctness and security:
 1. Load the `review-standards` skill for the review checklist.
 2. Fetch Linear issue REP-xxx via `linear issue show REP-xxx --json`.
-3. Review the committed branch diff with: `git diff origin/main...HEAD`
+3. Review exactly `git diff <review-checkpoint>..<review-head-sha>` plus directly affected paths needed to verify the requirements. Use `origin/main` as `<review-checkpoint>` for the first review only; the supplied `<review-head-sha>` is the fixed target for every lane in this cycle.
 4. Evaluate: logic gaps, off-by-one errors, unhandled edge cases, error-path handling, async operation correctness (Futures not Promises per project conventions), and security implications (injection, auth bypass, data exposure, unsafe deserialization).
 5. Check AGENTS.md conventions for the affected packages.
 6. Return the structured output required by .opencode/agents/review.md — but only report findings in the correctness and security categories. Assign each finding `role: correctness-security` in the structured output.
@@ -504,7 +533,7 @@ Review the implementation for REP-xxx in worktree <absolute-worktree-path>.
 Focus exclusively on architecture and conventions:
 1. Load the `review-standards` skill for the review checklist.
 2. Fetch Linear issue REP-xxx via `linear issue show REP-xxx --json`.
-3. Review the committed branch diff with: `git diff origin/main...HEAD`
+3. Review exactly `git diff <review-checkpoint>..<review-head-sha>` plus directly affected paths. Use `origin/main` as `<review-checkpoint>` for the first review only; the supplied `<review-head-sha>` is the fixed target for every lane in this cycle.
 4. Evaluate: side effects on other parts of the system, consistency with existing codebase patterns, approach alignment with stated architecture, and package-level AGENTS.md convention compliance.
 5. Check style/conventions (imports, naming, Prettier, no hardcoded values, design tokens).
 6. Return the structured output required by .opencode/agents/review.md — but only report findings in the architecture and conventions categories. Assign each finding `role: architecture-conventions` in the structured output.
@@ -518,14 +547,14 @@ Review the implementation for REP-xxx in worktree <absolute-worktree-path>.
 Focus exclusively on performance:
 1. Load the `review-standards` skill for the review checklist.
 2. Fetch Linear issue REP-xxx via `linear issue show REP-xxx --json`.
-3. Review the committed branch diff with: `git diff origin/main...HEAD`
+3. Review exactly `git diff <review-checkpoint>..<review-head-sha>` plus directly affected paths. Use `origin/main` as `<review-checkpoint>` for the first review only; the supplied `<review-head-sha>` is the fixed target for every lane in this cycle.
 4. Evaluate: algorithmic complexity regressions, unnecessary iteration or duplication, missing indexes or query optimizations (if DB changes are present), unbuffered stream operations, large in-memory collections, and lack of pagination/cursor patterns where appropriate.
 5. Return the structured output required by .opencode/agents/review.md — but only report findings in the performance category. Assign each finding `role: performance` in the structured output.
 ```
 
-#### Adversarial review pass (spawned for every issue, in parallel with the standard reviewer(s))
+#### Adversarial review pass (high-risk `/build` deliveries only)
 
-Spawn the `adversarial-review` agent for every issue, regardless of risk level, in parallel with the standard reviewer(s). It runs after the standard review conceptually but the two may run concurrently; the standard review remains the merge gate.
+Spawn this lane only when the issue meets the high-risk trigger in §3. It may run in parallel with standard reviewers; the standard review remains the merge gate. Direct user-requested adversarial reviews remain available outside `/build` risk routing.
 
 Adversarial prompt template:
 
@@ -534,10 +563,10 @@ Run the adversarial review pass for REP-xxx in worktree <absolute-worktree-path>
 
 1. Load the `review-standards` skill — specifically the `Adversarial review contract` section.
 2. Fetch Linear issue REP-xxx via `linear issue show REP-xxx --json`.
-3. Review the committed branch diff with: `git diff origin/main...HEAD`
-4. Assume the implementation is wrong and try to prove it fails. Apply all seven adversarial techniques: bug-seeking mindset; edge-case and boundary-value enumeration; happy-path-only logic and untested error paths; acceptance-criterion completeness challenge (met vs sunny-day slice); test-quality attacks (tautological/weak assertions, tests that cannot fail, mocks asserting the mock); hidden coupling (sibling callsites, shared helpers, alternate paths, shared state); async/time/ordering risks (Futures vs Promises per project conventions, races, retry/ordering assumptions, time-dependent logic).
+3. Review exactly `git diff <review-checkpoint>..<review-head-sha>` plus directly affected paths. Use `origin/main` as `<review-checkpoint>` for the first review only; the supplied `<review-head-sha>` is the fixed target for every lane in this cycle.
+4. Assume the implementation may fail. Select only techniques relevant to the changed code and risk profile from the shared seven-technique set; justify each selected technique and explicitly list the techniques omitted as irrelevant. Do not mechanically apply all seven.
 5. Do not duplicate the standard review's requirements-coverage pass — attack failure modes instead.
-6. Return the structured output required by .opencode/agents/adversarial-review.md. Assign every finding `role: adversarial`, keep the severity schema (Blocker/Major/Minor/Nit) and `fixable_by_agent` fields, and add a `## Techniques applied` section.
+6. Return the structured output required by .opencode/agents/adversarial-review.md. Assign every finding `role: adversarial`, keep the severity schema (Blocker/Major/Minor/Nit) and `fixable_by_agent` fields, and include selected technique justifications plus explicit omissions in `## Techniques applied`.
 ```
 
 ### Finding merge and deduplication
@@ -549,7 +578,7 @@ Each finding in the structured output includes a `category` field. Because combi
 - Performance reviewer → findings tagged `role: performance`
 - Adversarial reviewer → findings tagged `role: adversarial`
 
-For deduplication across reviewers, use the merge key: `<file-path>:<line-number>:<role>`
+Consolidate findings by the underlying failure, not merely by `<file-path>:<line-number>:<role>`. Keep all source roles, locations, evidence, and rationale as provenance on the consolidated finding; do not discard distinct evidence just because the fix is shared. An accepted blocker must have concrete evidence tied to changed behavior and an actionable fix path before it enters the single batch sent to `develop`.
 
 Role vocabulary:
 
@@ -565,7 +594,7 @@ Review the implementation for REP-xxx in worktree <absolute-worktree-path>.
 
 1. Load the `review-standards` skill for the full review checklist.
 2. Fetch Linear issue REP-xxx via `linear issue show REP-xxx --json`.
-3. Review the committed branch diff with: `git diff origin/main...HEAD`
+3. Review exactly `git diff <review-checkpoint>..<review-head-sha>` plus directly affected paths. Use `origin/main` as `<review-checkpoint>` for the first review only; the supplied `<review-head-sha>` is the fixed target for every lane in this cycle.
 4. Review against requirements coverage, correctness, test coverage, conventions, and architecture.
 5. Return the structured output required by .opencode/agents/review.md.
 ```
@@ -574,37 +603,36 @@ Review the implementation for REP-xxx in worktree <absolute-worktree-path>.
 
 For each issue, apply this iterative loop:
 
-1. **If all review passes (standard and adversarial) approve or return zero Blockers**: mark the issue publishable.
-2. **If any blocking issue has `fixable_by_agent: false`**:
-   - Escalate immediately
-   - Post a concise Linear comment summarizing the blocking findings with `linear issue comment <issue-id> "<blocking findings summary>" --json`
-   - Set the issue state back to **Todo** with `linear issue update <issue-id> --status "Todo" --json`
-   - Add the issue ID to `escalated_issues`
-3. **If all blocking issues have `fixable_by_agent: true`**:
-   - Re-run `develop` with the original plan plus the current blocking findings (from both passes)
-   - Post-commit re-classification: after every review-fix-loop commit and before re-launching reviewers, re-run `pnpm run ui:classify --base origin/main` (the gate classified the pre-fix diff only). If the verdict flips to `uiTouching: true` — or is already `uiTouching: true` and the new `matched` set intersects the audited surfaces — run §5 Steps 3–5 (audit pass → proof-bundle assertions → disposition enforcement) before re-running review — review may not complete until the audit gate has passed.
-   - Re-run `review` (both the standard and adversarial passes)
-   - Increment the per-issue fix-attempt counter
-   - Continue looping while either review pass still has Blockers and every Blocker remains `fixable_by_agent: true`
-4. **If the loop clears all Blockers within 3 fix attempts**:
-   - Mark the issue publishable
-5. **If the loop reaches 3 consecutive fix attempts and the review still has Blockers**:
-   - Stop the automatic loop
-   - Create the PR instead of discarding the branch
-   - Include a concise summary of the remaining blocking findings in the PR body as reviewer follow-up context
-   - Set the issue state to **In Review** with `linear issue update <issue-id> --status "In Review" --json`
-   - Add the issue ID to `escalated_issues`
-   - Ask the user whether to continue, defer, or escalate further before attempting a fourth fix pass
+1. **Consolidate before fixing**: merge overlapping findings by underlying failure, not just file, line, or role. Preserve source roles, locations, evidence, and rationale as provenance. Admit a blocker to the fix batch only when it is explicitly blocking, has concrete evidence tied to changed behavior, and gives an actionable fix path. Adjudicate duplicate, weak, or unsupported blocker claims before development.
+2. **If all applicable review passes approve or return zero accepted Blockers**: mark the issue publishable.
+3. **If any accepted blocker has `fixable_by_agent: false`**:
+   - Escalate immediately.
+   - Post a concise Linear comment summarizing the blockers with `linear issue comment <issue-id> "<blocking findings summary>" --json`.
+   - Set the issue state back to **Todo** with `linear issue update <issue-id> --status "Todo" --json` and add it to `escalated_issues`.
+   - Do not publish.
+4. **If all accepted blockers are agent-fixable**:
+   - Send one consolidated blocker batch to `develop`; do not run parallel fix passes per reviewer.
+   - After the fix commit, verify each accepted blocker against its evidence and expected correction, including targeted tests where applicable.
+   - Then review only the endpoint diff `git diff <review-checkpoint>..<review-head-sha>` plus paths needed to reverify accepted blockers. Use the prior last review checkpoint SHA as `<review-checkpoint>` and capture one new exact review-head SHA for all applicable lanes; do not restart full-branch discovery by default.
+   - If the fix changed UI behavior, classify from the last successful UI audit checkpoint and run §5 only for newly affected surfaces/states. Reuse prior evidence only when the full delta confirms audited behavior is unchanged.
+   - Re-run every applicable standard and risk-triggered review lane against that bounded endpoint diff and reverify paths. Keep the prior checkpoint fixed until all applicable results cover the same review-head SHA; only then advance it to that SHA.
+   - Increment the per-issue fix-attempt counter and continue only while every remaining accepted blocker is agent-fixable and the counter is below 3.
+5. **If the loop clears all accepted Blockers within 3 fix attempts**: mark the issue publishable.
+6. **If 3 fix attempts are exhausted with accepted Blockers remaining**:
+   - Stop the automatic loop and escalate; do not push, create a PR, mark the issue publishable, or set it to In Review.
+   - Post a concise blocker summary and set the issue back to **Todo**; add it to `escalated_issues`.
+   - No fourth automatic fix pass is allowed; unresolved blockers require an explicit new decision.
 
-This is the entire loop: **review → fix while agent-fixable → review again → stop cleanly at zero Blockers or pause at the 3-attempt safety gate**.
+This is the entire loop: **review → consolidate evidenced blockers → one batch fix → verify accepted blockers → review bounded delta → stop at zero blockers or escalate without publication**.
 
 ### Non-blocker sweep
 
-After the Blocker loop clears (or if there were no Blockers to begin with) and the issue is marked publishable, inspect the review output for non-blocking findings:
+Only after all accepted Blockers clear (or if there were none) and the issue is marked publishable, inspect applicable review outputs for actionable non-blockers:
 
-1. **Collect actionable non-blockers**: scan both the standard and adversarial review outputs' Major, Minor, and Nit sections for findings where `fixable_by_agent: true` is present.
+1. **Collect actionable non-blockers**: scan the standard and any triggered independent review outputs' Major, Minor, and Nit sections for findings where `fixable_by_agent: true` is present.
 
 2. **Quality gate**: only act on findings that are clearly mechanical and low-risk. Apply this checklist:
+
    - Typo/misspelling fix (including doc comments and identifiers)
    - Import ordering / import sorting violation
    - Missing or incorrect design token reference
@@ -615,6 +643,7 @@ After the Blocker loop clears (or if there were no Blockers to begin with) and t
    If any doubt exists about whether a finding qualifies, skip it.
 
 3. **Launch a single `develop` pass** with only the qualifying non-blockers. Pass the review findings as a focused fix prompt — do not pass the full original plan:
+
    ```
    Apply non-blocker review fixes for REP-xxx in worktree <absolute-worktree-path>.
 
@@ -630,20 +659,21 @@ After the Blocker loop clears (or if there were no Blockers to begin with) and t
    ```
 
 4. **Re-run verification**: after the sweep completes, run the same verification commands that the develop phase used:
+
    - For each affected package `<name>`: `pnpm --filter @repro/<name> test`
    - Typecheck and format check as appropriate
-   - Re-run `pnpm run ui:classify --base origin/main` after the non-blocker sweep — sweep fixes may touch `.tsx` labels/ARIA copy that the pre-sweep classification never saw. If the verdict flips to `uiTouching: true` — or is already `uiTouching: true` and the new `matched` set intersects the audited surfaces — run §5 Steps 3–5 (audit pass → proof-bundle assertions → disposition enforcement) before the review outcome is final.
+   - After the non-blocker sweep, classify its delta from the last successful UI audit checkpoint and inspect for indirect UI effects. Re-audit only newly affected surfaces/states; reuse evidence if behavior is confirmed unchanged. Do not restart broad review or audit discovery for optional cleanup.
 
 5. **If the non-blocker fix pass introduces new failures**: stop the sweep. Add those failures to the review summary (they will appear in the PR body remainder). Do not start a second fix loop.
 
 6. **Record sweep outcome**: track which findings were fixed and which were skipped (either by quality gate or not `fixable_by_agent: true`). This drives the PR body remainder in the publish phase.
 
 7. **Bounding**: the full review→fix cycle is now:
-   Blocker loop (up to 3 attempts) → optional non-blocker sweep (1 attempt) → publish per the existing gate.
+   Blocker loop (up to 3 attempts) → optional non-blocker sweep (one attempt, only after zero Blockers) → publish per the existing gate.
 
-The non-blocker sweep runs after the Blocker loop clears entirely. If the Blocker loop hit the 3-attempt safety stop, still run the non-blocker sweep — the branch already has the blocker fixes, and the remaining blockers will be surfaced in the PR body per the existing escalation path.
+Never run non-blocker cleanup while Blockers remain, including after retry exhaustion. Optional cleanup must not cause an unrelated full review or audit cycle.
 
-Do not create a PR or set `In Review` until an issue has cleared review or hit the explicit 3-attempt pause path.
+Do not create a PR or set `In Review` while any accepted Blocker remains.
 
 Do **not** paste full AI review output back into Linear comments. Use Linear comments only for short phase-local blocker summaries when an issue is being kicked back.
 
@@ -665,7 +695,7 @@ else
 fi
 ```
 
-Alongside the guard, re-run `pnpm run ui:classify --base origin/main` at publish — commits after the audit gate (review-fix loop, non-blocker sweep) may have introduced UI files the gate never classified. If the verdict flips to `uiTouching: true` — or is already `uiTouching: true` and the new `matched` set intersects the audited surfaces — run §5 Steps 3–5 (audit pass → proof-bundle assertions → disposition enforcement) before publish proceeds — publish may not proceed until the audit gate has passed.
+After rebase, classify the final delta from the last successful audit checkpoint (use `origin/main` only if no successful checkpoint exists) and inspect the full delta for indirect UI effects. Audit only newly affected surfaces/states using §5 when relevant UI behavior changed; otherwise reuse the valid successful evidence without advancing the checkpoint. The final UI changes must have current audit coverage before publish. If the rebase or later publish step changes UI behavior, return to §5 and do not publish until the candidate passes assertions and dispositions.
 
 Use this same guard for the initial publish path and any future re-push path.
 
@@ -746,6 +776,7 @@ Produces the manual test plan artifact for the issue and renders it as the fixed
 For the published issue:
 
 1. **Gather inputs**:
+
    - The Linear issue description and acceptance criteria (`linear issue show <issue-id> --json`)
    - The implementation diff (`git diff origin/main...HEAD` in the worktree)
    - The review findings from the review phase (both blockers resolved and non-blockers swept)
@@ -758,21 +789,23 @@ For the published issue:
    - For cross-cutting changes: group steps by user-facing surface (browser, CLI, API, extension)
 
 2a. **Determine whether the issue is design-touching**: the issue is design-touching **iff**
-    `git diff origin/main...HEAD` modifies `repro.pen` or any `*.pen` file. There is no
-    ported-surface directory list and no design-intent keyword detection. If design-touching,
-    the plan MUST include the `## Design reconciliation` section (step 5 template) and MUST
-    include a UI-verification manual step (design vs implementation; see step 3).
-    Code-only UI changes that are not represented in the design are out of scope for
-    reconciliation; a future pre-push lint warning (REP-1612 rollout) will flag UI files
-    edited but absent from the design.
+`git diff origin/main...HEAD` modifies `repro.pen` or any `*.pen` file. There is no
+ported-surface directory list and no design-intent keyword detection. If design-touching,
+the plan MUST include the `## Design reconciliation` section (step 5 template) and MUST
+include a UI-verification manual step (design vs implementation; see step 3).
+Code-only UI changes that are not represented in the design are out of scope for
+reconciliation; a future pre-push lint warning (REP-1612 rollout) will flag UI files
+edited but absent from the design.
 
 3. **Scope the plan to human-executable verification only**:
+
    - Do **not** restate automated test names or describe what the test suite covers
    - Do **not** include steps that are fully covered by automated tests unless a human should still verify the integrated behavior
    - Each step must describe a concrete action and the expected outcome
    - For design-touching issues, include a UI-verification step: compare the pen screenshot baseline against ui-verification browser evidence (the human check in the `Design reconciliation` section).
 
 4. **If the issue has no meaningful manual verification surface** (e.g. purely internal refactoring, build config changes):
+
    - Design-touching determination (step 2a) overrides this branch: a design-touching issue always has a manual verification surface (the `Design reconciliation` human check) and MUST produce the `## Design reconciliation` section. The single-line branch below applies only to non-design-touching issues.
    - The plan is a single line: `Automated coverage is sufficient; no manual verification needed.`
    - Still write the artifact — the presence of the file signals that the phase ran.
@@ -808,16 +841,20 @@ For the published issue:
    <!-- Required when the issue is design-touching per step 2a (diff modifies repro.pen or any *.pen file); omit otherwise -->
 
    ### In-scope design deltas
+
    <!-- design changes in this issue's diff / repro.pen changes; author from the issue's diff
         and pen changes (REP-1628's detect output will render this once that skill exists) -->
 
    ### Screens / masters involved
+
    <!-- screen node IDs (`screens/<surface>/<family>`) and master names (`masters/<pkg>/<Component>`) touched -->
 
    ### Out-of-scope design changes (explicitly not reconciled)
+
    <!-- design changes intentionally not reconciled in this issue, listed explicitly -->
 
    ### Human check
+
    1. Capture the pen screenshot baseline for each affected screen node with
       `pencil_get_screenshot` on `repro.pen`.
    2. Capture ui-verification browser evidence of the implemented surface (see the

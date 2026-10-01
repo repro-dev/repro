@@ -212,9 +212,10 @@ function readStdinSync(): string {
 
 /**
  * Run one classification and emit the JSON verdict. Default mode shells out to
- * `git diff -z --name-only --no-renames <base>...<head>` (--no-renames so
- * renames surface as delete+add — both paths are checked, conservative; -z
- * emits paths verbatim, NUL-delimited — no C-quoting, no newline splitting).
+ * `git diff -z --name-only --no-renames <base>..<head>` to compare endpoint
+ * trees directly (--no-renames so renames surface as delete+add — both paths
+ * are checked, conservative; -z emits paths verbatim, NUL-delimited — no
+ * C-quoting, no newline splitting).
  * stdin mode classifies newline-separated paths instead — git never runs, so
  * base/head are reported as null. Exit 0 on any successful classification
  * (the verdict is data), 1 on usage/execution error.
@@ -257,7 +258,7 @@ export function runClassify(
         '-z',
         '--name-only',
         '--no-renames',
-        `${options.base}...${head}`,
+        `${options.base}..${head}`,
       ])
         .split('\0')
         // No trim: filenames may contain leading/trailing spaces verbatim.
@@ -301,8 +302,8 @@ Usage:
                                   origin/main. This is the delivery-workflow §5
                                   invocation.
   tsx scripts/classify-ui-diff.ts --base <ref> --head <ref>
-                                  Classify <ref>...<head> (head defaults to
-                                  HEAD). Renames surface as delete+add
+                                  Compare endpoint trees <ref>..<head> (head
+                                  defaults to HEAD). Renames surface as delete+add
                                   (--no-renames) so both paths are checked.
   tsx scripts/classify-ui-diff.ts --paths-from-stdin < paths.txt
                                   Classify newline-separated paths from stdin

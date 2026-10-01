@@ -121,24 +121,26 @@ Findings are evidence-based (each cites a captured screenshot) and severity-tagg
 
 ### Severity calibration (P0/P1/P2)
 
-| Severity | Meaning                                                                       | Calibration examples (2026-09-02 audit)                                                                                             |
-| -------- | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| **P0**   | Task-breaking: the flow cannot complete, or the surface self-contradicts      | Blank unmatched route (missing 404 — REP-1636)                                                                                      |
-| **P1**   | Major: repeated overlap/clipping, mislabeled state, IA collision              | Member-table role controls overprinting names (**P1 visual**); "Active" pills stamped on pricing "Not included" rows (**P1 semantics**) |
-| **P2**   | Minor polish                                                                  | —                                                                                                                                   |
+| Severity | Meaning                                                                  | Calibration examples (2026-09-02 audit)                                                                                                 |
+| -------- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| **P0**   | Task-breaking: the flow cannot complete, or the surface self-contradicts | Blank unmatched route (missing 404 — REP-1636)                                                                                          |
+| **P1**   | Major: repeated overlap/clipping, mislabeled state, IA collision         | Member-table role controls overprinting names (**P1 visual**); "Active" pills stamped on pricing "Not included" rows (**P1 semantics**) |
+| **P2**   | Minor polish                                                             | —                                                                                                                                       |
 
 ### Capture manifest format
 
-Every audit run writes `tmp/ui-verification/<issue-id>/manifest.json` with this fixed schema and field order (comparability between consecutive deliveries):
+Each audit attempt writes `manifest.json` and `audit.md` under `tmp/ui-verification/<issue-id>/candidate-<checkpoint-sha>-<attempt>/`. After the candidate assertions and finding dispositions pass, promote those artifacts to the canonical `tmp/ui-verification/<issue-id>/` paths. Preserve the fixed manifest schema and field order for comparability between consecutive deliveries:
 
 ```json
 {
   "issue": "REP-xxx",
   "generatedAt": "<ISO-8601>",
   "base": "<ref>",
+  "auditCheckpointCommit": "<code-commit-sha>",
   "surfaces": [
     {
       "surface": "<name>",
+      "auditedAtCommit": "<code-commit-sha>",
       "url": "<worktree-local-url>",
       "viewport": "<WxH>",
       "states": [
@@ -153,9 +155,20 @@ Every audit run writes `tmp/ui-verification/<issue-id>/manifest.json` with this 
 }
 ```
 
-The `state` value is a state name. The standard state family is `affected`, `loading`, `empty`, and `error` — capture those wherever a surface has them. A surface may have other named states worth capturing (e.g. `hover`, `filtered`, `modal-open`); record them under their own name. The `screenshot` path is recorded relative to the worktree root (e.g. `tmp/ui-verification/<issue-id>/shots/<surface>-<state>.png`). The `base` field is the classification base from delivery-workflow §5 Step 2 (e.g. `origin/main`) — never a branch name or HEAD. The `surface` field echoes the audit prompt's affected-surfaces entries verbatim.
+The `state` value is a state name. The standard state family is `affected`, `loading`, `empty`, and `error` — capture those wherever a surface has them. A surface may have other named states worth capturing (e.g. `hover`, `filtered`, `modal-open`); record them under their own name. A changed surface's `screenshot` path is recorded relative to the worktree root beneath its candidate attempt directory (e.g. `tmp/ui-verification/<issue-id>/candidate-<checkpoint-sha>-<attempt>/shots/<surface>-<state>.png`). The `base` field is the classification base from delivery-workflow §5 Step 2; it is `origin/main` only for the first successful audit and is never a branch name or `HEAD`. The top-level `auditCheckpointCommit` is the code commit whose state was audited and must match the proof-bundle assertion's `--commit`. Each surface's `auditedAtCommit` records the code commit at which its evidence was last captured; every changed surface must match the candidate's checkpoint. The `surface` field echoes the audit prompt's changed-surface entries verbatim.
 
-Alongside it, `tmp/ui-verification/<issue-id>/audit.md` records the analysis: one row per finding with columns `pillar | severity | evidence screenshot | description | disposition`. The disposition is one of `fixed <commit>` or `filed REP-xxx` — `none` is reserved for the no-findings sentinel row, never for a finding row (a `none` finding is neither fixed nor filed). Rule: every finding row must carry a disposition — none dropped. An explicit "no findings" row is valid when the audit passes clean — exactly: `| none | none | none | no findings | none |`.
+### Incremental checkpoint and evidence reuse
+
+- Keep the last successful canonical `manifest.json`, `audit.md`, and screenshots intact while collecting a new audit. Stage each attempt in a unique checkpoint/attempt directory with candidate screenshots and candidate manifest/audit files; never clear or overwrite canonical evidence or any promoted screenshot path before the candidate passes.
+- The workflow passes only changed surfaces to the audit assertion. Their `auditedAtCommit` must equal the candidate `auditCheckpointCommit`. Unchanged surfaces may retain older evidence and commits only when the full delta from the last successful checkpoint confirms their audited UI behavior and applicable states did not change.
+- The candidate audit directory must be a distinct direct child named `candidate-<checkpoint-sha>-<attempt>` under the issue's canonical audit directory. Its canonical real path must match that location; the canonical directory and symlink aliases are rejected.
+- Every screenshot for a changed surface must resolve beneath the validated candidate audit directory supplied to `ui:assert-audit`; this prevents a current commit label from legitimizing a screenshot left at the prior canonical path. Unchanged surfaces may retain screenshot paths from earlier versioned evidence directories.
+- Carry forward unchanged surface records, screenshot references, and existing finding rows/dispositions only from a prior manifest with valid top-level and per-surface provenance. For a first audit or legacy manifest, do not carry forward unproven entries; recapture every surface affected since `origin/main` into a fresh candidate. Keep newly captured screenshots under the versioned candidate directory so a later attempt cannot overwrite evidence referenced by the last successful manifest.
+- Every surface in a manifest still needs non-empty `auditedAtCommit` provenance. Legacy manifests missing `auditCheckpointCommit` or per-surface provenance are not reusable; fail closed and recapture from a valid baseline.
+- Advance `auditCheckpointCommit` and promote the candidate bundle only after the mechanical proof assertions pass and every finding has a required disposition. If no relevant UI behavior changed, reuse the successful bundle without advancing its checkpoint or starting the stack.
+- For material UI changes, preserve the full five-pillar audit and applicable visual/state coverage. Incremental auditing narrows the affected surfaces/states; it does not weaken the per-surface audit.
+
+The candidate `audit.md` records the analysis: one row per finding with columns `pillar | severity | evidence screenshot | description | disposition`. The disposition is one of `fixed <commit>` or `filed REP-xxx` — `none` is reserved for the no-findings sentinel row, never for a finding row (a `none` finding is neither fixed nor filed). Rule: every finding row must carry a disposition — none dropped. An explicit "no findings" row is valid when the audit passes clean — exactly: `| none | none | none | no findings | none |`.
 
 ### Known-artifact ignore list
 
