@@ -16,7 +16,9 @@ import {
 
 const GENERATED_AT = '2026-09-02T12:00:00.000Z'
 const COMMIT_TIME_MS = Date.parse('2026-09-02T11:00:00.000Z') // 1h older
-const SHOT_DIR = 'tmp/ui-verification/REP-0000/shots'
+const ISSUE_AUDIT_DIR = 'tmp/ui-verification/REP-0000'
+const CANDIDATE_DIR = `${ISSUE_AUDIT_DIR}/candidate-abc1234-attempt-1`
+const SHOT_DIR = `${CANDIDATE_DIR}/shots`
 const SHOT_REL = `${SHOT_DIR}/sessions-idle.png`
 const AUDIT_HEADER =
   '| pillar | severity | evidence screenshot | description | disposition |'
@@ -68,7 +70,7 @@ const manifestWith = (states: unknown) => ({
 
 function fixture() {
   const root = mkdtempSync(path.join(tmpdir(), 'assert-audit-core-'))
-  const auditDir = path.join(root, 'tmp', 'ui-verification', 'REP-0000')
+  const auditDir = path.join(root, CANDIDATE_DIR)
   mkdirSync(path.join(root, SHOT_DIR), { recursive: true })
   writeFileSync(path.join(root, SHOT_REL), 'png-bytes')
   // Fixtures for the screenshot edge cases (zero byte + root escape).
@@ -102,6 +104,7 @@ function fixture() {
         checkpointCommit: 'abc1234',
         commitTimeMs: COMMIT_TIME_MS,
         worktreeRoot: root,
+        auditDir,
         ...overrides?.inputs,
       })
     },
@@ -143,6 +146,7 @@ describe('REP-1653 assertAuditArtifacts (pure core)', () => {
     assert.deepEqual(ids(report), [
       'manifest-parses',
       'manifest-nonempty',
+      'candidate-audit-directory',
       'screenshots',
       'freshness',
       'audit-checkpoint',
@@ -175,6 +179,7 @@ describe('REP-1653 assertAuditArtifacts (pure core)', () => {
       checkpointCommit: 'abc1234',
       commitTimeMs: COMMIT_TIME_MS,
       worktreeRoot: f.root,
+      auditDir: f.auditDir,
     })
     assert.equal(report.ok, false)
     assert.deepEqual(ids(report), ['manifest-parses', 'audit-findings'])

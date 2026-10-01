@@ -26,7 +26,7 @@
 //   --help, -h              show usage
 import { execFileSync } from 'node:child_process'
 import { readFileSync, realpathSync, statSync } from 'node:fs'
-import { basename, isAbsolute, join, resolve, sep } from 'node:path'
+import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 export type AssertInputs = {
@@ -250,7 +250,61 @@ export function assertAuditArtifacts(
       nonemptyProblems.join('; ') || undefined
     )
 
-    // 3. screenshots — every state's screenshot is a non-empty relative path
+    // 3. candidate-audit-directory — changed-surface evidence must live in a
+    //    distinct attempt directory beneath the issue's canonical bundle.
+    const lexicalRoot = resolve(inputs.worktreeRoot)
+    const lexicalIssueDir = resolve(
+      lexicalRoot,
+      'tmp/ui-verification',
+      inputs.issueId
+    )
+    const lexicalAuditDir = resolve(lexicalRoot, auditDir)
+    const candidateName = basename(lexicalAuditDir)
+    const candidatePrefix = `candidate-${inputs.checkpointCommit}-`
+    const candidateDirectoryProblems: string[] = []
+    let issueDirReal: string | null = null
+    let candidateAuditDirReal: string | null = null
+    try {
+      issueDirReal = realPath(lexicalIssueDir)
+    } catch {
+      // An unresolvable issue directory cannot prove a candidate attempt.
+    }
+    try {
+      candidateAuditDirReal = realPath(lexicalAuditDir)
+    } catch {
+      // An unresolvable candidate directory cannot prove a distinct attempt.
+    }
+    if (inputs.expectedSurfaces.length > 0) {
+      if (dirname(lexicalAuditDir) !== lexicalIssueDir) {
+        candidateDirectoryProblems.push(
+          'audit directory is not a direct child of the issue audit directory'
+        )
+      }
+      if (
+        !candidateName.startsWith(candidatePrefix) ||
+        candidateName.length === candidatePrefix.length
+      ) {
+        candidateDirectoryProblems.push(
+          `audit directory name must be ${candidatePrefix}<attempt>`
+        )
+      }
+      if (issueDirReal === null || candidateAuditDirReal === null) {
+        candidateDirectoryProblems.push(
+          'issue audit directory or candidate audit directory cannot be canonicalized'
+        )
+      } else if (candidateAuditDirReal !== join(issueDirReal, candidateName)) {
+        candidateDirectoryProblems.push(
+          'audit directory canonical path does not match its distinct candidate path'
+        )
+      }
+    }
+    add(
+      'candidate-audit-directory',
+      candidateDirectoryProblems.length === 0,
+      candidateDirectoryProblems.join('; ') || undefined
+    )
+
+    // 4. screenshots — every state's screenshot is a non-empty relative path
     //    resolving to a non-empty file inside the worktree root. Non-object
     //    state entries are guarded into named failures (same JSON-report
     //    contract: no uncaught TypeError, exit 1 still emits the report).
@@ -261,7 +315,6 @@ export function assertAuditArtifacts(
     // Canonicalize BOTH sides consistently — the tmpdir fixtures on macOS
     // are themselves under a symlink (/var -> /private/var), so one-sided
     // canonicalization would false-fail.
-    const lexicalRoot = resolve(inputs.worktreeRoot)
     let rootReal: string
     try {
       rootReal = realPath(lexicalRoot)
@@ -269,7 +322,6 @@ export function assertAuditArtifacts(
       // Unresolvable root (injectable-fs tests): fall back to lexical.
       rootReal = lexicalRoot
     }
-    const lexicalAuditDir = resolve(lexicalRoot, auditDir)
     let auditDirReal: string
     try {
       auditDirReal = realPath(lexicalAuditDir)
@@ -382,7 +434,7 @@ export function assertAuditArtifacts(
     }
     add('screenshots', problems.length === 0, problems.join('; ') || undefined)
 
-    // 4. freshness — right base, strict ISO-8601 generatedAt, strictly newer
+    // 5. freshness — right base, strict ISO-8601 generatedAt, strictly newer
     //    than the checkpoint commit (same-second capture fails).
     const freshnessProblems: string[] = []
     if (manifest.base !== inputs.classificationBase) {
@@ -412,7 +464,7 @@ export function assertAuditArtifacts(
       freshnessProblems.join('; ') || undefined
     )
 
-    // 5. audit-checkpoint — the bundle itself must name the commit it proves.
+    // 6. audit-checkpoint — the bundle itself must name the commit it proves.
     const auditCheckpointCommit = manifest.auditCheckpointCommit
     const checkpointProblems: string[] = []
     if (
@@ -435,7 +487,7 @@ export function assertAuditArtifacts(
       checkpointProblems.join('; ') || undefined
     )
 
-    // 6. surface-coverage — every expected changed surface is recorded;
+    // 7. surface-coverage — every expected changed surface is recorded;
     //    extras are retained so unchanged surfaces may reuse older evidence.
     //    Unnamed surfaces record under the same `<unnamed surface>` label the
     //    screenshots assertion uses (never the empty string), so a blank
@@ -456,7 +508,7 @@ export function assertAuditArtifacts(
         : undefined
     )
 
-    // 7. surface-checkpoints — provenance is required for every surface, but
+    // 8. surface-checkpoints — provenance is required for every surface, but
     //    only surfaces whose behavior changed in this audit pass must match
     //    the bundle's current checkpoint. Older evidence is reusable for an
     //    unchanged surface after the full delta has been reviewed.
@@ -490,7 +542,7 @@ export function assertAuditArtifacts(
     )
   }
 
-  // 8. audit-findings — runs even when the manifest is unparseable.
+  // 9. audit-findings — runs even when the manifest is unparseable.
   const auditPath = join(auditDir, 'audit.md')
   try {
     const problems = auditFindingsProblems(readFile(auditPath, 'utf8'))
@@ -673,7 +725,12 @@ export function runAssert(
   const auditDir = options.auditDir
     ? resolve(worktreeRoot, options.auditDir)
     : defaultAuditDir(options.issue ?? '', worktreeRoot)
-  const issueId = options.issue ?? basename(auditDir)
+  const auditDirName = basename(auditDir)
+  const issueId =
+    options.issue ??
+    (auditDirName.startsWith('candidate-')
+      ? basename(dirname(auditDir))
+      : auditDirName)
 
   // Execution-error pre-check: missing/unreadable artifacts are an environment
   // failure, not a gate verdict — stderr ERROR, exit 1, no JSON.

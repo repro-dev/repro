@@ -447,13 +447,14 @@ pnpm run ui:assert-audit --issue REP-xxx --audit-dir tmp/ui-verification/REP-xxx
 The script asserts (ids match the JSON report):
 
 1. `manifest-parses` / `manifest-nonempty` — candidate `manifest.json` parses and contains ≥1 surface with ≥1 state.
-2. `screenshots` — every state has a NON-EMPTY screenshot path that resolves to a non-empty regular file inside the worktree root; screenshots for changed surfaces must also resolve beneath the candidate audit directory passed with `--audit-dir`. Unchanged surfaces may continue to reference screenshots in earlier versioned evidence directories.
-3. `freshness` — manifest `base` equals the classifier baseline and `generatedAt` is strict ISO-8601 newer than the code checkpoint commit.
-4. `audit-checkpoint` — top-level `auditCheckpointCommit` exactly matches `--commit`; missing or legacy provenance fails closed.
-5. `surface-coverage` — every changed-surface name passed with `--surface` appears in `surfaces[].surface`.
-6. `surface-checkpoints` — every surface has `auditedAtCommit`; each changed surface exactly matches `--commit`. Older values are allowed only for surfaces omitted from the changed-surface set.
-7. `audit-findings` — `audit.md` contains the findings-table header (`pillar | severity | evidence screenshot | description | disposition`) and ≥1 dispositioned finding (`fixed <commit>` | `filed REP-xxx`) or the exact no-findings sentinel (`| none | none | none | no findings | none |`). A finding dispositioned `none` is invalid.
-8. The §4 implementation return's REP-1081 evidence paths resolve to real files (orchestrator-side check).
+2. `candidate-audit-directory` — `--audit-dir` is a direct child of the issue's canonical audit directory named `candidate-<checkpoint-sha>-<attempt>`, and its canonical real path matches that distinct candidate path. The canonical bundle and symlink aliases fail closed.
+3. `screenshots` — every state has a NON-EMPTY screenshot path that resolves to a non-empty regular file inside the worktree root; screenshots for changed surfaces must also resolve beneath the candidate audit directory passed with `--audit-dir`. Unchanged surfaces may continue to reference screenshots in earlier versioned evidence directories.
+4. `freshness` — manifest `base` equals the classifier baseline and `generatedAt` is strict ISO-8601 newer than the code checkpoint commit.
+5. `audit-checkpoint` — top-level `auditCheckpointCommit` exactly matches `--commit`; missing or legacy provenance fails closed.
+6. `surface-coverage` — every changed-surface name passed with `--surface` appears in `surfaces[].surface`.
+7. `surface-checkpoints` — every surface has `auditedAtCommit`; each changed surface exactly matches `--commit`. Older values are allowed only for surfaces omitted from the changed-surface set.
+8. `audit-findings` — `audit.md` contains the findings-table header (`pillar | severity | evidence screenshot | description | disposition`) and ≥1 dispositioned finding (`fixed <commit>` | `filed REP-xxx`) or the exact no-findings sentinel (`| none | none | none | no findings | none |`). A finding dispositioned `none` is invalid.
+9. The §4 implementation return's REP-1081 evidence paths resolve to real files (orchestrator-side check).
 
 Any failed assertion is a gate violation ⇒ escalate via phase-local failure handling. Only after every assertion and required disposition passes, promote the candidate manifest and audit to the canonical paths, retain its versioned screenshot directory as immutable evidence, and advance the successful audit checkpoint.
 

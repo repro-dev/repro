@@ -24,17 +24,18 @@ const GENERATED_AT = '2026-09-02T12:00:00.000Z'
 const COMMIT_ISO = '2026-09-02T11:00:00.000Z'
 const COMMIT_SHA = 'abc1234'
 const PRIOR_COMMIT_SHA = 'def5678'
-const SHOT_REL = 'tmp/ui-verification/REP-0000/shots/sessions-idle.png'
+const ISSUE_AUDIT_REL = 'tmp/ui-verification/REP-0000'
+const CANDIDATE_AUDIT_REL = `${ISSUE_AUDIT_REL}/candidate-${COMMIT_SHA}-attempt-1`
+const SHOT_REL = `${CANDIDATE_AUDIT_REL}/shots/sessions-idle.png`
+const PRIOR_SHOT_REL = `${ISSUE_AUDIT_REL}/sessions-idle.png`
 
 function fixture() {
   const root = mkdtempSync(path.join(tmpdir(), 'assert-audit-cli-'))
-  // Files live at the DEFAULT derived path so tests exercise
-  // <worktree-root>/tmp/ui-verification/<issue> derivation.
-  const auditDir = path.join(root, 'tmp', 'ui-verification', 'REP-0000')
+  const auditDir = path.join(root, CANDIDATE_AUDIT_REL)
   mkdirSync(path.join(auditDir, 'shots'), { recursive: true })
   writeFileSync(path.join(auditDir, 'shots', 'sessions-idle.png'), 'png-bytes')
+  writeFileSync(path.join(root, PRIOR_SHOT_REL), 'prior-png-bytes')
 
-  // The manifest schema carries no canary/agentBrowserVersion fields.
   const manifest = {
     issue: 'REP-0000',
     generatedAt: GENERATED_AT,
@@ -58,7 +59,7 @@ function fixture() {
         states: [
           {
             state: 'idle',
-            screenshot: SHOT_REL,
+            screenshot: PRIOR_SHOT_REL,
             interactionNotes: 'unchanged and reused',
           },
         ],
@@ -109,6 +110,7 @@ const stubIo = () => ({
 
 const baseOptions = {
   issue: 'REP-0000',
+  auditDir: CANDIDATE_AUDIT_REL,
   base: 'origin/main',
   commit: COMMIT_SHA,
   surfaces: ['workspace::Sessions'],
@@ -196,7 +198,7 @@ describe('REP-1653 CLI parsing', () => {
 })
 
 describe('REP-1653 CLI exit codes', () => {
-  it('exits 0 with ok:true JSON on a passing bundle, deriving the default audit dir', () => {
+  it('exits 0 with ok:true JSON on a passing candidate bundle', () => {
     const f = fixture()
     try {
       const jsonOuts: string[] = []
@@ -219,13 +221,13 @@ describe('REP-1653 CLI exit codes', () => {
       assert.equal(report.issue, 'REP-0000')
       assert.equal(report.auditDir, f.auditDir)
       assert.equal(report.ok, true)
-      assert.equal(report.results.length, 8)
+      assert.equal(report.results.length, 9)
       for (const entry of report.results) {
         assert.equal(entry.ok, true, entry.id)
       }
       // Unchanged surface evidence can be older than the current checkpoint.
       assert.ok(report.results.some(r => r.id === 'surface-checkpoints'))
-      // No canary assertion exists in the result list.
+      assert.ok(report.results.some(r => r.id === 'candidate-audit-directory'))
       assert.ok(!report.results.some(r => r.id === 'canary'))
     } finally {
       f.cleanup()
@@ -414,7 +416,7 @@ describe('REP-1653 CLI required-argument errors', () => {
     const f = fixture()
     try {
       const errors: string[] = []
-      const result = runAssert(without('issue'), {
+      const result = runAssert(without('issue', 'auditDir'), {
         ...stubIo(),
         errorOut: message => errors.push(message),
       })
@@ -452,7 +454,7 @@ describe('REP-1653 CLI required-argument errors', () => {
       const jsonOuts: string[] = []
       const result = runAssert(
         {
-          auditDir: 'tmp/ui-verification/REP-0000',
+          auditDir: CANDIDATE_AUDIT_REL,
           base: 'origin/main',
           commit: COMMIT_SHA,
           surfaces: ['workspace::Sessions'],
@@ -479,7 +481,7 @@ describe('REP-1653 CLI required-argument errors', () => {
       const result = runAssert(
         {
           ...baseOptions,
-          auditDir: 'tmp/ui-verification/REP-0000',
+          auditDir: CANDIDATE_AUDIT_REL,
           worktreeRoot: f.root,
         },
         {

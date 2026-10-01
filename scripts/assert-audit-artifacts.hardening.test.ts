@@ -183,6 +183,39 @@ describe('REP-1653 hardening: screenshot containment', () => {
     })
     assertFails(report, 'screenshots', /outside the candidate audit directory/)
   })
+
+  it('rejects a candidate audit directory that aliases the prior canonical bundle', () => {
+    rmSync(f.auditDir, { recursive: true, force: true })
+    symlinkSync(path.join(f.root, 'tmp/ui-verification/REP-0000'), f.auditDir)
+
+    const report = f.run({
+      manifest: {
+        ...VALID_MANIFEST,
+        surfaces: [
+          {
+            ...VALID_MANIFEST.surfaces[0],
+            states: [
+              {
+                state: 'idle',
+                screenshot: `${AUDIT_DIR}/shots/sessions-idle.png`,
+              },
+            ],
+          },
+        ],
+      },
+    })
+
+    assert.equal(
+      report.results.find(result => result.id === 'screenshots')?.ok,
+      true,
+      'the changed screenshot is lexically beneath the candidate alias'
+    )
+    assert.deepEqual(
+      report.results.filter(result => !result.ok).map(result => result.id),
+      ['candidate-audit-directory']
+    )
+    assertFails(report, 'candidate-audit-directory', /canonical|candidate/i)
+  })
 })
 
 describe('REP-1653 hardening: details, coverage, table boundary', () => {

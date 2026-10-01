@@ -104,15 +104,15 @@ describe('REP-1646 UI audit gate wiring', () => {
 
     assert.doesNotMatch(skill, /canary/i)
     assert.doesNotMatch(skill, /agentBrowserVersion/)
-    assert.match(skill, /3\. `freshness` — manifest `base` equals/)
+    assert.match(skill, /4\. `freshness` — manifest `base` equals/)
     assert.match(
       skill,
-      /4\. `audit-checkpoint` — top-level `auditCheckpointCommit`/
+      /5\. `audit-checkpoint` — top-level `auditCheckpointCommit`/
     )
-    assert.match(skill, /5\. `surface-coverage` — every changed-surface name/)
-    assert.match(skill, /6\. `surface-checkpoints` — every surface/)
-    assert.match(skill, /7\. `audit-findings` — `audit\.md`/)
-    assert.match(skill, /8\. The §4 implementation return's REP-1081/)
+    assert.match(skill, /6\. `surface-coverage` — every changed-surface name/)
+    assert.match(skill, /7\. `surface-checkpoints` — every surface/)
+    assert.match(skill, /8\. `audit-findings` — `audit\.md`/)
+    assert.match(skill, /9\. The §4 implementation return's REP-1081/)
     assert.match(
       skill,
       /3\. Audit exactly the changed surfaces and applicable states/
@@ -166,8 +166,10 @@ describe('REP-1646 UI audit gate wiring', () => {
   it('requires the tightened proof-bundle assertions in the gate', () => {
     const skill = readText('.opencode/skills/delivery-workflow/SKILL.md')
 
-    assert.match(skill, /≥1 surface with ≥1 state/)
-    assert.match(skill, /NON-EMPTY screenshot path/)
+    assert.match(
+      skill,
+      /1\. `manifest-parses` \/ `manifest-nonempty`[\s\S]*?≥1 surface with ≥1 state[\s\S]*?2\. `candidate-audit-directory` — `--audit-dir` is a direct child[\s\S]*?candidate-<checkpoint-sha>-<attempt>[\s\S]*?canonical real path[\s\S]*?symlink aliases fail closed[\s\S]*?3\. `screenshots` — every state has a NON-EMPTY screenshot path/
+    )
     assert.match(
       skill,
       /pillar \| severity \| evidence screenshot \| description \| disposition/
