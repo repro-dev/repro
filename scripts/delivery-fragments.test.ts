@@ -328,17 +328,26 @@ describe('REP-1707 review routing and convergence contract', () => {
       /Every code change[\s\S]*?standard review/i,
       /\*\*Standard-risk issues\*\*:\s*launch one `review` agent/,
       /Run `adversarial-review` only for high-risk `\/build` deliveries/,
-      /Correctness \+ Security reviewer[\s\S]*?always spawned/,
-      /Architecture \+ Conventions reviewer[\s\S]*?always spawned/,
       /Performance reviewer[\s\S]*?only spawned when data-heavy/,
       /For every security-sensitive change, regardless of aggregate risk,[\s\S]*?focused `security-review`/,
       /security-sensitive-only change remains standard-risk for adversarial routing/,
-      /security-review[\s\S]*?additive to the standard reviewer/i,
       /2\+ signals[\s\S]*?high-risk/i,
     ]) {
       assert.match(skill, pattern)
     }
-    assert.doesNotMatch(skill, /Every issue[^\n]*adversarial pass/i)
+    const highRisk = skill.split('**High-risk issues**')[1] ?? ''
+    assert.match(
+      highRisk,
+      /full standard `review` agent using the standard prompt template below, then add the focused lanes[\s\S]*?1\. \*\*Standard `review` agent\*\* — always spawned[\s\S]*?2\. \*\*Correctness \+ Security reviewer\*\* — always spawned for high-risk issues[\s\S]*?3\. \*\*Architecture \+ Conventions reviewer\*\* — always spawned for high-risk issues/
+    )
+    assert.match(
+      skill,
+      /### Review prompt template \(standard risk\)[\s\S]*?Review against requirements coverage, correctness, test coverage, conventions, and architecture/
+    )
+    assert.doesNotMatch(
+      readText('AGENTS.md'),
+      /adversarial-review.{0,80}(?:every|all) `?\/build` issues?/i
+    )
   })
 
   it('uses a justified relevant adversarial-technique subset across all instruction sources', () => {

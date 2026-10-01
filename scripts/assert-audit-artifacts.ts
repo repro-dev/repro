@@ -269,6 +269,15 @@ export function assertAuditArtifacts(
       // Unresolvable root (injectable-fs tests): fall back to lexical.
       rootReal = lexicalRoot
     }
+    const lexicalAuditDir = resolve(lexicalRoot, auditDir)
+    let auditDirReal: string
+    try {
+      auditDirReal = realPath(lexicalAuditDir)
+    } catch {
+      // Match the root fallback for injectable-fs tests and missing paths.
+      auditDirReal = lexicalAuditDir
+    }
+    const changedSurfaceNames = new Set(inputs.expectedSurfaces)
     for (const surface of surfaces) {
       const statesRaw: unknown[] = Array.isArray(surface.states)
         ? (surface.states as unknown[])
@@ -311,6 +320,16 @@ export function assertAuditArtifacts(
           )
           return
         }
+        const isChangedSurface = changedSurfaceNames.has(surfaceLabel)
+        if (
+          isChangedSurface &&
+          !resolvedShot.startsWith(lexicalAuditDir + sep)
+        ) {
+          problems.push(
+            `${label}: screenshot is outside the candidate audit directory: ${shot}`
+          )
+          return
+        }
         // Canonical containment: a lexically-inside path can still resolve
         // outside the root via a symlink. An unresolvable target (typically
         // nonexistent) falls through to the stat check, which reports it.
@@ -327,6 +346,17 @@ export function assertAuditArtifacts(
         ) {
           problems.push(
             `${label}: screenshot escapes the worktree root: ${shot}`
+          )
+          return
+        }
+        if (
+          isChangedSurface &&
+          realShot !== null &&
+          realShot !== auditDirReal &&
+          !realShot.startsWith(auditDirReal + sep)
+        ) {
+          problems.push(
+            `${label}: screenshot is outside the candidate audit directory: ${shot}`
           )
           return
         }

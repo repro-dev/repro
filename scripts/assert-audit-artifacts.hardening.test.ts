@@ -23,8 +23,10 @@ import {
 
 const GENERATED_AT = '2026-09-02T12:00:00.000Z'
 const COMMIT_TIME_MS = Date.parse('2026-09-02T11:00:00.000Z') // 1h older
-const SHOT_DIR = 'tmp/ui-verification/REP-0000/shots'
+const AUDIT_DIR = 'tmp/ui-verification/REP-0000/candidate-abc1234-attempt-1'
+const SHOT_DIR = `${AUDIT_DIR}/shots`
 const SHOT_REL = `${SHOT_DIR}/sessions-idle.png`
+const PRIOR_SHOT_REL = 'tmp/ui-verification/REP-0000/shots/sessions-idle.png'
 const AUDIT_HEADER =
   '| pillar | severity | evidence screenshot | description | disposition |'
 const AUDIT_SEPARATOR = '| --- | --- | --- | --- | --- |'
@@ -51,9 +53,11 @@ const VALID_AUDIT = [
 
 function fixture() {
   const root = mkdtempSync(path.join(tmpdir(), 'assert-audit-hard-'))
-  const auditDir = path.join(root, 'tmp', 'ui-verification', 'REP-0000')
+  const auditDir = path.join(root, AUDIT_DIR)
   mkdirSync(path.join(root, SHOT_DIR), { recursive: true })
   writeFileSync(path.join(root, SHOT_REL), 'png-bytes')
+  mkdirSync(path.dirname(path.join(root, PRIOR_SHOT_REL)), { recursive: true })
+  writeFileSync(path.join(root, PRIOR_SHOT_REL), 'prior-png-bytes')
   // Containment-hardening fixtures: a symlink pointing OUTSIDE the worktree
   // root (target: the always-existing OS tmpdir) and a directory
   // masquerading as a screenshot.
@@ -83,6 +87,7 @@ function fixture() {
         checkpointCommit: 'abc1234',
         commitTimeMs: COMMIT_TIME_MS,
         worktreeRoot: root,
+        auditDir,
         ...overrides?.inputs,
       })
     },
@@ -161,6 +166,22 @@ describe('REP-1653 hardening: screenshot containment', () => {
       'screenshots',
       /is not a regular file/
     )
+  })
+
+  it('rejects a prior-bundle screenshot even when the changed surface is current', () => {
+    const report = f.run({
+      manifest: {
+        ...VALID_MANIFEST,
+        surfaces: [
+          {
+            ...VALID_MANIFEST.surfaces[0],
+            auditedAtCommit: 'abc1234',
+            states: [{ state: 'idle', screenshot: PRIOR_SHOT_REL }],
+          },
+        ],
+      },
+    })
+    assertFails(report, 'screenshots', /outside the candidate audit directory/)
   })
 })
 
@@ -253,7 +274,7 @@ describe('REP-1653 hardening: details, coverage, table boundary', () => {
           {
             surface: 'workspace::History',
             auditedAtCommit: 'prior456',
-            states: [{ state: 'idle', screenshot: SHOT_REL }],
+            states: [{ state: 'idle', screenshot: PRIOR_SHOT_REL }],
           },
         ],
       },
@@ -272,7 +293,7 @@ describe('REP-1653 hardening: details, coverage, table boundary', () => {
           {
             surface: 'workspace::History',
             auditedAtCommit: 'prior456',
-            states: [{ state: 'idle', screenshot: SHOT_REL }],
+            states: [{ state: 'idle', screenshot: PRIOR_SHOT_REL }],
           },
         ],
       },

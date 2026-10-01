@@ -447,7 +447,7 @@ pnpm run ui:assert-audit --issue REP-xxx --audit-dir tmp/ui-verification/REP-xxx
 The script asserts (ids match the JSON report):
 
 1. `manifest-parses` / `manifest-nonempty` — candidate `manifest.json` parses and contains ≥1 surface with ≥1 state.
-2. `screenshots` — every state has a NON-EMPTY screenshot path that resolves to a non-empty regular file inside the worktree root.
+2. `screenshots` — every state has a NON-EMPTY screenshot path that resolves to a non-empty regular file inside the worktree root; screenshots for changed surfaces must also resolve beneath the candidate audit directory passed with `--audit-dir`. Unchanged surfaces may continue to reference screenshots in earlier versioned evidence directories.
 3. `freshness` — manifest `base` equals the classifier baseline and `generatedAt` is strict ISO-8601 newer than the code checkpoint commit.
 4. `audit-checkpoint` — top-level `auditCheckpointCommit` exactly matches `--commit`; missing or legacy provenance fails closed.
 5. `surface-coverage` — every changed-surface name passed with `--surface` appears in `surfaces[].surface`.
@@ -485,11 +485,12 @@ Spawn the standard reviewers based on the risk level computed in §3:
 
 **Standard-risk issues**: launch one `review` agent using the standard prompt template below.
 
-**High-risk issues** (2+ of the §3 signals): retain the existing focused `review` lanes and add a relevant adversarial pass:
+**High-risk issues** (2+ of the §3 signals): launch the full standard `review` agent using the standard prompt template below, then add the focused lanes and a relevant adversarial pass. The focused lanes supplement — never replace — the standard requirements-and-conventions merge gate:
 
-1. **Correctness + Security reviewer** — always spawned for high-risk issues
-2. **Architecture + Conventions reviewer** — always spawned for high-risk issues
-3. **Performance reviewer** — only spawned when data-heavy changes are detected (e.g. data model changes signal, large batch operations, streaming or pipeline patterns in Sequence Notes)
+1. **Standard `review` agent** — always spawned; reviews requirements coverage, correctness, test coverage, conventions, and architecture.
+2. **Correctness + Security reviewer** — always spawned for high-risk issues
+3. **Architecture + Conventions reviewer** — always spawned for high-risk issues
+4. **Performance reviewer** — only spawned when data-heavy changes are detected (e.g. data model changes signal, large batch operations, streaming or pipeline patterns in Sequence Notes)
 
 For every security-sensitive change, regardless of aggregate risk, launch the focused `security-review` agent in addition to the standard reviewer(s). Keep it limited to security boundaries and implications in changed code; this does not broaden REP-1069's multi-lens scope. A security-sensitive-only change remains standard-risk for adversarial routing unless another §3 signal makes it high-risk. Pass the shared review checkpoint and exact captured HEAD SHA to this lane too.
 
