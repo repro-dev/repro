@@ -446,10 +446,11 @@ $COMMON_SETUP
 wt_dir=\"\$(_add_worktree unavailable-herdr)\"
 _src_wt
 unset HERDR_PROJECT_CHECKOUT_PATH HERDR_PROJECT_MAIN_CHECKOUT HERDR_PROJECT_CONFIG_PATH HERDR_PROJECT_SESSION_NAME HERDR_PROJECT_CONTEXT_MODE HERDR_ENV HERDR_SESSION HERDR_SOCKET_PATH HERDR_WORKSPACE_ID HERDR_CONFIG_PATH
+status_log=\"\$_TDIR/herdr-status.log\"
 close_log=\"\$_TDIR/herdr-close.log\"
 herdr() {
   case \"\$*\" in
-    *' status --json') return 1 ;;
+    *' status --json') printf '%s\\n' called >> \"\$status_log\"; return 1 ;;
     *' workspace close '*) printf '%s\\n' \"\$*\" >> \"\$close_log\" ;;
     *) return 1 ;;
   esac
@@ -461,13 +462,15 @@ unbound_variable=no
 if [[ \"\$output\" == *'unbound variable'* ]]; then unbound_variable=yes; fi
 worktree_exists=no
 if [[ -d \"\$wt_dir\" ]]; then worktree_exists=yes; fi
+status_called=no
+if [[ -f \"\$status_log\" ]]; then status_called=yes; fi
 workspace_closed=no
 if [[ -f \"\$close_log\" ]]; then workspace_closed=yes; fi
-if [[ \"\$rc\" -eq 0 && \"\$worktree_exists\" == no && \"\$unbound_variable\" == no && \"\$workspace_closed\" == no ]]; then
+if [[ \"\$rc\" -eq 0 && \"\$worktree_exists\" == no && \"\$unbound_variable\" == no && \"\$status_called\" == yes && \"\$workspace_closed\" == no ]]; then
   echo PASS
 else
-  printf 'FAIL:rc=%s worktree_exists=%s unbound_variable=%s workspace_closed=%s output=%s\\n' \\
-    \"\$rc\" \"\$worktree_exists\" \"\$unbound_variable\" \"\$workspace_closed\" \"\$output\"
+  printf 'FAIL:rc=%s worktree_exists=%s unbound_variable=%s status_called=%s workspace_closed=%s output=%s\\n' \\
+    \"\$rc\" \"\$worktree_exists\" \"\$unbound_variable\" \"\$status_called\" \"\$workspace_closed\" \"\$output\"
 fi
 "
 
