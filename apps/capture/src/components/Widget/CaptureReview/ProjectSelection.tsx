@@ -2,6 +2,8 @@ import { Col } from '@jsxstyle/react'
 import { useApiClient } from '@repro/api-client'
 import { useSession } from '@repro/auth'
 import {
+  Alert,
+  Button,
   FormField,
   Input,
   Label,
@@ -10,7 +12,7 @@ import {
   color,
   spacing,
 } from '@repro/design'
-import { type Cancel, type FutureInstance, fork } from 'fluture'
+import { type FutureInstance, fork, map } from 'fluture'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 
 export const CREATE_PROJECT = '__create__'
@@ -25,49 +27,104 @@ export type ProjectChoice =
   | { type: 'create'; name: string }
   | null
 
+interface ProjectCatalogState {
+  principalId: string
+  projects: Project[]
+  loading: boolean
+  error: boolean
+}
+
 export function useProjectCatalog(active: boolean) {
   const session = useSession()
   const apiClient = useApiClient()
   const apiClientRef = useRef(apiClient)
   apiClientRef.current = apiClient
+  const principalId = active && session !== null ? session.id : null
 
-  const [projects, setProjects] = useState<Project[]>([])
-  const [projectsLoading, setProjectsLoading] = useState(true)
+  const [catalog, setCatalog] = useState<ProjectCatalogState | null>(null)
   const [refetchTrigger, setRefetchTrigger] = useState(0)
-  const fetchCancelRef = useRef<Cancel | null>(null)
+  const fetchGenerationRef = useRef(0)
+  const invalidateFetchGeneration = useCallback((generation: number) => {
+    if (generation === fetchGenerationRef.current) {
+      fetchGenerationRef.current++
+    }
+  }, [])
 
   useEffect(() => {
-    if (!active || session === null) {
-      setProjectsLoading(false)
+    const generation = ++fetchGenerationRef.current
+    if (principalId === null) {
       return
     }
 
-    setProjectsLoading(true)
-    fetchCancelRef.current = fork(() => {
-      setProjectsLoading(false)
-      setProjects([])
+    setCatalog(current =>
+      current?.principalId === principalId
+        ? { ...current, loading: true, error: false }
+        : { principalId, projects: [], loading: true, error: false }
+    )
+    const cancel = fork(() => {
+      if (generation !== fetchGenerationRef.current) return
+      setCatalog(current =>
+        current?.principalId === principalId
+          ? { ...current, loading: false, error: true }
+          : current
+      )
     })((response: { items: Project[] }) => {
-      setProjectsLoading(false)
-      setProjects(response.items)
+      if (generation !== fetchGenerationRef.current) return
+      setCatalog({
+        principalId,
+        projects: response.items,
+        loading: false,
+        error: false,
+      })
     })(apiClientRef.current.fetch('/projects'))
 
-    return () => fetchCancelRef.current?.()
-  }, [active, session, refetchTrigger])
+    return () => {
+      invalidateFetchGeneration(generation)
+      cancel()
+    }
+  }, [invalidateFetchGeneration, principalId, refetchTrigger, session])
 
   const createProject = useCallback(
     (name: string): FutureInstance<Error, Project> =>
-      apiClientRef.current.fetch<Project>('/projects', {
-        method: 'POST',
-        body: JSON.stringify({ name }),
-      }),
-    []
+      apiClientRef.current
+        .fetch<Project>('/projects', {
+          method: 'POST',
+          body: JSON.stringify({ name }),
+        })
+        .pipe(
+          map(project => {
+            if (project.id && principalId !== null) {
+              setCatalog(current =>
+                current?.principalId === principalId &&
+                !current.projects.some(existing => existing.id === project.id)
+                  ? { ...current, projects: [...current.projects, project] }
+                  : current
+              )
+            }
+            return project
+          })
+        ),
+    [principalId]
   )
 
   const refetchProjects = useCallback(() => {
     setRefetchTrigger(current => current + 1)
   }, [])
 
-  return { projects, projectsLoading, createProject, refetchProjects }
+  const visibleCatalog =
+    principalId !== null && catalog?.principalId === principalId
+      ? catalog
+      : null
+
+  return {
+    projects: visibleCatalog?.projects ?? [],
+    projectsLoading:
+      principalId !== null &&
+      (visibleCatalog === null || visibleCatalog.loading),
+    projectsError: visibleCatalog?.error ?? false,
+    createProject,
+    refetchProjects,
+  }
 }
 
 interface ProjectSelectionProps {
@@ -76,6 +133,8 @@ interface ProjectSelectionProps {
   onChange(value: ProjectChoice): void
   projects: Project[]
   projectsLoading: boolean
+  projectsError: boolean
+  onRetry(): void
   disabled?: boolean
   creating?: boolean
   error?: string | null
@@ -87,13 +146,16 @@ export const ProjectSelection: React.FC<ProjectSelectionProps> = ({
   onChange,
   projects,
   projectsLoading,
+  projectsError,
+  onRetry,
   disabled = false,
   creating = false,
   error,
 }) => {
   const createMode = value?.type === 'create'
   const showCreateInput =
-    createMode || (!projectsLoading && projects.length === 0 && !disabled)
+    !projectsError &&
+    (createMode || (!projectsLoading && projects.length === 0 && !disabled))
 
   const handleSelectChange = (projectId: string) => {
     if (projectId === CREATE_PROJECT) {
@@ -141,6 +203,22 @@ export const ProjectSelection: React.FC<ProjectSelectionProps> = ({
       ) : disabled ? (
         <Text variant="caption">Sign in to choose a project</Text>
       ) : null}
+
+      {projectsError && (
+        <Col gap={spacing.sm}>
+          <Alert type="danger">
+            Projects could not be loaded. Check your connection and try again.
+          </Alert>
+          <Button
+            variant="outlined"
+            size="small"
+            disabled={disabled || projectsLoading}
+            onClick={onRetry}
+          >
+            Retry
+          </Button>
+        </Col>
+      )}
 
       {showCreateInput && (
         <Col gap={spacing.sm}>

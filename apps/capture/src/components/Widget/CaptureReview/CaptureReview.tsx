@@ -33,6 +33,10 @@ import {
 } from './ProjectSelection'
 
 const DEFAULT_SELECTED_DURATION = 60_000
+const REPORT_RESERVATION_WAIT_MESSAGE =
+  'Save Recording is preparing an upload. Wait for it to finish before submitting this report.'
+const REPORT_UPLOAD_RETRY_MESSAGE =
+  'Another upload is being prepared or active. Wait for it to finish, then try again.'
 
 interface CaptureReviewProps {
   onClose: () => void
@@ -72,12 +76,32 @@ export const CaptureReview: React.FC<CaptureReviewProps> = ({
 
   const {
     enqueueUpload,
+    reserveUpload,
+    releaseUploadReservation,
     uploadState,
+    uploadPrincipalId,
+    uploadReservation,
+    reportDraft,
+    reportDraftPrincipalId,
+    setReportDraft,
     setPrivacyOverrides: setUploadPrivacyOverrides,
   } = useCaptureUpload()
   const session = useSession()
   const sessionLoading = useSessionLoading()
   const authContext = useAuthContext()
+  const principalId = session?.id ?? null
+  const principalIdRef = useRef(principalId)
+  principalIdRef.current = principalId
+  const visibleReportDraft =
+    reportDraftPrincipalId === null || reportDraftPrincipalId === principalId
+      ? reportDraft
+      : { title: '', description: '' }
+  const foreignUpload =
+    uploadPrincipalId !== null &&
+    uploadPrincipalId !== principalId &&
+    (uploadState.isUploading ||
+      uploadState.statusUnknown ||
+      uploadState.error !== null)
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -93,32 +117,110 @@ export const CaptureReview: React.FC<CaptureReviewProps> = ({
     }
   }, [authContext])
 
-  const { projects, projectsLoading, createProject } = useProjectCatalog(
-    !sessionLoading && session !== null
+  const {
+    projects,
+    projectsLoading,
+    projectsError,
+    createProject,
+    refetchProjects,
+  } = useProjectCatalog(!sessionLoading && session !== null)
+  const [projectChoiceState, setProjectChoiceState] = useState<{
+    principalId: string | null
+    choice: ProjectChoice
+  }>({ principalId, choice: null })
+  const restoredProjectChoice: ProjectChoice =
+    uploadState.statusUnknown &&
+    uploadState.uploadSource === 'report' &&
+    !projectsLoading &&
+    !projectsError &&
+    uploadState.uploadProjectId &&
+    projects.some(project => project.id === uploadState.uploadProjectId)
+      ? { type: 'existing', projectId: uploadState.uploadProjectId }
+      : null
+  const projectChoice =
+    projectChoiceState.principalId === principalId
+      ? projectChoiceState.choice ?? restoredProjectChoice
+      : restoredProjectChoice
+  const setProjectChoice = useCallback(
+    (choice: ProjectChoice) => setProjectChoiceState({ principalId, choice }),
+    [principalId]
   )
-  const [projectChoice, setProjectChoice] = useState<ProjectChoice>(null)
   const [projectError, setProjectError] = useState<string | null>(null)
   const [creatingProject, setCreatingProject] = useState(false)
   const [showSignInPrompt, setShowSignInPrompt] = useState(false)
   const createCancelRef = useRef<Cancel | null>(null)
+  const projectReservationRef = useRef<number | null>(null)
   const signInButtonRef = useRef<HTMLButtonElement | null>(null)
 
+  const finishProjectReservation = useCallback(
+    (id: number) => {
+      if (projectReservationRef.current === id) {
+        projectReservationRef.current = null
+        createCancelRef.current = null
+      }
+      releaseUploadReservation(id)
+    },
+    [releaseUploadReservation]
+  )
+
   useEffect(() => {
-    return () => createCancelRef.current?.()
-  }, [])
+    return () => {
+      const reservationId = projectReservationRef.current
+      createCancelRef.current?.()
+      if (reservationId !== null) finishProjectReservation(reservationId)
+    }
+  }, [finishProjectReservation])
+
+  useEffect(() => {
+    if (projectChoiceState.principalId === principalId) return
+    createCancelRef.current?.()
+    createCancelRef.current = null
+    if (projectReservationRef.current !== null) {
+      finishProjectReservation(projectReservationRef.current)
+    }
+    setProjectChoiceState({ principalId, choice: null })
+    setProjectError(null)
+    setCreatingProject(false)
+  }, [finishProjectReservation, principalId, projectChoiceState.principalId])
+
+  useEffect(() => {
+    if (
+      !projectsLoading &&
+      !projectsError &&
+      projectChoice?.type === 'existing' &&
+      !projects.some(project => project.id === projectChoice.projectId)
+    ) {
+      setProjectChoice(null)
+      setProjectError(
+        'The selected project is no longer available. Select another project.'
+      )
+    }
+  }, [
+    projectChoice,
+    projects,
+    projectsError,
+    projectsLoading,
+    setProjectChoice,
+  ])
 
   useEffect(() => {
     if (showSignInPrompt) signInButtonRef.current?.focus()
   }, [showSignInPrompt])
 
   const projectReady =
-    projectChoice?.type === 'existing' ||
+    (projectChoice?.type === 'existing' &&
+      projects.some(project => project.id === projectChoice.projectId)) ||
     (projectChoice?.type === 'create' && projectChoice.name.trim().length > 0)
+  const reportSubmissionBlockedByUnknownSave =
+    uploadState.statusUnknown && uploadState.uploadSource === 'save-recording'
   const submitDisabled =
     sessionLoading ||
     creatingProject ||
     uploadState.isUploading ||
-    (session !== null && !projectReady)
+    uploadReservation !== null ||
+    foreignUpload ||
+    reportSubmissionBlockedByUnknownSave ||
+    (session !== null && (projectsLoading || projectsError || !projectReady))
 
   const handleSignIn = useCallback(() => {
     window.open(
@@ -130,22 +232,49 @@ export const CaptureReview: React.FC<CaptureReviewProps> = ({
 
   const handleReportSubmit = useCallback(
     (details: { title: string; description: string }) => {
-      if (sessionLoading) return
+      if (
+        sessionLoading ||
+        foreignUpload ||
+        reportSubmissionBlockedByUnknownSave
+      ) {
+        return
+      }
+
+      if (uploadReservation !== null) {
+        setProjectError(
+          uploadReservation.source === 'save-recording' &&
+            uploadReservation.principalId === principalId
+            ? REPORT_RESERVATION_WAIT_MESSAGE
+            : REPORT_UPLOAD_RETRY_MESSAGE
+        )
+        return
+      }
 
       if (session === null) {
         setShowSignInPrompt(true)
         return
       }
 
+      if (projectsLoading || projectsError) return
+
       setShowSignInPrompt(false)
       setProjectError(null)
 
       if (projectChoice?.type === 'existing') {
-        enqueueUpload(
+        if (!projects.some(project => project.id === projectChoice.projectId)) {
+          setProjectChoice(null)
+          setProjectError(
+            'The selected project is no longer available. Select another project.'
+          )
+          return
+        }
+        const enqueued = enqueueUpload(
           projectChoice.projectId,
           details.title,
-          details.description
+          details.description,
+          'report'
         )
+        if (!enqueued) setProjectError(REPORT_UPLOAD_RETRY_MESSAGE)
         return
       }
 
@@ -154,22 +283,72 @@ export const CaptureReview: React.FC<CaptureReviewProps> = ({
         return
       }
 
-      setCreatingProject(true)
       const name = projectChoice.name.trim()
-      createCancelRef.current = fork(() => {
-        setCreatingProject(false)
-        setProjectError('Failed to create project. Please try again.')
-      })((project: { id: string }) => {
-        setCreatingProject(false)
-        if (!project.id) {
+      const creatingPrincipalId = principalId
+      const reservationId = reserveUpload('report')
+      if (reservationId === null) {
+        setProjectError(REPORT_UPLOAD_RETRY_MESSAGE)
+        return
+      }
+      projectReservationRef.current = reservationId
+      setCreatingProject(true)
+
+      try {
+        const cancel = fork(() => {
+          finishProjectReservation(reservationId)
+          if (principalIdRef.current !== creatingPrincipalId) return
+          setCreatingProject(false)
           setProjectError('Failed to create project. Please try again.')
-          return
+        })((project: { id: string }) => {
+          if (principalIdRef.current !== creatingPrincipalId) {
+            finishProjectReservation(reservationId)
+            return
+          }
+          setCreatingProject(false)
+          if (!project.id) {
+            finishProjectReservation(reservationId)
+            setProjectError('Failed to create project. Please try again.')
+            return
+          }
+          setProjectChoice({ type: 'existing', projectId: project.id })
+          const enqueued = enqueueUpload(
+            project.id,
+            details.title,
+            details.description,
+            'report',
+            reservationId
+          )
+          finishProjectReservation(reservationId)
+          if (!enqueued) setProjectError(REPORT_UPLOAD_RETRY_MESSAGE)
+        })(createProject(name))
+        if (projectReservationRef.current === reservationId) {
+          createCancelRef.current = cancel
         }
-        setProjectChoice({ type: 'existing', projectId: project.id })
-        enqueueUpload(project.id, details.title, details.description)
-      })(createProject(name))
+      } catch {
+        finishProjectReservation(reservationId)
+        if (principalIdRef.current === creatingPrincipalId) {
+          setCreatingProject(false)
+          setProjectError('Failed to create project. Please try again.')
+        }
+      }
     },
-    [createProject, enqueueUpload, projectChoice, session, sessionLoading]
+    [
+      createProject,
+      enqueueUpload,
+      finishProjectReservation,
+      foreignUpload,
+      principalId,
+      projectChoice,
+      reserveUpload,
+      uploadReservation,
+      setProjectChoice,
+      reportSubmissionBlockedByUnknownSave,
+      projectsError,
+      projectsLoading,
+      projects,
+      session,
+      sessionLoading,
+    ]
   )
 
   // Sync privacy overrides into the upload provider so its enqueueUpload
@@ -246,26 +425,83 @@ export const CaptureReview: React.FC<CaptureReviewProps> = ({
           >
             <Text variant="heading3">Create bug report</Text>
 
-            <ProjectSelection
-              ariaLabel="Report project"
-              value={projectChoice}
-              onChange={choice => {
-                setProjectChoice(choice)
-                setProjectError(null)
-              }}
-              projects={projects}
-              projectsLoading={projectsLoading}
-              disabled={
-                sessionLoading || session === null || uploadState.isUploading
-              }
-              creating={creatingProject}
-              error={projectError}
-            />
+            {foreignUpload ? (
+              <Alert type="warning">
+                This upload belongs to another account. Sign in with the account
+                that started it to review its status or retry it.
+              </Alert>
+            ) : (
+              <>
+                <ProjectSelection
+                  ariaLabel="Report project"
+                  value={projectChoice}
+                  onChange={choice => {
+                    setProjectChoice(choice)
+                    setProjectError(null)
+                  }}
+                  projects={projects}
+                  projectsLoading={projectsLoading}
+                  projectsError={projectsError}
+                  onRetry={refetchProjects}
+                  disabled={
+                    sessionLoading ||
+                    session === null ||
+                    uploadState.isUploading ||
+                    uploadReservation !== null ||
+                    reportSubmissionBlockedByUnknownSave
+                  }
+                  creating={creatingProject}
+                  error={projectError}
+                />
 
-            <DetailsFields
-              onSubmit={handleReportSubmit}
-              disabled={submitDisabled}
-            />
+                {uploadReservation?.source === 'save-recording' &&
+                  uploadReservation.principalId === principalId && (
+                    <Alert type="info">{REPORT_RESERVATION_WAIT_MESSAGE}</Alert>
+                  )}
+
+                {uploadState.statusUnknown &&
+                  uploadPrincipalId === principalId &&
+                  uploadState.uploadSource === 'report' && (
+                    <Alert type="warning">
+                      This report may already be in your project. Check before
+                      retrying to avoid a duplicate.
+                    </Alert>
+                  )}
+
+                <DetailsFields
+                  key={`${principalId ?? 'signed-out'}:${
+                    reportDraftPrincipalId ?? 'unowned'
+                  }`}
+                  onSubmit={handleReportSubmit}
+                  initialValues={visibleReportDraft}
+                  onValuesChange={setReportDraft}
+                  disabled={
+                    uploadState.isUploading || uploadReservation !== null
+                  }
+                  submitDisabled={submitDisabled}
+                  submitLabel={
+                    uploadPrincipalId === principalId &&
+                    uploadState.uploadSource === 'report' &&
+                    uploadState.statusUnknown
+                      ? 'Retry report anyway'
+                      : uploadPrincipalId === principalId &&
+                        uploadState.uploadSource === 'report' &&
+                        uploadState.error
+                      ? 'Retry report'
+                      : undefined
+                  }
+                />
+
+                {uploadPrincipalId === principalId &&
+                  uploadState.uploadSource === 'report' &&
+                  uploadState.error && (
+                    <Alert type="danger">
+                      Upload could not be started. Check your connection and try
+                      again.
+                    </Alert>
+                  )}
+              </>
+            )}
 
             {showSignInPrompt && (
               <Alert type="info">
@@ -288,7 +524,7 @@ export const CaptureReview: React.FC<CaptureReviewProps> = ({
           </Col>
         </AsideRegion>
 
-        {uploadState.progress && (
+        {uploadState.progress && uploadPrincipalId === principalId && (
           <ProgressOverlay
             progress={uploadState.progress}
             projectId={uploadState.uploadProjectId}
