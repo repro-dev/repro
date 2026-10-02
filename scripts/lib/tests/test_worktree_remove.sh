@@ -391,6 +391,190 @@ else
 fi
 "
 
+# REP-1709: strict mode exposes a lost Herdr project context between nested
+# command substitutions; removal must still close a matching workspace.
+run_git_test "cmd_wt_remove: strict mode closes matching Herdr workspace after removal" "
+set -euo pipefail
+$COMMON_SETUP
+wt_dir=\"\$(_add_worktree strict-herdr-close)\"
+_src_wt
+unset HERDR_PROJECT_CHECKOUT_PATH HERDR_PROJECT_MAIN_CHECKOUT HERDR_PROJECT_CONFIG_PATH HERDR_PROJECT_SESSION_NAME HERDR_PROJECT_CONTEXT_MODE HERDR_ENV HERDR_SESSION HERDR_SOCKET_PATH HERDR_WORKSPACE_ID HERDR_CONFIG_PATH
+expected_workspace_id='ws-rep-1709'
+close_log=\"\$_TDIR/herdr-close.log\"
+herdr() {
+  case \"\$*\" in
+    *' status --json')
+      printf '%s\\n' '{\"server\":{\"running\":true,\"status\":\"running\"}}'
+      ;;
+    *' worktree list --cwd '*)
+      printf '{\"result\":{\"worktrees\":[{\"path\":\"%s\",\"open_workspace_id\":\"%s\"}]}}\\n' \"\$wt_dir\" \"\$expected_workspace_id\"
+      ;;
+    *' workspace close '*)
+      worktree_list=\"\$(git -C \"\$_main\" worktree list --porcelain)\" || return 1
+      if [[ -d \"\$wt_dir\" ]] || grep -Fqx \"worktree \$wt_dir\" <<< \"\$worktree_list\"; then
+        return 1
+      fi
+      printf '%s\\n' \"\$*\" >> \"\$close_log\"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+WT_DRY_RUN=false WT_FORCE=false WT_YES=true
+rc=0
+output=\"\$(cmd_wt_remove strict-herdr-close 2>&1)\" || rc=\$?
+unbound_variable=no
+if [[ \"\$output\" == *'unbound variable'* ]]; then unbound_variable=yes; fi
+worktree_exists=no
+if [[ -d \"\$wt_dir\" ]]; then worktree_exists=yes; fi
+workspace_closed=no
+if [[ -f \"\$close_log\" ]] && grep -Fq \"workspace close \$expected_workspace_id\" \"\$close_log\"; then
+  workspace_closed=yes
+fi
+if [[ \"\$rc\" -eq 0 && \"\$worktree_exists\" == no && \"\$unbound_variable\" == no && \"\$workspace_closed\" == yes ]]; then
+  echo PASS
+else
+  printf 'FAIL:rc=%s worktree_exists=%s unbound_variable=%s workspace_closed=%s output=%s\\n' \\
+    \"\$rc\" \"\$worktree_exists\" \"\$unbound_variable\" \"\$workspace_closed\" \"\$output\"
+fi
+"
+
+run_git_test "cmd_wt_remove: unavailable Herdr status remains best-effort" "
+set -euo pipefail
+$COMMON_SETUP
+wt_dir=\"\$(_add_worktree unavailable-herdr)\"
+_src_wt
+unset HERDR_PROJECT_CHECKOUT_PATH HERDR_PROJECT_MAIN_CHECKOUT HERDR_PROJECT_CONFIG_PATH HERDR_PROJECT_SESSION_NAME HERDR_PROJECT_CONTEXT_MODE HERDR_ENV HERDR_SESSION HERDR_SOCKET_PATH HERDR_WORKSPACE_ID HERDR_CONFIG_PATH
+status_log=\"\$_TDIR/herdr-status.log\"
+close_log=\"\$_TDIR/herdr-close.log\"
+herdr() {
+  case \"\$*\" in
+    *' status --json') printf '%s\\n' called >> \"\$status_log\"; return 1 ;;
+    *' workspace close '*) printf '%s\\n' \"\$*\" >> \"\$close_log\" ;;
+    *) return 1 ;;
+  esac
+}
+WT_DRY_RUN=false WT_FORCE=false WT_YES=true
+rc=0
+output=\"\$(cmd_wt_remove unavailable-herdr 2>&1)\" || rc=\$?
+unbound_variable=no
+if [[ \"\$output\" == *'unbound variable'* ]]; then unbound_variable=yes; fi
+worktree_exists=no
+if [[ -d \"\$wt_dir\" ]]; then worktree_exists=yes; fi
+status_called=no
+if [[ -f \"\$status_log\" ]]; then status_called=yes; fi
+workspace_closed=no
+if [[ -f \"\$close_log\" ]]; then workspace_closed=yes; fi
+if [[ \"\$rc\" -eq 0 && \"\$worktree_exists\" == no && \"\$unbound_variable\" == no && \"\$status_called\" == yes && \"\$workspace_closed\" == no ]]; then
+  echo PASS
+else
+  printf 'FAIL:rc=%s worktree_exists=%s unbound_variable=%s status_called=%s workspace_closed=%s output=%s\\n' \\
+    \"\$rc\" \"\$worktree_exists\" \"\$unbound_variable\" \"\$status_called\" \"\$workspace_closed\" \"\$output\"
+fi
+"
+
+run_git_test "cmd_wt_remove: valid Herdr list with no match is a best-effort no-op" "
+set -euo pipefail
+$COMMON_SETUP
+wt_dir=\"\$(_add_worktree no-herdr-match)\"
+_src_wt
+unset HERDR_PROJECT_CHECKOUT_PATH HERDR_PROJECT_MAIN_CHECKOUT HERDR_PROJECT_CONFIG_PATH HERDR_PROJECT_SESSION_NAME HERDR_PROJECT_CONTEXT_MODE HERDR_ENV HERDR_SESSION HERDR_SOCKET_PATH HERDR_WORKSPACE_ID HERDR_CONFIG_PATH
+list_log=\"\$_TDIR/herdr-list.log\"
+close_log=\"\$_TDIR/herdr-close.log\"
+herdr() {
+  case \"\$*\" in
+    *' status --json')
+      printf '%s\\n' '{\"server\":{\"running\":true,\"status\":\"running\"}}'
+      ;;
+    *' worktree list --cwd '*)
+      printf '%s\\n' called >> \"\$list_log\"
+      printf '%s\\n' '{\"result\":{\"worktrees\":[]}}'
+      ;;
+    *' workspace close '*) printf '%s\\n' \"\$*\" >> \"\$close_log\" ;;
+    *) return 1 ;;
+  esac
+}
+WT_DRY_RUN=false WT_FORCE=false WT_YES=true
+rc=0
+output=\"\$(cmd_wt_remove no-herdr-match 2>&1)\" || rc=\$?
+unbound_variable=no
+if [[ \"\$output\" == *'unbound variable'* ]]; then unbound_variable=yes; fi
+worktree_exists=no
+if [[ -d \"\$wt_dir\" ]]; then worktree_exists=yes; fi
+list_called=no
+if [[ -f \"\$list_log\" ]]; then list_called=yes; fi
+workspace_closed=no
+if [[ -f \"\$close_log\" ]]; then workspace_closed=yes; fi
+if [[ \"\$rc\" -eq 0 && \"\$worktree_exists\" == no && \"\$unbound_variable\" == no && \"\$list_called\" == yes && \"\$workspace_closed\" == no ]]; then
+  echo PASS
+else
+  printf 'FAIL:rc=%s worktree_exists=%s unbound_variable=%s list_called=%s workspace_closed=%s output=%s\\n' \\
+    \"\$rc\" \"\$worktree_exists\" \"\$unbound_variable\" \"\$list_called\" \"\$workspace_closed\" \"\$output\"
+fi
+"
+
+run_git_test "cmd_wt_remove: Herdr context initialization failure remains best-effort" "
+set -euo pipefail
+$COMMON_SETUP
+wt_dir=\"\$(_add_worktree herdr-init-failure)\"
+_src_wt
+unset HERDR_PROJECT_CHECKOUT_PATH HERDR_PROJECT_MAIN_CHECKOUT HERDR_PROJECT_CONFIG_PATH HERDR_PROJECT_SESSION_NAME HERDR_PROJECT_CONTEXT_MODE HERDR_SESSION HERDR_SOCKET_PATH HERDR_WORKSPACE_ID HERDR_CONFIG_PATH
+HERDR_ENV=1
+herdr_calls=\"\$_TDIR/herdr-calls.log\"
+herdr() { printf '%s\\n' called >> \"\$herdr_calls\"; return 1; }
+WT_DRY_RUN=false WT_FORCE=false WT_YES=true
+rc=0
+output=\"\$(cmd_wt_remove herdr-init-failure 2>&1)\" || rc=\$?
+unbound_variable=no
+if [[ \"\$output\" == *'unbound variable'* ]]; then unbound_variable=yes; fi
+worktree_exists=no
+if [[ -d \"\$wt_dir\" ]]; then worktree_exists=yes; fi
+herdr_called=no
+if [[ -f \"\$herdr_calls\" ]]; then herdr_called=yes; fi
+if [[ \"\$rc\" -eq 0 && \"\$worktree_exists\" == no && \"\$unbound_variable\" == no && \"\$herdr_called\" == no ]]; then
+  echo PASS
+else
+  printf 'FAIL:rc=%s worktree_exists=%s unbound_variable=%s herdr_called=%s output=%s\\n' \\
+    \"\$rc\" \"\$worktree_exists\" \"\$unbound_variable\" \"\$herdr_called\" \"\$output\"
+fi
+"
+
+run_git_test "cmd_wt_remove: failed Herdr worktree list remains best-effort" "
+set -euo pipefail
+$COMMON_SETUP
+wt_dir=\"\$(_add_worktree herdr-list-failure)\"
+_src_wt
+unset HERDR_PROJECT_CHECKOUT_PATH HERDR_PROJECT_MAIN_CHECKOUT HERDR_PROJECT_CONFIG_PATH HERDR_PROJECT_SESSION_NAME HERDR_PROJECT_CONTEXT_MODE HERDR_ENV HERDR_SESSION HERDR_SOCKET_PATH HERDR_WORKSPACE_ID HERDR_CONFIG_PATH
+list_log=\"\$_TDIR/herdr-list.log\"
+close_log=\"\$_TDIR/herdr-close.log\"
+herdr() {
+  case \"\$*\" in
+    *' status --json') printf '%s\\n' '{\"server\":{\"running\":true,\"status\":\"running\"}}' ;;
+    *' worktree list --cwd '*) printf '%s\\n' called >> \"\$list_log\"; return 1 ;;
+    *' workspace close '*) printf '%s\\n' \"\$*\" >> \"\$close_log\" ;;
+    *) return 1 ;;
+  esac
+}
+WT_DRY_RUN=false WT_FORCE=false WT_YES=true
+rc=0
+output=\"\$(cmd_wt_remove herdr-list-failure 2>&1)\" || rc=\$?
+unbound_variable=no
+if [[ \"\$output\" == *'unbound variable'* ]]; then unbound_variable=yes; fi
+worktree_exists=no
+if [[ -d \"\$wt_dir\" ]]; then worktree_exists=yes; fi
+list_called=no
+if [[ -f \"\$list_log\" ]]; then list_called=yes; fi
+workspace_closed=no
+if [[ -f \"\$close_log\" ]]; then workspace_closed=yes; fi
+if [[ \"\$rc\" -eq 0 && \"\$worktree_exists\" == no && \"\$unbound_variable\" == no && \"\$list_called\" == yes && \"\$workspace_closed\" == no ]]; then
+  echo PASS
+else
+  printf 'FAIL:rc=%s worktree_exists=%s unbound_variable=%s list_called=%s workspace_closed=%s output=%s\\n' \\
+    \"\$rc\" \"\$worktree_exists\" \"\$unbound_variable\" \"\$list_called\" \"\$workspace_closed\" \"\$output\"
+fi
+"
+
 printf '\n%d/%d tests passed\n' "$PASS" "$TESTS_RUN"
 
 if [ "$FAIL" -gt 0 ]; then

@@ -906,6 +906,13 @@ _herdr_workspace_add_sibling() {
 _herdr_open_workspace_id_for_path() {
   local wt_path="$1" list_output workspace_id
 
+  if ! herdr_project_context_init \
+    "${REPO_ROOT:-$wt_path}" \
+    "${MAIN_CHECKOUT:-${REPO_ROOT:-$wt_path}}" \
+    >/dev/null 2>&1; then
+    return 1
+  fi
+
   if ! _herdr_is_running; then
     return 1
   fi
