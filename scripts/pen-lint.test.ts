@@ -180,7 +180,7 @@ describe('REP-1622 real repro.pen integration (post-migration)', () => {
     const screens = extractScreens(pen)
     const variables = extractVariables(pen)
     assert.ok(masters.length >= 50, 'expected 51 masters')
-    assert.ok(screens.length >= 10, 'expected 11 screens')
+    assert.ok(screens.length >= 10, 'expected at least 10 screens')
     assert.ok(Object.keys(variables).length >= 50, 'expected 79 variables')
     assert.deepEqual(validateVariableRefs(pen), [])
 

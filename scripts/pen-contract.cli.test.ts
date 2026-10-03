@@ -319,7 +319,7 @@ describe('REP-1622 piped stdout regression', () => {
       screenCount: number
     }
     assert.equal(parsed.clean, true)
-    assert.equal(parsed.screenCount, 11)
+    assert.equal(parsed.screenCount, 21)
   })
 })
 

@@ -2,7 +2,7 @@ import { Col, Row } from '@jsxstyle/react'
 import { Button, spacing, TextField } from '@repro/design'
 import { BugPlayIcon } from 'lucide-react'
 import React from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 
 interface FormState {
   title: string
@@ -12,16 +12,34 @@ interface FormState {
 
 interface Props {
   onSubmit(data: FormState): void
+  initialValues?: Pick<FormState, 'title' | 'description'>
+  onValuesChange?(values: Pick<FormState, 'title' | 'description'>): void
+  disabled?: boolean
+  submitDisabled?: boolean
+  submitLabel?: string
 }
 
-export const DetailsFields: React.FC<Props> = ({ onSubmit }) => {
-  const { handleSubmit, register, formState } = useForm<FormState>({
+export const DetailsFields: React.FC<Props> = ({
+  onSubmit,
+  initialValues,
+  onValuesChange,
+  disabled = false,
+  submitDisabled = false,
+  submitLabel = 'Create Bug Report',
+}) => {
+  const { handleSubmit, register, formState, control } = useForm<FormState>({
     defaultValues: {
-      title: '',
-      description: '',
+      title: initialValues?.title ?? '',
+      description: initialValues?.description ?? '',
       isPublic: true,
     },
   })
+  const title = useWatch({ control, name: 'title' })
+  const description = useWatch({ control, name: 'description' })
+
+  React.useEffect(() => {
+    onValuesChange?.({ title: title ?? '', description: description ?? '' })
+  }, [description, onValuesChange, title])
 
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
@@ -38,6 +56,7 @@ export const DetailsFields: React.FC<Props> = ({ onSubmit }) => {
           }
           placeholder="What is the bug?"
           size="large"
+          disabled={disabled}
           {...register('title', { required: true })}
         />
 
@@ -47,13 +66,19 @@ export const DetailsFields: React.FC<Props> = ({ onSubmit }) => {
           size="medium"
           placeholder="Is there anything else that would be useful to know?"
           rows={12}
+          disabled={disabled}
           {...register('description')}
         />
 
         <Row>
-          <Button type="submit" context="success" size="large">
+          <Button
+            type="submit"
+            context="success"
+            size="large"
+            disabled={disabled || submitDisabled}
+          >
             <BugPlayIcon size={20} />
-            Create Bug Report
+            {submitLabel}
           </Button>
         </Row>
       </Col>

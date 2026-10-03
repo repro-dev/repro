@@ -169,7 +169,7 @@ Implements the same `Playback` interface for a live Observable stream. Skips unt
 ### In-page serialisation (`apps/capture/src/components/Widget/PostRecordingSurface/useRecordingActions.ts`)
 
 1. `playback.getSourceEvents()` → `List<SourceEventView>`
-2. `getSelectedRecording()` centralizes the selected recording for Agentic, upload, and local download.
+2. `getSelectedRecording()` centralizes the selected recording for upload and local download. The capture extension's Agentic panel was removed in REP-1702; this selection helper remains shared by those recording actions.
 3. For Replay mode, trim to user-selected duration via `sliceEventsAtRange(events, [minTime, maxTime])`; expose `startTimeMs` as the same source-time offset used by slice normalization (the leading snapshot timestamp after applying leading events), and expose `duration` as `maxTime - startTimeMs`.
 4. Serialise each `DataView` to base-64 byte string: `toByteString(new Uint8Array(view.buffer, ...))`
 5. Raise `agent.raiseIntent({ type: 'upload:enqueue', payload: { projectId, title, description, url, mode, duration, events: string[] } })`

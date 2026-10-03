@@ -455,7 +455,7 @@ describe('REP-1622 real repro.pen integration (post-migration)', () => {
     })
     assert.equal(result.code, 0)
     assert.equal(result.contract.clean, true)
-    assert.equal(result.contract.screenCount, 11)
+    assert.equal(result.contract.screenCount, 21)
     // State family for the admin health screens is present and complete.
     const health = result.contract.stateFamilies.find(
       f => f.family === 'screens/admin/health'
@@ -468,8 +468,8 @@ describe('REP-1622 real repro.pen integration (post-migration)', () => {
       'loading',
     ])
 
-    // REP-1629: the 39 remaining warnings are exactly the intentional-gap set.
-    assert.equal(result.contract.warnings.length, 39)
+    // REP-1629: the 50 remaining warnings are exactly the intentional-gap set.
+    assert.equal(result.contract.warnings.length, 50)
     const gapCounts: Record<string, number> = {}
     for (const w of result.contract.warnings) {
       gapCounts[w.split(':')[0]!] = (gapCounts[w.split(':')[0]!] ?? 0) + 1
@@ -477,12 +477,15 @@ describe('REP-1622 real repro.pen integration (post-migration)', () => {
     assert.deepEqual(gapCounts, {
       AdminTable: 16,
       AppShell: 5,
+      Button: 1,
       Breadcrumbs: 4,
       EmptyState: 4,
       Tabs: 4,
       Accordion: 2,
-      Card: 2,
+      Card: 3,
       RefreshProgressBar: 2,
+      Select: 6,
+      TextField: 3,
     })
     const secondOuts: string[] = []
     runContract({

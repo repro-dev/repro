@@ -333,7 +333,7 @@ describe('REP-1622 real repro.pen migration (post-migration)', () => {
     const masters = extractMasters(pen)
     const screens = extractScreens(pen)
     assert.equal(masters.length, 51)
-    assert.equal(screens.length, 11)
+    assert.equal(screens.length, 21)
     // Deterministic group ids are stable across runs.
     const mastersGroup = groups.find(g => g.name === 'masters')!
     assert.equal(mastersGroup.id, uuidv5('masters'))

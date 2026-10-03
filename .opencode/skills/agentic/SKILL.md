@@ -1,11 +1,11 @@
 ---
 name: agentic
-description: Architecture, data contracts, tool system, eval harness, and frontend integration for the agentic debugging subsystem. Load when working in packages/agentic, packages/agentic-ui, apps/api-server (agentic routes/services), or apps/capture (Agentic.hoc.tsx).
+description: Architecture, data contracts, tool system, eval harness, and frontend integration for the agentic debugging subsystem. Load when working in packages/agentic, packages/agentic-ui, or apps/api-server (agentic routes/services).
 ---
 
 # Agentic Debugging Subsystem
 
-Reference for the agentic AI debugger. Load this skill before implementing anything in `packages/agentic`, `packages/agentic-ui`, or the agentic routes/services in `apps/api-server`.
+Reference for the shared agentic AI debugger. The capture extension's Agentic panel, auth gate, and request wiring were retired in REP-1702; this skill now documents the shared runtime/API/tools and workspace-facing integration surface. Load it before implementing anything in `packages/agentic`, `packages/agentic-ui`, or the agentic routes/services in `apps/api-server`.
 
 ---
 
@@ -17,7 +17,6 @@ Reference for the agentic AI debugger. Load this skill before implementing anyth
 | `packages/agentic-ui`                                                   | React components and hooks for rendering the agentic session (message list, tool call rows, input area) |
 | `apps/api-server/src/routers/agentic.ts`                                | Fastify routes: `POST /agentic/response` (SSE proxy) and `POST /agentic/feedback`                       |
 | `apps/api-server/src/services/agentic.ts`                               | `AgenticService`: forwards requests to OpenRouter, stores feedback in `agentic_feedback` table          |
-| `apps/capture/src/components/Widget/ReportForm/Agentic/Agentic.hoc.tsx` | Extension call site: wires `streamProvider`, `RecordingDataAccessor`, and `extensionTools`              |
 
 ---
 
@@ -70,7 +69,7 @@ type StreamProvider = (
 
 This is the **only** network boundary in `createAgenticState`. The system prompt is **prepended by the caller's `StreamProvider` closure** — `createAgenticState` never appends it to the context itself. It only uses `SYSTEM_CARD_MESSAGE` to estimate token cost for context-window budget calculations.
 
-In the extension (`Agentic.hoc.tsx`), the `StreamProvider` calls `apiClient.fetch('/agentic/response', ...)` and pipes the response through `event-stream-parser`'s `parse()` to convert the byte stream to `{ data: string }` objects.
+The capture extension no longer calls `/agentic/response` (REP-1702). Workspace-facing callers provide their own `StreamProvider` closure and may use the API server's SSE route.
 
 In the eval harness (`packages/agentic/src/eval/streamProvider.ts`), it calls OpenRouter directly, bypassing the API server.
 
@@ -271,7 +270,7 @@ interface RecordingDataAccessor {
 
 The shared implementation factory (`makeAccessorFromEventList`) lives in `packages/agentic/src/recordingDataAccessor.ts` and implements `getEventsByType` and `getEventsInRange` over an `EventList` interface, wrapping sync results in `resolve(...)`. Callers must provide `getDuration`, `getSnapshotAtTime`, and `getResourceMap` themselves.
 
-In the extension (`Agentic.hoc.tsx`), the accessor is built by spreading `makeAccessorFromEventList(playback.getSourceEvents())` with the three remaining methods implemented inline from `playback.*` — each wrapping its return value in `resolve()`.
+The capture extension no longer constructs an Agentic accessor. Other callers can spread `makeAccessorFromEventList(eventList)` and implement `getDuration`, `getSnapshotAtTime`, and `getResourceMap` for their recording source.
 
 ### Server-side accessor
 
@@ -363,7 +362,7 @@ No server-side transformation of the stream — the raw OpenRouter SSE body is p
 
 ### `POST /agentic/feedback`
 
-Stores `{ userId, sentiment, promptVersion, comment, recordingId }` in the `agentic_feedback` table. `promptVersion` is a 16-char hex SHA-256 of the system prompt string (computed client-side in `Agentic.hoc.tsx`).
+Stores `{ userId, sentiment, promptVersion, comment, recordingId }` in the `agentic_feedback` table. `promptVersion` is a 16-char hex SHA-256 of the system prompt string supplied by the calling client.
 
 ---
 
@@ -432,8 +431,7 @@ Runs the full critique pipeline after evals:
 
 ## Known Issues / Gaps
 
-- **`captureScreenshot` excluded from extension**: The tool is in `tools[]` but not `extensionTools[]`. It has not been tested in the browser extension context. Re-include it once validated.
-- **Resource map in extension accessor is always empty**: `playback.getResourceMap()` returns `{}` in the capture widget (resources are not fetched client-side). Tracked as REP-XXX.
+- **Capture extension integration retired**: REP-1702 removed its Agentic UI, auth gate, and `/agentic/response` request path. Shared runtime, API routes, tools, transport, and the `extensionTools` export remain available for the workspace M3 integration.
 
 ---
 
@@ -459,4 +457,3 @@ Runs the full critique pipeline after evals:
 | `packages/domain/src/model-configs.ts`               | `AGENTIC_DEFAULT_MODEL`, `EVAL_JUDGE_MODEL`, `EVAL_REASONING_MODEL`, `MODEL_CONFIGS`, `getModelConfig`                     |
 | `apps/api-server/src/routers/agentic.ts`             | `POST /agentic/response`, `POST /agentic/feedback`                                                                         |
 | `apps/api-server/src/services/agentic.ts`            | `createAgenticService`, `getStreamingResponse`, `recordFeedback`                                                           |
-| `apps/capture/.../Agentic.hoc.tsx`                   | Extension wiring: `StreamProvider`, `RecordingDataAccessor`, `extensionTools`                                              |
