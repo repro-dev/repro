@@ -147,7 +147,7 @@ describe('CaptureModal review regressions', { concurrency: false }, () => {
     fireEvent.click(screen.getByRole('button', { name: 'Create Bug Report' }))
     assert.ok(
       await screen.findByText(
-        'Upload could not be started. Check your connection and try again.'
+        'Report could not be sent. Your connection may have dropped. Check it and select Retry report.'
       )
     )
 

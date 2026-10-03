@@ -28,7 +28,7 @@ interface SaveRecordingPopoverProps {
 }
 
 const SAVE_RESERVATION_WAIT_MESSAGE =
-  'A report is preparing an upload. Wait for it to finish before saving this recording.'
+  'Wait for or retry the report before saving this recording.'
 const SAVE_UPLOAD_RETRY_MESSAGE =
   'Another upload is being prepared or active. Wait for it to finish, then try again.'
 
@@ -55,11 +55,16 @@ export const SaveRecordingPopover: React.FC<SaveRecordingPopoverProps> = ({
     uploadPrincipalId !== principalId &&
     (uploadState.isUploading ||
       uploadState.statusUnknown ||
-      uploadState.error !== null)
+      uploadState.error !== null ||
+      uploadState.progress?.completed === true)
   const ownsUpload = uploadPrincipalId === principalId
   const hasOwnedSaveError =
     ownsRetainedSave &&
     uploadState.uploadSource === 'save-recording' &&
+    uploadState.error !== null
+  const saveBlockedByReportError =
+    ownsUpload &&
+    uploadState.uploadSource === 'report' &&
     uploadState.error !== null
   const isUploading = uploadState.isUploading
   const [fallbackSaveTitleState, setFallbackSaveTitleState] = useState({
@@ -76,12 +81,13 @@ export const SaveRecordingPopover: React.FC<SaveRecordingPopoverProps> = ({
       : fallbackSaveTitle
   const blockedByUnknownReport =
     uploadState.statusUnknown && uploadState.uploadSource === 'report'
-  const isSaveDisabled =
+  const isSaveTriggerDisabled =
     !isAuthed ||
     isUploading ||
     uploadReservation !== null ||
     blockedByUnknownReport ||
     foreignUpload
+  const isSaveDisabled = isSaveTriggerDisabled || saveBlockedByReportError
 
   const [savePopoverOpen, setSavePopoverOpen] = useState(false)
 
@@ -194,6 +200,7 @@ export const SaveRecordingPopover: React.FC<SaveRecordingPopoverProps> = ({
   }, [finishProjectReservation])
 
   const handleSave = useCallback(() => {
+    if (saveBlockedByReportError) return
     if (uploadReservation !== null) {
       setCreateError(
         uploadReservation.source === 'report' &&
@@ -298,6 +305,7 @@ export const SaveRecordingPopover: React.FC<SaveRecordingPopoverProps> = ({
     projectsLoading,
     refetchProjects,
     saveTitle,
+    saveBlockedByReportError,
     uploadReservation,
   ])
 
@@ -305,7 +313,7 @@ export const SaveRecordingPopover: React.FC<SaveRecordingPopoverProps> = ({
     <Popover
       open={savePopoverOpen && !blockedByUnknownReport && !foreignUpload}
       onOpenChange={open => {
-        if (open && isSaveDisabled) return
+        if (open && isSaveTriggerDisabled) return
         setSavePopoverOpen(open)
       }}
     >
@@ -313,7 +321,7 @@ export const SaveRecordingPopover: React.FC<SaveRecordingPopoverProps> = ({
         <Row
           component="button"
           type="button"
-          disabled={isSaveDisabled}
+          disabled={isSaveTriggerDisabled}
           alignItems="center"
           gap={spacing.sm}
           paddingH={spacing.lg}
@@ -321,22 +329,26 @@ export const SaveRecordingPopover: React.FC<SaveRecordingPopoverProps> = ({
           // eslint-disable-next-line @repro/oxlint-plugin-design/no-hardcoded-color -- transparent white glass tint over header, no exact token equivalent
           backgroundColor="rgba(255, 255, 255, 0.1)"
           color={color.infoTint}
-          hoverBackgroundColor={!isSaveDisabled ? color.infoFg : undefined}
+          hoverBackgroundColor={
+            !isSaveTriggerDisabled ? color.infoFg : undefined
+          }
           borderRadius={2}
           border="none"
           transition="all 100ms ease-in-out"
           font="inherit"
           lineHeight={lineHeight.tight}
           userSelect="none"
-          cursor={isSaveDisabled ? 'not-allowed' : 'pointer'}
-          opacity={isSaveDisabled ? 0.4 : 1}
+          cursor={isSaveTriggerDisabled ? 'not-allowed' : 'pointer'}
+          opacity={isSaveTriggerDisabled ? 0.4 : 1}
         >
           <Tooltip>
             {uploadReservation?.source === 'report' &&
             uploadReservation.principalId === principalId ? (
               SAVE_RESERVATION_WAIT_MESSAGE
             ) : isAuthed ? (
-              blockedByUnknownReport ? (
+              saveBlockedByReportError ? (
+                SAVE_RESERVATION_WAIT_MESSAGE
+              ) : blockedByUnknownReport ? (
                 'Retry the report before saving this recording'
               ) : (
                 'Save recording to project'
@@ -367,6 +379,10 @@ export const SaveRecordingPopover: React.FC<SaveRecordingPopoverProps> = ({
                 Recording could not be saved. Your connection may have dropped.
                 Check it and try again.
               </Alert>
+            )}
+
+            {saveBlockedByReportError && (
+              <Alert type="info">{SAVE_RESERVATION_WAIT_MESSAGE}</Alert>
             )}
 
             {uploadState.statusUnknown &&

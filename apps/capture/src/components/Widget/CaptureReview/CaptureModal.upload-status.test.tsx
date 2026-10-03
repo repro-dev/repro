@@ -336,11 +336,20 @@ describe('CaptureModal unknown upload status', { concurrency: false }, () => {
 
     assert.ok(
       await screen.findByText(
-        'Upload could not be started. Check your connection and try again.'
+        'Report could not be sent. Your connection may have dropped. Check it and select Retry report.'
       )
     )
     assert.ok(screen.getByText(warning))
     assert.equal(uploadEnqueueCount(), 2)
+    const retryIntent = intents.filter(
+      intent => intent.type === 'upload:enqueue'
+    )[1]!
+    assert.equal(retryIntent.payload.projectId, 'project-1')
+    assert.equal(retryIntent.payload.title, 'Possibly submitted report')
+    assert.equal(
+      retryIntent.payload.description,
+      'Keep these details after retry.'
+    )
     assert.equal(
       (screen.getByRole('textbox', { name: 'Title' }) as HTMLInputElement)
         .value,

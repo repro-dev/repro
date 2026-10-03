@@ -231,7 +231,7 @@ describe('CaptureModal report flow', { concurrency: false }, () => {
 
     assert.ok(
       await screen.findByText(
-        /Upload could not be started.*connection.*try again/i
+        'Report could not be sent. Your connection may have dropped. Check it and select Retry report.'
       )
     )
     assert.equal(
@@ -285,7 +285,9 @@ describe('CaptureModal report flow', { concurrency: false }, () => {
     assert.ok(rejectEnqueue)
     act(() => rejectEnqueue!(new Error('enqueue failed')))
     assert.ok(
-      await screen.findByText(/Upload could not be started.*try again/i)
+      await screen.findByText(
+        'Report could not be sent. Your connection may have dropped. Check it and select Retry report.'
+      )
     )
     await waitFor(() => assert.equal(submit.disabled, false))
     assert.equal(uploadEnqueueCount(), 1)

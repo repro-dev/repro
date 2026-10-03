@@ -1,4 +1,5 @@
 import {
+  act,
   cleanup,
   fireEvent,
   screen,
@@ -15,6 +16,7 @@ import {
   resetCaptureModalTestState,
   restoreEnvironment,
   selectReportProject,
+  sessionListeners,
   testState,
   uploadEnqueueCount,
 } from './CaptureModal.test-utils'
@@ -89,7 +91,7 @@ describe(
       )
       assert.ok(
         within(savePopover).getByText(
-          'A report is preparing an upload. Wait for it to finish before saving this recording.'
+          'Wait for or retry the report before saving this recording.'
         )
       )
       fireEvent.click(within(savePopover).getByRole('button', { name: 'Save' }))
@@ -156,7 +158,7 @@ describe(
       assert.equal(reportSubmit.disabled, true)
       assert.ok(
         screen.getByText(
-          'Save Recording is preparing an upload. Wait for it to finish before submitting this report.'
+          'Wait for or retry Save Recording before submitting this report.'
         )
       )
       assert.equal(uploadEnqueueCount(), 0)
@@ -208,10 +210,12 @@ describe(
       )
       fireEvent.click(within(savePopover).getByRole('button', { name: 'Save' }))
       await waitFor(() => assert.equal(uploadEnqueueCount(), 1))
-      assert.equal(
-        intents.find(intent => intent.type === 'upload:enqueue')?.payload.title,
-        'Save after rejection'
-      )
+      const saveIntent = intents.find(
+        intent => intent.type === 'upload:enqueue'
+      )!
+      assert.equal(saveIntent.payload.projectId, 'project-1')
+      assert.equal(saveIntent.payload.description, null)
+      assert.equal(saveIntent.payload.title, 'Save after rejection')
     })
 
     it('releases the Save Recording reservation when project creation throws', async () => {
@@ -253,9 +257,79 @@ describe(
       fireEvent.click(reportSubmit)
       await waitFor(() => assert.equal(uploadEnqueueCount(), 1))
       assert.equal(
-        intents.find(intent => intent.type === 'upload:enqueue')?.payload.title,
-        'Report after throw'
+        intents.find(intent => intent.type === 'upload:enqueue')?.payload
+          .projectId,
+        'project-1'
       )
+      const reportIntent = intents.find(
+        intent => intent.type === 'upload:enqueue'
+      )!
+      assert.equal(reportIntent.payload.title, 'Report after throw')
+      assert.equal(reportIntent.payload.description, 'Details')
+    })
+
+    it('releases a stale project reservation on account change', async () => {
+      let finishProject:
+        | ((project: { id: string; name: string }) => void)
+        | null = null
+      let projectCreationCancelled = false
+      testState.fetchResponse = (path, options) => {
+        if (path === '/projects' && options?.method === 'POST') {
+          return Future((_, resolveProject) => {
+            finishProject = project => resolveProject(project)
+            return () => {
+              projectCreationCancelled = true
+            }
+          })
+        }
+        return resolve({
+          items:
+            testState.currentSession?.id === 'account-b'
+              ? [{ id: 'account-b-project', name: 'Account B project' }]
+              : [{ id: 'account-a-project', name: 'Account A project' }],
+        })
+      }
+
+      renderModal()
+      fireEvent.click(await screen.findByLabelText('Report project'))
+      fireEvent.click(await screen.findByText('Create new project…'))
+      fireEvent.input(screen.getByPlaceholderText('Project name'), {
+        target: { value: 'Account A private project' },
+      })
+      enterReport('Account A private report', 'Keep this account private.')
+      fireEvent.click(screen.getByRole('button', { name: 'Create Bug Report' }))
+      await waitFor(() => assert.equal(typeof finishProject, 'function'))
+
+      testState.currentSession = { id: 'account-b' }
+      act(() => [...sessionListeners].forEach(listener => listener()))
+      await waitFor(() => assert.equal(projectCreationCancelled, true))
+
+      const saveTrigger = screen.getAllByText('Save')[0]!.closest('button')!
+      await waitFor(() => assert.equal(saveTrigger.disabled, false))
+      fireEvent.click(saveTrigger)
+      const savePopover = await screen.findByLabelText('Save recording')
+      fireEvent.click(within(savePopover).getByLabelText('Select project'))
+      fireEvent.click(await screen.findByText('Account B project'))
+      fireEvent.input(
+        within(savePopover).getByPlaceholderText('What did you record?'),
+        { target: { value: 'Account B recording' } }
+      )
+      fireEvent.click(within(savePopover).getByRole('button', { name: 'Save' }))
+
+      await waitFor(() => assert.equal(uploadEnqueueCount(), 1))
+      const saveIntent = intents.find(
+        intent => intent.type === 'upload:enqueue'
+      )!
+      assert.equal(saveIntent.payload.projectId, 'account-b-project')
+      assert.equal(saveIntent.payload.title, 'Account B recording')
+      assert.equal(saveIntent.payload.description, null)
+
+      finishProject!({
+        id: 'stale-account-a-project',
+        name: 'Account A private project',
+      })
+      assert.equal(uploadEnqueueCount(), 1)
+      assert.equal(screen.queryByText('Account A private project'), null)
     })
   }
 )

@@ -127,6 +127,7 @@ For admin/workspace settings and entity-detail surfaces, use the REP-520 user de
 - Top-level props = CSS layout properties: `<Row alignItems="center" gap={spacing.md}>`
 - `props` bag = HTML attributes and event handlers: `props={{ onClick, disabled, type: 'button' }}`
 - **Never split the same attribute across both** — use the `props` bag for HTML attributes. Top-level props overwrite `props` bag values.
+- `Popover.Trigger` clones its child to attach trigger props. With a jsxstyle child that already has a `props` bag, its bag-specific clone path can drop the child's top-level styling props; keep the styled child bag-free and use supported top-level attributes such as `disabled`/`type`, or wrap it in a component that forwards trigger props into the bag.
 - Do not use raw jsxstyle appearance props in app code to recreate design-system styling; keep appearance decisions inside `@repro/design` component internals.
 - `component` prop for semantic HTML: `<Row component="button">`, `<Block component="label">`
 - Pseudo-classes via prefix props: `hoverBackgroundColor={color.bg.hover}`

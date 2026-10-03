@@ -213,6 +213,7 @@ export const CaptureUploadProvider: React.FC<CaptureUploadProviderProps> = ({
   agentRef.current = agent
   const privacyOverridesRef = useRef<PrivacyOverrides | null>(null)
   const uploadInFlightRef = useRef(false)
+  const terminalResultPresentedWhileOpenRef = useRef(false)
   const enqueuePendingRef = useRef(false)
   const pendingEnqueueCancelRef = useRef<Cancel | null>(null)
   const uploadGenerationRef = useRef(0)
@@ -287,6 +288,13 @@ export const CaptureUploadProvider: React.FC<CaptureUploadProviderProps> = ({
         return null
       }
       if (
+        currentUploadState.error !== null &&
+        currentPrincipalId === uploadPrincipalIdRef.current &&
+        source !== currentUploadState.uploadSource
+      ) {
+        return null
+      }
+      if (
         currentUploadState.statusUnknown &&
         (source !== currentUploadState.uploadSource ||
           currentPrincipalId !== uploadPrincipalIdRef.current)
@@ -298,7 +306,8 @@ export const CaptureUploadProvider: React.FC<CaptureUploadProviderProps> = ({
         currentPrincipalId !== uploadPrincipalIdRef.current &&
         (currentUploadState.isUploading ||
           currentUploadState.statusUnknown ||
-          currentUploadState.error !== null)
+          currentUploadState.error !== null ||
+          currentUploadState.progress?.completed === true)
       ) {
         return null
       }
@@ -365,8 +374,40 @@ export const CaptureUploadProvider: React.FC<CaptureUploadProviderProps> = ({
     }
   }, [principalId, setUploadReservation])
 
+  useLayoutEffect(() => {
+    if (
+      open &&
+      uploadPrincipalId === principalId &&
+      !uploadState.isUploading &&
+      !uploadState.statusUnknown &&
+      (uploadState.error !== null || uploadState.progress?.completed === true)
+    ) {
+      terminalResultPresentedWhileOpenRef.current = true
+    }
+  }, [
+    open,
+    principalId,
+    uploadPrincipalId,
+    uploadState.error,
+    uploadState.isUploading,
+    uploadState.progress,
+    uploadState.statusUnknown,
+  ])
+
   useEffect(() => {
-    if (open || uploadInFlightRef.current || uploadState.statusUnknown) return
+    const hasTerminalResult =
+      uploadState.error !== null || uploadState.progress?.completed === true
+    if (
+      open ||
+      uploadInFlightRef.current ||
+      uploadState.statusUnknown ||
+      (hasTerminalResult &&
+        (uploadPrincipalId !== principalId ||
+          !terminalResultPresentedWhileOpenRef.current))
+    ) {
+      return
+    }
+    terminalResultPresentedWhileOpenRef.current = false
     const resetState: UploadState = {
       isUploading: false,
       progress: null,
@@ -384,8 +425,12 @@ export const CaptureUploadProvider: React.FC<CaptureUploadProviderProps> = ({
   }, [
     clearReportDraft,
     open,
+    principalId,
     setUploadPrincipalId,
+    uploadPrincipalId,
+    uploadState.error,
     uploadState.isUploading,
+    uploadState.progress,
     uploadState.statusUnknown,
   ])
 
@@ -452,11 +497,19 @@ export const CaptureUploadProvider: React.FC<CaptureUploadProviderProps> = ({
         currentPrincipalId !== uploadPrincipalIdRef.current &&
         (currentUploadState.isUploading ||
           currentUploadState.statusUnknown ||
-          currentUploadState.error !== null)
+          currentUploadState.error !== null ||
+          currentUploadState.progress?.completed === true)
       ) {
         return false
       }
       if (currentPrincipalId === null) return false
+      if (
+        currentUploadState.error !== null &&
+        currentPrincipalId === uploadPrincipalIdRef.current &&
+        source !== currentUploadState.uploadSource
+      ) {
+        return false
+      }
 
       const reservation = uploadReservationRef.current
       if (reservationId === undefined) {
@@ -474,6 +527,7 @@ export const CaptureUploadProvider: React.FC<CaptureUploadProviderProps> = ({
       }
 
       if (reservationId !== undefined) setUploadReservation(null)
+      terminalResultPresentedWhileOpenRef.current = false
       uploadInFlightRef.current = true
       enqueuePendingRef.current = true
       const generation = ++uploadGenerationRef.current
@@ -489,12 +543,7 @@ export const CaptureUploadProvider: React.FC<CaptureUploadProviderProps> = ({
         uploadProjectId: projectId,
       })
 
-      console.log(
-        '[capture] enqueueUpload called',
-        { projectId, title, recordingMode },
-        'agent:',
-        agent
-      )
+      console.log('[capture] enqueueUpload called', { recordingMode })
       try {
         const selected = getSelectedRecording()
         const byteStrings = serializeEvents(selected.events)

@@ -11815,22 +11815,605 @@
                               "content": "Create Bug Report"
                             }
                           }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "PERR0001",
+                  "name": "Capture: Review — project catalog error",
+                  "x": 6760,
+                  "y": 0,
+                  "width": 1440,
+                  "height": 960,
+                  "fill": "$color-bg-subtle",
+                  "layout": "horizontal",
+                  "gap": "$spacing-2xl",
+                  "padding": "$spacing-3xl",
+                  "clip": true,
+                  "metadata": {
+                    "type": "screen",
+                    "stateFamily": "screens/capture/review",
+                    "state": "error"
+                  },
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "PERR0002",
+                      "name": "Playback region",
+                      "width": "fill_container",
+                      "height": "fill_container",
+                      "layout": "vertical",
+                      "gap": "$spacing-md",
+                      "children": [
+                        {
+                          "type": "ref",
+                          "id": "PERR0003",
+                          "ref": "JFccj",
+                          "name": "Playback heading",
+                          "width": "fill_container",
+                          "descendants": {
+                            "F4X4h": {
+                              "content": "Recording playback"
+                            },
+                            "oDVi3": {
+                              "content": "Captured page preview and timeline controls"
+                            }
+                          }
+                        },
+                        {
+                          "type": "frame",
+                          "id": "PERR0004",
+                          "name": "Playback viewport",
+                          "width": "fill_container",
+                          "height": "fill_container",
+                          "fill": "$color-bg-surface",
+                          "cornerRadius": "$radius-sm",
+                          "stroke": "$color-border-default",
+                          "strokeWidth": 1,
+                          "layout": "vertical",
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "gap": "$spacing-md",
+                          "padding": "$spacing-2xl",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "PERR0005",
+                              "name": "Playback label",
+                              "width": "fill_container",
+                              "textGrowth": "fixed-width",
+                              "fill": "$color-text-secondary",
+                              "content": "Captured browser session",
+                              "lineHeight": 1.25,
+                              "fontFamily": "$font-sans",
+                              "fontSize": "$font-size-lg",
+                              "fontWeight": "600",
+                              "textAlign": "center"
+                            },
+                            {
+                              "type": "text",
+                              "id": "PERR0006",
+                              "name": "Playback description",
+                              "width": "fill_container",
+                              "textGrowth": "fixed-width",
+                              "fill": "$color-text-muted",
+                              "content": "The recorded page remains available to inspect.",
+                              "lineHeight": 1.5,
+                              "fontFamily": "$font-sans",
+                              "fontSize": "$font-size-sm",
+                              "fontWeight": "normal",
+                              "textAlign": "center"
+                            },
+                            {
+                              "type": "text",
+                              "id": "PERR0007",
+                              "name": "Playback timeline",
+                              "width": "fill_container",
+                              "textGrowth": "fixed-width",
+                              "fill": "$color-text-secondary",
+                              "content": "00:42  ·  Timeline and events",
+                              "lineHeight": 1.5,
+                              "fontFamily": "$font-sans",
+                              "fontSize": "$font-size-xs",
+                              "fontWeight": "600",
+                              "textAlign": "center"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "ref",
+                      "id": "PERR0008",
+                      "ref": "JFccj",
+                      "name": "Bug report form",
+                      "width": 420,
+                      "height": "fill_container",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "PERR0009",
+                          "name": "Form title",
+                          "width": "fill_container",
+                          "textGrowth": "fixed-width",
+                          "fill": "$color-text-default",
+                          "content": "Create a bug report",
+                          "lineHeight": 1.25,
+                          "fontFamily": "$font-sans",
+                          "fontSize": "$font-size-lg",
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "PERR0010",
+                          "name": "Form introduction",
+                          "width": "fill_container",
+                          "textGrowth": "fixed-width",
+                          "fill": "$color-text-secondary",
+                          "content": "Choose a project and describe what happened.",
+                          "lineHeight": 1.5,
+                          "fontFamily": "$font-sans",
+                          "fontSize": "$font-size-sm",
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "PERR0011",
+                          "name": "Project selection",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": "$spacing-sm",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "PERR0012",
+                              "name": "Project label",
+                              "fill": "$color-text-label",
+                              "content": "Project",
+                              "fontFamily": "$font-sans",
+                              "fontSize": "$font-size-sm",
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "ref",
+                              "id": "PERR0020",
+                              "ref": "flKba",
+                              "name": "Project catalog error",
+                              "width": "fill_container",
+                              "fill": "$color-danger-tint",
+                              "stroke": "$color-danger-border-subtle",
+                              "descendants": {
+                                "KRLm1": {
+                                  "fill": "$color-danger"
+                                },
+                                "aXE4T": {
+                                  "fill": "$color-danger",
+                                  "content": "Projects could not be loaded. Check your connection and try again."
+                                }
+                              }
+                            },
+                            {
+                              "type": "ref",
+                              "id": "PERR0021",
+                              "ref": "eqZG0",
+                              "name": "Retry project catalog",
+                              "fill": "$color-primary",
+                              "descendants": {
+                                "s0ellJ": {
+                                  "content": "Retry"
+                                }
+                              }
+                            }
+                          ]
                         },
                         {
                           "type": "ref",
-                          "id": "A1702",
-                          "ref": "flKba",
-                          "name": "Sign-in prompt",
+                          "id": "PERR0015",
+                          "ref": "Q6CWT",
+                          "name": "Title field",
                           "width": "fill_container",
                           "descendants": {
-                            "aXE4T": {
-                              "content": "Sign in to submit. Your project and report details will stay here."
+                            "WGsF1": {
+                              "content": "Title"
+                            },
+                            "Mtldk": {
+                              "width": "fill_container"
+                            },
+                            "k7Szg": {
+                              "content": "What is the bug?",
+                              "fill": "$color-text-muted"
+                            },
+                            "v16Rdg": {
+                              "content": ""
                             }
                           }
                         },
                         {
                           "type": "ref",
-                          "id": "B1703",
+                          "id": "PERR0016",
+                          "ref": "Q6CWT",
+                          "name": "Description field",
+                          "width": "fill_container",
+                          "descendants": {
+                            "WGsF1": {
+                              "content": "Description"
+                            },
+                            "Mtldk": {
+                              "width": "fill_container",
+                              "height": 136,
+                              "alignItems": "start",
+                              "padding": [
+                                "$spacing-md",
+                                "$spacing-lg"
+                              ]
+                            },
+                            "k7Szg": {
+                              "content": "What else would help reproduce it?",
+                              "fill": "$color-text-muted",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container"
+                            },
+                            "v16Rdg": {
+                              "content": ""
+                            }
+                          }
+                        },
+                        {
+                          "type": "ref",
+                          "id": "PERR0017",
+                          "ref": "eqZG0",
+                          "name": "Create Bug Report",
+                          "fill": "$color-bg-muted",
+                          "descendants": {
+                            "s0ellJ": {
+                              "content": "Create Bug Report",
+                              "fill": "$color-text-muted"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "RTRY0001",
+                  "name": "Capture report: enqueue retry",
+                  "x": 8320,
+                  "y": 0,
+                  "width": 560,
+                  "height": 720,
+                  "fill": "$color-bg-surface",
+                  "layout": "vertical",
+                  "gap": "$spacing-md",
+                  "padding": "$spacing-2xl",
+                  "clip": true,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "RTRY0002",
+                      "name": "Form title",
+                      "width": "fill_container",
+                      "textGrowth": "fixed-width",
+                      "fill": "$color-text-default",
+                      "content": "Create a bug report",
+                      "lineHeight": 1.25,
+                      "fontFamily": "$font-sans",
+                      "fontSize": "$font-size-lg",
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "RTRY0003",
+                      "name": "Form introduction",
+                      "width": "fill_container",
+                      "textGrowth": "fixed-width",
+                      "fill": "$color-text-secondary",
+                      "content": "Your captured recording and report details are ready to send.",
+                      "lineHeight": 1.5,
+                      "fontFamily": "$font-sans",
+                      "fontSize": "$font-size-sm",
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "RTRY0004",
+                      "name": "Project selection",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": "$spacing-sm",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "RTRY0005",
+                          "name": "Project label",
+                          "fill": "$color-text-label",
+                          "content": "Project",
+                          "fontFamily": "$font-sans",
+                          "fontSize": "$font-size-sm",
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "ref",
+                          "id": "RTRY0006",
+                          "ref": "mOtgf",
+                          "name": "Project select",
+                          "width": "fill_container",
+                          "descendants": {
+                            "oe0kK": {
+                              "width": "fill_container"
+                            },
+                            "glajW": {
+                              "content": "MVP Pilot"
+                            },
+                            "UZ8IN": {
+                              "width": "fill_container"
+                            },
+                            "DW3Eb": {
+                              "content": "MVP Pilot"
+                            },
+                            "uQ081": {
+                              "content": "Product bugs"
+                            },
+                            "aCOsd": {
+                              "content": "Create new project…"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "type": "ref",
+                      "id": "RTRY0007",
+                      "ref": "flKba",
+                      "name": "Report enqueue error",
+                      "width": "fill_container",
+                      "fill": "$color-danger-tint",
+                      "stroke": "$color-danger-border-subtle",
+                      "descendants": {
+                        "KRLm1": {
+                          "fill": "$color-danger"
+                        },
+                        "aXE4T": {
+                          "fill": "$color-danger",
+                          "content": "Report could not be sent. Your connection may have dropped. Check it and select Retry report."
+                        }
+                      }
+                    },
+                    {
+                      "type": "ref",
+                      "id": "RTRY0008",
+                      "ref": "Q6CWT",
+                      "name": "Title field",
+                      "width": "fill_container",
+                      "descendants": {
+                        "WGsF1": {
+                          "content": "Title"
+                        },
+                        "Mtldk": {
+                          "width": "fill_container"
+                        },
+                        "k7Szg": {
+                          "content": "What is the bug?",
+                          "fill": "$color-text-muted"
+                        },
+                        "v16Rdg": {
+                          "content": "Checkout fails after selecting delivery"
+                        }
+                      }
+                    },
+                    {
+                      "type": "ref",
+                      "id": "RTRY0009",
+                      "ref": "Q6CWT",
+                      "name": "Description field",
+                      "width": "fill_container",
+                      "descendants": {
+                        "WGsF1": {
+                          "content": "Description"
+                        },
+                        "Mtldk": {
+                          "width": "fill_container",
+                          "height": 136,
+                          "alignItems": "start",
+                          "padding": [
+                            "$spacing-md",
+                            "$spacing-lg"
+                          ]
+                        },
+                        "k7Szg": {
+                          "content": "What else would help reproduce it?",
+                          "fill": "$color-text-muted",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container"
+                        },
+                        "v16Rdg": {
+                          "content": "The page shows an error after choosing a delivery option."
+                        }
+                      }
+                    },
+                    {
+                      "type": "ref",
+                      "id": "RTRY0010",
+                      "ref": "eqZG0",
+                      "name": "Retry report",
+                      "fill": "$color-primary",
+                      "descendants": {
+                        "s0ellJ": {
+                          "content": "Retry report"
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "group",
+                  "id": "82497978-31e6-52fd-8fe7-3144e2382739",
+                  "name": "signed-out-submit",
+                  "x": 0,
+                  "y": 0,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "AUTH0001",
+                      "name": "Capture report: signed-out submit",
+                      "x": 0,
+                      "y": 0,
+                      "width": 560,
+                      "height": 720,
+                      "fill": "$color-bg-surface",
+                      "layout": "vertical",
+                      "gap": "$spacing-md",
+                      "padding": "$spacing-2xl",
+                      "clip": true,
+                      "metadata": {
+                        "type": "screen",
+                        "stateFamily": "screens/capture/review/signed-out-submit",
+                        "state": "content"
+                      },
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "AUTH0002",
+                          "name": "Form title",
+                          "width": "fill_container",
+                          "textGrowth": "fixed-width",
+                          "fill": "$color-text-default",
+                          "content": "Create a bug report",
+                          "lineHeight": 1.25,
+                          "fontFamily": "$font-sans",
+                          "fontSize": "$font-size-lg",
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "AUTH0003",
+                          "name": "Form introduction",
+                          "width": "fill_container",
+                          "textGrowth": "fixed-width",
+                          "fill": "$color-text-secondary",
+                          "content": "Sign in to submit; your report details will stay here.",
+                          "lineHeight": 1.5,
+                          "fontFamily": "$font-sans",
+                          "fontSize": "$font-size-sm",
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "AUTH0004",
+                          "name": "Project selection",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": "$spacing-sm",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "AUTH0005",
+                              "name": "Project label",
+                              "fill": "$color-text-label",
+                              "content": "Project",
+                              "fontFamily": "$font-sans",
+                              "fontSize": "$font-size-sm",
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "text",
+                              "id": "AUTH0006",
+                              "name": "Signed-out project prompt",
+                              "width": "fill_container",
+                              "textGrowth": "fixed-width",
+                              "fill": "$color-text-muted",
+                              "content": "Sign in to choose a project",
+                              "lineHeight": 1.5,
+                              "fontFamily": "$font-sans",
+                              "fontSize": "$font-size-sm",
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "ref",
+                          "id": "AUTH0007",
+                          "ref": "Q6CWT",
+                          "name": "Title field",
+                          "width": "fill_container",
+                          "descendants": {
+                            "WGsF1": {
+                              "content": "Title"
+                            },
+                            "Mtldk": {
+                              "width": "fill_container"
+                            },
+                            "k7Szg": {
+                              "content": "Checkout fails after selecting delivery",
+                              "fill": "$color-text-default"
+                            },
+                            "v16Rdg": {
+                              "content": "Checkout fails after selecting delivery"
+                            }
+                          }
+                        },
+                        {
+                          "type": "ref",
+                          "id": "AUTH0008",
+                          "ref": "Q6CWT",
+                          "name": "Description field",
+                          "width": "fill_container",
+                          "descendants": {
+                            "WGsF1": {
+                              "content": "Description"
+                            },
+                            "Mtldk": {
+                              "width": "fill_container",
+                              "height": 136,
+                              "alignItems": "start",
+                              "padding": [
+                                "$spacing-md",
+                                "$spacing-lg"
+                              ]
+                            },
+                            "k7Szg": {
+                              "content": "The page shows an error after choosing a delivery option.",
+                              "fill": "$color-text-default",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container"
+                            },
+                            "v16Rdg": {
+                              "content": "The page shows an error after choosing a delivery option."
+                            }
+                          }
+                        },
+                        {
+                          "type": "ref",
+                          "id": "AUTH0009",
+                          "ref": "eqZG0",
+                          "name": "Create Bug Report",
+                          "fill": "$color-bg-muted",
+                          "descendants": {
+                            "s0ellJ": {
+                              "content": "Create Bug Report",
+                              "fill": "$color-text-muted"
+                            }
+                          }
+                        },
+                        {
+                          "type": "ref",
+                          "id": "AUTH0010",
+                          "ref": "flKba",
+                          "name": "Sign-in prompt",
+                          "width": "fill_container",
+                          "descendants": {
+                            "aXE4T": {
+                              "content": "Sign in to Repro before submitting. Your report details will stay in place."
+                            }
+                          }
+                        },
+                        {
+                          "type": "ref",
+                          "id": "AUTH0011",
                           "ref": "eqZG0",
                           "name": "Sign in action",
                           "fill": "$color-info",
@@ -11841,6 +12424,774 @@
                           }
                         }
                       ]
+                    }
+                  ]
+                },
+                {
+                  "type": "group",
+                  "id": "6997fec5-350c-50a4-8520-c591ebfa2f2c",
+                  "name": "upload-status",
+                  "x": 0,
+                  "y": 0,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "UNK0001",
+                      "name": "Capture report: upload status unknown",
+                      "x": 0,
+                      "y": 0,
+                      "width": 560,
+                      "height": 720,
+                      "fill": "$color-bg-surface",
+                      "layout": "vertical",
+                      "gap": "$spacing-md",
+                      "padding": "$spacing-2xl",
+                      "clip": true,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "UNK0002",
+                          "name": "Form title",
+                          "width": "fill_container",
+                          "textGrowth": "fixed-width",
+                          "fill": "$color-text-default",
+                          "content": "Create a bug report",
+                          "lineHeight": 1.25,
+                          "fontFamily": "$font-sans",
+                          "fontSize": "$font-size-lg",
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "UNK0003",
+                          "name": "Form introduction",
+                          "width": "fill_container",
+                          "textGrowth": "fixed-width",
+                          "fill": "$color-text-secondary",
+                          "content": "We couldn't confirm whether your report finished uploading.",
+                          "lineHeight": 1.5,
+                          "fontFamily": "$font-sans",
+                          "fontSize": "$font-size-sm",
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "UNK0004",
+                          "name": "Project selection",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": "$spacing-sm",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "UNK0005",
+                              "name": "Project label",
+                              "fill": "$color-text-label",
+                              "content": "Project",
+                              "fontFamily": "$font-sans",
+                              "fontSize": "$font-size-sm",
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "ref",
+                              "id": "UNK0006",
+                              "ref": "mOtgf",
+                              "name": "Project select",
+                              "width": "fill_container",
+                              "descendants": {
+                                "oe0kK": {
+                                  "width": "fill_container"
+                                },
+                                "glajW": {
+                                  "content": "MVP Pilot"
+                                },
+                                "UZ8IN": {
+                                  "width": "fill_container"
+                                },
+                                "DW3Eb": {
+                                  "content": "MVP Pilot"
+                                },
+                                "uQ081": {
+                                  "content": "Product bugs"
+                                },
+                                "aCOsd": {
+                                  "content": "Create new project…"
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "type": "ref",
+                          "id": "UNK0007",
+                          "ref": "flKba",
+                          "name": "Upload status warning",
+                          "width": "fill_container",
+                          "fill": "$color-warning-tint",
+                          "stroke": "$color-warning-border-subtle",
+                          "descendants": {
+                            "KRLm1": {
+                              "fill": "$color-warning"
+                            },
+                            "aXE4T": {
+                              "fill": "$color-warning",
+                              "content": "This report may already be in your project. Check before retrying to avoid a duplicate."
+                            }
+                          }
+                        },
+                        {
+                          "type": "ref",
+                          "id": "UNK0008",
+                          "ref": "Q6CWT",
+                          "name": "Title field",
+                          "width": "fill_container",
+                          "descendants": {
+                            "WGsF1": {
+                              "content": "Title"
+                            },
+                            "Mtldk": {
+                              "width": "fill_container"
+                            },
+                            "k7Szg": {
+                              "content": "Checkout fails after selecting delivery",
+                              "fill": "$color-text-default"
+                            },
+                            "v16Rdg": {
+                              "content": "Checkout fails after selecting delivery"
+                            }
+                          }
+                        },
+                        {
+                          "type": "ref",
+                          "id": "UNK0009",
+                          "ref": "Q6CWT",
+                          "name": "Description field",
+                          "width": "fill_container",
+                          "descendants": {
+                            "WGsF1": {
+                              "content": "Description"
+                            },
+                            "Mtldk": {
+                              "width": "fill_container",
+                              "height": 136,
+                              "alignItems": "start",
+                              "padding": [
+                                "$spacing-md",
+                                "$spacing-lg"
+                              ]
+                            },
+                            "k7Szg": {
+                              "content": "The page shows an error after choosing a delivery option.",
+                              "fill": "$color-text-default",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container"
+                            },
+                            "v16Rdg": {
+                              "content": "The page shows an error after choosing a delivery option."
+                            }
+                          }
+                        },
+                        {
+                          "type": "ref",
+                          "id": "UNK0010",
+                          "ref": "eqZG0",
+                          "name": "Retry report anyway",
+                          "fill": "$color-primary",
+                          "descendants": {
+                            "s0ellJ": {
+                              "content": "Retry report anyway"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "UNKAC0001",
+                      "name": "Capture upload locked to account",
+                      "x": 600,
+                      "y": 0,
+                      "width": 560,
+                      "height": 280,
+                      "fill": "$color-bg-surface",
+                      "layout": "vertical",
+                      "gap": "$spacing-md",
+                      "padding": "$spacing-2xl",
+                      "clip": true,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "UNKAC0002",
+                          "name": "Form title",
+                          "width": "fill_container",
+                          "textGrowth": "fixed-width",
+                          "fill": "$color-text-default",
+                          "content": "Create a bug report",
+                          "lineHeight": 1.25,
+                          "fontFamily": "$font-sans",
+                          "fontSize": "$font-size-lg",
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "ref",
+                          "id": "UNKAC0003",
+                          "ref": "flKba",
+                          "name": "Account ownership notice",
+                          "width": "fill_container",
+                          "fill": "$color-warning-tint",
+                          "stroke": "$color-warning-border-subtle",
+                          "descendants": {
+                            "KRLm1": {
+                              "fill": "$color-warning"
+                            },
+                            "aXE4T": {
+                              "fill": "$color-warning",
+                              "content": "This upload belongs to another account. Sign in with the account that started it to review its status or retry it."
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "RSRVREP0001",
+                      "name": "Capture report: Save Recording needs resolution",
+                      "x": 1200,
+                      "y": 0,
+                      "width": 560,
+                      "height": 720,
+                      "fill": "$color-bg-surface",
+                      "layout": "vertical",
+                      "gap": "$spacing-md",
+                      "padding": "$spacing-2xl",
+                      "clip": true,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "RSRVREP0002",
+                          "name": "Form title",
+                          "width": "fill_container",
+                          "textGrowth": "fixed-width",
+                          "fill": "$color-text-default",
+                          "content": "Create a bug report",
+                          "lineHeight": 1.25,
+                          "fontFamily": "$font-sans",
+                          "fontSize": "$font-size-lg",
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "RSRVREP0003",
+                          "name": "Project selection",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": "$spacing-sm",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "RSRVREP0004",
+                              "name": "Project label",
+                              "fill": "$color-text-label",
+                              "content": "Project",
+                              "fontFamily": "$font-sans",
+                              "fontSize": "$font-size-sm",
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "ref",
+                              "id": "RSRVREP0005",
+                              "ref": "mOtgf",
+                              "name": "Project select",
+                              "width": "fill_container",
+                              "descendants": {
+                                "oe0kK": {
+                                  "width": "fill_container"
+                                },
+                                "glajW": {
+                                  "content": "MVP Pilot"
+                                },
+                                "UZ8IN": {
+                                  "width": "fill_container"
+                                },
+                                "DW3Eb": {
+                                  "content": "MVP Pilot"
+                                },
+                                "uQ081": {
+                                  "content": "Product bugs"
+                                },
+                                "aCOsd": {
+                                  "content": "Create new project…"
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "type": "ref",
+                          "id": "RSRVREP0006",
+                          "ref": "flKba",
+                          "name": "Save Recording upload reservation",
+                          "width": "fill_container",
+                          "descendants": {
+                            "aXE4T": {
+                              "content": "Wait for or retry Save Recording before submitting this report."
+                            }
+                          }
+                        },
+                        {
+                          "type": "ref",
+                          "id": "RSRVREP0007",
+                          "ref": "Q6CWT",
+                          "name": "Title field",
+                          "width": "fill_container",
+                          "descendants": {
+                            "WGsF1": {
+                              "content": "Title"
+                            },
+                            "Mtldk": {
+                              "width": "fill_container"
+                            },
+                            "k7Szg": {
+                              "content": "What is the bug?",
+                              "fill": "$color-text-muted"
+                            },
+                            "v16Rdg": {
+                              "content": "Checkout fails after selecting delivery"
+                            }
+                          }
+                        },
+                        {
+                          "type": "ref",
+                          "id": "RSRVREP0008",
+                          "ref": "Q6CWT",
+                          "name": "Description field",
+                          "width": "fill_container",
+                          "descendants": {
+                            "WGsF1": {
+                              "content": "Description"
+                            },
+                            "Mtldk": {
+                              "width": "fill_container",
+                              "height": 136,
+                              "alignItems": "start",
+                              "padding": [
+                                "$spacing-md",
+                                "$spacing-lg"
+                              ]
+                            },
+                            "k7Szg": {
+                              "content": "What else would help reproduce it?",
+                              "fill": "$color-text-muted",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container"
+                            },
+                            "v16Rdg": {
+                              "content": "The page shows an error after choosing a delivery option."
+                            }
+                          }
+                        },
+                        {
+                          "type": "ref",
+                          "id": "RSRVREP0009",
+                          "ref": "eqZG0",
+                          "name": "Create Bug Report disabled",
+                          "fill": "$color-bg-muted",
+                          "descendants": {
+                            "s0ellJ": {
+                              "content": "Create Bug Report",
+                              "fill": "$color-text-muted"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "group",
+              "id": "66f39fc3-8ec3-5ee2-9c76-c772f5d5c183",
+              "name": "save-recording",
+              "x": 0,
+              "y": 0,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "SAVEUNK0001",
+                  "name": "Capture: Save Recording — upload status unknown",
+                  "x": 0,
+                  "y": 0,
+                  "width": 400,
+                  "height": 520,
+                  "fill": "$color-bg-surface",
+                  "layout": "vertical",
+                  "gap": "$spacing-md",
+                  "padding": "$spacing-2xl",
+                  "clip": true,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "SAVEUNK0002",
+                      "name": "Popover title",
+                      "width": "fill_container",
+                      "textGrowth": "fixed-width",
+                      "fill": "$color-text-default",
+                      "content": "Save recording",
+                      "lineHeight": 1.25,
+                      "fontFamily": "$font-sans",
+                      "fontSize": "$font-size-lg",
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "ref",
+                      "id": "SAVEUNK0003",
+                      "ref": "flKba",
+                      "name": "Upload status warning",
+                      "width": "fill_container",
+                      "fill": "$color-warning-tint",
+                      "stroke": "$color-warning-border-subtle",
+                      "descendants": {
+                        "KRLm1": {
+                          "fill": "$color-warning"
+                        },
+                        "aXE4T": {
+                          "fill": "$color-warning",
+                          "content": "The recording may already be in your project. Check before retrying; retrying anyway may create a duplicate."
+                        }
+                      }
+                    },
+                    {
+                      "type": "frame",
+                      "id": "SAVEUNK0004",
+                      "name": "Project selection",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": "$spacing-sm",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "SAVEUNK0005",
+                          "name": "Project label",
+                          "fill": "$color-text-label",
+                          "content": "Project",
+                          "fontFamily": "$font-sans",
+                          "fontSize": "$font-size-sm",
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "ref",
+                          "id": "SAVEUNK0006",
+                          "ref": "mOtgf",
+                          "name": "Project select",
+                          "width": "fill_container",
+                          "descendants": {
+                            "oe0kK": {
+                              "width": "fill_container"
+                            },
+                            "glajW": {
+                              "content": "MVP Pilot"
+                            },
+                            "UZ8IN": {
+                              "width": "fill_container"
+                            },
+                            "DW3Eb": {
+                              "content": "MVP Pilot"
+                            },
+                            "uQ081": {
+                              "content": "Product bugs"
+                            },
+                            "aCOsd": {
+                              "content": "Create new project…"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "type": "ref",
+                      "id": "SAVEUNK0007",
+                      "ref": "Q6CWT",
+                      "name": "Recording title",
+                      "width": "fill_container",
+                      "descendants": {
+                        "WGsF1": {
+                          "content": "Title"
+                        },
+                        "Mtldk": {
+                          "width": "fill_container"
+                        },
+                        "k7Szg": {
+                          "content": "What did you record?",
+                          "fill": "$color-text-muted"
+                        },
+                        "v16Rdg": {
+                          "content": "Checkout reproduction"
+                        }
+                      }
+                    },
+                    {
+                      "type": "ref",
+                      "id": "SAVEUNK0008",
+                      "ref": "eqZG0",
+                      "name": "Retry save anyway",
+                      "fill": "$color-primary",
+                      "descendants": {
+                        "s0ellJ": {
+                          "content": "Retry save anyway"
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "SAVEERR0001",
+                  "name": "Capture: Save Recording — enqueue error",
+                  "x": 440,
+                  "y": 0,
+                  "width": 400,
+                  "height": 520,
+                  "fill": "$color-bg-surface",
+                  "layout": "vertical",
+                  "gap": "$spacing-md",
+                  "padding": "$spacing-2xl",
+                  "clip": true,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "SAVEERR0002",
+                      "name": "Popover title",
+                      "width": "fill_container",
+                      "textGrowth": "fixed-width",
+                      "fill": "$color-text-default",
+                      "content": "Save recording",
+                      "lineHeight": 1.25,
+                      "fontFamily": "$font-sans",
+                      "fontSize": "$font-size-lg",
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "ref",
+                      "id": "SAVEERR0003",
+                      "ref": "flKba",
+                      "name": "Save enqueue error",
+                      "width": "fill_container",
+                      "fill": "$color-danger-tint",
+                      "stroke": "$color-danger-border-subtle",
+                      "descendants": {
+                        "KRLm1": {
+                          "fill": "$color-danger"
+                        },
+                        "aXE4T": {
+                          "fill": "$color-danger",
+                          "content": "Recording could not be saved. Your connection may have dropped. Check it and try again."
+                        }
+                      }
+                    },
+                    {
+                      "type": "frame",
+                      "id": "SAVEERR0004",
+                      "name": "Project selection",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": "$spacing-sm",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "SAVEERR0005",
+                          "name": "Project label",
+                          "fill": "$color-text-label",
+                          "content": "Project",
+                          "fontFamily": "$font-sans",
+                          "fontSize": "$font-size-sm",
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "ref",
+                          "id": "SAVEERR0006",
+                          "ref": "mOtgf",
+                          "name": "Project select",
+                          "width": "fill_container",
+                          "descendants": {
+                            "oe0kK": {
+                              "width": "fill_container"
+                            },
+                            "glajW": {
+                              "content": "MVP Pilot"
+                            },
+                            "UZ8IN": {
+                              "width": "fill_container"
+                            },
+                            "DW3Eb": {
+                              "content": "MVP Pilot"
+                            },
+                            "uQ081": {
+                              "content": "Product bugs"
+                            },
+                            "aCOsd": {
+                              "content": "Create new project…"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "type": "ref",
+                      "id": "SAVEERR0007",
+                      "ref": "Q6CWT",
+                      "name": "Recording title",
+                      "width": "fill_container",
+                      "descendants": {
+                        "WGsF1": {
+                          "content": "Title"
+                        },
+                        "Mtldk": {
+                          "width": "fill_container"
+                        },
+                        "k7Szg": {
+                          "content": "What did you record?",
+                          "fill": "$color-text-muted"
+                        },
+                        "v16Rdg": {
+                          "content": "Checkout reproduction"
+                        }
+                      }
+                    },
+                    {
+                      "type": "ref",
+                      "id": "SAVEERR0008",
+                      "ref": "eqZG0",
+                      "name": "Retry save",
+                      "fill": "$color-primary",
+                      "descendants": {
+                        "s0ellJ": {
+                          "content": "Retry save"
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "RSRVSAVE0001",
+                  "name": "Capture: Save Recording — report needs resolution",
+                  "x": 1320,
+                  "y": 0,
+                  "width": 400,
+                  "height": 520,
+                  "fill": "$color-bg-surface",
+                  "layout": "vertical",
+                  "gap": "$spacing-md",
+                  "padding": "$spacing-2xl",
+                  "clip": true,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "RSRVSAVE0002",
+                      "name": "Popover title",
+                      "width": "fill_container",
+                      "textGrowth": "fixed-width",
+                      "fill": "$color-text-default",
+                      "content": "Save recording",
+                      "lineHeight": 1.25,
+                      "fontFamily": "$font-sans",
+                      "fontSize": "$font-size-lg",
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "ref",
+                      "id": "RSRVSAVE0003",
+                      "ref": "flKba",
+                      "name": "Report upload reservation",
+                      "width": "fill_container",
+                      "descendants": {
+                        "aXE4T": {
+                          "content": "Wait for or retry the report before saving this recording."
+                        }
+                      }
+                    },
+                    {
+                      "type": "frame",
+                      "id": "RSRVSAVE0004",
+                      "name": "Project selection",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": "$spacing-sm",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "RSRVSAVE0005",
+                          "name": "Project label",
+                          "fill": "$color-text-label",
+                          "content": "Project",
+                          "fontFamily": "$font-sans",
+                          "fontSize": "$font-size-sm",
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "ref",
+                          "id": "RSRVSAVE0006",
+                          "ref": "mOtgf",
+                          "name": "Project select",
+                          "width": "fill_container",
+                          "descendants": {
+                            "oe0kK": {
+                              "width": "fill_container"
+                            },
+                            "glajW": {
+                              "content": "MVP Pilot"
+                            },
+                            "UZ8IN": {
+                              "width": "fill_container"
+                            },
+                            "DW3Eb": {
+                              "content": "MVP Pilot"
+                            },
+                            "uQ081": {
+                              "content": "Product bugs"
+                            },
+                            "aCOsd": {
+                              "content": "Create new project…"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "type": "ref",
+                      "id": "RSRVSAVE0007",
+                      "ref": "Q6CWT",
+                      "name": "Recording title",
+                      "width": "fill_container",
+                      "descendants": {
+                        "WGsF1": {
+                          "content": "Title"
+                        },
+                        "Mtldk": {
+                          "width": "fill_container"
+                        },
+                        "k7Szg": {
+                          "content": "What did you record?",
+                          "fill": "$color-text-muted"
+                        },
+                        "v16Rdg": {
+                          "content": "Checkout reproduction"
+                        }
+                      }
+                    },
+                    {
+                      "type": "ref",
+                      "id": "RSRVSAVE0008",
+                      "ref": "eqZG0",
+                      "name": "Save disabled",
+                      "fill": "$color-bg-muted",
+                      "descendants": {
+                        "s0ellJ": {
+                          "content": "Save",
+                          "fill": "$color-text-muted"
+                        }
+                      }
                     }
                   ]
                 }

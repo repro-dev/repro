@@ -67,22 +67,27 @@ describe(
           button => button.closest('[aria-label="Save recording"]') === null
         )
       assert.ok(toolbarSave)
-      fireEvent.click(toolbarSave)
-      const accountBPopover = await screen.findByLabelText('Save recording')
-      const accountBTitle = within(accountBPopover).getByPlaceholderText(
-        'What did you record?'
-      ) as HTMLInputElement
-      assert.equal(accountBTitle.value, '')
+      assert.ok(
+        screen.getByText(
+          'This upload belongs to another account. Sign in with the account that started it to review its status or retry it.'
+        )
+      )
+      assert.equal((toolbarSave as HTMLButtonElement).disabled, true)
+      assert.equal(screen.queryByLabelText('Save recording'), null)
+      assert.equal(
+        screen.queryByDisplayValue('Account A completed title'),
+        null
+      )
+      assert.equal(screen.queryByText('MVP Pilot'), null)
+      assert.equal(uploadEnqueueCount(), 1)
 
-      fireEvent.input(accountBTitle, {
-        target: { value: 'Account B new title' },
-      })
       setSession('session-1')
 
       const ownerTitle = within(
         await screen.findByLabelText('Save recording')
       ).getByPlaceholderText('What did you record?') as HTMLInputElement
       assert.equal(ownerTitle.value, 'Account A completed title')
+      assert.ok(screen.getByRole('button', { name: 'Open in Repro' }))
       assert.equal(uploadEnqueueCount(), 1)
     })
 

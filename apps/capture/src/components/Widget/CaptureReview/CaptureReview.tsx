@@ -34,7 +34,9 @@ import {
 
 const DEFAULT_SELECTED_DURATION = 60_000
 const REPORT_RESERVATION_WAIT_MESSAGE =
-  'Save Recording is preparing an upload. Wait for it to finish before submitting this report.'
+  'Wait for or retry Save Recording before submitting this report.'
+const REPORT_ENQUEUE_FAILURE_MESSAGE =
+  'Report could not be sent. Your connection may have dropped. Check it and select Retry report.'
 const REPORT_UPLOAD_RETRY_MESSAGE =
   'Another upload is being prepared or active. Wait for it to finish, then try again.'
 
@@ -101,7 +103,8 @@ export const CaptureReview: React.FC<CaptureReviewProps> = ({
     uploadPrincipalId !== principalId &&
     (uploadState.isUploading ||
       uploadState.statusUnknown ||
-      uploadState.error !== null)
+      uploadState.error !== null ||
+      uploadState.progress?.completed === true)
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -128,9 +131,13 @@ export const CaptureReview: React.FC<CaptureReviewProps> = ({
     principalId: string | null
     choice: ProjectChoice
   }>({ principalId, choice: null })
+  const restoreReportProject =
+    (uploadState.statusUnknown && uploadState.uploadSource === 'report') ||
+    (uploadPrincipalId === principalId &&
+      uploadState.uploadSource === 'report' &&
+      uploadState.error !== null)
   const restoredProjectChoice: ProjectChoice =
-    uploadState.statusUnknown &&
-    uploadState.uploadSource === 'report' &&
+    restoreReportProject &&
     !projectsLoading &&
     !projectsError &&
     uploadState.uploadProjectId &&
@@ -213,6 +220,10 @@ export const CaptureReview: React.FC<CaptureReviewProps> = ({
     (projectChoice?.type === 'create' && projectChoice.name.trim().length > 0)
   const reportSubmissionBlockedByUnknownSave =
     uploadState.statusUnknown && uploadState.uploadSource === 'save-recording'
+  const reportBlockedBySaveError =
+    uploadPrincipalId === principalId &&
+    uploadState.uploadSource === 'save-recording' &&
+    uploadState.error !== null
   const submitDisabled =
     sessionLoading ||
     creatingProject ||
@@ -220,6 +231,7 @@ export const CaptureReview: React.FC<CaptureReviewProps> = ({
     uploadReservation !== null ||
     foreignUpload ||
     reportSubmissionBlockedByUnknownSave ||
+    reportBlockedBySaveError ||
     (session !== null && (projectsLoading || projectsError || !projectReady))
 
   const handleSignIn = useCallback(() => {
@@ -235,7 +247,8 @@ export const CaptureReview: React.FC<CaptureReviewProps> = ({
       if (
         sessionLoading ||
         foreignUpload ||
-        reportSubmissionBlockedByUnknownSave
+        reportSubmissionBlockedByUnknownSave ||
+        reportBlockedBySaveError
       ) {
         return
       }
@@ -343,6 +356,7 @@ export const CaptureReview: React.FC<CaptureReviewProps> = ({
       uploadReservation,
       setProjectChoice,
       reportSubmissionBlockedByUnknownSave,
+      reportBlockedBySaveError,
       projectsError,
       projectsLoading,
       projects,
@@ -448,7 +462,8 @@ export const CaptureReview: React.FC<CaptureReviewProps> = ({
                     session === null ||
                     uploadState.isUploading ||
                     uploadReservation !== null ||
-                    reportSubmissionBlockedByUnknownSave
+                    reportSubmissionBlockedByUnknownSave ||
+                    reportBlockedBySaveError
                   }
                   creating={creatingProject}
                   error={projectError}
@@ -458,6 +473,10 @@ export const CaptureReview: React.FC<CaptureReviewProps> = ({
                   uploadReservation.principalId === principalId && (
                     <Alert type="info">{REPORT_RESERVATION_WAIT_MESSAGE}</Alert>
                   )}
+
+                {reportBlockedBySaveError && (
+                  <Alert type="info">{REPORT_RESERVATION_WAIT_MESSAGE}</Alert>
+                )}
 
                 {uploadState.statusUnknown &&
                   uploadPrincipalId === principalId &&
@@ -496,8 +515,7 @@ export const CaptureReview: React.FC<CaptureReviewProps> = ({
                   uploadState.uploadSource === 'report' &&
                   uploadState.error && (
                     <Alert type="danger">
-                      Upload could not be started. Check your connection and try
-                      again.
+                      {REPORT_ENQUEUE_FAILURE_MESSAGE}
                     </Alert>
                   )}
               </>
