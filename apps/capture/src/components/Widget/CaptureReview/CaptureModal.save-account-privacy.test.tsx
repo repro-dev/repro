@@ -82,6 +82,14 @@ describe(
       assert.equal(uploadEnqueueCount(), 1)
 
       setSession('session-1')
+      const ownerSaveButton = screen
+        .getAllByRole('button', { name: /^Save$/ })
+        .find(
+          button => button.closest('[aria-label="Save recording"]') === null
+        )
+      assert.ok(ownerSaveButton)
+      assert.equal((ownerSaveButton as HTMLButtonElement).disabled, false)
+      fireEvent.click(ownerSaveButton)
 
       const ownerTitle = within(
         await screen.findByLabelText('Save recording')
