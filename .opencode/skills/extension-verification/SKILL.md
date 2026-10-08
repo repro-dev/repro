@@ -37,6 +37,8 @@ When the installed `agent-browser` launch does not accept extension-load flags, 
 
 For capture-extension work, first run `reproctl start --wait capture`, then use a fresh profile and the current worktree's `apps/capture/dist`:
 
+Before running the snippet, set `TARGET_URL` to the local host page under test (for example, `http://localhost:3000`; use the port for your running app, since this example may not be available in every setup).
+
 ```bash
 EVIDENCE="$PWD/tmp/extension-verification/<issue-or-surface>"
 mkdir -p "$EVIDENCE/profile" "$EVIDENCE/logs"
