@@ -31,6 +31,29 @@ Use the service that matches the extension you are verifying:
 
 The common pattern is to use `reproctl start --wait <service>` so the extension build/watch pipeline and any required local services are ready before browser automation begins.
 
+## Attaching agent-browser to an isolated extension build
+
+When the installed `agent-browser` launch does not accept extension-load flags, launch a headed Chromium directly with the worktree build and a loopback CDP port, then attach `agent-browser` to it. `agent-browser open` by itself launches its own browser and does not load a worktree extension.
+
+For capture-extension work, first run `reproctl start --wait capture`, then use a fresh profile and the current worktree's `apps/capture/dist`:
+
+```bash
+EVIDENCE="$PWD/tmp/extension-verification/<issue-or-surface>"
+mkdir -p "$EVIDENCE/profile" "$EVIDENCE/logs"
+CHROME="$(pnpm exec node -e "console.log(require('@playwright/test').chromium.executablePath())")"
+"$CHROME" \
+  --remote-debugging-address=127.0.0.1 \
+  --remote-debugging-port=9222 \
+  --user-data-dir="$EVIDENCE/profile" \
+  --disable-extensions-except="$PWD/apps/capture/dist" \
+  --load-extension="$PWD/apps/capture/dist" \
+  --no-first-run "$TARGET_URL" \
+  >"$EVIDENCE/logs/chrome.log" 2>&1 &
+agent-browser --session <worktree-scoped-session> connect 9222
+```
+
+Choose an unused CDP port. Use the headed browser for extension support; keep the profile and screenshots in the worktree evidence directory, and close the browser/session after verification. `reproctl launch capture` is a transitional preview that uses a persistent profile outside the worktree and does not expose a CDP port, so it is not the isolated attachment path.
+
 ## Shared browser state
 
 Keep browser state that should survive across worktrees in the main checkout `tmp/` tree:

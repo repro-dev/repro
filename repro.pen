@@ -11817,6 +11817,151 @@
                           }
                         }
                       ]
+                    },
+                    {
+                      "type": "ref",
+                      "id": "B7870",
+                      "ref": "eqZG0",
+                      "name": "Privacy Controls trigger",
+                      "x": 1234,
+                      "y": 6,
+                      "layoutPosition": "absolute",
+                      "fill": "transparent",
+                      "stroke": "transparent",
+                      "strokeWidth": 0,
+                      "effect": [],
+                      "descendants": {
+                        "s0ellJ": {
+                          "content": "Privacy Controls",
+                          "fill": "$color-info"
+                        }
+                      }
+                    },
+                    {
+                      "type": "ref",
+                      "id": "P7870",
+                      "ref": "Of9O1",
+                      "name": "Privacy Controls popover",
+                      "x": 1000,
+                      "y": 50,
+                      "layoutPosition": "absolute",
+                      "width": 360,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "T7870",
+                          "name": "Title",
+                          "fill": "$color-text-default",
+                          "content": "Privacy Controls",
+                          "lineHeight": 1,
+                          "fontFamily": "$font-sans",
+                          "fontSize": "$font-size-sm",
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "text",
+                          "id": "D7870",
+                          "name": "Disclosure",
+                          "fill": "$color-text-secondary",
+                          "textGrowth": "fixed-width",
+                          "width": 328,
+                          "content": "These controls mask or omit page elements that match your selectors. Scalar JSON, non-JSON text, and binary HTTP bodies may be recorded unchanged.",
+                          "lineHeight": 1.5,
+                          "fontFamily": "$font-sans",
+                          "fontSize": "$font-size-sm",
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "ref",
+                          "id": "T7871",
+                          "ref": "Q6CWT",
+                          "name": "Masked selectors",
+                          "width": "fill_container",
+                          "descendants": {
+                            "WGsF1": {
+                              "content": "Masked selectors"
+                            },
+                            "Mtldk": {
+                              "width": "fill_container"
+                            },
+                            "k7Szg": {
+                              "content": "Mask content matching (e.g. .my-class)",
+                              "fill": "$color-text-muted"
+                            },
+                            "v16Rdg": {
+                              "content": "Content within matching elements is replaced with placeholder text.",
+                              "fill": "$color-text-secondary",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container"
+                            }
+                          }
+                        },
+                        {
+                          "type": "ref",
+                          "id": "T7872",
+                          "ref": "Q6CWT",
+                          "name": "Ignored selectors",
+                          "width": "fill_container",
+                          "descendants": {
+                            "WGsF1": {
+                              "content": "Ignored selectors"
+                            },
+                            "Mtldk": {
+                              "width": "fill_container"
+                            },
+                            "k7Szg": {
+                              "content": "Exclude elements matching (e.g. .ignore-me)",
+                              "fill": "$color-text-muted"
+                            },
+                            "v16Rdg": {
+                              "content": "Matching elements are omitted from the recording entirely.",
+                              "fill": "$color-text-secondary",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container"
+                            }
+                          }
+                        },
+                        {
+                          "type": "frame",
+                          "id": "R7870",
+                          "name": "Privacy actions",
+                          "width": "fill_container",
+                          "layout": "horizontal",
+                          "gap": "$spacing-sm",
+                          "alignItems": "center",
+                          "justifyContent": "flex-end",
+                          "children": [
+                            {
+                              "type": "ref",
+                              "id": "B7871",
+                              "ref": "eqZG0",
+                              "name": "Reset to defaults",
+                              "opacity": 0.5,
+                              "fill": "transparent",
+                              "stroke": "transparent",
+                              "strokeWidth": 0,
+                              "effect": [],
+                              "descendants": {
+                                "s0ellJ": {
+                                  "content": "Reset to defaults",
+                                  "fill": "$color-text-muted"
+                                }
+                              }
+                            },
+                            {
+                              "type": "ref",
+                              "id": "B7872",
+                              "ref": "eqZG0",
+                              "name": "Apply",
+                              "descendants": {
+                                "s0ellJ": {
+                                  "content": "Apply"
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      ]
                     }
                   ]
                 },
