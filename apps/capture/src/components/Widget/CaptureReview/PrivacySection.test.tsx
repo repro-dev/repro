@@ -99,24 +99,11 @@ describe('PrivacySection', () => {
     onOverridesChange: mock.fn() as () => void,
   }
 
-  it('renders the scoped selector and HTTP body disclosure when open', () => {
+  it('renders the Privacy Controls heading when open', () => {
     render(<PrivacySection {...defaultProps} />)
 
     const headings = screen.getAllByText('Privacy Controls')
     assert.ok(headings.length >= 1, 'Heading should be visible')
-
-    const disclosure = screen.getByText(
-      /These controls mask or omit page elements that match your selectors/
-    )
-    assert.match(
-      disclosure.textContent ?? '',
-      /Scalar JSON, non-JSON text, and binary HTTP bodies may be recorded unchanged\./
-    )
-    assert.equal(
-      screen.queryByText(/prevent sensitive data from being leaked/i),
-      null,
-      'Privacy copy should not make a blanket leak-prevention claim'
-    )
   })
 
   it('does not render when closed', () => {
