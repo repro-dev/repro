@@ -241,8 +241,9 @@ export const PrivacySection: React.FC<PrivacySectionProps> = ({
           <Col gap={spacing.xs}>
             <Text variant="heading3">Privacy Controls</Text>
             <Text variant="caption" color={color.text.secondary}>
-              Apply masking and content suppression to this recording to prevent
-              sensitive data from being leaked.
+              These controls mask or omit page elements that match your
+              selectors. Scalar JSON, non-JSON text, and binary HTTP bodies may
+              be recorded unchanged.
             </Text>
           </Col>
 

@@ -99,14 +99,11 @@ describe('PrivacySection', () => {
     onOverridesChange: mock.fn() as () => void,
   }
 
-  it('renders heading and subtitle when open', () => {
+  it('renders the Privacy Controls heading when open', () => {
     render(<PrivacySection {...defaultProps} />)
 
     const headings = screen.getAllByText('Privacy Controls')
     assert.ok(headings.length >= 1, 'Heading should be visible')
-
-    const subtitle = screen.getByText(/Apply masking and content suppression/)
-    assert.ok(subtitle, 'Subtitle should be visible')
   })
 
   it('does not render when closed', () => {
