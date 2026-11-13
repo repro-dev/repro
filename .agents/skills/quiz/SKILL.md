@@ -33,7 +33,7 @@ If an issue ID was already provided via the command (e.g. `/quiz REP-1430`), use
 
 Otherwise, run `git branch --show-current` and extract the first match of `REP-\d+`.
 
-- If no match found, use the `question` tool: "Which issue did you just deliver? (e.g., REP-123)"
+- If no match found, use the `AskUserQuestion` tool: "Which issue did you just deliver? (e.g., REP-123)"
 - If the user provides a blank answer, proceed with whatever source material is available and skip issue-based question categories.
 
 #### 2b. Fetch Linear issue
@@ -160,7 +160,7 @@ Draw from available source material across these categories. Skip any category w
 
 ### Format rules
 
-- **Multiple-choice** (use `question` tool with `question` + `options`): For concrete details — function names, file paths, specific values, parameter types. Use `multiple: false` for single-select.
+- **Multiple-choice** (use `AskUserQuestion` tool with `question` + `options`): For concrete details — function names, file paths, specific values, parameter types. Use `multiSelect: false` for single-select.
 - **Free-text** (print the question, wait for user response): For understanding — design rationale, tradeoff analysis, conceptual understanding.
 - Aim for at least 50% free-text questions, biasing toward free-text when the source material supports comprehension-based questions. Multiple-choice questions should not exceed 50% of the total. Adjust exact ratios based on available material.
 - **Deterministic correct-option placement**: Maintain a running count per 0-based slot of how many times the correct answer has landed in that slot across the quiz session (add `slotCounts: number[]` to the ephemeral state tracked in Phase 4). For each new multiple-choice question with N options:
@@ -168,7 +168,7 @@ Draw from available source material across these categories. Skip any category w
   2. Find the slot(s) among 1..N−1 with the lowest count. If there is a single least-used slot, use it.
   3. On a tie: let `tiedSlots` be the array of tied slot indices, ordered ascending. Compute `tieBreakIndex = (character count of the correct answer's label) mod (length of tiedSlots)`. Select `tiedSlots[tieBreakIndex]` as the chosen slot.
   4. Place the correct answer in the chosen slot. Distribute the remaining (incorrect) options into the other slots in any order.
-  5. Before calling the `question` tool, verify that the correct answer is at the chosen slot index in the `options` array. If it is not, redo the placement.
+  5. Before calling the `AskUserQuestion` tool, verify that the correct answer is at the chosen slot index in the `options` array. If it is not, redo the placement.
   6. Increment `slotCounts[chosenSlot]` by 1.
 - Shuffle question order to vary category sequencing (question-order randomization is independent of answer-option placement).
 - **All options require descriptions**: Every multiple-choice option must include both a `label` and a `description`. The `label` is the option text shown to the user; the `description` is a brief explanation of why the option is relevant (used during evaluation). All options — both correct and incorrect — must have non-empty descriptions. Never leave a description blank. Descriptions must sound equally plausible regardless of whether the option is correct; an incorrect option's description should explain the reasoning or misconception that makes it seem plausible, not invalidate it or reveal it is wrong.
@@ -180,7 +180,7 @@ Present questions one at a time. Do not reveal the next question until the curre
 
 ### For multiple-choice questions
 
-1. Present the question using the `question` tool as the sole first presentation. Do not print the question as plain text before or after the tool call — the `question` tool's own rendering is the entire presentation. Configure: `question` tool with `header`, `question` string, `options` array, and `multiple: false`.
+1. Present the question using the `AskUserQuestion` tool as the sole first presentation. Do not print the question as plain text before or after the tool call — the `AskUserQuestion` tool's own rendering is the entire presentation. Configure: `AskUserQuestion` tool with `header`, `question` string, `options` array, and `multiSelect: false`.
 2. Populate the `options` array: every option object must include both a `label` (the option text) and a `description` (a brief explanation tied to the source material). All options — correct and incorrect — require non-empty descriptions. Descriptions must sound plausible regardless of correctness; an incorrect option's description should explain a reasoning path or misconception that makes that option seem credible, not betray that it is wrong.
 3. After the user answers, evaluate against the known correct answer chosen during generation.
 4. Print: "Correct!" or "Incorrect." followed by the correct answer and a brief explanation tied to the source material.
@@ -251,7 +251,7 @@ If all categories are weak (<60%), print: "Consider re-reading the full diff and
 
 | Condition | Behavior |
 |---|---|
-| No issue ID, no PR number, and no committed branch diff vs origin/main | Ask user via `question` tool |
+| No issue ID, no PR number, and no committed branch diff vs origin/main | Ask user via `AskUserQuestion` tool |
 | Branch mode (no issue or PR, committed diff exists) | Skip Linear, tmp/ artifacts, and issue-dependent categories; design-decision questions become inference; note "diff-only quiz" in summary |
 | `linear` CLI unavailable | Skip issue-based categories; note in summary |
 | `gh` CLI unavailable (PR mode) | Skip PR diff; fall back to issue description only if a Linear ID was extracted from PR body |

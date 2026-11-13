@@ -46,7 +46,7 @@ All file operations MUST use absolute paths under the worktree provided in the p
 
 ## Defensive patch verification
 
-Do not treat `apply_patch` success as proof that the file now matches the intended edit.
+Do not treat a successful `Edit` or `Write` call as proof that the file now matches the intended edit.
 
 Use a defensive edit loop selectively:
 
