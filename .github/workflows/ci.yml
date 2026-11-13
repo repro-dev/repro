@@ -103,6 +103,9 @@ jobs:
       - name: Run tooling config regression test
         run: pnpm run test:tooling-config
 
+      - name: Check generated Claude Code agent definitions are current
+        run: pnpm run agents:check
+
       - name: Get Moon cache
         uses: actions/cache@v3
         with:
