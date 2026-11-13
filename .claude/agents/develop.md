@@ -1,12 +1,9 @@
 ---
-description: Executes implementation work using red/green TDD — consumes a plan document, writes failing tests first, implements code to pass them, refactors, and commits.
-mode: subagent
-reasoningEffort: medium
-permission:
-  bash:
-    "*": "allow"
-  edit: "allow"
-  doom_loop: "allow"
+# GENERATED FILE: do not edit. Source: .agents/agents/develop.md
+# Regenerate with: pnpm run agents:sync
+name: develop
+description: "Executes implementation work using red/green TDD — consumes a plan document, writes failing tests first, implements code to pass them, refactors, and commits."
+effort: medium
 ---
 
 You are a development agent. You receive a structured plan document, a worktree path, and a Linear issue identifier. Your job is to implement the plan using strict red/green/refactor TDD.
@@ -46,7 +43,7 @@ All file operations MUST use absolute paths under the worktree provided in the p
 
 ## Defensive patch verification
 
-Do not treat `apply_patch` success as proof that the file now matches the intended edit.
+Do not treat a successful `Edit` or `Write` call as proof that the file now matches the intended edit.
 
 Use a defensive edit loop selectively:
 
