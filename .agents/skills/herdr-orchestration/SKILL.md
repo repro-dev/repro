@@ -181,7 +181,7 @@ Conventional Commit, and push.
 
 ### Sending to multiple sessions in parallel
 
-Launch all injections in parallel tool calls — each is independent. Use one `bash` call per target with `herdr agent prompt`.
+Launch all injections in parallel tool calls — each is independent. Use one `Bash` call per target with `herdr agent prompt`.
 
 ### Post-injection follow-up
 

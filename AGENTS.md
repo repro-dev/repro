@@ -41,6 +41,13 @@ This file is loaded automatically at session start. It covers cross-cutting rule
 - `skill-compliance` — verify skill/AGENTS adherence
 - `harden` — resilience follow-up when needed
 
+## Agent tooling layout
+
+- Skills, commands and agents live once, in `.agents/` (`skills/`, `commands/`, `agents/`). Edit them there, not through the symlinks: Claude Code's Edit and Write refuse to write through a symlink.
+- OpenCode reads them through the `.opencode/{skills,commands,agents}` symlinks. Claude Code reads skills and commands through the `.claude/skills` and `.claude/commands` symlinks.
+- `.claude/agents/` is generated from `.agents/agents/*.md`. Edit the source, then run `pnpm run agents:sync`. `pnpm run agents:check` runs in CI and fails when the generated files are stale.
+- `CLAUDE.md` is a symlink to this file, so both tools read the same rules.
+
 ## Tone and style
 
 ### ADHD-friendly output rules

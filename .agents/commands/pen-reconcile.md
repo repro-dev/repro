@@ -15,7 +15,7 @@ Arguments (optional): `$ARGUMENTS`
 4. Run Detect → Judge → Decide → Apply → Record:
    - **Detect**: `pnpm run pen:contract` (capture JSON to `tmp/`), build the candidate inventory.
    - **Judge**: match candidates to the issue scope; out-of-scope candidates are explicitly deferred.
-   - **Decide**: surface the inventory via the `question` tool — apply all / apply subset / defer / skip — and apply the selection.
+   - **Decide**: surface the inventory via the `AskUserQuestion` tool — apply all / apply subset / defer / skip — and apply the selection.
    - **Apply**: translate in-vocabulary overrides via the closed vocabulary; patch existing behavioral components (never regenerate); output a code-only reviewable diff plus the deferred-items list.
    - **Record**: write the applied manifest to `tmp/pen-applied.json`.
 5. Keep `/pen-reconcile` thin — the operating logic lives in the `pen-reconcile` skill; this file only defines the entrypoint.

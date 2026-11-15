@@ -47,7 +47,7 @@ Given the current Linear issue, match contract candidates to issue scope:
 
 ## 4. Decide — standalone vs build mode
 
-- **Standalone** (`/pen-reconcile`): surface the candidate inventory via the `question` tool — apply all / apply subset / defer / skip — and apply the selection.
+- **Standalone** (`/pen-reconcile`): surface the candidate inventory via the `AskUserQuestion` tool — apply all / apply subset / defer / skip — and apply the selection.
 - **Build mode** (`/build` phase clause): apply the agent's relevance judgment directly, without a question gate. The `/build` orchestrator has already tasked this skill via the pen-reconcile hand-off mandate.
 
 ## 5. Apply — translate and patch
