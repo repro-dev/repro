@@ -126,8 +126,21 @@ detect_worktree_slug() {
   fi
 }
 
+# Path of the worktree whose branch is <slug>, wherever git has it (Inky puts
+# worktrees under <repo>/.inky/worktrees/<branch>). Falls back to the sibling
+# repro-wt-<slug> path when no worktree matches, which is the creation path.
+# Always succeeds, so callers can use it in `x="$(worktree_path ...)"` under set -e.
+# shellcheck source=worktree_lookup.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/worktree_lookup.sh"
+
 worktree_path() {
-  echo "$WORKSPACE_ROOT/repro-wt-$1"
+  local slug="$1" found=""
+  found="$(_worktree_path_for_branch "$slug" "${REPO_ROOT:-.}" 2>/dev/null)" || found=""
+  if [[ -n "$found" ]]; then
+    echo "$found"
+    return 0
+  fi
+  echo "$WORKSPACE_ROOT/repro-wt-$slug"
 }
 
 # ── Worktree-aware resource resolution ──────────────────────────────

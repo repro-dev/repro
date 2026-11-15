@@ -2112,33 +2112,8 @@ _worktree_branch_for_path() {
   return 1
 }
 
-# Second arg scopes the git lookup (defaults to "."). Callers that must not
-# depend on the current directory (e.g. the issue resolver, deliver's dry-run)
-# pass "$REPO_ROOT".
-_worktree_path_for_branch() {
-  local target="$1"
-  local git_cwd="${2:-.}"
-  local wt_path="" wt_branch=""
-  while IFS= read -r line; do
-    case "$line" in
-      worktree\ *) wt_path="${line#worktree }" ;;
-      branch\ *)   wt_branch="${line#branch }"; wt_branch="${wt_branch#refs/heads/}" ;;
-      "")
-        if [[ "$wt_branch" == "$target" ]]; then
-          echo "$wt_path"
-          return 0
-        fi
-        wt_path="" wt_branch=""
-        ;;
-    esac
-  done < <(git -C "$git_cwd" worktree list --porcelain)
-  if [[ "$wt_branch" == "$target" ]]; then
-    echo "$wt_path"
-    return 0
-  fi
-
-  return 1
-}
+# _worktree_path_for_branch lives in worktree_lookup.sh (shared with common.sh).
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/worktree_lookup.sh"
 
 _list_available_worktrees() {
   local wt_path="" wt_branch="" wt_bare=false wt_detached=false
