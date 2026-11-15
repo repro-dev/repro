@@ -1,4 +1,5 @@
 import { colors } from '@repro/design'
+import { splitTopLevelCommas } from './utils'
 
 // CSS selector token types for specificity counting
 const TOKEN = {
@@ -433,7 +434,7 @@ export function computeSpecificity(
           } else if (token.value === ':where') {
             // :where() contributes 0 specificity
           } else if (token.value === ':is' || token.value === ':has') {
-            const innerSelectors = token.args.split(',').map(s => s.trim())
+            const innerSelectors = splitTopLevelCommas(token.args)
             let maxA = 0,
               maxB = 0,
               maxC = 0

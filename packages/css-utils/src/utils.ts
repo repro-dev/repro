@@ -302,3 +302,41 @@ const ignoredProperties = [
   'max-block-size',
   'max-inline-size',
 ]
+
+/**
+ * Split a selector list on commas that sit outside (), [] and quoted strings,
+ * so `:is(a, b) .x, .y` yields `[':is(a, b) .x', '.y']`. Escaped characters
+ * are skipped. Parts are trimmed and empty parts are dropped.
+ */
+export function splitTopLevelCommas(list: string): string[] {
+  const parts: string[] = []
+  let depth = 0
+  let quote: string | undefined
+  let start = 0
+
+  for (let i = 0; i < list.length; i++) {
+    const ch = list[i]!
+
+    if (ch === '\\') {
+      i++
+      continue
+    }
+    if (quote) {
+      if (ch === quote) quote = undefined
+      continue
+    }
+    if (ch === '"' || ch === "'") {
+      quote = ch
+    } else if (ch === '(' || ch === '[') {
+      depth++
+    } else if (ch === ')' || ch === ']') {
+      depth = Math.max(0, depth - 1)
+    } else if (ch === ',' && depth === 0) {
+      parts.push(list.slice(start, i))
+      start = i + 1
+    }
+  }
+  parts.push(list.slice(start))
+
+  return parts.map(part => part.trim()).filter(part => part.length > 0)
+}
