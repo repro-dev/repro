@@ -1,4 +1,4 @@
-"asdf:ctlptl" = "0.8.43"
+ctlptl = "0.8.43"
 helm = "3.19.2"
 moon = "2.2.5"
 node = "26.4.0"
@@ -9,6 +9,7 @@ tilt = "0.35.1"
 uv = "0.10.4"
 
 [plugins.tools]
+ctlptl = "https://raw.githubusercontent.com/repro-dev/repro/662168bce81eaca9649dda445cff49e2b32041aa/infra/proto/ctlptl.toml"
 moon = "https://github.com/moonrepo/plugins/releases/download/moon_tool-v0.4.1/moon_tool.wasm"
 tilt = "https://raw.githubusercontent.com/appthrust/proto-toml-plugins/main/tilt/plugin.toml"
 helm = "https://raw.githubusercontent.com/stk0vrfl0w/proto-toml-plugins/main/plugins/helm.toml"
