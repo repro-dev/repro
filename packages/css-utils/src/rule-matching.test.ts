@@ -1,7 +1,7 @@
 import type { CapturedCSSRule } from '@repro/domain'
 import expect from 'expect'
 import { describe, it } from 'node:test'
-import { matchCSSRulesVTree } from './rule-matching'
+import { matchCSSRules, matchCSSRulesVTree } from './rule-matching'
 
 function makeRule(selectorText: string): CapturedCSSRule {
   return {
@@ -190,5 +190,73 @@ describe('matchCSSRulesVTree', () => {
       attributes: {},
     })
     expect(matched).toHaveLength(1)
+  })
+})
+
+// Mimics Element.matches(): throws a SyntaxError for selectors with unbalanced
+// brackets or parentheses, and otherwise matches only the selectors in `matching`.
+function fakeElement(matching: string[]): Element {
+  return {
+    matches: (sel: string) => {
+      let depth = 0
+      let quote: string | undefined
+      for (const ch of sel) {
+        if (quote) {
+          if (ch === quote) quote = undefined
+        } else if (ch === '"' || ch === "'") {
+          quote = ch
+        } else if (ch === '(' || ch === '[') {
+          depth++
+        } else if (ch === ')' || ch === ']') {
+          depth--
+          if (depth < 0) break
+        }
+      }
+      if (quote || depth !== 0) {
+        throw new SyntaxError(`'${sel}' is not a valid selector`)
+      }
+      return matching.includes(sel)
+    },
+  } as unknown as Element
+}
+
+describe('matchCSSRules', () => {
+  it('matches a rule whose selector has commas inside :is() and :where()', () => {
+    const selector =
+      ':is([data-scrollbars="x"], [data-scrollbars="y"]):where([data-offset-scrollbars="xy"])'
+    const rules = [makeRule(selector)]
+    const matched = matchCSSRules(rules, fakeElement([selector]))
+    expect(matched).toHaveLength(1)
+  })
+
+  it('splits only on top-level commas when a :is() list precedes a top-level comma', () => {
+    const rules = [makeRule(':is(a, b) .x, .y')]
+    const matched = matchCSSRules(rules, fakeElement(['.y']))
+    expect(matched).toHaveLength(1)
+  })
+
+  it('keeps nested functional pseudo-classes intact', () => {
+    const selector = ':is(:where(a, b), c)'
+    const rules = [makeRule(selector)]
+    const matched = matchCSSRules(rules, fakeElement([selector]))
+    expect(matched).toHaveLength(1)
+  })
+
+  it('does not split on commas inside attribute values', () => {
+    const rules = [makeRule('[data-x="a,b"], .z')]
+    const matched = matchCSSRules(rules, fakeElement(['.z']))
+    expect(matched).toHaveLength(1)
+  })
+
+  it('still splits a plain selector list into separate selectors', () => {
+    const rules = [makeRule('.a, .b')]
+    const matched = matchCSSRules(rules, fakeElement(['.b']))
+    expect(matched).toHaveLength(1)
+  })
+
+  it('treats a selector the browser rejects as non-matching and keeps evaluating other rules', () => {
+    const rules = [makeRule('.broken['), makeRule('.ok')]
+    const matched = matchCSSRules(rules, fakeElement(['.ok']))
+    expect(matched.map(r => r.selectorText)).toEqual(['.ok'])
   })
 })
