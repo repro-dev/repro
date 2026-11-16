@@ -121,6 +121,8 @@ When a tool is installed elsewhere (e.g. in a Dockerfile, CI config, or setup sc
 
 `.prototools` also pins a **moon_tool plugin override** (`[plugins.tools] moon = "...moon_tool-v0.4.1/moon_tool.wasm"`) required for Moon v2's archive distribution format. The built-in proto plugin doesn't support v2 yet.
 
+`ctlptl` is pinned as `ctlptl = "0.8.43"` and installed through a TOML plugin (`[plugins.tools] ctlptl = "https://raw.githubusercontent.com/repro-dev/repro/<sha>/infra/proto/ctlptl.toml"`), which downloads the tilt-dev/ctlptl release binary. It replaces the `asdf:ctlptl` backend, which proto flags as unstable and which failed `proto install` in CI. The plugin URL is pinned to a commit SHA, so bump it when `infra/proto/ctlptl.toml` changes. Machines that installed ctlptl through asdf keep the old `bin/` layout and see `Unable to symlink binary` on the first `proto install`; `rm -rf ~/.proto/tools/ctlptl/0.8.43 && proto install` clears it (`proto uninstall` does not).
+
 When upgrading a tool version, update **all** pinning locations together.
 
 ### Node major-version bumps
