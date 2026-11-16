@@ -1,4 +1,5 @@
 import type { CapturedCSSRule } from '@repro/domain'
+import { splitTopLevelCommas } from './utils'
 
 export interface VTreeContext {
   tagName: string
@@ -12,7 +13,18 @@ function splitSelectors(selectorText: string): string[] {
   if (!selectorText || selectorText.trim().length === 0) {
     return []
   }
-  return selectorText.split(',').map(s => s.trim())
+  return splitTopLevelCommas(selectorText)
+}
+
+// The browser rejects some selectors (for example ones captured from a page
+// with unusual syntax). A rejected selector cannot match, so treat it as a
+// miss and keep evaluating the rest of the rule list.
+function safeElementMatches(element: Element, selector: string): boolean {
+  try {
+    return element.matches(selector)
+  } catch {
+    return false
+  }
 }
 
 function parseVTreeSelector(selector: string): {
@@ -310,7 +322,7 @@ export function matchCSSRules(
       return true
     }
     const selectors = splitSelectors(rule.selectorText)
-    return selectors.some(sel => element.matches(sel))
+    return selectors.some(sel => safeElementMatches(element, sel))
   })
 }
 
