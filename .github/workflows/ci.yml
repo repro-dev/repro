@@ -36,10 +36,9 @@ jobs:
 
       - name: Install PostgreSQL 17
         run: |
-          # apt-key is removed from the ubuntu-26.04 runner image; store the key in a keyring file instead
-          sudo install -d -m 0755 /etc/apt/keyrings
-          wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/keyrings/postgresql.gpg
-          sudo sh -c 'echo "deb [signed-by=/etc/apt/keyrings/postgresql.gpg] http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo wget --quiet -O /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          sudo sh -c 'echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
           sudo apt-get update
           sudo apt-get install -y postgresql-17
 
@@ -104,6 +103,9 @@ jobs:
 
       - name: Run tooling config regression test
         run: pnpm run test:tooling-config
+
+      - name: Check generated Claude Code agent definitions are current
+        run: pnpm run agents:check
 
       - name: Get Moon cache
         uses: actions/cache@v3

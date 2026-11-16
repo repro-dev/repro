@@ -76,6 +76,11 @@ describe('computeSpecificity', () => {
     expect(computeSpecificity(':has(#a, .b)')).toEqual([1, 0, 0])
   })
 
+  it('splits :is() arguments only on top-level commas when nested :not() has a comma', () => {
+    // :not(.a, #b) is (1,1,0); :is() takes the most specific argument
+    expect(computeSpecificity(':is(:not(.a, #b), .c)')).toEqual([1, 1, 0])
+  })
+
   it('handles :where() contributing zero specificity', () => {
     expect(computeSpecificity(':where(#a, .b, div)')).toEqual([0, 0, 0])
     expect(computeSpecificity('div:where(.foo)')).toEqual([0, 0, 1])
