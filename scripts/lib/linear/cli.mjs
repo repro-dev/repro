@@ -1156,6 +1156,39 @@ async function serializeIssueDetails(issue) {
   };
 }
 
+// Linear's own shape for issue show --json. Each node's `issue` is the other
+// side of the relation (for a blocker, the issue that blocks this one).
+// pageInfo is reported as Linear returns it; no further pages are fetched.
+async function serializeInverseRelationsConnection(issue) {
+  const connection = await resolveIssueConnection(
+    issue,
+    issue.inverseRelations,
+  );
+  const nodes = await Promise.all(
+    (connection?.nodes ?? []).map(async (relation) => {
+      const sourceIssue = await resolveRelationValue(relation.issue);
+      const relatedIssue = await resolveRelationValue(relation.relatedIssue);
+      const otherIssue =
+        sourceIssue?.id === issue.id
+          ? relatedIssue
+          : sourceIssue ?? relatedIssue;
+      return {
+        id: relation.id ?? null,
+        type: relation.type ?? null,
+        issue: otherIssue ? await serializeIssueSummaryCore(otherIssue) : null,
+      };
+    }),
+  );
+
+  return {
+    nodes,
+    pageInfo: {
+      hasNextPage: connection?.pageInfo?.hasNextPage ?? false,
+      endCursor: connection?.pageInfo?.endCursor ?? null,
+    },
+  };
+}
+
 function serializeLabel(label) {
   if (!label) return null;
   return {
@@ -1841,9 +1874,10 @@ async function issueShowCommand(args, context) {
   const item = await serializeIssue(client, issue, issueLabels);
   const details = await serializeIssueDetails(issue);
   if (context.json) {
+    const inverseRelations = await serializeInverseRelationsConnection(issue);
     return {
       code: 0,
-      stdout: toJson({ item: { ...item, ...details } }),
+      stdout: toJson({ item: { ...item, ...details, inverseRelations } }),
       stderr: "",
     };
   }

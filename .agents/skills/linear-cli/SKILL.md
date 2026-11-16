@@ -43,6 +43,7 @@ The repo's `Brewfile` installs `jq` for trimming high-volume JSON responses duri
 - List milestones: `linear milestone list --project "Workspace"`
 - Show issue details as JSON: `linear issue show ISSUE-1 --json`
 - Verify issue relations: `linear issue show ISSUE-1 --json | jq '.item.relations'`
+- Blockers in Linear's own shape: `linear issue show ISSUE-1 --json | jq '.item.inverseRelations | {blockers: [.nodes[] | select(.type == "blocks") | .issue.identifier], hasNextPage: .pageInfo.hasNextPage}'`. `inverseRelations` is additive; `relations` is unchanged. If `hasNextPage` is true, the list is only the first page.
 
 ## Aliases
 
