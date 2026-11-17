@@ -1172,6 +1172,22 @@ async function serializeIssueDetails(issue) {
   };
 }
 
+// The issue's team workflow states on issue show --json, in Linear's shape, so
+// callers can map a status name to its id. Null when the issue has no team.
+function serializeIssueTeamStates(team) {
+  if (!team) return null;
+  return {
+    states: {
+      nodes: (team.states?.nodes ?? []).map((state) => ({
+        id: state.id ?? null,
+        name: state.name ?? null,
+        type: state.type ?? null,
+        position: state.position ?? null,
+      })),
+    },
+  };
+}
+
 // Linear's own shape for issue show --json. Each node's `issue` is the other
 // side of the relation (for a blocker, the issue that blocks this one).
 // pageInfo is reported as Linear returns it; no further pages are fetched.
@@ -1893,7 +1909,14 @@ async function issueShowCommand(args, context) {
     const inverseRelations = await serializeInverseRelationsConnection(issue);
     return {
       code: 0,
-      stdout: toJson({ item: { ...item, ...details, inverseRelations } }),
+      stdout: toJson({
+        item: {
+          ...item,
+          ...details,
+          inverseRelations,
+          team: serializeIssueTeamStates(issue.team),
+        },
+      }),
       stderr: "",
     };
   }
