@@ -888,6 +888,21 @@ async function serializeMilestone(milestone, project = null) {
   };
 }
 
+// Linear's own projectMilestone shape (name and description), as inky reads it on issue show.
+function serializeProjectMilestone(milestone) {
+  if (!milestone) return null;
+  return {
+    id: milestone.id ?? null,
+    name: milestone.name ?? null,
+    description: milestone.description ?? null,
+    targetDate: milestone.targetDate ?? null,
+    updatedAt:
+      milestone.updatedAt instanceof Date
+        ? milestone.updatedAt.toISOString()
+        : milestone.updatedAt ?? null,
+  };
+}
+
 async function serializeMilestonePreview(milestone, project = null) {
   if (!milestone) return null;
   const resolvedProject = await resolveRelationValue(
@@ -932,6 +947,7 @@ async function serializeIssue(client, issue, labels = []) {
       : null,
     project: serializeProject(project),
     milestone: await serializeMilestone(milestone, project),
+    projectMilestone: serializeProjectMilestone(milestone),
     assignee: serializeUser(assignee),
     parentId: issue.parentId ?? parent?.id ?? null,
     parent: parent ? await serializeIssueSummaryCore(parent) : null,

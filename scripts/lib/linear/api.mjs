@@ -88,6 +88,7 @@ const ISSUE_BY_NUMBER_QUERY = [
   "        projectMilestone {",
   "          id",
   "          name",
+  "          description",
   "          targetDate",
   "          updatedAt",
   "          project { id name url updatedAt }",
